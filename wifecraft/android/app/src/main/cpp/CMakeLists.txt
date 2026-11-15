@@ -12,6 +12,7 @@ add_library(wcengine SHARED
     engine/bytes.cpp
     engine/m2.cpp
     engine/scene.cpp
+    engine/skin.cpp
     engine/wmo.cpp)
 
 target_compile_options(wcengine PRIVATE -O2 -Wall -Wno-unused-parameter)

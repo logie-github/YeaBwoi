@@ -1,0 +1,9 @@
+ID,ClientFileString,Name_lang,Flags,Alliance,UiDisplayOrder,PlayableRaceBit,UnalteredVisualRaceID
+1,Human,Human,6292620,0,0,0,0
+2,Orc,Orc,6291596,1,0,1,0
+29,VoidElf,"Void Elf",9961484,0,1,28,0
+24,Pandaren,Pandaren,6543380,2,0,23,0
+25,Pandaren,Pandaren,211460,0,0,24,0
+52,Dracthyr,Dracthyr,167772164,0,0,16,75
+75,Dracthyr,Dracthyr,103,0,0,-1,0
+95,tbdNPCRaceX,"TBD NPC Race 1",25190913,0,0,32,0

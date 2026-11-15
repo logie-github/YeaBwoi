@@ -1,0 +1,7 @@
+ID,CategoryName_lang,OrderIndex,CameraZoomLevel,SpellShapeshiftFormID
+1,Body,4,20,0
+2,Face,1,100,0
+3,Accessories,3,100,0
+4,Hair,2,100,0
+5,Markings,5,65,0
+6,"Bear Form",6,0,5

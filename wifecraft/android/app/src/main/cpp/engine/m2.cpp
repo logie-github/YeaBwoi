@@ -1,6 +1,9 @@
 #include "m2.h"
 
 #include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <unordered_map>
 
 namespace wc {
 
@@ -65,7 +68,7 @@ bool M2Model::load(uint32_t id, const FileLookup& files) {
     for (uint32_t i = 0; i < a.count; ++i) {
         size_t o = a.offset + i * kBoneSize;
         M2Bone b;
-        b.keyBoneId = r.i32(o); b.flags = r.u32(o + 4); b.parent = r.i16(o + 8);
+        b.keyBoneId = r.i32(o); b.flags = r.u32(o + 4); b.parent = r.i16(o + 8); b.nameCrc = r.u32(o + 12);
         b.translation = readTrack(r, o + 16);
         b.rotation = readTrack(r, o + 16 + kTrackSize);
         b.scale = readTrack(r, o + 16 + 2 * kTrackSize);
@@ -331,6 +334,162 @@ void M2Model::evalColor(int index, int seq, uint32_t timeMs, uint32_t globalMs, 
     V3 c = evalV3(colorRgb[index], seq, timeMs, globalMs, V3(1, 1, 1));
     rgba[0] = c.x; rgba[1] = c.y; rgba[2] = c.z;
     rgba[3] = std::clamp(evalShort(colorAlpha[index], seq, timeMs, globalMs, 1), 0.0f, 1.0f);
+}
+
+uint32_t crc32(const char* s, size_t n) {
+    uint32_t c = 0xFFFFFFFFu;
+    for (size_t i = 0; i < n; ++i) {
+        c ^= uint8_t(s[i]);
+        for (int k = 0; k < 8; ++k) c = (c >> 1) ^ (0xEDB88320u & (0u - (c & 1u)));
+    }
+    return ~c;
+}
+
+namespace {
+
+// name -> key bone ids, bone-name CRC names, "first child of" (tools/wow_bones.py: keep the two in step). The
+// left side is +y in model space, the face looks along +x; R_ names are the L_ ones mirrored.
+struct WowBoneRule {
+    const char* name;
+    int keys[2];
+    const char* crcs[3];
+    const char* childOf;
+};
+
+const WowBoneRule kWowBones[] = {
+    {"Root", {26, -1}, {"Root"}, nullptr},
+    {"Pelvis", {51, -1}, {"EXP_C1_Pelvis1"}, nullptr},
+    {"Waist", {5, -1}, {"Waist"}, nullptr},
+    {"Spine1", {4, -1}, {"SpineLow"}, nullptr},
+    {"Spine2", {48, -1}, {"EXP_C1_Spine2"}, nullptr},
+    {"Chest", {53, -1}, {"Chest", "SpineUp"}, nullptr},
+    {"Neck1", {49, -1}, {"EXP_C1_Neck1", "Neck"}, nullptr},
+    {"Neck2", {50, -1}, {"EXP_C1_Neck2"}, nullptr},
+    {"Head", {6, -1}, {"Head"}, nullptr},
+    {"Jaw", {7, -1}, {"Jaw"}, nullptr},
+    {"L_Clavicle", {2, -1}, {"ShoulderL"}, nullptr},     {"R_Clavicle", {3, -1}, {"ShoulderR"}, nullptr},
+    {"L_UpperArm", {0, -1}, {"ArmL"}, nullptr},          {"R_UpperArm", {1, -1}, {"ArmR"}, nullptr},
+    {"L_Forearm", {62, -1}, {"ElbowL", "ForearmL"}, nullptr}, {"R_Forearm", {61, -1}, {"ElbowR", "ForearmR"}, nullptr},
+    {"L_Hand", {65, -1}, {"HandL"}, nullptr},            {"R_Hand", {64, -1}, {"HandR"}, nullptr},
+    {"L_Thigh", {56, -1}, {"EXP_L1_Leg1Twist1", "LegL"}, nullptr}, {"R_Thigh", {55, -1}, {"EXP_R1_Leg1Twist1", "LegR"}, nullptr},
+    {"L_Calf", {58, -1}, {"EXP_L1_Leg2Twist1", "KneeL", "CalfL"}, nullptr}, {"R_Calf", {57, -1}, {"EXP_R1_Leg2Twist1", "KneeR", "CalfR"}, nullptr},
+    {"L_Ankle", {-1, -1}, {"EXP_L1_Leg2Twist3"}, nullptr}, {"R_Ankle", {-1, -1}, {"EXP_R1_Leg2Twist3"}, nullptr},
+    {"L_Foot", {59, -1}, {"FootL"}, nullptr},            {"R_Foot", {60, -1}, {"FootR"}, nullptr},
+    {"L_Toe", {-1, -1}, {"ToeL"}, "L_Foot"},             {"R_Toe", {-1, -1}, {"ToeR"}, "R_Foot"},
+    {"L_Breast", {-1, -1}, {"EXP_L1_Breast1"}, nullptr}, {"R_Breast", {-1, -1}, {"EXP_R1_Breast1"}, nullptr},
+    {"L_Thumb1", {17, -1}, {"ThumbL"}, nullptr},         {"R_Thumb1", {12, -1}, {"ThumbR"}, nullptr},
+    {"L_Thumb2", {-1, -1}, {"ThumbTipL"}, nullptr},      {"R_Thumb2", {-1, -1}, {"ThumbTipR"}, nullptr},
+    {"L_Index1", {13, -1}, {"IndexFingerL"}, nullptr},   {"R_Index1", {8, -1}, {"IndexFingerR"}, nullptr},
+    {"L_Index2", {-1, -1}, {"IndexFingerTipL"}, nullptr}, {"R_Index2", {-1, -1}, {"IndexFingerTipR"}, nullptr},
+    {"L_Middle1", {14, -1}, {"MiddleFingerL"}, nullptr}, {"R_Middle1", {9, -1}, {"MiddleFingerR"}, nullptr},
+    {"L_Middle2", {-1, -1}, {"MiddleFingerTipL"}, nullptr}, {"R_Middle2", {-1, -1}, {"MiddleFingerTipR"}, nullptr},
+    {"L_Ring1", {16, -1}, {"RingFingerL"}, nullptr},     {"R_Ring1", {11, -1}, {"RingFingerR"}, nullptr},
+    {"L_Ring2", {-1, -1}, {"RingFingerTipL"}, nullptr},  {"R_Ring2", {-1, -1}, {"RingFingerTipR"}, nullptr},
+    {"L_Pinky1", {15, -1}, {"PinkyFingerL"}, nullptr},   {"R_Pinky1", {10, -1}, {"PinkyFingerR"}, nullptr},
+    {"L_Pinky2", {-1, -1}, {"PinkyFingerTipL"}, nullptr}, {"R_Pinky2", {-1, -1}, {"PinkyFingerTipR"}, nullptr},
+    {"L_Eye", {285, -1}, {"EXP_L1_Eye1"}, nullptr},      {"R_Eye", {286, -1}, {"EXP_R1_Eye1"}, nullptr},
+};
+
+} // namespace
+
+int M2Model::findWowBone(const std::string& name) const {
+    for (const WowBoneRule& r : kWowBones) {
+        if (name != r.name) continue;
+        for (int k : r.keys) {
+            if (k < 0) continue;
+            for (size_t i = 0; i < bones.size(); ++i) if (bones[i].keyBoneId == k) return int(i);
+        }
+        for (const char* c : r.crcs) {
+            if (!c) continue;
+            uint32_t h = crc32(c, std::strlen(c));
+            for (size_t i = 0; i < bones.size(); ++i) if (bones[i].nameCrc == h) return int(i);
+        }
+        if (r.childOf) {
+            int p = findWowBone(r.childOf);
+            if (p >= 0) for (size_t i = 0; i < bones.size(); ++i) if (bones[i].parent == p) return int(i);
+        }
+        return -1;
+    }
+    return -1;
+}
+
+size_t applyBodyMorph(std::vector<M2Vertex>& vertices, const float* morph, size_t count, BodyMorphStats* stats) {
+    if (!morph || !count || vertices.empty()) return 0;
+    constexpr float kCell = 0.02f, kReach = 0.02f, kExact = 1e-5f;
+    auto cellOf = [&](float v) { return int64_t(std::floor(v / kCell)); };
+    auto key = [](int64_t x, int64_t y, int64_t z) { return (x & 0x1FFFFF) << 42 | (y & 0x1FFFFF) << 21 | (z & 0x1FFFFF); };
+    std::unordered_map<int64_t, std::vector<uint32_t>> grid;
+    grid.reserve(count);
+    for (size_t i = 0; i < count; ++i) {
+        const float* r = morph + i * kBodyMorphStride;
+        grid[key(cellOf(r[0]), cellOf(r[1]), cellOf(r[2]))].push_back(uint32_t(i));
+    }
+    BodyMorphStats st;
+    size_t moved = 0;
+    for (M2Vertex& v : vertices) {
+        V3 p(v.pos[0], v.pos[1], v.pos[2]);
+        V3 n(v.normal[0], v.normal[1], v.normal[2]);
+        int64_t cx = cellOf(p.x), cy = cellOf(p.y), cz = cellOf(p.z);
+        // the looks vertices at this place (several: a seam's, the same place in two sections), the best by its coordinates
+        const float* exact = nullptr;
+        int exactRank = -1;
+        V3 sum, nsum;
+        float wsum = 0;
+        for (int64_t dx = -1; dx <= 1; ++dx)
+            for (int64_t dy = -1; dy <= 1; ++dy)
+                for (int64_t dz = -1; dz <= 1; ++dz) {
+                    auto it = grid.find(key(cx + dx, cy + dy, cz + dz));
+                    if (it == grid.end()) continue;
+                    for (uint32_t i : it->second) {
+                        const float* r = morph + size_t(i) * kBodyMorphStride;
+                        V3 d = V3(r[0], r[1], r[2]) - p;
+                        float dist = d.length();
+                        if (dist < kExact) {
+                            bool body = std::fabs(r[12] - v.uv[0] * 2) < 1e-4f && std::fabs(r[13] - v.uv[1]) < 1e-4f;
+                            bool same = std::fabs(r[12] - v.uv[0]) < 1e-4f && std::fabs(r[13] - v.uv[1]) < 1e-4f;
+                            V3 rn(r[6], r[7], r[8]);
+                            int rank = (body || same ? 2 : 0) + (rn.dot(n) > 0.99f ? 1 : 0);
+                            if (rank > exactRank) { exactRank = rank; exact = r; }
+                            continue;
+                        }
+                        if (dist > kReach || exact) continue;
+                        V3 rn(r[6], r[7], r[8]);
+                        float facing = rn.dot(n);
+                        if (facing < 0.3f) continue;
+                        float w = facing / (dist * dist + 1e-8f);
+                        sum = sum + V3(r[3], r[4], r[5]) * w;
+                        nsum = nsum + (V3(r[9], r[10], r[11]) - rn) * w;
+                        wsum += w;
+                    }
+                }
+        V3 dp, dn;
+        if (exact) {
+            dp = V3(exact[3], exact[4], exact[5]);
+            dn = V3(exact[9], exact[10], exact[11]) - V3(exact[6], exact[7], exact[8]);
+            float du = exact[14] - exact[12], dv = exact[15] - exact[13];
+            if (du != 0 || dv != 0) {
+                if (std::fabs(exact[12] - v.uv[0] * 2) < 1e-4f && std::fabs(exact[13] - v.uv[1]) < 1e-4f) {
+                    v.uv[0] = exact[14] * 0.5f; v.uv[1] = exact[15]; ++st.uvs;
+                } else if (std::fabs(exact[12] - v.uv[0]) < 1e-4f && std::fabs(exact[13] - v.uv[1]) < 1e-4f) {
+                    v.uv[0] = exact[14]; v.uv[1] = exact[15]; ++st.uvs;
+                }
+            }
+            ++st.exact;
+        } else if (wsum > 0) {
+            dp = sum * (1.0f / wsum);
+            dn = nsum * (1.0f / wsum);
+            ++st.blended;
+        } else {
+            continue;
+        }
+        if (dp.length() < 1e-7f && dn.length() < 1e-6f) continue;
+        v.pos[0] += dp.x; v.pos[1] += dp.y; v.pos[2] += dp.z;
+        V3 nn = (n + dn).normalized();
+        v.normal[0] = nn.x; v.normal[1] = nn.y; v.normal[2] = nn.z;
+        ++moved;
+    }
+    if (stats) *stats = st;
+    return moved;
 }
 
 } // namespace wc

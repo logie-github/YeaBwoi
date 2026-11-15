@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import com.logie.wifecraft.BuildConfig
+import com.logie.wifecraft.creator.GameTables
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.json.JSONObject
@@ -11,15 +12,19 @@ import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * The game's files the demo needs (assets/files.json: ids and sizes, in packs), fetched once from
- * wago.tools into the app's storage (files/game/<id>) and kept. Nothing of the game ships in the
- * app itself.
+ * The game's files, fetched from wago.tools into the app's storage and kept; nothing of the game
+ * ships in the app. The first launch gathers what every story needs (assets/files.json: ids and
+ * sizes, in packs: WoW's interface and fonts, Dalaran's buildings and props for the places, the
+ * music and sounds) and the game's tables the character creator reads ([GameTables], into
+ * files/cache/tables, right after the interface). A look's own files (its model, skins, animations,
+ * textures) are fetched when it is first shown ([fetchNow], engine/Dresser), into files/game/<id>.
  */
 class GameFiles(private val context: Context) {
 
@@ -41,6 +46,9 @@ class GameFiles(private val context: Context) {
     }
 
     val dir = File(context.filesDir, "game").apply { mkdirs() }
+    /** The game's tables (CSV), as creator/CsvTables reads them. */
+    val tablesDir = File(context.filesDir, "cache/tables").apply { mkdirs() }
+    private val locks = ConcurrentHashMap<Int, Any>()
     val packs: List<Pack>
     private val source: String
     private val _progress = MutableStateFlow(Progress())
@@ -67,8 +75,10 @@ class GameFiles(private val context: Context) {
     fun file(id: Int): File = File(dir, id.toString())
     fun has(id: Int): Boolean = file(id).let { it.isFile && it.length() > 0 }
     fun packComplete(name: String): Boolean = packs.firstOrNull { it.name == name }?.files?.all { has(it.first) } == true
-    val allComplete: Boolean get() = packs.all { p -> p.files.all { has(it.first) } }
-    val totalBytes: Long get() = packs.sumOf { it.bytes }
+    val tablesComplete: Boolean get() = GameTables.complete(tablesDir)
+    val allComplete: Boolean get() = packs.all { p -> p.files.all { has(it.first) } } && tablesComplete
+    val totalBytes: Long get() = packs.sumOf { it.bytes } + GameTables.APPROX_BYTES
+    private fun tableBytes(): Long = GameTables.NAMES.sumOf { File(tablesDir, "$it.csv").length() }.coerceAtMost(GameTables.APPROX_BYTES)
 
     /** Recounts what's on the phone. */
     fun refresh() {
@@ -79,7 +89,11 @@ class GameFiles(private val context: Context) {
             for ((id, size) in p.files) if (has(id)) done += size else all = false
             if (all) complete += p.name
         }
-        _progress.value = _progress.value.copy(done = done, total = totalBytes, complete = complete)
+        done += tableBytes()
+        if (tablesComplete) complete += TABLES
+        // (the tables' size is an estimate: all here is all done)
+        if (allComplete) done = totalBytes
+        _progress.value = _progress.value.copy(done = done.coerceAtMost(totalBytes), total = totalBytes, complete = complete)
     }
 
     fun onWifi(): Boolean {
@@ -99,7 +113,16 @@ class GameFiles(private val context: Context) {
         _progress.value = _progress.value.copy(running = true, waitingForWifi = false, error = null)
         job = Thread {
             try {
-                val done = AtomicLong(packs.sumOf { p -> p.files.filter { has(it.first) }.sumOf { it.second } })
+                val done = AtomicLong(packs.sumOf { p -> p.files.filter { has(it.first) }.sumOf { it.second } } + tableBytes())
+                fun tables() {
+                    if (cancelled.get() || tablesComplete) return
+                    _progress.value = _progress.value.copy(current = TABLES)
+                    GameTables.fetch(tablesDir, stop = { cancelled.get() }) { name, _, _ ->
+                        done.addAndGet(File(tablesDir, "$name.csv").length())
+                        _progress.value = _progress.value.copy(done = done.get().coerceAtMost(totalBytes))
+                    }
+                    if (tablesComplete) _progress.value = _progress.value.copy(complete = _progress.value.complete + TABLES)
+                }
                 for (p in packs) {
                     if (cancelled.get()) break
                     _progress.value = _progress.value.copy(current = p.name)
@@ -115,7 +138,10 @@ class GameFiles(private val context: Context) {
                     }
                     for (t in tasks) t.get()
                     if (!cancelled.get()) _progress.value = _progress.value.copy(complete = _progress.value.complete + p.name)
+                    // the creator's tables right after the interface: the editor needs them, the city can follow
+                    if (p.name == "interface") tables()
                 }
+                tables()
                 refresh()
                 _progress.value = _progress.value.copy(running = false, current = "")
             } catch (e: Exception) {
@@ -130,12 +156,26 @@ class GameFiles(private val context: Context) {
         _progress.value = _progress.value.copy(running = false)
     }
 
-    private fun fetch(id: Int) {
+    /**
+     * Fetches one file now if it isn't here (a look's own files, as they are needed; any connection, and not stopped by
+     * [pause]). Blocks; throws when wago.tools can't give it.
+     */
+    fun fetchNow(id: Int) {
+        fetch(id, null)
+    }
+
+    private fun fetch(id: Int, cancel: AtomicBoolean? = cancelled) {
+        synchronized(locks.getOrPut(id) { Any() }) {
+            if (!has(id)) download(id, cancel)
+        }
+    }
+
+    private fun download(id: Int, cancel: AtomicBoolean?) {
         val target = file(id)
         val part = File(dir, "$id.part")
         var last: Exception? = null
         for (attempt in 0 until 5) {
-            if (cancelled.get()) return
+            if (cancel?.get() == true) return
             try {
                 val conn = URL(source.replace("<id>", id.toString())).openConnection() as HttpURLConnection
                 conn.connectTimeout = 15000
@@ -156,5 +196,10 @@ class GameFiles(private val context: Context) {
             }
         }
         throw last ?: IOException("Can't fetch file $id")
+    }
+
+    companion object {
+        /** The name the game's tables go by in [Progress.current] and [Progress.complete]. */
+        const val TABLES = "tables"
     }
 }

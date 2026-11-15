@@ -1,87 +1,191 @@
 # Wifecraft
 
-A Warcraft dating sim for Android, laid out like a visual novel: a speaker from the waist up, a
-text box with their name, choices. The people are the game's own models playing the game's emotes,
-and the scenes are Legion's Dalaran over the Broken Isles, drawn live in 3D behind them. The menus
-are WoW's own interface: the talking-head box, the gossip window, the red buttons, reputation bars
-for affection, the achievement toast for an ending.
+A story editor for Android: a visual novel and scene builder. You make the people in a character
+creator laid out as Wrath++'s (Shadowlands' own creator: every race and allied race, both sexes,
+every option the game's tables give), set scenes on a stage, write what they say and the choices
+the reader makes, and play it back: the speakers from the waist up over a live 3D stage, the words
+in WoW's talking-head box, the choices in its gossip window. The people are the game's own models
+playing the game's emotes; the menus are WoW's own interface.
 
 | | |
 | --- | --- |
 | App | Wifecraft (`com.logie.wifecraft`), Android 8 or later, 64-bit ARM, OpenGL ES 3 |
-| The demo | *A Day in Dalaran*: a prologue flyover, three chapters (morning, afternoon, night), two routes, five endings |
-| The routes | Alleria Windrunner, and Nyrelle Moonquill (a night elf huntress, a Sentinel far from Darnassus) with her nightsaber Shadowpaw |
-| You | A Kirin Tor Invoker, man or woman, with your own name |
-| The game's files | Fetched once from [wago.tools](https://wago.tools) on the first launch (about 311 MB), kept on the phone; none are in the app |
-| Music and sounds | The game's own: Legion's Dalaran by day, dusk and night, Alleria's theme, Darnassus and the Temple of the Moon for Nyrelle, the city's ambience, the characters' emote voices, Shadowpaw's roars, the interface's clicks and the achievement fanfare |
+| What you make | Projects: a cast of people (as many as you like) and scenes, each a stage and its beats |
+| The stages | The studio (the people alone, in the void) and four places in Legion's Dalaran: Krasus' Landing, its streets, a plaza below the Violet Citadel, the Citadel's terrace; each by day, dusk or night |
+| The game's files | Fetched from [wago.tools](https://wago.tools) on the phone and kept; none are in the app or this repository |
 
 ## First launch
 
-1. Open the app. The title says the demo needs Dalaran's files: tap **Gather Dalaran**.
-2. **Start** fetches them: the interface first (so the screens turn into WoW's), then the
-   people, the city and its props, then the music and sounds (the story can start before those
-   arrive; it plays silent until they do). **Pause** stops; **Resume** carries on where it stopped (files
-   already fetched are kept). **Wi-Fi only** (on by default) waits for Wi-Fi.
-3. When it says "Dalaran is ready", **Back** to the title and **New Story**.
-4. **Who Are You?**: your name and look, then **Arrive in Dalaran**.
+1. The title says the files aren't here yet: **Gather the Files**, then **Start**. It fetches WoW's
+   interface first, then the game's tables the character creator reads (about 20 MB), then
+   Dalaran (the places' backdrop) and its props, then the music and sounds; about 210 MB in all.
+   **Pause** stops, **Resume** carries on; **Wi-Fi only** (on by default) waits for Wi-Fi.
+2. Each race's model, skins, animations and textures are fetched when a character first wears
+   them (in the creator, the scene builder or Play), on any connection: a bar at the top of the
+   screen counts them. The creator's own art (Shadowlands' sheets, build 9.2.7) is fetched with the
+   files and cut when the creator opens.
+
+## The title
+
+**Continue** opens the project you worked on last, **New Project** starts one, **Projects** lists
+them all (open, rename, delete). **Import Animations** and **Animations** (the library) are
+described under "Sims 4 animations" below. **Options** and **Updates** are below.
+
+## The editor
+
+- **Cast**: the project's people. **New NPC** opens the character creator; **Edit**,
+  **Duplicate**, **Delete**.
+- **The character creator** is Wrath++'s screen: the races down both sides and the two sexes, then
+  Customize with the round category buttons (Face, Hair, Accessories, Body, Markings... as the
+  game's tables name them for that race and sex), the dice, each option with its choice, arrows
+  and tap-for-list, the name box, the view buttons, Back and Finish. Drag turns the character,
+  pinch brings it nearer. Every option and choice comes from the game's tables
+  (`ChrCustomization*`), drawn on the model as you pick it. Wrath++'s own body options (Shape,
+  Style, Density) are there for the women of 3.3.5's ten races, drawn from the body options'
+  package when it is imported (below). **Gear** is last in every category.
+- **Scenes**: **Add scene**, **Up**/**Down**, **Start** (where the story starts), **Rename**, **Delete**.
+- **The scene builder**: the stage (a place and a light) with the cast standing as the selected
+  beat leaves them, and the beats in order: **Say** (who, an emote, the words; nobody is narration),
+  **Show** (who, left, center or right, and the camera: bust, two, wide or one of the place's
+  views), **Hide**, **Camera**, **Pose** (who holds an imported animation, picked by name from the
+  library; **Preview** plays it on the stage, **Stop** ends it), **Choice** (each answer goes to a
+  scene), **Goto** a scene, **End** (its title is shown as the ending). A Say's emote list also
+  offers the library's animations ("Pose: name"): the line is spoken while the person holds it. **Check** lists what would stop it playing; **Play** plays the
+  project from this scene.
+
+## Sims 4 animations
+
+**Import Animations** (the title) turns Sims 4 animation files into poses and clips your stories can
+use. Nothing from the Sims game is in the app or the repository: you bring the files.
+
+1. **The Sims 4 skeleton, once.** Conversion needs the Sims' own skeleton (its RIG resource), which
+   lives in the game's packages, not in animation mods. Under "Sims 4 skeleton" tap **Choose
+   package** and pick a game package from your own install (a file such as
+   `ClientFullBuild0.package`). Only its index is read; the skeleton found is kept in the app's
+   storage (`files/anims/rig`), so the big package is read once. The row says whether a skeleton is
+   loaded. Without one you can still pick files, but each is reported as **Failed** with that
+   reason; nothing is converted or invented.
+2. **Choose animation files.** Pick one or many `.package` files, or a `.zip` or `.7z` holding them
+   (folders inside are fine; entries with unsafe paths, such as `../` or absolute ones, are
+   refused and said so; temporary files are removed afterwards; an invalid archive is reported and
+   the rest carries on). The list shows each file or clip as it converts: **Done**, **Skipped**
+   (for example a package with no clips) or **Failed**, with the reason. One bad file never stops
+   the others.
+3. **Review.** Each converted animation has a name (its clip or file name to begin with), a
+   category (one of the existing ones, or **New**), a Keep/Skip button; with several, **All to**
+   sets one category for the batch. **Save** adds them to the library. The same source (the file's
+   hash and the clip's name) is skipped with a message; the same display name gets " (2)".
+
+**Animations** (the title, or Import's neighbour) is the library: search by name, category or
+source file, filter by category, **Rename**, **Category**, **Delete**. It is stored as one JSON
+file per animation plus an index, under `files/anims/`, written atomically. Playing an animation
+from the library screen is not there; use a Pose beat's **Preview** in the scene builder.
+
+In a story, a Pose beat is compiled to the script command `pose <person> <id>` and played by the
+renderer: the animation's bones replace the person's skeleton pose by bone name (the conversion's
+profile in `assets/sims_profile.json` says which Sims bone drives which WoW bone) and a pose holds
+until the person moves, uses a game emote or leaves. An animation that has since been deleted is a
+problem **Check** names, and is skipped if you play anyway.
+
+What it can't do (yet): poses (single-frame clips) are what it is made for; longer clips convert
+with the same rules but are less checked. Sims content that is not an animation clip (objects,
+CAS parts, sliders, scripts), Sims 4's compressed or encrypted packages that the reader doesn't
+know, and clips whose bones the profile doesn't map are reported, not converted. The Wifecraft
+renderer draws the game's current models without 3.3.5's animation sequences, so a pose is the
+bone transforms of the clip, not blended with an idle. The skeleton package is read from disk, so
+it needs room for one temporary copy while it is picked.
 
 ## Playing
 
 | Gesture | Does |
 | --- | --- |
 | Tap | Show the whole line; tap again for the next |
-| Hold | Fast-forward through the lines, while held |
+| Hold | Fast-forward through lines already read, while held |
 | Swipe up | What Was Said (the log) |
 | Swipe down | Hide the text box to look at the scene; tap to bring it back |
-| Two-finger tap, or Android's back | The Game Menu |
+| Two-finger tap, or Android's back | The Game Menu: Resume, What Was Said, Options, Stop Playing |
 | On a choice | Tap the answer |
 
-The cutscenes (the flyover, the saber's charge, walks and camera moves) play on their own; a tap
-or a hold skips ahead through them as through lines.
+An End beat shows its title as an achievement toast; **Back**, or the end of the story, returns
+to the editor.
 
-**Affection** is each route's reputation, Neutral to Exalted, shown in the Game Menu. The night's ending depends on whom you spend the evening with and
-how they feel about you: Revered or better is the romance ending, less is the friendship one.
+## Options
 
-**Endings**: Windrunner's Promise and Arrows at Dusk (Alleria), Under Elune's Light and A Saber's
-Trust (Nyrelle), A City of Strangers (on your own). Each found ending is kept in **Endings** on
-the title screen.
+Music and sound volume; text speed; the parchment talking head instead of Legion's dark one; Wi-Fi
+only for the first launch's gathering; and, from the title, the creator's **Imports**:
 
-## Menus
+| Import | The zip | What it does |
+| --- | --- | --- |
+| Ralia's mod | `ralia.zip` | Character textures in place of the game's (matched by name with the game's file list, fetched once, about 150 MB) |
+| Alternate Female Options | `alternate-female.zip` | The women's textures in place of the game's (one texture set is used at a time) |
+| Body options | `wrathpp-body.zip` (or `body.zip`) | Wrath++'s Shape, Style and Density |
 
-- **Game Menu**: Resume, Save, Load, What Was Said, Options, Title Screen, and the Reputation pane.
-- **Save / Load**: six slots and the autosave (made at the start of each scene). **Continue** on
-  the title loads the latest.
-- **Options**: music and sound volume (0 is off); text speed (60 letters a second to start; at the far right, whole lines at once); the parchment talking head instead of Legion's dark one; Wi-Fi only.
+Each zip is looked for by its name in Download, Downloads, Documents and the top of the phone's
+storage (where Android lets the app look) and taken in by itself; **Choose zip** picks it by hand,
+**Remove** takes it off. The zips are yours: nothing of them is in the app or this repository.
 
 ## Updates
 
-Coming from 1.0.3 or earlier, the title shows **Get Music**: it fetches the music and sounds
-(16 MB) on the Gathering screen; the rest stays as it was.
-
 The app checks this repository's releases (`wifecraft-N`) when it starts; **Updates** on the title
 shows the newest and installs it (Android asks once to allow installs from the app). The update
-keeps the game's files, saves and endings.
+keeps the game's files and your projects.
 
 ## How it's built
 
 - **The renderer** (`android/app/src/main/cpp/engine`, C++17, OpenGL ES 3): the game's textures
-  (BLP), models (M2 with their skins and animation files, skinned on the GPU, with character
-  customization geosets, textures and shoulder attachments), and Dalaran's buildings (WMO groups
-  with their placed props), lit by time of day with fog. It draws only what the camera sees.
-- **The story** (`assets/story/demo.wfs`): a small script language (scenes, places and camera
-  views from `assets/places.json`, lines, emotes, walks, choices, affection, endings), run by
-  `story/StoryRunner.kt` and staged by `play/Director.kt`.
-- **The looks, the sounds and the file list** come from the game's tables on wago.tools:
-  `tools/looks.py` (writes `assets/looks.json`), `tools/sounds.py` (`assets/sounds.json`: which
-  tracks, voices and effects) and `tools/manifest.py` (`assets/files.json`).
-- **Sound** (`audio/Audio.kt`): music crossfades and loops, the city's ambience loops under it,
-  voices and effects play from a sound pool; the story picks the music (`music NAME`) and effects
-  (`sound NAME`), voices follow the emotes.
-- `engine-test/` is a desktop build of the renderer (headless EGL) used to check scenes off the
-  phone. `unit-tests/` checks the script, the runner, every route of the demo and updates.
+  (BLP), models (M2 with their skins and animation files, skinned on the GPU), a character's
+  customization (geosets, the skin composed from its layers on the GPU, extra and skinned models,
+  Wrath++'s body shapes and layer), and Dalaran's buildings (WMO groups with their placed props),
+  lit by the light of the time of day, with fog; the city can be hidden for the studio.
+- **The creator** (`creator/`, plain Kotlin): `Catalog` (races, categories, options, choices from
+  the game's tables), `CreatorModel` (Wrath++'s behaviour), `LookResolver` (a look as model,
+  geosets, texture layers, extra models and the files it needs), `Dressing` (that look as the
+  renderer's call: each layer's rectangle from `CharComponentTextureSections` and
+  `ChrModelMaterial`), `GameTables` (which tables, fetched once), `ImportStore` and `BodyShapes`
+  (the imports). `engine/Dresser.kt` fetches a look's files and dresses the actor.
+- **The editor** (`editor/`): the project (`Project`, saved as `files/projects/<id>/project.json`,
+  written atomically by `ProjectStore`) and `Compile`, which turns it into the story script
+  (`story/Script.kt`) that `story/StoryRunner.kt` runs and `play/Director.kt` stages.
+- **The places** (`assets/places.json`): each place's marks (every one has left, center and
+  right), its camera views; the studio.
+- **The file lists** come from the game's tables on wago.tools: `tools/manifest.py`
+  (`assets/files.json`: the interface, Dalaran, its props, the sounds), `tools/sounds.py`
+  (`assets/sounds.json`), `tools/creator_art.py` (`assets/creator_art.json`); ids only.
+- `engine-test/` is a desktop build of the renderer (headless EGL) used to check looks and scenes
+  off the phone. `unit-tests/` (JVM) checks the editor, the script and runner, the creator against
+  the game's own tables, the glue to the renderer, the places and updates.
 - CI: `.github/workflows/build-wifecraft.yml` runs the unit tests, builds the APK and publishes
   the release.
+
+## What was tested
+
+The JVM unit tests and the renderer's desktop build (`engine-test/`). The animation import's pure
+parts (the progress list, the review and save, the library browser, the Pose beat's save, compile,
+checks and script command) are unit-tested; its screens, the file pickers, a real Sims 4 package
+and the poses on a model have not run (nothing here runs on a phone). Nothing of the editor, the
+creator's screen, the downloads on the phone or Play has run on a phone yet. Not drawn yet: the
+face shapes (`ChrCustomizationBoneSet`'s bone files are fetched, the renderer has no call for
+them), the starting outfit (Gear shows or hides the bare equipment geosets only) and voices for the
+people's emotes.
+
+## Changes
+
+- **Sims 4 animations** (November 2026): **Import Animations** and **Animations** on the title,
+  the Pose beat and the library's animations in a Say's emote list ("Sims 4 animations" above).
+
+- **The story editor** (November 2026): the demo story (*A Day in Dalaran*, Alleria, Nyrelle, the
+  endings, the reputations, the Who Are You? screen, saves) is gone; Wifecraft is now a story
+  editor with a character creator laid out as Wrath++'s, every race and option of the game's
+  tables, the imports (Ralia's mod, Alternate Female Options, the body options), the studio stage
+  and Play.
 
 Wifecraft is a fan project, not affiliated with or endorsed by Blizzard Entertainment. World of
 Warcraft and its characters, models and art are Blizzard's; the app downloads them for you and
 doesn't include them.
+
+## Sims animation conversion: what is verified and what is not
+
+- **Verified (desktop, synthetic):** the Sims 4 package and clip reader decodes the 15 clips of one sample pose pack (96 bone rotations and 96 translations each, all bone hashes named); the retargeter maps a synthetic Sims pose onto a night elf model's bones and the engine draws it (`engine-test`, Mesa headless).
+- **Not verified:** a real Sims pose converted with a real Sims 4 skeleton (none was available: the skeleton's bone names and parents come from community documentation, unchecked against the game's own RIG), anything on a phone, the compressed channel types (palette and normalized) against real data.
+- **Known limits:** while an imported animation plays, its bones and every bone above them stand at the model's rest pose (the A-pose), and only each bone's direction is corrected (it can still be twisted along its length). Sims face and CAS bones are dropped. Poses are single-frame; motion clips use the same path and are untested.
+- **Sample viewer:** `tools/viewer_html.py` builds a private single-file HTML viewer of a night elf with the test poses and a loader for the importer's animation JSON (it embeds game model data: keep the output file to yourself; never commit it).

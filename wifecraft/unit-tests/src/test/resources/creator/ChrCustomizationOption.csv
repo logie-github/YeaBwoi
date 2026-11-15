@@ -1,0 +1,14 @@
+Name_lang,ID,ChrModelID,OrderIndex,ChrCustomizationCategoryID,OptionType
+"Skin Color",10,2,1,2,0
+Face,11,2,2,2,0
+"Hair Style",12,2,3,4,0
+Tattoo,13,2,4,5,0
+"Tattoo Color",14,2,5,5,0
+Horns,15,2,6,5,0
+Upright,16,2,7,1,1
+,17,2,8,2,0
+"Eye Color",18,2,9,2,0
+Glow,19,2,10,3,0
+"Bear Form",20,2,11,6,0
+"Skin Color",30,1,1,2,0
+"Skin Color",40,58,1,2,0

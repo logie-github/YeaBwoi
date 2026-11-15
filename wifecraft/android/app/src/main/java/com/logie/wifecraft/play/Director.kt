@@ -4,39 +4,58 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.logie.wifecraft.data.Cast
-import com.logie.wifecraft.data.Content
 import com.logie.wifecraft.data.Emotes
 import com.logie.wifecraft.data.Lights
-import com.logie.wifecraft.data.Save
-import com.logie.wifecraft.data.Saves
 import com.logie.wifecraft.data.Settings
 import com.logie.wifecraft.engine.Clock
 import com.logie.wifecraft.engine.Placement
 import com.logie.wifecraft.engine.Stage
 import com.logie.wifecraft.story.CameraPose
 import com.logie.wifecraft.story.Command
+import com.logie.wifecraft.story.Script
 import com.logie.wifecraft.story.Shots
 import com.logie.wifecraft.story.Step
 import com.logie.wifecraft.story.StoryRunner
 import com.logie.wifecraft.story.StoryState
 import com.logie.wifecraft.story.Vec3
+import com.logie.wifecraft.ui.PlaceInfo
+import com.logie.wifecraft.ui.Staging
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.sin
 
 /**
- * Plays the story: runs the script, stages it in the 3D scene (people, their walks and emotes, the
- * camera's moves and shakes) and holds what the screen shows over it (the line being said, a
- * choice, a chapter card, fades, the letterbox, an ending). Lives on the main thread; [tick] is
- * called every frame.
+ * Plays an imported animation (anim/AnimLibrary) on a person of the stage: the host looks the id up and calls
+ * SceneView.playAnim; false when the library has no such animation.
+ */
+interface PosePlayer {
+    fun play(who: String, animId: String): Boolean
+    fun stop(who: String)
+
+    object None : PosePlayer {
+        override fun play(who: String, animId: String) = false
+        override fun stop(who: String) = Unit
+    }
+}
+
+/**
+ * Plays a story (the editor's project compiled to a script: editor/Compile): runs the script,
+ * stages it in the 3D scene (people, their walks and emotes, the camera's moves and shakes) and
+ * holds what the screen shows over it (the line being said, a choice, a chapter card, fades, the
+ * letterbox, an ending). [people] are the script's names (`p_...`) with the name the talking head
+ * shows; [dress] puts that person's saved look on the stage under the same key. Any ending id is
+ * played: its title is the script's. Lives on the main thread; [tick] is called every frame.
  */
 class Director(
-    private val content: Content,
+    private val script: Script,
+    private val places: Map<String, PlaceInfo>,
+    private val people: Map<String, String>,
     private val settings: Settings,
-    private val saves: Saves,
     private val scene: Stage,
     private val sounds: Sounds = Sounds.None,
+    private val dress: (key: String) -> Unit,
     private val onFinished: () -> Unit,
+    /** Where `pose` commands go (the imported animations); without it they are skipped. */
+    private val poses: PosePlayer = PosePlayer.None,
 ) {
     data class Line(val who: String, val name: String, val text: String, val index: Int, val shownAt: Int, val seen: Boolean) {
         /** When a tap showed the whole line (it then stays whole), or -1 while it's still typing. */
@@ -48,6 +67,7 @@ class Director(
     var choice by mutableStateOf<Choice?>(null); private set
     var title by mutableStateOf<Pair<String, String>?>(null); private set
     var titleShownAt = 0; private set
+    /** The ending reached: its title. */
     var ending by mutableStateOf<String?>(null); private set
     var letterbox by mutableStateOf(false); private set
     var fade by mutableFloatStateOf(1f); private set
@@ -67,7 +87,9 @@ class Director(
     }
 
     private val actors = mutableMapOf<String, Actor>()
-    private var place = content.places.values.first()
+    /** Who holds an imported pose now (it holds until they move, emote or leave; a spoken line keeps it). */
+    private val posed = mutableSetOf<String>()
+    private var place = places.values.firstOrNull() ?: PlaceInfo.STUDIO
     private var camera = CameraPose(Vec3(0f, -10f, 3f), Vec3(0f, 0f, 1f), 45f)
     private var camFrom = camera
     private var camTo = camera
@@ -81,35 +103,17 @@ class Director(
     private var fadeMs = 0
     private var fastForward = false
     private val cityReady = AtomicBoolean(false)
-    private var cityRequested = false
-    private val seen = settings.seen.toMutableSet()
+    private val seen = mutableSetOf<String>()
 
-    private val playerName get() = settings.playerName.ifBlank { "Traveller" }
-
-    /** A new story from its beginning. */
+    /** The story from its beginning (the script's first command: Compile starts it at the scene asked for). */
     fun begin() {
-        runner = StoryRunner(content.script, StoryState()) { playerName }
-        startCity()
-    }
-
-    /** A saved story, its stage set again as it was. */
-    fun resume(save: Save) {
-        settings.playerName = save.playerName
-        settings.playerLook = save.playerLook
-        runner = StoryRunner(content.script, save.state) { playerName }
-        startCity()
-        for (c in runner.stageCommands()) stage(c, Clock.now(), instant = true)
-        sounds.music(save.state.music, 1500)
-        fade = 1f; fadeFrom = 1f; fadeTo = 0f; fadeStart = Clock.now(); fadeMs = 900
-    }
-
-    private fun startCity() {
-        // A story before this one may have left people on stage.
+        runner = StoryRunner(script, StoryState()) { "You" }
+        // Whoever was on stage before (the editor's preview) goes; the city is loaded only when a scene is in it.
         scene.removeAll()
-        if (cityRequested) return
-        cityRequested = true
-        if (scene.cityLoaded.get()) { cityReady.set(true); return }
-        val centres = content.allMarks().flatMap { listOf(it.x, it.y, it.z) }.toFloatArray()
+        fade = 1f; fadeFrom = 1f; fadeTo = 0f; fadeStart = Clock.now(); fadeMs = 900
+        val inCity = script.commands.any { it is Command.Scene && places[it.place]?.void == false }
+        if (!inCity || scene.cityLoaded.get()) { cityReady.set(true); return }
+        val centres = Staging.allMarks(places.values.toList()).flatMap { listOf(it.x, it.y, it.z) }.toFloatArray()
         scene.loadCity(centres) { cityReady.set(true) }
     }
 
@@ -157,21 +161,6 @@ class Director(
         line = null
     }
 
-    // ------------------------------------------------------------------ saving
-
-    fun save(slot: Int) {
-        saves.write(Save(slot, runner.state.copy(
-            affection = runner.state.affection.toMutableMap(),
-            flags = runner.state.flags.toMutableSet(),
-            stage = runner.state.stage.toMutableList(),
-            log = runner.state.log.toMutableList(),
-        ).also { snapshot ->
-            // A line or choice on screen is said again on loading: save from just before it.
-            line?.let { snapshot.pc = it.index; snapshot.log.removeLastOrNull() }
-        }, playerName, settings.playerLook, place.name, System.currentTimeMillis()))
-        settings.seen = seen
-    }
-
     // ------------------------------------------------------------------ each frame
 
     fun tick() {
@@ -208,13 +197,10 @@ class Director(
                     sounds.ui("gossip")
                 }
                 is Step.Ending -> {
-                    settings.endings = settings.endings + step.id
-                    settings.seen = seen
-                    ending = step.id
+                    ending = step.title.ifBlank { step.id }
                     sounds.ui("ending")
                 }
                 Step.Finished -> {
-                    settings.seen = seen
                     onFinished()
                     return
                 }
@@ -224,14 +210,12 @@ class Director(
     }
 
     private fun say(step: Step.Line, now: Int) {
-        val person = Cast.person(step.who, settings.playerLook, playerName)
-        val name = when (step.who) {
-            "narrator" -> ""
-            else -> person?.name ?: step.who.replaceFirstChar { it.uppercase() }
-        }
+        val name = nameOf(step.who)
         if (step.who in actors) {
-            val anim = step.emote?.let { Emotes.byName[it] } ?: Emotes.TALK
-            postAnim(step.who, anim, loop = false, now)
+            if (step.who !in posed || step.emote != null) {
+                val anim = step.emote?.let { Emotes.byName[it] } ?: Emotes.TALK
+                postAnim(step.who, anim, loop = false, now)
+            }
         }
         step.emote?.let { voice(step.who, it) }
         revealed = 0
@@ -262,28 +246,32 @@ class Director(
         when (c) {
             is Command.Scene -> {
                 for (key in actors.keys) scene.removeActor(key)
+                for (key in posed) poses.stop(key)
+                posed.clear()
                 actors.clear()
-                place = content.places[c.place] ?: place
+                place = places[c.place] ?: place
                 placeName = place.name
-                val light = Lights.of(c.light)
-                scene.light(light)
-                sounds.ambience(if (c.light == "night") "night" else "day")
+                scene.light(Lights.of(c.light))
+                scene.showCity(!place.void)
+                sounds.ambience(if (place.void) "" else if (c.light == "night") "night" else "day")
                 place.views.values.firstOrNull()?.let { cut(it) }
-                if (!instant) save(0)
             }
             is Command.Cast -> {
                 val pos = place.marks[c.mark] ?: return
                 val a = actors.getOrPut(c.who) { addActor(c.who, pos) }
+                letGo(c.who)
                 a.pos = pos; a.from = pos; a.to = pos; a.moveMs = 0; a.visible = true
                 c.facing?.let { a.facing = facingToward(a, it) }
             }
             is Command.Remove -> {
+                letGo(c.who)
                 actors.remove(c.who)
                 scene.removeActor(c.who)
             }
             is Command.Move -> {
                 val a = actors[c.who] ?: return
                 val to = place.marks[c.mark] ?: return
+                letGo(c.who)
                 a.facing = Shots.facing(a.pos, to)
                 if (instant || c.ms <= 0) {
                     a.pos = to; a.from = to; a.to = to; a.moveMs = 0
@@ -293,7 +281,9 @@ class Director(
                 }
             }
             is Command.Face -> actors[c.who]?.let { it.facing = facingToward(it, c.target) }
+            is Command.Pose -> if (c.who in actors && poses.play(c.who, c.animId)) posed += c.who
             is Command.Emote -> if (!instant) {
+                letGo(c.who)
                 Emotes.byName[c.emote]?.let { postAnim(c.who, it, c.loop, now) }
                 voice(c.who, c.emote)
             }
@@ -311,22 +301,25 @@ class Director(
         }
     }
 
-    private fun addActor(who: String, pos: Vec3): Actor {
-        val person = Cast.person(who, settings.playerLook, playerName)
-        val look = person?.let { content.looks[it.look] }
-        val a = Actor(who, pos, 0f)
-        if (look != null) scene.addActor(who, look)
-        return a
+    /** Ends [who]'s imported pose, if they hold one. */
+    private fun letGo(who: String) {
+        if (posed.remove(who)) poses.stop(who)
     }
 
-    /** The speaker's voice for an emote (the saber has her own sounds). */
-    private fun voice(who: String, emote: String) {
-        if (who == "saber") {
-            if (emote == "roar") sounds.effect("saber_roar")
-            return
-        }
-        Cast.person(who, settings.playerLook, playerName)?.let { sounds.voice(it.look, emote) }
+    private fun addActor(who: String, pos: Vec3): Actor {
+        if (who in people) dress(who)
+        return Actor(who, pos, 0f)
     }
+
+    /** The name over someone's line: the actor's, none for narration, "You" for the reader's choices. */
+    fun nameOf(who: String): String = when (who) {
+        "narrator" -> ""
+        "you" -> "You"
+        else -> people[who] ?: who
+    }
+
+    /** The speaker's voice for an emote, where sounds.json has one for them (none are listed today). */
+    private fun voice(who: String, emote: String) = sounds.voice(who, emote)
 
     private fun postAnim(who: String, anim: Int, loop: Boolean, now: Int) {
         scene.anim(who, anim, loop, now)
@@ -344,14 +337,11 @@ class Director(
     private fun shot(c: Command.Shot): CameraPose? = when (c.kind) {
         "view" -> place.views[c.args.firstOrNull()]
         "wide" -> place.views.values.firstOrNull()
-        "bust" -> actors[c.args.firstOrNull()]?.let { a ->
-            val h = Cast.person(a.key, settings.playerLook, playerName)?.height ?: 2f
-            Shots.bust(a.to, a.facing, h)
-        }
+        "bust" -> actors[c.args.firstOrNull()]?.let { a -> Shots.bust(a.to, a.facing, Staging.HEIGHT) }
         "two" -> {
             val a = actors[c.args.getOrNull(0)]
             val b = actors[c.args.getOrNull(1)]
-            if (a != null && b != null) Shots.two(a.to, b.to, place.twoSide) else null
+            if (a != null && b != null) Shots.two(a.to, b.to, place.twoSide, Staging.HEIGHT) else null
         }
         else -> null
     }
@@ -365,24 +355,6 @@ class Director(
         val t = Shots.ease((now - camStart).toFloat() / camMs)
         if (t >= 1f) camMs = 0
         return camFrom.lerp(camTo, t)
-    }
-
-    /**
-     * The player, standing well in front of what the camera films (a close-up taken over their
-     * shoulder), is left out of the picture, as a visual novel leaves out the one it's seen
-     * through. Only the player: the others (the saber at someone's feet) always stay in the scene.
-     */
-    private fun inTheWay(a: Actor, cam: CameraPose): Boolean {
-        if (a.key != "you") return false
-        val view = cam.at - cam.eye
-        val length = kotlin.math.sqrt(view.x * view.x + view.y * view.y + view.z * view.z)
-        if (length < 0.01f) return false
-        val dir = view * (1f / length)
-        val head = Vec3(a.pos.x, a.pos.y, a.pos.z + 1.5f) - cam.eye
-        val along = head.x * dir.x + head.y * dir.y + head.z * dir.z
-        if (along <= 0f || along > length - 1.0f) return false
-        val across = head - dir * along
-        return kotlin.math.sqrt(across.x * across.x + across.y * across.y + across.z * across.z) < 0.9f
     }
 
     private fun pushFrame(now: Int) {
@@ -403,7 +375,7 @@ class Director(
                     postAnim(key, Emotes.STAND, loop = true, now)
                 }
             }
-            Placement(a.pos.x, a.pos.y, a.pos.z, a.facing, a.visible && !inTheWay(a, cam))
+            Placement(a.pos.x, a.pos.y, a.pos.z, a.facing, a.visible)
         }
         scene.frame = cam to people
     }

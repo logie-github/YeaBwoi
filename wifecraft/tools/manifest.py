@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Lists the game files Wifecraft's demo needs, by file id, with their sizes, in the order the app
+"""Lists the game files every Wifecraft story needs, by file id, with their sizes, in the order the app
 fetches them (assets/files.json). Only ids and sizes are written: the files are the game's and are
 fetched by the app, on the phone, from wago.tools.
 
     python3 tools/manifest.py CACHE_DIR
 
 CACHE_DIR keeps files fetched while working the list out (each named by its id). It reads
-assets/looks.json (tools/looks.py), assets/places.json and assets/sounds.json (tools/sounds.py).
+assets/places.json and assets/sounds.json (tools/sounds.py). The people's files aren't listed: the app
+fetches a look's own files (model, skins, animations, textures) when it is first shown.
 """
 import json
 import math
@@ -94,23 +95,11 @@ def m2_size(cache, fid):
 def main():
     cache = sys.argv[1]
     os.makedirs(cache, exist_ok=True)
-    looks = json.load(open(os.path.join(ASSETS, "looks.json")))
     places = json.load(open(os.path.join(ASSETS, "places.json")))["places"]
     packs = []
 
     packs.append(("interface", UI))
 
-    people = []
-    for name, look in looks.items():
-        people.append(look["model"])
-        people += m2_deps(cache, look["model"], ANIMS)
-        people += [t for t in look["textures"].values()]
-        for a in look.get("attachments", []):
-            people.append(a["model"])
-            people += m2_deps(cache, a["model"], [])
-            if a.get("texture"):
-                people.append(a["texture"])
-    packs.append(("people", people))
 
     root = fetch(cache, CITY_ROOT)
     ch = {t: (o, n) for t, o, n in chunks(root, True)}
