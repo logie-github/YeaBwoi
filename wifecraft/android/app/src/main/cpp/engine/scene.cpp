@@ -15,6 +15,8 @@ namespace {
 
 // The biggest texture size kept for each kind of thing (a smaller mip level otherwise).
 constexpr int kCityTex = 512, kPropTex = 256, kActorTex = 1024;
+// The biggest a composed skin is made (the HD models' materials are 2048 x 1024).
+constexpr int kSkinTex = 2048;
 
 const char* kM2Vs = R"(#version 300 es
 layout(location = 0) in vec3 aPos;
@@ -217,19 +219,31 @@ bool Scene::initGl() {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, px);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    compositor_.initGl();
     glReady_ = true;
     // A context that was lost takes everything with it: build again what the scene holds.
     for (auto& [id, m] : models_) if (m->ok) uploadModel(*m);
-    for (auto& [id, a] : actors_) a.boneTex = 0;
+    for (auto& [id, a] : actors_) {
+        a.boneTex = 0;
+        a.composed.clear();
+        a.skinDirty = !a.layers.empty();
+        for (Skinned& e : a.skinned) e.boneTex = 0;
+    }
     if (cityLoaded_) { uploadCityGl(); warmCity(); }
     return true;
 }
 
 void Scene::releaseGl() {
     glReady_ = false;
+    compositor_.releaseGl();
     textures_.clear();
     for (auto& [id, m] : models_) { m->vao = m->vbo = m->ibo = m->boneTex = 0; }
-    for (auto& [id, a] : actors_) a.boneTex = 0;
+    for (auto& [id, a] : actors_) {
+        a.boneTex = 0;
+        a.composed.clear();
+        a.skinDirty = !a.layers.empty();
+        for (Skinned& e : a.skinned) e.boneTex = 0;
+    }
     groups_.clear();
 }
 
@@ -465,6 +479,21 @@ std::vector<uint16_t> characterGeosets(const M2Model& m, const std::map<int, int
     return out;
 }
 
+// A skinned model a look adds (ChrCustomizationSkinnedModel) shows only what the look asks of it:
+// the geosets whose group the look sets, at the value it sets. Nothing shows by default (a horns
+// collection with no horns chosen draws nothing).
+std::vector<uint16_t> skinnedGeosets(const M2Model& m, const std::map<int, int>& groups) {
+    std::vector<uint16_t> out;
+    for (const M2Submesh& sm : m.submeshes) {
+        int id = sm.id, group = id < 100 ? 0 : id / 100, value = id < 100 ? id : id % 100;
+        auto it = groups.find(group);
+        if (it != groups.end() && it->second == value && std::find(out.begin(), out.end(), sm.id) == out.end())
+            out.push_back(sm.id);
+    }
+    if (out.empty()) out.push_back(0xFFFF);
+    return out;
+}
+
 } // namespace
 
 int Scene::addActor(uint32_t modelFileId, const std::map<uint32_t, uint32_t>& textures,
@@ -474,6 +503,8 @@ int Scene::addActor(uint32_t modelFileId, const std::map<uint32_t, uint32_t>& te
     Actor a;
     a.mesh = m;
     a.textures = textures;
+    a.drawTextures = textures;
+    a.groups = geosetGroups;
     if (!geosetGroups.empty()) a.geosets = characterGeosets(*m->model, geosetGroups);
     a.scale = scale;
     int id = nextActor_++;
@@ -494,7 +525,94 @@ void Scene::removeActor(int id) {
     auto it = actors_.find(id);
     if (it == actors_.end()) return;
     if (it->second.boneTex && glReady_) glDeleteTextures(1, &it->second.boneTex);
+    dropDressGl(it->second);
     actors_.erase(it);
+}
+
+void Scene::dropDressGl(Actor& a) {
+    if (glReady_) {
+        for (auto& [type, tex] : a.composed) glDeleteTextures(1, &tex);
+        for (Skinned& e : a.skinned) if (e.boneTex) glDeleteTextures(1, &e.boneTex);
+    }
+    a.composed.clear();
+    for (Skinned& e : a.skinned) e.boneTex = 0;
+}
+
+void Scene::dress(int id, const std::map<int, int>& geosetGroups, const std::vector<SkinLayer>& layers,
+                  const std::vector<DressModel>& models) {
+    auto it = actors_.find(id);
+    if (it == actors_.end()) return;
+    Actor& a = it->second;
+    a.groups = geosetGroups;
+    a.geosets = geosetGroups.empty() ? std::vector<uint16_t>() : characterGeosets(*a.mesh->model, geosetGroups);
+    a.layers = layers;
+    a.skinDirty = true;
+    a.missing.clear();
+    dropDressGl(a);
+    a.drawTextures = a.textures;
+    a.models = models;
+    dressModels(a);
+}
+
+// The look's added models: hung on their points, or skinned to the body's bones by their names.
+// One whose file isn't downloaded yet waits (render tries it again once it is there).
+void Scene::dressModels(Actor& a) {
+    for (Skinned& e : a.skinned) if (e.boneTex && glReady_) glDeleteTextures(1, &e.boneTex);
+    a.hung.clear();
+    a.skinned.clear();
+    a.pendingModels.clear();
+    const M2Model& body = *a.mesh->model;
+    std::unordered_map<uint32_t, int> byName;
+    for (size_t i = 0; i < body.bones.size(); ++i) byName.emplace(body.bones[i].nameCrc, int(i));
+    std::set<uint32_t> skinnedSeen;
+    for (const DressModel& d : a.models) {
+        if (!d.model) continue;
+        // Several choices can name one collection model (horns and blindfolds share one): once.
+        if (d.attachment < 0 && !skinnedSeen.insert(d.model).second) continue;
+        if (files_(d.model).empty()) { a.pendingModels.push_back(d); continue; }
+        ModelGl* m = model(d.model);
+        if (!m) continue;
+        if (d.attachment >= 0) {
+            std::map<uint32_t, uint32_t> tex;
+            if (d.texture) for (const M2Texture& t : m->model->textures) if (t.type) tex[t.type] = d.texture;
+            a.hung.push_back({m, uint32_t(d.attachment), tex});
+            continue;
+        }
+        Skinned e;
+        e.mesh = m;
+        e.texture = d.texture;
+        for (const M2Bone& b : m->model->bones) {
+            auto f = byName.find(b.nameCrc);
+            e.boneMap.push_back(b.nameCrc && f != byName.end() ? f->second : -1);
+        }
+        e.geosets = skinnedGeosets(*m->model, a.groups);
+        a.skinned.push_back(std::move(e));
+    }
+}
+
+// Composes the look's layers, texture type by texture type. A type that is one texture as it is
+// gets that file bound directly; a layer whose file isn't downloaded yet is left out until it is.
+void Scene::refreshSkin(Actor& a) {
+    a.skinDirty = false;
+    if (glReady_) for (auto& [type, tex] : a.composed) glDeleteTextures(1, &tex);
+    a.composed.clear();
+    a.drawTextures = a.textures;
+    a.missing.clear();
+    std::map<int, std::vector<SkinLayer>> byType;
+    for (const SkinLayer& l : a.layers) if (l.fileId) byType[l.textureType].push_back(l);
+    for (auto& [type, layers] : byType) {
+        if (directLayer(layers)) {
+            if (files_(layers[0].fileId).empty()) a.missing.insert(layers[0].fileId);
+            else a.drawTextures[uint32_t(type)] = layers[0].fileId;
+            continue;
+        }
+        unsigned tex = compositor_.compose(layers, [&](uint32_t fid) -> unsigned {
+            if (files_(fid).empty()) { a.missing.insert(fid); return 0; }
+            GlTexture t = texture(fid, kActorTex);
+            return t.id == white_ ? 0 : t.id;
+        }, kSkinTex);
+        if (tex) a.composed[uint32_t(type)] = tex;
+    }
 }
 
 void Scene::placeActor(int id, V3 position, float facing) {
@@ -517,6 +635,15 @@ float Scene::actorHeight(int id) const {
     if (it == actors_.end()) return 2;
     const M2Model& m = *it->second.mesh->model;
     return (m.boundsMax.z - m.boundsMin.z) * it->second.scale;
+}
+
+bool Scene::actorBounds(int id, V3& min, V3& max) const {
+    auto it = actors_.find(id);
+    if (it == actors_.end()) return false;
+    const M2Model& m = *it->second.mesh->model;
+    min = m.extentMin * it->second.scale;
+    max = m.extentMax * it->second.scale;
+    return true;
 }
 
 void Scene::setIdleAnim(int id, uint16_t animId) {
@@ -665,7 +792,8 @@ void Scene::drawCity(bool transparent) {
 
 void Scene::drawModel(ModelGl& mg, const M4& world, const std::map<uint32_t, uint32_t>* overrides,
                       const std::vector<uint16_t>* geosets, unsigned boneTex, int seq, uint32_t t,
-                      uint32_t now, const float tint[4], bool transparent, int texSize) {
+                      uint32_t now, const float tint[4], bool transparent, int texSize,
+                      const std::map<uint32_t, unsigned>* glTextures) {
     const M2Model& m = *mg.model;
     unsigned p = m2Prog_;
     glUseProgram(p);
@@ -687,19 +815,20 @@ void Scene::drawModel(ModelGl& mg, const M4& world, const std::map<uint32_t, uin
         if (ti >= m.textures.size()) continue;
         const M2Texture& tex = m.textures[ti];
         uint32_t fid = tex.fileId;
+        unsigned glId = 0;
         if (tex.type != 0) {
             fid = 0;
-            if (overrides) { auto it = overrides->find(tex.type); if (it != overrides->end()) fid = it->second; }
+            if (glTextures) { auto it = glTextures->find(tex.type); if (it != glTextures->end()) glId = it->second; }
+            if (!glId && overrides) { auto it = overrides->find(tex.type); if (it != overrides->end()) fid = it->second; }
         }
-        if (!fid) continue;
+        if (!fid && !glId) continue;
         float c[4];
         m.evalColor(b.colorIndex == 0xFFFF ? -1 : int(b.colorIndex), seq, t, now, c);
         c[3] *= m.evalWeight(b.weightCombo == 0xFFFF ? -1 : int(b.weightCombo), seq, t, now);
         for (int i = 0; i < 4; ++i) c[i] *= tint[i];
         if (c[3] <= 0.004f) continue;
-        GlTexture gt = texture(fid, texSize);
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, gt.id);
+        glBindTexture(GL_TEXTURE_2D, glId ? glId : texture(fid, texSize).id);
         glUniform4fv(loc(p, "uColor"), 1, c);
         glUniform1f(loc(p, "uAlphaRef"), mat.blend == 1 ? 0.5f : (mat.blend == 0 ? -1.0f : 0.004f));
         glUniform1i(loc(p, "uOpaque"), mat.blend == 0 ? 1 : 0);
@@ -716,7 +845,8 @@ void Scene::drawModel(ModelGl& mg, const M4& world, const std::map<uint32_t, uin
 void Scene::drawAttached(Actor& a, const M4& world, uint32_t now, bool transparent) {
     const M2Model& m = *a.mesh->model;
     float one[4] = {1, 1, 1, 1};
-    for (Attached& at : a.attached) {
+    for (int list = 0; list < 2; ++list)
+    for (Attached& at : list ? a.hung : a.attached) {
         if (at.attachment >= m.attachmentLookup.size()) continue;
         int idx = m.attachmentLookup[at.attachment];
         if (idx < 0 || size_t(idx) >= m.attachments.size()) continue;
@@ -728,8 +858,33 @@ void Scene::drawAttached(Actor& a, const M4& world, uint32_t now, bool transpare
     }
 }
 
+void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
+    float one[4] = {1, 1, 1, 1};
+    M4 w = M4::translation(a.position) * M4::rotationZ(a.facing) * M4::scaling(V3(a.scale, a.scale, a.scale));
+    uint32_t dur = std::max<uint32_t>(1, a.seq >= 0 ? a.mesh->model->sequences[a.seq].duration : 1);
+    drawModel(*a.mesh, w, &a.drawTextures, &a.geosets, a.boneTex, a.seq, (nowMs - a.start) % dur, nowMs, one,
+              transparent, kActorTex, &a.composed);
+    for (Skinned& e : a.skinned) {
+        std::map<uint32_t, uint32_t> tex = a.drawTextures;
+        if (e.texture)
+            for (const M2Texture& t : e.mesh->model->textures)
+                if (t.type && !tex.count(t.type) && !a.composed.count(t.type)) tex[t.type] = e.texture;
+        drawModel(*e.mesh, w, &tex, &e.geosets, e.boneTex, -1, 0, nowMs, one, transparent, kActorTex, &a.composed);
+    }
+    drawAttached(a, w, nowMs, transparent);
+}
+
 void Scene::render(int width, int height, uint32_t nowMs) {
     if (!glReady_) return;
+    // Looks dressed since the last frame, and files a look was waiting for that have come.
+    for (auto& [id, a] : actors_) {
+        if (!a.skinDirty && !a.missing.empty())
+            for (uint32_t f : a.missing) if (!files_(f).empty()) { a.skinDirty = true; break; }
+        if (a.skinDirty) refreshSkin(a);
+        bool arrived = false;
+        for (const DressModel& d : a.pendingModels) if (!files_(d.model).empty()) { arrived = true; break; }
+        if (arrived) dressModels(a);
+    }
     glViewport(0, 0, width, height);
     glClearColor(light_.skyHorizon[0], light_.skyHorizon[1], light_.skyHorizon[2], 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -751,6 +906,21 @@ void Scene::render(int width, int height, uint32_t nowMs) {
             nowMs - a.start >= std::max<uint32_t>(1, m.sequences[a.seq].duration))
             playAnim(id, a.idleAnim, true, nowMs);
         animate(a, nowMs);
+        // Skinned models move with the body's bones.
+        for (Skinned& e : a.skinned) {
+            e.mats.resize(std::max<size_t>(1, e.boneMap.size()));
+            for (size_t i = 0; i < e.boneMap.size(); ++i)
+                e.mats[i] = e.boneMap[i] >= 0 && size_t(e.boneMap[i]) < a.mats.size() ? a.mats[size_t(e.boneMap[i])] : M4();
+            if (!e.boneTex) {
+                glGenTextures(1, &e.boneTex);
+                glBindTexture(GL_TEXTURE_2D, e.boneTex);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 4, GLsizei(e.mats.size()), 0, GL_RGBA, GL_FLOAT, nullptr);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            }
+            glBindTexture(GL_TEXTURE_2D, e.boneTex);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 4, GLsizei(e.mats.size()), GL_RGBA, GL_FLOAT, e.mats.data());
+        }
     }
 
     litUniforms(wmoProg_, light_, eye_, viewProj);
@@ -760,24 +930,12 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     Frustum frustum(viewProj);
     for (Prop& pr : props_) pr.seen = frustum.sphere(pr.centre, pr.radius) && (pr.centre - eye_).length() - pr.radius < light_.fogEnd;
     for (Prop& pr : props_) if (pr.seen) drawModel(*pr.mesh, pr.world, nullptr, nullptr, pr.mesh->boneTex, -1, 0, nowMs, one, false, kPropTex);
-    for (auto& [id, a] : actors_) {
-        if (!a.visible) continue;
-        M4 w = M4::translation(a.position) * M4::rotationZ(a.facing) * M4::scaling(V3(a.scale, a.scale, a.scale));
-        uint32_t dur = std::max<uint32_t>(1, a.seq >= 0 ? a.mesh->model->sequences[a.seq].duration : 1);
-        drawModel(*a.mesh, w, &a.textures, &a.geosets, a.boneTex, a.seq, (nowMs - a.start) % dur, nowMs, one, false, kActorTex);
-        drawAttached(a, w, nowMs, false);
-    }
+    for (auto& [id, a] : actors_) if (a.visible) drawActor(a, nowMs, false);
     litUniforms(wmoProg_, light_, eye_, viewProj);
     drawCity(true);
     litUniforms(m2Prog_, light_, eye_, viewProj);
     for (Prop& pr : props_) if (pr.seen) drawModel(*pr.mesh, pr.world, nullptr, nullptr, pr.mesh->boneTex, -1, 0, nowMs, one, true, kPropTex);
-    for (auto& [id, a] : actors_) {
-        if (!a.visible) continue;
-        M4 w = M4::translation(a.position) * M4::rotationZ(a.facing) * M4::scaling(V3(a.scale, a.scale, a.scale));
-        uint32_t dur = std::max<uint32_t>(1, a.seq >= 0 ? a.mesh->model->sequences[a.seq].duration : 1);
-        drawModel(*a.mesh, w, &a.textures, &a.geosets, a.boneTex, a.seq, (nowMs - a.start) % dur, nowMs, one, true, kActorTex);
-        drawAttached(a, w, nowMs, true);
-    }
+    for (auto& [id, a] : actors_) if (a.visible) drawActor(a, nowMs, true);
 }
 
 } // namespace wc

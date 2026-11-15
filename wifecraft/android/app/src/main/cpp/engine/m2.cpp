@@ -65,7 +65,7 @@ bool M2Model::load(uint32_t id, const FileLookup& files) {
     for (uint32_t i = 0; i < a.count; ++i) {
         size_t o = a.offset + i * kBoneSize;
         M2Bone b;
-        b.keyBoneId = r.i32(o); b.flags = r.u32(o + 4); b.parent = r.i16(o + 8);
+        b.keyBoneId = r.i32(o); b.flags = r.u32(o + 4); b.parent = r.i16(o + 8); b.nameCrc = r.u32(o + 12);
         b.translation = readTrack(r, o + 16);
         b.rotation = readTrack(r, o + 16 + kTrackSize);
         b.scale = readTrack(r, o + 16 + 2 * kTrackSize);

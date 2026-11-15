@@ -38,6 +38,7 @@ struct M2Bone {
     int32_t keyBoneId = -1;
     uint32_t flags = 0;
     int16_t parent = -1;
+    uint32_t nameCrc = 0;   // the bone's name hashed: a skinned extra model's bones are the body's, found by this
     M2Track translation, rotation, scale;
     V3 pivot;
 };

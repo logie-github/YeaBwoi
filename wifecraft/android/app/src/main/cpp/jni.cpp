@@ -92,6 +92,31 @@ JNIEXPORT void JNICALL FN(attach)(JNIEnv* env, jclass, jlong h, jint id, jint at
     scene(h)->attach(id, uint32_t(attachment), uint32_t(model), textureMap(env, texKeys, texValues));
 }
 
+// The whole look of a standing person, changed in place (Native.dress documents the arrays).
+JNIEXPORT void JNICALL FN(dress)(JNIEnv* env, jclass, jlong h, jint id, jintArray geosetKeys, jintArray geosetValues,
+                                 jintArray layerFiles, jintArray layerMeta, jintArray tintColours, jintArray extraModels) {
+    constexpr size_t kMeta = 9, kTints = 2, kExtra = 3;
+    std::map<int, int> geo;
+    auto gk = ints(env, geosetKeys), gv = ints(env, geosetValues);
+    for (size_t i = 0; i < gk.size() && i < gv.size(); ++i) geo[gk[i]] = gv[i];
+    auto files = ints(env, layerFiles), meta = ints(env, layerMeta), tints = ints(env, tintColours);
+    std::vector<SkinLayer> layers;
+    for (size_t i = 0; i < files.size() && (i + 1) * kMeta <= meta.size(); ++i) {
+        const int* m = &meta[i * kMeta];
+        SkinLayer l;
+        l.fileId = uint32_t(files[i]);
+        l.textureType = m[0]; l.layer = m[1]; l.blend = m[2];
+        l.x = m[3]; l.y = m[4]; l.w = m[5]; l.h = m[6];
+        l.materialW = m[7]; l.materialH = m[8];
+        if ((i + 1) * kTints <= tints.size()) { l.tint1 = uint32_t(tints[i * kTints]); l.tint2 = uint32_t(tints[i * kTints + 1]); }
+        layers.push_back(l);
+    }
+    auto ex = ints(env, extraModels);
+    std::vector<DressModel> models;
+    for (size_t i = 0; i + kExtra <= ex.size(); i += kExtra) models.push_back({ex[i], uint32_t(ex[i + 1]), uint32_t(ex[i + 2])});
+    scene(h)->dress(id, geo, layers, models);
+}
+
 JNIEXPORT void JNICALL FN(removeActor)(JNIEnv*, jclass, jlong h, jint id) { scene(h)->removeActor(id); }
 
 JNIEXPORT void JNICALL FN(place)(JNIEnv*, jclass, jlong h, jint id, jfloat x, jfloat y, jfloat z, jfloat facing) {

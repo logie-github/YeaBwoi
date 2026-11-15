@@ -6,11 +6,13 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "m2.h"
+#include "skin.h"
 #include "wmath.h"
 #include "wmo.h"
 
@@ -19,6 +21,14 @@ namespace wc {
 struct GlTexture {
     unsigned id = 0;
     bool hasAlpha = false;
+};
+
+// A model a look adds to a person: hung on an attachment point, or (attachment -1) skinned to the
+// body's own bones (ChrCustomizationSkinnedModel's collection models: hair, horns, ears...).
+struct DressModel {
+    int attachment = -1;
+    uint32_t model = 0;
+    uint32_t texture = 0;     // fills the model's replaceable textures the person's don't (0: none)
 };
 
 struct Light {
@@ -50,6 +60,12 @@ public:
                  const std::map<int, int>& geosetGroups, float scale);
     // A model hung on one of an actor's attachment points (shoulders, a helm, a weapon).
     void attach(int id, uint32_t attachmentId, uint32_t modelFileId, const std::map<uint32_t, uint32_t>& textures);
+    // Changes a standing person's look without taking them off stage (the creator, per tap): the
+    // geoset groups as addActor takes them, the skin's layers (composed into one texture per
+    // texture type; replacing addActor's textures of those types) and the models the look adds.
+    // Each call gives the whole look: what it leaves out is gone (attach()'s items stay).
+    void dress(int id, const std::map<int, int>& geosetGroups, const std::vector<SkinLayer>& layers,
+               const std::vector<DressModel>& models);
     void removeActor(int id);
     void placeActor(int id, V3 position, float facing);
     void playAnim(int id, uint16_t animId, bool loop, uint32_t nowMs);
@@ -58,6 +74,8 @@ public:
     bool actorReady(int id) const;
     // How tall an actor stands (for the camera's framing).
     float actorHeight(int id) const;
+    // The box an actor's body takes standing as modelled (its vertices, scaled), around its feet.
+    bool actorBounds(int id, V3& min, V3& max) const;
     // The floor under (x, y) nearest below z (a little above counts: a step up), or z itself when
     // the city has no floor there.
     float floorAt(float x, float y, float z) const;
@@ -78,11 +96,29 @@ private:
         uint32_t attachment = 0;
         std::map<uint32_t, uint32_t> textures;
     };
+    struct Skinned {
+        ModelGl* mesh = nullptr;
+        uint32_t texture = 0;
+        std::vector<int> boneMap;          // its bone -> the body's (-1: none)
+        std::vector<uint16_t> geosets;
+        std::vector<M4> mats;
+        unsigned boneTex = 0;
+    };
     struct Actor {
         ModelGl* mesh = nullptr;
         std::vector<Attached> attached;
         std::map<uint32_t, uint32_t> textures;
+        std::map<int, int> groups;
         std::vector<uint16_t> geosets;
+        // The dressed look: its layers, what they made, and its added models.
+        std::vector<SkinLayer> layers;
+        std::map<uint32_t, unsigned> composed;      // texture type -> composed GL texture
+        std::map<uint32_t, uint32_t> drawTextures;  // textures, with the layers' single files over them
+        std::set<uint32_t> missing;                 // files the look waits for (not downloaded yet)
+        bool skinDirty = false;
+        std::vector<DressModel> models, pendingModels;
+        std::vector<Attached> hung;
+        std::vector<Skinned> skinned;
         float scale = 1;
         V3 position;
         float facing = 0;
@@ -112,6 +148,7 @@ private:
 
     FileLookup files_;
     bool glReady_ = false;
+    SkinCompositor compositor_;
     unsigned m2Prog_ = 0, wmoProg_ = 0, skyProg_ = 0, skyVao_ = 0, skyVbo_ = 0, white_ = 0;
     std::unordered_map<uint64_t, GlTexture> textures_;
     std::unordered_map<uint32_t, std::unique_ptr<ModelGl>> models_;
@@ -144,9 +181,14 @@ private:
     void drawCity(bool transparent);
     void drawModel(ModelGl& m, const M4& world, const std::map<uint32_t, uint32_t>* textures,
                    const std::vector<uint16_t>* geosets, unsigned boneTex, int seq, uint32_t t,
-                   uint32_t now, const float tint[4], bool transparent, int texSize);
+                   uint32_t now, const float tint[4], bool transparent, int texSize,
+                   const std::map<uint32_t, unsigned>* glTextures = nullptr);
     void animate(Actor& a, uint32_t now);
     void drawAttached(Actor& a, const M4& world, uint32_t now, bool transparent);
+    void drawActor(Actor& a, uint32_t now, bool transparent);
+    void refreshSkin(Actor& a);
+    void dressModels(Actor& a);
+    void dropDressGl(Actor& a);
 };
 
 } // namespace wc

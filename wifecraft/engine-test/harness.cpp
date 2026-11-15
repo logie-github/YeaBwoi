@@ -11,9 +11,21 @@
 //   fog START END
 //   lightv V1 ... V23                          a light as the app passes it (Lights.of)
 //   clear                                      takes everyone off stage
-//   render OUT.ppm WIDTH HEIGHT TIME_MS
+//   look N LOOKFILE X Y Z FACING               a person from a look file (below), dressed
+//   dress N LOOKFILE                           dresses person N again (Native.dress): geosets, layers, extras
+//   render OUT.ppm|OUT.png WIDTH HEIGHT TIME_MS
+//
+// A look file (what the creator resolves a look to; one per line, # comments):
+//   model FILE_ID                              the body (look only)
+//   scale S
+//   tex TYPE=FILE,...                          textures as addActor takes them
+//   geo GROUP=VALUE,...                        geoset groups
+//   layer TYPE LAYER BLEND X Y W H MAT_W MAT_H FILE [TINT1 [TINT2]]   a skin layer (tints 0xAARRGGBB)
+//   extra ATTACHMENT MODEL TEXTURE             an added model (attachment -1: skinned to the body)
 //
 // Build: engine-test/build.sh; run: build/harness commands.txt
+// Or, for the creator, one person on a plain stage straight to a picture:
+//   build/harness --look LOOKFILE --files DIR --out OUT.png [--size WxH] [--shot body|face] [--facing RADIANS] [--time MS]
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES3/gl3.h>
@@ -39,6 +51,136 @@ static std::vector<std::string> split(const std::string& s, char c) {
     return out;
 }
 
+struct LookFile {
+    uint32_t model = 0;
+    float scale = 1;
+    std::map<uint32_t, uint32_t> tex;
+    std::map<int, int> geo;
+    std::vector<SkinLayer> layers;
+    std::vector<DressModel> extras;
+};
+
+static uint32_t number(const std::string& s) { return uint32_t(std::strtoul(s.c_str(), nullptr, 0)); }
+
+static bool readLook(const std::string& path, LookFile& out) {
+    std::ifstream in(path);
+    if (!in) { std::fprintf(stderr, "no look file %s\n", path.c_str()); return false; }
+    std::string line;
+    while (std::getline(in, line)) {
+        std::istringstream ss(line);
+        std::string k;
+        ss >> k;
+        if (k.empty() || k[0] == '#') continue;
+        if (k == "model") ss >> out.model;
+        else if (k == "scale") ss >> out.scale;
+        else if (k == "tex" || k == "geo") {
+            std::string v; ss >> v;
+            for (auto& kv : split(v, ',')) {
+                auto p = split(kv, '=');
+                if (p.size() != 2) continue;
+                if (k == "tex") out.tex[number(p[0])] = number(p[1]);
+                else out.geo[std::atoi(p[0].c_str())] = std::atoi(p[1].c_str());
+            }
+        } else if (k == "layer") {
+            SkinLayer l;
+            std::string t1, t2;
+            ss >> l.textureType >> l.layer >> l.blend >> l.x >> l.y >> l.w >> l.h >> l.materialW >> l.materialH >> l.fileId >> t1 >> t2;
+            if (!t1.empty()) l.tint1 = number(t1);
+            if (!t2.empty()) l.tint2 = number(t2);
+            out.layers.push_back(l);
+        } else if (k == "extra") {
+            DressModel d;
+            ss >> d.attachment >> d.model >> d.texture;
+            out.extras.push_back(d);
+        }
+    }
+    return true;
+}
+
+// PNG, uncompressed (stored deflate blocks): no library needed to look at a render.
+static uint32_t crc32(const uint8_t* p, size_t n, uint32_t c = 0) {
+    c = ~c;
+    for (size_t i = 0; i < n; ++i) {
+        c ^= p[i];
+        for (int k = 0; k < 8; ++k) c = c & 1 ? 0xEDB88320u ^ (c >> 1) : c >> 1;
+    }
+    return ~c;
+}
+
+static void writePng(const std::string& path, int w, int h, const std::vector<uint8_t>& rgbTopDown) {
+    std::vector<uint8_t> raw;
+    for (int y = 0; y < h; ++y) {
+        raw.push_back(0);
+        raw.insert(raw.end(), rgbTopDown.begin() + size_t(y) * w * 3, rgbTopDown.begin() + size_t(y + 1) * w * 3);
+    }
+    std::vector<uint8_t> z{0x78, 0x01};
+    uint32_t a = 1, b = 0;
+    for (uint8_t v : raw) { a = (a + v) % 65521; b = (b + a) % 65521; }
+    for (size_t off = 0; off < raw.size() || off == 0; off += 65535) {
+        size_t n = std::min<size_t>(65535, raw.size() - off);
+        bool last = off + n >= raw.size();
+        z.push_back(last ? 1 : 0);
+        z.push_back(uint8_t(n)); z.push_back(uint8_t(n >> 8));
+        z.push_back(uint8_t(~n)); z.push_back(uint8_t(~n >> 8));
+        z.insert(z.end(), raw.begin() + off, raw.begin() + off + n);
+        if (last) break;
+    }
+    uint32_t adler = b << 16 | a;
+    for (int i = 3; i >= 0; --i) z.push_back(uint8_t(adler >> (i * 8)));
+    FILE* f = std::fopen(path.c_str(), "wb");
+    if (!f) return;
+    auto be = [&](uint32_t v) { uint8_t q[4] = {uint8_t(v >> 24), uint8_t(v >> 16), uint8_t(v >> 8), uint8_t(v)}; std::fwrite(q, 1, 4, f); };
+    auto chunk = [&](const char* type, const std::vector<uint8_t>& data) {
+        be(uint32_t(data.size()));
+        std::vector<uint8_t> td(type, type + 4);
+        td.insert(td.end(), data.begin(), data.end());
+        std::fwrite(td.data(), 1, td.size(), f);
+        be(crc32(td.data(), td.size()));
+    };
+    const uint8_t sig[8] = {137, 80, 78, 71, 13, 10, 26, 10};
+    std::fwrite(sig, 1, 8, f);
+    std::vector<uint8_t> ihdr = {uint8_t(w >> 24), uint8_t(w >> 16), uint8_t(w >> 8), uint8_t(w),
+                                 uint8_t(h >> 24), uint8_t(h >> 16), uint8_t(h >> 8), uint8_t(h), 8, 2, 0, 0, 0};
+    chunk("IHDR", ihdr);
+    chunk("IDAT", z);
+    chunk("IEND", {});
+    std::fclose(f);
+}
+
+// Draws the scene at `t` into an off-screen picture and writes it (.png, else .ppm).
+static void renderTo(Scene& scene, const std::string& out, int w, int h, uint32_t t) {
+    unsigned fbo, color, depth;
+    glGenFramebuffers(1, &fbo); glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glGenRenderbuffers(1, &color); glBindRenderbuffer(GL_RENDERBUFFER, color);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, w, h);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, color);
+    glGenRenderbuffers(1, &depth); glBindRenderbuffer(GL_RENDERBUFFER, depth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, w, h);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth);
+    // Animations are stepped through to the asked time, as frames would.
+    for (uint32_t s = 0; s + 33 < t; s += 33) scene.render(w, h, s);
+    scene.render(w, h, t);
+    std::vector<uint8_t> px(size_t(w) * h * 4);
+    glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
+    std::vector<uint8_t> rgb(size_t(w) * h * 3);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x)
+            std::copy(&px[(size_t(h - 1 - y) * w + x) * 4], &px[(size_t(h - 1 - y) * w + x) * 4] + 3, &rgb[(size_t(y) * w + x) * 3]);
+    if (out.size() > 4 && out.substr(out.size() - 4) == ".png") {
+        writePng(out, w, h, rgb);
+    } else {
+        FILE* f = std::fopen(out.c_str(), "wb");
+        std::fprintf(f, "P6\n%d %d\n255\n", w, h);
+        std::fwrite(rgb.data(), 1, rgb.size(), f);
+        std::fclose(f);
+    }
+    std::fprintf(stderr, "wrote %s (GL error %#x)\n", out.c_str(), glGetError());
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDeleteFramebuffers(1, &fbo);
+    glDeleteRenderbuffers(1, &color);
+    glDeleteRenderbuffers(1, &depth);
+}
+
 static Light preset(const std::string& name) {
     Light l;
     if (name == "dusk") {
@@ -58,7 +200,13 @@ static Light preset(const std::string& name) {
 }
 
 int main(int argc, char** argv) {
-    if (argc < 2) { std::fprintf(stderr, "usage: harness COMMANDS\n"); return 2; }
+    if (argc < 2) {
+        std::fprintf(stderr, "usage: harness COMMANDS | harness --look LOOKFILE --files DIR --out OUT.png [--size WxH] [--shot body|face] [--facing RADIANS] [--time MS]\n");
+        return 2;
+    }
+    std::map<std::string, std::string> opt;
+    if (std::string(argv[1]).rfind("--", 0) == 0)
+        for (int i = 1; i + 1 < argc; i += 2) opt[argv[i]] = argv[i + 1];
 
     EGLDisplay dpy = EGL_NO_DISPLAY;
     auto getPlatformDisplay = (PFNEGLGETPLATFORMDISPLAYEXTPROC)eglGetProcAddress("eglGetPlatformDisplayEXT");
@@ -85,6 +233,37 @@ int main(int argc, char** argv) {
     scene.initGl();
     std::map<int, int> actors;
     Light light;
+
+    if (!opt.empty()) {
+        // One dressed person on a plain stage, framed as the creator frames them.
+        dir = opt["--files"];
+        LookFile lf;
+        if (!readLook(opt["--look"], lf)) return 1;
+        int id = scene.addActor(lf.model, lf.tex, lf.geo, lf.scale);
+        if (id <= 0) { std::fprintf(stderr, "model %u: FAILED\n", lf.model); return 1; }
+        scene.dress(id, lf.geo, lf.layers, lf.extras);
+        float facing = opt.count("--facing") ? std::strtof(opt["--facing"].c_str(), nullptr) : 0.0f;
+        scene.placeActor(id, V3(0, 0, 0), facing);
+        V3 mn, mx;
+        scene.actorBounds(id, mn, mx);
+        float h = mx.z;
+        bool face = opt["--shot"] == "face";
+        float tz = face ? h * 0.88f : h * 0.5f, dist = face ? h * 0.35f : h * 1.6f;
+        scene.setCamera(V3(dist, 0, tz), V3(0, 0, tz), face ? 30.0f : 40.0f);
+        Light studio;
+        float sun[3] = {-0.6f, 0.3f, -0.5f}, hor[3] = {0.16f, 0.15f, 0.18f}, amb[3] = {0.55f, 0.55f, 0.58f};
+        std::copy(sun, sun + 3, studio.sunDir);
+        std::copy(hor, hor + 3, studio.skyHorizon); std::copy(hor, hor + 3, studio.skyTop); std::copy(hor, hor + 3, studio.skyBelow);
+        std::copy(hor, hor + 3, studio.fogColor);
+        std::copy(amb, amb + 3, studio.ambient);
+        studio.fogStart = 1000; studio.fogEnd = 2000;
+        scene.setLight(studio);
+        int w = 512, ht = 768;
+        if (opt.count("--size")) std::sscanf(opt["--size"].c_str(), "%dx%d", &w, &ht);
+        renderTo(scene, opt.count("--out") ? opt["--out"] : "look.png", w, ht,
+                 opt.count("--time") ? uint32_t(std::atoi(opt["--time"].c_str())) : 0);
+        return 0;
+    }
 
     std::ifstream in(argv[1]);
     std::string line;
@@ -153,31 +332,26 @@ int main(int argc, char** argv) {
             actors.clear();
         } else if (cmd == "fog") {
             ss >> light.fogStart >> light.fogEnd; scene.setLight(light);
+        } else if (cmd == "look") {
+            int name; std::string path; float x, y, z, facing;
+            ss >> name >> path >> x >> y >> z >> facing;
+            LookFile lf;
+            if (!readLook(path, lf)) continue;
+            int id = scene.addActor(lf.model, lf.tex, lf.geo, lf.scale);
+            std::fprintf(stderr, "look %d (model %u): %s\n", name, lf.model, id > 0 ? "ok" : "FAILED");
+            if (id <= 0) continue;
+            scene.dress(id, lf.geo, lf.layers, lf.extras);
+            scene.placeActor(id, V3(x, y, z), facing);
+            actors[name] = id;
+        } else if (cmd == "dress") {
+            int name; std::string path;
+            ss >> name >> path;
+            LookFile lf;
+            if (actors.count(name) && readLook(path, lf)) scene.dress(actors[name], lf.geo, lf.layers, lf.extras);
         } else if (cmd == "render") {
             std::string out; int w, h; uint32_t t;
             ss >> out >> w >> h >> t;
-            unsigned fbo, color, depth;
-            glGenFramebuffers(1, &fbo); glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-            glGenRenderbuffers(1, &color); glBindRenderbuffer(GL_RENDERBUFFER, color);
-            glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, w, h);
-            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, color);
-            glGenRenderbuffers(1, &depth); glBindRenderbuffer(GL_RENDERBUFFER, depth);
-            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, w, h);
-            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth);
-            // Animations are stepped through to the asked time, as frames would.
-            for (uint32_t s = 0; s + 33 < t; s += 33) scene.render(w, h, s);
-            scene.render(w, h, t);
-            std::vector<uint8_t> px(size_t(w) * h * 4);
-            glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
-            FILE* f = std::fopen(out.c_str(), "wb");
-            std::fprintf(f, "P6\n%d %d\n255\n", w, h);
-            for (int y = h - 1; y >= 0; --y)
-                for (int x = 0; x < w; ++x) std::fwrite(&px[(size_t(y) * w + x) * 4], 1, 3, f);
-            std::fclose(f);
-            std::fprintf(stderr, "wrote %s (GL error %#x)\n", out.c_str(), glGetError());
-            glDeleteFramebuffers(1, &fbo);
-            glDeleteRenderbuffers(1, &color);
-            glDeleteRenderbuffers(1, &depth);
+            renderTo(scene, out, w, h, t);
         }
     }
     return 0;
