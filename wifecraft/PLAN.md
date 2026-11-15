@@ -4,6 +4,22 @@ The user's requirements, what was decided, what's open, and where it stands; `RE
 manual. Wifecraft began as a dating sim with a short demo story (its brief is kept below, under
 "The first version"); in November 2026 it became a story editor.
 
+## Sims 4 animation import (November 2026)
+
+The user's request (the requirements file of the session): an **Import Animations** button on the
+launcher; pick Sims 4 animation `.package` files or a ZIP/7z; automatic conversion to WoW's
+skeleton with profiles kept as data (no bone-mapping UI); an animation library (name, category,
+find, edit later, duplicate policy, atomic JSON under `files/anims/`); batch import with a review
+screen; conversion separate from the UI; tests; limitations stated, nothing pretended.
+
+Built: `sims/` (DBPF and clip reading), `anim/` (archives, pipeline, library, retargeting),
+`ui/AnimImportScreen.kt` (skeleton, files, progress, review), `ui/AnimLibraryScreen.kt`,
+`ui/AnimState.kt` (pure state, tested), the Pose beat (`editor/`, script command `pose`,
+`play/Director`). The Sims skeleton is picked once from the user's own Sims 4 package. Open:
+playing an animation from the library screen itself (only the scene builder's Pose preview plays
+one); a Sims options row (the Import screen holds the skeleton row); longer clips checked against
+real files; nothing has run on a phone.
+
 ## The story editor (November 2026)
 
 The user: "Change it from a story to a story editor: like a visual novel / scene builder. A

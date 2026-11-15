@@ -132,6 +132,11 @@ public:
     // Turns local poses into each bone's matrix in model space.
     void bonesToMatrices(const std::vector<BonePose>& poses, std::vector<M4>& out) const;
 
+    // The bone a WoW-side bone name (an imported animation's: "Root", "Head", "L_UpperArm" ...) stands for in
+    // this model, or -1: a key bone id, else a bone name CRC, else the first child of a named bone (kWowBones in
+    // m2.cpp; tools/wow_bones.py holds the same table).
+    int findWowBone(const std::string& name) const;
+
     float evalWeight(int index, int seq, uint32_t timeMs, uint32_t globalMs) const;
     void evalColor(int index, int seq, uint32_t timeMs, uint32_t globalMs, float rgba[4]) const;
 
@@ -150,6 +155,13 @@ private:
     Quat evalQuat(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs) const;
     float evalShort(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs, float def) const;
 };
+
+// The Root pivot height of the skeleton imported animations' positions are given for (night elf female 921844;
+// anim/Profile.REFERENCE_ROOT_HEIGHT): a model's own Root height over this scales them.
+constexpr float kAnimRootHeight = 1.441f;
+
+// zlib's CRC-32 (today's M2 bones carry it of their names).
+uint32_t crc32(const char* s, size_t n);
 
 // Wrath++'s body shapes (creator/BodyShapes.kt) on today's model. `morph` holds kBodyMorphStride floats per vertex of
 // Wrath++'s looks model: its place as drawn, how far the shape moves it, its normal before and after, its first texture

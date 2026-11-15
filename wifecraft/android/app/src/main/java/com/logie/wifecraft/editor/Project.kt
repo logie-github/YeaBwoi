@@ -18,6 +18,8 @@ sealed interface Beat {
     data class Show(val who: String, val spot: String, val shot: String) : Beat
     data class Hide(val who: String) : Beat
     data class Camera(val shot: String) : Beat
+    /** [who] holds the library animation [animId] (a pose, or a clip: anim/AnimLibrary) until another beat moves them. */
+    data class Pose(val who: String, val animId: String) : Beat
     data class Choice(val prompt: String, val options: List<Option>) : Beat {
         data class Option(val text: String, val goto: String)
     }
@@ -65,6 +67,7 @@ data class Project(val id: String, val title: String, val cast: List<Actor>, val
             is Beat.Show -> JSONObject().put("type", "show").put("who", b.who).put("spot", b.spot).put("shot", b.shot)
             is Beat.Hide -> JSONObject().put("type", "hide").put("who", b.who)
             is Beat.Camera -> JSONObject().put("type", "camera").put("shot", b.shot)
+            is Beat.Pose -> JSONObject().put("type", "pose").put("who", b.who).put("animId", b.animId)
             is Beat.Choice -> JSONObject().put("type", "choice").put("prompt", b.prompt).put("options", JSONArray().also { a ->
                 for (o in b.options) a.put(JSONObject().put("text", o.text).put("goto", o.goto))
             })
@@ -77,6 +80,7 @@ data class Project(val id: String, val title: String, val cast: List<Actor>, val
             "show" -> Beat.Show(o.getString("who"), o.optString("spot", "center"), o.optString("shot", ""))
             "hide" -> Beat.Hide(o.getString("who"))
             "camera" -> Beat.Camera(o.optString("shot", ""))
+            "pose" -> Beat.Pose(o.getString("who"), o.optString("animId", ""))
             "choice" -> Beat.Choice(o.optString("prompt", ""), o.optJSONArray("options").objects().map {
                 Beat.Choice.Option(it.optString("text", ""), it.optString("goto", ""))
             })

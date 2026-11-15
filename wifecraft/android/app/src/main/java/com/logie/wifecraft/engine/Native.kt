@@ -75,6 +75,21 @@ object Native {
     @JvmStatic external fun place(scene: Long, actor: Int, x: Float, y: Float, z: Float, facing: Float)
     @JvmStatic external fun anim(scene: Long, actor: Int, anim: Int, loop: Boolean, nowMs: Int)
     @JvmStatic external fun idle(scene: Long, actor: Int, anim: Int)
+
+    /**
+     * An imported animation (anim/Anim, as anim/AnimArrays flattens it) over a standing actor's own: track i names
+     * the WoW-side bone [bones][i] (resolved in the model by key bone id, bone name CRC or "first child of": cpp m2
+     * kWowBones, tools/wow_bones.py), [channels][i] 0 a rotation (x,y,z,w: the bone's local rotation about its pivot,
+     * the model's axes at rest), 1 a position (model units for the night elf woman's skeleton, scaled to this model's);
+     * [keyCounts][i] its keys; [times] (seconds) and [values] all tracks' keys in order. Those bones and every bone
+     * above them follow it (rest where it says nothing); the rest keep the actor's animation. [loop] false: the last
+     * key holds (a pose). Kept until [clearBoneAnim]; [dress] keeps it. Returns how many tracks found their bone.
+     */
+    @JvmStatic external fun boneAnim(
+        scene: Long, actor: Int, bones: Array<String>, channels: IntArray, keyCounts: IntArray,
+        times: FloatArray, values: FloatArray, duration: Float, loop: Boolean, nowMs: Int,
+    ): Int
+    @JvmStatic external fun clearBoneAnim(scene: Long, actor: Int)
     @JvmStatic external fun show(scene: Long, actor: Int, visible: Boolean)
     @JvmStatic external fun height(scene: Long, actor: Int): Float
     @JvmStatic external fun camera(scene: Long, ex: Float, ey: Float, ez: Float, tx: Float, ty: Float, tz: Float, fov: Float)

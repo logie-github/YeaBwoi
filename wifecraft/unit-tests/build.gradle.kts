@@ -21,6 +21,7 @@ kotlin {
 val pureUi = tasks.register<Copy>("pureUi") {
     from("../android/app/src/main/java/com/logie/wifecraft/ui/CreatorLayout.kt")
     from("../android/app/src/main/java/com/logie/wifecraft/ui/EditorState.kt")
+    from("../android/app/src/main/java/com/logie/wifecraft/ui/AnimState.kt")
     into(layout.buildDirectory.dir("gen/pureUi"))
 }
 
@@ -31,12 +32,17 @@ sourceSets {
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/story")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/update")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/creator")
+        kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/sims")
+        kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/anim")
     }
 }
 
 dependencies {
     // org.json for the creator's Appearance (on Android it is the platform's)
     implementation("org.json:json:20240303")
+    // Sims animation import: archives
+    implementation("org.apache.commons:commons-compress:1.27.1")
+    implementation("org.tukaani:xz:1.10")
     testImplementation(kotlin("test"))
     testImplementation("org.json:json:20240303")
 }

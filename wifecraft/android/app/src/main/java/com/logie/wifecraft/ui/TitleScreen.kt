@@ -46,6 +46,10 @@ fun TitleScreen(
     onGather: () -> Unit,
     onOptions: () -> Unit,
     onUpdates: () -> Unit,
+    /** Import Sims 4 animations (needs none of the game's files). */
+    onImportAnims: () -> Unit = {},
+    /** The animation library. */
+    onAnimations: () -> Unit = {},
 ) {
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         Image(
@@ -65,7 +69,7 @@ fun TitleScreen(
                     Text("A  STORY  EDITOR", style = frizStyle(13.sp, Color.White))
                 }
             }
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(14.dp))
             if (filesReady) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     WowButton("Continue", onContinue, enabled = lastProject != null, width = 230.dp, height = 46.dp)
@@ -82,9 +86,17 @@ fun TitleScreen(
                 Spacer(Modifier.height(10.dp))
                 WowButton("Gather the Files", onGather, width = 230.dp, height = 46.dp)
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 WowButton("Projects", onProjects, enabled = filesReady, width = 230.dp, height = 40.dp)
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                WowButton("Import Animations", onImportAnims, width = 230.dp, height = 40.dp)
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                WowButton("Animations", onAnimations, width = 230.dp, height = 40.dp)
             }
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {

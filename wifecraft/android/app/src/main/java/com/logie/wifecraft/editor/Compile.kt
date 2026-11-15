@@ -35,8 +35,20 @@ object Compile {
     private fun oneLine(s: String) = s.replace(Regex("\\s*\\R\\s*|\\s+"), " ").trim()
     private fun optText(s: String) = oneLine(s).replace("|", "/")
 
-    /** Readable problems that would stop the project playing; empty when it is fine. */
-    fun validate(p: Project): List<String> {
+    /** The prefix of a Say's emote that names a library animation instead of a game emote: "anim:ID". */
+    const val ANIM_EMOTE = "anim:"
+
+    /** The library animation id a Say's emote names, or null for a game emote. */
+    fun animOfEmote(emote: String): String? = emote.takeIf { it.startsWith(ANIM_EMOTE) }?.removePrefix(ANIM_EMOTE)
+
+    /** [validate] without a library to check animation ids against (only that each is named). */
+    fun validate(p: Project): List<String> = validate(p, null)
+
+    /**
+     * Readable problems that would stop the project playing; empty when it is fine. [animIds] are the ids in the
+     * animation library: a Pose or a Say naming another one is a problem (null: not checked).
+     */
+    fun validate(p: Project, animIds: Set<String>?): List<String> {
         val e = mutableListOf<String>()
         if (p.scenes.isEmpty()) { e += "The project has no scenes."; return e }
         val actors = p.cast.map { it.id }
@@ -52,12 +64,22 @@ object Compile {
             s.beats.forEachIndexed { i, b ->
                 val here = "$at, step ${i + 1}"
                 fun actor(w: String) { if (w !in actors) e += "$here: the person \"$w\" isn't in the cast." }
+                fun anim(id: String) {
+                    if (id.isBlank()) e += "$here: no animation is picked."
+                    else if (id.any { it.isWhitespace() }) e += "$here: the animation id \"$id\" has a space in it."
+                    else if (animIds != null && id !in animIds) e += "$here: the animation \"$id\" isn't in the library (it was deleted, or never imported on this phone)."
+                }
                 fun target(t: String) {
                     if (t.isBlank()) e += "$here: a jump has no scene to go to."
                     else if (t !in sceneIds) e += "$here: jumps to the scene \"$t\", which doesn't exist."
                 }
                 when (b) {
-                    is Beat.Say -> { b.who?.let(::actor); if (b.text.isBlank()) e += "$here: an empty line." }
+                    is Beat.Say -> {
+                        b.who?.let(::actor)
+                        if (b.text.isBlank()) e += "$here: an empty line."
+                        animOfEmote(b.emote)?.let { id -> if (b.who == null) e += "$here: narration can't hold a pose." else anim(id) }
+                    }
+                    is Beat.Pose -> { actor(b.who); anim(b.animId) }
                     is Beat.Show -> {
                         actor(b.who)
                         if (b.spot !in spots) e += "$here: the spot \"${b.spot}\" isn't left, center or right."
@@ -137,8 +159,10 @@ object Compile {
                 if (closed) break
                 when (b) {
                     is Beat.Say -> {
-                        val e = slug(b.emote, false).takeIf { b.emote.isNotBlank() && b.emote != "talk" }
+                        val animId = animOfEmote(b.emote)
+                        val e = slug(b.emote, false).takeIf { animId == null && b.emote.isNotBlank() && b.emote != "talk" }
                         val name = b.who?.let(::person) ?: "narrator"
+                        if (animId != null && b.who != null && animId.isNotBlank()) line("pose $name $animId")
                         line("$name${e?.let { " [$it]" } ?: ""}: ${oneLine(b.text)}")
                     }
                     is Beat.Show -> {
@@ -146,6 +170,7 @@ object Compile {
                         shotLine(b.shot, b.who)
                     }
                     is Beat.Hide -> line("remove ${person(b.who)}")
+                    is Beat.Pose -> if (b.animId.isNotBlank()) line("pose ${person(b.who)} ${b.animId}")
                     is Beat.Camera -> shotLine(b.shot, null)
                     is Beat.Choice -> {
                         line("choice ${oneLine(b.prompt)}")

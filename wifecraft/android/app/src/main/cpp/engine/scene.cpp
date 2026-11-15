@@ -701,18 +701,99 @@ void Scene::playAnim(int id, uint16_t animId, bool loop, uint32_t nowMs) {
     a.start = nowMs;
 }
 
+int Scene::setBoneAnim(int id, const BoneAnim& anim, uint32_t nowMs) {
+    auto it = actors_.find(id);
+    if (it == actors_.end()) return 0;
+    Actor& a = it->second;
+    const M2Model& m = *a.mesh->model;
+    a.boneAnim = std::make_shared<BoneAnim>(anim);
+    a.boneAnimBones.clear();
+    a.boneAnimRest.assign(m.bones.size(), 0);
+    int found = 0;
+    for (const BoneAnimTrack& t : anim.tracks) {
+        int b = m.findWowBone(t.bone);
+        size_t per = t.rotation ? 4 : 3;
+        if (t.times.empty() || t.values.size() < t.times.size() * per) b = -1;
+        a.boneAnimBones.push_back(b);
+        if (b < 0) continue;
+        ++found;
+        // the bone and every bone above it stand at rest unless a track moves them
+        for (int i = b, guard = 0; i >= 0 && size_t(i) < m.bones.size() && guard < 256; i = m.bones[i].parent, ++guard)
+            a.boneAnimRest[size_t(i)] = 1;
+    }
+    a.boneAnimStart = nowMs;
+    int root = m.findWowBone("Root");
+    float h = root >= 0 ? m.bones[size_t(root)].pivot.z : 0;
+    a.boneAnimScale = h > 0.05f ? h / kAnimRootHeight : 1.0f;
+    return found;
+}
+
+void Scene::clearBoneAnim(int id) {
+    auto it = actors_.find(id);
+    if (it == actors_.end()) return;
+    it->second.boneAnim.reset();
+    it->second.boneAnimBones.clear();
+    it->second.boneAnimRest.clear();
+}
+
+namespace {
+
+// The key pair around `t` (seconds) and how far between them it is.
+void boneKeys(const std::vector<float>& times, float t, size_t& a, size_t& b, float& f) {
+    size_t last = times.size() - 1;
+    if (times.size() == 1 || t <= times[0]) { a = b = 0; f = 0; return; }
+    if (t >= times[last]) { a = b = last; f = 0; return; }
+    size_t lo = 0, hi = last;
+    while (hi - lo > 1) { size_t mid = (lo + hi) / 2; if (times[mid] <= t) lo = mid; else hi = mid; }
+    a = lo; b = hi;
+    float span = times[b] - times[a];
+    f = span > 0 ? (t - times[a]) / span : 0;
+}
+
+} // namespace
+
+void Scene::applyBoneAnim(Actor& a, uint32_t now) {
+    if (!a.boneAnim) return;
+    const BoneAnim& an = *a.boneAnim;
+    for (size_t i = 0; i < a.pa.size() && i < a.boneAnimRest.size(); ++i)
+        if (a.boneAnimRest[i]) a.pa[i] = BonePose();
+    float t = float(now - a.boneAnimStart) / 1000.0f;
+    if (an.loop && an.duration > 0) t = std::fmod(t, an.duration);
+    for (size_t k = 0; k < an.tracks.size() && k < a.boneAnimBones.size(); ++k) {
+        int b = a.boneAnimBones[k];
+        if (b < 0 || size_t(b) >= a.pa.size()) continue;
+        const BoneAnimTrack& tr = an.tracks[k];
+        size_t ka, kb; float f;
+        boneKeys(tr.times, t, ka, kb, f);
+        if (tr.rotation) {
+            const float* qa = &tr.values[ka * 4];
+            const float* qb = &tr.values[kb * 4];
+            a.pa[size_t(b)].r = nlerp(Quat(qa[0], qa[1], qa[2], qa[3]).normalized(), Quat(qb[0], qb[1], qb[2], qb[3]).normalized(), f);
+        } else {
+            const float* pa = &tr.values[ka * 3];
+            const float* pb = &tr.values[kb * 3];
+            a.pa[size_t(b)].t = lerp(V3(pa[0], pa[1], pa[2]), V3(pb[0], pb[1], pb[2]), f) * a.boneAnimScale;
+        }
+    }
+}
+
 void Scene::setCamera(V3 eye, V3 target, float fovDegrees) {
     eye_ = eye; target_ = target; fov_ = fovDegrees;
 }
 
 void Scene::animate(Actor& a, uint32_t now) {
     M2Model& m = *a.mesh->model;
-    if (a.seq < 0 || size_t(a.seq) >= m.sequences.size()) { a.mats.assign(std::max<size_t>(1, m.bones.size()), M4()); return; }
-    uint32_t dur = std::max<uint32_t>(1, m.sequences[a.seq].duration);
-    uint32_t t = now - a.start;
-    if (a.loop) t %= dur; else t = std::min(t, dur - 1);
-    m.pose(a.seq, t, now, a.pa);
-    if (a.prevSeq >= 0 && now - a.fadeStart < a.fadeMs) {
+    bool hasSeq = a.seq >= 0 && size_t(a.seq) < m.sequences.size();
+    if (!hasSeq && !a.boneAnim) { a.mats.assign(std::max<size_t>(1, m.bones.size()), M4()); return; }
+    if (!hasSeq) {
+        a.pa.assign(m.bones.size(), BonePose());
+    } else {
+        uint32_t dur = std::max<uint32_t>(1, m.sequences[a.seq].duration);
+        uint32_t t = now - a.start;
+        if (a.loop) t %= dur; else t = std::min(t, dur - 1);
+        m.pose(a.seq, t, now, a.pa);
+    }
+    if (hasSeq && a.prevSeq >= 0 && now - a.fadeStart < a.fadeMs) {
         uint32_t pd = std::max<uint32_t>(1, m.sequences[a.prevSeq].duration);
         m.pose(a.prevSeq, (now - a.prevStart) % pd, now, a.pb);
         float f = float(now - a.fadeStart) / float(a.fadeMs);
@@ -722,6 +803,7 @@ void Scene::animate(Actor& a, uint32_t now) {
             a.pa[i].s = lerp(a.pb[i].s, a.pa[i].s, f);
         }
     }
+    applyBoneAnim(a, now);
     m.bonesToMatrices(a.pa, a.mats);
     if (a.mats.empty()) a.mats.push_back(M4());
     if (!a.boneTex) {

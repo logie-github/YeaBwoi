@@ -33,7 +33,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import android.view.ViewGroup
+import com.logie.wifecraft.anim.AnimLibrary
 import com.logie.wifecraft.data.Lights
+import com.logie.wifecraft.editor.Compile
 import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.Catalog
 import com.logie.wifecraft.creator.CreatorModel
@@ -85,10 +87,14 @@ fun EditorScreen(
     onBack: () -> Unit,
     start: EditorStart = EditorStart.Projects,
     onPlayProject: ((project: Project, script: String) -> Unit)? = null,
+    /** The imported animations: a Pose beat picks from them, and the checks name a missing one. */
+    animLibrary: AnimLibrary? = null,
 ) {
+    /** The checks, with the animation library's ids when there is one (read when they run, so a deleted animation shows). */
+    val validator: (Project) -> List<String> = { p -> Compile.validate(p, animLibrary?.let { lib -> runCatching { lib.list().map { it.id }.toSet() }.getOrNull() }) }
     var rev by remember { mutableIntStateOf(0) }
     var state by remember {
-        mutableStateOf((start as? EditorStart.Open)?.let { s -> EditorState(s.project, onChange = { api.save(it); rev++ }) })
+        mutableStateOf((start as? EditorStart.Open)?.let { s -> EditorState(s.project, validator, onChange = { api.save(it); rev++ }) })
     }
     var page by remember { mutableStateOf<Page>(Page.Cast) }
     @Suppress("UNUSED_EXPRESSION") rev   // changes redraw the open project
@@ -106,7 +112,7 @@ fun EditorScreen(
         EditorHome(
             api, onBack, askNew = start == EditorStart.New,
             onOpen = { p ->
-                state = EditorState(p, onChange = { api.save(it); rev++ })
+                state = EditorState(p, validator, onChange = { api.save(it); rev++ })
                 page = Page.Cast
             },
         )
@@ -131,6 +137,7 @@ fun EditorScreen(
             project, st, p.sceneId, places, scene, dress,
             onPlay = { script -> onPlayProject?.invoke(st.project, script) ?: onPlay(script) },
             onBack = { page = Page.Scenes },
+            animLibrary = animLibrary,
         )
         is Page.Creator -> {
             val actor = p.actorId?.let { st.actorOf(it) }

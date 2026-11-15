@@ -114,7 +114,7 @@ class EditorStateTest {
         assertEquals(Beat.Goto(two), s.newBeat(BeatKind.GOTO, one))
         assertEquals(Beat.Show(a, "center", "bust"), s.newBeat(BeatKind.SHOW, one))
         assertEquals(2, (s.newBeat(BeatKind.CHOICE, one) as Beat.Choice).options.size)
-        assertEquals(7, BeatKind.values().size)
+        assertEquals(8, BeatKind.values().size)
     }
 
     @Test fun checksUseCompileValidate() {

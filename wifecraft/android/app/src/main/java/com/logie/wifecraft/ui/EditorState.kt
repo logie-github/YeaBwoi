@@ -47,7 +47,7 @@ fun freshId(base: String, taken: Collection<String>): String {
 
 /** The words a beat's kind has in the "add a beat" menu, in order. */
 enum class BeatKind(val label: String) {
-    SAY("Say"), SHOW("Show"), HIDE("Hide"), CAMERA("Camera"), CHOICE("Choice"), GOTO("Goto"), END("End");
+    SAY("Say"), SHOW("Show"), HIDE("Hide"), CAMERA("Camera"), POSE("Pose"), CHOICE("Choice"), GOTO("Goto"), END("End");
 
     companion object {
         fun of(b: Beat): BeatKind = when (b) {
@@ -55,6 +55,7 @@ enum class BeatKind(val label: String) {
             is Beat.Show -> SHOW
             is Beat.Hide -> HIDE
             is Beat.Camera -> CAMERA
+            is Beat.Pose -> POSE
             is Beat.Choice -> CHOICE
             is Beat.Goto -> GOTO
             is Beat.End -> END
@@ -89,9 +90,13 @@ object EditorChoices {
     }
 }
 
-/** A one-line summary of a beat for the beat list; [nameOf] turns an actor id into its name. */
-fun describe(b: Beat, nameOf: (String) -> String): String = when (b) {
-    is Beat.Say -> (b.who?.let(nameOf) ?: "Narration") + (if (b.who != null && b.emote.isNotBlank() && b.emote != "talk") " (${b.emote})" else "") + ": " + b.text
+/**
+ * A one-line summary of a beat for the beat list; [nameOf] turns an actor id into its name, [animName] a library
+ * animation's id into its name (the id itself where the library has no such animation).
+ */
+fun describe(b: Beat, nameOf: (String) -> String, animName: (String) -> String = { it }): String = when (b) {
+    is Beat.Say -> (b.who?.let(nameOf) ?: "Narration") + (if (b.who != null && b.emote.isNotBlank() && b.emote != "talk") " (${Compile.animOfEmote(b.emote)?.let { "pose " + animName(it) } ?: b.emote})" else "") + ": " + b.text
+    is Beat.Pose -> "Pose ${nameOf(b.who)}: " + (if (b.animId.isBlank()) "(none)" else animName(b.animId))
     is Beat.Show -> "Show ${nameOf(b.who)} ${b.spot}" + (if (b.shot.isBlank()) "" else ", ${b.shot}")
     is Beat.Hide -> "Hide ${nameOf(b.who)}"
     is Beat.Camera -> "Camera ${b.shot.ifBlank { "(none)" }}"
@@ -162,6 +167,7 @@ class EditorState(
                 is Beat.Say -> it.who == id
                 is Beat.Show -> it.who == id
                 is Beat.Hide -> it.who == id
+                is Beat.Pose -> it.who == id
                 else -> false
             }
         }
@@ -177,7 +183,8 @@ class EditorState(
                     when {
                         it is Beat.Show && it.who == id -> null
                         it is Beat.Hide && it.who == id -> null
-                        it is Beat.Say && it.who == id -> it.copy(who = null)
+                        it is Beat.Pose && it.who == id -> null
+                        it is Beat.Say && it.who == id -> it.copy(who = null, emote = if (Compile.animOfEmote(it.emote) != null) "talk" else it.emote)
                         else -> it
                     }
                 })
@@ -240,6 +247,7 @@ class EditorState(
             BeatKind.SAY -> Beat.Say(who, "talk", "")
             BeatKind.SHOW -> Beat.Show(who ?: "", "center", "bust")
             BeatKind.HIDE -> Beat.Hide(who ?: "")
+            BeatKind.POSE -> Beat.Pose(who ?: "", "")
             BeatKind.CAMERA -> Beat.Camera("wide")
             BeatKind.CHOICE -> Beat.Choice("", listOf(Beat.Choice.Option("", other), Beat.Choice.Option("", other)))
             BeatKind.GOTO -> Beat.Goto(other)
@@ -369,6 +377,26 @@ object Staging {
             }
         }
         return Preview(shown, shot)
+    }
+
+    /**
+     * The library animation each actor holds after the first [upTo] beats (all when null): the last Pose beat (or Say
+     * with a library animation as its emote) for them; a Hide, or a Say with a game emote, lets go of it.
+     */
+    fun poses(scene: Scene, upTo: Int? = null): Map<String, String> {
+        val held = LinkedHashMap<String, String>()
+        for (b in scene.beats.take(upTo ?: scene.beats.size)) {
+            when (b) {
+                is Beat.Pose -> if (b.animId.isBlank()) held.remove(b.who) else held[b.who] = b.animId
+                is Beat.Hide -> held.remove(b.who)
+                is Beat.Say -> if (b.who != null) {
+                    val id = Compile.animOfEmote(b.emote)
+                    if (id != null) { if (id.isNotBlank()) held[b.who] = id } else if (b.emote.isNotBlank() && b.emote != "talk") held.remove(b.who)
+                }
+                else -> Unit
+            }
+        }
+        return held
     }
 
     private fun home(p: PlaceInfo): CameraPose? = p.views.values.firstOrNull()

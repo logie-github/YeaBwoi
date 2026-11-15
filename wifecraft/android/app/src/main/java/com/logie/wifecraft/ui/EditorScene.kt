@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.logie.wifecraft.anim.AnimLibrary
 import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.data.Emotes
 import com.logie.wifecraft.data.Lights
@@ -53,6 +54,8 @@ fun EditorSceneBuilder(
     dress: (key: String, appearance: Appearance) -> Unit,
     onPlay: (script: String) -> Unit,
     onBack: () -> Unit,
+    /** The imported animations (Import Animations): what a Pose beat and a Say's emote picker list. */
+    animLibrary: AnimLibrary? = null,
 ) {
     val sc = project.scenes.firstOrNull { it.id == sceneId }
     if (sc == null) {
@@ -66,6 +69,7 @@ fun EditorSceneBuilder(
     var failure by remember { mutableStateOf<String?>(null) }
     var cityAsked by remember { mutableStateOf(false) }
 
+    val anims = remember(sceneId) { runCatching { animLibrary?.list() }.getOrNull().orEmpty() }
     val place = places.firstOrNull { it.id == sc.stage.place } ?: PlaceInfo.STUDIO
     val sel = selected?.takeIf { it in sc.beats.indices }
     val pre = Staging.preview(sc, sel?.plus(1))
@@ -90,6 +94,15 @@ fun EditorSceneBuilder(
                 val s = Staging.standing(place, it.spot)
                 Placement(s.pos.x, s.pos.y, s.pos.z, s.facing)
             } ?: away)
+        }
+    }
+
+    // Who holds which imported pose as the selected beat leaves them (a pose is drawn when the actor is on stage).
+    val held = Staging.poses(sc, sel?.plus(1))
+    LaunchedEffect(held, project.cast, anims) {
+        for (a in project.cast) {
+            val anim = held[a.id]?.let { id -> anims.firstOrNull { it.id == id } }
+            if (anim != null) view.playAnim(a.id, anim) else view.stopAnim(a.id)
         }
     }
 
@@ -133,11 +146,11 @@ fun EditorSceneBuilder(
                             EditorCard(onClick = { selected = if (sel == i) null else i }, selected = sel == i) {
                                 Text("${i + 1}", style = frizStyle(13.sp, WowColors.grey), modifier = Modifier.width(24.dp))
                                 Text(
-                                    describe(b, state::nameOf), style = frizStyle(14.sp, Color.White, false),
+                                    describe(b, state::nameOf) { id -> anims.firstOrNull { it.id == id }?.name ?: id }, style = frizStyle(14.sp, Color.White, false),
                                     maxLines = if (sel == i) 4 else 2, modifier = Modifier.weight(1f),
                                 )
                             }
-                            if (sel == i) BeatEditor(b, project, sc.id, place, state, i) { selected = it }
+                            if (sel == i) BeatEditor(b, project, sc.id, place, state, i, anims, view) { selected = it }
                         }
                     }
                 }
@@ -190,6 +203,8 @@ private fun BeatEditor(
     place: PlaceInfo,
     state: EditorState,
     index: Int,
+    anims: List<com.logie.wifecraft.anim.Anim>,
+    view: SceneView,
     onSelect: (Int?) -> Unit,
 ) {
     val cast = project.cast.map { it.id to it.name }
@@ -201,13 +216,13 @@ private fun BeatEditor(
         Modifier.fillMaxWidth().background(Color(0x44000000)).border(1.dp, Color(0x44FFD100)).padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        if (cast.isEmpty() && (beat is Beat.Show || beat is Beat.Hide)) {
+        if (cast.isEmpty() && (beat is Beat.Show || beat is Beat.Hide || beat is Beat.Pose)) {
             Text("Make an NPC in the cast first.", style = frizStyle(13.sp, WowColors.grey, false))
         }
         when (beat) {
             is Beat.Say -> {
                 PickRow("Who", listOf("" to "Narration") + cast, beat.who ?: "", { put(beat.copy(who = it.ifEmpty { null })) })
-                PickRow("Emote", Emotes.byName.keys.map { it to it }, beat.emote, { put(beat.copy(emote = it)) })
+                PickRow("Emote", Emotes.byName.keys.map { it to it } + PoseChoices.emotes(anims), beat.emote, { put(beat.copy(emote = it)) })
                 EditorField(beat.text, { put(beat.copy(text = it)) }, "What is said", singleLine = false)
             }
             is Beat.Show -> {
@@ -217,6 +232,22 @@ private fun BeatEditor(
             }
             is Beat.Hide -> PickRow("Who", cast, beat.who, { put(beat.copy(who = it)) })
             is Beat.Camera -> PickRow("Shot", shots(), beat.shot, { put(beat.copy(shot = it)) })
+            is Beat.Pose -> {
+                PickRow("Who", cast, beat.who.ifEmpty { null }, { put(beat.copy(who = it)) })
+                if (anims.isEmpty()) {
+                    Text("No animations yet: Import Animations on the title screen.", style = frizStyle(13.sp, WowColors.grey, false))
+                } else {
+                    PickRow("Animation", PoseChoices.items(anims), beat.animId.ifEmpty { null }, { put(beat.copy(animId = it)) })
+                }
+                if (beat.animId.isNotBlank() && anims.none { it.id == beat.animId }) {
+                    Text("This animation is not in the library any more.", style = frizStyle(13.sp, Color(0xFFFF6A5A), false))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val a = anims.firstOrNull { it.id == beat.animId }
+                    SmallButton("Preview", { if (a != null) view.playAnim(beat.who, a) }, enabled = a != null && beat.who.isNotEmpty(), width = 104.dp)
+                    SmallButton("Stop", { view.stopAnim(beat.who) }, enabled = beat.who.isNotEmpty(), width = 84.dp)
+                }
+            }
             is Beat.Choice -> {
                 EditorField(beat.prompt, { put(beat.copy(prompt = it)) }, "The question")
                 beat.options.forEachIndexed { n, o ->

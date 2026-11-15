@@ -28,7 +28,8 @@ playing the game's emotes; the menus are WoW's own interface.
 ## The title
 
 **Continue** opens the project you worked on last, **New Project** starts one, **Projects** lists
-them all (open, rename, delete). **Options** and **Updates** are below.
+them all (open, rename, delete). **Import Animations** and **Animations** (the library) are
+described under "Sims 4 animations" below. **Options** and **Updates** are below.
 
 ## The editor
 
@@ -46,9 +47,53 @@ them all (open, rename, delete). **Options** and **Updates** are below.
 - **The scene builder**: the stage (a place and a light) with the cast standing as the selected
   beat leaves them, and the beats in order: **Say** (who, an emote, the words; nobody is narration),
   **Show** (who, left, center or right, and the camera: bust, two, wide or one of the place's
-  views), **Hide**, **Camera**, **Choice** (each answer goes to a scene), **Goto** a scene, **End**
-  (its title is shown as the ending). **Check** lists what would stop it playing; **Play** plays the
+  views), **Hide**, **Camera**, **Pose** (who holds an imported animation, picked by name from the
+  library; **Preview** plays it on the stage, **Stop** ends it), **Choice** (each answer goes to a
+  scene), **Goto** a scene, **End** (its title is shown as the ending). A Say's emote list also
+  offers the library's animations ("Pose: name"): the line is spoken while the person holds it. **Check** lists what would stop it playing; **Play** plays the
   project from this scene.
+
+## Sims 4 animations
+
+**Import Animations** (the title) turns Sims 4 animation files into poses and clips your stories can
+use. Nothing from the Sims game is in the app or the repository: you bring the files.
+
+1. **The Sims 4 skeleton, once.** Conversion needs the Sims' own skeleton (its RIG resource), which
+   lives in the game's packages, not in animation mods. Under "Sims 4 skeleton" tap **Choose
+   package** and pick a game package from your own install (a file such as
+   `ClientFullBuild0.package`). Only its index is read; the skeleton found is kept in the app's
+   storage (`files/anims/rig`), so the big package is read once. The row says whether a skeleton is
+   loaded. Without one you can still pick files, but each is reported as **Failed** with that
+   reason; nothing is converted or invented.
+2. **Choose animation files.** Pick one or many `.package` files, or a `.zip` or `.7z` holding them
+   (folders inside are fine; entries with unsafe paths, such as `../` or absolute ones, are
+   refused and said so; temporary files are removed afterwards; an invalid archive is reported and
+   the rest carries on). The list shows each file or clip as it converts: **Done**, **Skipped**
+   (for example a package with no clips) or **Failed**, with the reason. One bad file never stops
+   the others.
+3. **Review.** Each converted animation has a name (its clip or file name to begin with), a
+   category (one of the existing ones, or **New**), a Keep/Skip button; with several, **All to**
+   sets one category for the batch. **Save** adds them to the library. The same source (the file's
+   hash and the clip's name) is skipped with a message; the same display name gets " (2)".
+
+**Animations** (the title, or Import's neighbour) is the library: search by name, category or
+source file, filter by category, **Rename**, **Category**, **Delete**. It is stored as one JSON
+file per animation plus an index, under `files/anims/`, written atomically. Playing an animation
+from the library screen is not there; use a Pose beat's **Preview** in the scene builder.
+
+In a story, a Pose beat is compiled to the script command `pose <person> <id>` and played by the
+renderer: the animation's bones replace the person's skeleton pose by bone name (the conversion's
+profile in `assets/sims_profile.json` says which Sims bone drives which WoW bone) and a pose holds
+until the person moves, uses a game emote or leaves. An animation that has since been deleted is a
+problem **Check** names, and is skipped if you play anyway.
+
+What it can't do (yet): poses (single-frame clips) are what it is made for; longer clips convert
+with the same rules but are less checked. Sims content that is not an animation clip (objects,
+CAS parts, sliders, scripts), Sims 4's compressed or encrypted packages that the reader doesn't
+know, and clips whose bones the profile doesn't map are reported, not converted. The Wifecraft
+renderer draws the game's current models without 3.3.5's animation sequences, so a pose is the
+bone transforms of the clip, not blended with an idle. The skeleton package is read from disk, so
+it needs room for one temporary copy while it is picked.
 
 ## Playing
 
@@ -114,13 +159,19 @@ keeps the game's files and your projects.
 
 ## What was tested
 
-The JVM unit tests and the renderer's desktop build (`engine-test/`). Nothing of the editor, the
+The JVM unit tests and the renderer's desktop build (`engine-test/`). The animation import's pure
+parts (the progress list, the review and save, the library browser, the Pose beat's save, compile,
+checks and script command) are unit-tested; its screens, the file pickers, a real Sims 4 package
+and the poses on a model have not run (nothing here runs on a phone). Nothing of the editor, the
 creator's screen, the downloads on the phone or Play has run on a phone yet. Not drawn yet: the
 face shapes (`ChrCustomizationBoneSet`'s bone files are fetched, the renderer has no call for
 them), the starting outfit (Gear shows or hides the bare equipment geosets only) and voices for the
 people's emotes.
 
 ## Changes
+
+- **Sims 4 animations** (November 2026): **Import Animations** and **Animations** on the title,
+  the Pose beat and the library's animations in a Say's emote list ("Sims 4 animations" above).
 
 - **The story editor** (November 2026): the demo story (*A Day in Dalaran*, Alleria, Nyrelle, the
   endings, the reputations, the Who Are You? screen, saves) is gone; Wifecraft is now a story
@@ -131,3 +182,10 @@ people's emotes.
 Wifecraft is a fan project, not affiliated with or endorsed by Blizzard Entertainment. World of
 Warcraft and its characters, models and art are Blizzard's; the app downloads them for you and
 doesn't include them.
+
+## Sims animation conversion: what is verified and what is not
+
+- **Verified (desktop, synthetic):** the Sims 4 package and clip reader decodes the 15 clips of one sample pose pack (96 bone rotations and 96 translations each, all bone hashes named); the retargeter maps a synthetic Sims pose onto a night elf model's bones and the engine draws it (`engine-test`, Mesa headless).
+- **Not verified:** a real Sims pose converted with a real Sims 4 skeleton (none was available: the skeleton's bone names and parents come from community documentation, unchecked against the game's own RIG), anything on a phone, the compressed channel types (palette and normalized) against real data.
+- **Known limits:** while an imported animation plays, its bones and every bone above them stand at the model's rest pose (the A-pose), and only each bone's direction is corrected (it can still be twisted along its length). Sims face and CAS bones are dropped. Poses are single-frame; motion clips use the same path and are untested.
+- **Sample viewer:** `tools/viewer_html.py` builds a private single-file HTML viewer of a night elf with the test poses and a loader for the importer's animation JSON (it embeds game model data: keep the output file to yourself; never commit it).

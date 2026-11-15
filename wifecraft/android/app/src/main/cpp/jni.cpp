@@ -3,6 +3,7 @@
 #include <jni.h>
 #include <sys/stat.h>
 
+#include <algorithm>
 #include <map>
 #include <string>
 #include <vector>
@@ -133,6 +134,34 @@ JNIEXPORT void JNICALL FN(place)(JNIEnv*, jclass, jlong h, jint id, jfloat x, jf
 JNIEXPORT void JNICALL FN(anim)(JNIEnv*, jclass, jlong h, jint id, jint anim, jboolean loop, jint now) {
     scene(h)->playAnim(id, uint16_t(anim), loop, uint32_t(now));
 }
+
+// An imported animation on a person (Native.boneAnim documents the arrays). Returns the tracks this model has a bone for.
+JNIEXPORT jint JNICALL FN(boneAnim)(JNIEnv* env, jclass, jlong h, jint id, jobjectArray bones, jintArray channels,
+                                    jintArray keyCounts, jfloatArray times, jfloatArray values, jfloat duration,
+                                    jboolean loop, jint now) {
+    auto ch = ints(env, channels), counts = ints(env, keyCounts);
+    auto ts = floats(env, times), vs = floats(env, values);
+    jsize n = bones ? env->GetArrayLength(bones) : 0;
+    BoneAnim anim;
+    anim.duration = duration;
+    anim.loop = loop;
+    size_t ti = 0, vi = 0;
+    for (jsize i = 0; i < n && size_t(i) < ch.size() && size_t(i) < counts.size(); ++i) {
+        auto js = (jstring)env->GetObjectArrayElement(bones, i);
+        BoneAnimTrack t;
+        if (js) { t.bone = str(env, js); env->DeleteLocalRef(js); }
+        t.rotation = ch[size_t(i)] == 0;
+        size_t keys = size_t(std::max(0, counts[size_t(i)])), per = t.rotation ? 4 : 3;
+        if (ti + keys > ts.size() || vi + keys * per > vs.size()) break;
+        t.times.assign(ts.begin() + long(ti), ts.begin() + long(ti + keys));
+        t.values.assign(vs.begin() + long(vi), vs.begin() + long(vi + keys * per));
+        ti += keys; vi += keys * per;
+        anim.tracks.push_back(std::move(t));
+    }
+    return scene(h)->setBoneAnim(id, anim, uint32_t(now));
+}
+
+JNIEXPORT void JNICALL FN(clearBoneAnim)(JNIEnv*, jclass, jlong h, jint id) { scene(h)->clearBoneAnim(id); }
 
 JNIEXPORT void JNICALL FN(idle)(JNIEnv*, jclass, jlong h, jint id, jint anim) { scene(h)->setIdleAnim(id, uint16_t(anim)); }
 

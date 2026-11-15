@@ -15,6 +15,8 @@ package com.logie.wifecraft.story
  *     walk p_mira right 2500 / run p_bob center 1200  move to a mark, taking that long
  *     face p_mira p_bob              turn toward someone (or "camera")
  *     emote p_mira laugh [loop]      an animation by name (talk, laugh, bow, point, ...)
+ *     pose p_mira ID                 an imported animation (Import Animations), by its library id; held until
+ *                                    the person moves, emotes or is removed
  *     shot bust p_mira 800           the camera: bust WHO, two A B, wide, view NAME (a place's
  *                                    camera), and how long the move takes (0: a cut)
  *     shake 400                      the camera shakes
@@ -47,6 +49,8 @@ sealed interface Command {
     data class Move(val who: String, val mark: String, val ms: Int, val run: Boolean, override val line: Int) : Command
     data class Face(val who: String, val target: String, override val line: Int) : Command
     data class Emote(val who: String, val emote: String, val loop: Boolean, override val line: Int) : Command
+    /** `pose p_mira ANIM_ID`: the library animation [animId] (anim/AnimLibrary) played on [who] and held. */
+    data class Pose(val who: String, val animId: String, override val line: Int) : Command
     data class Shot(val kind: String, val args: List<String>, val ms: Int, override val line: Int) : Command
     data class Shake(val ms: Int, override val line: Int) : Command
     data class Music(val name: String, val fadeMs: Int, override val line: Int) : Command
@@ -125,6 +129,10 @@ class Script(val commands: List<Command>) {
                     words[0] == "emote" -> {
                         if (words.size < 3) fail(n, "emote needs who and an emote")
                         Command.Emote(words[1], words[2], words.getOrNull(3) == "loop", n)
+                    }
+                    words[0] == "pose" -> {
+                        if (words.size != 3) fail(n, "pose needs who and an animation id")
+                        Command.Pose(words[1], words[2], n)
                     }
                     words[0] == "shot" -> {
                         if (words.size < 2) fail(n, "shot needs a kind")

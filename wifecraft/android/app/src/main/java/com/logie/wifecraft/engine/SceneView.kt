@@ -3,6 +3,8 @@ package com.logie.wifecraft.engine
 import android.content.Context
 import android.opengl.GLSurfaceView
 import android.os.SystemClock
+import com.logie.wifecraft.anim.Anim
+import com.logie.wifecraft.anim.AnimArrays
 import com.logie.wifecraft.creator.BodyCall
 import com.logie.wifecraft.creator.DressCall
 import com.logie.wifecraft.data.City
@@ -58,6 +60,8 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     private val ids = mutableMapOf<String, Int>()
     /** GL thread: the model and scale each key's actor was added with (a new model is a new actor). */
     private val bodies = mutableMapOf<String, Pair<Int, Float>>()
+    /** GL thread: each key's imported animation ([playAnim]), put on its actor whenever that actor is (re)made. */
+    private val poses = mutableMapOf<String, AnimArrays>()
     private var width = 1
     private var height = 1
 
@@ -124,6 +128,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
             if (added <= 0) return@post
             ids[key] = added; bodies[key] = call.model to call.scale
             id = added
+            poses[key]?.let { applyPose(h, added, it) }
         }
         Native.dress(h, id, call.geosetKeys, call.geosetValues, call.layerFiles, call.layerMeta, call.tintColours, call.extraModels)
         Native.body(h, id, body.morph, body.k, body.fold)
@@ -135,6 +140,30 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         for (id in ids.values) Native.removeActor(h, id)
         ids.clear()
         bodies.clear()
+        poses.clear()
+    }
+
+    /**
+     * Plays an imported animation ([Anim], WoW-side bone names) on the actor [actorKey] over its own animation: a pose
+     * holds, a looping one loops, until [stopAnim]. Called before the actor is on stage, it waits for it; a re-dress
+     * of the same key keeps it (a new model gets it again). Taking everyone off stage ([removeAll]) forgets it.
+     */
+    fun playAnim(actorKey: String, anim: Anim) {
+        val arrays = AnimArrays.of(anim)
+        post { h, ids ->
+            poses[actorKey] = arrays
+            ids[actorKey]?.let { applyPose(h, it, arrays) }
+        }
+    }
+
+    /** Takes [actorKey]'s imported animation off (it returns to its own animation). */
+    fun stopAnim(actorKey: String) = post { h, ids ->
+        poses.remove(actorKey)
+        ids[actorKey]?.let { Native.clearBoneAnim(h, it) }
+    }
+
+    private fun applyPose(h: Long, id: Int, a: AnimArrays) {
+        Native.boneAnim(h, id, a.bones, a.channels, a.keyCounts, a.times, a.values, a.duration, a.loop, Clock.now())
     }
 
     override fun anim(key: String, anim: Int, loop: Boolean, nowMs: Int) =

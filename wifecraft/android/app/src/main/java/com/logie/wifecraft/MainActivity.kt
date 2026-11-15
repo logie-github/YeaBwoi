@@ -32,6 +32,9 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
+import com.logie.wifecraft.anim.AnimLibrary
+import com.logie.wifecraft.anim.Profile
+import com.logie.wifecraft.anim.Retargeter
 import com.logie.wifecraft.audio.Audio
 import com.logie.wifecraft.creator.Catalog
 import com.logie.wifecraft.creator.CsvTables
@@ -45,9 +48,13 @@ import com.logie.wifecraft.editor.ProjectStore
 import com.logie.wifecraft.engine.Dresser
 import com.logie.wifecraft.engine.SceneView
 import com.logie.wifecraft.play.Director
+import com.logie.wifecraft.play.PosePlayer
 import com.logie.wifecraft.play.Sounds
 import com.logie.wifecraft.story.Script
+import com.logie.wifecraft.ui.AnimImportScreen
+import com.logie.wifecraft.ui.AnimLibraryScreen
 import com.logie.wifecraft.ui.ArtAtlas
+import com.logie.wifecraft.ui.RigStore
 import com.logie.wifecraft.ui.EditorScreen
 import com.logie.wifecraft.ui.EditorStart
 import com.logie.wifecraft.ui.GatherScreen
@@ -84,6 +91,10 @@ class MainActivity : ComponentActivity() {
     private lateinit var projects: StoreApi
     private lateinit var places: List<PlaceInfo>
     private lateinit var dresser: Dresser
+    /** Imported animations (files/anims) and the Sims 4 skeleton they are converted with (files/anims/rig). */
+    private lateinit var anims: AnimLibrary
+    private lateinit var rigs: RigStore
+    private val profileJson: String by lazy { assets.open("sims_profile.json").bufferedReader().use { it.readText() } }
     private var scene: SceneView? = null
     private var audio: Audio? = null
 
@@ -92,6 +103,8 @@ class MainActivity : ComponentActivity() {
         data object Gather : Screen
         data class Editor(val start: EditorStart) : Screen
         data class Story(val projectId: String) : Screen
+        data object ImportAnims : Screen
+        data object Animations : Screen
     }
     enum class Panel { None, Pause, Log, Options, Update }
 
@@ -110,6 +123,8 @@ class MainActivity : ComponentActivity() {
         projects = StoreApi(ProjectStore(File(filesDir, "projects")))
         places = PlaceInfo.parseAll(assets.open("places.json").bufferedReader().use { it.readText() })
         dresser = Dresser(files, tables, imports, lifecycleScope)
+        anims = AnimLibrary(File(filesDir, "anims"))
+        rigs = RigStore(File(filesDir, "anims"))
         audio = runCatching { Audio(applicationContext, files) }.getOrNull()?.apply {
             musicVolume = settings.musicVolume / 100f
             soundVolume = settings.soundVolume / 100f
@@ -205,6 +220,14 @@ class MainActivity : ComponentActivity() {
                 script, places.associateBy { it.id }, cast.mapValues { it.value.name }, settings, view, audio ?: Sounds.None,
                 dress = { key -> val a = cast[key]; val c = catalog; if (a != null && c != null) dresser.dress(view, c, key, a.appearance) },
                 onFinished = { backToEditor(project.id) },
+                poses = object : PosePlayer {
+                    override fun play(who: String, animId: String): Boolean {
+                        val a = runCatching { anims.get(animId) }.getOrNull() ?: return false
+                        view.playAnim(who, a)
+                        return true
+                    }
+                    override fun stop(who: String) = view.stopAnim(who)
+                },
             )
             d.begin()
             director = d
@@ -240,7 +263,15 @@ class MainActivity : ComponentActivity() {
                         onGather = { screen = Screen.Gather },
                         onOptions = { panel = Panel.Options },
                         onUpdates = { updateStatus = ""; panel = Panel.Update },
+                        onImportAnims = { screen = Screen.ImportAnims },
+                        onAnimations = { screen = Screen.Animations },
                     )
+                    Screen.ImportAnims -> AnimImportScreen(
+                        library = anims, rigs = rigs,
+                        retargeter = { rig -> Retargeter(Profile.load(profileJson), rig) },
+                        onBack = { screen = Screen.Title },
+                    )
+                    Screen.Animations -> AnimLibraryScreen(anims, onImport = { screen = Screen.ImportAnims }, onBack = { screen = Screen.Title })
                     Screen.Gather -> GatherScreen(
                         progress = progress,
                         packLabels = listOf(
@@ -270,6 +301,7 @@ class MainActivity : ComponentActivity() {
                             onBack = { screen = Screen.Title },
                             start = s.start,
                             onPlayProject = { project, text -> play(project, text) },
+                            animLibrary = anims,
                         )
                     }
                     is Screen.Story -> director?.let { d ->

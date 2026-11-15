@@ -34,6 +34,21 @@ struct DressModel {
 // The look's layer that is the body options' design (creator/LookResolver.BODY_LAYER), not a layer of the skin.
 constexpr int kBodyLayer = 100;
 
+// An imported animation on a person (anim/Anim, by WoW-side bone names): each track replaces one bone's local
+// rotation (x,y,z,w about its pivot, in its parent's frame: at rest every M2 bone's is the identity, so the model's
+// axes) or translation (model units, given for kAnimRootHeight and scaled to the model's own Root). Times in seconds.
+struct BoneAnimTrack {
+    std::string bone;
+    bool rotation = true;
+    std::vector<float> times;
+    std::vector<float> values;     // 4 per time (rotation) or 3 (position)
+};
+struct BoneAnim {
+    std::vector<BoneAnimTrack> tracks;
+    float duration = 0;            // seconds; 0 or one key: a held pose
+    bool loop = false;             // otherwise the last key holds
+};
+
 struct Light {
     float skyTop[3] = {0.25f, 0.38f, 0.66f};
     float skyHorizon[3] = {0.72f, 0.78f, 0.86f};
@@ -82,6 +97,11 @@ public:
     void placeActor(int id, V3 position, float facing);
     void playAnim(int id, uint16_t animId, bool loop, uint32_t nowMs);
     void setIdleAnim(int id, uint16_t animId);
+    // Plays an imported animation over the actor's own one (setBoneAnim): its bones, and every bone above them, follow
+    // it (those it leaves out stand at rest); the other bones (face, hair, cloth) keep the actor's animation. It holds
+    // or loops until cleared; dress() keeps it. Returns how many of its tracks name a bone this model has.
+    int setBoneAnim(int id, const BoneAnim& anim, uint32_t nowMs);
+    void clearBoneAnim(int id);
     void showActor(int id, bool visible);
     bool actorReady(int id) const;
     // How tall an actor stands (for the camera's framing).
@@ -161,6 +181,12 @@ private:
         unsigned boneTex = 0;
         std::vector<BonePose> pa, pb;
         std::vector<M4> mats;
+        // The imported animation (setBoneAnim): its tracks' bones (-1: none here), the bones held at rest under it.
+        std::shared_ptr<BoneAnim> boneAnim;
+        std::vector<int> boneAnimBones;
+        std::vector<uint8_t> boneAnimRest;
+        uint32_t boneAnimStart = 0;
+        float boneAnimScale = 1;
     };
     struct GroupGl {
         unsigned vao = 0, vbo = 0, ibo = 0;
@@ -216,6 +242,7 @@ private:
                    uint32_t now, const float tint[4], bool transparent, int texSize,
                    const std::map<uint32_t, unsigned>* glTextures = nullptr, unsigned vao = 0);
     void animate(Actor& a, uint32_t now);
+    void applyBoneAnim(Actor& a, uint32_t now);
     void drawAttached(Actor& a, const M4& world, uint32_t now, bool transparent);
     void drawActor(Actor& a, uint32_t now, bool transparent);
     void refreshSkin(Actor& a);

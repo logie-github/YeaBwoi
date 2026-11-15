@@ -24,6 +24,20 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.sin
 
 /**
+ * Plays an imported animation (anim/AnimLibrary) on a person of the stage: the host looks the id up and calls
+ * SceneView.playAnim; false when the library has no such animation.
+ */
+interface PosePlayer {
+    fun play(who: String, animId: String): Boolean
+    fun stop(who: String)
+
+    object None : PosePlayer {
+        override fun play(who: String, animId: String) = false
+        override fun stop(who: String) = Unit
+    }
+}
+
+/**
  * Plays a story (the editor's project compiled to a script: editor/Compile): runs the script,
  * stages it in the 3D scene (people, their walks and emotes, the camera's moves and shakes) and
  * holds what the screen shows over it (the line being said, a choice, a chapter card, fades, the
@@ -40,6 +54,8 @@ class Director(
     private val sounds: Sounds = Sounds.None,
     private val dress: (key: String) -> Unit,
     private val onFinished: () -> Unit,
+    /** Where `pose` commands go (the imported animations); without it they are skipped. */
+    private val poses: PosePlayer = PosePlayer.None,
 ) {
     data class Line(val who: String, val name: String, val text: String, val index: Int, val shownAt: Int, val seen: Boolean) {
         /** When a tap showed the whole line (it then stays whole), or -1 while it's still typing. */
@@ -71,6 +87,8 @@ class Director(
     }
 
     private val actors = mutableMapOf<String, Actor>()
+    /** Who holds an imported pose now (it holds until they move, emote or leave; a spoken line keeps it). */
+    private val posed = mutableSetOf<String>()
     private var place = places.values.firstOrNull() ?: PlaceInfo.STUDIO
     private var camera = CameraPose(Vec3(0f, -10f, 3f), Vec3(0f, 0f, 1f), 45f)
     private var camFrom = camera
@@ -194,8 +212,10 @@ class Director(
     private fun say(step: Step.Line, now: Int) {
         val name = nameOf(step.who)
         if (step.who in actors) {
-            val anim = step.emote?.let { Emotes.byName[it] } ?: Emotes.TALK
-            postAnim(step.who, anim, loop = false, now)
+            if (step.who !in posed || step.emote != null) {
+                val anim = step.emote?.let { Emotes.byName[it] } ?: Emotes.TALK
+                postAnim(step.who, anim, loop = false, now)
+            }
         }
         step.emote?.let { voice(step.who, it) }
         revealed = 0
@@ -226,6 +246,8 @@ class Director(
         when (c) {
             is Command.Scene -> {
                 for (key in actors.keys) scene.removeActor(key)
+                for (key in posed) poses.stop(key)
+                posed.clear()
                 actors.clear()
                 place = places[c.place] ?: place
                 placeName = place.name
@@ -237,16 +259,19 @@ class Director(
             is Command.Cast -> {
                 val pos = place.marks[c.mark] ?: return
                 val a = actors.getOrPut(c.who) { addActor(c.who, pos) }
+                letGo(c.who)
                 a.pos = pos; a.from = pos; a.to = pos; a.moveMs = 0; a.visible = true
                 c.facing?.let { a.facing = facingToward(a, it) }
             }
             is Command.Remove -> {
+                letGo(c.who)
                 actors.remove(c.who)
                 scene.removeActor(c.who)
             }
             is Command.Move -> {
                 val a = actors[c.who] ?: return
                 val to = place.marks[c.mark] ?: return
+                letGo(c.who)
                 a.facing = Shots.facing(a.pos, to)
                 if (instant || c.ms <= 0) {
                     a.pos = to; a.from = to; a.to = to; a.moveMs = 0
@@ -256,7 +281,9 @@ class Director(
                 }
             }
             is Command.Face -> actors[c.who]?.let { it.facing = facingToward(it, c.target) }
+            is Command.Pose -> if (c.who in actors && poses.play(c.who, c.animId)) posed += c.who
             is Command.Emote -> if (!instant) {
+                letGo(c.who)
                 Emotes.byName[c.emote]?.let { postAnim(c.who, it, c.loop, now) }
                 voice(c.who, c.emote)
             }
@@ -272,6 +299,11 @@ class Director(
             is Command.Letterbox -> letterbox = c.on
             else -> Unit
         }
+    }
+
+    /** Ends [who]'s imported pose, if they hold one. */
+    private fun letGo(who: String) {
+        if (posed.remove(who)) poses.stop(who)
     }
 
     private fun addActor(who: String, pos: Vec3): Actor {

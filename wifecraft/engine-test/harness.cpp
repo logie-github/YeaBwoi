@@ -13,7 +13,15 @@
 //   clear                                      takes everyone off stage
 //   look N LOOKFILE X Y Z FACING               a person from a look file (below), dressed
 //   dress N LOOKFILE                           dresses person N again (Native.dress): geosets, layers, extras
+//   boneanim N ANIMFILE                        an imported animation on person N (Scene::setBoneAnim; file below)
+//   bonestop N                                 takes it off (Scene::clearBoneAnim)
 //   render OUT.ppm|OUT.png WIDTH HEIGHT TIME_MS
+//
+// An anim file (anim/AnimArrays as text; one key per line, # comments; keys of a bone and channel in time order):
+//   duration SECONDS
+//   loop
+//   rot BONE TIME X Y Z W                      a local rotation key, by WoW-side bone name (Root, Head, L_UpperArm ...)
+//   pos BONE TIME X Y Z                        a local translation key
 //
 // A look file (what the creator resolves a look to; one per line, # comments):
 //   model FILE_ID                              the body (look only)
@@ -28,7 +36,7 @@
 //
 // Build: engine-test/build.sh; run: build/harness commands.txt
 // Or, for the creator, one person on a plain stage straight to a picture:
-//   build/harness --look LOOKFILE --files DIR --out OUT.png [--size WxH] [--shot body|torso|face] [--facing RADIANS] [--time MS]
+//   build/harness --look LOOKFILE --files DIR --out OUT.png [--size WxH] [--shot body|torso|face] [--facing RADIANS] [--time MS] [--anim ANIMFILE]
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES3/gl3.h>
@@ -67,6 +75,32 @@ struct LookFile {
     std::vector<float> morph;
     bool body = false;
 };
+
+static bool readBoneAnim(const std::string& path, BoneAnim& out) {
+    std::ifstream in(path);
+    if (!in) { std::fprintf(stderr, "no anim file %s\n", path.c_str()); return false; }
+    std::map<std::pair<std::string, bool>, size_t> index;
+    std::string line;
+    while (std::getline(in, line)) {
+        std::istringstream ss(line);
+        std::string k;
+        ss >> k;
+        if (k.empty() || k[0] == '#') continue;
+        if (k == "duration") ss >> out.duration;
+        else if (k == "loop") out.loop = true;
+        else if (k == "rot" || k == "pos") {
+            std::string bone; float t;
+            ss >> bone >> t;
+            bool rot = k == "rot";
+            auto key = std::make_pair(bone, rot);
+            if (!index.count(key)) { index[key] = out.tracks.size(); out.tracks.push_back({bone, rot, {}, {}}); }
+            BoneAnimTrack& tr = out.tracks[index[key]];
+            tr.times.push_back(t);
+            for (int i = 0; i < (rot ? 4 : 3); ++i) { float v = 0; ss >> v; tr.values.push_back(v); }
+        }
+    }
+    return true;
+}
 
 static uint32_t number(const std::string& s) { return uint32_t(std::strtoul(s.c_str(), nullptr, 0)); }
 
@@ -262,6 +296,12 @@ int main(int argc, char** argv) {
         if (id <= 0) { std::fprintf(stderr, "model %u: FAILED\n", lf.model); return 1; }
         scene.dress(id, lf.geo, lf.layers, lf.extras);
         if (lf.body) scene.setBody(id, lf.morph, lf.bodyK, lf.bodyFold);
+        if (opt.count("--anim")) {
+            BoneAnim ba;
+            if (!readBoneAnim(opt["--anim"], ba)) return 1;
+            int found = scene.setBoneAnim(id, ba, 0);
+            std::fprintf(stderr, "anim: %d of %zu tracks found their bone\n", found, ba.tracks.size());
+        }
         float facing = opt.count("--facing") ? std::strtof(opt["--facing"].c_str(), nullptr) : 0.0f;
         scene.placeActor(id, V3(0, 0, 0), facing);
         V3 mn, mx;
@@ -370,6 +410,15 @@ int main(int argc, char** argv) {
             ss >> name >> path;
             LookFile lf;
             if (actors.count(name) && readLook(path, lf)) scene.dress(actors[name], lf.geo, lf.layers, lf.extras);
+        } else if (cmd == "boneanim") {
+            int name; std::string path;
+            ss >> name >> path;
+            BoneAnim ba;
+            if (actors.count(name) && readBoneAnim(path, ba))
+                std::fprintf(stderr, "boneanim %d: %d of %zu tracks found their bone\n", name, scene.setBoneAnim(actors[name], ba, 0), ba.tracks.size());
+        } else if (cmd == "bonestop") {
+            int name; ss >> name;
+            if (actors.count(name)) scene.clearBoneAnim(actors[name]);
         } else if (cmd == "render") {
             std::string out; int w, h; uint32_t t;
             ss >> out >> w >> h >> t;
