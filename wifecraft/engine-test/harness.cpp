@@ -22,16 +22,21 @@
 //   geo GROUP=VALUE,...                        geoset groups
 //   layer TYPE LAYER BLEND X Y W H MAT_W MAT_H FILE [TINT1 [TINT2]]   a skin layer (tints 0xAARRGGBB)
 //   extra ATTACHMENT MODEL TEXTURE             an added model (attachment -1: skinned to the body)
+//   body K FOLD [MORPHFILE]                    Wrath++'s body options (Scene::setBody): the layer's square (the race's
+//                                              k and fold, BodyShapes.Frame) and a shape (raw little-endian floats,
+//                                              BodyShapes.morph's records); the design is the look's `layer 1 100 ...`
 //
 // Build: engine-test/build.sh; run: build/harness commands.txt
 // Or, for the creator, one person on a plain stage straight to a picture:
-//   build/harness --look LOOKFILE --files DIR --out OUT.png [--size WxH] [--shot body|face] [--facing RADIANS] [--time MS]
+//   build/harness --look LOOKFILE --files DIR --out OUT.png [--size WxH] [--shot body|torso|face] [--facing RADIANS] [--time MS]
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES3/gl3.h>
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <iterator>
 #include <fstream>
 #include <map>
 #include <sstream>
@@ -58,6 +63,9 @@ struct LookFile {
     std::map<int, int> geo;
     std::vector<SkinLayer> layers;
     std::vector<DressModel> extras;
+    float bodyK = 0, bodyFold = 0;
+    std::vector<float> morph;
+    bool body = false;
 };
 
 static uint32_t number(const std::string& s) { return uint32_t(std::strtoul(s.c_str(), nullptr, 0)); }
@@ -88,6 +96,17 @@ static bool readLook(const std::string& path, LookFile& out) {
             if (!t1.empty()) l.tint1 = number(t1);
             if (!t2.empty()) l.tint2 = number(t2);
             out.layers.push_back(l);
+        } else if (k == "body") {
+            std::string morphFile;
+            ss >> out.bodyK >> out.bodyFold >> morphFile;
+            out.body = true;
+            if (!morphFile.empty()) {
+                std::ifstream mf(morphFile, std::ios::binary);
+                if (!mf) { std::fprintf(stderr, "no morph file %s\n", morphFile.c_str()); return false; }
+                std::vector<char> raw((std::istreambuf_iterator<char>(mf)), std::istreambuf_iterator<char>());
+                out.morph.resize(raw.size() / 4);
+                std::memcpy(out.morph.data(), raw.data(), out.morph.size() * 4);
+            }
         } else if (k == "extra") {
             DressModel d;
             ss >> d.attachment >> d.model >> d.texture;
@@ -201,7 +220,7 @@ static Light preset(const std::string& name) {
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-        std::fprintf(stderr, "usage: harness COMMANDS | harness --look LOOKFILE --files DIR --out OUT.png [--size WxH] [--shot body|face] [--facing RADIANS] [--time MS]\n");
+        std::fprintf(stderr, "usage: harness COMMANDS | harness --look LOOKFILE --files DIR --out OUT.png [--size WxH] [--shot body|torso|face] [--facing RADIANS] [--time MS]\n");
         return 2;
     }
     std::map<std::string, std::string> opt;
@@ -242,14 +261,15 @@ int main(int argc, char** argv) {
         int id = scene.addActor(lf.model, lf.tex, lf.geo, lf.scale);
         if (id <= 0) { std::fprintf(stderr, "model %u: FAILED\n", lf.model); return 1; }
         scene.dress(id, lf.geo, lf.layers, lf.extras);
+        if (lf.body) scene.setBody(id, lf.morph, lf.bodyK, lf.bodyFold);
         float facing = opt.count("--facing") ? std::strtof(opt["--facing"].c_str(), nullptr) : 0.0f;
         scene.placeActor(id, V3(0, 0, 0), facing);
         V3 mn, mx;
         scene.actorBounds(id, mn, mx);
         float h = mx.z;
-        bool face = opt["--shot"] == "face";
-        float tz = face ? h * 0.88f : h * 0.5f, dist = face ? h * 0.35f : h * 1.6f;
-        scene.setCamera(V3(dist, 0, tz), V3(0, 0, tz), face ? 30.0f : 40.0f);
+        bool face = opt["--shot"] == "face", torso = opt["--shot"] == "torso";
+        float tz = face ? h * 0.88f : torso ? h * 0.58f : h * 0.5f, dist = face ? h * 0.35f : torso ? h * 0.75f : h * 1.6f;
+        scene.setCamera(V3(dist, 0, tz), V3(0, 0, tz), face || torso ? 30.0f : 40.0f);
         Light studio;
         float sun[3] = {-0.6f, 0.3f, -0.5f}, hor[3] = {0.16f, 0.15f, 0.18f}, amb[3] = {0.55f, 0.55f, 0.58f};
         std::copy(sun, sun + 3, studio.sunDir);
@@ -262,6 +282,8 @@ int main(int argc, char** argv) {
         if (opt.count("--size")) std::sscanf(opt["--size"].c_str(), "%dx%d", &w, &ht);
         renderTo(scene, opt.count("--out") ? opt["--out"] : "look.png", w, ht,
                  opt.count("--time") ? uint32_t(std::atoi(opt["--time"].c_str())) : 0);
+        size_t moved = 0, layer = 0;
+        if (lf.body && scene.bodyStats(id, moved, layer)) std::fprintf(stderr, "body: %zu vertices shaped, %zu layer triangles\n", moved, layer);
         return 0;
     }
 

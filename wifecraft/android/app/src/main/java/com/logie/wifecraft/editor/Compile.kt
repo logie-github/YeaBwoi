@@ -6,8 +6,8 @@ package com.logie.wifecraft.editor
  * underscores only, so a name can never be read as a command), narration is `narrator`; a scene
  * becomes the label `s_<id>`; the three spots are the marks `left`, `center` and `right` of the
  * scene's place. Shot strings: "" (none), "bust", "wide", "two ACTOR", "view NAME", and for a
- * Camera beat "bust ACTOR" (a Show's bust is the one shown). An End plays `ending <id of the title>`
- * then `finish`.
+ * Camera beat "bust ACTOR" (a Show's bust is the one shown). An End plays `ending <id of the title> <the title>`
+ * then `finish`; [cast] says which actor each script name is (the player resolves each to its saved look).
  */
 object Compile {
     val spots = listOf("left", "center", "right")
@@ -102,6 +102,12 @@ object Compile {
         return if (w[0] == "bust" || w[0] == "two") w.drop(1) else emptyList()
     }
 
+    /** The script name of each actor of [p] (`p_<letters>`, as [toScript] writes them) to the actor. */
+    fun cast(p: Project): Map<String, Actor> {
+        val who = names(p.cast.map { it.id }, "p_", false)
+        return p.cast.distinctBy { it.id }.associateBy { who.getValue(it.id) }
+    }
+
     fun toScript(p: Project): String {
         val who = names(p.cast.map { it.id }, "p_", false)
         val label = names(p.scenes.map { it.id }, "s_", true)
@@ -150,7 +156,8 @@ object Compile {
                     is Beat.Goto -> { line("goto ${label[b.scene] ?: "s_" + slug(b.scene, true)}"); closed = true }
                     is Beat.End -> {
                         endings++
-                        line("ending ${slug(b.title, true).take(40).ifEmpty { "end$endings" }}")
+                        val id = slug(b.title, true).take(40).ifEmpty { "end$endings" }
+                        line("ending $id ${oneLine(b.title)}".trimEnd())
                         line("finish")
                         closed = true
                     }

@@ -8,19 +8,18 @@ import kotlin.test.assertTrue
 class StoryRunnerTest {
     private val script = Script.parse(
         """
-        alleria +10
-        scene krasus day
-        cast alleria rail
-        alleria [talk]: Hello, {name}.
+        scene studio day
+        cast p_mira center
+        p_mira [talk]: Hello, {name}.
         choice Well?
-          > Kind words. | alleria +60
-          > Rude words. | alleria -50 | goto rude
+          > Kind words. | set kind
+          > Rude words. | goto rude
         end
-        if alleria >= 60 goto romance
+        if flag kind goto warm
         :rude
-        ending strangers
-        :romance
-        ending windrunner
+        ending cold_end The Cold End
+        :warm
+        ending warm_end
         """.trimIndent(),
     )
 
@@ -36,17 +35,15 @@ class StoryRunnerTest {
         // Until chosen, the story stays on the choice.
         assertIs<Step.Choose>(r.next())
         r.choose(0)
-        assertEquals(70, r.affection("alleria"))
-        assertEquals(Step.Ending("windrunner"), r.next())
+        assertEquals(Step.Ending("warm_end", "warm_end"), r.next())
     }
 
     @Test
-    fun affectionStaysBetweenNoneAndAll() {
+    fun anyEndingIsPlayedWithItsTitle() {
         val r = StoryRunner(script, StoryState())
         repeat(4) { r.next() }
         r.choose(1)
-        assertEquals(0, r.affection("alleria"))
-        assertEquals(Step.Ending("strangers"), r.next())
+        assertEquals(Step.Ending("cold_end", "The Cold End"), r.next())
     }
 
     @Test
@@ -57,13 +54,5 @@ class StoryRunnerTest {
         assertIs<Command.Scene>(stage[0])
         assertIs<Command.Cast>(stage[1])
         assertTrue(r.state.log.single().text.startsWith("Hello"))
-    }
-
-    @Test
-    fun standingsFollowAffection() {
-        assertEquals("Neutral" to 0.5f, Standing.of(10))
-        assertEquals("Friendly", Standing.of(20).first)
-        assertEquals("Revered", Standing.of(65).first)
-        assertEquals("Exalted" to 1f, Standing.of(100))
     }
 }

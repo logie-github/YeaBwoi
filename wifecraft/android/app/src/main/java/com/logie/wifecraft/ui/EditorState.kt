@@ -284,18 +284,27 @@ class EditorState(
 
 // -------------------------------------------------------------------- the stage, for the preview
 
-/** A place from assets/places.json: its marks, its camera views, which side "two" is filmed from. */
-data class PlaceInfo(val id: String, val name: String, val marks: Map<String, Vec3>, val views: Map<String, CameraPose>, val twoSide: Int = 1) {
+/**
+ * A place from assets/places.json: its marks (every place has `left`, `center` and `right`, where a Show beat stands
+ * someone), its camera views, which side "two" is filmed from, and whether it is [void] (the studio: nothing of the city
+ * is drawn, only the people).
+ */
+data class PlaceInfo(
+    val id: String, val name: String, val marks: Map<String, Vec3>, val views: Map<String, CameraPose>,
+    val twoSide: Int = 1, val void: Boolean = false,
+) {
     companion object {
-        /** The plain stage: nothing but the people, in the void. */
+        /** The plain stage: nothing but the people, in the void (assets/places.json's "studio" says the same). */
         val STUDIO = PlaceInfo(
-            EditorChoices.STUDIO, "Studio", mapOf("centre" to Vec3(0f, 0f, 0f)),
+            EditorChoices.STUDIO, "Studio",
+            mapOf("left" to Vec3(-1.4f, 0f, 0f), "center" to Vec3(0f, 0f, 0f), "right" to Vec3(1.4f, 0f, 0f)),
             mapOf("studio" to CameraPose(Vec3(0f, -7f, 2.2f), Vec3(0f, 0f, 1.2f), 42f)),
+            void = true,
         )
 
         private fun vec(a: JSONArray) = Vec3(a.getDouble(0).toFloat(), a.getDouble(1).toFloat(), a.getDouble(2).toFloat())
 
-        /** assets/places.json's places (the file's order), the studio first. */
+        /** assets/places.json's places (the file's order), the studio first (the file's own, when it has one). */
         fun parseAll(json: String): List<PlaceInfo> {
             val p = JSONObject(json).getJSONObject("places")
             val places = p.keys().asSequence().map { id ->
@@ -310,9 +319,11 @@ data class PlaceInfo(val id: String, val name: String, val marks: Map<String, Ve
                         }
                     } ?: emptyMap(),
                     o.optInt("twoSide", 1),
+                    o.optBoolean("void", id == EditorChoices.STUDIO),
                 )
             }.toList()
-            return listOf(STUDIO) + places
+            val studio = places.firstOrNull { it.id == EditorChoices.STUDIO } ?: STUDIO
+            return listOf(studio) + places.filter { it.id != EditorChoices.STUDIO }
         }
     }
 }
@@ -373,10 +384,14 @@ object Staging {
 
     private fun eye(p: PlaceInfo): Vec3 = home(p)?.eye ?: Vec3(0f, -7f, 2f)
 
-    /** Left, centre or right of the stage as the first camera sees it, turned toward that camera. */
+    /**
+     * Left, centre or right of the stage, turned toward the first camera: the place's own mark of that name (where the
+     * player stands them too), else worked out from the stage's middle as that camera sees it.
+     */
     fun standing(p: PlaceInfo, spot: String): Standing {
-        val a = anchor(p)
         val e = eye(p)
+        p.marks[spot]?.let { return Standing(it, Shots.facing(it, e)) }
+        val a = anchor(p)
         val dx = a.x - e.x; val dy = a.y - e.y
         val len = kotlin.math.hypot(dx, dy).coerceAtLeast(0.01f)
         val fx = dx / len; val fy = dy / len

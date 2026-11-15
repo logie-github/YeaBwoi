@@ -205,39 +205,7 @@ fun TalkingHead(name: String, text: String, revealed: Int, parchment: Boolean, m
     }
 }
 
-/** A reputation bar: its border, its fill, and the standing written on it. */
-@Composable
-fun RepBar(fraction: Float, standing: String, modifier: Modifier = Modifier) {
-    val art = LocalArt.current
-    val fill = when (standing) {
-        "Neutral" -> art?.barYellow
-        "Exalted", "Revered" -> art?.barBlue
-        else -> art?.barGreen
-    }
-    Box(
-        modifier.drawBehind {
-            val h = size.height
-            val inner = h * 7f / 31f
-            val ih = h * 18f / 31f
-            if (art?.barBorderL == null) {
-                drawRect(Color.Black)
-                drawRect(Color(0xFF1FA01F), size = Size(size.width * fraction, h))
-                return@drawBehind
-            }
-            val cap = h * 35f / 31f
-            piece(art.barBg, cap * 0.35f, inner, size.width - cap * 0.7f, ih)
-            piece(fill, cap * 0.35f, inner, (size.width - cap * 0.7f) * fraction.coerceIn(0f, 1f), ih * 17f / 18f)
-            piece(art.barBorderC, cap, 0f, size.width - 2 * cap, h)
-            piece(art.barBorderL, 0f, 0f, cap, h)
-            piece(art.barBorderR, size.width - cap, 0f, cap, h)
-        },
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(standing, style = frizStyle(12.sp, WowColors.white))
-    }
-}
-
-/** The achievement toast, as an ending's announcement. */
+/** The achievement toast, as a story's ending. */
 @Composable
 fun AchievementToast(heading: String, name: String, detail: String, count: String, modifier: Modifier = Modifier) {
     val art = LocalArt.current

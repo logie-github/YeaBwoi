@@ -1,19 +1,17 @@
 package com.logie.wifecraft.story
 
 /**
- * Where a story stands: the next command, each person's affection and the flags set, the stage
- * commands since the last scene cut (to set the stage again when a save is loaded), and what was
- * said (the log).
+ * Where a story stands: the next command, the flags set, the stage commands since the last scene
+ * cut (to set the stage again), and what was said (the log).
  */
 data class StoryState(
     var pc: Int = 0,
-    val affection: MutableMap<String, Int> = mutableMapOf(),
     val flags: MutableSet<String> = mutableSetOf(),
     var sceneAt: Int = -1,
     val stage: MutableList<Int> = mutableListOf(),
     val log: MutableList<LogEntry> = mutableListOf(),
     var chapter: String = "",
-    /** The music playing ("" for none), to start again when a save is loaded. */
+    /** The music playing ("" for none). */
     var music: String = "",
     var ending: String? = null,
 )
@@ -28,17 +26,12 @@ sealed interface Step {
     data class Pause(val command: Command) : Step
     data class Line(val who: String, val emote: String?, val text: String, val index: Int) : Step
     data class Choose(val prompt: String, val options: List<String>, val index: Int) : Step
-    data class Ending(val id: String) : Step
+    /** An ending: its id and its title as shown. */
+    data class Ending(val id: String, val title: String = id) : Step
     object Finished : Step
 }
 
 class StoryRunner(val script: Script, val state: StoryState, private val playerName: () -> String = { "" }) {
-
-    fun affection(who: String): Int = state.affection[who] ?: 0
-
-    private fun affect(who: String, amount: Int) {
-        state.affection[who] = (affection(who) + amount).coerceIn(0, 100)
-    }
 
     private fun text(s: String): String = s.replace("{name}", playerName())
 
@@ -52,7 +45,6 @@ class StoryRunner(val script: Script, val state: StoryState, private val playerN
             state.pc++
             when (c) {
                 is Command.Label -> Unit
-                is Command.Affect -> affect(c.who, c.amount)
                 is Command.SetFlag -> state.flags += c.flag
                 is Command.Goto -> state.pc = script.labelIndex(c.target)
                 is Command.If -> if (holds(c.condition)) state.pc = script.labelIndex(c.target)
@@ -88,7 +80,7 @@ class StoryRunner(val script: Script, val state: StoryState, private val playerN
                 }
                 is Command.Ending -> {
                     state.ending = c.id
-                    return Step.Ending(c.id)
+                    return Step.Ending(c.id, c.title)
                 }
                 is Command.Finish -> {
                     state.pc = script.commands.size
@@ -106,7 +98,6 @@ class StoryRunner(val script: Script, val state: StoryState, private val playerN
         state.log += LogEntry("you", text(o.text))
         state.pc++
         for (e in o.effects) when (e) {
-            is Effect.Affect -> affect(e.who, e.amount)
             is Effect.SetFlag -> state.flags += e.flag
             is Effect.Goto -> state.pc = script.labelIndex(e.target)
         }
@@ -122,28 +113,5 @@ class StoryRunner(val script: Script, val state: StoryState, private val playerN
 
     private fun holds(c: Condition): Boolean = when (c) {
         is Condition.Flag -> c.flag in state.flags
-        is Condition.Compare -> {
-            val v = affection(c.who)
-            when (c.op) {
-                ">=" -> v >= c.value
-                "<=" -> v <= c.value
-                ">" -> v > c.value
-                "<" -> v < c.value
-                else -> v == c.value
-            }
-        }
-    }
-}
-
-/** WoW's reputation standings, which show how each person feels. */
-object Standing {
-    val names = listOf("Neutral", "Friendly", "Honored", "Revered", "Exalted")
-
-    /** The standing for an affection of 0..100, and how far through it (0..1). */
-    fun of(affection: Int): Pair<String, Float> {
-        val a = affection.coerceIn(0, 100)
-        val i = (a / 20).coerceAtMost(4)
-        val into = if (i == 4) (a - 80) / 20f else (a - i * 20) / 20f
-        return names[i] to into.coerceIn(0f, 1f)
     }
 }

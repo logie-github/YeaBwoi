@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Works out the game's music and sounds the demo plays, by file id, from the game's tables
+"""Works out the game's music and sounds Wifecraft plays, by file id, from the game's tables
 (wago.tools' CSVs), and writes assets/sounds.json. Only ids: the files are the game's and the app
 fetches them, on the phone, from wago.tools.
 
@@ -18,14 +18,10 @@ OUT = os.path.join(HERE, "..", "android", "app", "src", "main", "assets", "sound
 
 # Music, by the story's names for it (files by id; the paths are the community listfile's).
 MUSIC = {
-    "dawn": 1417233,      # sound/music/legion/mus_70_dalarandawn_a.mp3: the title, the prologue
+    "dawn": 1417233,      # sound/music/legion/mus_70_dalarandawn_a.mp3: the title and the editor
     "day": 1417262,       # mus_70_dalarankhadgar_day_a.mp3: the city by day
     "dusk": 1417236,      # mus_70_dalarandusk_a.mp3
     "night": 1417266,     # mus_70_dalarankhadgar_night_a.mp3
-    "alleria": 6042833,   # sound/music/warwithin/mus_110_alleria_a.mp3: her theme
-    "alleria2": 6042831,  # mus_110_alleria_b.mp3: her night
-    "nyrelle": 53184,     # sound/music/citymusic/darnassus/darnassus walking 1.mp3
-    "moon": 53754,        # sound/music/zonemusic/tavernnightelf/ra_templeofthemoona.mp3: Elune's
 }
 
 # The city's own sound, by the scene's light.
@@ -44,12 +40,8 @@ UI = {
 }
 
 # Each speaker's voice for the emotes that have one: (race, sex) in EmotesTextSound.
-VOICES = {
-    "nyrelle": (4, 1),    # night elf woman
-    "alleria": (29, 1),   # void elf woman: Alleria, touched by the Void
-    "player_man": (1, 0),
-    "player_woman": (1, 1),
-}
+# (None yet: the editor's people are any race and sex; their voices by race and sex are still to come.)
+VOICES = {}
 # The story's emotes and the game's emote (EmotesText) that voices each.
 EMOTE_VOICE = {
     "laugh": "laugh", "cheer": "cheer", "kiss": "kiss", "cry": "cry", "roar": "roar", "no": "no",
@@ -57,9 +49,7 @@ EMOTE_VOICE = {
 }
 
 # Creatures' own sounds (CreatureSoundData), for the story's sound effects.
-CREATURES = {
-    "saber": (62588, {"roar": "SoundAggroID", "pounce": "SoundExertionID", "alert": "SoundAlertID"}),
-}
+CREATURES = {}
 
 
 def table(d, name):

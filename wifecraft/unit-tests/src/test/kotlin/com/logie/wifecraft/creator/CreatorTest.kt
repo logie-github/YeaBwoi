@@ -174,11 +174,11 @@ class CreatorTest {
     @Test fun importsReplaceTexturesAndDrawTheBody() {
         val a = humanWoman.copy(body = Body(2, 5, 3))
         val r = LookResolver.resolve(catalog, tables, a, FakeImports(true))
-        assertEquals(7012, r.model)
+        assertEquals(4001, r.model)                             // the race's own model: a shape is a patch on it (BodyShapes)
         assertEquals(9000, r.textures[1])                       // Ralia's skin in place of the game's
         val layer = r.layers.last { it.textureType == 1 }
         assertEquals(TextureLayer(8053, -1, 1, LookResolver.BODY_LAYER, null, null, 1), layer)
-        assertTrue(8053 in r.needsFiles && 7012 in r.needsFiles && 3000 !in r.needsFiles)
+        assertTrue(8053 in r.needsFiles && 7012 !in r.needsFiles && 3000 !in r.needsFiles)
         assertEquals(emptyList(), r.diagnostics)
         // without the package: drawn as the race's own, and said so
         val none = LookResolver.resolve(catalog, tables, a, FakeImports(false))

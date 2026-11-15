@@ -97,6 +97,19 @@ class EditorTest {
         assertTrue("  > Left / path | goto s_b" in text)
     }
 
+    @Test fun theCastByScriptNameAndTheEndingsTitle() {
+        val p = sample()
+        val cast = Compile.cast(p)
+        assertEquals(setOf("p_mira__", "p_bob"), cast.keys)
+        assertEquals("Mira", cast.getValue("p_mira__").name)
+        assertEquals(look(4), cast.getValue("p_mira__").appearance)
+        val text = Compile.toScript(p)
+        assertTrue("ending the_end_ The End!\nfinish" in text, text)
+        // every name the script gives a person is one the cast map has
+        val people = Script.parse(text).commands.mapNotNull { (it as? com.logie.wifecraft.story.Command.Say)?.who }.filter { it != "narrator" }
+        assertTrue(cast.keys.containsAll(people))
+    }
+
     @Test fun awkwardIdsStayDistinctAndSafe() {
         val a = Actor("scene", "S", look(1)); val b = Actor("Scene", "S2", look(1)); val c = Actor("7", "n", look(1))
         val p = Project("x", "t", listOf(a, b, c), listOf(Scene("1", "one", Stage("s", "s", "studio", "night"),

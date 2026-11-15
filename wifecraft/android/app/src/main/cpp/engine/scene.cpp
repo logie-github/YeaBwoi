@@ -192,6 +192,16 @@ struct Frustum {
     }
 };
 
+// M2Vertex as the m2 program reads it, for the bound vertex buffer.
+void m2VertexLayout() {
+    const GLsizei st = sizeof(M2Vertex);
+    glEnableVertexAttribArray(0); glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, st, (void*)0);
+    glEnableVertexAttribArray(1); glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, st, (void*)20);
+    glEnableVertexAttribArray(2); glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, st, (void*)32);
+    glEnableVertexAttribArray(3); glVertexAttribPointer(3, 4, GL_UNSIGNED_BYTE, GL_FALSE, st, (void*)16);
+    glEnableVertexAttribArray(4); glVertexAttribPointer(4, 4, GL_UNSIGNED_BYTE, GL_TRUE, st, (void*)12);
+}
+
 void blendFor(uint32_t mode) {
     switch (mode) {
         case 3: glBlendFunc(GL_ONE, GL_ONE); break;
@@ -205,6 +215,15 @@ void blendFor(uint32_t mode) {
 } // namespace
 
 Scene::~Scene() { /* GL objects die with the context */ }
+
+namespace {
+// The body's GL objects are gone with the context: made again at the next frame.
+template <typename B> void forgetBodyGl(B& b) {
+    b.vao = b.vbo = b.layerVao = b.layerVbo = b.layerIbo = b.layerTex = 0;
+    b.layerIndices = 0;
+    b.dirty = !b.morph.empty() || b.design != 0;
+}
+} // namespace
 
 bool Scene::initGl() {
     gLocations.clear();
@@ -228,6 +247,7 @@ bool Scene::initGl() {
         a.composed.clear();
         a.skinDirty = !a.layers.empty();
         for (Skinned& e : a.skinned) e.boneTex = 0;
+        forgetBodyGl(a.body);
     }
     if (cityLoaded_) { uploadCityGl(); warmCity(); }
     return true;
@@ -243,6 +263,7 @@ void Scene::releaseGl() {
         a.composed.clear();
         a.skinDirty = !a.layers.empty();
         for (Skinned& e : a.skinned) e.boneTex = 0;
+        forgetBodyGl(a.body);
     }
     groups_.clear();
 }
@@ -309,12 +330,7 @@ void Scene::uploadModel(ModelGl& m) {
     glGenBuffers(1, &m.ibo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m.ibo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, md.indices.size() * 4, md.indices.data(), GL_STATIC_DRAW);
-    const GLsizei st = sizeof(M2Vertex);
-    glEnableVertexAttribArray(0); glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, st, (void*)0);
-    glEnableVertexAttribArray(1); glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, st, (void*)20);
-    glEnableVertexAttribArray(2); glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, st, (void*)32);
-    glEnableVertexAttribArray(3); glVertexAttribPointer(3, 4, GL_UNSIGNED_BYTE, GL_FALSE, st, (void*)16);
-    glEnableVertexAttribArray(4); glVertexAttribPointer(4, 4, GL_UNSIGNED_BYTE, GL_TRUE, st, (void*)12);
+    m2VertexLayout();
     glBindVertexArray(0);
     // Props are drawn as they were modelled: every bone where it was built.
     size_t n = std::max<size_t>(1, md.bones.size());
@@ -378,6 +394,7 @@ void Scene::addFloor(const WmoGroup& g) {
 }
 
 float Scene::floorAt(float x, float y, float z) const {
+    if (!cityShown_) return z;
     auto it = floor_.find({floorCell(x), floorCell(y)});
     if (it == floor_.end()) return z;
     float best = -1e9f;
@@ -526,6 +543,7 @@ void Scene::removeActor(int id) {
     if (it == actors_.end()) return;
     if (it->second.boneTex && glReady_) glDeleteTextures(1, &it->second.boneTex);
     dropDressGl(it->second);
+    dropBodyGl(it->second);
     actors_.erase(it);
 }
 
@@ -545,7 +563,19 @@ void Scene::dress(int id, const std::map<int, int>& geosetGroups, const std::vec
     Actor& a = it->second;
     a.groups = geosetGroups;
     a.geosets = geosetGroups.empty() ? std::vector<uint16_t>() : characterGeosets(*a.mesh->model, geosetGroups);
-    a.layers = layers;
+    // The body options' design isn't a layer of the skin: drawn over the body (setBody).
+    a.layers.clear();
+    uint32_t design = 0, hair = 0;
+    int hairLayer = 1 << 30;
+    for (const SkinLayer& l : layers) {
+        if (l.textureType == 1 && l.layer == kBodyLayer) { design = l.fileId; continue; }
+        if (l.textureType == 6 && l.fileId && l.layer < hairLayer) { hair = l.fileId; hairLayer = l.layer; }
+        a.layers.push_back(l);
+    }
+    if (!hair) { auto h = a.textures.find(6); if (h != a.textures.end()) hair = h->second; }
+    a.body.design = design;
+    a.body.hair = hair;
+    a.body.dirty = true;     // (the geosets the layer lies on may have changed too)
     a.skinDirty = true;
     a.missing.clear();
     dropDressGl(a);
@@ -762,7 +792,7 @@ void litUniforms(unsigned p, const Light& l, const V3& eye, const M4& viewProj) 
 } // namespace
 
 void Scene::drawCity(bool transparent) {
-    if (groups_.empty()) return;
+    if (groups_.empty() || !cityShown_) return;
     Frustum f(proj_ * view_);
     unsigned p = wmoProg_;
     glUseProgram(p);
@@ -793,7 +823,7 @@ void Scene::drawCity(bool transparent) {
 void Scene::drawModel(ModelGl& mg, const M4& world, const std::map<uint32_t, uint32_t>* overrides,
                       const std::vector<uint16_t>* geosets, unsigned boneTex, int seq, uint32_t t,
                       uint32_t now, const float tint[4], bool transparent, int texSize,
-                      const std::map<uint32_t, unsigned>* glTextures) {
+                      const std::map<uint32_t, unsigned>* glTextures, unsigned vao) {
     const M2Model& m = *mg.model;
     unsigned p = m2Prog_;
     glUseProgram(p);
@@ -801,7 +831,7 @@ void Scene::drawModel(ModelGl& mg, const M4& world, const std::map<uint32_t, uin
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, boneTex);
     glUniform1i(loc(p, "uBones"), 1);
-    glBindVertexArray(mg.vao);
+    glBindVertexArray(vao ? vao : mg.vao);
     for (const M2Batch& b : m.batches) {
         if (b.submesh >= m.submeshes.size()) continue;
         const M2Submesh& sm = m.submeshes[b.submesh];
@@ -863,7 +893,8 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     M4 w = M4::translation(a.position) * M4::rotationZ(a.facing) * M4::scaling(V3(a.scale, a.scale, a.scale));
     uint32_t dur = std::max<uint32_t>(1, a.seq >= 0 ? a.mesh->model->sequences[a.seq].duration : 1);
     drawModel(*a.mesh, w, &a.drawTextures, &a.geosets, a.boneTex, a.seq, (nowMs - a.start) % dur, nowMs, one,
-              transparent, kActorTex, &a.composed);
+              transparent, kActorTex, &a.composed, a.body.vao);
+    if (transparent) drawBodyLayer(a, w);
     for (Skinned& e : a.skinned) {
         std::map<uint32_t, uint32_t> tex = a.drawTextures;
         if (e.texture)
@@ -881,6 +912,9 @@ void Scene::render(int width, int height, uint32_t nowMs) {
         if (!a.skinDirty && !a.missing.empty())
             for (uint32_t f : a.missing) if (!files_(f).empty()) { a.skinDirty = true; break; }
         if (a.skinDirty) refreshSkin(a);
+        if (!a.body.dirty && !a.body.missing.empty())
+            for (uint32_t f : a.body.missing) if (!files_(f).empty()) { a.body.dirty = true; break; }
+        if (a.body.dirty) refreshBody(a);
         bool arrived = false;
         for (const DressModel& d : a.pendingModels) if (!files_(d.model).empty()) { arrived = true; break; }
         if (arrived) dressModels(a);
@@ -928,7 +962,7 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     litUniforms(m2Prog_, light_, eye_, viewProj);
     float one[4] = {1, 1, 1, 1};
     Frustum frustum(viewProj);
-    for (Prop& pr : props_) pr.seen = frustum.sphere(pr.centre, pr.radius) && (pr.centre - eye_).length() - pr.radius < light_.fogEnd;
+    for (Prop& pr : props_) pr.seen = cityShown_ && frustum.sphere(pr.centre, pr.radius) && (pr.centre - eye_).length() - pr.radius < light_.fogEnd;
     for (Prop& pr : props_) if (pr.seen) drawModel(*pr.mesh, pr.world, nullptr, nullptr, pr.mesh->boneTex, -1, 0, nowMs, one, false, kPropTex);
     for (auto& [id, a] : actors_) if (a.visible) drawActor(a, nowMs, false);
     litUniforms(wmoProg_, light_, eye_, viewProj);
@@ -936,6 +970,204 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     litUniforms(m2Prog_, light_, eye_, viewProj);
     for (Prop& pr : props_) if (pr.seen) drawModel(*pr.mesh, pr.world, nullptr, nullptr, pr.mesh->boneTex, -1, 0, nowMs, one, true, kPropTex);
     for (auto& [id, a] : actors_) if (a.visible) drawActor(a, nowMs, true);
+}
+
+// ------------------------------------------------------------------------------------------------ Wrath++'s body options
+
+void Scene::setBody(int id, const std::vector<float>& morph, float k, float fold) {
+    auto it = actors_.find(id);
+    if (it == actors_.end()) return;
+    BodyGl& b = it->second.body;
+    if (morph != b.morph) { b.morph = morph; b.shapeDirty = true; }
+    b.k = k;
+    b.fold = fold;
+    b.dirty = true;
+}
+
+bool Scene::bodyStats(int id, size_t& moved, size_t& layerTriangles) const {
+    auto it = actors_.find(id);
+    if (it == actors_.end()) return false;
+    moved = it->second.body.moved;
+    layerTriangles = it->second.body.layerTriangles;
+    return true;
+}
+
+void Scene::dropBodyGl(Actor& a) {
+    BodyGl& b = a.body;
+    if (glReady_) {
+        unsigned buffers[3] = {b.vbo, b.layerVbo, b.layerIbo};
+        glDeleteBuffers(3, buffers);
+        unsigned arrays[2] = {b.vao, b.layerVao};
+        glDeleteVertexArrays(2, arrays);
+        if (b.layerTex) glDeleteTextures(1, &b.layerTex);
+    }
+    b.vao = b.vbo = b.layerVao = b.layerVbo = b.layerIbo = b.layerTex = 0;
+    b.layerIndices = 0;
+}
+
+namespace {
+
+// The mean colour of a texture's opaque pixels (the hair's, for the layer), 0..1.
+V3 meanColour(const Image& img) {
+    double r = 0, g = 0, bl = 0, n = 0;
+    size_t count = size_t(img.width) * img.height;
+    for (int pass = 0; pass < 2 && n == 0; ++pass)
+        for (size_t i = 0; i < count; ++i) {
+            const uint8_t* c = &img.rgba[i * 4];
+            if (pass == 0 && c[3] < 128) continue;
+            r += c[0]; g += c[1]; bl += c[2]; n += 1;
+        }
+    if (n == 0) return V3(0.5f, 0.5f, 0.5f);
+    return V3(float(r / n / 255), float(g / n / 255), float(bl / n / 255));
+}
+
+} // namespace
+
+// The shape's vertices (once per shape) and the layer's triangles and texture (per look: the geosets it lies on, the hair).
+void Scene::refreshBody(Actor& a) {
+    BodyGl& b = a.body;
+    b.dirty = false;
+    b.missing.clear();
+    if (!glReady_) { b.dirty = true; return; }
+    dropBodyGl(a);
+    const M2Model& m = *a.mesh->model;
+    if (b.shapeDirty) {
+        b.shaped.clear();
+        b.moved = 0;
+        if (b.morph.size() >= kBodyMorphStride) {
+            b.shaped = m.vertices;
+            BodyMorphStats st;
+            b.moved = applyBodyMorph(b.shaped, b.morph.data(), b.morph.size() / kBodyMorphStride, &st);
+            std::fprintf(stderr, "body shape: %zu of %zu vertices moved (%zu at a looks vertex, %zu between, %zu texture coordinates)\n",
+                         b.moved, b.shaped.size(), st.exact, st.blended, st.uvs);
+            if (!b.moved) b.shaped.clear();
+        }
+        b.shapeDirty = false;
+    }
+    if (!b.shaped.empty() && a.mesh->ibo) {
+        glGenVertexArrays(1, &b.vao);
+        glBindVertexArray(b.vao);
+        glGenBuffers(1, &b.vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, b.vbo);
+        glBufferData(GL_ARRAY_BUFFER, b.shaped.size() * sizeof(M2Vertex), b.shaped.data(), GL_STATIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, a.mesh->ibo);
+        m2VertexLayout();
+        glBindVertexArray(0);
+    }
+
+    // The layer (layer.py): the skin's triangles shown, facing the front, under the square; lifted off the skin.
+    b.layerTriangles = 0;
+    if (!b.design || b.k <= 0) return;
+    if (files_(b.design).empty()) { b.missing.insert(b.design); return; }
+    if (b.hair && files_(b.hair).empty()) { b.missing.insert(b.hair); return; }
+    const std::vector<M2Vertex>& verts = b.shaped.empty() ? m.vertices : b.shaped;
+    const float span = 0.21f * b.k, top = b.fold + 0.16f * b.k, bottom = top - span;
+    constexpr float kLift = 0.0004f, kMinNx = 0.12f;
+    std::set<uint16_t> sections;
+    for (const M2Batch& bt : m.batches) {
+        if (bt.submesh >= m.submeshes.size() || bt.textureCombo >= m.textureCombos.size()) continue;
+        uint16_t ti = m.textureCombos[bt.textureCombo];
+        if (ti >= m.textures.size() || m.textures[ti].type != 1) continue;
+        if (bt.material < m.materials.size() && m.materials[bt.material].blend >= 2) continue;
+        uint16_t id = m.submeshes[bt.submesh].id;
+        if (!a.geosets.empty() && std::find(a.geosets.begin(), a.geosets.end(), id) == a.geosets.end()) continue;
+        sections.insert(bt.submesh);
+    }
+    std::vector<M2Vertex> lv;
+    std::vector<uint32_t> li;
+    std::unordered_map<uint32_t, uint32_t> place;
+    for (uint16_t si : sections) {
+        const M2Submesh& sm = m.submeshes[si];
+        for (uint32_t t = sm.indexStart; t + 2 < sm.indexStart + sm.indexCount && t + 2 < m.indices.size(); t += 3) {
+            uint32_t ix[3] = {m.indices[t], m.indices[t + 1], m.indices[t + 2]};
+            if (ix[0] >= verts.size() || ix[1] >= verts.size() || ix[2] >= verts.size()) continue;
+            V3 p[3];
+            for (int k = 0; k < 3; ++k) p[k] = V3(verts[ix[k]].pos[0], verts[ix[k]].pos[1], verts[ix[k]].pos[2]);
+            float zmax = std::max({p[0].z, p[1].z, p[2].z}), zmin = std::min({p[0].z, p[1].z, p[2].z});
+            float ymin = std::min({std::fabs(p[0].y), std::fabs(p[1].y), std::fabs(p[2].y)});
+            if (zmax < bottom || zmin > top || ymin > span / 2) continue;
+            V3 fn = (p[1] - p[0]).cross(p[2] - p[0]).normalized();
+            if (fn.x < kMinNx || (p[0].x + p[1].x + p[2].x) < 0) continue;
+            for (uint32_t g : ix) {
+                auto f = place.find(g);
+                if (f == place.end()) {
+                    M2Vertex v = verts[g];
+                    V3 n = V3(v.normal[0], v.normal[1], v.normal[2]).normalized();
+                    V3 q = V3(v.pos[0], v.pos[1], v.pos[2]) + n * kLift;
+                    v.pos[0] = q.x; v.pos[1] = q.y; v.pos[2] = q.z;
+                    v.uv[0] = (q.y + span / 2) / span;     // her right to her left, seen from the front
+                    v.uv[1] = (top - q.z) / span;
+                    f = place.emplace(g, uint32_t(lv.size())).first;
+                    lv.push_back(v);
+                }
+                li.push_back(f->second);
+            }
+        }
+    }
+    if (li.empty()) return;
+    // The design (grey: how dark the hair is drawn there; alpha: coverage x density) times the hair's colour.
+    Bytes file;
+    Image design;
+    if (!readFile(files_(b.design), file) || !decodeBlp(file, 512, design)) return;
+    V3 hair(0.35f, 0.25f, 0.18f);
+    Image hairImg;
+    Bytes hairFile;
+    if (b.hair && readFile(files_(b.hair), hairFile) && decodeBlp(hairFile, 64, hairImg)) hair = meanColour(hairImg);
+    std::vector<uint8_t> px(design.rgba.size());
+    for (size_t i = 0; i + 3 < design.rgba.size(); i += 4) {
+        const uint8_t* c = &design.rgba[i];
+        px[i] = uint8_t(std::min(255.0f, c[0] * hair.x));
+        px[i + 1] = uint8_t(std::min(255.0f, c[1] * hair.y));
+        px[i + 2] = uint8_t(std::min(255.0f, c[2] * hair.z));
+        px[i + 3] = c[3];
+    }
+    glGenTextures(1, &b.layerTex);
+    glBindTexture(GL_TEXTURE_2D, b.layerTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, design.width, design.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glGenVertexArrays(1, &b.layerVao);
+    glBindVertexArray(b.layerVao);
+    glGenBuffers(1, &b.layerVbo);
+    glBindBuffer(GL_ARRAY_BUFFER, b.layerVbo);
+    glBufferData(GL_ARRAY_BUFFER, lv.size() * sizeof(M2Vertex), lv.data(), GL_STATIC_DRAW);
+    glGenBuffers(1, &b.layerIbo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, b.layerIbo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, li.size() * 4, li.data(), GL_STATIC_DRAW);
+    m2VertexLayout();
+    glBindVertexArray(0);
+    b.layerIndices = li.size();
+    b.layerTriangles = li.size() / 3;
+}
+
+// The layer, alpha blended over the body (Wrath++'s: material blend 2), with the body's bones.
+void Scene::drawBodyLayer(Actor& a, const M4& world) {
+    BodyGl& b = a.body;
+    if (!b.layerVao || !b.layerIndices || !b.layerTex) return;
+    unsigned p = m2Prog_;
+    glUseProgram(p);
+    glUniformMatrix4fv(loc(p, "uWorld"), 1, GL_FALSE, world.m);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, a.boneTex);
+    glUniform1i(loc(p, "uBones"), 1);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, b.layerTex);
+    float one[4] = {1, 1, 1, 1};
+    glUniform4fv(loc(p, "uColor"), 1, one);
+    glUniform1f(loc(p, "uAlphaRef"), 0.004f);
+    glUniform1i(loc(p, "uOpaque"), 0);
+    glUniform1i(loc(p, "uUnlit"), 0);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE);
+    glBindVertexArray(b.layerVao);
+    glDrawElements(GL_TRIANGLES, GLsizei(b.layerIndices), GL_UNSIGNED_INT, nullptr);
+    glBindVertexArray(0);
+    glDisable(GL_BLEND);
+    glDepthMask(GL_TRUE);
 }
 
 } // namespace wc

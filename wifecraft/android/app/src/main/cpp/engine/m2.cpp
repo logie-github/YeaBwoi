@@ -1,6 +1,8 @@
 #include "m2.h"
 
 #include <algorithm>
+#include <cmath>
+#include <unordered_map>
 
 namespace wc {
 
@@ -331,6 +333,85 @@ void M2Model::evalColor(int index, int seq, uint32_t timeMs, uint32_t globalMs, 
     V3 c = evalV3(colorRgb[index], seq, timeMs, globalMs, V3(1, 1, 1));
     rgba[0] = c.x; rgba[1] = c.y; rgba[2] = c.z;
     rgba[3] = std::clamp(evalShort(colorAlpha[index], seq, timeMs, globalMs, 1), 0.0f, 1.0f);
+}
+
+size_t applyBodyMorph(std::vector<M2Vertex>& vertices, const float* morph, size_t count, BodyMorphStats* stats) {
+    if (!morph || !count || vertices.empty()) return 0;
+    constexpr float kCell = 0.02f, kReach = 0.02f, kExact = 1e-5f;
+    auto cellOf = [&](float v) { return int64_t(std::floor(v / kCell)); };
+    auto key = [](int64_t x, int64_t y, int64_t z) { return (x & 0x1FFFFF) << 42 | (y & 0x1FFFFF) << 21 | (z & 0x1FFFFF); };
+    std::unordered_map<int64_t, std::vector<uint32_t>> grid;
+    grid.reserve(count);
+    for (size_t i = 0; i < count; ++i) {
+        const float* r = morph + i * kBodyMorphStride;
+        grid[key(cellOf(r[0]), cellOf(r[1]), cellOf(r[2]))].push_back(uint32_t(i));
+    }
+    BodyMorphStats st;
+    size_t moved = 0;
+    for (M2Vertex& v : vertices) {
+        V3 p(v.pos[0], v.pos[1], v.pos[2]);
+        V3 n(v.normal[0], v.normal[1], v.normal[2]);
+        int64_t cx = cellOf(p.x), cy = cellOf(p.y), cz = cellOf(p.z);
+        // the looks vertices at this place (several: a seam's, the same place in two sections), the best by its coordinates
+        const float* exact = nullptr;
+        int exactRank = -1;
+        V3 sum, nsum;
+        float wsum = 0;
+        for (int64_t dx = -1; dx <= 1; ++dx)
+            for (int64_t dy = -1; dy <= 1; ++dy)
+                for (int64_t dz = -1; dz <= 1; ++dz) {
+                    auto it = grid.find(key(cx + dx, cy + dy, cz + dz));
+                    if (it == grid.end()) continue;
+                    for (uint32_t i : it->second) {
+                        const float* r = morph + size_t(i) * kBodyMorphStride;
+                        V3 d = V3(r[0], r[1], r[2]) - p;
+                        float dist = d.length();
+                        if (dist < kExact) {
+                            bool body = std::fabs(r[12] - v.uv[0] * 2) < 1e-4f && std::fabs(r[13] - v.uv[1]) < 1e-4f;
+                            bool same = std::fabs(r[12] - v.uv[0]) < 1e-4f && std::fabs(r[13] - v.uv[1]) < 1e-4f;
+                            V3 rn(r[6], r[7], r[8]);
+                            int rank = (body || same ? 2 : 0) + (rn.dot(n) > 0.99f ? 1 : 0);
+                            if (rank > exactRank) { exactRank = rank; exact = r; }
+                            continue;
+                        }
+                        if (dist > kReach || exact) continue;
+                        V3 rn(r[6], r[7], r[8]);
+                        float facing = rn.dot(n);
+                        if (facing < 0.3f) continue;
+                        float w = facing / (dist * dist + 1e-8f);
+                        sum = sum + V3(r[3], r[4], r[5]) * w;
+                        nsum = nsum + (V3(r[9], r[10], r[11]) - rn) * w;
+                        wsum += w;
+                    }
+                }
+        V3 dp, dn;
+        if (exact) {
+            dp = V3(exact[3], exact[4], exact[5]);
+            dn = V3(exact[9], exact[10], exact[11]) - V3(exact[6], exact[7], exact[8]);
+            float du = exact[14] - exact[12], dv = exact[15] - exact[13];
+            if (du != 0 || dv != 0) {
+                if (std::fabs(exact[12] - v.uv[0] * 2) < 1e-4f && std::fabs(exact[13] - v.uv[1]) < 1e-4f) {
+                    v.uv[0] = exact[14] * 0.5f; v.uv[1] = exact[15]; ++st.uvs;
+                } else if (std::fabs(exact[12] - v.uv[0]) < 1e-4f && std::fabs(exact[13] - v.uv[1]) < 1e-4f) {
+                    v.uv[0] = exact[14]; v.uv[1] = exact[15]; ++st.uvs;
+                }
+            }
+            ++st.exact;
+        } else if (wsum > 0) {
+            dp = sum * (1.0f / wsum);
+            dn = nsum * (1.0f / wsum);
+            ++st.blended;
+        } else {
+            continue;
+        }
+        if (dp.length() < 1e-7f && dn.length() < 1e-6f) continue;
+        v.pos[0] += dp.x; v.pos[1] += dp.y; v.pos[2] += dp.z;
+        V3 nn = (n + dn).normalized();
+        v.normal[0] = nn.x; v.normal[1] = nn.y; v.normal[2] = nn.z;
+        ++moved;
+    }
+    if (stats) *stats = st;
+    return moved;
 }
 
 } // namespace wc

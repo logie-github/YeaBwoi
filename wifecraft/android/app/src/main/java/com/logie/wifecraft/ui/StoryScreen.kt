@@ -37,7 +37,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.logie.wifecraft.R
-import com.logie.wifecraft.data.Endings
 import com.logie.wifecraft.engine.Clock
 import com.logie.wifecraft.play.Director
 import kotlin.math.abs
@@ -96,7 +95,7 @@ fun StoryScreen(
     var boxHidden by remember { mutableStateOf(false) }
     @Suppress("UNUSED_EXPRESSION") frame   // recomposes every frame while the story plays
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        AndroidView({ scene }, Modifier.fillMaxSize())
+        AndroidView({ (scene.parent as? android.view.ViewGroup)?.removeView(scene); scene }, Modifier.fillMaxSize())
 
         val bars by animateFloatAsState(if (director.letterbox) 1f else 0f, tween(600), label = "letterbox")
         BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -152,18 +151,11 @@ fun StoryScreen(
 
         Black(director.fade)
 
-        director.ending?.let { id ->
-            val e = Endings.of(id)
+        director.ending?.let { title ->
             Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
-                AchievementToast(
-                    "Ending Unlocked", e?.title ?: id, listOfNotNull(e?.who, e?.kind).joinToString(" · "),
-                    "${(Endings.all.indexOfFirst { it.id == id } + 1).coerceAtLeast(1)}/${Endings.all.size}",
-                    Modifier.width(520.dp).height(170.dp),
-                )
+                AchievementToast("The End", title, "", "", Modifier.width(520.dp).height(170.dp))
                 Spacer(Modifier.height(16.dp))
-                Text("Thank you for playing the Wifecraft demo.", style = frizStyle(14.sp, Color.White))
-                Spacer(Modifier.height(10.dp))
-                WowButton("Title Screen", { director.endingDone() }, width = 200.dp)
+                WowButton("Back", { director.endingDone() }, width = 200.dp)
             }
         }
 
@@ -171,7 +163,7 @@ fun StoryScreen(
             Box(Modifier.fillMaxSize().background(Color.Black)) {
                 Image(painterResource(R.drawable.wc_splash), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 Column(Modifier.align(Alignment.BottomCenter).padding(bottom = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Entering Dalaran…", style = frizStyle(16.sp))
+                    Text("Setting the stage…", style = frizStyle(16.sp))
                     Spacer(Modifier.height(6.dp))
                     val t = (Clock.now() % 2400) / 2400f
                     LoadingBar(t, Modifier.width(520.dp).height(48.dp))
@@ -181,49 +173,24 @@ fun StoryScreen(
     }
 }
 
-/** The pause menu: WoW's Game Menu, and beside it the bonds as reputations. */
+/** The pause menu: WoW's Game Menu. [onLeave] stops the story and goes back to where it was played from (the editor). */
 @Composable
 fun PauseMenu(
     chapter: String,
-    bonds: List<Triple<String, String, Int>>,
     onResume: () -> Unit,
-    onSave: () -> Unit,
-    onLoad: () -> Unit,
     onLog: () -> Unit,
     onOptions: () -> Unit,
-    onTitle: () -> Unit,
+    onLeave: () -> Unit,
 ) {
     Box(Modifier.fillMaxSize().background(Color(0x99000000))) {
-        androidx.compose.foundation.layout.Row(
-            Modifier.align(Alignment.Center), horizontalArrangement = Arrangement.spacedBy(18.dp),
-        ) {
-            MetalPanel(Modifier.width(250.dp)) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                    Text("Game Menu", style = frizStyle(16.sp))
-                    if (chapter.isNotEmpty()) Text(chapter, style = frizStyle(11.sp, WowColors.grey))
-                    WowButton("Resume", onResume, width = 200.dp, height = 40.dp)
-                    WowButton("Save", onSave, width = 200.dp, height = 40.dp)
-                    WowButton("Load", onLoad, width = 200.dp, height = 40.dp)
-                    WowButton("What Was Said", onLog, width = 200.dp, height = 40.dp)
-                    WowButton("Options", onOptions, width = 200.dp, height = 40.dp)
-                    WowButton("Title Screen", onTitle, width = 200.dp, height = 40.dp)
-                }
-            }
-            MetalPanel(Modifier.width(420.dp)) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Reputation", style = frizStyle(16.sp), modifier = Modifier.align(Alignment.CenterHorizontally))
-                    for ((name, who, affection) in bonds) {
-                        val (standing, into) = com.logie.wifecraft.story.Standing.of(affection)
-                        Text(name, style = frizStyle(15.sp))
-                        Text(who, style = frizStyle(11.sp, WowColors.grey))
-                        RepBar(into, standing, Modifier.fillMaxWidth().height(26.dp))
-                    }
-                    Text(
-                        "Neutral · Friendly · Honored · Revered · Exalted\nRevered or higher at the end of her day is a romance.",
-                        style = frizStyle(10.sp, WowColors.grey), textAlign = TextAlign.Center,
-                        modifier = Modifier.align(Alignment.CenterHorizontally),
-                    )
-                }
+        MetalPanel(Modifier.align(Alignment.Center).width(250.dp)) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text("Game Menu", style = frizStyle(16.sp))
+                if (chapter.isNotEmpty()) Text(chapter, style = frizStyle(11.sp, WowColors.grey))
+                WowButton("Resume", onResume, width = 200.dp, height = 40.dp)
+                WowButton("What Was Said", onLog, width = 200.dp, height = 40.dp)
+                WowButton("Options", onOptions, width = 200.dp, height = 40.dp)
+                WowButton("Stop Playing", onLeave, width = 200.dp, height = 40.dp)
             }
         }
     }

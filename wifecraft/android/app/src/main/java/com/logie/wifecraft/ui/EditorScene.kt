@@ -78,7 +78,8 @@ fun EditorSceneBuilder(
     // The stage's light, place and camera, and who stands where, as the selected beat leaves them.
     LaunchedEffect(sc.stage, pre, project.cast) {
         view.light(Lights.of(sc.stage.light))
-        if (place.id != EditorChoices.STUDIO && !cityAsked && !view.cityLoaded.get()) {
+        view.showCity(!place.void)
+        if (!place.void && !cityAsked && !view.cityLoaded.get()) {
             cityAsked = true
             val m = Staging.allMarks(places)
             view.loadCity(m.flatMap { listOf(it.x, it.y, it.z) }.toFloatArray()) {}

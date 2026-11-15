@@ -28,20 +28,22 @@ import androidx.compose.ui.unit.sp
 import com.logie.wifecraft.BuildConfig
 import com.logie.wifecraft.R
 
-/** The title: the user's art, the emblem, and the game's own buttons. */
+/**
+ * The title: the user's art, the emblem, and the game's own buttons. Continue opens the story last worked on
+ * ([lastProject], its title), New Project starts one, Projects lists them all.
+ */
 @Composable
 fun TitleScreen(
     filesReady: Boolean,
     downloadSize: String,
-    /** The music and sounds' size when they aren't fetched yet (the story plays silent without). */
+    /** The music and sounds' size when they aren't fetched yet (the stories play silent without). */
     soundMissing: String?,
-    hasSave: Boolean,
+    lastProject: String?,
     updateTitle: String?,
     onContinue: () -> Unit,
-    onNew: () -> Unit,
+    onNewProject: () -> Unit,
+    onProjects: () -> Unit,
     onGather: () -> Unit,
-    onLoad: () -> Unit,
-    onEndings: () -> Unit,
     onOptions: () -> Unit,
     onUpdates: () -> Unit,
 ) {
@@ -60,28 +62,29 @@ fun TitleScreen(
                 Image(painterResource(R.drawable.wc_emblem), null, Modifier.size(74.dp).clip(CircleShape))
                 Column(Modifier.padding(start = 14.dp)) {
                     Text("Wifecraft", style = morpheusStyle(50.sp))
-                    Text("A  DALARAN  ROMANCE", style = frizStyle(13.sp, Color.White))
+                    Text("A  STORY  EDITOR", style = frizStyle(13.sp, Color.White))
                 }
             }
             Spacer(Modifier.height(22.dp))
             if (filesReady) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    WowButton("Continue", onContinue, enabled = hasSave, width = 230.dp, height = 46.dp)
-                    WowButton("New Story", onNew, width = 230.dp, height = 46.dp)
+                    WowButton("Continue", onContinue, enabled = lastProject != null, width = 230.dp, height = 46.dp)
+                    if (lastProject != null) Text(lastProject, style = frizStyle(12.sp, Color.White), maxLines = 1, modifier = Modifier.width(230.dp))
+                    WowButton("New Project", onNewProject, width = 230.dp, height = 46.dp)
                 }
             } else {
                 Text(
-                    "The demo draws Dalaran, its people and WoW's interface from the game's own files.\n" +
-                        "They're fetched once from wago.tools ($downloadSize) and kept on the phone.",
+                    "Wifecraft draws its people, its stages and WoW's interface from the game's own files.\n" +
+                        "They're fetched once from wago.tools (about $downloadSize) and kept on the phone;\n" +
+                        "each race's model and textures come when a character first wears them.",
                     style = frizStyle(13.sp, Color.White), modifier = Modifier.width(420.dp),
                 )
                 Spacer(Modifier.height(10.dp))
-                WowButton("Gather Dalaran", onGather, width = 230.dp, height = 46.dp)
+                WowButton("Gather the Files", onGather, width = 230.dp, height = 46.dp)
             }
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                WowButton("Load", onLoad, enabled = filesReady && hasSave, width = 112.dp, height = 40.dp)
-                WowButton("Endings", onEndings, width = 112.dp, height = 40.dp)
+                WowButton("Projects", onProjects, enabled = filesReady, width = 230.dp, height = 40.dp)
             }
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -131,8 +134,8 @@ fun GatherScreen(
             val status = when {
                 progress.error != null -> "Stopped: ${progress.error}. Resume tries again."
                 progress.waitingForWifi -> "Waiting for Wi-Fi (or turn Wi-Fi only off)."
-                progress.finished -> "Dalaran is ready."
-                progress.running -> "Gathering ${packLabels.firstOrNull { it.first == progress.current }?.second ?: "Dalaran"}… ${mb(progress.done)} of ${mb(progress.total)}"
+                progress.finished -> "Everything is here."
+                progress.running -> "Gathering ${packLabels.firstOrNull { it.first == progress.current }?.second ?: "the game's files"}… ${mb(progress.done)} of ${mb(progress.total)}"
                 else -> "${mb(progress.done)} of ${mb(progress.total)} on the phone"
             }
             Text(status, style = frizStyle(15.sp))

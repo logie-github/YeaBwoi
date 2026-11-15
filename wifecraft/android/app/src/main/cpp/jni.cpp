@@ -80,6 +80,8 @@ JNIEXPORT jboolean JNICALL FN(loadCity)(JNIEnv* env, jclass, jlong h, jint root,
     return scene(h)->loadCity(uint32_t(root), g, pts, radius);
 }
 
+JNIEXPORT void JNICALL FN(showCity)(JNIEnv*, jclass, jlong h, jboolean shown) { scene(h)->showCity(shown); }
+
 JNIEXPORT jint JNICALL FN(addActor)(JNIEnv* env, jclass, jlong h, jint model, jintArray texKeys, jintArray texValues,
                                      jintArray geoKeys, jintArray geoValues, jfloat scale) {
     std::map<int, int> geo;
@@ -115,6 +117,11 @@ JNIEXPORT void JNICALL FN(dress)(JNIEnv* env, jclass, jlong h, jint id, jintArra
     std::vector<DressModel> models;
     for (size_t i = 0; i + kExtra <= ex.size(); i += kExtra) models.push_back({ex[i], uint32_t(ex[i + 1]), uint32_t(ex[i + 2])});
     scene(h)->dress(id, geo, layers, models);
+}
+
+// Wrath++'s body options on a standing person (Native.body documents the arrays).
+JNIEXPORT void JNICALL FN(body)(JNIEnv* env, jclass, jlong h, jint id, jfloatArray morph, jfloat k, jfloat fold) {
+    scene(h)->setBody(id, floats(env, morph), k, fold);
 }
 
 JNIEXPORT void JNICALL FN(removeActor)(JNIEnv*, jclass, jlong h, jint id) { scene(h)->removeActor(id); }

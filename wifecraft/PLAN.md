@@ -1,8 +1,58 @@
 # Wifecraft — the brief
 
-The user's requirements, what was decided, what's open, and where it stands. The demo is built
-(see the end); `README.md` is the manual. The screens' mockups are on a canvas
-(https://claude.ai/artifact/B2i9Zi7R6hmyCJ8pNTjNVn, private to the user).
+The user's requirements, what was decided, what's open, and where it stands; `README.md` is the
+manual. Wifecraft began as a dating sim with a short demo story (its brief is kept below, under
+"The first version"); in November 2026 it became a story editor.
+
+## The story editor (November 2026)
+
+The user: "Change it from a story to a story editor: like a visual novel / scene builder. A
+character creator of the same quality as Wrath++, using all available options, so I can create as
+many NPCs as I want. Remove the demo story completely. It won't take place in Warcraft but the
+character creator should feel EXACTLY the same, no compromise." The standing rule (Blizzard's
+CLAUDE.md, Wrath++): every option Shadowlands' creator has for a race and sex is available and seen
+on the model, every race and both sexes, Wrath++'s own body options (Shape, Style, Density) for the
+women; an option shown as "not drawn yet" is unfinished work.
+
+Decided and built:
+
+- **The title**: Continue (the project worked on last), New Project, Projects, Options, Updates.
+- **A project**: a cast (actors: a name and an appearance) and scenes (a stage: a place and a
+  light; beats: Say, Show, Hide, Camera, Choice, Goto, End), saved as JSON in `files/projects`.
+- **The creator**: Wrath++'s screen (WrathppCreate.lua) in Compose, its sizes in Shadowlands' units,
+  its art cut from Shadowlands' own sheets (build 9.2.7.45745) on the phone; races, categories,
+  options and choices from the game's current tables (`ChrRaces`, `ChrRaceXChrModel`,
+  `ChrCustomization*`): every playable and allied race with a ChrModel, both sexes. No 3.3.5 limit:
+  an appearance is (option -> choice) for every option, resolved on the phone to what the renderer
+  draws (geosets, the skin composed from its layers, extra and skinned models, the Upright model).
+- **The imports**, as Wrath++'s launcher has them: Ralia's mod and Alternate Female Options (one
+  texture set at a time), the body options' package (Shape as a patch on today's model, the
+  Style x Density layer); the user's zips, picked or found on the phone, never committed.
+- **The stages**: the studio (the people alone, the city hidden) and Dalaran's four places of the
+  first version, each with left, center and right marks.
+- **Play**: the project compiled to the story script and played by the first version's player
+  (talking head, gossip window, emotes, camera shots); an End beat's title is the ending's toast.
+- **Files**: the first launch fetches the interface, the creator's tables (about 20 MB, the
+  current build; GlobalStrings at 9.2.7 for the creator's own words), Dalaran and its props, the
+  sounds; a look's own files are fetched when it is first shown.
+- **Removed**: the demo story, its people's looks, voices and music, the endings list,
+  reputations (affection), the Who Are You? screen, save slots.
+
+Open, not done:
+
+- The face shapes (`ChrCustomizationBoneSet` bone files are fetched; the renderer has no call for
+  them yet).
+- The starting outfit: Gear shows or hides the bare equipment geosets only.
+- Voices for the people's emotes (by race and sex: `tools/sounds.py` has none listed).
+- Stages beyond Dalaran's places and the studio ("It won't take place in Warcraft": the user's own
+  places are to come).
+- **Not tested on a phone**: the editor, the creator's screen, the downloads and Play have never
+  run on one; the Kotlin and Compose code was not compiled here (no Android SDK on the machine that
+  wrote it); the JVM tests and the renderer's desktop build were.
+
+---
+
+# The first version (the dating sim, kept for its history)
 
 ## What the user asked for
 

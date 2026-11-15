@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -30,6 +31,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import android.view.ViewGroup
+import com.logie.wifecraft.data.Lights
 import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.Catalog
 import com.logie.wifecraft.creator.CreatorModel
@@ -42,6 +46,16 @@ import com.logie.wifecraft.engine.SceneView
 // EditorScreen is the one entry point; it holds which page is open (projects, cast, scenes, the
 // scene builder, the character creator). Every change goes through EditorState and is saved at once.
 
+/** Where the editor opens: the list of projects, a project (the title's Continue), or the list asking a new one's name. */
+sealed interface EditorStart {
+    data object Projects : EditorStart
+    data object New : EditorStart
+    data class Open(val project: Project) : EditorStart
+}
+
+/** The renderer's key of the character creator's actor (CreatorScreen's actorKey). */
+const val CREATOR_KEY = "creator"
+
 private sealed interface Page {
     data object Cast : Page
     data object Scenes : Page
@@ -50,9 +64,12 @@ private sealed interface Page {
 }
 
 /**
- * The editor. [dress] puts an NPC's look on the scene's actor named by that key (the creator's
- * resolved look, however the renderer is asked to draw it); [onPlay] runs a compiled script
- * (`.wfs` text) through the play path; [onCreatorLook] draws the creator's look on its actor; [onBack] leaves the editor for the title.
+ * The editor. [dress] puts an NPC's look on the scene's actor named by that key (the host resolves
+ * the appearance, fetches its files and dresses the renderer's actor; the creator's actor is
+ * [CREATOR_KEY]); [onPlay] runs a compiled script (`.wfs` text) through the play path, or
+ * [onPlayProject] when given (the project too: who each script name is); [onCreatorLook] is told
+ * each look the creator resolves (without the imports; [dress] draws it with them); [start] is
+ * where it opens; [onBack] leaves the editor for the title.
  */
 @Composable
 fun EditorScreen(
@@ -66,9 +83,13 @@ fun EditorScreen(
     onCreatorLook: (ResolvedLook) -> Unit,
     onPlay: (script: String) -> Unit,
     onBack: () -> Unit,
+    start: EditorStart = EditorStart.Projects,
+    onPlayProject: ((project: Project, script: String) -> Unit)? = null,
 ) {
     var rev by remember { mutableIntStateOf(0) }
-    var state by remember { mutableStateOf<EditorState?>(null) }
+    var state by remember {
+        mutableStateOf((start as? EditorStart.Open)?.let { s -> EditorState(s.project, onChange = { api.save(it); rev++ }) })
+    }
     var page by remember { mutableStateOf<Page>(Page.Cast) }
     @Suppress("UNUSED_EXPRESSION") rev   // changes redraw the open project
 
@@ -83,7 +104,7 @@ fun EditorScreen(
     }
     if (st == null) {
         EditorHome(
-            api, onBack,
+            api, onBack, askNew = start == EditorStart.New,
             onOpen = { p ->
                 state = EditorState(p, onChange = { api.save(it); rev++ })
                 page = Page.Cast
@@ -107,7 +128,8 @@ fun EditorScreen(
             onBack = { state = null },
         )
         is Page.Builder -> EditorSceneBuilder(
-            project, st, p.sceneId, places, scene, dress, onPlay,
+            project, st, p.sceneId, places, scene, dress,
+            onPlay = { script -> onPlayProject?.invoke(st.project, script) ?: onPlay(script) },
             onBack = { page = Page.Scenes },
         )
         is Page.Creator -> {
@@ -117,16 +139,27 @@ fun EditorScreen(
                 EditorFrame("New NPC", { page = Page.Cast }) { Text("The game's character tables have no races.", style = frizStyle(16.sp, Color.White)) }
             } else {
                 val model = remember(p.actorId) { CreatorModel(catalog, start) }
-                CreatorScreen(
-                    model, art, scene, tables,
-                    onFinish = { name, a ->
-                        if (actor == null) st.addActor(name, a) else st.updateActor(actor.id, name, a)
-                        page = Page.Cast
-                    },
-                    onBack = { page = Page.Cast },
-                    initialName = actor?.name ?: "",
-                    onLook = onCreatorLook,
-                )
+                // the creator's stage: the character alone in the void, in daylight
+                LaunchedEffect(p.actorId) {
+                    scene.removeAll()
+                    scene.showCity(false)
+                    scene.light(Lights.of("day"))
+                }
+                Box(Modifier.fillMaxSize().background(Color.Black)) {
+                    AndroidView({ (scene.parent as? ViewGroup)?.removeView(scene); scene }, Modifier.fillMaxSize())
+                    CreatorScreen(
+                        model, art, scene, tables,
+                        onFinish = { name, a ->
+                            if (actor == null) st.addActor(name, a) else st.updateActor(actor.id, name, a)
+                            scene.removeActor(CREATOR_KEY)
+                            page = Page.Cast
+                        },
+                        onBack = { scene.removeActor(CREATOR_KEY); page = Page.Cast },
+                        initialName = actor?.name ?: "",
+                        actorKey = CREATOR_KEY,
+                        onLook = { look -> onCreatorLook(look); dress(CREATOR_KEY, model.appearance) },
+                    )
+                }
             }
         }
     }
@@ -141,9 +174,9 @@ fun defaultAppearance(c: Catalog): Appearance? {
 
 /** The projects: open one, make one, rename or delete one. */
 @Composable
-fun EditorHome(api: ProjectsApi, onBack: () -> Unit, onOpen: (Project) -> Unit) {
+fun EditorHome(api: ProjectsApi, onBack: () -> Unit, onOpen: (Project) -> Unit, askNew: Boolean = false) {
     var projects by remember { mutableStateOf(api.list()) }
-    var asking by remember { mutableStateOf<Ask?>(null) }
+    var asking by remember { mutableStateOf<Ask?>(if (askNew) Ask.New else null) }
     BackHandler(onBack = onBack)
     EditorFrame("Projects", onBack) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -165,11 +198,11 @@ fun EditorHome(api: ProjectsApi, onBack: () -> Unit, onOpen: (Project) -> Unit) 
                     }
                 }
             }
-            WowButton("New story", { asking = Ask.New }, Modifier.align(Alignment.CenterHorizontally), width = 240.dp)
+            WowButton("New Project", { asking = Ask.New }, Modifier.align(Alignment.CenterHorizontally), width = 240.dp)
         }
     }
     when (val a = asking) {
-        Ask.New -> NameDialog("New story", "", "Create", { asking = null }) { name ->
+        Ask.New -> NameDialog("New Project", "", "Create", { asking = null }) { name ->
             asking = null
             onOpen(api.create(name.ifBlank { "My story" }))
             projects = api.list()

@@ -14,6 +14,8 @@ object Native {
     @JvmStatic external fun initGl(scene: Long)
     @JvmStatic external fun render(scene: Long, width: Int, height: Int, nowMs: Int)
     @JvmStatic external fun loadCity(scene: Long, root: Int, groups: IntArray, centres: FloatArray, radius: Float): Boolean
+    /** Whether the city is drawn and stood on (false: the studio and the creator, people alone in the void; it stays loaded). */
+    @JvmStatic external fun showCity(scene: Long, shown: Boolean)
     @JvmStatic external fun addActor(
         scene: Long, model: Int, texKeys: IntArray, texValues: IntArray,
         geoKeys: IntArray, geoValues: IntArray, scale: Float,
@@ -50,6 +52,24 @@ object Native {
 
     /** A tint for [dress]'s tintColours: 0xRRGGBB (null: none). */
     @JvmStatic fun tint(rgb: Int?): Int = if (rgb == null) 0 else (0xFF000000.toInt() or (rgb and 0xFFFFFF))
+
+    /**
+     * Wrath++'s body options on a standing actor (a woman of the ten races of 3.3.5), kept until changed ([dress] leaves it):
+     *
+     * - [morph]: the Shape, [BODY_STRIDE] floats per vertex of Wrath++'s looks model (creator/BodyShapes.load: its place,
+     *   how far the shape moves it, normal before and after, texture coordinates before and after); null or empty: as drawn.
+     *   Today's model is moved vertex by vertex where it has the looks' vertex, and in between as the nearest ones move.
+     * - [k], [fold]: the race's body layer square (BodyShapes.frame); k 0: no layer.
+     *
+     * The layer's design (Style x Density) comes with the look: [dress]'s layer of texture type 1 at layer 100
+     * (LookResolver.BODY_LAYER), which is then not composed into the skin but drawn over the body's front below the navel,
+     * as Wrath++'s native mod draws it: on the body's own triangles under the square, lifted off the skin, the hair's
+     * colour times the design, alpha blended.
+     */
+    @JvmStatic external fun body(scene: Long, actor: Int, morph: FloatArray?, k: Float, fold: Float)
+
+    /** Floats per looks vertex in [body]'s morph (creator/BodyShapes.STRIDE, the engine's kBodyMorphStride). */
+    const val BODY_STRIDE = 16
 
     @JvmStatic external fun removeActor(scene: Long, actor: Int)
     @JvmStatic external fun place(scene: Long, actor: Int, x: Float, y: Float, z: Float, facing: Float)

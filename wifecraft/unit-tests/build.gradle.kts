@@ -1,6 +1,8 @@
-// Runs Wifecraft's platform-independent code (the story's script and runner, the camera's
-// framings, update picking) on the JVM, without Android, and checks the demo story itself.
-// The sources live in the app.
+// Runs Wifecraft's platform-independent code on the JVM, without Android: the story editor's
+// projects, store and compiler (editor/), the script and its runner (story/), the character
+// creator's catalog, looks, imports, body shapes, the glue to the renderer and the tables' fetch
+// (creator/), the creator's layout and the editor's state and staging (two pure files of ui/),
+// and update picking. The sources live in the app.
 
 plugins {
     kotlin("jvm") version "2.2.20"
@@ -41,7 +43,7 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
-    // The demo's script and data, for the test that plays it through.
+    // The app's assets (places.json), for the tests that check them.
     systemProperty("wifecraft.assets", file("../android/app/src/main/assets").absolutePath)
     testLogging {
         events("passed", "failed")

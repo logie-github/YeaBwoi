@@ -1,37 +1,38 @@
 package com.logie.wifecraft.story
 
 /**
- * Wifecraft's story scripts (the .wfs files in assets/story): one command per line.
+ * Wifecraft's story scripts: one command per line. The editor writes them (editor/Compile.kt turns a project into
+ * one) and [StoryRunner] plays them.
  *
  *     # a comment
  *     :label                         a place to jump to
  *     title Chapter I | Morning      a chapter card
- *     scene krasus dusk              cut to a place, in a light (day, dusk, night)
+ *     scene studio day               cut to a place (assets/places.json), in a light (day, dusk, night)
  *     fadeout 600 / fadein 600       to and from black
  *     letterbox on|off               the black bars of a cutscene
- *     cast alleria rail [face you|camera|DEGREES]   puts someone on a place's mark
- *     remove alleria
- *     walk you rail 2500 / run saber far 1200       move to a mark, taking that long
- *     face alleria you               turn toward someone (or "camera")
- *     emote alleria laugh [loop]     an animation by name (talk, laugh, bow, point, ...)
- *     shot bust alleria 800          the camera: bust WHO, two A B, wide, view NAME (a place's
+ *     cast p_mira left [face p_bob|camera|DEGREES]  puts someone on a place's mark (left, center, right...)
+ *     remove p_mira
+ *     walk p_mira right 2500 / run p_bob center 1200  move to a mark, taking that long
+ *     face p_mira p_bob              turn toward someone (or "camera")
+ *     emote p_mira laugh [loop]      an animation by name (talk, laugh, bow, point, ...)
+ *     shot bust p_mira 800           the camera: bust WHO, two A B, wide, view NAME (a place's
  *                                    camera), and how long the move takes (0: a cut)
  *     shake 400                      the camera shakes
- *     music alleria [2000]           the game's music by its name (assets/sounds.json), faded in
+ *     music day [2000]               the game's music by its name (assets/sounds.json), faded in
  *                                    over that long; "music off" fades it out
- *     sound saber_roar               a sound effect, by its name in assets/sounds.json
+ *     sound click                    a sound, by its name in assets/sounds.json
  *     wait 1200                      a pause, in milliseconds
- *     alleria [laugh]: Words...      a line; "you:" is the player, "narrator:" has no name
+ *     p_mira [laugh]: Words...       a line; "narrator:" has no name
  *     choice Where to?               a choice, its options below, then "end"
- *       > Text | alleria +10 | goto there
+ *       > Text | set flag | goto there
  *     end
- *     alleria +5 / set flag          affection, and flags
- *     if alleria >= 60 goto there    also "if flag NAME goto there"
+ *     set flag                       a flag
+ *     if flag NAME goto there
  *     goto there
- *     ending windrunner              an ending (by its id in the story's endings)
- *     finish                         back to the title
+ *     ending the_end The End         an ending: its id, then its title as shown (any words; none: the id)
+ *     finish                         back to where the story was started from
  *
- * `{name}` in any text is the player's name.
+ * `{name}` in any text is replaced by the runner's name for the reader.
  */
 sealed interface Command {
     val line: Int
@@ -53,24 +54,21 @@ sealed interface Command {
     data class Wait(val ms: Int, override val line: Int) : Command
     data class Say(val who: String, val emote: String?, val text: String, override val line: Int) : Command
     data class Choice(val prompt: String, val options: List<Option>, override val line: Int) : Command
-    data class Affect(val who: String, val amount: Int, override val line: Int) : Command
     data class SetFlag(val flag: String, override val line: Int) : Command
     data class If(val condition: Condition, val target: String, override val line: Int) : Command
     data class Goto(val target: String, override val line: Int) : Command
-    data class Ending(val id: String, override val line: Int) : Command
+    data class Ending(val id: String, val title: String, override val line: Int) : Command
     data class Finish(override val line: Int) : Command
 }
 
 data class Option(val text: String, val effects: List<Effect>)
 
 sealed interface Effect {
-    data class Affect(val who: String, val amount: Int) : Effect
     data class SetFlag(val flag: String) : Effect
     data class Goto(val target: String) : Effect
 }
 
 sealed interface Condition {
-    data class Compare(val who: String, val op: String, val value: Int) : Condition
     data class Flag(val flag: String) : Condition
 }
 
@@ -84,8 +82,6 @@ class Script(val commands: List<Command>) {
 
     companion object {
         private val SAY = Regex("^([a-z_]+)\\s*(?:\\[([a-z_]+)])?\\s*:\\s*(.*)$")
-        private val AFFECT = Regex("^([a-z_]+)\\s+([+-]\\d+)$")
-        private val COMPARE = Regex("^([a-z_]+)\\s*(>=|<=|>|<|==)\\s*(-?\\d+)$")
 
         /** Reads a script; the line numbers in errors are the file's. */
         fun parse(source: String): Script {
@@ -154,7 +150,6 @@ class Script(val commands: List<Command>) {
                                 when {
                                     ew[0] == "goto" && ew.size == 2 -> Effect.Goto(ew[1])
                                     ew[0] == "set" && ew.size == 2 -> Effect.SetFlag(ew[1])
-                                    AFFECT.matches(e) -> AFFECT.find(e)!!.let { Effect.Affect(it.groupValues[1], it.groupValues[2].toInt()) }
                                     else -> fail(i, "can't read \"$e\"")
                                 }
                             }
@@ -170,17 +165,16 @@ class Script(val commands: List<Command>) {
                         val cond = words.subList(1, gotoAt).joinToString(" ")
                         val c = when {
                             cond.startsWith("flag ") -> Condition.Flag(cond.removePrefix("flag ").trim())
-                            COMPARE.matches(cond) -> COMPARE.find(cond)!!.let {
-                                Condition.Compare(it.groupValues[1], it.groupValues[2], it.groupValues[3].toInt())
-                            }
                             else -> fail(n, "can't read the condition \"$cond\"")
                         }
                         Command.If(c, words.last(), n)
                     }
                     words[0] == "goto" -> Command.Goto(words.getOrNull(1) ?: fail(n, "goto where?"), n)
-                    words[0] == "ending" -> Command.Ending(words.getOrNull(1) ?: fail(n, "which ending?"), n)
+                    words[0] == "ending" -> {
+                        val id = words.getOrNull(1) ?: fail(n, "which ending?")
+                        Command.Ending(id, rest.substringAfter(' ', "").trim().ifEmpty { id }, n)
+                    }
                     words[0] == "finish" -> Command.Finish(n)
-                    AFFECT.matches(raw) -> AFFECT.find(raw)!!.let { Command.Affect(it.groupValues[1], it.groupValues[2].toInt(), n) }
                     SAY.matches(raw) -> SAY.find(raw)!!.let {
                         Command.Say(it.groupValues[1], it.groupValues[2].ifEmpty { null }, it.groupValues[3].trim(), n)
                     }

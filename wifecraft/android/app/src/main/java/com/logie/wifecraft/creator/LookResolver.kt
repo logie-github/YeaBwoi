@@ -152,10 +152,9 @@ object LookResolver {
         val b = a.body
         if (BodyOptions.eligible(a.raceId, a.sex) && (b.shape != 0 || b.style != 0)) {
             if (overrides.hasBody()) {
-                if (b.shape != 0) {
-                    val m = overrides.bodyModel(a.raceId, b.shape)
-                    if (m != null) model = m else diagnostics += "Shape ${BodyOptions.SHAPES.getOrElse(b.shape) { b.shape.toString() }}: the body options have no model for this race"
-                }
+                // the race's own model stays: a shape is a patch the renderer lays on it (creator/BodyShapes, Native.body)
+                if (b.shape != 0 && overrides.bodyModel(a.raceId, b.shape) == null)
+                    diagnostics += "Shape ${BodyOptions.SHAPES.getOrElse(b.shape) { b.shape.toString() }}: the body options have no model for this race"
                 if (b.style != 0 && b.density != 0) {
                     val f = overrides.bodyLayer(a.raceId, b.style, b.density)
                     if (f != null) layers += TextureLayer(overrides.texture(f, female), -1, 1, BODY_LAYER, null, null, 1)

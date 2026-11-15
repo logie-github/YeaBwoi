@@ -151,4 +151,16 @@ private:
     float evalShort(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs, float def) const;
 };
 
+// Wrath++'s body shapes (creator/BodyShapes.kt) on today's model. `morph` holds kBodyMorphStride floats per vertex of
+// Wrath++'s looks model: its place as drawn, how far the shape moves it, its normal before and after, its first texture
+// coordinates before and after (the looks' body coordinates are today's with u doubled). Each of `vertices` at a looks
+// vertex (within 0.01 mm) moves as that one does (its normal and, where the coordinates show the same vertex, its texture
+// coordinates too); one between them moves as the looks vertices within 2 cm facing alike do, nearer ones more; one
+// farther stays. Returns how many vertices moved.
+constexpr size_t kBodyMorphStride = 16;
+struct BodyMorphStats {
+    size_t exact = 0, blended = 0, uvs = 0;
+};
+size_t applyBodyMorph(std::vector<M2Vertex>& vertices, const float* morph, size_t count, BodyMorphStats* stats = nullptr);
+
 } // namespace wc
