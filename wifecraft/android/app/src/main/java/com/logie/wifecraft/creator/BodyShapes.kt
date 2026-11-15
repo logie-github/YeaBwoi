@@ -23,9 +23,11 @@ import java.nio.ByteOrder
  *
  * [morph] turns a shape into what Wifecraft's renderer applies to today's model ([com.logie.wifecraft.engine.Native.body]):
  * per looks vertex, its place as drawn, how far the shape moves it, its normal before and after, its texture coordinates
- * before and after ([STRIDE] floats). The renderer finds each of today's vertices at its looks vertex (or, between them,
- * the nearest ones within 2 cm) and moves it so. The refined vertices the shape adds have no place in today's model and are
- * left out: today's model is drawn at its own (finer) resolution.
+ * before and after ([STRIDE] floats): the looks' vertices the shape draws, then the refined ones (where each was before
+ * worked out again: [morphRefined]), so the renderer has the shape at the package's own resolution. The renderer
+ * (engine/bodyshape.cpp) splits today's skin where the shape moves it and reads the shape's surface between the records
+ * (exact at a looks vertex, a smooth fit between), so the shape's curve shows as the package draws it, not as a blend of
+ * the nearest looks vertices (the user, on a phone: "wavy messed up 3D models").
  *
  * The body layer (Style x Density) is a design texture per style and density ([ImportStore.bodyLayer]) laid over the body's
  * front below the navel in model space: a square [Frame.span] wide, its top [Frame.top] (layer.py's SPAN 0.21 and TOP 0.16 x
@@ -67,8 +69,8 @@ object BodyShapes {
 
     fun frame(raceId: Int): Frame? = FRAMES[raceId]
 
-    /** A model's vertices: [count] positions, normals and first texture coordinates. */
-    class Mesh(val count: Int, val pos: FloatArray, val normal: FloatArray, val uv: FloatArray)
+    /** A model's vertices: [count] positions, normals and first texture coordinates; [bones] 8 bytes each (4 weights, 4 bones) when read. */
+    class Mesh(val count: Int, val pos: FloatArray, val normal: FloatArray, val uv: FloatArray, val bones: ByteArray = ByteArray(0))
 
     /**
      * The vertices of the model a [patch] makes (WrathppBody.withPatch): the header's vertex array, found in the patch's tail.
@@ -102,12 +104,14 @@ object BodyShapes {
         if (n <= 0 || start < HEADER || start + n * VERTEX > patch.size) throw IOException("The body options model's vertices aren't in it.")
         val count = n.toInt()
         val pos = FloatArray(count * 3); val normal = FloatArray(count * 3); val uv = FloatArray(count * 2)
+        val bones = ByteArray(count * 8)
         for (i in 0 until count) {
             val v = (start + i.toLong() * VERTEX).toInt()
             for (k in 0 until 3) { pos[i * 3 + k] = b.getFloat(v + k * 4); normal[i * 3 + k] = b.getFloat(v + 20 + k * 4) }
             uv[i * 2] = b.getFloat(v + 32); uv[i * 2 + 1] = b.getFloat(v + 36)
+            for (k in 0 until 8) bones[i * 8 + k] = patch[v + 12 + k]
         }
-        return Mesh(count, pos, normal, uv)
+        return Mesh(count, pos, normal, uv, bones)
     }
 
     /**
@@ -152,6 +156,146 @@ object BodyShapes {
         return out
     }
 
+    /** A skin's triangles as model vertex numbers, the layer's section (geoset [LAYER_GEOSET]) left out. */
+    fun triangles(skin: ByteArray): IntArray {
+        if (skin.size < 48 || String(skin, 0, 4, Charsets.ISO_8859_1) != "SKIN") throw IOException("Not a body options skin.")
+        val b = ByteBuffer.wrap(skin).order(ByteOrder.LITTLE_ENDIAN)
+        val vn = b.getInt(4); val vo = b.getInt(8); val inN = b.getInt(12); val io = b.getInt(16); val sn = b.getInt(28); val so = b.getInt(32)
+        if (vn < 0 || inN < 0 || sn < 0 || vo + vn * 2L > skin.size || io + inN * 2L > skin.size || so + sn * 48L > skin.size)
+            throw IOException("The body options skin is damaged.")
+        val out = ArrayList<Int>()
+        for (s in 0 until sn) {
+            val at = so + s * 48
+            if (b.getShort(at).toInt() and 0xFFFF == LAYER_GEOSET) continue
+            val start = (b.getShort(at + 8).toInt() and 0xFFFF) + (b.getShort(at + 2).toInt() and 0xFFFF) * 65536
+            val count = b.getShort(at + 10).toInt() and 0xFFFF
+            var k = start
+            while (k + 2 < start + count && k + 2 < inN) {
+                for (j in 0 until 3) {
+                    val local = b.getShort(io + (k + j) * 2).toInt() and 0xFFFF
+                    out.add(if (local < vn) b.getShort(vo + local * 2).toInt() and 0xFFFF else -1)
+                }
+                k += 3
+            }
+        }
+        return out.toIntArray()
+    }
+
+    /**
+     * [morph] with the shape's refined vertices too (refine.py's: each the Phong midpoint of an edge of the looks, made in
+     * order, a later one's edge possibly between earlier new ones). The package keeps them only where the shape put them, so
+     * where each was before is worked out again: its edge is the pair of its neighbours in [shapeTriangles] (the shapes' skin,
+     * [triangles]) made before it whose bones hold its own and whose middle it lies at (in the shape, its texture
+     * coordinates too); its place before is that edge's Phong midpoint, its normal and texture coordinates their mean, as
+     * refine.py made them. A refined vertex whose edge isn't found is left out. The records are [morph]'s (the looks'
+     * vertices first, in order, those no triangle of the shapes' skin uses left out), then the refined ones': the renderer
+     * reads the shape where it is finer than the looks.
+     */
+    fun morphRefined(base: Mesh, baseCount: Int, shape: Mesh, shapeCount: Int, shapeTriangles: IntArray): FloatArray {
+        val all = morph(base, baseCount, shape, shapeCount)
+        // only what the shape draws: a vertex no triangle of its skin uses (a worn piece cut down to fit 3.3.5's indices)
+        // was never shaped, and would say the body stays where it moves
+        val used = BooleanArray(shapeCount)
+        for (v in shapeTriangles) if (v in 0 until shapeCount) used[v] = true
+        val keep = if (shapeTriangles.isEmpty()) (0 until baseCount).toList() else (0 until baseCount).filter { used[it] }
+        val looks = FloatArray(keep.size * STRIDE)
+        for ((j, i) in keep.withIndex()) System.arraycopy(all, i * STRIDE, looks, j * STRIDE, STRIDE)
+        if (shapeCount == baseCount) return looks
+        val n = shapeCount
+        val rp = DoubleArray(n * 3); val rn = DoubleArray(n * 3); val ru = DoubleArray(n * 2)
+        val known = BooleanArray(n)
+        for (i in 0 until baseCount) {
+            for (k in 0 until 3) { rp[i * 3 + k] = base.pos[i * 3 + k].toDouble(); rn[i * 3 + k] = base.normal[i * 3 + k].toDouble() }
+            ru[i * 2] = base.uv[i * 2].toDouble(); ru[i * 2 + 1] = base.uv[i * 2 + 1].toDouble()
+            known[i] = true
+        }
+        // each refined vertex's neighbours made before it
+        val earlier = Array(n - baseCount) { HashSet<Int>() }
+        var t = 0
+        while (t + 2 < shapeTriangles.size) {
+            for (j in 0 until 3) {
+                val m = shapeTriangles[t + j]
+                if (m < baseCount || m >= n) continue
+                for (o in 1..2) { val q = shapeTriangles[t + (j + o) % 3]; if (q in 0 until m) earlier[m - baseCount].add(q) }
+            }
+            t += 3
+        }
+        val haveBones = shape.bones.size >= n * 8
+        fun bonesOf(i: Int): List<Pair<Int, Int>> =
+            (0 until 4).mapNotNull { k -> val w = shape.bones[i * 8 + k].toInt() and 0xFF; if (w != 0) (shape.bones[i * 8 + 4 + k].toInt() and 0xFF) to w else null }
+        fun sp(i: Int, k: Int) = shape.pos[i * 3 + k].toDouble()
+        fun sn(i: Int, k: Int) = shape.normal[i * 3 + k].toDouble()
+        val records = ArrayList<FloatArray>()
+        for (m in baseCount until n) {
+            val cand = earlier[m - baseCount].filter { known[it] }.sorted()
+            var best = Double.MAX_VALUE; var ba = -1; var bb = -1
+            val mine = if (haveBones) bonesOf(m).sortedWith(compareBy({ it.first }, { it.second })) else emptyList()
+            for (x in cand.indices) for (y in x + 1 until cand.size) {
+                val a = cand[x]; val b = cand[y]
+                // in the shape, where refine.py's midpoint of the edge would be (the shape is smooth: it stays near it)
+                val mid = DoubleArray(3) { 0.5 * (sp(a, it) + sp(b, it)) }
+                var off = 0.0; var len = 0.0
+                for (k in 0 until 3) { val e = sp(a, k) - sp(b, k); len += e * e }
+                if (len < 1e-14) continue
+                val q = DoubleArray(3)
+                for (c in intArrayOf(a, b)) {
+                    var dot = 0.0
+                    for (k in 0 until 3) dot += (mid[k] - sp(c, k)) * sn(c, k)
+                    for (k in 0 until 3) q[k] += 0.5 * (mid[k] - dot * sn(c, k))
+                }
+                for (k in 0 until 3) { val d = sp(m, k) - q[k]; off += d * d }
+                var uvOff = 0.0
+                for (k in 0 until 2) { val d = shape.uv[m * 2 + k] - 0.5 * (shape.uv[a * 2 + k] + shape.uv[b * 2 + k]); uvOff += d * d }
+                // the bones refine.py mixes from the two (the 4 heaviest, bytes summing to 255) are the new vertex's own
+                val bonePenalty = if (haveBones && mixBones(bonesOf(a), bonesOf(b)) != mine) 1.0 else 0.0
+                val score = Math.sqrt(off / len) + Math.sqrt(uvOff) * 4 + bonePenalty
+                if (score < best) { best = score; ba = a; bb = b }
+            }
+            if (ba < 0 || best > 0.3) continue
+            // refine.py's midpoint: the edge's middle pulled onto both corners' tangent planes, halfway
+            val mid = DoubleArray(3) { 0.5 * (rp[ba * 3 + it] + rp[bb * 3 + it]) }
+            val q = DoubleArray(3)
+            for (c in intArrayOf(ba, bb)) {
+                var dot = 0.0
+                for (k in 0 until 3) dot += (mid[k] - rp[c * 3 + k]) * rn[c * 3 + k]
+                for (k in 0 until 3) q[k] += 0.5 * (mid[k] - dot * rn[c * 3 + k])
+            }
+            var len = 0.0
+            val nn = DoubleArray(3) { rn[ba * 3 + it] + rn[bb * 3 + it] }
+            for (k in 0 until 3) len += nn[k] * nn[k]
+            len = Math.sqrt(len) + 1e-12
+            for (k in 0 until 3) { rp[m * 3 + k] = q[k].toFloat().toDouble(); rn[m * 3 + k] = (nn[k] / len).toFloat().toDouble() }
+            for (k in 0 until 2) ru[m * 2 + k] = ((ru[ba * 2 + k] + ru[bb * 2 + k]) / 2).toFloat().toDouble()
+            known[m] = true
+            val r = FloatArray(STRIDE)
+            for (k in 0 until 3) {
+                r[k] = rp[m * 3 + k].toFloat()
+                r[3 + k] = (sp(m, k) - rp[m * 3 + k]).toFloat()
+                r[6 + k] = rn[m * 3 + k].toFloat()
+                r[9 + k] = shape.normal[m * 3 + k]
+            }
+            r[12] = ru[m * 2].toFloat(); r[13] = ru[m * 2 + 1].toFloat()
+            r[14] = shape.uv[m * 2]; r[15] = shape.uv[m * 2 + 1]
+            records.add(r)
+        }
+        val out = looks.copyOf(looks.size + records.size * STRIDE)
+        for ((i, r) in records.withIndex()) System.arraycopy(r, 0, out, looks.size + i * STRIDE, STRIDE)
+        return out
+    }
+
+    /** refine.py's mix_bones: half of each corner's weights per bone, the 4 heaviest, bytes summing to 255 (sorted by bone). */
+    internal fun mixBones(a: List<Pair<Int, Int>>, b: List<Pair<Int, Int>>): List<Pair<Int, Int>> {
+        val acc = LinkedHashMap<Int, Double>()
+        for ((bone, w) in a + b) acc[bone] = (acc[bone] ?: 0.0) + 0.5 * w
+        val top = acc.entries.sortedBy { -it.value }.take(4)
+        val tot = top.sumOf { it.value }
+        if (tot <= 0) return emptyList()
+        val raw = top.map { it.value / tot * 255 }
+        val q = raw.map { Math.floor(it).toInt() }.toMutableList()
+        for (j in raw.indices.sortedBy { -(raw[it] - q[it]) }.take(255 - q.sum())) q[j]++
+        return top.indices.map { top[it].key to q[it] }.filter { it.second != 0 }.sortedWith(compareBy({ it.first }, { it.second }))
+    }
+
     /** How many vertices a [morph] moves (by more than [eps]). */
     fun moved(morph: FloatArray, eps: Float = 1e-6f): Int {
         var n = 0
@@ -193,7 +337,8 @@ object BodyShapes {
         fun bytes(id: Int) = File(root, "game/$id").takeIf { it.isFile }?.readBytes() ?: throw IOException("The body options' file $id is missing; import the package again.")
         val b = readPatch(bytes(base.model))
         val s = readPatch(bytes(made.model))
-        val m = morph(b, bodyCount(bytes(base.skin), b.count), s, bodyCount(bytes(made.skin), s.count))
+        val shapeSkin = bytes(made.skin)
+        val m = morphRefined(b, bodyCount(bytes(base.skin), b.count), s, bodyCount(shapeSkin, s.count), triangles(shapeSkin))
         synchronized(cache) {
             cache[key] = m
             while (cache.size > 4) cache.remove(cache.keys.first())

@@ -88,6 +88,8 @@ fun OptionsPanel(
     downloadSpeed: Int, onDownloadSpeed: (Int) -> Unit,
     musicVolume: Int, onMusicVolume: (Int) -> Unit,
     soundVolume: Int, onSoundVolume: (Int) -> Unit,
+    /** Soft body: 0 Off, 1 Subtle, 2 Natural, 3 Strong (applies at once). */
+    softBody: Int, onSoftBody: (Int) -> Unit,
     onBack: () -> Unit,
     /** More below the reader's settings (the title's Options: the creator's imports). */
     more: (@Composable () -> Unit)? = null,
@@ -120,6 +122,16 @@ fun OptionsPanel(
                 for ((label, n) in listOf("Gentle 24" to 24, "Normal 48" to 48, "Fast 96" to 96)) {
                     RadioButton(
                         downloadSpeed == n, { onDownloadSpeed(n) },
+                        colors = RadioButtonDefaults.colors(selectedColor = WowColors.gold, unselectedColor = WowColors.gold.copy(alpha = 0.7f)),
+                    )
+                    Text(label, style = frizStyle(13.sp, Color.White), modifier = Modifier.padding(end = 10.dp))
+                }
+            }
+            Text("Soft body (chest, belly, rear and thighs hang and bounce as she moves)", style = frizStyle(13.sp, Color.White))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                for ((n, label) in listOf("Off", "Subtle", "Natural", "Strong").withIndex()) {
+                    RadioButton(
+                        softBody == n, { onSoftBody(n) },
                         colors = RadioButtonDefaults.colors(selectedColor = WowColors.gold, unselectedColor = WowColors.gold.copy(alpha = 0.7f)),
                     )
                     Text(label, style = frizStyle(13.sp, Color.White), modifier = Modifier.padding(end = 10.dp))

@@ -10,7 +10,7 @@ import java.security.DigestInputStream
 import java.security.MessageDigest
 import java.util.zip.ZipInputStream
 
-/** The three imports, as Wrath++ has them: each a zip the user picks on the phone. Nothing of any zip is in the app or the repository. */
+/** The imports, as Wrath++ has them: each a zip the user picks on the phone. Nothing of any zip is in the app or the repository. */
 enum class ImportKind(val key: String, val label: String, val zipNames: List<String>, val textures: Boolean) {
     /** Ralia's mod: character textures named as today's game names them. */
     RALIA("ralia", "Ralia's mod", listOf("ralia.zip"), true),
@@ -18,6 +18,8 @@ enum class ImportKind(val key: String, val label: String, val zipNames: List<Str
     ALTERNATE("alternate-female", "Alternate Female Options", listOf("alternate-female.zip"), true),
     /** Wrath++'s body options: Shape, Style, Density (the package `pack2.py` makes, format 2). */
     BODY("wrathpp-body", "Body options (Shape, Style, Density)", listOf("wrathpp-body.zip", "body.zip"), false),
+    /** Wrath++'s undead skins (undead_pack.py's package, WrathppUndead.kt): new skin colours for the living races, each a body and a face. */
+    UNDEAD("wrathpp-undead", "Undead skins", listOf("wrathpp-undead-skins.zip", "undead-skins.zip"), false),
 }
 
 data class ImportStatus(
@@ -76,7 +78,10 @@ class ImportStore(
             val id = map.optInt(key, 0).takeIf { it >= FIRST_ID } ?: continue
             val target = File(game, id.toString())
             if (target.isFile && target.length() > 0) continue
-            val src = File(imports, key)
+            // where importZip keeps it: imports/<kind>/files/<path> (the key is <kind>/<path>); imports/<key> as before
+            val slash = key.indexOf('/')
+            val kept = if (slash > 0) File(imports, key.substring(0, slash) + "/files/" + key.substring(slash + 1)) else null
+            val src = kept?.takeIf { it.isFile } ?: File(imports, key)
             if (!src.isFile || !src.canonicalPath.startsWith(imports.canonicalPath + File.separator)) continue
             runCatching {
                 val part = File(game, "$id.part").apply { delete() }
@@ -157,6 +162,33 @@ class ImportStore(
     override fun hasRalia() = loaded.textureKind != null
     override fun hasBody() = body() != null
 
+    // ---------------------------------------------------------------- the undead skins
+
+    override fun hasUndead() = loaded.metas[ImportKind.UNDEAD] != null
+
+    private fun undeadModel(raceId: Int, sex: Sex): JSONObject? {
+        val a = loaded.metas[ImportKind.UNDEAD]?.optJSONArray("models") ?: return null
+        val s = if (sex == Sex.FEMALE) 1 else 0
+        for (i in 0 until a.length()) a.getJSONObject(i).let { if (it.optInt("race_id") == raceId && it.optInt("sex") == s) return it }
+        return null
+    }
+
+    override fun undeadSkins(raceId: Int, sex: Sex): List<UndeadSkin> {
+        val skins = undeadModel(raceId, sex)?.optJSONArray("skins") ?: return emptyList()
+        return (0 until skins.length()).map { skins.getJSONObject(it) }.map { UndeadSkin(it.getString("name"), it.optInt("swatch"), it.getInt("skin"), it.getInt("face")) }
+    }
+
+    override fun undeadUnderwear(raceId: Int, sex: Sex): String = undeadModel(raceId, sex)?.optString("underwear", "race")?.ifEmpty { "race" } ?: "race"
+
+    /** What the imported undead skins have, for the Imports row: the race and sex keys ("10_1") and how many skins. */
+    data class UndeadSummary(val models: List<String>, val skins: Int)
+
+    fun undeadSummary(): UndeadSummary? {
+        val a = loaded.metas[ImportKind.UNDEAD]?.optJSONArray("models") ?: return null
+        val models = (0 until a.length()).map { a.getJSONObject(it) }
+        return UndeadSummary(models.map { "${it.getInt("race_id")}_${it.getInt("sex")}" }, models.sumOf { it.optJSONArray("skins")?.length() ?: 0 })
+    }
+
     /** What the imported body options have, for the Imports row: the races (ids) with shapes, and those with designs. */
     data class BodySummary(val shapes: Set<Int>, val layers: Set<Int>)
 
@@ -204,6 +236,10 @@ class ImportStore(
                         if (!p.endsWith(".blp")) continue
                         if (kind == ImportKind.ALTERNATE && !p.contains("/female/")) continue
                         p
+                    } else if (kind == ImportKind.UNDEAD) {
+                        // the manifest and the textures, as WrathppUndead.importZip keeps them; anything else is left
+                        if (!raw.endsWith(UNDEAD_LIST) && !raw.endsWith(".blp", ignoreCase = true)) continue
+                        raw
                     } else raw
                     val target = File(filesDir, path)
                     if (!target.canonicalPath.startsWith(filesDir.canonicalPath + File.separator)) throw ImportException("Bad path in the zip: ${entry.name}")
@@ -229,7 +265,11 @@ class ImportStore(
             val ids = Ids.read(File(imports, "ids.json"))
             val meta = JSONObject().put("kind", kind.key).put("source", source).put("sha256", sha).put("mark", mark ?: "")
             val stored = LinkedHashSet<Int>()
-            if (kind.textures) buildTextures(kind, staged, ids, meta, stored) else buildBody(kind, staged, filesDir, ids, meta, stored)
+            when {
+                kind.textures -> buildTextures(kind, staged, ids, meta, stored)
+                kind == ImportKind.UNDEAD -> buildUndead(kind, staged, filesDir, ids, meta, stored)
+                else -> buildBody(kind, staged, filesDir, ids, meta, stored)
+            }
             meta.put("stored", JSONArray(stored.toList()))
             // each file under its synthetic id, where the renderer reads the game's files: whole, then renamed
             val byId = HashMap<Int, File>()
@@ -331,6 +371,64 @@ class ImportStore(
     }
 
     /**
+     * Wrath++'s undead skins (undead_pack.py: `manifest.json`, format 1, kind wrathpp-undead-skins, and the textures under
+     * `client/` at the game's paths it names; the zip's top, or one folder a zip made again of it has): each skin's body and
+     * face under synthetic ids. A face cut turned (UndeadSkins.HEADS) is turned back here, the turned copy kept beside it.
+     * A manifest naming a texture the zip hasn't, or one that isn't a BLP2, is refused (WrathppUndead.importZip's checks).
+     */
+    private fun buildUndead(kind: ImportKind, staged: MutableList<Staged>, filesDir: File, ids: Ids, meta: JSONObject, stored: MutableSet<Int>) {
+        val prefix = when {
+            staged.any { it.path == UNDEAD_LIST } -> ""
+            else -> staged.map { it.path }.filter { it.endsWith("/$UNDEAD_LIST") && it.count { c -> c == '/' } == 1 }.singleOrNull()?.removeSuffix(UNDEAD_LIST)
+                ?: throw ImportException("This zip has no undead skins in it (no $UNDEAD_LIST).")
+        }
+        val list = try { JSONObject(File(filesDir, prefix + UNDEAD_LIST).readText()) } catch (e: Exception) { throw ImportException("The skins' manifest can't be read.") }
+        if (list.optString("kind") != "wrathpp-undead-skins" || list.optInt("format") != 1) throw ImportException("This isn't a file of undead skins for Wrath++.")
+        val models = list.optJSONObject("models") ?: throw ImportException("The file has no skins in it.")
+        val have = staged.associateBy { it.path }
+        val lower = staged.associateBy { it.path.lowercase() }
+        fun texture(gamePath: String): Staged {
+            val name = prefix + "client/" + gamePath.replace('\\', '/')
+            val s = have[name] ?: lower[name.lowercase()] ?: throw ImportException("The file names a texture it hasn't: $gamePath")
+            if (UndeadSkins.size(s.file.readBytes()) == null) throw ImportException("$gamePath isn't a texture of the game's kind (BLP2).")
+            return s
+        }
+        val out = JSONArray()
+        var skinsIn = 0
+        for (key in models.keys().asSequence().sorted()) {
+            val m = models.getJSONObject(key)
+            val skins = m.optJSONArray("skins") ?: continue
+            if (skins.length() == 0) continue
+            val raceId = m.getInt("race"); val sexN = m.getInt("sex")
+            val sex = if (sexN == 1) Sex.FEMALE else Sex.MALE
+            val head = UndeadSkins.head(raceId, sex)
+            val outSkins = JSONArray()
+            for (i in 0 until skins.length()) {
+                val sk = skins.getJSONObject(i)
+                val body = texture(sk.getString("skin"))
+                val faceIn = texture(sk.getString("face"))
+                // the face as the head's box wants it: turned back where undead_pack.py turned it
+                val face = if (head?.rotate == true) {
+                    val path = "turned/" + faceIn.path
+                    val f = File(filesDir, path).apply { parentFile?.mkdirs() }
+                    val turned = try { UndeadSkins.rotateBack(faceIn.file.readBytes()) } catch (e: IOException) { throw ImportException("${sk.getString("face")}: ${e.message}") }
+                    f.writeBytes(turned)
+                    Staged(path, f).also { staged.add(it) }
+                } else faceIn
+                val bodyId = ids.idFor(kind.key + "/" + body.path).also { stored.add(it) }
+                val faceId = ids.idFor(kind.key + "/" + face.path).also { stored.add(it) }
+                outSkins.put(JSONObject().put("name", sk.optString("name", "Undead ${i + 1}")).put("swatch", sk.optInt("swatch") and 0xFFFFFF)
+                    .put("skin", bodyId).put("face", faceId).put("turned", head?.rotate == true))
+                skinsIn++
+            }
+            out.put(JSONObject().put("key", key).put("race_id", raceId).put("sex", sexN).put("name", m.optString("name", key))
+                .put("underwear", m.optString("underwear", "race")).put("head", head != null).put("skins", outSkins))
+        }
+        if (skinsIn == 0) throw ImportException("The file has no skins in it.")
+        meta.put("models", out).put("files", stored.size).put("skins", skinsIn).put("build", list.optString("build"))
+    }
+
+    /**
      * The zip looked for by its name ([ImportKind.zipNames]; [found] is [ImportFinder]'s): taken in by itself when nothing is
      * imported, and again when the file there has changed since it was taken from there. Never after [remove], and never over a
      * zip picked by hand. Returns the new status, or null when it took nothing.
@@ -407,6 +505,7 @@ class ImportStore(
         const val FIRST_ID = 2_000_000_000
         private const val SPAN = 147_000_000
         const val LIST = "wrathpp-body.json"
+        const val UNDEAD_LIST = "manifest.json"
 
         /** The store the app opened last (the app opens one): what the creator asks whether the body options are in. */
         @Volatile var current: ImportStore? = null

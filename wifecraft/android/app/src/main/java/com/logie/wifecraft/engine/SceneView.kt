@@ -170,6 +170,9 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         Native.boneAnim(h, id, a.bones, a.channels, a.keyCounts, a.times, a.values, a.duration, a.loop, Clock.now())
     }
 
+    /** Options' Soft body (Native.SOFT_OFF .. SOFT_STRONG), for everyone on stage from the next frame. */
+    fun softBody(level: Int) = post { h, _ -> Native.softBody(h, level) }
+
     override fun anim(key: String, anim: Int, loop: Boolean, nowMs: Int) =
         post { h, ids -> ids[key]?.let { Native.anim(h, it, anim, loop, nowMs) } }
 

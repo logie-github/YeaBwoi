@@ -128,7 +128,19 @@ to the editor.
 ## Options
 
 Music and sound volume; text speed; the parchment talking head instead of Legion's dark one; Wi-Fi
-only for the first launch's gathering; its download speed (24, 48 or 96 files at once); and, from the title, the creator's **Imports**:
+only for the first launch's gathering; its download speed (24, 48 or 96 files at once); **Soft body**; and, from the title, the creator's **Imports**:
+
+**Soft body** (Off, Subtle, Natural by default, Strong; applies at once, kept between runs): the chest, belly, rear,
+thighs and upper arms are soft. Each region is a damped spring hung on the bone that carries it (the chest, the lower
+spine, the pelvis, a thigh, an upper arm), simulated at a fixed 120 Hz from that bone's own motion, so steps, hops, stops,
+turns, emotes, imported poses and idle breathing all move it, and under gravity: standing still it hangs lower than
+modelled (a fuller Shape hangs lower and swings slower), lying down it falls the way the world's down is. It lags, bounces
+and settles; the shown displacement is softly limited (to about a quarter of the region's size at Natural), a gap longer
+than a quarter second (a pause, a hitch) holds it still, and a character put somewhere else doesn't swing. The regions
+are found on each model from its bones (the breast bones of today's women's models, the spine, pelvis, thighs and arms)
+and its skin, and the vertex shader moves only skin carried by those bones (never the head, hands, calves), fading to zero
+at each region's edges and against the body behind it; clothing drawn on the body moves with the skin, a cape and the
+items hung on the body don't. Men's models have no breast bones: their chest doesn't move. Off draws exactly as before.
 
 | Import | The zip | What it does |
 | --- | --- | --- |
@@ -153,7 +165,9 @@ keeps the game's files and your projects.
   models keep their bones, sequences and animation files in a skeleton file, `.skel`, which can
   have a parent: Lightforged on Draenei, Mechagnome on Gnome), a character's
   customization (geosets, the skin composed from its layers on the GPU, extra and skinned models,
-  Wrath++'s body shapes and layer), and Dalaran's buildings (WMO groups with their placed props),
+  Wrath++'s body shapes and layer: `bodyshape.cpp` splits the skin where a shape moves it and moves it along the shape's
+  surface as the package draws it, with the package's finer vertices too, so the curve is smooth and hangs as made), and
+  Dalaran's buildings (WMO groups with their placed props),
   lit by the light of the time of day, with fog; the city can be hidden for the studio.
 - **The creator** (`creator/`, plain Kotlin): `Catalog` (races, categories, options, choices from
   the game's tables), `CreatorModel` (Wrath++'s behaviour), `LookResolver` (a look as model,
@@ -170,7 +184,8 @@ keeps the game's files and your projects.
   (`assets/files.json`: the interface, Dalaran, its props, the sounds), `tools/sounds.py`
   (`assets/sounds.json`), `tools/creator_art.py` (`assets/creator_art.json`); ids only.
 - `engine-test/` is a desktop build of the renderer (headless EGL) used to check looks and scenes
-  off the phone. `unit-tests/` (JVM) checks the editor, the script and runner, the creator against
+  off the phone (`--soft LEVEL`, `--strip N:STEP_MS` and `--camera` draw a soft body test strip of a move);
+  `build/softbody_test` checks the soft body's maths alone. `unit-tests/` (JVM) checks the editor, the script and runner, the creator against
   the game's own tables, the glue to the renderer, the places and updates.
 - CI: `.github/workflows/build-wifecraft.yml` runs the unit tests, builds the APK and publishes
   the release.
@@ -188,6 +203,23 @@ markings (the Nightborne's Face Tattoo: its colour layer is nearly transparent, 
 texture, `TextureFileData.UsageType` 2, the renderer doesn't use) and voices for the people's emotes.
 
 ## Changes
+
+- **Body shapes, smooth** (November 2026): Shape (Petite, Curvy, Voluptuous) no longer draws a wavy, faceted chest. The
+  shapes are read at the package's own resolution (its refined vertices, where each was before worked out again as
+  Wrath++'s refine.py made it; vertices of pieces the package cut down left out), the skin is split once where a shape
+  moves it, every vertex is moved along the shape's surface (exactly at a looks vertex, a smooth fit between, one move per
+  place so nothing opens) and the normals turn with the surface. Checked on the desktop with the user's own package
+  (Human, shapes 1 to 3: every added vertex within 4.3 mm of the package's own shaped surface; the move's bumpiness, p99,
+  from 6 to 16 mm down to 2 to 6 mm) and engine-test's `bodyshape_test`; skinned to the same bones (it runs with them); not
+  run on a phone.
+
+- **Smoother animation** (November 2026): standing plays the game's own idle variations (glances, weight shifts,
+  fidgets) by their frequencies and replay counts instead of one short loop; every change of animation (an emote, the
+  same emote again, back to standing, an imported pose on or off) blends from the pose last drawn with an eased
+  150 to 400 ms fade (the sequence's own blend time), turns by slerp; a held imported pose breathes; the animations keep
+  their own clock (a pause or a stall never jumps them ahead; 60 and 120 Hz screens play at the same speed); a model's
+  texture-weight tracks no longer read the skeleton's animation file. Measured on the desktop with six 12.1.7 models
+  (human, night elf, tauren women, gnome man and woman, tauren man); not run on a phone.
 
 - **Every race shows** (November 2026): the creator drew only the old human models; every other
   race (and, at the current build, every race) keeps its bones in a skeleton file the renderer
@@ -211,9 +243,25 @@ Wifecraft is a fan project, not affiliated with or endorsed by Blizzard Entertai
 Warcraft and its characters, models and art are Blizzard's; the app downloads them for you and
 doesn't include them.
 
+## Soft body: what is verified and what is not
+
+- **Verified (desktop):** `softbody_test` (determinism and replay, rest sag equal to sag x g / w^2 and lower for a
+  heavier shape, swings shrinking after a stop and settled within 2 s, the drawn limit held, nothing non-finite with 1 ms,
+  300 ms and 10 s frames and time going back, no kick when placed elsewhere, lying down falls to the world's down). The
+  retail human and night elf women (12.1.7) drawn by `engine-test` through a hop, a stop and a quarter turn at Off,
+  Natural and Strong: the chest lags, overshoots and settles, nothing tears; Off is byte-identical to the renderer before it.
+  The regions are found on the women of the other eight races of 3.3.5 (all nine each) and a tauren and a dwarf woman
+  were drawn hopping without tearing; the human man gets no chest region (no breast bones).
+- **Not verified:** anything on a phone (the shader's cost on a phone GPU, how it looks at the phone's frame rate), the
+  allied races' and other models (their regions are found from their bones; a model without the named bones gets none).
+
 ## Sims animation conversion: what is verified and what is not
 
 - **Verified (desktop, synthetic):** the Sims 4 package and clip reader decodes the 15 clips of one sample pose pack (96 bone rotations and 96 translations each, all bone hashes named); the retargeter maps a synthetic Sims pose onto a night elf model's bones and the engine draws it (`engine-test`, Mesa headless).
 - **Not verified:** a real Sims pose converted with a real Sims 4 skeleton (none was available: the skeleton's bone names and parents come from community documentation, unchecked against the game's own RIG), anything on a phone, the compressed channel types (palette and normalized) against real data.
 - **Known limits:** while an imported animation plays, its bones and every bone above them stand at the model's rest pose (the A-pose), and only each bone's direction is corrected (it can still be twisted along its length). Sims face and CAS bones are dropped. Poses are single-frame; motion clips use the same path and are untested.
 - **Sample viewer:** `tools/viewer_html.py` builds a private single-file HTML viewer of a night elf with the test poses and a loader for the importer's animation JSON (it embeds game model data: keep the output file to yourself; never commit it).
+
+## Undead skins import
+
+A fourth import beside Ralia's mod, Alternate Female Options and the body options: **Undead skins** (`wrathpp-undead-skins.zip` or `undead-skins.zip`, the same package Wrath++ takes: a `manifest.json` and BLP skins and faces under `client/Character/<Race>/<Sex>/`). Options, Imports: choose the zip, or remove it. With it in, the creator shows an **Undead** switch under Accessories (the race's last category where there is none), for the races and sexes the package has (all ten races but the Forsaken, both sexes; no blood elf man). While on, Skin Color lists the undead skins and the Face row is hidden; women's underwear is dropped where the package says so. Without the package the row is greyed "Import the undead skins in Options". Verified on the desktop with the real package (renders of a blood elf and an orc); not run on a phone.

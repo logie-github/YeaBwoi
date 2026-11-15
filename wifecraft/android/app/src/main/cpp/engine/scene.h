@@ -13,6 +13,7 @@
 
 #include "m2.h"
 #include "skin.h"
+#include "softbody.h"
 #include "wmath.h"
 #include "wmo.h"
 
@@ -90,7 +91,7 @@ public:
     // Each call gives the whole look: what it leaves out is gone (attach()'s items stay).
     void dress(int id, const std::map<int, int>& geosetGroups, const std::vector<SkinLayer>& layers,
                const std::vector<DressModel>& models);
-    // Wrath++'s body options on a standing person: `morph` the shape (applyBodyMorph's records, empty: as drawn) and the
+    // Wrath++'s body options on a standing person: `morph` the shape (BodyShapes.morph's records: bodyshape.h shapeBody, empty: as drawn) and the
     // body layer's square (creator/BodyShapes.kt Frame: the race's scale `k` and fold height, k 0: no layer). The layer's
     // design is the look's skin layer of texture type 1 at kBodyLayer (dress takes it out of the skin's composing): drawn as
     // Wrath++'s native mod draws it, over the body's own front triangles under the square, lifted off the skin, the
@@ -105,6 +106,13 @@ public:
     // or loops until cleared; dress() keeps it. Returns how many of its tracks name a bone this model has.
     int setBoneAnim(int id, const BoneAnim& anim, uint32_t nowMs);
     void clearBoneAnim(int id);
+    // The desktop check: an actor's bone matrices as last drawn, the sequence and how far into it; the animations' clock.
+    bool actorPose(int id, std::vector<M4>& mats, int& seq, uint32_t& timeMs) const;
+    uint32_t animClock() const { return animClock_; }
+    // Options' Soft body for everyone on stage (softbody.h: kSoftOff .. kSoftStrong); applies from the next frame.
+    void setSoftBody(int level);
+    // An actor's soft body (the desktop check reads its regions and displacements), or null.
+    const SoftSim* softSim(int id) const { auto it = actors_.find(id); return it == actors_.end() ? nullptr : &it->second.soft.sim; }
     void showActor(int id, bool visible);
     bool actorReady(int id) const;
     // How tall an actor stands (for the camera's framing).
@@ -145,14 +153,16 @@ private:
     // model's indices) and the layer's triangles.
     struct BodyGl {
         std::vector<float> morph;
-        std::vector<M2Vertex> shaped;    // the model's vertices with the shape applied (empty: none)
+        std::vector<M2Vertex> shaped;    // the model's vertices with the shape applied, then the split's (empty: none)
+        std::vector<uint32_t> indices;   // the shaped body's own triangles (bodyshape.h: the split sections' finer)
+        std::vector<M2Submesh> submeshes;     // its sections' ranges in them
         bool shapeDirty = false;
         float k = 0, fold = 0;
         uint32_t design = 0;             // the design's file (dress: the type-1 layer at kBodyLayer)
         uint32_t hair = 0;               // the hair texture its colour comes from
         bool dirty = false;
         std::set<uint32_t> missing;
-        unsigned vao = 0, vbo = 0;       // the shaped vertices (0: the shared model's)
+        unsigned vao = 0, vbo = 0, ibo = 0;   // the shaped vertices and triangles (0: the shared model's)
         unsigned layerVao = 0, layerVbo = 0, layerIbo = 0, layerTex = 0;
         size_t layerIndices = 0;
         size_t moved = 0, layerTriangles = 0;
@@ -181,8 +191,14 @@ private:
         uint16_t animId = 0, idleAnim = 0;
         bool loop = true;
         uint32_t start = 0, prevStart = 0, fadeStart = 0, fadeMs = 0;
+        uint32_t animTime = 0;         // how far into `seq` this frame is (ms)
+        uint32_t replays = 0;          // times the playing variation plays again before another is chosen
+        uint32_t rng = 0;              // the actor's own random numbers (variations), seeded by its id
         unsigned boneTex = 0;
+        // pa: this frame's local pose; pb: the pose a change of animation blends from (the last one drawn, held), for
+        // fadeMs from fadeStart.
         std::vector<BonePose> pa, pb;
+        bool posed = false;            // pa holds a drawn pose (something to blend from)
         std::vector<M4> mats;
         // The imported animation (setBoneAnim): its tracks' bones (-1: none here), the bones held at rest under it.
         std::shared_ptr<BoneAnim> boneAnim;
@@ -190,6 +206,8 @@ private:
         std::vector<uint8_t> boneAnimRest;
         uint32_t boneAnimStart = 0;
         float boneAnimScale = 1;
+        std::vector<std::pair<int, float>> breath;   // a held imported pose breathes: these bones, by these shares
+        SoftDraw soft;                 // the soft body (softbody.h)
     };
     struct GroupGl {
         unsigned vao = 0, vbo = 0, ibo = 0;
@@ -215,6 +233,10 @@ private:
     std::unordered_map<uint32_t, std::string> modelErrors_;   // why a model couldn't be read (tried again on next use)
     std::map<int, Actor> actors_;
     int nextActor_ = 1;
+    // The animations' clock (ms): it moves by each frame's time, at most kMaxFrameStep, so a pause, a stall or the app
+    // coming back moves nothing on by more than a frame's worth, and time never runs backwards.
+    uint32_t animClock_ = 0, lastNow_ = 0, lastStep_ = 16;
+    bool haveNow_ = false;
 
     WmoRoot city_;
     std::vector<GroupGl> groups_;
@@ -226,6 +248,8 @@ private:
     float propRadius_ = 0;
     bool cityLoaded_ = false;
     bool cityShown_ = true;
+    int softLevel_ = kSoftNatural;
+    bool softBodyDraw_ = false;        // drawModel is drawing an actor's body with its soft body on
 
     V3 eye_{0, -10, 2}, target_{0, 0, 1};
     float fov_ = 45;
@@ -244,9 +268,12 @@ private:
     void drawModel(ModelGl& m, const M4& world, const std::map<uint32_t, uint32_t>* textures,
                    const std::vector<uint16_t>* geosets, unsigned boneTex, int seq, uint32_t t,
                    uint32_t now, const float tint[4], bool transparent, int texSize,
-                   const std::map<uint32_t, unsigned>* glTextures = nullptr, unsigned vao = 0);
+                   const std::map<uint32_t, unsigned>* glTextures = nullptr, unsigned vao = 0,
+                   const std::vector<M2Submesh>* submeshes = nullptr);
     void animate(Actor& a, uint32_t now);
     void applyBoneAnim(Actor& a, uint32_t now);
+    void blendFromCurrent(Actor& a, uint32_t ms);   // the next frames blend from the pose last drawn
+    void nextLoop(Actor& a);                         // a looping animation came round: again, or another variation
     void drawAttached(Actor& a, const M4& world, uint32_t now, bool transparent);
     void drawActor(Actor& a, uint32_t now, bool transparent);
     void refreshSkin(Actor& a);
@@ -255,6 +282,7 @@ private:
     void dropBodyGl(Actor& a);
     void refreshBody(Actor& a);
     void drawBodyLayer(Actor& a, const M4& world);
+    void stepSoft(Actor& a, uint32_t now);
 
 };
 

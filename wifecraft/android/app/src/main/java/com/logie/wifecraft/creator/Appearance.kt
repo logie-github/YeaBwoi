@@ -10,8 +10,14 @@ data class Body(val shape: Int = 0, val style: Int = 0, val density: Int = 0)
  * to ChrCustomizationChoice id; an option not in [picks] is at its first choice), Wrath++'s body options and whether
  * the starting outfit shows. Saved in the project as
  * `{"race":4,"sex":"FEMALE","picks":{"123":456},"body":{"shape":0,"style":0,"density":0},"gear":true}`.
+ * Wrath++'s Undead switch ([undead], the imported undead skins: [undeadSkin] the one on, 0 the first) adds
+ * `"undead":true,"undeadSkin":2` while it is on; without them (every look saved before) it is off. The skin colour picked
+ * among the race's own stays in [picks], so turning Undead off goes back to it.
  */
-data class Appearance(val raceId: Int, val sex: Sex, val picks: Map<Int, Int> = emptyMap(), val body: Body = Body(), val gear: Boolean = true) {
+data class Appearance(
+    val raceId: Int, val sex: Sex, val picks: Map<Int, Int> = emptyMap(), val body: Body = Body(), val gear: Boolean = true,
+    val undead: Boolean = false, val undeadSkin: Int = 0,
+) {
     fun toJson(): JSONObject {
         val p = JSONObject()
         for ((k, v) in picks.toSortedMap()) p.put(k.toString(), v)
@@ -21,6 +27,7 @@ data class Appearance(val raceId: Int, val sex: Sex, val picks: Map<Int, Int> = 
             .put("picks", p)
             .put("body", JSONObject().put("shape", body.shape).put("style", body.style).put("density", body.density))
             .put("gear", gear)
+            .also { if (undead) it.put("undead", true).put("undeadSkin", undeadSkin) }
     }
 
     companion object {
@@ -30,7 +37,8 @@ data class Appearance(val raceId: Int, val sex: Sex, val picks: Map<Int, Int> = 
             val b = o.optJSONObject("body")
             val body = if (b == null) Body() else Body(b.optInt("shape"), b.optInt("style"), b.optInt("density"))
             val sex = runCatching { Sex.valueOf(o.optString("sex", "FEMALE")) }.getOrDefault(Sex.FEMALE)
-            return Appearance(o.getInt("race"), sex, picks, body, o.optBoolean("gear", true))
+            return Appearance(o.getInt("race"), sex, picks, body, o.optBoolean("gear", true),
+                o.optBoolean("undead", false), o.optInt("undeadSkin", 0).coerceAtLeast(0))
         }
     }
 }

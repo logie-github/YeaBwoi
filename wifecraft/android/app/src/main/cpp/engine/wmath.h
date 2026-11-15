@@ -39,6 +39,16 @@ inline Quat nlerp(const Quat& a, Quat b, float t) {
     return Quat(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, a.w + (b.w - a.w) * t).normalized();
 }
 
+// Spherical blend along the short arc (constant angular speed); nlerp where the two are nearly the same turn.
+inline Quat slerp(const Quat& a, Quat b, float t) {
+    float d = a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+    if (d < 0) { b = Quat(-b.x, -b.y, -b.z, -b.w); d = -d; }
+    if (d > 0.9995f) return nlerp(a, b, t);
+    float th = std::acos(d), s = std::sin(th);
+    float wa = std::sin((1 - t) * th) / s, wb = std::sin(t * th) / s;
+    return Quat(a.x * wa + b.x * wb, a.y * wa + b.y * wb, a.z * wa + b.z * wb, a.w * wa + b.w * wb).normalized();
+}
+
 struct M4 {
     float m[16];
     M4() { identity(); }

@@ -9,10 +9,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(wcengine SHARED
     jni.cpp
     engine/blp.cpp
+    engine/bodyshape.cpp
     engine/bytes.cpp
     engine/m2.cpp
     engine/scene.cpp
     engine/skin.cpp
+    engine/softbody.cpp
     engine/wmo.cpp)
 
 target_compile_options(wcengine PRIVATE -O2 -Wall -Wno-unused-parameter)
