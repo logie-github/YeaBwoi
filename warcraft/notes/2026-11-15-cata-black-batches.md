@@ -1,0 +1,1 @@
+- Gilneas and Kezan: fires in braziers, cauldrons and cooking pots, waterfalls, rain drips and water no longer draw black or flicker black (the starting areas download again).
