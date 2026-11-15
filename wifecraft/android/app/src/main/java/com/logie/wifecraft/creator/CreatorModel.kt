@@ -18,9 +18,44 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
     var model: ModelEntry = entryFor(start.raceId, start.sex)
         private set
 
-    /** Whether the body options' package is imported (the screen sets it from Overrides.hasBody()); without it the
-     *  Body rows are shown greyed, saying so ([Row.why]), and don't change. */
-    var bodyAvailable: Boolean = false
+    /**
+     * Where the body options' package is asked about (what races it has shapes and designs for): the imports the app made
+     * ([ImportStore.current], the one store the app opens), unless a caller names its own. Release 1.0.17 had only a flag
+     * here that nothing set, so a woman's Body rows stayed greyed and did nothing even with the package imported.
+     */
+    var bodySource: Overrides? = null
+
+    private var bodyFlag: Boolean? = null
+    private val bodyOverrides: Overrides? get() = bodySource ?: ImportStore.current
+
+    /** Whether the body options' package is imported ([bodySource]'s hasBody(); a caller may set it outright); without it
+     *  the Body rows are shown greyed, saying so ([Row.why]), and don't change. */
+    var bodyAvailable: Boolean
+        get() = bodyFlag ?: (bodyOverrides?.hasBody() == true)
+        set(v) { bodyFlag = v }
+
+    /** The package has shapes (Petite, Curvy, Voluptuous) for this race's women: Wrath++'s are made for the Human only so far
+     *  ("the other races' shapes are As drawn's model until they are made"); the Shape row says so for the others. */
+    fun shapesAvailable(raceId: Int = model.race.id): Boolean {
+        if (!bodyAvailable) return false
+        val o = bodyOverrides?.takeIf { it.hasBody() } ?: return true      // set outright, nothing to ask: as the flag says
+        return (1..3).any { o.bodyModel(raceId, it) != null }
+    }
+
+    /** The package has the body layer's designs (Style x Density) for this race (pack2.py: all ten races). */
+    fun layersAvailable(raceId: Int = model.race.id): Boolean {
+        if (!bodyAvailable) return false
+        val o = bodyOverrides?.takeIf { it.hasBody() } ?: return true
+        return (1..16).any { s -> (1..4).any { d -> o.bodyLayer(raceId, s, d) != null } }
+    }
+
+    /** Why a body row can't change now (null: it can). */
+    private fun bodyWhy(optionId: Int): String? = when {
+        !bodyAvailable -> BodyOptions.NOT_IMPORTED
+        optionId == BodyOptions.SHAPE && !shapesAvailable() -> NOT_FOR_RACE
+        optionId != BodyOptions.SHAPE && !layersAvailable() -> NOT_FOR_RACE
+        else -> null
+    }
 
     /** The dice's chance (a test sets its own). */
     var random: Random = Random.Default
@@ -61,7 +96,9 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
             picks[o.id] = same.id
         }
         model = next
-        val body = if (BodyOptions.eligible(raceId, sex)) appearance.body else Body()
+        // the body options while she can have them; a shape only where the package has this race's (else As drawn)
+        val body = if (!BodyOptions.eligible(raceId, sex)) Body()
+            else appearance.body.let { if (it.shape != 0 && bodyAvailable && !shapesAvailable(raceId)) it.copy(shape = 0) else it }
         appearance = Appearance(next.race.id, next.sex, picks, body, appearance.gear)
         normalize(null)
     }
@@ -105,7 +142,8 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
             for (id in listOf(BodyOptions.SHAPE, BodyOptions.STYLE, BodyOptions.DENSITY)) {
                 val o = BodyOptions.option(id, categoryId)
                 val i = BodyOptions.value(appearance.body, id).coerceIn(0, o.choices.size - 1)
-                out += Row(o, o.choices[i], i, bodyAvailable, if (bodyAvailable) null else BodyOptions.NOT_IMPORTED)
+                val why = bodyWhy(id)
+                out += Row(o, o.choices[i], i, why == null, why)
             }
         }
         val gear = gearOption(categoryId)
@@ -123,7 +161,7 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
         when {
             optionId == GEAR -> setGear(!appearance.gear)
             optionId in BODY_IDS -> {
-                if (!bodyAvailable || !bodyEligible) return
+                if (!bodyEligible || bodyWhy(optionId) != null) return
                 val n = BodyOptions.names(optionId).size
                 val v = Math.floorMod(BodyOptions.value(appearance.body, optionId) + delta, n)
                 appearance = appearance.copy(body = BodyOptions.with(appearance.body, optionId, v))
@@ -141,7 +179,7 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
         when {
             optionId == GEAR -> setGear(choiceId != 0)
             optionId in BODY_IDS -> {
-                if (!bodyAvailable || !bodyEligible || choiceId !in BodyOptions.names(optionId).indices) return
+                if (!bodyEligible || bodyWhy(optionId) != null || choiceId !in BodyOptions.names(optionId).indices) return
                 appearance = appearance.copy(body = BodyOptions.with(appearance.body, optionId, choiceId))
             }
             else -> {
@@ -227,6 +265,8 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
         const val GEAR = -1
         /** A row with nothing for the character as it is (WrathppCreate.lua's words). */
         const val NONE_HERE = "None for this character"
+        /** A body row the imported package has nothing for in this race (Wrath++'s shapes are the Human's only so far). */
+        const val NOT_FOR_RACE = "Not available for this race yet"
         private val BODY_IDS = setOf(BodyOptions.SHAPE, BodyOptions.STYLE, BodyOptions.DENSITY)
     }
 }

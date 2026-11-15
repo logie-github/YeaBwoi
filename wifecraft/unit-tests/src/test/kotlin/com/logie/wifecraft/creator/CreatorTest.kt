@@ -132,6 +132,7 @@ class CreatorTest {
 
     @Test fun bodyRowsGreyedUntilImported() {
         val m = CreatorModel(catalog, humanWoman)
+        m.bodySource = Overrides.None                           // nothing imported (not whatever store another test opened)
         val rows = m.rows(1)
         assertEquals(listOf("Upright", "Shape", "Style", "Density", "Gear"), rows.map { it.option.name })
         val shape = rows[1]
@@ -152,7 +153,7 @@ class CreatorTest {
         m.setSex(Sex.MALE)
         assertEquals(Body(), m.appearance.body)
         assertTrue(m.categories().none { it.name == "Body" })
-        val voidElf = CreatorModel(catalog, Appearance(29, Sex.FEMALE))
+        val voidElf = CreatorModel(catalog, Appearance(29, Sex.FEMALE)).also { it.bodySource = Overrides.None }
         assertTrue(voidElf.categories().none { it.name == "Body" })
     }
 

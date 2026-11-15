@@ -567,6 +567,8 @@ private fun Ui.OptionList(
         val rows = rowsNow; val geometry = geometryNow; val open = openNow
         val row = rows.getOrNull(rowIndex) ?: return
         val o = row.option
+        // a greyed row (the Lua's "later" kind: the body options not imported, none for this race) is shown, not chosen from
+        if (!row.enabled) { if (open != null) onOpen(null); return }
         when (part) {
             RowPart.PREVIOUS -> { model.step(o.id, -1); onChange(true) }
             RowPart.NEXT -> { model.step(o.id, 1); onChange(true) }
@@ -613,6 +615,8 @@ private fun Ui.OptionList(
         // the content, moved by the list's offset every frame
         Box(Modifier.offset { tick(); IntOffset(0, -px(scroll.offset)) }) {
             rows.forEachIndexed { i, row ->
+              // greyed as the Lua's showRow does it: the whole line at 0.45, its arrows disabled, the box saying why
+              Box(Modifier.graphicsLayer { alpha = if (row.enabled) 1f else 0.45f }) {
                 val g = geometry[i]
                 val o = row.option
                 val at = o.choices.indexOfFirst { it.id == row.chosen.id } + 1
@@ -626,12 +630,16 @@ private fun Ui.OptionList(
                             else drawRect(Color(0.08f, 0.08f, 0.1f, 0.95f))
                         }
                         val c = row.chosen
-                        if (c.swatch1 != null) Swatches(c.swatch1, c.swatch2, CL.SWATCH_W.toFloat(), CL.SWATCH_H.toFloat(), 1f)
-                        Label(choiceLabel(c.name, c.swatch1 != null, at), CL.FONT_SMALL, goldColour, Modifier.fillMaxSize())
+                        if (!row.enabled && row.why != null) Label(row.why, CL.FONT_SMALL, goldColour, Modifier.fillMaxSize())
+                        else {
+                            if (c.swatch1 != null) Swatches(c.swatch1, c.swatch2, CL.SWATCH_W.toFloat(), CL.SWATCH_H.toFloat(), 1f)
+                            Label(choiceLabel(c.name, c.swatch1 != null, at), CL.FONT_SMALL, goldColour, Modifier.fillMaxSize())
+                        }
                     }
                     for ((r, nameOf) in listOf(g.previous to "backbutton", g.next to "nextbutton")) {
-                        val isHeld = held == (i to (if (nameOf == "backbutton") RowPart.PREVIOUS else RowPart.NEXT))
-                        At(r) { Canvas(Modifier.fillMaxSize()) { art(piece("charactercreate-customize-$nameOf" + if (isHeld) "-down" else ""), 0f, 0f, size.width, size.height) } }
+                        val isHeld = row.enabled && held == (i to (if (nameOf == "backbutton") RowPart.PREVIOUS else RowPart.NEXT))
+                        val state = if (!row.enabled && atlas.has("charactercreate-customize-$nameOf-disabled")) "-disabled" else if (isHeld) "-down" else ""
+                        At(r) { Canvas(Modifier.fillMaxSize()) { art(piece("charactercreate-customize-$nameOf$state"), 0f, 0f, size.width, size.height) } }
                     }
                 } else {
                     val on = at == 2
@@ -640,6 +648,7 @@ private fun Ui.OptionList(
                         Label(row.chosen.name.ifEmpty { if (on) "On" else "Off" }, CL.FONT_SMALL, goldColour, Modifier.fillMaxSize(), align = TextAlign.Left)
                     }
                 }
+              }
             }
         }
         // the scroll bar's gold stroke

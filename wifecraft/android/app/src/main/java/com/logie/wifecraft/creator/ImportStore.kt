@@ -57,6 +57,8 @@ class ImportStore(
 
     @Volatile private var loaded = load()
 
+    init { current = this }
+
     private fun dir(kind: ImportKind) = File(imports, kind.key)
     private fun off(kind: ImportKind) = File(imports, kind.key + ".off")
 
@@ -127,6 +129,18 @@ class ImportStore(
 
     override fun hasRalia() = loaded.textureKind != null
     override fun hasBody() = body() != null
+
+    /** What the imported body options have, for the Imports row: the races (ids) with shapes, and those with designs. */
+    data class BodySummary(val shapes: Set<Int>, val layers: Set<Int>)
+
+    fun bodySummary(): BodySummary? {
+        val b = body() ?: return null
+        fun ids(name: String, keep: (JSONObject) -> Boolean): Set<Int> {
+            val a = b.optJSONArray(name) ?: return emptySet()
+            return (0 until a.length()).map { a.getJSONObject(it) }.filter(keep).map { it.getInt("race_id") }.toSortedSet()
+        }
+        return BodySummary(ids("models") { it.optInt("shape") > 0 }, ids("layers") { true })
+    }
 
     // ---------------------------------------------------------------- taking a zip in
 
@@ -240,7 +254,13 @@ class ImportStore(
     }
 
     private fun buildBody(kind: ImportKind, staged: List<Staged>, filesDir: File, ids: Ids, meta: JSONObject, stored: MutableSet<Int>) {
-        val listFile = File(filesDir, LIST).takeIf { it.isFile } ?: throw ImportException("This zip has no body options in it (no $LIST).")
+        // the list at the zip's top, as pack2.py writes it, or in the one folder a zip made again of the unpacked package has
+        val prefix = when {
+            staged.any { it.path == LIST } -> ""
+            else -> staged.map { it.path }.filter { it.endsWith("/$LIST") && it.count { c -> c == '/' } == 1 }.singleOrNull()?.removeSuffix(LIST)
+                ?: throw ImportException("This zip has no body options in it (no $LIST).")
+        }
+        val listFile = File(filesDir, prefix + LIST)
         val list = try { JSONObject(listFile.readText()) } catch (e: Exception) { throw ImportException("The package's list can't be read.") }
         if (list.optString("kind") != "wrathpp-body") throw ImportException("This zip isn't a Wrath++ body options package.")
         if (list.optInt("format") != 2) throw ImportException("This is an older body options package (format ${list.optInt("format")}); the current one is format 2.")
@@ -248,7 +268,7 @@ class ImportStore(
         if (models == null || models.length() == 0) throw ImportException("The package names no models.")
         val have = staged.associateBy { it.path }
         fun idOf(entry: JSONObject, what: String): Int {
-            val name = entry.getString("file")
+            val name = prefix + entry.getString("file")
             val s = have[name]?.takeIf { it.file.length() == entry.getLong("size") && sha256(it.file) == entry.getString("sha256") }
                 ?: throw ImportException("$what is missing or damaged.")
             return ids.idFor(kind.key + "/" + s.path).also { stored.add(it) }
@@ -360,5 +380,8 @@ class ImportStore(
         const val FIRST_ID = 2_000_000_000
         private const val SPAN = 147_000_000
         const val LIST = "wrathpp-body.json"
+
+        /** The store the app opened last (the app opens one): what the creator asks whether the body options are in. */
+        @Volatile var current: ImportStore? = null
     }
 }

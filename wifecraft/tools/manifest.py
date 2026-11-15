@@ -43,7 +43,7 @@ def fetch(cache, fid):
     if not os.path.exists(path):
         for attempt in range(4):
             try:
-                req = urllib.request.Request("https://wago.tools/api/casc/%d?download" % fid, headers={"User-Agent": AGENT})
+                req = urllib.request.Request("https://wago.tools/api/casc/%d?download&version=12.1.7.70892" % fid, headers={"User-Agent": AGENT})
                 data = urllib.request.urlopen(req, timeout=120).read()
                 with open(path + ".part", "wb") as f:
                     f.write(data)
@@ -155,7 +155,8 @@ def main():
     packs.append(("sound", sound))
 
     seen = set()
-    out = {"source": "https://wago.tools/api/casc/<id>?download", "packs": []}
+    # pinned to the build the app's tables are (creator/GameTables.BUILD): unversioned links mix builds
+    out = {"source": "https://wago.tools/api/casc/<id>?download&version=12.1.7.70892", "packs": []}
     total = 0
     for name, ids in packs:
         files = []

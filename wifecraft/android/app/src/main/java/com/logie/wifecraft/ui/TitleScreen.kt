@@ -79,8 +79,8 @@ fun TitleScreen(
             } else {
                 Text(
                     "Wifecraft draws its people, its stages and WoW's interface from the game's own files.\n" +
-                        "They're fetched once from wago.tools (about $downloadSize) and kept on the phone;\n" +
-                        "each race's model and textures come when a character first wears them.",
+                        "They're fetched once from wago.tools (about $downloadSize) and kept on the phone,\n" +
+                        "every race's every look among them: best on Wi-Fi, with room to spare.",
                     style = frizStyle(13.sp, Color.White), modifier = Modifier.width(420.dp),
                 )
                 Spacer(Modifier.height(10.dp))
@@ -142,15 +142,25 @@ fun GatherScreen(
             }
         }
         Column(Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            val mb = { b: Long -> "%.0f MB".format(b / 1e6) }
+            val mb = { b: Long -> if (b >= 1_000_000_000L) "%.1f GB".format(b / 1e9) else "%.0f MB".format(b / 1e6) }
+            // the total is an estimate until the creator's files are all here (wago.tools gives no sizes ahead)
+            val of = (if (progress.estimated) "about " else "") + mb(progress.total)
+            val count = "${progress.files} of ${progress.filesTotal}${if (progress.filesExact) "" else "+"} files"
             val status = when {
                 progress.error != null -> "Stopped: ${progress.error}. Resume tries again."
                 progress.waitingForWifi -> "Waiting for Wi-Fi (or turn Wi-Fi only off)."
                 progress.finished -> "Everything is here."
-                progress.running -> "Gathering ${packLabels.firstOrNull { it.first == progress.current }?.second ?: "the game's files"}… ${mb(progress.done)} of ${mb(progress.total)}"
-                else -> "${mb(progress.done)} of ${mb(progress.total)} on the phone"
+                progress.running -> "Gathering ${packLabels.firstOrNull { it.first == progress.current }?.second ?: "the game's files"}… $count, ${mb(progress.done)} of $of"
+                else -> "$count, ${mb(progress.done)} of $of on the phone"
             }
             Text(status, style = frizStyle(15.sp))
+            if (progress.failed.isNotEmpty() && !progress.running) {
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("${progress.failed.size} ${if (progress.failed.size == 1) "file" else "files"} could not be fetched.", style = frizStyle(13.sp, Color(0xFFFF6060)))
+                    WowButton("Retry", onStart, width = 112.dp, height = 36.dp)
+                }
+            }
             Spacer(Modifier.height(6.dp))
             LoadingBar(if (progress.total > 0) progress.done.toFloat() / progress.total else 0f, Modifier.width(560.dp).height(52.dp))
             Spacer(Modifier.height(4.dp))

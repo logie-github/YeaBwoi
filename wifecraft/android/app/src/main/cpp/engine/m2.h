@@ -32,6 +32,7 @@ struct M2Track {
     uint16_t globalSeq = 0xFFFF;
     M2Array timestamps;   // one (count, offset) per sequence
     M2Array values;
+    uint8_t src = 0;      // where its keys are: 0 the model (MD20), 1 its skeleton (.skel, SKB1), 2 the skeleton's parent
 };
 
 struct M2Bone {
@@ -51,6 +52,8 @@ struct M2Sequence {
     int16_t variationNext = -1;
     uint16_t aliasNext = 0;
     uint16_t blendIn = 150;
+    uint8_t src = 0;        // whose keys it plays: 0 the model's, 1 its skeleton's, 2 the parent skeleton's
+    uint16_t srcIndex = 0;  // its index in that file's own sequence list
 };
 
 struct M2Texture {
@@ -101,6 +104,8 @@ public:
     bool load(uint32_t fileId, const FileLookup& files);
 
     uint32_t fileId = 0;
+    std::string error;          // why load() failed (the file and what of it), empty when it didn't
+    uint32_t skeletonId = 0, parentSkeletonId = 0;   // today's models keep bones in a .skel (SKID; SKPD its parent)
     uint32_t flags = 0;
     std::vector<M2Vertex> vertices;
     std::vector<uint32_t> indices;           // the first skin's triangles, as model vertex numbers
@@ -146,6 +151,22 @@ private:
     std::map<int, Bytes> animFiles_;        // sequence -> its .anim keys
     std::map<int, size_t> animBase_;        // offset of the keys within that file
     std::vector<std::pair<uint32_t, uint32_t>> afid_;   // (animId | variation << 16, file id)
+    // A skeleton file (.skel): its bytes, where SKB1's data starts (its tracks' offsets count from there), its global
+    // loops, animation files, bones and sequences.
+    struct Skel {
+        Bytes data;
+        size_t skb = 0;
+        uint32_t parent = 0;
+        std::vector<uint32_t> loops;
+        std::vector<std::pair<uint32_t, uint32_t>> afid;
+        std::vector<M2Bone> bones;
+        std::vector<M2Sequence> sequences;
+        std::vector<M2Attachment> attachments;
+        std::vector<int16_t> attachmentLookup;
+    };
+    Skel skel_, parent_;
+    bool loadSkel(uint32_t id, const FileLookup& files, Skel& out, uint8_t src);
+    void mergeParentSequences();
 
     int dataSequence(int seq) const;         // follows aliases
     bool keys(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs,

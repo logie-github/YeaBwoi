@@ -29,7 +29,7 @@
 //   tex TYPE=FILE,...                          textures as addActor takes them
 //   geo GROUP=VALUE,...                        geoset groups
 //   layer TYPE LAYER BLEND X Y W H MAT_W MAT_H FILE [TINT1 [TINT2]]   a skin layer (tints 0xAARRGGBB)
-//   extra ATTACHMENT MODEL TEXTURE             an added model (attachment -1: skinned to the body)
+//   extra ATTACHMENT MODEL TEXTURE [GEOSET]    an added model (attachment -1: skinned to the body; GEOSET its own)
 //   body K FOLD [MORPHFILE]                    Wrath++'s body options (Scene::setBody): the layer's square (the race's
 //                                              k and fold, BodyShapes.Frame) and a shape (raw little-endian floats,
 //                                              BodyShapes.morph's records); the design is the look's `layer 1 100 ...`
@@ -143,7 +143,7 @@ static bool readLook(const std::string& path, LookFile& out) {
             }
         } else if (k == "extra") {
             DressModel d;
-            ss >> d.attachment >> d.model >> d.texture;
+            ss >> d.attachment >> d.model >> d.texture >> d.geoset;
             out.extras.push_back(d);
         }
     }

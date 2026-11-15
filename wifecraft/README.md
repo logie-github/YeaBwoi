@@ -12,18 +12,34 @@ playing the game's emotes; the menus are WoW's own interface.
 | App | Wifecraft (`com.logie.wifecraft`), Android 8 or later, 64-bit ARM, OpenGL ES 3 |
 | What you make | Projects: a cast of people (as many as you like) and scenes, each a stage and its beats |
 | The stages | The studio (the people alone, in the void) and four places in Legion's Dalaran: Krasus' Landing, its streets, a plaza below the Violet Citadel, the Citadel's terrace; each by day, dusk or night |
-| The game's files | Fetched from [wago.tools](https://wago.tools) on the phone and kept; none are in the app or this repository |
+| The game's files | Fetched from [wago.tools](https://wago.tools) on the phone and kept, every table and file at one build (12.1.7.70892, `GameTables.BUILD`); none are in the app or this repository |
 
 ## First launch
 
 1. The title says the files aren't here yet: **Gather the Files**, then **Start**. It fetches WoW's
    interface first, then the game's tables the character creator reads (about 20 MB), then
-   Dalaran (the places' backdrop) and its props, then the music and sounds; about 210 MB in all.
-   **Pause** stops, **Resume** carries on; **Wi-Fi only** (on by default) waits for Wi-Fi.
-2. Each race's model, skins, animations and textures are fetched when a character first wears
-   them (in the creator, the scene builder or Play), on any connection: a bar at the top of the
-   screen counts them. The creator's own art (Shadowlands' sheets, build 9.2.7) is fetched with the
-   files and cut when the creator opens.
+   Dalaran (the places' backdrop) and its props, then **every race's looks**, then the music and
+   sounds. The bar counts files ("N of M files") and bytes. **Pause** stops, **Resume** carries on
+   (also after the app was closed or killed: what is on the phone is never fetched again);
+   **Wi-Fi only** (on by default) waits for Wi-Fi. A file wago.tools won't give is tried five times
+   and set aside, the rest carry on; at the end "N files could not be fetched: **Retry**".
+2. **Every race's looks** is every file the character creator can draw (creator/Prefetch.kt), so no
+   character waits for a download later: for every race and both sexes (26 races, 52 models in
+   November 2026), every option and every choice, each choice resolved on the default look (and with
+   the choice its rows hang on: a colour on its pattern, a hair colour on its style), plus a sweep of
+   every row of every choice: the models (and Upright's), their skins and the story's animations
+   (read from each model once it is here), every texture the layers use, the skinned models
+   (horns, blindfolds...) and the face's bone files. The list is made on the phone from the tables
+   and kept (files/cache/looks-plan.txt); new tables make a new list, and only what's new is fetched.
+   **How big:** measured on 15 November 2026's tables, **16,013 files, about 5.9 GB** (65 models,
+   991.5 MB, and the 853 files they name, 143.8 MB, all fetched and weighed; the 15,095 textures and
+   bone files estimated from a random 1,500 of them: 4.80 GB ± 0.28 GB). With the rest, about **6.1 GB
+   in all**: have that much free. wago.tools gives no sizes before a file is fetched, so the total
+   is shown as "about" until everything is here; the count of files is exact once the models are in.
+3. Anything still missing (a file that couldn't be fetched, or the gathering stopped half way) is
+   fetched when a character first wears it (in the creator, the scene builder or Play), on any
+   connection: a bar at the top of the screen counts it. The creator's own art (Shadowlands' sheets,
+   build 9.2.7) is fetched with the files and cut when the creator opens.
 
 ## The title
 
@@ -133,7 +149,9 @@ keeps the game's files and your projects.
 ## How it's built
 
 - **The renderer** (`android/app/src/main/cpp/engine`, C++17, OpenGL ES 3): the game's textures
-  (BLP), models (M2 with their skins and animation files, skinned on the GPU), a character's
+  (BLP), models (M2 with their skins and animation files, skinned on the GPU; today's character
+  models keep their bones, sequences and animation files in a skeleton file, `.skel`, which can
+  have a parent: Lightforged on Draenei, Mechagnome on Gnome), a character's
   customization (geosets, the skin composed from its layers on the GPU, extra and skinned models,
   Wrath++'s body shapes and layer), and Dalaran's buildings (WMO groups with their placed props),
   lit by the light of the time of day, with fog; the city can be hidden for the studio.
@@ -165,10 +183,20 @@ checks and script command) are unit-tested; its screens, the file pickers, a rea
 and the poses on a model have not run (nothing here runs on a phone). Nothing of the editor, the
 creator's screen, the downloads on the phone or Play has run on a phone yet. Not drawn yet: the
 face shapes (`ChrCustomizationBoneSet`'s bone files are fetched, the renderer has no call for
-them), the starting outfit (Gear shows or hides the bare equipment geosets only) and voices for the
-people's emotes.
+them), the starting outfit (Gear shows or hides the bare equipment geosets only), the glow of glowing
+markings (the Nightborne's Face Tattoo: its colour layer is nearly transparent, the glow is a second
+texture, `TextureFileData.UsageType` 2, the renderer doesn't use) and voices for the people's emotes.
 
 ## Changes
+
+- **Every race shows** (November 2026): the creator drew only the old human models; every other
+  race (and, at the current build, every race) keeps its bones in a skeleton file the renderer
+  didn't read, and wago.tools' unversioned links mixed a model with another build's skin (the
+  Blood Elf man's triangles joined the wrong vertices). The renderer reads skeletons and their
+  parents, every table and file is fetched at one build (files fetched before are fetched again,
+  once), a skinned model shows its own geoset (the Earthen's hair), and a model that can't be drawn
+  says why on the screen. All 52 race and sex models drawn on the desktop with a face, hair and
+  marking choice each; not run on a phone.
 
 - **Sims 4 animations** (November 2026): **Import Animations** and **Animations** on the title,
   the Pose beat and the library's animations in a Say's emote list ("Sims 4 animations" above).

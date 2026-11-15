@@ -61,7 +61,7 @@ class DressingTest {
         ), d.layerMeta)
         assertContentEquals(intArrayOf(0, 0, 0xFF112233.toInt(), 0xFF445566.toInt(), 0, 0), d.tintColours)
         assertEquals(2, d.skipped.size)
-        assertContentEquals(intArrayOf(-1, 7760204, 0, -1, 7760205, 0, 11, 5000, 6000), d.extraModels)
+        assertContentEquals(intArrayOf(-1, 7760204, 0, 2401, -1, 7760205, 0, 702, 11, 5000, 6000, 0), d.extraModels)
         // a skinned model's geoset joins the groups; a group the look sets keeps its value
         assertContentEquals(intArrayOf(0, 7, 24), d.geosetKeys)
         assertContentEquals(intArrayOf(4, 1, 1), d.geosetValues)
@@ -118,7 +118,7 @@ class DressingTest {
         assertEquals(emptyList(), asked)                                   // kept: nothing fetched again
         assertEquals(listOf(1), CsvTables(dir).rows("ChrModel").map { it.int("ID") })
         assertTrue(GameTables.url("GlobalStrings").endsWith("/GlobalStrings/csv?build=9.2.7.45745"))
-        assertEquals("https://wago.tools/db2/ChrModel/csv", GameTables.url("ChrModel"))
+        assertEquals("https://wago.tools/db2/ChrModel/csv?build=${GameTables.BUILD}", GameTables.url("ChrModel"))
     }
 
     @Test fun aTableThatWontComeStopsTheFetch() {

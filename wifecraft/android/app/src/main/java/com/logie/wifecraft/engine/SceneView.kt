@@ -117,15 +117,19 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
      * Puts a look on the actor [key] (creator/Dressing's call; its files fetched first, engine/Dresser): the same model is
      * dressed in place ([Native.dress]: its place, facing and animation stay), another model is a new actor. Files the
      * look's layers or extra models still wait for join when they arrive. [body] (Wrath++'s body options) follows the dress.
+     * A model the renderer can't read is said to [onFail] (on the GL thread), why included.
      */
-    fun dress(key: String, call: DressCall, body: BodyCall = BodyCall.NONE) = post { h, ids ->
+    fun dress(key: String, call: DressCall, body: BodyCall = BodyCall.NONE, onFail: (String) -> Unit = {}) = post { h, ids ->
         var id = ids[key]
         if (id != null && bodies[key] != (call.model to call.scale)) {
             Native.removeActor(h, id); ids.remove(key); bodies.remove(key); id = null
         }
         if (id == null) {
             val added = Native.addActor(h, call.model, IntArray(0), IntArray(0), call.geosetKeys, call.geosetValues, call.scale)
-            if (added <= 0) return@post
+            if (added <= 0) {
+                onFail("The character couldn't be drawn: " + Native.modelError(h, call.model).ifEmpty { "model file ${call.model} couldn't be read" } + ".")
+                return@post
+            }
             ids[key] = added; bodies[key] = call.model to call.scale
             id = added
             poses[key]?.let { applyPose(h, added, it) }

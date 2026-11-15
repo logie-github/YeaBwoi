@@ -35,15 +35,16 @@ class BodyCall(val morph: FloatArray?, val k: Float, val fold: Float) {
  *   CharComponentTextureSections whose `1 << SectionType` is in the mask (as wow.export's character-appearance.js does);
  *   a layer with no material or no such section is left out, as there;
  * - layerMeta per layer: [type, layer, blend, x, y, w, h, matW, matH]; tints as 0xAARRGGBB, alpha 0 for none;
- * - extra models: [attachment, model, texture]; a skinned model's own geoset (group × 100 + id) joins the geoset groups
- *   (a group the look already sets keeps its value).
+ * - extra models: [attachment, model, texture, geoset]; a skinned model's own geoset (group × 100 + id, 0 none) is shown
+ *   on that model whatever the body's groups say (the Earthen's hair is the collection's group 0 while the body's group 0
+ *   is bald), and joins the geoset groups (a group the look already sets keeps its value).
  *
  * The face's bone files ([ResolvedLook.boneFiles]) are fetched with the look but the renderer has no call for them yet.
  */
 object Dressing {
     const val META = 9
     const val TINTS = 2
-    const val EXTRA = 3
+    const val EXTRA = 4
 
     /** As engine/Native.tint: 0xRRGGBB to 0xFFRRGGBB, null to 0 (no tint). */
     fun tint(rgb: Int?): Int = if (rgb == null) 0 else (0xFF000000.toInt() or (rgb and 0xFFFFFF))
@@ -74,7 +75,7 @@ object Dressing {
             tints += tint(l.tint1); tints += tint(l.tint2)
         }
         val extra = ArrayList<Int>()
-        for (e in look.extraModels) { extra += e.attachment; extra += e.model; extra += e.texture }
+        for (e in look.extraModels) { extra += e.attachment; extra += e.model; extra += e.texture; extra += e.geoset }
         return DressCall(
             look.model, look.scale,
             groups.keys.toIntArray(), groups.values.toIntArray(),
@@ -125,9 +126,58 @@ object Dressing {
 
 /**
  * What a model file (M2, chunked) needs beside itself, as the renderer reads it (engine/m2.cpp): its first skin (SFID), its
- * own textures (TXID) and the animation files (AFID) of [anims] at variation 0. Pure; reads only the chunk headers.
+ * own textures (TXID), its skeleton (SKID: today's character models keep their bones, sequences and animation files in a
+ * .skel) and the animation files (AFID) of [anims] at variation 0. A skeleton file (.skel) read the same way gives its
+ * parent skeleton (SKPD: Lightforged on Draenei, Mechagnome on Gnome...) and its own animation files. Pure; reads only
+ * the chunk headers.
  */
 object M2Files {
+    /**
+     * Everything [model] needs, through its skeleton and the skeleton's parent: [fetch] is called with each round's files
+     * ([deps] of the model, then of each skeleton) and fetches what of them isn't here; [read] then gives a file's bytes
+     * (null when it isn't here: what it would need is left out). Returns every file named (not [model]).
+     */
+    fun closure(model: Int, anims: Set<Int>, read: (Int) -> ByteArray?, fetch: (Collection<Int>) -> Unit): Set<Int> {
+        val out = LinkedHashSet<Int>()
+        val todo = ArrayDeque(listOf(model))
+        val seen = HashSet<Int>()
+        while (todo.isNotEmpty()) {
+            val f = todo.removeFirst()
+            if (!seen.add(f)) continue
+            val bytes = read(f) ?: continue
+            val d = deps(bytes, anims)
+            out += d
+            fetch(d)
+            // the skeletons hold what more is needed: the parent, their animation files
+            todo += skeletons(bytes)
+        }
+        return out
+    }
+
+    /** The skeleton files a model or skeleton names (SKID; SKPD's parent). */
+    fun skeletons(bytes: ByteArray): List<Int> {
+        val out = ArrayList<Int>()
+        walk(bytes) { tag, at, size, u32 ->
+            if (tag == "SKID" && size >= 4) u32(at).takeIf { it != 0 }?.let { out += it }
+            if (tag == "SKPD" && size >= 12) u32(at + 8).takeIf { it != 0 }?.let { out += it }
+        }
+        return out
+    }
+
+    private fun walk(bytes: ByteArray, each: (tag: String, at: Int, size: Int, u32: (Int) -> Int) -> Unit) {
+        fun u32(at: Int): Int = (bytes[at].toInt() and 0xFF) or ((bytes[at + 1].toInt() and 0xFF) shl 8) or
+            ((bytes[at + 2].toInt() and 0xFF) shl 16) or ((bytes[at + 3].toInt() and 0xFF) shl 24)
+        if (bytes.size >= 4 && String(bytes, 0, 4, Charsets.ISO_8859_1) == "MD20") return
+        var o = 0
+        while (o + 8 <= bytes.size) {
+            val size = u32(o + 4)
+            val at = o + 8
+            if (size < 0 || at + size > bytes.size) break
+            each(String(bytes, o, 4, Charsets.ISO_8859_1), at, size, ::u32)
+            o = at + size
+        }
+    }
+
     fun deps(bytes: ByteArray, anims: Set<Int>): List<Int> {
         val out = LinkedHashSet<Int>()
         var o = 0
@@ -141,6 +191,8 @@ object M2Files {
             val at = o + 8
             if (size < 0 || at + size > bytes.size) break
             when (tag) {
+                "SKID" -> if (size >= 4) u32(at).takeIf { it != 0 }?.let { out += it }
+                "SKPD" -> if (size >= 12) u32(at + 8).takeIf { it != 0 }?.let { out += it }
                 "SFID" -> if (size >= 4) u32(at).takeIf { it != 0 }?.let { out += it }
                 "TXID" -> for (i in 0 until size / 4) u32(at + 4 * i).takeIf { it != 0 }?.let { out += it }
                 "AFID" -> for (i in 0 until size / 8) {

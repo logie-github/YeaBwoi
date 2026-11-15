@@ -137,6 +137,9 @@ object LookResolver {
                 }
             }
         }
+        // a skinned model's choice sets its geoset group for the whole character before the bare-equipment defaults do
+        // (the Earthen's hand crystals pick 2300, none: the default 2301 drew the collection's glow sheets around them)
+        for (e in skinned.values) if (e.geoset >= 100) groups.putIfAbsent(e.geoset / 100, e.geoset % 100)
         for (g in EQUIPMENT_GROUPS) groups.putIfAbsent(g, 1)
 
         val layers = ArrayList<TextureLayer>()

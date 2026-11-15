@@ -40,6 +40,7 @@ import com.logie.wifecraft.creator.Catalog
 import com.logie.wifecraft.creator.CsvTables
 import com.logie.wifecraft.creator.ImportStore
 import com.logie.wifecraft.creator.ListfileNames
+import com.logie.wifecraft.creator.Prefetch
 import com.logie.wifecraft.data.GameFiles
 import com.logie.wifecraft.data.Settings
 import com.logie.wifecraft.editor.Compile
@@ -118,6 +119,8 @@ class MainActivity : ComponentActivity() {
         files = GameFiles(applicationContext)
         settings = Settings(applicationContext)
         tables = CsvTables(files.tablesDir)
+        // the first launch fetches every file the creator can draw: the plan from the tables, once they are here
+        files.planner = { Prefetch.plan(Catalog.build(tables), tables) }
         listfile = ListfileNames(File(filesDir, "cache/listfile-character.csv"))
         imports = ImportStore(filesDir, listfile)
         projects = StoreApi(ProjectStore(File(filesDir, "projects")))
@@ -253,7 +256,7 @@ class MainActivity : ComponentActivity() {
                 when (val s = screen) {
                     Screen.Title -> TitleScreen(
                         filesReady = ready,
-                        downloadSize = "%.0f MB".format(files.totalBytes / 1e6),
+                        downloadSize = files.totalBytes.let { b -> if (b >= 1_000_000_000L) "%.1f GB".format(b / 1e9) else "%.0f MB".format(b / 1e6) },
                         soundMissing = if (ready && soundMissing > 0) "%.0f MB".format(soundMissing / 1e6) else null,
                         lastProject = if (ready) last?.title else null,
                         updateTitle = update?.title,
@@ -276,7 +279,8 @@ class MainActivity : ComponentActivity() {
                         progress = progress,
                         packLabels = listOf(
                             "interface" to "WoW's interface", GameFiles.TABLES to "The character creator's tables",
-                            "city" to "Dalaran, the stages' backdrop", "props" to "Its lamps, banners and stalls", "sound" to "Music and sounds",
+                            "city" to "Dalaran, the stages' backdrop", "props" to "Its lamps, banners and stalls",
+                            GameFiles.LOOKS to "Every race's looks", "sound" to "Music and sounds",
                         ),
                         wifiOnly = wifiOnly,
                         onWifiOnly = { wifiOnly = it; settings.wifiOnly = it },
