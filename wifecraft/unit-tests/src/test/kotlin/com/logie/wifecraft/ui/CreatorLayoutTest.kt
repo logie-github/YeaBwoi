@@ -1,6 +1,8 @@
 package com.logie.wifecraft.ui
 
 import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -73,19 +75,6 @@ class CreatorLayoutTest {
         near(p.left, 500f + CL.u(3) - 200f); near(p.top, 140f - CL.u(11))
         val q = popoutPlace(false, 600f, 640f, 500f, 200f, 100f)
         near(q.top, 600f + CL.u(11) - 100f)
-    }
-
-    @Test fun racesFillAColumnOfFiveThenASecondOneLower() {
-        val s0 = raceSlot(0, true); near(s0.x, 0f); near(s0.y, 0f)
-        val s4 = raceSlot(4, true); near(s4.y, 4 * CL.u(97))
-        val s5 = raceSlot(5, true); near(s5.x, CL.u(97)); near(s5.y, CL.u(68))
-        val s6 = raceSlot(6, true); near(s6.y, CL.u(97) + CL.u(68))
-        assertTrue(raceSlot(0, false).right)
-        // a Horde column hangs from the right edge, its second column further in
-        val w = 1365f
-        val a = raceRect(raceSlot(0, true), w); val h = raceRect(raceSlot(0, false), w)
-        near(a.x, CL.u(68)); near(h.right, w - CL.u(68))
-        near(raceRect(raceSlot(5, false), w).x, h.x - CL.u(97))
     }
 
     @Test fun categoriesEndTwentyFromTheRightOverlapping() {
@@ -308,23 +297,98 @@ class CreatorLayoutTest {
         assertTrue(isAllianceSide("Pandaren", false))
     }
 
-    @Test fun aSideWithMoreRacesThanFitScrollsAndEveryRaceCanBeBroughtIn() {
-        val w = 1365f
-        val v = raceViewport(true, w)
-        near(v.x, CL.u(68) - CL.u(CL.RACE_VIEW_PAD)); near(v.bottom, CL.SCREEN_H - CL.u(CL.FOOT_Y + CL.NAV_H + 14))
-        val h = raceViewport(false, w)
-        near(h.right, w - CL.u(68) + CL.u(CL.RACE_VIEW_PAD))
-        // ten fit as the Lua sets them; fourteen do not and scroll to the last
-        assertEquals(0f, raceScroll(true, w, 10).limit(), 0.01f)
-        val s = raceScroll(true, w, 14)
-        assertTrue(s.limit() > 0f)
-        s.scrollTo(1e6f)
-        val last = raceRect(raceSlot(13, true), w, s.target)
-        assertTrue(last.bottom <= v.bottom + 0.01f, "${last.bottom} > ${v.bottom}")
-        val top = raceRect(raceSlot(0, true), w, 0f)
-        near(top.y, CL.u(106)); near(top.x, CL.u(68))
-        // a scrolled button moves up by the scroll
-        near(raceRect(raceSlot(3, true), w, 50f).y, raceRect(raceSlot(3, true), w, 0f).y - 50f)
+    // ---- the race step's grid, over a table of screens ------------------------------------------------------------------------------
+
+    /** (width px, height px): the Fold's inner screen both ways, its cover screen both ways, and two ordinary ones. */
+    private val screens = listOf(2184 to 1968, 1968 to 2184, 2520 to 1080, 1080 to 2520, 1920 to 1080, 1280 to 720)
+
+    private fun overlap(a: Rect, b: Rect, eps: Float = 0.01f) = a.x < b.right - eps && b.x < a.right - eps && a.y < b.bottom - eps && b.y < a.bottom - eps
+    private fun inside(r: Rect, o: Rect, eps: Float = 0.01f) = r.x >= o.x - eps && r.y >= o.y - eps && r.right <= o.right + eps && r.bottom <= o.bottom + eps
+
+    private fun check(wpx: Int, hpx: Int, a: RaceCounts, h: RaceCounts) {
+        val ppu = hpx / CL.SCREEN_H
+        val width = wpx / ppu
+        val tag = "${wpx}x$hpx classic ${a.classic}+${a.allied} / ${h.classic}+${h.allied}"
+        val l = raceLayout(width, ppu, a, h)
+        assertTrue(l.fits, "fits $tag")
+        val again = raceLayout(width, ppu, a, h)
+        assertEquals(l.cells, again.cells, "deterministic $tag"); assertEquals(l.scale, again.scale); assertEquals(l.mode, again.mode)
+        assertEquals(a.total + h.total, l.cells.size, tag)
+        if (l.cells.isEmpty()) return
+        val whole = Rect(0f, 0f, width, CL.SCREEN_H)
+        val minB = min(CL.u(79), RaceGrid.minTouchUnits(ppu))
+        assertTrue(l.scale <= 1f + 1e-4f && l.button >= minB - 0.01f, "min size $tag: ${l.button} < $minB")
+        for (c in l.cells) {
+            assertTrue(inside(c.tile, l.safe) && inside(c.tile, whole), "$tag cell ${c.alliance}/${c.index} ${c.tile} outside safe ${l.safe}")
+            assertTrue(inside(c.button, c.tile) && inside(c.name, c.tile), "$tag button/name leave the tile")
+            for (r in l.reserved) assertFalse(overlap(c.tile, r.rect), "$tag cell ${c.alliance}/${c.index} on ${r.name}")
+            assertFalse(overlap(c.tile, l.character), "$tag cell on the character")
+        }
+        for (i in l.cells.indices) for (j in i + 1 until l.cells.size) assertFalse(overlap(l.cells[i].tile, l.cells[j].tile), "$tag overlap $i $j")
+        // one row grid per side: same row, same y; the rows are whole pitches apart; allied rows line up with the classic ones
+        val pitch = l.rowPitch
+        for (al in listOf(true, false)) {
+            val mine = l.cells.filter { it.alliance == al }
+            if (mine.isEmpty()) continue
+            val y0 = mine.minOf { it.tile.y }
+            for (c in mine) {
+                val q = (c.tile.y - y0) / pitch
+                assertTrue(abs(q - Math.round(q)) < 1e-3f, "$tag rows are on the grid")
+                assertTrue(mine.filter { it.row == c.row && l.mode == RaceMode.SIDES }.all { abs(it.tile.y - c.tile.y) < 1e-3f }, "$tag same row, same y")
+            }
+            val classic = mine.filter { !it.allied }; val allied = mine.filter { it.allied }
+            if (l.mode == RaceMode.SIDES) {
+                // the classic races fill their columns first, the allied start new columns, and share the row grid
+                if (classic.isNotEmpty() && allied.isNotEmpty()) assertTrue(allied.minOf { it.col } > classic.maxOf { it.col }, "$tag allied start a new column")
+                for (r in allied.map { it.row }.distinct()) for (c in classic.filter { it.row == r }) assertTrue(abs(c.tile.y - allied.first { it.row == r }.tile.y) < 1e-3f, "$tag allied row $r aligned")
+            } else if (classic.isNotEmpty() && allied.isNotEmpty()) {
+                assertTrue(allied.minOf { it.row } > classic.maxOf { it.row }, "$tag allied start a new row group")
+                val x = (classic + allied).map { it.col }.distinct().associateWith { col -> (classic + allied).first { it.col == col }.tile.x }
+                for (c in classic + allied) assertTrue(abs(x.getValue(c.col) - c.tile.x) < 1e-3f, "$tag same column grid")
+            }
+        }
+        if (l.mode == RaceMode.SIDES) {
+            for (b in l.blocks) if (b.name == "alliance") assertTrue(b.rect.right <= width / 3f + 0.01f, "$tag alliance block in the outer third") else assertTrue(b.rect.x >= width * 2f / 3f - 0.01f, "$tag horde block in the outer third")
+            // centred in the free height: as much room over the tallest block as under it
+            val tall = l.cells.maxOf { it.tile.bottom }; val first = l.cells.minOf { it.tile.y }
+            assertTrue(abs((first - l.safe.y) - (l.safe.bottom - tall)) < 0.01f, "$tag centred: ${first - l.safe.y} vs ${l.safe.bottom - tall}")
+            // the middle third is the character's alone
+            assertTrue(l.cells.none { overlap(it.tile, Rect(width / 3f + 0.01f, 0f, width / 3f - 0.02f, CL.SCREEN_H)) }, "$tag middle third free")
+        }
+        // the real sexes and foot rectangles are inside what is reserved
+        assertTrue(l.cells.none { overlap(it.tile, sexRect(0, width)) || overlap(it.tile, sexRect(1, width)) || overlap(it.tile, navRect(false, width)) || overlap(it.tile, navRect(true, width)) })
+    }
+
+    @Test fun raceGridFitsEveryScreenAndCount() {
+        for ((w, h) in screens) for (n in 10..30) {
+            check(w, h, RaceCounts(5, n - 5), RaceCounts(5, n - 5))        // Wrath++'s five a side, then the allied races
+            check(w, h, RaceCounts(5, n - 5), RaceCounts(5, max(0, n - 8))) // the sides unequal
+            check(w, h, RaceCounts(min(n, 10), n - min(n, 10)), RaceCounts(0, n))
+        }
+        for ((w, h) in screens) { check(w, h, RaceCounts(0, 0), RaceCounts(0, 0)); check(w, h, RaceCounts(5, 0), RaceCounts(5, 0)); check(w, h, RaceCounts(13, 0), RaceCounts(1, 12)) }
+    }
+
+    @Test fun raceGridKeepsTheLuasSizeWhereItFitsAndScalesBelowOnlyToTheTouchTarget() {
+        // 1280 x 720: the Lua's icons, seven rows, the classic column then the allied ones, as in the Lua's own screen
+        val l = raceLayout(1365.3f, 720f / 768f, RaceCounts(5, 8), RaceCounts(5, 8))
+        assertEquals(RaceMode.SIDES, l.mode); near(l.scale, 1f); near(l.button, CL.u(79)); near(l.rowPitch, CL.u(97))
+        near(l.cell(true, 0)!!.button.x, CL.u(68)); near(l.cell(false, 0)!!.button.right, 1365.3f - CL.u(68))
+        assertEquals(0, l.cell(true, 4)!!.col); assertEquals(1, l.cell(true, 5)!!.col); assertEquals(0, l.cell(true, 5)!!.row)
+        // 7 mm at 420 dpi is 116 px: on the Fold's inner screen (2.56 px a unit) 45 units, 0.67 of the Lua's button; on 1080 high and below the Lua's own is smaller than that
+        near(RaceGrid.minTouchUnits(1968f / 768f), 45.2f, 0.1f); near(RaceGrid.minScale(1968f / 768f), 0.671f, 0.002f)
+        near(RaceGrid.minScale(1080f / 768f), 1f); near(RaceGrid.minScale(2520f / 768f), 0.524f, 0.003f)
+        // the inner screen: shrunk before a column is added (allied 8 + classic 5 need three columns at the Lua's size; two fit)
+        val inner = raceLayout(2184f / 1968f * 768f, 1968f / 768f, RaceCounts(5, 8), RaceCounts(5, 8))
+        assertEquals(RaceMode.SIDES, inner.mode); assertTrue(inner.scale < 1f && inner.scale >= 0.67f)
+        assertEquals(3, inner.cells.filter { it.alliance }.maxOf { it.col } + 1)
+    }
+
+    @Test fun aNarrowPortraitStillHoldsEveryRaceAndAFewerRacesLeaveRoom() {
+        val ppu = 2520f / 768f
+        val l = raceLayout(1080f / ppu, ppu, RaceCounts(5, 8), RaceCounts(5, 8))
+        assertTrue(l.fits); assertTrue(l.cells.all { inside(it.tile, l.safe) })
+        val big = raceLayout(1080f / ppu, ppu, RaceCounts(5, 25), RaceCounts(5, 25))
+        assertEquals(RaceMode.ROWS, big.mode); assertTrue(big.fits)   // thirty a side does not fit down the sides: rows under the header
     }
 
     @Test fun wordsComeFromTheGlobalStringsOrTheLuasLiterals() {

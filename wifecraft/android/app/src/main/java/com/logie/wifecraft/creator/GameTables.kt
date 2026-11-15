@@ -52,7 +52,9 @@ object GameTables {
         if (mark.isFile && runCatching { mark.readText().trim() }.getOrNull() == BUILD) return 0
         var gone = 0
         game.listFiles()?.forEach { f ->
-            if (f.isFile && f.name.all { it.isDigit() } && modelFamily(f) && f.delete()) gone++
+            // the user's imported files (synthetic ids from 2,000,000,000: ImportStore) are not the game's: never touched here
+            val imported = (f.name.toLongOrNull() ?: 0L) >= 2_000_000_000L
+            if (f.isFile && !imported && f.name.all { it.isDigit() } && modelFamily(f) && f.delete()) gone++
         }
         File(root, "cache/tables").listFiles()?.forEach { if (it.isFile && it.name.endsWith(".csv") && it.delete()) gone++ }
         File(root, "cache/looks-plan.txt").delete()

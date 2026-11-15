@@ -81,9 +81,7 @@ object CL {
     const val FOOT_X = 46; const val FOOT_Y = 28
     const val HEADER_W = 92; const val HEADER_H = 100; const val HEADER_X = 3; const val HEADER_Y = 10
     const val HEADER_NAME_DX = 18; const val HEADER_NAME_DY = 2
-    const val RACES_X = 68; const val RACES_Y = 106; const val RACE_PITCH = 79 + 18; const val RACE_COLUMN_DROP = 68
-    const val RACES_PER_COLUMN = 5
-    const val RACE_VIEW_PAD = 40     // the race column's window is this much wider than its buttons, for their names
+    const val RACES_X = 68; const val RACES_Y = 106; const val RACE_PITCH = 79 + 18
     const val RACE_NAME_DX = 2; const val RACE_NAME_UP = 7
     const val SEX_PITCH = 46 + 22; const val SEX_TOP = 27
 
@@ -316,24 +314,6 @@ data class Rect(val x: Float, val y: Float, val w: Float, val h: Float) {
     fun offset(dx: Float, dy: Float) = Rect(x + dx, y + dy, w, h)
 }
 
-/** Lua 1486-1487: the k-th (from 0) race button of a side in its column, from the column's top corner (x right for the Horde). */
-data class RaceSlot(val k: Int, val x: Float, val y: Float, val right: Boolean)
-
-fun raceSlot(k: Int, alliance: Boolean): RaceSlot {
-    val n = k + 1
-    val column = if (n > CL.RACES_PER_COLUMN) 1 else 0
-    val line = if (n > CL.RACES_PER_COLUMN) n - CL.RACES_PER_COLUMN - 1 else n - 1
-    return RaceSlot(k, column * CL.u(CL.RACE_PITCH).toFloat(), line * CL.u(CL.RACE_PITCH) + column * CL.u(CL.RACE_COLUMN_DROP), !alliance)
-}
-
-/** The screen rectangle of a race button, for a screen [width] units wide, its side's column scrolled [scroll] units up. */
-fun raceRect(slot: RaceSlot, width: Float, scroll: Float = 0f): Rect {
-    val w = CL.u(79)
-    val colX = if (slot.right) width - CL.u(CL.RACES_X) - w else CL.u(CL.RACES_X)
-    val x = if (slot.right) colX - slot.x else colX + slot.x
-    return Rect(x, CL.u(CL.RACES_Y) + slot.y - scroll, w, w)
-}
-
 /**
  * Which side a race stands on. The Lua puts a race on the Alliance's side where its ALLIANCE table (Lua 47-48, by the race's file
  * name, upper case) says so and on the Horde's otherwise; the game's own tables give the faction of the races that table
@@ -347,24 +327,167 @@ fun raceToken(key: String): String = key.uppercase().filter { it in 'A'..'Z' }
 
 fun isAllianceSide(key: String, tablesSayAlliance: Boolean): Boolean = raceToken(key) in LUA_ALLIANCE || tablesSayAlliance
 
-/** The race column's window: from the races' top (Lua 825) to above the foot's buttons, as tall as the option list's is. */
-fun raceViewport(alliance: Boolean, width: Float): Rect {
-    val pad = CL.u(CL.RACE_VIEW_PAD)
-    val w = CL.u(CL.RACE_PITCH) + CL.u(79) + 2 * pad
-    val x = if (alliance) CL.u(CL.RACES_X) - pad else width - CL.u(CL.RACES_X) + pad - w
-    return Rect(x, CL.u(CL.RACES_Y) - pad, w, CL.SCREEN_H - CL.u(CL.RACES_Y) - CL.u(CL.FOOT_Y + CL.NAV_H + 14) + pad)
+// ---- The race step's grid ------------------------------------------------------------------------------------------------------------
+//
+// The Lua sets a side's races five to a column, a sixth and later in a second column 68 lower (Lua 1484-1487). Wifecraft lists every
+// playable and allied race (26 and more), so its grid is worked out from the screen instead: the real width and height (any aspect:
+// the activity may be rotated, or folded), the classic races first and the allied and other races after them, in columns that
+// start at the same row as the classic ones (one row grid per side), as many rows to a column as the height gives, scaled down
+// uniformly (to a touch target of 7 mm and no further) before another column is added, and never past the screen's bottom.
+
+enum class RaceMode { SIDES, ROWS }
+
+/** How many races a side has: the classic ones (Wrath++'s ten) and the allied and others. */
+data class RaceCounts(val classic: Int, val allied: Int) {
+    val total: Int get() = classic + allied
 }
 
-/** How tall a side's races are, the buttons and the names set under them: where more than the window holds, the column scrolls. */
-fun raceContentHeight(count: Int): Float {
-    if (count <= 0) return 0f
-    return (0 until count).maxOf { raceSlot(it, true).y } + CL.u(79) + CL.u(CL.RACE_VIEW_PAD)
+/** One race's place: [index] counts in its side's list (classic first), [tile] is its cell (button, name and the gap round them), [button] the round picture, [name] the label. */
+data class RaceCell(val alliance: Boolean, val index: Int, val allied: Boolean, val col: Int, val row: Int, val tile: Rect, val button: Rect, val name: Rect)
+
+data class NamedRect(val name: String, val rect: Rect)
+
+class RaceLayout(
+    val mode: RaceMode, val scale: Float, val gapFactor: Float, val width: Float,
+    val cells: List<RaceCell>, val blocks: List<NamedRect>, val reserved: List<NamedRect>, val safe: Rect, val character: Rect,
+    /** Smallest button the screen's pixels allow (units, 7 mm) and the one drawn. */
+    val minButton: Float, val button: Float, val rowPitch: Float, val fits: Boolean,
+) {
+    fun cell(alliance: Boolean, index: Int): RaceCell? = cells.firstOrNull { it.alliance == alliance && it.index == index }
+    fun at(x: Float, y: Float): RaceCell? = cells.firstOrNull { it.tile.contains(x, y) }
 }
 
-/** The scroller of a side's races: the window's height from the races' top, and their height. */
-fun raceScroll(alliance: Boolean, width: Float, count: Int): ListScroll {
-    val v = raceViewport(alliance, width)
-    return ListScroll(v.h - CL.u(CL.RACE_VIEW_PAD), raceContentHeight(count))
+object RaceGrid {
+    const val MIN_TOUCH_MM = 7f
+    const val DEFAULT_DPI = 420f
+    const val SCALE_STEP = 0.01f
+    /** The share of the Lua's gap between neighbours kept, in the order tried (the Lua's own first). */
+    val GAP_STEPS = floatArrayOf(1f, 0.6f, 0.3f)
+    /** In rows under the title the races may take this much of the free height while the character is to have room, else all of it. */
+    const val ROWS_CAP = 0.5f
+    const val NAME_ZONE = 18         // the name's 11 below the button and the 7 left before the next (the Lua's 97 - 79)
+    const val NAME_DROP = 11; const val NAME_OVERLAP = 7; const val NAME_H = 18
+    const val BAND_GAP = 10
+
+    /** 7 mm in the screen's units, [pxPerUnit] pixels to a unit. */
+    fun minTouchUnits(pxPerUnit: Float, dpi: Float = DEFAULT_DPI): Float = MIN_TOUCH_MM / 25.4f * dpi / pxPerUnit
+
+    /** The smallest scale: the touch target, but never more than the Lua's own size (the icons are not enlarged). */
+    fun minScale(pxPerUnit: Float, dpi: Float = DEFAULT_DPI): Float = max(0.2f, min(1f, minTouchUnits(pxPerUnit, dpi) / CL.u(79)))
+
+    /** The gap from the screen's edge to the first column: the Lua's 59 (68 less half the gap) at full size, less as the icons get smaller. */
+    fun margin(scale: Float): Float = CL.u(8) + CL.u(51) * ((scale - 0.5f) / 0.5f).coerceIn(0f, 1f)
+}
+
+/** The Wrath++'s ten (the Lua's own and the first on its screen), by file name. */
+private val CLASSIC_RACES = setOf("HUMAN", "DWARF", "NIGHTELF", "GNOME", "DRAENEI", "ORC", "SCOURGE", "UNDEAD", "TAUREN", "TROLL", "BLOODELF")
+
+fun isClassicRace(key: String): Boolean = raceToken(key) in CLASSIC_RACES
+
+/** A side's races with the classic ones first, each group in the order given. */
+fun <T> raceOrder(items: List<T>, keyOf: (T) -> String): List<T> = items.filter { isClassicRace(keyOf(it)) } + items.filter { !isClassicRace(keyOf(it)) }
+
+fun <T> raceCounts(items: List<T>, keyOf: (T) -> String): RaceCounts { val c = items.count { isClassicRace(keyOf(it)) }; return RaceCounts(c, items.size - c) }
+
+/** The columns (rows in rows mode) a group of [n] takes where [per] fit in one, and how many of them each is filled to (even, not full then short). */
+private fun split(n: Int, per: Int): Pair<Int, Int> { if (n <= 0) return 0 to 0; val groups = (n + per - 1) / per; return groups to (n + groups - 1) / groups }
+
+private fun placeSides(width: Float, a: RaceCounts, h: RaceCounts, mode: RaceMode, s: Float, gap: Float, top: Float, bottom: Float, cap: Float, force: Boolean): List<RaceCell>? {
+    val w = CL.u(79) * s
+    val tileH = w + CL.u(RaceGrid.NAME_ZONE)
+    val tileW = w + CL.u(RaceGrid.NAME_ZONE) * gap
+    val margin = RaceGrid.margin(s)
+    val availH = bottom - top
+    val eps = 1e-3f
+    val out = ArrayList<RaceCell>()
+    fun cellAt(alliance: Boolean, index: Int, allied: Boolean, col: Int, row: Int, y0: Float): RaceCell {
+        val x = if (alliance) margin + col * tileW else width - margin - (col + 1) * tileW
+        val tile = Rect(x, y0 + row * tileH, tileW, tileH)
+        val button = Rect(x + (tileW - w) / 2f, tile.y, w, w)
+        val name = Rect(x, button.bottom - CL.u(RaceGrid.NAME_OVERLAP), tileW, CL.u(RaceGrid.NAME_H))
+        return RaceCell(alliance, index, allied, col, row, tile, button, name)
+    }
+    if (mode == RaceMode.SIDES) {
+        val rowsFit = floor(availH / tileH + eps).toInt()
+        if (rowsFit < 1) return null
+        val colsFit = floor((width / 3f - margin) / tileW + eps).toInt()
+        val parts = listOf(true to a, false to h).map { (al, n) ->
+            val (cc, rc) = split(n.classic, rowsFit); val (ce, re) = split(n.allied, rowsFit); Triple(al, n, listOf(cc, rc, ce, re))
+        }
+        if (!force && parts.any { it.third[0] + it.third[2] > colsFit }) return null
+        val gridRows = parts.maxOf { max(it.third[1], it.third[3]) }
+        val y0 = top + (availH - gridRows * tileH) / 2f
+        for ((al, n, g) in parts) {
+            for (i in 0 until n.classic) out += cellAt(al, i, false, i / g[1], i % g[1], y0)
+            for (j in 0 until n.allied) out += cellAt(al, n.classic + j, true, g[0] + j / g[3], j % g[3], y0)
+        }
+    } else {
+        val colsFit = floor((width - 2 * margin) / tileW + eps).toInt()
+        if (colsFit < 1) return null
+        val bandRows = listOf(a, h).map { n -> (n.classic + colsFit - 1) / colsFit to (n.allied + colsFit - 1) / colsFit }
+        val rowsA = bandRows[0].first + bandRows[0].second; val rowsH = bandRows[1].first + bandRows[1].second
+        val gapY = if (rowsA > 0 && rowsH > 0) CL.u(RaceGrid.BAND_GAP) else 0f
+        if (!force && (rowsA + rowsH) * tileH + gapY > availH * cap + eps) return null
+        for ((al, n, rc) in listOf(Triple(true, a, bandRows[0].first), Triple(false, h, bandRows[1].first))) {
+            val y0 = top + if (al) 0f else rowsA * tileH + gapY
+            for (i in 0 until n.classic) out += cellAt(al, i, false, i % colsFit, i / colsFit, y0)
+            for (j in 0 until n.allied) out += cellAt(al, n.classic + j, true, j % colsFit, rc + j / colsFit, y0)
+        }
+    }
+    return out
+}
+
+/**
+ * The race step's layout for a screen [width] units wide (768 high: [CL.SCREEN_H]), [pxPerUnit] pixels to a unit (the height in
+ * pixels over 768), with each side's counts. Tried in this order, the first that fits taking the largest scale from 1 (the Lua's
+ * icon size) down to the touch target's minimum:
+ *  1. SIDES: the Alliance's races in the outer left third, the Horde's in the outer right, each side's classic races in the
+ *     column or columns next to the screen's edge and its allied races in further columns toward the middle, every column
+ *     with as many rows as the free height holds, all on one row grid, the block vertically centred and its rows top-aligned;
+ *  2. ROWS (a narrow portrait): the two sides in bands of rows under the header, the Alliance's over the Horde's, the allied
+ *     rows after the classic ones on the same column grid, taking no more than half the free height;
+ *  3. SIDES and then ROWS (all the height) with the gap between neighbours narrowed (to 0.6, then 0.3 of the Lua's).
+ * Nothing scrolls. [RaceLayout.fits] is false only where none of these holds the races at the minimum size (then the cells are the
+ * last one's, past the bottom).
+ */
+fun raceLayout(width: Float, pxPerUnit: Float, alliance: RaceCounts, horde: RaceCounts, dpi: Float = RaceGrid.DEFAULT_DPI): RaceLayout {
+    val sMin = RaceGrid.minScale(pxPerUnit, dpi)
+    val top = CL.u(CL.HEADER_Y + CL.HEADER_H)
+    val bottom = CL.SCREEN_H - CL.u(CL.FOOT_Y + CL.NAV_H + 14)
+    val scales = ArrayList<Float>()
+    var s = 1f
+    while (s > sMin + 1e-4f) { scales += s; s -= RaceGrid.SCALE_STEP }
+    scales += sMin
+    class Try(val mode: RaceMode, val gap: Float, val cap: Float)
+    val tries = listOf(Try(RaceMode.SIDES, 1f, 1f), Try(RaceMode.ROWS, 1f, RaceGrid.ROWS_CAP)) +
+        RaceGrid.GAP_STEPS.drop(1).map { Try(RaceMode.SIDES, it, 1f) } + RaceGrid.GAP_STEPS.map { Try(RaceMode.ROWS, it, 1f) }
+    var cells: List<RaceCell>? = null; var chosen: Triple<Try, Float, Boolean>? = null
+    search@ for (t in tries) for (sc in scales) {
+        val c = placeSides(width, alliance, horde, t.mode, sc, t.gap, top, bottom, t.cap, false)
+        if (c != null) { cells = c; chosen = Triple(t, sc, true); break@search }
+    }
+    if (cells == null) {
+        val last = tries.last()
+        cells = placeSides(width, alliance, horde, last.mode, sMin, last.gap, top, bottom, 1f, true) ?: emptyList()
+        chosen = Triple(last, sMin, false)
+    }
+    val (t, sc, fits) = chosen!!
+    val blocks = listOf(true, false).mapNotNull { al ->
+        val mine = cells.filter { it.alliance == al }
+        if (mine.isEmpty()) null else NamedRect(if (al) "alliance" else "horde", Rect(mine.minOf { it.tile.x }, mine.minOf { it.tile.y }, mine.maxOf { it.tile.right } - mine.minOf { it.tile.x }, mine.maxOf { it.tile.bottom } - mine.minOf { it.tile.y }))
+    }
+    val sexL = sexRect(0, width); val sexR = sexRect(1, width)
+    val reserved = listOf(
+        NamedRect("header", Rect(0f, 0f, width, top)), NamedRect("foot", Rect(0f, bottom, width, CL.SCREEN_H - bottom)),
+        NamedRect("sexMale", sexL), NamedRect("sexFemale", sexR), NamedRect("back", navRect(false, width)), NamedRect("customize", navRect(true, width)),
+    )
+    val character = if (t.mode == RaceMode.SIDES) Rect(width / 3f, top, width / 3f, bottom - top) else {
+        val low = max(top, blocks.maxOfOrNull { it.rect.bottom } ?: top)
+        Rect(0f, min(low, bottom), width, max(0f, bottom - low))
+    }
+    val w = CL.u(79) * sc
+    return RaceLayout(t.mode, sc, t.gap, width, cells, blocks, reserved, Rect(0f, top, width, bottom - top), character,
+        RaceGrid.minTouchUnits(pxPerUnit, dpi), w, w + CL.u(RaceGrid.NAME_ZONE), fits)
 }
 
 /** Lua 1602: the categories' round buttons in a row ending 20 from the right; k from 0 of [n]; the button's rectangle. */

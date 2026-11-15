@@ -283,7 +283,7 @@ private fun Ui.SmallButton(r: Rect, icon: String, onHeld: (Boolean) -> Unit = {}
 @Composable
 private fun Ui.RoundButton(
     r: Rect, spec: CL.Round, icon: String?, on: Boolean, off: Boolean, flip: Boolean,
-    interactive: Boolean = true, pressed: Boolean = false, onTap: () -> Unit = {},
+    interactive: Boolean = true, pressed: Boolean = false, ringScale: Float = 1f, onTap: () -> Unit = {},
 ) {
     var own by remember { mutableStateOf(false) }
     val held = own || pressed
@@ -293,11 +293,11 @@ private fun Ui.RoundButton(
             val dim = if (off) CL.DIM_OFF else 1f
             if (icon != null) art(piece("$icon.${spec.kind}"), 0f, 0f, size.width, size.height, tint = Color(dim, dim, dim), flip = flip)
             val ringName = if (off && atlas.has(spec.ring + "-disabled")) spec.ring + "-disabled" else spec.ring
-            val rw = CL.u(spec.ringW) * k; val rh = CL.u(spec.ringH) * k
+            val rw = CL.u(spec.ringW) * k * ringScale; val rh = CL.u(spec.ringH) * k * ringScale
             val rx = (size.width - rw) / 2f; val ry = (size.height - rh) / 2f
             art(piece(ringName), rx, ry, rw, rh)
             if (on) {
-                val c = CL.u(spec.chosen) * k
+                val c = CL.u(spec.chosen) * k * ringScale
                 art(piece(CL.RING_SELECT), (size.width - c) / 2f, (size.height - c) / 2f, c, c)
             }
             if (held) art(piece(ringName), rx, ry, rw, rh, alpha = 0.5f, add = true)
@@ -367,11 +367,10 @@ private fun Ui.RaceStep(model: CreatorModel, female: Boolean, onChosen: () -> Un
             Label(if (alliance) words.alliance else words.horde, CL.FONT_LARGE, goldColour, Modifier.fillMaxSize(), align = if (alliance) TextAlign.Left else TextAlign.Right)
         }
     }
-    // the races down the sides, a side's sixth and later in a second column beside the first and 68 lower (Lua 1460-1494);
-    // a side with more than the screen holds scrolls under a finger
-    for (alliance in listOf(true, false)) {
-        RaceColumn(alliance, catalog.races.filter { isAllianceSide(it.key, it.alliance) == alliance }, model, female, onChosen)
-    }
+    // the races down the sides: the classic ones first, the allied after them on the same row grid, as many to a column as the screen's
+    // height holds, scaled down (never below 7 mm) before a column is added, nothing scrolls (RaceLayout, from the real width and height)
+    val sides = listOf(true, false).map { al -> raceOrder(catalog.races.filter { isAllianceSide(it.key, it.alliance) == al }) { it.key } }
+    RaceButtons(sides[0], sides[1], model, female, onChosen)
     // the sexes at the top (Lua 1405-1413)
     for ((i, sex) in listOf(Sex.MALE, Sex.FEMALE).withIndex()) {
         val chosen = me.sex == sex
@@ -382,60 +381,38 @@ private fun Ui.RaceStep(model: CreatorModel, female: Boolean, onChosen: () -> Un
     RedButton(navRect(true, widthU), words.customize, arrow = "forward") { onCustomize() }
 }
 
-/** One side's races (Lua 1460-1494): in their column or columns, in a window that scrolls where there are more than fit. */
+/** The races of both sides (Lua 1460-1494) where [raceLayout] puts them: a round button and its name in a cell, a tap on the cell chooses the race. */
 @Composable
-private fun Ui.RaceColumn(alliance: Boolean, races: List<Race>, model: CreatorModel, female: Boolean, onChosen: () -> Unit) {
+private fun Ui.RaceButtons(alliance: List<Race>, horde: List<Race>, model: CreatorModel, female: Boolean, onChosen: () -> Unit) {
     val catalog = model.catalog
     val me = model.appearance
-    val scroll = remember(alliance, races.size, widthU) { raceScroll(alliance, widthU, races.size) }
-    var tick by remember { mutableIntStateOf(0) }
-    var held by remember { mutableIntStateOf(-1) }
-    LaunchedEffect(scroll) {
-        var last = 0L; var was = false
-        while (true) {
-            withFrameNanos { t ->
-                val dt = if (last == 0L) 0f else min((t - last) / 1e9f, 0.1f)
-                last = t
-                scroll.update(dt)
-                if (scroll.busy() || was) tick++
-                was = scroll.busy()
-            }
-        }
+    val dpi = density.density * 160f
+    val layout = remember(widthU, k, dpi, alliance.map { it.key }, horde.map { it.key }) {
+        raceLayout(widthU, k, raceCounts(alliance) { it.key }, raceCounts(horde) { it.key }, dpi)
     }
-    val racesNow by rememberUpdatedState(races)
+    var held by remember { mutableStateOf<Pair<Boolean, Int>?>(null) }
     val meNow by rememberUpdatedState(me)
-    val view = raceViewport(alliance, widthU)
-    At(view, Modifier.clipToBounds().pointerInput(alliance, widthU) {
-        awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false)
-            scroll.press(-down.position.y / k)
-            // the button under the finger, in the column's own (unscrolled) coordinates
-            val px = down.position.x / k + view.x; val py = down.position.y / k + view.y + scroll.offset
-            val hit = racesNow.indices.firstOrNull { raceRect(raceSlot(it, alliance), widthU).contains(px, py) } ?: -1
-            held = hit
-            while (true) {
-                val e = awaitPointerEvent()
-                val c = e.changes.firstOrNull { it.id == down.id } ?: break
-                if (c.changedToUp()) { scroll.release(c.uptimeMillis / 1000f); break }
-                scroll.drag(-c.position.y / k, c.uptimeMillis / 1000f)
-                if (scroll.moved) { held = -1; c.consume() }
-            }
-            val race = racesNow.getOrNull(hit)
-            if (scroll.tapped() && race != null && catalog.model(race.id, meNow.sex) != null) { model.setRace(race.id); onChosen() }
-            held = -1
-        }
+    val safe = layout.safe
+    fun raceOf(c: RaceCell): Race? = (if (c.alliance) alliance else horde).getOrNull(c.index)
+    fun hit(p: Offset): RaceCell? = layout.at(p.x / k + safe.x, p.y / k + safe.y)
+    At(safe, Modifier.pointerInput(layout) {
+        detectTapGestures(
+            onPress = { p -> held = hit(p)?.let { it.alliance to it.index }; tryAwaitRelease(); held = null },
+            onTap = { p ->
+                val race = hit(p)?.let { raceOf(it) }
+                if (race != null && catalog.model(race.id, meNow.sex) != null) { model.setRace(race.id); onChosen() }
+            },
+        )
     }) {
-        Box(Modifier.offset { tick; IntOffset(0, -px(scroll.offset)) }) {
-            races.forEachIndexed { i, race ->
-                val r = raceRect(raceSlot(i, alliance), widthU)
-                val local = Rect(r.x - view.x, r.y - view.y, r.w, r.h)
-                val has = catalog.model(race.id, me.sex) != null
-                val piece = racePiece(race.key, female) { atlas.has(it) }
-                RoundButton(local, if (alliance) CL.RACE_ALLIANCE else CL.RACE_HORDE, piece, on = race.id == me.raceId, off = !has, flip = !alliance,
-                    interactive = false, pressed = held == i)
-                At(Rect(local.x - local.w / 2f, local.bottom - CL.u(CL.RACE_NAME_UP), local.w * 2f, CL.u(18f))) {
-                    Label(race.name, CL.FONT_MED, goldColour, Modifier.fillMaxSize().offset { IntOffset(px(CL.u(CL.RACE_NAME_DX)), 0) }, outline = true)
-                }
+        for (c in layout.cells) {
+            val race = raceOf(c) ?: continue
+            val has = catalog.model(race.id, me.sex) != null
+            val piece = racePiece(race.key, female) { atlas.has(it) }
+            val button = Rect(c.button.x - safe.x, c.button.y - safe.y, c.button.w, c.button.h)
+            RoundButton(button, if (c.alliance) CL.RACE_ALLIANCE else CL.RACE_HORDE, piece, on = race.id == me.raceId, off = !has, flip = !c.alliance,
+                interactive = false, pressed = held == (c.alliance to c.index), ringScale = layout.scale)
+            At(Rect(c.name.x - safe.x, c.name.y - safe.y, c.name.w, c.name.h)) {
+                Label(race.name, CL.FONT_MED * max(0.75f, layout.scale), goldColour, Modifier.fillMaxSize().offset { IntOffset(px(CL.u(CL.RACE_NAME_DX)), 0) }, outline = true)
             }
         }
     }
