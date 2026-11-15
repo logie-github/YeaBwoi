@@ -41,6 +41,7 @@ sourceSets {
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/creator")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/sims")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/anim")
+        kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/location")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/catalog")
     }
 }
@@ -59,6 +60,8 @@ tasks.test {
     useJUnitPlatform()
     // The app's assets (places.json), for the tests that check them.
     systemProperty("wifecraft.assets", file("../android/app/src/main/assets").absolutePath)
+    // downloaded game files (each named by its id), for the tests that check the real ones (-Dwifecraft.gamefiles=DIR)
+    System.getProperty("wifecraft.gamefiles")?.let { systemProperty("wifecraft.gamefiles", it) }
     testLogging {
         events("passed", "failed")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL

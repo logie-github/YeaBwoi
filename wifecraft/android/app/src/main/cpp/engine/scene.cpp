@@ -9,6 +9,7 @@
 
 #include "blp.h"
 #include "bodyshape.h"
+#include "glutil.h"
 
 namespace wc {
 
@@ -209,31 +210,7 @@ int loc(unsigned p, const char* name) {
     return l;
 }
 
-// The six planes of the camera's view (ax + by + cz + d >= 0 inside), from its matrix.
-struct Frustum {
-    float p[6][4];
-    explicit Frustum(const M4& m) {
-        for (int i = 0; i < 3; ++i)
-            for (int s = 0; s < 2; ++s) {
-                float* q = p[i * 2 + s];
-                float sign = s ? -1.0f : 1.0f;
-                for (int c = 0; c < 4; ++c) q[c] = m.at(3, c) + sign * m.at(i, c);
-                float n = std::sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2]);
-                if (n > 0) for (int c = 0; c < 4; ++c) q[c] /= n;
-            }
-    }
-    bool sphere(const V3& c, float r) const {
-        for (const auto& q : p) if (q[0] * c.x + q[1] * c.y + q[2] * c.z + q[3] < -r) return false;
-        return true;
-    }
-    bool box(const V3& mn, const V3& mx) const {
-        for (const auto& q : p) {
-            V3 v(q[0] >= 0 ? mx.x : mn.x, q[1] >= 0 ? mx.y : mn.y, q[2] >= 0 ? mx.z : mn.z);
-            if (q[0] * v.x + q[1] * v.y + q[2] * v.z + q[3] < 0) return false;
-        }
-        return true;
-    }
-};
+using gl::Frustum;
 
 // M2Vertex as the m2 program reads it, for the bound vertex buffer.
 void m2VertexLayout() {
@@ -256,6 +233,14 @@ void blendFor(uint32_t mode) {
 }
 
 } // namespace
+
+// The helpers above, for location.cpp (glutil.h).
+namespace gl {
+unsigned program(const char* vs, const char* fs) { return wc::program(vs, fs); }
+int loc(unsigned p, const char* name) { return wc::loc(p, name); }
+void blendFor(uint32_t mode) { wc::blendFor(mode); }
+void m2VertexLayout() { wc::m2VertexLayout(); }
+} // namespace gl
 
 Scene::~Scene() { /* GL objects die with the context */ }
 
@@ -294,6 +279,7 @@ bool Scene::initGl() {
         a.soft.forget();
     }
     if (cityLoaded_) { uploadCityGl(); warmCity(); }
+    staticGl();
     return true;
 }
 
@@ -311,6 +297,7 @@ void Scene::releaseGl() {
         a.soft.forget();
     }
     groups_.clear();
+    forgetStaticGl();
 }
 
 GlTexture Scene::texture(uint32_t fileId, int maxSize) {
@@ -451,10 +438,12 @@ void Scene::addFloor(const WmoGroup& g) {
 }
 
 float Scene::floorAt(float x, float y, float z) const {
-    if (!cityShown_) return z;
-    auto it = floor_.find({floorCell(x), floorCell(y)});
-    if (it == floor_.end()) return z;
     float best = -1e9f;
+    float lz;
+    if (groundAt(x, y, z, lz)) best = lz;   // the location's and the WMO props' floors (location.cpp)
+    if (!cityShown_) return best > -1e9f ? best : z;
+    auto it = floor_.find({floorCell(x), floorCell(y)});
+    if (it == floor_.end()) return best > -1e9f ? best : z;
     const std::vector<float>& t = it->second;
     for (size_t i = 0; i + 8 < t.size(); i += 9) {
         float ax = t[i], ay = t[i + 1], bx = t[i + 3], by = t[i + 4], cx = t[i + 6], cy = t[i + 7];
@@ -1275,12 +1264,18 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     Frustum frustum(viewProj);
     for (Prop& pr : props_) pr.seen = cityShown_ && frustum.sphere(pr.centre, pr.radius) && (pr.centre - eye_).length() - pr.radius < light_.fogEnd;
     for (Prop& pr : props_) if (pr.seen) drawModel(*pr.mesh, pr.world, nullptr, nullptr, pr.mesh->boneTex, -1, 0, nowMs, one, false, kPropTex);
-    for (auto& [id, a] : actors_) if (a.visible) drawActor(a, nowMs, false);
+    for (auto& [id, a] : actors_) if (a.visible) { lightActor(a.position, false); drawActor(a, nowMs, false); }
+    lightActor(V3(), true);
+    drawStatic(false, viewProj);    // the location, its doodads and the editor's props (location.cpp)
+    drawGround(viewProj);
+    drawSelection(viewProj);
     litUniforms(wmoProg_, light_, eye_, viewProj);
     drawCity(true);
     litUniforms(m2Prog_, light_, eye_, viewProj);
     for (Prop& pr : props_) if (pr.seen) drawModel(*pr.mesh, pr.world, nullptr, nullptr, pr.mesh->boneTex, -1, 0, nowMs, one, true, kPropTex);
-    for (auto& [id, a] : actors_) if (a.visible) drawActor(a, nowMs, true);
+    drawStatic(true, viewProj);
+    for (auto& [id, a] : actors_) if (a.visible) { lightActor(a.position, false); drawActor(a, nowMs, true); }
+    lightActor(V3(), true);
 }
 
 // ------------------------------------------------------------------------------------------------ Wrath++'s body options

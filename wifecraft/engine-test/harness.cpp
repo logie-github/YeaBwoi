@@ -17,6 +17,14 @@
 //   bonestop N                                 takes it off (Scene::clearBoneAnim)
 //   soft off|subtle|natural|strong             Options' Soft body (Scene::setSoftBody; the scene's default: natural)
 //   render OUT.ppm|OUT.png WIDTH HEIGHT TIME_MS
+//   location JSONFILE [ID [VIEW]]              a location (Scene::loadLocation; ID chooses the entry, VIEW its light/fog)
+//   view NAME                                  the loaded location's view: its light and fog, and its camera
+//   prop N MODEL X Y Z YAW SCALE               an editor prop (Scene::addProp: an M2 or a WMO by file id)
+//   moveprop N X Y Z YAW SCALE | removeprop N | clearprops
+//   select N                                   prop N drawn selected (0: none)
+//   pick SX SY WIDTH HEIGHT                    prints what that screen point hits (Scene::pick)
+//   ground X Y Z                               prints the floor under the point (Scene::groundAt)
+//   stats                                      prints the location's counts and the last frame's draws
 //
 // An anim file (anim/AnimArrays as text; one key per line, # comments; keys of a bone and channel in time order):
 //   duration SECONDS
@@ -39,6 +47,10 @@
 // Or, for the creator, one person on a plain stage straight to a picture:
 //   build/harness --look LOOKFILE --files DIR --out OUT.png [--size WxH] [--shot body|torso|face] [--facing RADIANS] [--time MS] [--anim ANIMFILE]
 //                 [--soft off|subtle|natural|strong] [--strip N:STEP_MS] [--camera EX,EY,EZ,TX,TY,TZ,FOV]
+// Or a location (assets/locations.json's entry) seen from one of its views:
+//   build/harness --location JSONFILE --files DIR --out OUT.png [--id ID] [--view inside|outside|...] [--size WxH]
+//                 [--camera EX,EY,EZ,TX,TY,TZ,FOV] [--props "MODEL,X,Y,Z,YAW,SCALE;..."] [--select N] [--pick SX,SY]
+//                 [--look LOOKFILE]   (a person standing at the view's spawn)
 // --strip draws N pictures side by side, from --time every STEP_MS, the scene stepped at 60 frames a second between them
 // (as the phone draws), and prints each soft body region's displacement at each.
 #include <EGL/egl.h>
@@ -289,6 +301,38 @@ static void renderStrip(Scene& scene, int actor, const std::string& out, int w, 
     glDeleteRenderbuffers(1, &depth);
 }
 
+
+static const char* pickName(int k) {
+    return k == Scene::kPickProp ? "prop" : k == Scene::kPickActor ? "actor" : k == Scene::kPickGround ? "ground" :
+           k == Scene::kPickLocation ? "location" : "nothing";
+}
+
+static void printStats(const Scene& scene) {
+    Scene::LocationStats st = scene.locationStats();
+    std::fprintf(stderr, "location: %zu groups (%zu missing), %zu triangles, %zu doodads (%zu missing) of %zu models; "
+                 "bounds %.1f %.1f %.1f .. %.1f %.1f %.1f; last frame: %zu draw calls, %zu groups, %zu instances\n",
+                 st.groups, st.groupsMissing, st.triangles, st.doodads, st.doodadsMissing, st.models,
+                 st.boundsMin.x, st.boundsMin.y, st.boundsMin.z, st.boundsMax.x, st.boundsMax.y, st.boundsMax.z,
+                 st.drawCalls, st.groupsDrawn, st.instancesDrawn);
+}
+
+static bool readText(const std::string& path, std::string& out) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in) { std::fprintf(stderr, "no file %s\n", path.c_str()); return false; }
+    out.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    return true;
+}
+
+// A view's camera from the loaded location (false: it has none).
+static bool viewCamera(Scene& scene, const std::string& view) {
+    const LocationDesc* d = scene.location();
+    if (!d) return false;
+    auto it = d->views.find(view);
+    if (it == d->views.end() || !it->second.hasCamera) return false;
+    scene.setCamera(it->second.eye, it->second.target, it->second.fov);
+    return true;
+}
+
 static Light preset(const std::string& name) {
     Light l;
     if (name == "dusk") {
@@ -339,8 +383,60 @@ int main(int argc, char** argv) {
         return stat(p.c_str(), &st) == 0 ? p : std::string();
     });
     scene.initGl();
-    std::map<int, int> actors;
+    std::map<int, int> actors, props;
     Light light;
+
+    if (opt.count("--location")) {
+        dir = opt["--files"];
+        std::string json;
+        if (!readText(opt["--location"], json)) return 1;
+        std::string view = opt.count("--view") ? opt["--view"] : "";
+        if (!scene.loadLocation(json, opt["--id"], view)) { std::fprintf(stderr, "location: FAILED: %s\n", scene.locationError().c_str()); return 1; }
+        if (!viewCamera(scene, view)) std::fprintf(stderr, "view \"%s\": no camera in the entry\n", view.c_str());
+        float cam[7];
+        if (opt.count("--camera") && std::sscanf(opt["--camera"].c_str(), "%f,%f,%f,%f,%f,%f,%f", &cam[0], &cam[1], &cam[2],
+                                                 &cam[3], &cam[4], &cam[5], &cam[6]) == 7)
+            scene.setCamera(V3(cam[0], cam[1], cam[2]), V3(cam[3], cam[4], cam[5]), cam[6]);
+        std::vector<int> props;
+        for (const std::string& one : split(opt["--props"], ';')) {
+            float v[6] = {0, 0, 0, 0, 0, 1};
+            if (std::sscanf(one.c_str(), "%f,%f,%f,%f,%f,%f", &v[0], &v[1], &v[2], &v[3], &v[4], &v[5]) < 4) continue;
+            int id = scene.addProp(uint32_t(v[0]), V3(v[1], v[2], v[3]), v[4], v[5]);
+            std::fprintf(stderr, "prop %u: %s\n", uint32_t(v[0]), id ? "ok" : scene.modelError(uint32_t(v[0])).c_str());
+            props.push_back(id);
+        }
+        if (opt.count("--select")) {
+            size_t n = size_t(std::atoi(opt["--select"].c_str()));
+            if (n >= 1 && n <= props.size()) scene.select(1, props[n - 1]);
+        }
+        if (opt.count("--look")) {
+            LookFile lf;
+            const LocationDesc* d = scene.location();
+            auto it = d->views.find(view);
+            if (readLook(opt["--look"], lf) && it != d->views.end() && it->second.hasSpawn) {
+                int id = scene.addActor(lf.model, lf.tex, lf.geo, lf.scale);
+                if (id > 0) {
+                    scene.dress(id, lf.geo, lf.layers, lf.extras);
+                    V3 sp = it->second.spawn;
+                    sp.z = scene.floorAt(sp.x, sp.y, sp.z + 1.0f);
+                    V3 e = it->second.eye;
+                    scene.placeActor(id, sp, std::atan2(e.y - sp.y, e.x - sp.x));
+                    std::fprintf(stderr, "person at %.2f %.2f %.2f\n", sp.x, sp.y, sp.z);
+                }
+            }
+        }
+        int w = 1024, ht = 640;
+        if (opt.count("--size")) std::sscanf(opt["--size"].c_str(), "%dx%d", &w, &ht);
+        renderTo(scene, opt.count("--out") ? opt["--out"] : "location.png", w, ht, 0);
+        printStats(scene);
+        float px, py;
+        if (opt.count("--pick") && std::sscanf(opt["--pick"].c_str(), "%f,%f", &px, &py) == 2) {
+            Scene::PickHit h = scene.pick(px, py, w, ht);
+            std::fprintf(stderr, "pick %.0f,%.0f: %s %d at %.2f %.2f %.2f (%.2f yards)\n", px, py, pickName(h.kind), h.id,
+                         h.point.x, h.point.y, h.point.z, h.distance);
+        }
+        return 0;
+    }
 
     if (!opt.empty()) {
         // One dressed person on a plain stage, framed as the creator frames them.
@@ -493,6 +589,53 @@ int main(int argc, char** argv) {
         } else if (cmd == "bonestop") {
             int name; ss >> name;
             if (actors.count(name)) scene.clearBoneAnim(actors[name]);
+        } else if (cmd == "location") {
+            std::string path, id, view, json;
+            ss >> path >> id >> view;
+            if (id == "-") id.clear();
+            if (readText(path, json)) {
+                bool ok = scene.loadLocation(json, id, view);
+                std::fprintf(stderr, "location %s: %s\n", path.c_str(), ok ? "ok" : scene.locationError().c_str());
+                if (ok) viewCamera(scene, view);
+            }
+        } else if (cmd == "view") {
+            std::string view; ss >> view;
+            scene.locationView(view);
+            viewCamera(scene, view);
+        } else if (cmd == "prop") {
+            int name; uint32_t model; float x, y, z, yaw, sc;
+            ss >> name >> model >> x >> y >> z >> yaw >> sc;
+            int id = scene.addProp(model, V3(x, y, z), yaw, sc);
+            std::fprintf(stderr, "prop %d (%u): %s\n", name, model, id ? "ok" : scene.modelError(model).c_str());
+            if (id) props[name] = id;
+        } else if (cmd == "moveprop") {
+            int name; float x, y, z, yaw, sc;
+            ss >> name >> x >> y >> z >> yaw >> sc;
+            if (props.count(name)) scene.moveProp(props[name], V3(x, y, z), yaw, sc);
+        } else if (cmd == "removeprop") {
+            int name; ss >> name;
+            if (props.count(name)) { scene.removeProp(props[name]); props.erase(name); }
+        } else if (cmd == "clearprops") {
+            scene.clearProps(); props.clear();
+        } else if (cmd == "select") {
+            int name = 0; ss >> name;
+            scene.select(props.count(name) ? 1 : 0, props.count(name) ? props[name] : 0);
+        } else if (cmd == "pick") {
+            float sx, sy; int w, h;
+            ss >> sx >> sy >> w >> h;
+            Scene::PickHit hit = scene.pick(sx, sy, w, h);
+            int shown = hit.id;
+            for (auto& [n, id] : props) if (hit.kind == Scene::kPickProp && id == hit.id) shown = n;
+            for (auto& [n, id] : actors) if (hit.kind == Scene::kPickActor && id == hit.id) shown = n;
+            std::fprintf(stderr, "pick %.0f,%.0f: %s %d at %.2f %.2f %.2f (%.2f yards)\n", sx, sy, pickName(hit.kind), shown,
+                         hit.point.x, hit.point.y, hit.point.z, hit.distance);
+        } else if (cmd == "ground") {
+            float x, y, z, out = 0;
+            ss >> x >> y >> z;
+            bool ok = scene.groundAt(x, y, z, out);
+            std::fprintf(stderr, "ground at %.2f %.2f below %.2f: %s %.3f\n", x, y, z, ok ? "floor" : "none", out);
+        } else if (cmd == "stats") {
+            printStats(scene);
         } else if (cmd == "render") {
             std::string out; int w, h; uint32_t t;
             ss >> out >> w >> h >> t;

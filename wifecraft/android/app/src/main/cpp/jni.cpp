@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 
 #include <algorithm>
+#include <limits>
 #include <map>
 #include <string>
 #include <vector>
@@ -189,6 +190,59 @@ JNIEXPORT void JNICALL FN(light)(JNIEnv* env, jclass, jlong h, jfloatArray value
     for (int i = 0; i < 7; ++i) for (int k = 0; k < 3; ++k) dst[i][k] = v[size_t(i * 3 + k)];
     l.fogStart = v[21]; l.fogEnd = v[22];
     scene(h)->setLight(l);
+}
+
+// ---- locations and the editor's props (Native.kt documents them)
+
+JNIEXPORT jboolean JNICALL FN(loadLocation)(JNIEnv* env, jclass, jlong h, jstring json, jstring id, jstring view) {
+    return scene(h)->loadLocation(str(env, json), id ? str(env, id) : "", view ? str(env, view) : "");
+}
+
+JNIEXPORT jboolean JNICALL FN(locationView)(JNIEnv* env, jclass, jlong h, jstring view) {
+    return scene(h)->locationView(view ? str(env, view) : "");
+}
+
+JNIEXPORT void JNICALL FN(clearLocation)(JNIEnv*, jclass, jlong h) { scene(h)->clearLocation(); }
+
+JNIEXPORT jstring JNICALL FN(locationError)(JNIEnv* env, jclass, jlong h) {
+    return env->NewStringUTF(scene(h)->locationError().c_str());
+}
+
+JNIEXPORT jint JNICALL FN(addProp)(JNIEnv*, jclass, jlong h, jint model, jfloat x, jfloat y, jfloat z, jfloat yaw, jfloat scale) {
+    return scene(h)->addProp(uint32_t(model), V3(x, y, z), yaw, scale);
+}
+
+JNIEXPORT jboolean JNICALL FN(moveProp)(JNIEnv*, jclass, jlong h, jint id, jfloat x, jfloat y, jfloat z, jfloat yaw, jfloat scale) {
+    return scene(h)->moveProp(id, V3(x, y, z), yaw, scale);
+}
+
+JNIEXPORT void JNICALL FN(removeProp)(JNIEnv*, jclass, jlong h, jint id) { scene(h)->removeProp(id); }
+
+JNIEXPORT void JNICALL FN(clearProps)(JNIEnv*, jclass, jlong h) { scene(h)->clearProps(); }
+
+JNIEXPORT jfloatArray JNICALL FN(propBounds)(JNIEnv* env, jclass, jlong h, jint id) {
+    V3 mn, mx;
+    if (!scene(h)->propBounds(id, mn, mx)) return nullptr;
+    float v[6] = {mn.x, mn.y, mn.z, mx.x, mx.y, mx.z};
+    jfloatArray arr = env->NewFloatArray(6);
+    env->SetFloatArrayRegion(arr, 0, 6, v);
+    return arr;
+}
+
+JNIEXPORT void JNICALL FN(select)(JNIEnv*, jclass, jlong h, jint kind, jint id) { scene(h)->select(kind, id); }
+
+// [kind, id, x, y, z, distance] (kind 0: nothing)
+JNIEXPORT jfloatArray JNICALL FN(pick)(JNIEnv* env, jclass, jlong h, jfloat sx, jfloat sy, jint w, jint ht) {
+    Scene::PickHit hit = scene(h)->pick(sx, sy, w, ht);
+    float v[6] = {float(hit.kind), float(hit.id), hit.point.x, hit.point.y, hit.point.z, hit.distance};
+    jfloatArray arr = env->NewFloatArray(6);
+    env->SetFloatArrayRegion(arr, 0, 6, v);
+    return arr;
+}
+
+JNIEXPORT jfloat JNICALL FN(groundAt)(JNIEnv*, jclass, jlong h, jfloat x, jfloat y, jfloat z) {
+    float out = 0;
+    return scene(h)->groundAt(x, y, z, out) ? out : std::numeric_limits<float>::quiet_NaN();
 }
 
 // [width, height, ARGB pixels...] or null: for the interface's textures, decoded off the GL thread.

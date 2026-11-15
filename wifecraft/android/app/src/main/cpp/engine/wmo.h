@@ -36,10 +36,14 @@ struct WmoDoodad {
 struct WmoBatch {
     uint32_t indexStart = 0, indexCount = 0;
     uint16_t material = 0;
+    uint16_t lastVertex = 0;   // the highest vertex its triangles use
 };
 
 struct WmoGroup {
     uint32_t flags = 0;
+    // MOGP's batch counts: the first transBatches are the "trans" ones (lit between inside and outside by the vertex
+    // colours' alpha), then the interior's, then the exterior's.
+    uint16_t transBatches = 0, intBatches = 0, extBatches = 0;
     std::vector<float> positions;   // xyz
     std::vector<float> normals;
     std::vector<float> uvs;         // first uv set
@@ -56,6 +60,8 @@ struct WmoRoot {
     struct Set { std::string name; uint32_t first = 0, count = 0; };
     std::vector<Set> sets;
     uint32_t ambient = 0;
+    uint16_t flags = 0;      // MOHD: 0x8 the vertex colours' alpha is used as stored (else the game fixes it up)
+    V3 boundsMin, boundsMax; // MOHD's box, in the WMO's own coordinates
     bool load(const Bytes& file);
 };
 

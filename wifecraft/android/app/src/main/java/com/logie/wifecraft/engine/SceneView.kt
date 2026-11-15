@@ -19,6 +19,17 @@ object Clock {
     fun now(): Int = (SystemClock.uptimeMillis() - base).toInt()
 }
 
+/**
+ * What a screen point hits (SceneView.pick): a prop or an actor by the key it was added with, the ground (a location's floor
+ * or the map's ground: [key] null), or the location's walls and doodads ([key] "location"); x, y, z where it was hit.
+ */
+data class Hit(val kind: Kind, val key: String?, val x: Float, val y: Float, val z: Float) {
+    enum class Kind { PROP, ACTOR, GROUND, LOCATION }
+}
+
+/** A box in the world (SceneView.propBounds). */
+data class Bounds(val minX: Float, val minY: Float, val minZ: Float, val maxX: Float, val maxY: Float, val maxZ: Float)
+
 /** Where someone stands this frame. */
 data class Placement(val x: Float, val y: Float, val z: Float, val facing: Float, val visible: Boolean = true)
 
@@ -62,6 +73,9 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     private val bodies = mutableMapOf<String, Pair<Int, Float>>()
     /** GL thread: each key's imported animation ([playAnim]), put on its actor whenever that actor is (re)made. */
     private val poses = mutableMapOf<String, AnimArrays>()
+    /** GL thread: the editor's props, by key. */
+    private val propIds = mutableMapOf<String, Int>()
+    private val main = android.os.Handler(android.os.Looper.getMainLooper())
     private var width = 1
     private var height = 1
 
@@ -175,6 +189,85 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
 
     override fun anim(key: String, anim: Int, loop: Boolean, nowMs: Int) =
         post { h, ids -> ids[key]?.let { Native.anim(h, it, anim, loop, nowMs) } }
+
+    // ---- locations and the editor's props (engine/LocationLoader and PropLoader fetch their files first)
+
+    /**
+     * Loads location [id] of [json] (assets/locations.json's text) with [view]'s light and fog ("" the entry's own), its
+     * files already downloaded; Dalaran is hidden (it would stand in the same place). [onDone] (main thread): whether it
+     * loaded, and why not.
+     */
+    fun loadLocation(json: String, id: String, view: String = "", onDone: (Boolean, String?) -> Unit = { _, _ -> }) = post { h, _ ->
+        Native.showCity(h, false)
+        val ok = Native.loadLocation(h, json, id, view)
+        val why = if (ok) null else Native.locationError(h)
+        main.post { onDone(ok, why) }
+    }
+
+    /** The loaded location's [view] (its light, fog and ground; the camera is the frame's). */
+    fun locationView(view: String) = post { h, _ -> Native.locationView(h, view) }
+
+    fun clearLocation() = post { h, _ -> Native.clearLocation(h) }
+
+    /**
+     * Puts the prop [key] (a static M2 or a WMO by file id, its files downloaded: PropLoader) at x, y, z turned [yaw] radians
+     * about z at [scale]; a key already there is replaced. [onFail] (main thread) says why it couldn't be drawn.
+     */
+    fun addProp(key: String, model: Int, x: Float, y: Float, z: Float, yaw: Float, scale: Float, onFail: (String) -> Unit = {}) = post { h, _ ->
+        propIds.remove(key)?.let { Native.removeProp(h, it) }
+        val id = Native.addProp(h, model, x, y, z, yaw, scale)
+        if (id <= 0) {
+            val why = "The prop couldn't be drawn: " + Native.modelError(h, model).ifEmpty { "file $model couldn't be read" } + "."
+            main.post { onFail(why) }
+        } else {
+            propIds[key] = id
+        }
+    }
+
+    fun moveProp(key: String, x: Float, y: Float, z: Float, yaw: Float, scale: Float) =
+        post { h, _ -> propIds[key]?.let { Native.moveProp(h, it, x, y, z, yaw, scale) } }
+
+    fun removeProp(key: String) = post { h, _ -> propIds.remove(key)?.let { Native.removeProp(h, it) } }
+
+    fun clearProps() = post { h, _ -> Native.clearProps(h); propIds.clear() }
+
+    /** Selects the prop or actor [key] (a prop is drawn outlined), or nothing (null). */
+    fun select(key: String?) = post { h, ids ->
+        val prop = key?.let { propIds[it] }
+        val actor = key?.let { ids[it] }
+        when {
+            prop != null -> Native.select(h, Native.PICK_PROP, prop)
+            actor != null -> Native.select(h, Native.PICK_ACTOR, actor)
+            else -> Native.select(h, Native.PICK_NONE, 0)
+        }
+    }
+
+    /** What the screen point ([sx], [sy] in pixels of a [w] x [h] view) hits, to [onHit] on the main thread (null: nothing). */
+    fun pick(sx: Float, sy: Float, w: Int, h: Int, onHit: (Hit?) -> Unit) = post { handle, ids ->
+        val r = Native.pick(handle, sx, sy, w, h)
+        val kind = r[0].toInt()
+        val id = r[1].toInt()
+        val hit = when (kind) {
+            Native.PICK_PROP -> propIds.entries.firstOrNull { it.value == id }?.let { Hit(Hit.Kind.PROP, it.key, r[2], r[3], r[4]) }
+            Native.PICK_ACTOR -> ids.entries.firstOrNull { it.value == id }?.let { Hit(Hit.Kind.ACTOR, it.key, r[2], r[3], r[4]) }
+            Native.PICK_GROUND -> Hit(Hit.Kind.GROUND, null, r[2], r[3], r[4])
+            Native.PICK_LOCATION -> Hit(Hit.Kind.LOCATION, "location", r[2], r[3], r[4])
+            else -> null
+        }
+        main.post { onHit(hit) }
+    }
+
+    /** The floor under (x, y) nearest below [z] (a step up counts), to [onResult] on the main thread (null: none). */
+    fun groundAt(x: Float, y: Float, z: Float = 10000f, onResult: (Float?) -> Unit) = post { h, _ ->
+        val g = Native.groundAt(h, x, y, z)
+        main.post { onResult(if (g.isNaN()) null else g) }
+    }
+
+    /** The prop [key]'s box in the world, to [onResult] on the main thread (null: no such prop). */
+    fun propBounds(key: String, onResult: (Bounds?) -> Unit) = post { h, _ ->
+        val b = propIds[key]?.let { Native.propBounds(h, it) }
+        main.post { onResult(b?.let { Bounds(it[0], it[1], it[2], it[3], it[4], it[5]) }) }
+    }
 
     /** Releases the renderer once the view is gone. */
     fun dispose() {

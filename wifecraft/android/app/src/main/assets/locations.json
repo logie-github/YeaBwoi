@@ -4159,7 +4159,7 @@
     }
    ],
    "terrain": {
-    "comment": "the map's ground under the yard: root ADT (MCNK MCVT heights) and tex0 (MCLY layers, MCAL alpha), chunks [ix, iy] of the tile, in world coordinates (move with frame)",
+    "comment": "the map's ground under the yard: root ADT (MCNK MCVT heights) and tex0 (MCLY layers, MCAL alpha), chunks [ix, iy] of the tile, in world coordinates (move with frame); chunks: those whose centre is within 95 yards of the building (the fog ends at 55 from the outside camera, so the ground reaches past it)",
     "wdt": 775971,
     "tile": [
      30,
@@ -4170,42 +4170,99 @@
     "chunks": [
      [
       6,
+      2
+     ],
+     [
+      7,
+      2
+     ],
+     [
+      8,
+      2
+     ],
+     [
+      5,
       3
+     ],
+     [
+      6,
+      3
+     ],
+     [
+      7,
+      3
+     ],
+     [
+      8,
+      3
+     ],
+     [
+      9,
+      3
+     ],
+     [
+      5,
+      4
      ],
      [
       6,
       4
      ],
      [
+      7,
+      4
+     ],
+     [
+      8,
+      4
+     ],
+     [
+      9,
+      4
+     ],
+     [
+      5,
+      5
+     ],
+     [
       6,
       5
      ],
      [
       7,
-      3
-     ],
-     [
-      7,
-      4
-     ],
-     [
-      7,
       5
      ],
      [
       8,
-      3
-     ],
-     [
-      8,
-      4
-     ],
-     [
-      8,
       5
+     ],
+     [
+      9,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      6,
+      6
+     ],
+     [
+      7,
+      6
+     ],
+     [
+      8,
+      6
+     ],
+     [
+      9,
+      6
      ]
     ],
     "textures": [
+     186770,
      187112,
      187115,
      187125,
@@ -4280,7 +4337,11 @@
       "vertexColours": true,
       "source": "MOHD ambient; the room's light is baked into its vertex colours (MOCV)"
      },
-     "fog": {
+     "groups": [
+      0,
+      1
+     ],
+     "interiorFog": {
       "colour": [
        1.0,
        1.0,
@@ -4290,10 +4351,16 @@
       "end": 444.44,
       "source": "MFOG 0"
      },
-     "groups": [
-      0,
-      1
-     ]
+     "fog": {
+      "colour": [
+       0.302,
+       0.471,
+       0.561
+      ],
+      "start": 28.0,
+      "end": 55.0,
+      "source": "the map's, as outside: seen through the door (the room is nearer than its start); MFOG is interiorFog"
+     }
     },
     "outside": {
      "eye": [
@@ -5412,9 +5479,13 @@
        [
         187138,
         88580
+       ],
+       [
+        186770,
+        88580
        ]
       ],
-      "bytes": 2078951
+      "bytes": 2167531
      },
      {
       "name": "sound",
@@ -5455,8 +5526,8 @@
       "bytes": 9578922
      }
     ],
-    "total": 30422345,
-    "totalMB": 30.42,
+    "total": 30510925,
+    "totalMB": 30.51,
     "missing": []
    }
   }
