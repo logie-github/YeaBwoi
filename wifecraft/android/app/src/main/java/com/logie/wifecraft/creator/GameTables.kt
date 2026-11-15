@@ -24,15 +24,58 @@ object GameTables {
     )
 
     /**
+     * The build every table and every game file is taken at, the same for both (assets/files.json's source names it too).
+     * wago.tools' unversioned links mix builds: in November 2026 they gave the Blood Elf man's model from one build and its
+     * skin from another (the triangles joined the wrong vertices), and most character models in an older form than the
+     * current tables'. Pinned, a model, its skin, its skeleton and the tables that name them always agree.
+     */
+    const val BUILD = "12.1.7.70892"
+
+    /**
      * Tables taken at a build of their own: GlobalStrings at Shadowlands' last (9.2.7.45745), the build the creator's
-     * screen and its art are Shadowlands' from (ui/CreatorArt.kt). The rest are the current build's, as the files are.
+     * screen and its art are Shadowlands' from (ui/CreatorArt.kt). The rest are [BUILD]'s, as the files are.
      */
     val BUILDS = mapOf("GlobalStrings" to "9.2.7.45745")
+
+    /** A game file's link at [BUILD] (assets/files.json's source is this with `<id>`). */
+    fun fileUrl(id: Int): String = "https://wago.tools/api/casc/$id?download&version=$BUILD"
+
+    /**
+     * Files fetched before [BUILD] was pinned (or at another) can't be trusted to agree: once, when `game/.build` under
+     * [root] (the app's files folder) isn't [BUILD], the models, skins, skeletons and animation files in `game/` (told by
+     * their first bytes; textures, sounds and the city keep), the tables and the creator's fetch plan and its "complete"
+     * mark are deleted, to be fetched again at [BUILD]. Returns how many files went. Pure JVM; the app's start calls it.
+     */
+    fun migrate(root: File): Int {
+        val game = File(root, "game")
+        val mark = File(game, ".build")
+        if (mark.isFile && runCatching { mark.readText().trim() }.getOrNull() == BUILD) return 0
+        var gone = 0
+        game.listFiles()?.forEach { f ->
+            if (f.isFile && f.name.all { it.isDigit() } && modelFamily(f) && f.delete()) gone++
+        }
+        File(root, "cache/tables").listFiles()?.forEach { if (it.isFile && it.name.endsWith(".csv") && it.delete()) gone++ }
+        File(root, "cache/looks-plan.txt").delete()
+        File(root, "cache/looks-complete").delete()
+        game.mkdirs()
+        mark.writeText(BUILD)
+        return gone
+    }
+
+    /** Whether a file is a model, skin, skeleton or animation file (its first four bytes). */
+    fun modelFamily(f: File): Boolean {
+        val head = ByteArray(4)
+        val n = runCatching { f.inputStream().use { it.read(head) } }.getOrDefault(0)
+        if (n < 4) return false
+        return String(head, Charsets.ISO_8859_1) in MODEL_MAGIC
+    }
+
+    private val MODEL_MAGIC = setOf("MD21", "MD20", "SKIN", "SKL1", "SKS1", "SKB1", "AFM2", "AFSA", "AFSB", "AFID")
 
     /** About how much the creator's tables weigh together (19 MB in November 2026, GlobalStrings not counted), for the first launch's screen. */
     const val APPROX_BYTES = 19_500_000L
 
-    fun url(name: String): String = "https://wago.tools/db2/$name/csv" + (BUILDS[name]?.let { "?build=$it" } ?: "")
+    fun url(name: String): String = "https://wago.tools/db2/$name/csv?build=" + (BUILDS[name] ?: BUILD)
 
     private fun file(dir: File, name: String) = File(dir, "$name.csv")
 

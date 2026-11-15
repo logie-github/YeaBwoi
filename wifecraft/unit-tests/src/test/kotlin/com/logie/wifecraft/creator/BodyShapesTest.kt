@@ -110,36 +110,50 @@ class BodyShapesTest {
     private fun entry(name: String, d: ByteArray) = JSONObject().put("file", name).put("sha256", sha(d)).put("size", d.size)
 
     /** The package, as pack2.main writes it: the list, each race's patches and skins, the designs. */
-    private fun pack(shapes: List<List<V>>, shapeCountBroken: Boolean = false): ByteArray {
+    /**
+     * [race] (name, id) gets the shapes; each of [layerOnly] only its As drawn model (with the layer), as pack2.py packs a race
+     * whose shapes aren't made yet (Wrath++: every race but the Human). [folder]: the whole package inside one folder of the zip.
+     */
+    private fun pack(shapes: List<List<V>>, shapeCountBroken: Boolean = false, race: Pair<String, Int> = "NightElf" to 4,
+                     layerOnly: List<Pair<String, Int>> = emptyList(), folder: String = ""): ByteArray {
         val looksModel = looks(base)
         val files = LinkedHashMap<String, ByteArray>()
         val models = JSONArray()
+        val races = JSONArray()
+        val horde = setOf(2, 5, 6, 8, 10)
         val p0 = patch(looksModel, base, layer); val s0 = skin(base.size, layer.size, base.size)
-        files["NightElf/0.patch"] = p0; files["NightElf/0.skin"] = s0
-        models.put(JSONObject().put("race", "NightElf").put("shape", 0).put("model", "Character/NightElf/Female/NightElfFemale.m2")
-            .put("looks_sha256", sha(looksModel)).put("patch", entry("NightElf/0.patch", p0)).put("skin_file", entry("NightElf/0.skin", s0)))
+        for ((name, id) in listOf(race) + layerOnly) {
+            files["$name/0.patch"] = p0; files["$name/0.skin"] = s0
+            models.put(JSONObject().put("race", name).put("shape", 0).put("model", "Character/$name/Female/${name}Female.m2")
+                .put("looks_sha256", sha(looksModel)).put("patch", entry("$name/0.patch", p0)).put("skin_file", entry("$name/0.skin", s0)))
+            races.put(JSONObject().put("race", name).put("race_id", id).put("folder", "Character/$name/Female").put("faction", if (id in horde) "horde" else "alliance"))
+        }
+        val r = race.first
         val refinedCount = if (shapeCountBroken) base.size - 2 else shapes[0].size
         val shared = skin(refinedCount, layer.size, refinedCount)
-        files["NightElf/shapes.skin"] = shared
+        files["$r/shapes.skin"] = shared
         for ((k, s) in shapes.withIndex()) {
             val p = patch(looksModel, if (shapeCountBroken) s.take(refinedCount) else s, layer)
-            files["NightElf/${k + 1}.patch"] = p
-            models.put(JSONObject().put("race", "NightElf").put("shape", k + 1).put("anims_of", "Character/NightElf/Female/NightElfFemale")
-                .put("patch", entry("NightElf/${k + 1}.patch", p)).put("skin_file", entry("NightElf/shapes.skin", shared)))
+            files["$r/${k + 1}.patch"] = p
+            models.put(JSONObject().put("race", r).put("shape", k + 1).put("anims_of", "Character/$r/Female/${r}Female")
+                .put("patch", entry("$r/${k + 1}.patch", p)).put("skin_file", entry("$r/shapes.skin", shared)))
         }
-        val styles = JSONArray(); listOf("full_natural", "natural", "small_triangle", "heart").forEach { styles.put(it) }
+        val styles = JSONArray(); listOf("full_natural", "natural", "small_triangle", "heart", "strip").forEach { styles.put(it) }
         val textures = JSONArray()
-        for (d in 1..4) { val t = byteArrayOf(d.toByte()); files["designs/heart_$d.blp"] = t; textures.put(entry("designs/heart_$d.blp", t).put("design", "heart").put("density", d)) }
+        for ((at, design) in listOf("heart", "strip").withIndex()) for (d in 1..4) {
+            val t = byteArrayOf((at * 10 + d).toByte()); files["designs/${design}_$d.blp"] = t
+            textures.put(entry("designs/${design}_$d.blp", t).put("design", design).put("density", d))
+        }
         files["designs/none.blp"] = byteArrayOf(0); textures.put(entry("designs/none.blp", byteArrayOf(0)).put("design", "").put("density", 0))
         val list = JSONObject().put("format", 2).put("kind", "wrathpp-body").put("shapes", JSONArray(listOf("As drawn", "Petite", "Curvy", "Voluptuous")))
             .put("densities", JSONArray(listOf(25, 50, 75, 100)))
             .put("styles", JSONObject().put("alliance", styles).put("horde", styles))
-            .put("races", JSONArray().put(JSONObject().put("race", "NightElf").put("race_id", 4).put("folder", "Character/NightElf/Female").put("faction", "alliance")))
+            .put("races", races)
             .put("models", models).put("textures", textures)
         val out = ByteArrayOutputStream()
         ZipOutputStream(out).use { z ->
-            for ((n, d) in files) { z.putNextEntry(ZipEntry(n)); z.write(d); z.closeEntry() }
-            z.putNextEntry(ZipEntry("wrathpp-body.json")); z.write(list.toString(1).toByteArray()); z.closeEntry()
+            for ((n, d) in files) { z.putNextEntry(ZipEntry(folder + n)); z.write(d); z.closeEntry() }
+            z.putNextEntry(ZipEntry(folder + "wrathpp-body.json")); z.write(list.toString(1).toByteArray()); z.closeEntry()
         }
         return out.toByteArray()
     }
@@ -218,6 +232,89 @@ class BodyShapesTest {
     @Test fun everyRaceOfTheBodyOptionsHasItsSquare() {
         for (r in BodyOptions.RACES) assertNotNull(BodyShapes.frame(r), "race $r")
         assertNull(BodyShapes.frame(9))
+    }
+
+    // ---- the creator's Body tab end to end, as the screen drives it (release 1.0.17: "it's not working the body options") ----
+
+    private val tables = CsvTables(File(javaClass.getResource("/creator/ChrModel.csv")!!.toURI()).parentFile)
+    private val catalog = Catalog.build(tables)
+    private val threeShapes get() = listOf(shaped(-0.01f, 4), shaped(0.02f, 4), shaped(0.045f, 4))
+
+    private fun bodyTab(m: CreatorModel) = m.categories().last { it.name == "Body" }
+    private fun bodyRows(m: CreatorModel) = m.rows(bodyTab(m).id).filter { it.option.id in setOf(BodyOptions.SHAPE, BodyOptions.STYLE, BodyOptions.DENSITY) }
+
+    /** The screen's arrows on a row of the Body tab, found by its name as the screen shows it. */
+    private fun tapNext(m: CreatorModel, name: String, times: Int = 1) {
+        val row = m.rows(bodyTab(m).id).first { it.option.name == name }
+        repeat(times) { m.step(row.option.id, 1) }
+    }
+
+    @Test fun theBodyRowsWorkOnceThePackageIsImportedWithoutAnythingElseSet() {
+        val root = tmp()
+        val store = ImportStore(root, names)          // the app's one store: the creator asks it by itself
+        val m = CreatorModel(catalog, Appearance(1, Sex.FEMALE))
+        assertEquals(listOf("Shape", "Style", "Density"), bodyRows(m).map { it.option.name })
+        assertTrue(bodyRows(m).all { !it.enabled && it.why == BodyOptions.NOT_IMPORTED })
+        tapNext(m, "Shape"); assertEquals(Body(), m.appearance.body)
+
+        store.importZip(ImportKind.BODY, ByteArrayInputStream(pack(threeShapes, race = "Human" to 1, layerOnly = listOf("Orc" to 2))), "wrathpp-body.zip")
+        // a new creator (the screen makes one per NPC) and the one already open both see it
+        for (c in listOf(m, CreatorModel(catalog, Appearance(1, Sex.FEMALE)))) assertTrue(bodyRows(c).all { it.enabled && it.why == null }, "${bodyRows(c)}")
+
+        // Shape 2 (Curvy), Style 5, Density 3 (75%), with the arrows
+        tapNext(m, "Shape", 2); tapNext(m, "Style", 5); tapNext(m, "Density", 3)
+        assertEquals(Body(2, 5, 3), m.appearance.body)
+        assertEquals(listOf("Curvy", "5", "75%"), bodyRows(m).map { it.chosen.name })
+
+        // what the Dresser makes of it: the design as the dress's layer, the shape's morph and the square for Native.body
+        val look = m.resolved(tables, store)
+        val design = assertNotNull(store.bodyLayer(1, 5, 3))
+        assertEquals(TextureLayer(design, -1, 1, LookResolver.BODY_LAYER, null, null, 1), look.layers.single { it.layer == LookResolver.BODY_LAYER })
+        assertTrue(design in look.needsFiles)
+        assertTrue(look.diagnostics.none { it.contains("Shape") || it.contains("Style") }, "${look.diagnostics}")
+        val call = Dressing.call(tables, Dressing.layout(catalog, tables, m.appearance), look)
+        assertTrue(design in call.layerFiles.toList() || call.skipped.any { it.startsWith("file $design") }, "the design reaches the dress call")
+        val body = Dressing.body(root, m.appearance, store.hasBody())
+        val morph = assertNotNull(body.morph)
+        assertEquals(base.size * BodyShapes.STRIDE, morph.size)
+        assertEquals(0.02f, morph[1 * BodyShapes.STRIDE + 3], 1e-6f)         // Curvy's chest
+        assertEquals(BodyShapes.frame(1)!!.k, body.k); assertEquals(BodyShapes.frame(1)!!.fold, body.fold)
+        // Voluptuous moves more; As drawn moves nothing
+        tapNext(m, "Shape")
+        assertTrue(Dressing.body(root, m.appearance, true).morph!![1 * BodyShapes.STRIDE + 3] > 0.04f)
+        tapNext(m, "Shape")
+        assertEquals(0, m.appearance.body.shape); assertNull(Dressing.body(root, m.appearance, true).morph)
+    }
+
+    @Test fun aRaceWithoutShapesSaysSoAndKeepsItsLayer() {
+        val root = tmp()
+        val store = ImportStore(root, names)
+        store.importZip(ImportKind.BODY, ByteArrayInputStream(pack(threeShapes, race = "Human" to 1, layerOnly = listOf("Orc" to 2))), "wrathpp-body.zip")
+        val m = CreatorModel(catalog, Appearance(1, Sex.FEMALE))
+        tapNext(m, "Shape", 2); tapNext(m, "Style", 5); tapNext(m, "Density", 3)
+        // to the orc woman: Wrath++ has no shapes for her yet: As drawn, the Shape row greyed saying so; Style and Density kept
+        m.setRace(2)
+        assertEquals(Body(0, 5, 3), m.appearance.body)
+        val rows = bodyRows(m)
+        assertEquals(listOf(false, true, true), rows.map { it.enabled })
+        assertEquals(CreatorModel.NOT_FOR_RACE, rows[0].why)
+        tapNext(m, "Shape"); assertEquals(0, m.appearance.body.shape)
+        tapNext(m, "Density"); assertEquals(Body(0, 5, 4), m.appearance.body)
+        val b = Dressing.body(root, m.appearance, store.hasBody())
+        assertNull(b.morph); assertEquals(BodyShapes.frame(2)!!.k, b.k)
+        assertEquals(store.bodyLayer(2, 5, 4), m.resolved(tables, store).layers.single { it.layer == LookResolver.BODY_LAYER }.fileId)
+        // a race the package hasn't at all (no designs either): every row says so
+        val noOrc = ImportStore(tmp(), names).also { it.importZip(ImportKind.BODY, ByteArrayInputStream(pack(threeShapes, race = "Human" to 1)), "x") }
+        val orc = CreatorModel(catalog, Appearance(2, Sex.FEMALE)).also { it.bodySource = noOrc }
+        assertTrue(bodyRows(orc).all { !it.enabled && it.why == CreatorModel.NOT_FOR_RACE })
+    }
+
+    @Test fun aPackageZippedAgainInsideAFolderIsTakenIn() {
+        val root = tmp()
+        val store = ImportStore(root, names)
+        store.importZip(ImportKind.BODY, ByteArrayInputStream(pack(threeShapes, race = "Human" to 1, folder = "wrathpp-body/")), "body.zip")
+        assertNotNull(BodyShapes.load(root, 1, 2))
+        assertEquals(ImportStore.BodySummary(setOf(1), setOf(1)), store.bodySummary())
     }
 
     /**

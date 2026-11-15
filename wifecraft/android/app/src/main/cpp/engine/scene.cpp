@@ -314,10 +314,22 @@ Scene::ModelGl* Scene::model(uint32_t fileId) {
     auto m = std::make_unique<ModelGl>();
     m->model = std::make_unique<M2Model>();
     m->ok = m->model->load(fileId, files_);
-    if (m->ok && glReady_) uploadModel(*m);
-    ModelGl* raw = m->ok ? m.get() : nullptr;
+    if (!m->ok) {
+        // not kept: a file still on its way (the skin, the skeleton) lets the next try read it
+        modelErrors_[fileId] = m->model->error.empty() ? "model file " + std::to_string(fileId) + " couldn't be read" : m->model->error;
+        std::fprintf(stderr, "model %u: %s\n", fileId, modelErrors_[fileId].c_str());
+        return nullptr;
+    }
+    modelErrors_.erase(fileId);
+    if (glReady_) uploadModel(*m);
+    ModelGl* raw = m.get();
     models_[fileId] = std::move(m);
     return raw;
+}
+
+std::string Scene::modelError(uint32_t fileId) const {
+    auto it = modelErrors_.find(fileId);
+    return it == modelErrors_.end() ? std::string() : it->second;
 }
 
 void Scene::uploadModel(ModelGl& m) {
@@ -616,6 +628,16 @@ void Scene::dressModels(Actor& a) {
             e.boneMap.push_back(b.nameCrc && f != byName.end() ? f->second : -1);
         }
         e.geosets = skinnedGeosets(*m->model, a.groups);
+        // the choices' own geosets on it (several choices name one collection: each its own), whatever the groups say
+        for (const DressModel& o : a.models) {
+            if (o.model != d.model || o.attachment >= 0 || o.geoset <= 0 || o.geoset % 100 == 0) continue;
+            uint16_t id = uint16_t(o.geoset);
+            bool has = false;
+            for (const M2Submesh& sm : m->model->submeshes) if (sm.id == id) { has = true; break; }
+            if (!has || std::find(e.geosets.begin(), e.geosets.end(), id) != e.geosets.end()) continue;
+            if (e.geosets.size() == 1 && e.geosets[0] == 0xFFFF) e.geosets.clear();
+            e.geosets.push_back(id);
+        }
         a.skinned.push_back(std::move(e));
     }
 }

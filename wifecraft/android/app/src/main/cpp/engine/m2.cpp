@@ -22,12 +22,119 @@ M2Track readTrack(const Reader& r, size_t off) {
 
 float unpackShort(int16_t s) { return float(s < 0 ? s + 32768 : s - 32767) / 32767.0f; }
 
+// The sequences of an M2Array at `a` (the model's, or a skeleton's SKS1), marked as `src`'s.
+void readSequences(const Reader& r, M2Array a, uint8_t src, std::vector<M2Sequence>& out) {
+    for (uint32_t i = 0; i < a.count; ++i) {
+        size_t o = a.offset + i * kSequenceSize;
+        if (!r.has(o, kSequenceSize)) break;
+        M2Sequence s;
+        s.id = r.u16(o); s.variation = r.u16(o + 2); s.duration = r.u32(o + 4);
+        s.moveSpeed = r.f32(o + 8); s.flags = r.u32(o + 12);
+        s.blendIn = r.u16(o + 28);
+        s.variationNext = r.i16(o + 60); s.aliasNext = r.u16(o + 62);
+        s.src = src; s.srcIndex = uint16_t(i);
+        out.push_back(s);
+    }
+}
+
+// The bones of an M2Array at `a` (the model's, or a skeleton's SKB1), their tracks marked as `src`'s.
+void readBones(const Reader& r, M2Array a, uint8_t src, std::vector<M2Bone>& out) {
+    for (uint32_t i = 0; i < a.count; ++i) {
+        size_t o = a.offset + i * kBoneSize;
+        if (!r.has(o, kBoneSize)) break;
+        M2Bone b;
+        b.keyBoneId = r.i32(o); b.flags = r.u32(o + 4); b.parent = r.i16(o + 8); b.nameCrc = r.u32(o + 12);
+        b.translation = readTrack(r, o + 16);
+        b.rotation = readTrack(r, o + 16 + kTrackSize);
+        b.scale = readTrack(r, o + 16 + 2 * kTrackSize);
+        b.translation.src = b.rotation.src = b.scale.src = src;
+        b.pivot = V3(r.f32(o + 76), r.f32(o + 80), r.f32(o + 84));
+        out.push_back(b);
+    }
+}
+
+void readAttachments(const Reader& r, M2Array a, M2Array lookup, std::vector<M2Attachment>& out, std::vector<int16_t>& outLookup) {
+    for (uint32_t i = 0; i < a.count; ++i) {
+        size_t o = a.offset + i * 40;
+        if (!r.has(o, 40)) break;
+        out.push_back({r.u32(o), r.u16(o + 4), V3(r.f32(o + 8), r.f32(o + 12), r.f32(o + 16))});
+    }
+    for (uint32_t i = 0; i < lookup.count; ++i) outLookup.push_back(r.i16(lookup.offset + 2 * i));
+}
+
 } // namespace
+
+// A .skel: SKS1 (global loops, sequences), SKB1 (bones; their tracks' offsets count from SKB1's data), SKA1 (attachments),
+// SKPD (its parent skeleton) and AFID (the animation files of its sequences). Offsets in each chunk count from its data.
+bool M2Model::loadSkel(uint32_t id, const FileLookup& files, Skel& out, uint8_t src) {
+    std::string path = files(id);
+    if (path.empty() || !readFile(path, out.data)) { error = "skeleton file " + std::to_string(id) + " isn't here"; return false; }
+    Reader whole(out.data);
+    bool haveBones = false;
+    for (const Chunk& c : chunks(whole, 0, out.data.size())) {
+        Reader cr(out.data.data() + c.offset, c.size);
+        if (c.tag == tag("SKS1")) {
+            M2Array loops = readArray(cr, 0);
+            for (uint32_t i = 0; i < loops.count; ++i) out.loops.push_back(cr.u32(loops.offset + 4 * i));
+            readSequences(cr, readArray(cr, 8), src, out.sequences);
+        } else if (c.tag == tag("SKB1")) {
+            out.skb = c.offset;
+            Reader br(out.data.data() + c.offset, out.data.size() - c.offset);
+            readBones(br, readArray(br, 0), src, out.bones);
+            haveBones = true;
+        } else if (c.tag == tag("SKA1")) {
+            readAttachments(cr, readArray(cr, 0), readArray(cr, 8), out.attachments, out.attachmentLookup);
+        } else if (c.tag == tag("SKPD")) {
+            if (c.size >= 12) out.parent = cr.u32(8);
+        } else if (c.tag == tag("AFID")) {
+            for (uint32_t i = 0; i + 8 <= c.size; i += 8)
+                out.afid.push_back({uint32_t(cr.u16(i)) | uint32_t(cr.u16(i + 2)) << 16, cr.u32(i + 4)});
+        }
+    }
+    if (!haveBones) { error = "skeleton file " + std::to_string(id) + " has no bones (SKB1)"; return false; }
+    return true;
+}
+
+// A child skeleton (SKPD: Lightforged on Draenei, Mechagnome on Gnome...) keeps the bones (the same, in the same order)
+// and the sequences it changes; the rest it plays from its parent. Each of its sequences whose keys are in neither it nor
+// an animation file of its own takes the parent's of the same animation and variation; the parent's that it lacks are
+// added; the parent's aliases and variations are pointed at the merged list.
+void M2Model::mergeParentSequences() {
+    auto key = [](const M2Sequence& s) { return uint32_t(s.id) | uint32_t(s.variation) << 16; };
+    std::map<uint32_t, int> parentByKey;
+    for (size_t j = 0; j < parent_.sequences.size(); ++j) parentByKey.emplace(key(parent_.sequences[j]), int(j));
+    std::map<uint32_t, bool> ownFile;
+    for (auto& e : skel_.afid) if (e.second) ownFile[e.first] = true;
+    std::map<uint32_t, int> childKeys;
+    for (size_t i = 0; i < sequences.size(); ++i) {
+        M2Sequence& s = sequences[i];
+        childKeys.emplace(key(s), int(i));
+        bool own = (s.flags & 0x20) || (s.flags & 0x40) || ownFile.count(key(s));
+        auto it = parentByKey.find(key(s));
+        if (own || it == parentByKey.end()) continue;
+        M2Sequence p = parent_.sequences[size_t(it->second)];
+        sequences[i] = p;
+    }
+    for (size_t j = 0; j < parent_.sequences.size(); ++j)
+        if (!childKeys.count(key(parent_.sequences[j]))) sequences.push_back(parent_.sequences[j]);
+    std::map<uint32_t, int> merged;
+    for (size_t i = 0; i < sequences.size(); ++i) merged.emplace(key(sequences[i]), int(i));
+    auto remap = [&](int parentIndex) -> int {
+        if (parentIndex < 0 || size_t(parentIndex) >= parent_.sequences.size()) return -1;
+        auto it = merged.find(key(parent_.sequences[size_t(parentIndex)]));
+        return it == merged.end() ? -1 : it->second;
+    };
+    for (M2Sequence& s : sequences) {
+        if (s.src != 2) continue;
+        if (s.flags & 0x40) { int a = remap(s.aliasNext); if (a >= 0) s.aliasNext = uint16_t(a); else s.flags &= ~0x40u; }
+        s.variationNext = int16_t(remap(s.variationNext));
+    }
+}
 
 bool M2Model::load(uint32_t id, const FileLookup& files) {
     fileId = id;
     std::string path = files(id);
-    if (path.empty() || !readFile(path, file_)) return false;
+    if (path.empty() || !readFile(path, file_)) { error = "model file " + std::to_string(id) + " isn't here"; return false; }
     Reader whole(file_);
 
     std::vector<uint32_t> skinIds, texIds;
@@ -43,38 +150,19 @@ bool M2Model::load(uint32_t id, const FileLookup& files) {
             else if (c.tag == tag("AFID"))
                 for (uint32_t i = 0; i + 8 <= c.size; i += 8)
                     afid_.push_back({uint32_t(cr.u16(i)) | uint32_t(cr.u16(i + 2)) << 16, cr.u32(i + 4)});
+            else if (c.tag == tag("SKID") && c.size >= 4) skeletonId = cr.u32(0);
         }
-        if (!found) return false;
+        if (!found) { error = "model file " + std::to_string(id) + " has no MD21 chunk"; return false; }
     }
     Reader r(file_.data() + base_, file_.size() - base_);
-    if (r.u32(0) != tag("MD20")) return false;
+    if (r.u32(0) != tag("MD20")) { error = "model file " + std::to_string(id) + " isn't an M2"; return false; }
     flags = r.u32(16);
 
     M2Array a = readArray(r, 20);
     for (uint32_t i = 0; i < a.count; ++i) globalLoops.push_back(r.u32(a.offset + 4 * i));
 
-    a = readArray(r, 28);
-    for (uint32_t i = 0; i < a.count; ++i) {
-        size_t o = a.offset + i * kSequenceSize;
-        M2Sequence s;
-        s.id = r.u16(o); s.variation = r.u16(o + 2); s.duration = r.u32(o + 4);
-        s.moveSpeed = r.f32(o + 8); s.flags = r.u32(o + 12);
-        s.blendIn = r.u16(o + 28);
-        s.variationNext = r.i16(o + 60); s.aliasNext = r.u16(o + 62);
-        sequences.push_back(s);
-    }
-
-    a = readArray(r, 44);
-    for (uint32_t i = 0; i < a.count; ++i) {
-        size_t o = a.offset + i * kBoneSize;
-        M2Bone b;
-        b.keyBoneId = r.i32(o); b.flags = r.u32(o + 4); b.parent = r.i16(o + 8); b.nameCrc = r.u32(o + 12);
-        b.translation = readTrack(r, o + 16);
-        b.rotation = readTrack(r, o + 16 + kTrackSize);
-        b.scale = readTrack(r, o + 16 + 2 * kTrackSize);
-        b.pivot = V3(r.f32(o + 76), r.f32(o + 80), r.f32(o + 84));
-        bones.push_back(b);
-    }
+    readSequences(r, readArray(r, 28), 0, sequences);
+    readBones(r, readArray(r, 44), 0, bones);
 
     a = readArray(r, 60);
     vertices.resize(a.count);
@@ -115,21 +203,29 @@ bool M2Model::load(uint32_t id, const FileLookup& files) {
     for (uint32_t i = 0; i < a.count; ++i) weightCombos.push_back(r.u16(a.offset + 2 * i));
     boundsMin = V3(r.f32(160), r.f32(164), r.f32(168));
     boundsMax = V3(r.f32(172), r.f32(176), r.f32(180));
-    a = readArray(r, 240);
-    for (uint32_t i = 0; i < a.count; ++i) {
-        size_t o = a.offset + i * 40;
-        attachments.push_back({r.u32(o), r.u16(o + 4), V3(r.f32(o + 8), r.f32(o + 12), r.f32(o + 16))});
+    readAttachments(r, readArray(r, 240), readArray(r, 248), attachments, attachmentLookup);
+
+    // Today's models keep their skeleton apart (SKID: bones, sequences, attachments, animation files), its parent's too.
+    if (skeletonId) {
+        if (!loadSkel(skeletonId, files, skel_, 1)) return false;
+        if (bones.empty()) bones = skel_.bones;
+        if (sequences.empty()) sequences = skel_.sequences;
+        if (attachments.empty()) { attachments = skel_.attachments; attachmentLookup = skel_.attachmentLookup; }
+        afid_.insert(afid_.end(), skel_.afid.begin(), skel_.afid.end());
+        parentSkeletonId = skel_.parent;
+        // the parent's keys serve only bones laid out as its own; without it the skeleton's own sequences still play
+        if (parentSkeletonId && loadSkel(parentSkeletonId, files, parent_, 2) && parent_.bones.size() == bones.size()) mergeParentSequences();
+        else parent_ = Skel();
+        error.clear();
     }
-    a = readArray(r, 248);
-    for (uint32_t i = 0; i < a.count; ++i) attachmentLookup.push_back(r.i16(a.offset + 2 * i));
 
     // The first (most detailed) skin.
-    if (skinIds.empty() || !skinIds[0]) return false;
+    if (skinIds.empty() || !skinIds[0]) { error = "model " + std::to_string(id) + " names no skin (SFID)"; return false; }
     Bytes skin;
     std::string skinPath = files(skinIds[0]);
-    if (skinPath.empty() || !readFile(skinPath, skin)) return false;
+    if (skinPath.empty() || !readFile(skinPath, skin)) { error = "skin file " + std::to_string(skinIds[0]) + " isn't here"; return false; }
     Reader s(skin);
-    if (s.u32(0) != tag("SKIN")) return false;
+    if (s.u32(0) != tag("SKIN")) { error = "skin file " + std::to_string(skinIds[0]) + " isn't a skin"; return false; }
     M2Array lookup = readArray(s, 4), tris = readArray(s, 12), subs = readArray(s, 28), bats = readArray(s, 36);
     indices.reserve(tris.count);
     for (uint32_t i = 0; i < tris.count; ++i) {
@@ -184,7 +280,7 @@ void M2Model::ensureSequence(int seq, const FileLookup& files) {
     int d = dataSequence(seq);
     if (d < 0 || size_t(d) >= sequences.size() || sequenceReady(d)) return;
     uint32_t key = uint32_t(sequences[d].id) | uint32_t(sequences[d].variation) << 16;
-    for (auto& e : afid_) {
+    for (auto& e : sequences[d].src == 2 ? parent_.afid : afid_) {
         if (e.first != key || !e.second) continue;
         std::string path = files(e.second);
         Bytes b;
@@ -204,17 +300,24 @@ void M2Model::ensureSequence(int seq, const FileLookup& files) {
 bool M2Model::keys(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs,
                    const uint8_t*& data, size_t& dataSize, uint32_t& tsOff, uint32_t& valOff,
                    uint32_t& count, uint32_t& time) const {
-    Reader r(file_.data() + base_, file_.size() - base_);
+    // the track's own file: the model, its skeleton or the skeleton's parent
+    const Skel* sk = t.src == 1 ? &skel_ : t.src == 2 ? &parent_ : nullptr;
+    Reader r = sk ? Reader(sk->data.data() + sk->skb, sk->data.size() - sk->skb) : Reader(file_.data() + base_, file_.size() - base_);
+    const std::vector<uint32_t>& loops = sk ? sk->loops : globalLoops;
     uint32_t idx;
+    int animKey = 0;
     bool inModel;
     if (t.globalSeq != 0xFFFF) {
         idx = 0; inModel = true;
-        uint32_t loop = t.globalSeq < globalLoops.size() ? globalLoops[t.globalSeq] : 0;
+        uint32_t loop = t.globalSeq < loops.size() ? loops[t.globalSeq] : 0;
         time = loop ? globalMs % loop : 0;
     } else {
         int d = dataSequence(seq);
         if (d < 0 || size_t(d) >= sequences.size()) return false;
-        idx = uint32_t(d);
+        // a skeleton's track holds keys for its own file's sequences only
+        if (sk && sequences[d].src != t.src) return false;
+        idx = sk ? sequences[d].srcIndex : uint32_t(d);
+        animKey = d;
         inModel = (sequences[d].flags & 0x20) != 0;
         time = timeMs;
     }
@@ -225,9 +328,9 @@ bool M2Model::keys(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs
     if (inModel) {
         data = r.data; dataSize = r.size; tsOff = ts.offset; valOff = vs.offset;
     } else {
-        auto it = animFiles_.find(int(idx));
+        auto it = animFiles_.find(animKey);
         if (it == animFiles_.end()) return false;
-        size_t b = animBase_.at(int(idx));
+        size_t b = animBase_.at(animKey);
         data = it->second.data() + b; dataSize = it->second.size() - b;
         tsOff = ts.offset; valOff = vs.offset;
     }
@@ -291,8 +394,11 @@ float M2Model::evalShort(const M2Track& t, int seq, uint32_t timeMs, uint32_t gl
 
 void M2Model::pose(int seq, uint32_t timeMs, uint32_t globalMs, std::vector<BonePose>& out) const {
     out.resize(bones.size());
+    // a sequence the parent skeleton plays moves the bones by the parent's tracks (the same bones, in the same order)
+    int d = dataSequence(seq);
+    bool fromParent = d >= 0 && size_t(d) < sequences.size() && sequences[d].src == 2 && parent_.bones.size() == bones.size();
     for (size_t i = 0; i < bones.size(); ++i) {
-        const M2Bone& b = bones[i];
+        const M2Bone& b = fromParent ? parent_.bones[i] : bones[i];
         out[i].t = evalV3(b.translation, seq, timeMs, globalMs, V3(0, 0, 0));
         out[i].r = evalQuat(b.rotation, seq, timeMs, globalMs);
         out[i].s = evalV3(b.scale, seq, timeMs, globalMs, V3(1, 1, 1));

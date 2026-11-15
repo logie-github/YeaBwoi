@@ -91,6 +91,10 @@ JNIEXPORT jint JNICALL FN(addActor)(JNIEnv* env, jclass, jlong h, jint model, ji
     return scene(h)->addActor(uint32_t(model), textureMap(env, texKeys, texValues), geo, scale);
 }
 
+JNIEXPORT jstring JNICALL FN(modelError)(JNIEnv* env, jclass, jlong h, jint model) {
+    return env->NewStringUTF(scene(h)->modelError(uint32_t(model)).c_str());
+}
+
 JNIEXPORT void JNICALL FN(attach)(JNIEnv* env, jclass, jlong h, jint id, jint attachment, jint model, jintArray texKeys, jintArray texValues) {
     scene(h)->attach(id, uint32_t(attachment), uint32_t(model), textureMap(env, texKeys, texValues));
 }
@@ -98,7 +102,7 @@ JNIEXPORT void JNICALL FN(attach)(JNIEnv* env, jclass, jlong h, jint id, jint at
 // The whole look of a standing person, changed in place (Native.dress documents the arrays).
 JNIEXPORT void JNICALL FN(dress)(JNIEnv* env, jclass, jlong h, jint id, jintArray geosetKeys, jintArray geosetValues,
                                  jintArray layerFiles, jintArray layerMeta, jintArray tintColours, jintArray extraModels) {
-    constexpr size_t kMeta = 9, kTints = 2, kExtra = 3;
+    constexpr size_t kMeta = 9, kTints = 2, kExtra = 4;
     std::map<int, int> geo;
     auto gk = ints(env, geosetKeys), gv = ints(env, geosetValues);
     for (size_t i = 0; i < gk.size() && i < gv.size(); ++i) geo[gk[i]] = gv[i];
@@ -116,7 +120,7 @@ JNIEXPORT void JNICALL FN(dress)(JNIEnv* env, jclass, jlong h, jint id, jintArra
     }
     auto ex = ints(env, extraModels);
     std::vector<DressModel> models;
-    for (size_t i = 0; i + kExtra <= ex.size(); i += kExtra) models.push_back({ex[i], uint32_t(ex[i + 1]), uint32_t(ex[i + 2])});
+    for (size_t i = 0; i + kExtra <= ex.size(); i += kExtra) models.push_back({ex[i], uint32_t(ex[i + 1]), uint32_t(ex[i + 2]), ex[i + 3]});
     scene(h)->dress(id, geo, layers, models);
 }
 

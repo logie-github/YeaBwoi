@@ -20,6 +20,8 @@ object Native {
         scene: Long, model: Int, texKeys: IntArray, texValues: IntArray,
         geoKeys: IntArray, geoValues: IntArray, scale: Float,
     ): Int
+    /** Why [addActor] couldn't read [model] the last time (the file, its skin or skeleton, and what of it), "" when it could. */
+    @JvmStatic external fun modelError(scene: Long, model: Int): String
     @JvmStatic external fun attach(scene: Long, actor: Int, attachment: Int, model: Int, texKeys: IntArray, texValues: IntArray)
     /**
      * Changes a standing actor's whole look in place (the creator calls it per tap); its place,
@@ -38,7 +40,8 @@ object Native {
      *   multiplies the layer's colour; with the second, the layer's colour maps second (dark) to first (light).
      * - [extraModels]: [EXTRA] ints per model: attachment point (-1: skinned to the body's bones, a
      *   ChrCustomizationSkinnedModel's collection model, showing only the geosets the look's groups set),
-     *   model file id, texture file id for its replaceable slots the body's textures don't fill (0: none).
+     *   model file id, texture file id for its replaceable slots the body's textures don't fill (0: none), and the
+     *   skinned model's own geoset (group × 100 + id, 0: none), shown on it whatever the groups say.
      */
     @JvmStatic external fun dress(
         scene: Long, actor: Int, geosetKeys: IntArray, geosetValues: IntArray,
@@ -48,7 +51,7 @@ object Native {
     /** Ints per layer in [dress]'s layerMeta, per layer in its tintColours, per model in its extraModels. */
     const val LAYER_META = 9
     const val LAYER_TINTS = 2
-    const val EXTRA = 3
+    const val EXTRA = 4
 
     /** A tint for [dress]'s tintColours: 0xRRGGBB (null: none). */
     @JvmStatic fun tint(rgb: Int?): Int = if (rgb == null) 0 else (0xFF000000.toInt() or (rgb and 0xFFFFFF))

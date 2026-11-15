@@ -90,7 +90,8 @@ fun ImportsSection(store: ImportStore, names: ListfileNames, modifier: Modifier 
     // a zip found by its name is taken in by itself (not after Remove, not over a zip picked by hand)
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
-            for (kind in ImportKind.values()) runCatching {
+            // the body options first: they need no file list, so a texture set's 150 MB fetch never holds them up
+            for (kind in ImportKind.values().sortedBy { it.textures }) runCatching {
                 val found = AndroidFinder.find(kind) ?: return@runCatching
                 if (kind.textures && !names.available()) names.refresh()
                 store.lookFor(kind, found)
@@ -111,7 +112,10 @@ fun ImportsSection(store: ImportStore, names: ListfileNames, modifier: Modifier 
                         busy == kind -> "Importing…"
                         s.installed && kind.textures -> "Imported: ${s.files} textures from ${s.source ?: "a zip"}" +
                             (if (s.unmatched > 0) " (${s.unmatched} not in the game's file list)" else "") + if (s.active) ", in use" else ", off (the other set is on)"
-                        s.installed -> "Imported: ${s.files} files from ${s.source ?: "a zip"}"
+                        s.installed -> "Imported: ${s.files} files from ${s.source ?: "a zip"}" + (store.bodySummary()?.let { b ->
+                            "; shapes: " + (if (b.shapes.isEmpty()) "none" else b.shapes.joinToString(", ") { raceName(it) }) +
+                                "; Style and Density: " + (if (b.layers.isEmpty()) "none" else "${b.layers.size} races")
+                        } ?: "")
                         s.removed -> "Removed"
                         else -> "Not imported"
                     },
@@ -131,7 +135,13 @@ fun ImportsSection(store: ImportStore, names: ListfileNames, modifier: Modifier 
                 }
             }
         }
-        Text("Textures are matched to the game's files by name with its file list (fetched once, about 150 MB).", style = frizStyle(11.sp, WowColors.grey))
+        Text("Textures are matched to the game's files by name with its file list (fetched once, about 150 MB); the body options need no list.", style = frizStyle(11.sp, WowColors.grey))
         message?.let { Text(it, style = frizStyle(12.sp, androidx.compose.ui.graphics.Color(0xFFFF6A5A))) }
     }
+}
+
+/** The ten races of 3.3.5 the body options are made for, by id (races.json). */
+private fun raceName(id: Int): String = when (id) {
+    1 -> "Human"; 2 -> "Orc"; 3 -> "Dwarf"; 4 -> "Night Elf"; 5 -> "Undead"; 6 -> "Tauren"; 7 -> "Gnome"; 8 -> "Troll"
+    10 -> "Blood Elf"; 11 -> "Draenei"; else -> "race $id"
 }

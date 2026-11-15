@@ -29,6 +29,7 @@ struct DressModel {
     int attachment = -1;
     uint32_t model = 0;
     uint32_t texture = 0;     // fills the model's replaceable textures the person's don't (0: none)
+    int geoset = 0;           // a skinned model's own geoset (group * 100 + id; 0: none), shown whatever the groups say
 };
 
 // The look's layer that is the body options' design (creator/LookResolver.BODY_LAYER), not a layer of the skin.
@@ -77,6 +78,8 @@ public:
 
     // A person. `geosetGroups` (group -> value) makes the model a character race's: its default
     // geosets, then each listed group showing only that value (0: none). Empty: every geoset.
+    // Why the model couldn't be read the last time it was asked for ("" when it could, or wasn't asked for).
+    std::string modelError(uint32_t fileId) const;
     int addActor(uint32_t modelFileId, const std::map<uint32_t, uint32_t>& textures,
                  const std::map<int, int>& geosetGroups, float scale);
     // A model hung on one of an actor's attachment points (shoulders, a helm, a weapon).
@@ -209,6 +212,7 @@ private:
     unsigned m2Prog_ = 0, wmoProg_ = 0, skyProg_ = 0, skyVao_ = 0, skyVbo_ = 0, white_ = 0;
     std::unordered_map<uint64_t, GlTexture> textures_;
     std::unordered_map<uint32_t, std::unique_ptr<ModelGl>> models_;
+    std::unordered_map<uint32_t, std::string> modelErrors_;   // why a model couldn't be read (tried again on next use)
     std::map<int, Actor> actors_;
     int nextActor_ = 1;
 

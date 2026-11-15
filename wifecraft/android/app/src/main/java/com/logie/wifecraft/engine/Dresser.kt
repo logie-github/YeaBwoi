@@ -42,6 +42,8 @@ class Dresser(
     private val _fetching = MutableStateFlow(Fetching())
     val fetching: StateFlow<Fetching> = _fetching
     private val jobs = HashMap<String, Job>()
+    /** Why the last file wasn't fetched, for the failure the screen shows. */
+    @Volatile private var lastFailure: String? = null
 
     fun dress(scene: SceneView, catalog: Catalog, key: String, a: Appearance) {
         jobs.remove(key)?.cancel()
@@ -55,25 +57,26 @@ class Dresser(
                     fail(e.message ?: e.toString()); null
                 }
             } ?: return@launch
-            scene.dress(key, call.first, call.second)
+            // a model the renderer can't read is said on the screen, never left as an empty stage
+            scene.dress(key, call.first, call.second) { why -> fail(why) }
         }
     }
 
     private suspend fun prepare(catalog: Catalog, a: Appearance): Pair<DressCall, BodyCall>? {
         val look = LookResolver.resolve(catalog, tables, a, overrides)
         if (look.model == 0) { fail("This race has no model in the game's tables."); return null }
-        fetch(look.needsFiles)
+        // the face's bone files aren't drawn yet (and the pinned build has some empty): not waited for
+        fetch(look.needsFiles - look.boneFiles.toSet())
         coroutineContext.ensureActive()
-        if (!files.has(look.model)) return null
-        // what each model needs beside itself: the body's animations are the ones the story plays
-        val models = Dressing.models(look)
-        val deps = LinkedHashSet<Int>()
-        for (m in models) if (files.has(m)) {
-            runCatching { M2Files.deps(files.file(m).readBytes(), if (m == look.model) Emotes.all else emptySet()) }
-                .getOrNull()?.let { deps += it }
+        if (!files.has(look.model)) { fail("The model (file ${look.model}) couldn't be fetched: ${lastFailure ?: "wago.tools didn't give it"}."); return null }
+        // what each model needs beside itself (its skin, textures, skeleton and the skeleton's parent, their animation
+        // files): the body's animations are the ones the story plays
+        val read = { id: Int -> if (files.has(id)) runCatching { files.file(id).readBytes() }.getOrNull() else null }
+        for (m in Dressing.models(look)) {
+            M2Files.closure(m, if (m == look.model) Emotes.all else emptySet(), read) { fetch(it) }
+            coroutineContext.ensureActive()
         }
-        fetch(deps)
-        coroutineContext.ensureActive()
+        // a skin or skeleton that didn't come is said by the renderer (SceneView.dress's onFail: Native.modelError)
         val body = try {
             Dressing.body(files.dir.parentFile!!, a, overrides.hasBody())
         } catch (e: Exception) {
@@ -91,6 +94,7 @@ class Dresser(
             try {
                 files.fetchNow(id)
             } catch (e: Exception) {
+                lastFailure = e.message ?: e.toString()
                 update { it.copy(error = "File $id couldn't be fetched: ${e.message ?: e}") }
             }
             update { f -> (f.done + 1).let { d -> if (d >= f.total) Fetching(error = f.error) else f.copy(done = d) } }
