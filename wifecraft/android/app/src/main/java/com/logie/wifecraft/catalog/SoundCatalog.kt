@@ -52,14 +52,18 @@ class SoundCatalog(private val t: Tables, private val kitFiles: (Int) -> List<In
 
     private fun files(kit: Int): List<Int> = if (kit <= 0) emptyList() else kitFiles(kit)
 
-    /** A place's sound (null: no such area). */
-    fun location(areaId: Int): LocationAudio? {
+    /**
+     * A place's sound (null: no such area). [zoneMusic] and [ambience] (a ZoneMusic id, a SoundAmbience id) take the place
+     * of the area's own where given: a building's rooms (a WMO's WMOAreaTable) have their own music over the area's, as the
+     * Stormwind Embassy (area 9171: the AreaTable row has none and would give Stormwind City's) has ZoneMusic 1929.
+     */
+    fun location(areaId: Int, zoneMusic: Int = 0, ambience: Int = 0): LocationAudio? {
         val a = areas[areaId] ?: return null
         // the area, then its parents, for a field the area leaves at 0
         val chain = generateSequence(a) { r -> r.int("ParentAreaID").takeIf { it != 0 && it != r.int("ID") }?.let { areas[it] } }.take(8).toList()
         fun first(col: String) = chain.firstNotNullOfOrNull { r -> r.int(col).takeIf { it != 0 } } ?: 0
-        val amb = ambiences[first("AmbienceID")]
-        val zm = music[first("ZoneMusic")]
+        val amb = ambiences[ambience.takeIf { it != 0 } ?: first("AmbienceID")]
+        val zm = music[zoneMusic.takeIf { it != 0 } ?: first("ZoneMusic")]
         val intro = intros[first("IntroSound")]
         val fl = amb?.let { flavors[it.int("ID")] }.orEmpty()
         return LocationAudio(
@@ -131,6 +135,28 @@ class SoundCatalog(private val t: Tables, private val kitFiles: (Int) -> List<In
             "CreatureSoundDataIDPet", "NPCSoundID")
 
         internal fun label(col: String): String = col.removePrefix("Sound").removeSuffix("SoundID").removeSuffix("ID")
+
+        /**
+         * Every sound kit the editor can ask for, read from the tables alone (no SoundKitEntry): the kits of every
+         * ZoneMusic, SoundAmbience, flavour and intro row, every CreatureSoundData kit column,
+         * NPCSounds' four and the ObjectEffects' sound kits. [audio.SoundIndex] keeps only these out of SoundKitEntry's
+         * 1.3 million rows.
+         */
+        fun usedKits(t: Tables): Set<Int> {
+            fun Map<String, String>.i(k: String) = this[k]?.toDoubleOrNull()?.toInt() ?: 0
+            val kits = HashSet<Int>()
+            fun add(rows: String, vararg cols: String) { for (r in t.rows(rows)) for (c in cols) r.i(c).takeIf { it > 0 }?.let { kits += it } }
+            // every row of the places' tables, not only the areas': a building's rooms name a ZoneMusic or SoundAmbience of their own (WMOAreaTable)
+            add("ZoneMusic", "Sounds_0", "Sounds_1"); add("SoundAmbience", "AmbienceID_0", "AmbienceID_1")
+            add("SoundAmbienceFlavor", "SoundEntriesIDDay", "SoundEntriesIDNight"); add("ZoneIntroMusicTable", "SoundID")
+            for (r in t.rows("CreatureSoundData")) for (col in r.keys) {
+                if (col in NOT_KITS || col.startsWith("Field_")) continue
+                r.i(col).takeIf { it > 0 }?.let { kits += it }
+            }
+            for (r in t.rows("NPCSounds")) for (i in 0..3) r.i("SoundID_$i").takeIf { it > 0 }?.let { kits += it }
+            for (r in t.rows("ObjectEffect")) if (r.i("EffectRecType") == 1) r.i("EffectRecID").takeIf { it > 0 }?.let { kits += it }
+            return kits
+        }
 
         /** A kit's files from the SoundKitEntry table as rows (tests, the desktop). */
         fun kitIndex(t: Tables): (Int) -> List<Int> {

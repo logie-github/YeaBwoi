@@ -7,14 +7,22 @@ package com.logie.wifecraft.story
  *     # a comment
  *     :label                         a place to jump to
  *     title Chapter I | Morning      a chapter card
- *     scene studio day               cut to a place (assets/places.json), in a light (day, dusk, night)
+ *     scene studio day               cut to a place (assets/places.json), in a light (day, dusk, night);
+ *                                    scene loc:embassy:inside day  a location of assets/locations.json and its view
+ *     place ID KIND ASSET ACTOR X Y Z YAW SCALE ANIM LOOP SOUND
+ *                                    puts a placed thing in the scene (the placement editor's): KIND prop, creature
+ *                                    or npc; ASSET its file or display id (0 for an npc); ACTOR the cast name (npc) or -;
+ *                                    X Y Z in the game's coordinates, YAW in radians; ANIM an animation id or -;
+ *                                    LOOP and SOUND 0 or 1
+ *     anim ID ANIM LOOP              a placed thing plays a game animation (LOOP 0 or 1)
  *     fadeout 600 / fadein 600       to and from black
  *     letterbox on|off               the black bars of a cutscene
  *     cast p_mira left [face p_bob|camera|DEGREES]  puts someone on a place's mark (left, center, right...)
  *     remove p_mira
  *     walk p_mira right 2500 / run p_bob center 1200  move to a mark, taking that long
  *     face p_mira p_bob              turn toward someone (or "camera")
- *     emote p_mira laugh [loop]      an animation by name (talk, laugh, bow, point, ...)
+ *     emote p_mira laugh [loop]      an animation by name (talk, laugh, bow, point, ...); on a placed thing
+ *                                    (`emote ID 123`) the game emote 123 of the emote list
  *     pose p_mira ID                 an imported animation (Import Animations), by its library id; held until
  *                                    the person moves, emotes or is removed
  *     shot bust p_mira 800           the camera: bust WHO, two A B, wide, view NAME (a place's
@@ -49,6 +57,14 @@ sealed interface Command {
     data class Move(val who: String, val mark: String, val ms: Int, val run: Boolean, override val line: Int) : Command
     data class Face(val who: String, val target: String, override val line: Int) : Command
     data class Emote(val who: String, val emote: String, val loop: Boolean, override val line: Int) : Command
+    /** `place ID KIND ASSET ACTOR X Y Z YAW SCALE ANIM LOOP SOUND`: [kind] is "prop", "creature" or "npc" as written. */
+    data class Place(
+        val id: String, val kind: String, val asset: Int, val actor: String?,
+        val x: Float, val y: Float, val z: Float, val yaw: Float, val scale: Float,
+        val anim: Int?, val loop: Boolean, val sound: Boolean, override val line: Int,
+    ) : Command
+    /** `anim ID ANIM LOOP`: the placed thing [id] plays the game animation [anim]. */
+    data class PlaceAnim(val id: String, val anim: Int, val loop: Boolean, override val line: Int) : Command
     /** `pose p_mira ANIM_ID`: the library animation [animId] (anim/AnimLibrary) played on [who] and held. */
     data class Pose(val who: String, val animId: String, override val line: Int) : Command
     data class Shot(val kind: String, val args: List<String>, val ms: Int, override val line: Int) : Command
@@ -129,6 +145,22 @@ class Script(val commands: List<Command>) {
                     words[0] == "emote" -> {
                         if (words.size < 3) fail(n, "emote needs who and an emote")
                         Command.Emote(words[1], words[2], words.getOrNull(3) == "loop", n)
+                    }
+                    words[0] == "place" -> {
+                        if (words.size != 13) fail(n, "place needs ID KIND ASSET ACTOR X Y Z YAW SCALE ANIM LOOP SOUND")
+                        fun f(at: Int): Float = words[at].toFloatOrNull()?.takeIf { it.isFinite() } ?: fail(n, "\"${words[at]}\" isn't a number")
+                        fun flag(at: Int): Boolean = when (words[at]) { "1" -> true; "0" -> false; else -> fail(n, "\"${words[at]}\" isn't 0 or 1") }
+                        val kind = words[2].lowercase()
+                        if (kind != "prop" && kind != "creature" && kind != "npc") fail(n, "\"${words[2]}\" isn't prop, creature or npc")
+                        Command.Place(
+                            words[1], kind, int(3, 0), words[4].takeIf { it != "-" },
+                            f(5), f(6), f(7), f(8), f(9),
+                            if (words[10] == "-") null else int(10, 0), flag(11), flag(12), n,
+                        )
+                    }
+                    words[0] == "anim" -> {
+                        if (words.size != 4) fail(n, "anim needs a placed thing, an animation id and 0 or 1")
+                        Command.PlaceAnim(words[1], int(2, 0), words[3].let { it == "1" || it == "loop" }, n)
                     }
                     words[0] == "pose" -> {
                         if (words.size != 3) fail(n, "pose needs who and an animation id")

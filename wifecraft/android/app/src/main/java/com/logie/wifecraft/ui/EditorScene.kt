@@ -19,6 +19,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,14 +37,19 @@ import com.logie.wifecraft.data.Emotes
 import com.logie.wifecraft.data.Lights
 import com.logie.wifecraft.editor.Beat
 import com.logie.wifecraft.editor.Compile
+import com.logie.wifecraft.editor.PlaceKind
 import com.logie.wifecraft.editor.Project
+import com.logie.wifecraft.editor.Scene
 import com.logie.wifecraft.engine.Placement
 import com.logie.wifecraft.engine.SceneView
+import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
- * The scene builder: the stage (a place and a light) with the cast standing on it as the selected
- * beat leaves them, and the beats in order, to add to, edit, reorder and delete. Play compiles the
- * project to a script that starts at this scene and hands it to [onPlay].
+ * The scene builder: the stage (the studio, a place of Dalaran or a location's view: the Stormwind Embassy inside or
+ * outside) in a light, with what the placement editor put there and the cast standing on it as the selected beat leaves
+ * them, and the beats in order, to add to, edit, reorder and delete. Place things opens the placement editor
+ * ([EditorPlacement]) on the same stage. Play compiles the project to a script that starts at this scene and hands it to
+ * [onPlay].
  */
 @Composable
 fun EditorSceneBuilder(
@@ -56,6 +63,8 @@ fun EditorSceneBuilder(
     onBack: () -> Unit,
     /** The imported animations (Import Animations): what a Pose beat and a Say's emote picker list. */
     animLibrary: AnimLibrary? = null,
+    /** The placement editor's engine (MainActivity's): without it the scene has no locations and no placing. */
+    engine: PlaceEngine? = null,
 ) {
     val sc = project.scenes.firstOrNull { it.id == sceneId }
     if (sc == null) {
@@ -70,17 +79,31 @@ fun EditorSceneBuilder(
     var cityAsked by remember { mutableStateOf(false) }
 
     val anims = remember(sceneId) { runCatching { animLibrary?.list() }.getOrNull().orEmpty() }
-    val place = places.firstOrNull { it.id == sc.stage.place } ?: PlaceInfo.STUDIO
+    val locations = engine?.locations.orEmpty()
+    val stageId = Compile.stageOf(sc)
+    val place = stagePlace(stageId, places, locations)
+    val stageName = StageChoices.name(stageId, places, locations)
     val sel = selected?.takeIf { it in sc.beats.indices }
     val pre = Staging.preview(sc, sel?.plus(1))
+    val status by (engine?.status ?: noStatus).collectAsState()
 
-    // The cast is put on the renderer's stage (again when a look changes).
+    // the placement editor's state, kept while this scene is open
+    var placing by remember(sceneId) { mutableStateOf(false) }
+    val home = remember(stageId) { OrbitCamera.from(place.views.values.firstOrNull() ?: Staging.pose(place, Preview(emptyList(), listOf("wide")))) }
+    var orbit by remember(sceneId, stageId) { mutableStateOf(home) }
+    var placeUi by remember(sceneId) { mutableStateOf(PlaceUi()) }
+    var live by remember(sceneId) { mutableStateOf<com.logie.wifecraft.editor.Placement?>(null) }
+    val placements = sc.placements.map { p -> live?.takeIf { it.id == p.id } ?: p }
+    LaunchedEffect(sc.placements.map { it.id }) { placeUi = placeUi.keepOnly(sc.placements.map { it.id }) }
+
+    // The cast is put on the renderer's stage (again when a look changes); the placed things go with them and come back.
     LaunchedEffect(project.cast) {
         view.removeAll()
+        engine?.reset()
         for (a in project.cast) dress(a.id, a.appearance)
     }
-    // The stage's light, place and camera, and who stands where, as the selected beat leaves them.
-    LaunchedEffect(sc.stage, pre, project.cast) {
+    // The stage: its light, the city (a place of Dalaran) or a location (loaded with its files: the overlay shows them).
+    LaunchedEffect(stageId, sc.stage.light) {
         view.light(Lights.of(sc.stage.light))
         view.showCity(!place.void)
         if (!place.void && !cityAsked && !view.cityLoaded.get()) {
@@ -88,13 +111,35 @@ fun EditorSceneBuilder(
             val m = Staging.allMarks(places)
             view.loadCity(m.flatMap { listOf(it.x, it.y, it.z) }.toFloatArray()) {}
         }
-        val away = Placement(0f, 0f, -1000f, 0f, false)
-        view.frame = Staging.pose(place, pre) to project.cast.associate { a ->
+        engine?.enterStage(stageId, sc.stage.light)
+    }
+    // The placed things on the renderer, as the scene has them (the one being moved as it is now).
+    LaunchedEffect(placements, project.cast, placeUi.hidden) { engine?.sync(placements, project.cast, placeUi.hidden) }
+    // The camera, who stands where as the selected beat leaves them, and the placed people and creatures.
+    val away = Placement(0f, 0f, -1000f, 0f, false)
+    SideEffect {
+        val cam = if (placing) orbit.pose() else Staging.pose(place, pre)
+        val people = project.cast.associate { a ->
             a.id to (pre.shown.firstOrNull { it.actor == a.id }?.let {
                 val s = Staging.standing(place, it.spot)
                 Placement(s.pos.x, s.pos.y, s.pos.z, s.facing)
             } ?: away)
+        } + placements.filter { it.kind != PlaceKind.PROP }.associate { p ->
+            PlaceKeys.of(p.id) to Placement(p.x, p.y, p.z, p.yaw, p.id !in placeUi.hidden)
         }
+        view.frame = cam to people
+    }
+    // the selected placed thing is outlined
+    LaunchedEffect(placing, placeUi.selected) { view.select(if (placing) placeUi.selected?.let(PlaceKeys::of) else null) }
+
+    if (placing && engine != null) {
+        EditorPlacement(
+            project, state, sceneId, view, engine, stageName,
+            camera = orbit, onCamera = { orbit = it }, onResetCamera = { orbit = home },
+            ui = placeUi, onUi = { placeUi = it }, live = live, onLive = { live = it },
+            onDone = { live = null; placing = false },
+        )
+        return
     }
 
     // Who holds which imported pose as the selected beat leaves them (a pose is drawn when the actor is on stage).
@@ -126,13 +171,21 @@ fun EditorSceneBuilder(
             Column(Modifier.weight(1.1f).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(Modifier.weight(1f).fillMaxWidth().background(Color.Black).border(1.dp, Color(0x66FFD100))) {
                     AndroidView({ (view.parent as? ViewGroup)?.removeView(view); view }, Modifier.fillMaxSize())
+                    if (engine != null) PlaceLoading(status, engine::clearErrors, Modifier.align(Alignment.TopCenter))
                 }
-                PickRow("Place", places.map { it.id to it.name }, sc.stage.place, {
-                    state.setStage(sceneId, it, sc.stage.light, places.firstOrNull { p -> p.id == it }?.name ?: it)
+                val stages = StageChoices.list(places, locations)
+                PickRow("Place", stages, stageId, { id ->
+                    state.setStageId(sceneId, id, stages.firstOrNull { it.first == id }?.second ?: id)
                 })
                 PickRow("Light", EditorChoices.lights.map { it to it.replaceFirstChar(Char::uppercase) }, sc.stage.light, {
                     state.setStage(sceneId, sc.stage.place, it, sc.stage.name)
+                    // setStage puts the place in the stage id too: a location keeps its own
+                    if (stageId != sc.stage.place) state.setStageId(sceneId, stageId, stageName)
                 })
+                WowButton(
+                    if (sc.placements.isEmpty()) "Place things" else "Place things (${sc.placements.size})", { placing = true },
+                    Modifier.align(Alignment.CenterHorizontally), enabled = engine != null, width = 260.dp, height = 48.dp,
+                )
             }
             Column(Modifier.weight(1f).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 val list = rememberLazyListState()
@@ -146,11 +199,12 @@ fun EditorSceneBuilder(
                             EditorCard(onClick = { selected = if (sel == i) null else i }, selected = sel == i) {
                                 Text("${i + 1}", style = frizStyle(13.sp, WowColors.grey), modifier = Modifier.width(24.dp))
                                 Text(
-                                    describe(b, state::nameOf) { id -> anims.firstOrNull { it.id == id }?.name ?: id }, style = frizStyle(14.sp, Color.White, false),
+                                    describe(b, state::nameOf, { id -> anims.firstOrNull { it.id == id }?.name ?: id }, { id -> sc.placements.firstOrNull { it.id == id }?.name ?: id }),
+                                    style = frizStyle(14.sp, Color.White, false),
                                     maxLines = if (sel == i) 4 else 2, modifier = Modifier.weight(1f),
                                 )
                             }
-                            if (sel == i) BeatEditor(b, project, sc.id, place, state, i, anims, view) { selected = it }
+                            if (sel == i) BeatEditor(b, project, sc, place, state, i, anims, view, engine) { selected = it }
                         }
                     }
                 }
@@ -199,14 +253,17 @@ fun EditorSceneBuilder(
 private fun BeatEditor(
     beat: Beat,
     project: Project,
-    sceneId: String,
+    scene: Scene,
     place: PlaceInfo,
     state: EditorState,
     index: Int,
     anims: List<com.logie.wifecraft.anim.Anim>,
     view: SceneView,
+    engine: PlaceEngine?,
     onSelect: (Int?) -> Unit,
 ) {
+    val sceneId = scene.id
+    val placed = scene.placements.filter { it.kind != PlaceKind.PROP }
     val cast = project.cast.map { it.id to it.name }
     val scenes = project.scenes.map { it.id to it.name }
     fun put(b: Beat) = state.replaceBeat(sceneId, index, b)
@@ -259,6 +316,28 @@ private fun BeatEditor(
                 }
                 SmallButton("Add option", { put(beat.copy(options = beat.options + Beat.Choice.Option("", scenes.firstOrNull()?.first ?: ""))) }, width = 170.dp)
             }
+            is Beat.Emote, is Beat.Anim -> {
+                val pid = if (beat is Beat.Emote) beat.placementId else (beat as Beat.Anim).placementId
+                if (placed.isEmpty()) Text("Place a person or a creature in this scene first (Place things).", style = frizStyle(13.sp, WowColors.grey, false))
+                PickRow("Who", placed.map { it.id to it.name }, pid.ifEmpty { null }, { id ->
+                    put(if (beat is Beat.Emote) beat.copy(placementId = id) else (beat as Beat.Anim).copy(placementId = id))
+                })
+                val p = placed.firstOrNull { it.id == pid }
+                val emotes = remember(p?.kind, p?.asset, p?.actorId, project.cast) { if (p == null || engine == null) emptyList() else engine.emotesFor(p, project.cast) }
+                if (beat is Beat.Emote) {
+                    PickRow("Emote", emotes.map { it.id.toString() to "${it.name} (${it.category})" }, beat.emoteId.toString(), { put(beat.copy(emoteId = it.toInt())) })
+                    val e = emotes.firstOrNull { it.id == beat.emoteId }
+                    SmallButton("Preview", { if (p != null && e != null) engine?.previewEmote(p, e, project.cast) }, enabled = p != null && e != null, width = 120.dp)
+                } else if (beat is Beat.Anim) {
+                    val byAnim = emotes.filter { it.anim >= 0 }.distinctBy { it.anim }
+                    PickRow("Animation", byAnim.map { it.anim.toString() to "${it.name} (${it.anim})" }, beat.anim.toString(), { put(beat.copy(anim = it.toInt())) })
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        PToggle("Loops", beat.loop, { put(beat.copy(loop = it)) }, width = 110.dp)
+                        val e = byAnim.firstOrNull { it.anim == beat.anim }
+                        SmallButton("Preview", { if (p != null && e != null) engine?.previewEmote(p, e.copy(loop = beat.loop), project.cast) }, enabled = p != null && e != null, width = 120.dp)
+                    }
+                }
+            }
             is Beat.Goto -> PickRow("Scene", scenes, beat.scene.ifEmpty { null }, { put(beat.copy(scene = it)) })
             is Beat.End -> EditorField(beat.title, { put(beat.copy(title = it)) }, "The ending's title")
         }
@@ -270,4 +349,21 @@ private fun BeatEditor(
             SmallButton("Delete", { state.removeBeat(sceneId, index); onSelect(null) }, width = 86.dp)
         }
     }
+}
+
+private val noStatus = MutableStateFlow(PlaceStatus())
+
+/**
+ * The preview's place for a stage: a place of places.json, the studio, or for a location's view the plain stage's marks
+ * (where the story stands the cast, as the player does) with the view's own camera, nothing of Dalaran drawn.
+ */
+fun stagePlace(stageId: String, places: List<PlaceInfo>, locations: List<com.logie.wifecraft.location.LocationInfo>): PlaceInfo {
+    val loc = StageChoices.locationOf(stageId)
+    val studio = places.firstOrNull { it.id == EditorChoices.STUDIO } ?: PlaceInfo.STUDIO
+    if (loc != null) {
+        val l = locations.firstOrNull { it.id == loc.first } ?: return studio
+        val cam = StageChoices.camera(l, loc.second) ?: return studio
+        return studio.copy(id = stageId, name = l.name, views = mapOf(loc.second to cam), void = true)
+    }
+    return places.firstOrNull { it.id == stageId } ?: studio
 }

@@ -21,6 +21,13 @@ object GameTables {
         "ChrCustomizationSkinnedModel", "ChrCustomizationReq", "ChrCustomizationBoneSet", "ChrCustomizationCondModel",
         "ChrModelTextureLayer", "ChrModelMaterial", "CharComponentTextureSections",
         "CreatureDisplayInfo", "CreatureModelData", "TextureFileData", "GlobalStrings",
+        // the editor's sounds (audio/SceneAudio: SoundCatalog.TABLES less SoundKitEntry, which is streamed once: audio/SoundIndex)
+        "AreaTable", "SoundAmbience", "SoundAmbienceFlavor", "ZoneMusic", "ZoneIntroMusicTable", "CreatureSoundData", "NPCSounds",
+        "GameObjectDisplayInfo", "ObjectEffectPackageElem", "ObjectEffect",
+        // the editor's creatures and NPCs (catalog/Catalog.creatures, creator/CreatureLooks)
+        "Creature", "CreatureFamily", "CreatureType", "CreatureDisplayInfoExtra", "CreatureDisplayInfoOption",
+        "CreatureDisplayInfoGeosetData", "NPCModelItemSlotDisplayInfo", "ItemDisplayInfo", "ModelFileData",
+        "ComponentModelFileData", "ComponentTextureFileData", "HelmetGeosetData",
     )
 
     /**

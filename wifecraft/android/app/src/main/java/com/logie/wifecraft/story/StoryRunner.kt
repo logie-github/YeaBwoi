@@ -54,7 +54,7 @@ class StoryRunner(val script: Script, val state: StoryState, private val playerN
                     return Step.Stage(c)
                 }
                 is Command.Cast, is Command.Remove, is Command.Move, is Command.Face, is Command.Emote, is Command.Pose,
-                is Command.Shot, is Command.Letterbox -> {
+                is Command.Shot, is Command.Letterbox, is Command.Place, is Command.PlaceAnim -> {
                     state.stage += at
                     return Step.Stage(c)
                 }

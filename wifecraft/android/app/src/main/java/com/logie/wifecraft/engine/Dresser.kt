@@ -3,12 +3,14 @@ package com.logie.wifecraft.engine
 import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.BodyCall
 import com.logie.wifecraft.creator.Catalog
+import com.logie.wifecraft.creator.CreatureLooks
 import com.logie.wifecraft.creator.DressCall
 import com.logie.wifecraft.creator.Dressing
 import com.logie.wifecraft.creator.ImportStore
 import com.logie.wifecraft.creator.LookResolver
 import com.logie.wifecraft.creator.M2Files
 import com.logie.wifecraft.creator.Overrides
+import com.logie.wifecraft.creator.ResolvedLook
 import com.logie.wifecraft.creator.Tables
 import com.logie.wifecraft.data.Emotes
 import com.logie.wifecraft.data.GameFiles
@@ -60,6 +62,40 @@ class Dresser(
             // a model the renderer can't read is said on the screen, never left as an empty stage
             scene.dress(key, call.first, call.second) { why -> fail(why) }
         }
+    }
+
+    /**
+     * Puts a creature's or an NPC's look ([CreatureLooks.resolve] of its display) on the stage under [key], as [dress] does a
+     * created one: every file it needs fetched first (the model, its skin, skeleton and the story's animations, the
+     * textures, the hung and skinned models), then the renderer's call ([CreatureLooks.call]); no body options.
+     */
+    fun dressLook(scene: SceneView, key: String, look: ResolvedLook) {
+        jobs.remove(key)?.cancel()
+        jobs[key] = scope.launch {
+            val call = withContext(Dispatchers.IO) {
+                try {
+                    prepareLook(look)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    fail(e.message ?: e.toString()); null
+                }
+            } ?: return@launch
+            scene.dress(key, call, BodyCall.NONE) { why -> fail(why) }
+        }
+    }
+
+    private suspend fun prepareLook(look: ResolvedLook): DressCall? {
+        if (look.model == 0) { fail("This creature has no model in the game's tables."); return null }
+        fetch(look.needsFiles)
+        coroutineContext.ensureActive()
+        if (!files.has(look.model)) { fail("The model (file ${look.model}) couldn't be fetched: ${lastFailure ?: "wago.tools didn't give it"}."); return null }
+        val read = { id: Int -> if (files.has(id)) runCatching { files.file(id).readBytes() }.getOrNull() else null }
+        for (m in Dressing.models(look)) {
+            M2Files.closure(m, if (m == look.model) Emotes.all else emptySet(), read) { fetch(it) }
+            coroutineContext.ensureActive()
+        }
+        return CreatureLooks.call(tables, look)
     }
 
     private suspend fun prepare(catalog: Catalog, a: Appearance): Pair<DressCall, BodyCall>? {

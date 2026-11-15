@@ -12,6 +12,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -36,6 +39,34 @@ import com.logie.wifecraft.anim.AnimLibrary
 import com.logie.wifecraft.anim.Profile
 import com.logie.wifecraft.anim.Retargeter
 import com.logie.wifecraft.audio.Audio
+import com.logie.wifecraft.audio.SceneAudio
+import com.logie.wifecraft.audio.SoundVolumes
+import com.logie.wifecraft.catalog.Emote
+import com.logie.wifecraft.catalog.EmoteCatalog
+import com.logie.wifecraft.catalog.EmoteKind
+import com.logie.wifecraft.creator.Appearance
+import com.logie.wifecraft.creator.CreatureLooks
+import com.logie.wifecraft.creator.Sex
+import com.logie.wifecraft.editor.Actor
+import com.logie.wifecraft.editor.PlaceKind
+import com.logie.wifecraft.editor.Placement
+import com.logie.wifecraft.engine.Clock
+import com.logie.wifecraft.engine.LocationLoader
+import com.logie.wifecraft.engine.Native
+import com.logie.wifecraft.engine.PropLoader
+import com.logie.wifecraft.location.LocationInfo
+import com.logie.wifecraft.play.PlaceHost
+import com.logie.wifecraft.ui.PlaceEngine
+import com.logie.wifecraft.ui.PlaceKeys
+import com.logie.wifecraft.ui.PlaceStatus
+import com.logie.wifecraft.ui.StageChoices
+import com.logie.wifecraft.ui.WowColors
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import org.json.JSONObject
 import com.logie.wifecraft.creator.Catalog
 import com.logie.wifecraft.creator.CsvTables
 import com.logie.wifecraft.creator.ImportStore
@@ -98,6 +129,17 @@ class MainActivity : ComponentActivity() {
     private val profileJson: String by lazy { assets.open("sims_profile.json").bufferedReader().use { it.readText() } }
     private var scene: SceneView? = null
     private var audio: Audio? = null
+    /** The placement editor's: a location's files and loading, a placed prop's files, the scene's sounds (W31's SceneAudio). */
+    private lateinit var locationLoader: LocationLoader
+    private lateinit var propLoader: PropLoader
+    private var sceneAudio: SceneAudio? = null
+    /** Every emote of each race and sex, with its voices (assets/emotes.json). */
+    private val emoteCatalog: EmoteCatalog? by lazy {
+        runCatching { EmoteCatalog.parse(assets.open("emotes.json").bufferedReader().use { it.readText() }) }.getOrNull()
+    }
+    private val placer: ScenePlacer by lazy { ScenePlacer() }
+    /** The creator's catalogue (races and models), for dressing placed NPCs; set once the tables are read. */
+    @Volatile private var creatorCatalog: Catalog? = null
 
     sealed interface Screen {
         data object Title : Screen
@@ -132,6 +174,10 @@ class MainActivity : ComponentActivity() {
             musicVolume = settings.musicVolume / 100f
             soundVolume = settings.soundVolume / 100f
         }
+        locationLoader = LocationLoader(applicationContext, files, lifecycleScope)
+        propLoader = PropLoader(files, lifecycleScope)
+        sceneAudio = runCatching { SceneAudio(applicationContext, files, tables) }.getOrNull()
+        applySceneVolumes()
         setContent { App() }
     }
 
@@ -139,18 +185,27 @@ class MainActivity : ComponentActivity() {
         super.onPause()
         scene?.onPause()
         audio?.pause()
+        sceneAudio?.pause()
     }
 
     override fun onResume() {
         super.onResume()
         scene?.onResume()
         audio?.resume()
+        sceneAudio?.resume()
     }
 
     override fun onDestroy() {
         scene?.dispose()
         audio?.release()
+        sceneAudio?.release()
         super.onDestroy()
+    }
+
+    /** Options' volumes on the scene's sounds: music; ambience and effects at Sounds; voices at Voices. */
+    private fun applySceneVolumes() {
+        val s = settings.soundVolume / 100f
+        sceneAudio?.volumes = SoundVolumes(music = settings.musicVolume / 100f, ambience = s, effects = s, voices = settings.voiceVolume / 100f)
     }
 
     private fun sceneView(): SceneView = scene ?: SceneView(this, files.dir.path).also { scene = it; it.softBody(Settings(this).softBody) }
@@ -173,6 +228,7 @@ class MainActivity : ComponentActivity() {
         var musicVolume by remember { mutableIntStateOf(settings.musicVolume) }
         var soundVolume by remember { mutableIntStateOf(settings.soundVolume) }
         var softBody by remember { mutableIntStateOf(settings.softBody) }
+        var voiceVolume by remember { mutableIntStateOf(settings.voiceVolume) }
         val progress by files.progress.collectAsState()
         val importsSlot: @Composable () -> Unit = { ImportsSection(imports, listfile) }
         val fetching by dresser.fetching.collectAsState()
@@ -184,12 +240,16 @@ class MainActivity : ComponentActivity() {
         // The creator's races, options and choices, from the game's tables once they are all here.
         LaunchedEffect(progress.complete.contains(GameFiles.TABLES)) {
             if (catalog == null && files.tablesComplete) catalog = withContext(Dispatchers.Default) { runCatching { Catalog.build(tables) }.getOrNull() }
+            creatorCatalog = catalog
         }
+        // The placement editor's library (catalog.tsv, and the game's named creatures once the tables are here).
+        LaunchedEffect(progress.complete.contains(GameFiles.TABLES)) { placer.loadLibrary(files.tablesComplete) }
         // The music and sounds, once they're here; Dalaran's dawn under the title and the editor.
         LaunchedEffect(progress.complete.contains("sound")) {
             if (files.packComplete("sound")) audio?.filesArrived()
         }
         LaunchedEffect(screen) {
+            if (screen !is Screen.Story && screen !is Screen.Editor) placer.quiet()
             if (screen !is Screen.Story) {
                 audio?.music("dawn", 2000)
                 audio?.ambience("")
@@ -233,6 +293,8 @@ class MainActivity : ComponentActivity() {
                     }
                     override fun stop(who: String) = view.stopAnim(who)
                 },
+                // the placement editor's things: spawned, animated and voiced by the same engine as the editor's preview
+                placeHost = placer.playHost(cast),
             )
             d.begin()
             director = d
@@ -308,6 +370,7 @@ class MainActivity : ComponentActivity() {
                             start = s.start,
                             onPlayProject = { project, text -> play(project, text) },
                             animLibrary = anims,
+                            placeEngine = placer,
                         )
                     }
                     is Screen.Story -> director?.let { d ->
@@ -349,12 +412,22 @@ class MainActivity : ComponentActivity() {
                             parchment, { parchment = it; settings.boxStyle = if (it) "parchment" else "dark" },
                             wifiOnly, { wifiOnly = it; settings.wifiOnly = it },
                             downloadSpeed, { downloadSpeed = it; settings.downloadSpeed = it; files.setDownloadSpeed(it) },
-                            musicVolume, { musicVolume = it; settings.musicVolume = it; audio?.musicVolume = it / 100f },
-                            soundVolume, { soundVolume = it; settings.soundVolume = it; audio?.soundVolume = it / 100f },
+                            musicVolume, { musicVolume = it; settings.musicVolume = it; audio?.musicVolume = it / 100f; applySceneVolumes() },
+                            soundVolume, { soundVolume = it; settings.soundVolume = it; audio?.soundVolume = it / 100f; applySceneVolumes() },
                             softBody, { softBody = it; settings.softBody = it; scene?.softBody(it) },
                             onBack = { panel = if (d != null) Panel.Pause else Panel.None },
-                            // the creator's imports (Ralia's mod, Alternate Female Options, the body options), from the title
-                            more = if (d == null) importsSlot else null,
+                            // the emotes' voices; from the title, the creator's imports (Ralia's mod, Alternate Female Options, the body options)
+                            more = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("Voices: ${if (voiceVolume == 0) "off" else "$voiceVolume%"}", style = frizStyle(13.sp, Color.White), modifier = Modifier.width(110.dp))
+                                    Slider(
+                                        voiceVolume.toFloat(), { voiceVolume = it.toInt(); settings.voiceVolume = it.toInt(); applySceneVolumes() },
+                                        valueRange = 0f..100f, modifier = Modifier.height(32.dp),
+                                        colors = SliderDefaults.colors(thumbColor = WowColors.gold, activeTrackColor = WowColors.gold, inactiveTrackColor = Color(0xFF3A3020)),
+                                    )
+                                }
+                                if (d == null) importsSlot()
+                            },
                         )
                     }
                     Panel.Update -> Overlay({ panel = Panel.None }) {
@@ -406,5 +479,287 @@ class MainActivity : ComponentActivity() {
                 runOnUiThread { status("The download failed: ${e.message}") }
             }
         }.start()
+    }
+
+    /**
+     * The placement editor's engine and Play's [PlaceHost]: the library, the locations (LocationLoader, with SceneAudio's
+     * music and ambience from locations.json's ambience block), and the placed things on the renderer under
+     * [PlaceKeys] keys: a prop through PropLoader, a creature through CreatureLooks and Dresser.dressLook, an NPC in its cast
+     * actor's look through Dresser.dress; their animations (Native.anim once the actor is on the stage), emotes with their
+     * voices and creature sounds (SceneAudio, muted per placement). Main thread.
+     */
+    private inner class ScenePlacer : PlaceEngine {
+        private val _library = MutableStateFlow<com.logie.wifecraft.catalog.Catalog?>(null)
+        override val library: StateFlow<com.logie.wifecraft.catalog.Catalog?> = _library
+        override val locations: List<LocationInfo> get() = locationLoader.locations
+
+        /** The location on the stage now (its id), null for none. */
+        private val currentLoc = MutableStateFlow<String?>(null)
+        private var currentView: String? = null
+        private val lookError = MutableStateFlow<String?>(null)
+        override val status: StateFlow<PlaceStatus> = combine(
+            locationLoader.progress, propLoader.loading, sceneAudio?.error ?: MutableStateFlow<String?>(null), currentLoc, lookError,
+        ) { lp, pl, sound, loc, look ->
+            val here = loc != null && lp.id == loc
+            PlaceStatus(
+                stageName = locationLoader.location(loc ?: "")?.name ?: loc ?: "",
+                stageDone = if (here) lp.done else 0, stageTotal = if (here) lp.total else 0,
+                stageBytesDone = if (here) lp.bytesDone else 0, stageBytesTotal = if (here) lp.bytesTotal else 0,
+                stageReady = loc == null || (here && lp.ready), stageError = if (here) lp.error else null,
+                fetchDone = pl.done, fetchTotal = pl.total, fetchError = pl.error ?: look, soundError = sound,
+            )
+        }.stateIn(lifecycleScope, SharingStarted.Eagerly, PlaceStatus())
+
+        private val main = android.os.Handler(android.os.Looper.getMainLooper())
+        /** What the editor's preview has on the renderer: by placement id, and the look each NPC was dressed in. */
+        private val shown = HashMap<String, Placement>()
+        private val looks = HashMap<String, Appearance>()
+        /** Bumped when the renderer's placed things are all taken off: retries for the old ones stop. */
+        private var generation = 0
+        private var libraryAsked = 0
+
+        // ------------------------------------------------------------------ the library
+
+        fun loadLibrary(tablesHere: Boolean) {
+            val want = if (tablesHere) 2 else 1
+            if (libraryAsked >= want) return
+            libraryAsked = want
+            lifecycleScope.launch {
+                val lib = withContext(Dispatchers.Default) {
+                    val tsv = runCatching { com.logie.wifecraft.catalog.Catalog.parseTsv(assets.open("catalog.tsv").bufferedReader().use { it.readText() }) }
+                        .onFailure { lookError.value = "The library (catalog.tsv) couldn't be read: ${it.message ?: it}" }.getOrDefault(emptyList())
+                    val creatures = if (tablesHere) runCatching { com.logie.wifecraft.catalog.Catalog.creatures(tables) }
+                        .onFailure { lookError.value = "The game's creatures couldn't be read from its tables: ${it.message ?: it}" }.getOrDefault(emptyList()) else emptyList()
+                    com.logie.wifecraft.catalog.Catalog(tsv + creatures)
+                }
+                _library.value = lib
+            }
+        }
+
+        // ------------------------------------------------------------------ the stage
+
+        /** locations.json's ambience block of [id]: (ZoneMusic, SoundAmbience of [view]). */
+        private fun ambienceOf(id: String, view: String): Pair<Int, Int> = runCatching {
+            val list = JSONObject(locationLoader.json).getJSONArray("locations")
+            for (i in 0 until list.length()) {
+                val e = list.getJSONObject(i)
+                if (e.getString("id") != id) continue
+                val a = e.optJSONObject("ambience") ?: return@runCatching 0 to 0
+                return@runCatching a.optInt("zoneMusic", 0) to (a.optJSONObject("soundAmbience")?.optInt(view, 0) ?: 0)
+            }
+            0 to 0
+        }.getOrDefault(0 to 0)
+
+        override fun enterStage(stageId: String, light: String) {
+            val loc = StageChoices.locationOf(stageId)
+            if (loc == null) { leaveLocation(); return }
+            enterLocation(loc.first, loc.second, light)
+        }
+
+        private fun leaveLocation() {
+            if (currentLoc.value == null) return
+            sceneView().clearLocation()
+            currentLoc.value = null; currentView = null
+            sceneAudio?.stop()
+        }
+
+        /** Loads location [id] in [view] (its files fetched with progress), or only turns to [view] when it is already on the stage. */
+        fun enterLocation(id: String, view: String, light: String) {
+            val v = sceneView()
+            val info = locationLoader.location(id)
+            if (info == null) { lookError.value = "There is no location \"$id\" in locations.json."; return }
+            if (currentLoc.value == id && locationLoader.progress.value.let { it.id == id && it.ready }) {
+                if (currentView != view) v.locationView(view)
+            } else {
+                locationLoader.load(v, id, view)
+            }
+            currentLoc.value = id; currentView = view
+            // the location's own music and ambience in place of the menus' music
+            audio?.music("", 1000)
+            if (info.areaId != 0) {
+                val (zoneMusic, ambience) = ambienceOf(id, view)
+                sceneAudio?.enterLocation(info.areaId, zoneMusic, ambience, night = light == "night")
+            }
+        }
+
+        // ------------------------------------------------------------------ the placed things on the renderer
+
+        /** Runs [f] on the GL thread once the actor [key] is on the stage (a look's files can take a while), for up to two minutes. */
+        private fun whenOnStage(key: String, gen: Int = generation, tries: Int = 480, f: (Long, Int) -> Unit) {
+            sceneView().post { h, ids ->
+                val id = ids[key]
+                if (id != null) f(h, id)
+                else if (tries > 0) main.postDelayed({ if (gen == generation) whenOnStage(key, gen, tries - 1, f) }, 250)
+            }
+        }
+
+        /** Puts [p] on the renderer; [appearance] is an NPC's look (null: not in the cast). */
+        private fun put(p: Placement, appearance: Appearance?, play: Boolean) {
+            val v = sceneView()
+            val key = PlaceKeys.of(p.id)
+            sceneAudio?.setEnabled(key, p.sound)
+            when (p.kind) {
+                PlaceKind.PROP -> propLoader.place(v, key, p.asset, p.x, p.y, p.z, p.yaw, p.scale)
+                PlaceKind.CREATURE -> lifecycleScope.launch {
+                    val r = withContext(Dispatchers.Default) { runCatching { CreatureLooks.check(tables, p.asset) }.getOrElse { CreatureLooks.Result(null, it.message ?: it.toString()) } }
+                    val look = r.look
+                    if (look == null) lookError.value = "${p.name} (display ${p.asset}) can't be drawn: ${r.why ?: "no look"}."
+                    else dresser.dressLook(v, key, look)
+                }
+                PlaceKind.NPC -> {
+                    val c = creatorCatalog
+                    if (appearance == null) lookError.value = "${p.name}: the NPC \"${p.actorId}\" isn't in the cast."
+                    else if (c == null) lookError.value = "The character tables aren't read yet: ${p.name} will show once they are."
+                    else dresser.dress(v, c, key, appearance)
+                }
+            }
+            if (p.kind != PlaceKind.PROP) {
+                // its scale is the look's (Dresser); its place is the frame's in the editor, set here once in Play
+                whenOnStage(key) { h, id ->
+                    if (play) { Native.place(h, id, p.x, p.y, p.z, p.yaw); Native.show(h, id, true) }
+                    Native.anim(h, id, p.anim ?: 0, if (p.anim == null) true else p.loop, Clock.now())
+                }
+                if (p.kind == PlaceKind.CREATURE && p.sound) sceneAudio?.creature(p.asset, "loop", key)
+            }
+        }
+
+        private fun take(p: Placement) {
+            val key = PlaceKeys.of(p.id)
+            if (p.kind == PlaceKind.PROP) sceneView().removeProp(key) else sceneView().removeActor(key)
+            sceneAudio?.stopPlacement(key)
+        }
+
+        override fun sync(placements: List<Placement>, cast: List<Actor>, hidden: Set<String>) {
+            val want = placements.filter { it.id !in hidden }.associateBy { it.id }
+            for ((id, old) in shown.toMap()) if (id !in want) { take(old); shown.remove(id); looks.remove(id) }
+            for (p in want.values) {
+                val old = shown[p.id]
+                val look = if (p.kind == PlaceKind.NPC) cast.firstOrNull { it.id == p.actorId }?.appearance else null
+                val remake = old == null || old.kind != p.kind || old.asset != p.asset || old.actorId != p.actorId ||
+                    (p.kind == PlaceKind.NPC && looks[p.id] != look)
+                if (remake) {
+                    if (old != null) take(old)
+                    put(p, look, play = false)
+                    if (look != null) looks[p.id] = look else looks.remove(p.id)
+                } else if (old != null) {
+                    if (p.kind == PlaceKind.PROP && (old.x != p.x || old.y != p.y || old.z != p.z || old.yaw != p.yaw || old.scale != p.scale))
+                        sceneView().moveProp(PlaceKeys.of(p.id), p.x, p.y, p.z, p.yaw, p.scale)
+                    if (p.kind != PlaceKind.PROP && (old.anim != p.anim || old.loop != p.loop)) {
+                        val anim = p.anim ?: 0
+                        val loop = p.anim == null || p.loop
+                        whenOnStage(PlaceKeys.of(p.id)) { h, id -> Native.anim(h, id, anim, loop, Clock.now()) }
+                    }
+                    if (old.sound != p.sound) sceneAudio?.setEnabled(PlaceKeys.of(p.id), p.sound)
+                }
+                shown[p.id] = p
+            }
+        }
+
+        override fun reset() {
+            generation++
+            for (id in shown.keys) sceneAudio?.stopPlacement(PlaceKeys.of(id))
+            shown.clear(); looks.clear()
+            sceneView().clearProps()
+        }
+
+        /** Off the editor (the title): the location's music and ambience stop (they start again with the stage). */
+        fun quiet() = sceneAudio?.stop()
+
+        // ------------------------------------------------------------------ emotes and sounds
+
+        /** A display's race and sex (CreatureDisplayInfoExtra), for a humanoid creature; null for any other. */
+        private val raceSexCache = HashMap<Int, Pair<Int, Sex>?>()
+        private fun raceSexOf(display: Int): Pair<Int, Sex>? = raceSexCache.getOrPut(display) {
+            runCatching {
+                fun Map<String, String>.int(k: String) = this[k]?.toDoubleOrNull()?.toInt() ?: 0
+                val extra = tables.rows("CreatureDisplayInfo").firstOrNull { it.int("ID") == display }?.int("ExtendedDisplayInfoID") ?: 0
+                if (extra == 0) null else tables.rows("CreatureDisplayInfoExtra").firstOrNull { it.int("ID") == extra }?.let {
+                    it.int("DisplayRaceID") to (if (it.int("DisplaySexID") == 1) Sex.FEMALE else Sex.MALE)
+                }
+            }.getOrNull()
+        }
+
+        /** Every animation the game names (emotes.json's names): what a creature of no player race is offered; it plays those its model has. */
+        private val gameAnims: List<Emote> by lazy {
+            val c = emoteCatalog ?: return@lazy emptyList()
+            (0..2000).mapNotNull { a -> c.animName(a)?.let { n -> Emote(EmoteCatalog.ANIM_BASE + a, n, a, 0, emptyList(), EmoteKind.ANIM, EmoteCatalog.categoryOf(n), false, 1) } }
+        }
+
+        private fun raceSex(p: Placement, lookOf: (String) -> Appearance?): Pair<Int, Sex>? = when (p.kind) {
+            PlaceKind.NPC -> p.actorId?.let(lookOf)?.let { it.raceId to it.sex }
+            PlaceKind.CREATURE -> raceSexOf(p.asset)
+            PlaceKind.PROP -> null
+        }
+
+        fun emotes(p: Placement, lookOf: (String) -> Appearance?): List<Emote> {
+            val c = emoteCatalog ?: return emptyList()
+            val rs = raceSex(p, lookOf)
+            return if (rs != null) c.forModel(rs.first, rs.second).ifEmpty { gameAnims } else if (p.kind == PlaceKind.CREATURE) gameAnims else emptyList()
+        }
+
+        override fun emotesFor(p: Placement, cast: List<Actor>): List<Emote> = emotes(p) { a -> cast.firstOrNull { it.id == a }?.appearance }
+
+        fun emote(p: Placement, e: Emote, lookOf: (String) -> Appearance?) {
+            val key = PlaceKeys.of(p.id)
+            if (e.anim >= 0) whenOnStage(key) { h, id -> Native.anim(h, id, e.anim, e.loop, Clock.now()) }
+            if (p.sound) raceSex(p, lookOf)?.let { (race, sex) -> sceneAudio?.emote(race, if (sex == Sex.MALE) 0 else 1, e, key) }
+        }
+
+        override fun previewEmote(p: Placement, e: Emote, cast: List<Actor>) = emote(p, e) { a -> cast.firstOrNull { it.id == a }?.appearance }
+
+        override fun creatureSound(p: Placement, kind: String) {
+            if (p.kind == PlaceKind.CREATURE && p.sound) sceneAudio?.creature(p.asset, kind, PlaceKeys.of(p.id))
+        }
+
+        override fun setSound(p: Placement, on: Boolean) { sceneAudio?.setEnabled(PlaceKeys.of(p.id), on) }
+
+        override fun clearErrors() {
+            propLoader.clearError(); sceneAudio?.clearError(); lookError.value = null; dresser.clearError()
+        }
+
+        // ------------------------------------------------------------------ Play
+
+        /**
+         * Play's host: the script's `place` lines spawned as the editor's preview spawns them ([cast]: the script's names of
+         * the project's people, Compile.cast), placed once on the stage (the Director's frame moves only its own people),
+         * `anim` and `emote` on them, and a `loc:` scene's location. A scene cut takes them all off; a location stays only
+         * while the next scene is on it.
+         */
+        fun playHost(cast: Map<String, Actor>): PlaceHost = object : PlaceHost {
+            private val spawned = HashMap<String, Placement>()
+            private var locationAsked = false
+            private val lookOf: (String) -> Appearance? = { a -> cast[a]?.appearance }
+
+            override fun spawn(p: Placement) {
+                spawned[p.id] = p
+                put(p, if (p.kind == PlaceKind.NPC) p.actorId?.let(lookOf) else null, play = true)
+            }
+
+            override fun clear() {
+                generation++
+                for (p in spawned.values) take(p)
+                spawned.clear()
+                shown.clear(); looks.clear()
+                sceneView().clearProps()
+                // the Director names the next scene's location right after this, in the same step: it stays if it does
+                locationAsked = false
+                main.post { if (!locationAsked) leaveLocation() }
+            }
+
+            override fun playAnim(id: String, anim: Int, loop: Boolean) {
+                whenOnStage(PlaceKeys.of(id)) { h, a -> Native.anim(h, a, anim, loop, Clock.now()) }
+            }
+
+            override fun playEmote(id: String, emoteId: Int) {
+                val p = spawned[id] ?: return
+                val e = emotes(p, lookOf).firstOrNull { it.id == emoteId } ?: return
+                emote(p, e, lookOf)
+            }
+
+            override fun enterLocation(locationId: String, view: String, light: String) {
+                locationAsked = true
+                this@ScenePlacer.enterLocation(locationId, view, light)
+            }
+        }
     }
 }

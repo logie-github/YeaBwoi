@@ -18,6 +18,7 @@ import com.logie.wifecraft.story.Step
 import com.logie.wifecraft.story.StoryRunner
 import com.logie.wifecraft.story.StoryState
 import com.logie.wifecraft.story.Vec3
+import com.logie.wifecraft.ui.EditorChoices
 import com.logie.wifecraft.ui.PlaceInfo
 import com.logie.wifecraft.ui.Staging
 import java.util.concurrent.atomic.AtomicBoolean
@@ -56,6 +57,8 @@ class Director(
     private val onFinished: () -> Unit,
     /** Where `pose` commands go (the imported animations); without it they are skipped. */
     private val poses: PosePlayer = PosePlayer.None,
+    /** Where `place`, `anim` and `emote` on placed things go (the placement editor's); without it they are skipped. */
+    private val placeHost: PlaceHost? = null,
 ) {
     data class Line(val who: String, val name: String, val text: String, val index: Int, val shownAt: Int, val seen: Boolean) {
         /** When a tap showed the whole line (it then stays whole), or -1 while it's still typing. */
@@ -89,6 +92,7 @@ class Director(
     private val actors = mutableMapOf<String, Actor>()
     /** Who holds an imported pose now (it holds until they move, emote or leave; a spoken line keeps it). */
     private val posed = mutableSetOf<String>()
+    private val placer = PlaceDirector(placeHost)
     private var place = places.values.firstOrNull() ?: PlaceInfo.STUDIO
     private var camera = CameraPose(Vec3(0f, -10f, 3f), Vec3(0f, 0f, 1f), 45f)
     private var camFrom = camera
@@ -249,6 +253,18 @@ class Director(
                 for (key in posed) poses.stop(key)
                 posed.clear()
                 actors.clear()
+                placer.clear()
+                val loc = c.place.takeIf { it.startsWith("loc:") }?.split(":")
+                if (loc != null && loc.size == 3) {
+                    // A location of locations.json: the host loads it; the people stand on the plain stage's marks.
+                    place = places[EditorChoices.STUDIO] ?: PlaceInfo.STUDIO
+                    placeName = loc[1]
+                    scene.light(Lights.of(c.light))
+                    scene.showCity(false)
+                    placer.enterLocation(loc[1], loc[2], c.light)
+                    sounds.ambience("")
+                    return
+                }
                 place = places[c.place] ?: place
                 placeName = place.name
                 scene.light(Lights.of(c.light))
@@ -281,8 +297,9 @@ class Director(
                 }
             }
             is Command.Face -> actors[c.who]?.let { it.facing = facingToward(it, c.target) }
+            is Command.Place, is Command.PlaceAnim -> placer.handle(c, instant)
             is Command.Pose -> if (c.who in actors && poses.play(c.who, c.animId)) posed += c.who
-            is Command.Emote -> if (!instant) {
+            is Command.Emote -> if (placer.handle(c, instant)) Unit else if (!instant) {
                 letGo(c.who)
                 Emotes.byName[c.emote]?.let { postAnim(c.who, it, c.loop, now) }
                 voice(c.who, c.emote)

@@ -44,11 +44,42 @@ object Compile {
     /** [validate] without a library to check animation ids against (only that each is named). */
     fun validate(p: Project): List<String> = validate(p, null)
 
+    /** The stage a scene is on: its [Scene.stageId], or its place for a scene saved before placements. */
+    fun stageOf(s: Scene): String = s.stageId.ifBlank { s.stage.place }
+
+    /** A "loc:<locationId>:<view>" stage as (locationId, view), or null when it isn't one or is malformed. */
+    fun parseLoc(stage: String): Pair<String, String>? {
+        if (!stage.startsWith("loc:")) return null
+        val w = stage.split(":")
+        return if (w.size == 3 && w[1].isNotBlank() && w[2].isNotBlank() && w.drop(1).all { part -> part.all { it.isLetterOrDigit() && it.code < 128 || it == '_' || it == '-' } }) w[1] to w[2] else null
+    }
+
+    /** A placement id as one script word: letters, digits, `_` and `-` (anything else becomes `_`). */
+    private fun placeWord(id: String): String = id.map { if (it.isLetterOrDigit() && it.code < 128 || it == '_' || it == '-') it else '_' }.joinToString("").ifEmpty { "x" }
+
+    /** Script word of each placement id of [s] (distinct; an id already safe is kept). */
+    fun placeWords(s: Scene): Map<String, String> {
+        val out = LinkedHashMap<String, String>()
+        val used = HashSet<String>()
+        for (pl in s.placements) {
+            if (pl.id in out) continue
+            var w = placeWord(pl.id)
+            var k = 1
+            while (w in used) { k++; w = placeWord(pl.id) + "_" + k }
+            used += w; out[pl.id] = w
+        }
+        return out
+    }
+
+    private fun num(f: Float): String = (if (f.isFinite()) f else 0f).toString()
+
     /**
      * Readable problems that would stop the project playing; empty when it is fine. [animIds] are the ids in the
-     * animation library: a Pose or a Say naming another one is a problem (null: not checked).
+     * animation library: a Pose or a Say naming another one is a problem (null: not checked). [stageIds] are the stages
+     * that exist: "studio", the places of places.json and every "loc:<locationId>:<view>" of locations.json (null: a
+     * "loc:" stage is only checked to be well formed).
      */
-    fun validate(p: Project, animIds: Set<String>?): List<String> {
+    fun validate(p: Project, animIds: Set<String>?, stageIds: Set<String>? = null): List<String> {
         val e = mutableListOf<String>()
         if (p.scenes.isEmpty()) { e += "The project has no scenes."; return e }
         val actors = p.cast.map { it.id }
@@ -59,8 +90,24 @@ object Compile {
         else if (p.start !in sceneIds) e += "The start scene \"${p.start}\" doesn't exist."
         for (s in p.scenes) {
             val at = "Scene \"${s.name.ifBlank { s.id }}\""
-            if (s.stage.place.isBlank()) e += "$at has no place."
+            val stageId = stageOf(s)
+            if (stageId.isBlank()) e += "$at has no place."
+            else if (stageId.startsWith("loc:") && parseLoc(stageId) == null) e += "$at: the location \"$stageId\" isn't written loc:<location>:<view>."
+            else if (stageIds != null && stageId !in stageIds) e += "$at: the place \"$stageId\" doesn't exist."
             if (s.stage.light !in lights) e += "$at: the light \"${s.stage.light}\" isn't day, dusk or night."
+            val placeIds = s.placements.map { it.id }
+            s.placements.groupBy { it.id }.filter { it.value.size > 1 }.keys.forEach { e += "$at: two placed things share the id \"$it\"." }
+            for (pl in s.placements) {
+                val of = "$at, placed \"${pl.name.ifBlank { pl.id }}\""
+                if (pl.id.isBlank()) e += "$at: a placed thing has no id."
+                if (!(pl.x.isFinite() && pl.y.isFinite() && pl.z.isFinite() && pl.yaw.isFinite())) e += "$of: its position isn't a number."
+                if (!pl.scale.isFinite() || pl.scale <= 0f) e += "$of: its size must be more than 0."
+                when (pl.kind) {
+                    PlaceKind.NPC -> if (pl.actorId == null || pl.actorId !in actors) e += "$of: the person \"${pl.actorId ?: ""}\" isn't in the cast."
+                    else -> if (pl.asset <= 0) e += "$of: no ${if (pl.kind == PlaceKind.PROP) "model" else "creature"} is picked."
+                }
+                pl.anim?.let { if (it < 0) e += "$of: a negative animation." }
+            }
             s.beats.forEachIndexed { i, b ->
                 val here = "$at, step ${i + 1}"
                 fun actor(w: String) { if (w !in actors) e += "$here: the person \"$w\" isn't in the cast." }
@@ -98,6 +145,8 @@ object Compile {
                             target(o.goto)
                         }
                     }
+                    is Beat.Emote -> if (b.placementId !in placeIds) e += "$here: the placed thing \"${b.placementId}\" isn't in this scene." else if (b.emoteId < 0) e += "$here: no emote is picked."
+                    is Beat.Anim -> if (b.placementId !in placeIds) e += "$here: the placed thing \"${b.placementId}\" isn't in this scene." else if (b.anim < 0) e += "$here: no animation is picked."
                     is Beat.Goto -> target(b.scene)
                     is Beat.End -> Unit
                 }
@@ -153,7 +202,14 @@ object Compile {
         for (s in p.scenes) {
             line("")
             line(":${label[s.id]}")
-            line("scene ${slug(s.stage.place, true).ifEmpty { "studio" }} ${if (s.stage.light in lights) s.stage.light else "day"}")
+            val stageId = stageOf(s)
+            val where = parseLoc(stageId)?.let { "loc:${it.first}:${it.second}" } ?: slug(stageId, true).ifEmpty { "studio" }
+            line("scene $where ${if (s.stage.light in lights) s.stage.light else "day"}")
+            val pw = placeWords(s)
+            for (pl in s.placements) {
+                line("place ${pw.getValue(pl.id)} ${pl.kind.name.lowercase()} ${pl.asset} ${if (pl.kind == PlaceKind.NPC) pl.actorId?.let(::person) ?: "-" else "-"} " +
+                    "${num(pl.x)} ${num(pl.y)} ${num(pl.z)} ${num(pl.yaw)} ${num(pl.scale)} ${pl.anim ?: "-"} ${if (pl.loop) 1 else 0} ${if (pl.sound) 1 else 0}")
+            }
             var closed = false
             for (b in s.beats) {
                 if (closed) break
@@ -178,6 +234,8 @@ object Compile {
                         line("end")
                         closed = true   // every option jumps away
                     }
+                    is Beat.Emote -> line("emote ${pw[b.placementId] ?: placeWord(b.placementId)} ${b.emoteId}")
+                    is Beat.Anim -> line("anim ${pw[b.placementId] ?: placeWord(b.placementId)} ${b.anim} ${if (b.loop) 1 else 0}")
                     is Beat.Goto -> { line("goto ${label[b.scene] ?: "s_" + slug(b.scene, true)}"); closed = true }
                     is Beat.End -> {
                         endings++
