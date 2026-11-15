@@ -297,4 +297,122 @@ class CreatorLayoutTest {
         val back = navRect(false, w); val fin = navRect(true, w)
         near(back.x, CL.u(46)); near(fin.right, w - CL.u(46)); near(back.bottom, 768f - CL.u(28))
     }
+
+    // ---- the screen's races, words, popout and art -------------------------------------------------------------------------------------
+
+    @Test fun racesStandOnTheSideTheLuaOrTheTablesGive() {
+        // the Lua's ALLIANCE table by file name, whatever case or spacing; others by the tables' faction
+        assertTrue(isAllianceSide("NightElf", false)); assertTrue(isAllianceSide("Night_Elf", false)); assertTrue(isAllianceSide("DarkIronDwarf", false))
+        assertFalse(isAllianceSide("Orc", false)); assertFalse(isAllianceSide("Scourge", false))
+        assertTrue(isAllianceSide("SomeNewRace", true)); assertFalse(isAllianceSide("SomeNewRace", false))
+        assertTrue(isAllianceSide("Pandaren", false))
+    }
+
+    @Test fun aSideWithMoreRacesThanFitScrollsAndEveryRaceCanBeBroughtIn() {
+        val w = 1365f
+        val v = raceViewport(true, w)
+        near(v.x, CL.u(68) - CL.u(CL.RACE_VIEW_PAD)); near(v.bottom, CL.SCREEN_H - CL.u(CL.FOOT_Y + CL.NAV_H + 14))
+        val h = raceViewport(false, w)
+        near(h.right, w - CL.u(68) + CL.u(CL.RACE_VIEW_PAD))
+        // ten fit as the Lua sets them; fourteen do not and scroll to the last
+        assertEquals(0f, raceScroll(true, w, 10).limit(), 0.01f)
+        val s = raceScroll(true, w, 14)
+        assertTrue(s.limit() > 0f)
+        s.scrollTo(1e6f)
+        val last = raceRect(raceSlot(13, true), w, s.target)
+        assertTrue(last.bottom <= v.bottom + 0.01f, "${last.bottom} > ${v.bottom}")
+        val top = raceRect(raceSlot(0, true), w, 0f)
+        near(top.y, CL.u(106)); near(top.x, CL.u(68))
+        // a scrolled button moves up by the scroll
+        near(raceRect(raceSlot(3, true), w, 50f).y, raceRect(raceSlot(3, true), w, 0f).y - 50f)
+    }
+
+    @Test fun wordsComeFromTheGlobalStringsOrTheLuasLiterals() {
+        val none = CreatorStrings(null)
+        assertEquals("Alliance", none.alliance); assertEquals("Horde", none.horde); assertEquals("Back", none.back); assertEquals("Name", none.name)
+        assertEquals("Customize", none.customize); assertEquals("Finish", none.finish)
+        val t = object : com.logie.wifecraft.creator.Tables {
+            override fun rows(name: String) = if (name != "GlobalStrings") emptyList() else listOf(
+                mapOf("BaseTag" to "FACTION_ALLIANCE", "TagText_lang" to "Alianza"), mapOf("BaseTag" to "BACK", "TagText_lang" to "Volver"),
+                mapOf("BaseTag" to "NAME", "TagText_lang" to ""), mapOf("BaseTag" to "OTHER", "TagText_lang" to "x"))
+        }
+        val s = CreatorStrings(t)
+        assertEquals("Alianza", s.alliance); assertEquals("Volver", s.back)
+        assertEquals("Name", s.name)            // an empty string is no string
+        assertEquals("Horde", s.horde)
+        assertEquals("Customize", s.customize)  // the Lua's own literals, whatever the table says
+        assertEquals(listOf("Full", "Face", "Torso", "Rear"), VIEWS.map { it.name })
+    }
+
+    @Test fun theBodyPictureIsATorsoOnTheFacesDiscInGoldOrGrey() {
+        // a stand-in for the Face piece: a grey ring and disc with a bright head in the middle
+        val w = 156; val h = 158
+        val head = IntArray(w * h) { p ->
+            val y = p / w; val x = p % w
+            val r = kotlin.math.hypot(y - (h - 1) / 2.0, x - (w - 1) / 2.0)
+            when { r > 74 -> 0; r > 60 -> (255 shl 24) or (200 shl 16) or (170 shl 8) or 90; r > 30 -> (255 shl 24) or (60 shl 16) or (60 shl 8) or 70; else -> (255 shl 24) or (250 shl 16) or (250 shl 8) or 250 }
+        }
+        val grey = BodyIcon.figure(head, w, h, false)
+        val gold = BodyIcon.figure(head, w, h, true)
+        assertEquals(w * h, grey.size)
+        // the head is painted out: the middle of the disc is the figure now, not the stand-in's white head at the top of the disc
+        val cx = w / 2; val cy = h / 2
+        fun chan(c: Int, s: Int) = c shr s and 255
+        val figure = grey[cy * w + cx]
+        assertTrue(chan(figure, 24) == 255)
+        val topOfDisc = grey[(cy - 24) * w + cx]
+        assertTrue(chan(topOfDisc, 16) < 200, "the head is still there: ${chan(topOfDisc, 16)}")
+        // chosen is gold (red and green over blue) with a glow, the other is neutral
+        var gr = 0L; var gg = 0L; var gb = 0L; var nr = 0L; var nb = 0L; var n = 0
+        for (y in cy - 20..cy + 20) for (x in cx - 10..cx + 10) { val a = gold[y * w + x]; val b = grey[y * w + x]; gr += chan(a, 16); gg += chan(a, 8); gb += chan(a, 0); nr += chan(b, 16); nb += chan(b, 0); n++ }
+        assertTrue(gr > gb * 1.5, "gold not gold"); assertTrue(gg > gb)
+        assertTrue(kotlin.math.abs(nr - nb) < n * 20, "grey not grey")
+        assertTrue(gold != grey)
+        // outside the disc stays clear
+        assertEquals(0, chan(grey[0], 24))
+    }
+
+    @Test fun theTorsoIsAWomansWiderAtTheHipsAndShouldersThanTheWaist() {
+        val (h, edge) = BodyIcon.torso(200)
+        fun width(row: Int) = (0 until 200).count { edge[row * 200 + it] > 0.5 }
+        val shoulders = width((0.20 * 199).toInt()); val waist = width((0.58 * 199).toInt()); val hips = width((0.78 * 199).toInt())
+        assertTrue(waist < shoulders && waist < hips, "$shoulders $waist $hips")
+        assertTrue(h.max() > 0.5)
+    }
+
+    @Test fun everyPieceTheLuaAsksForIsInTheArtTable() {
+        val dir = System.getProperty("wifecraft.assets") ?: return
+        val doc = org.json.JSONObject(java.io.File(dir, "creator_art.json").readText())
+        val pieces = doc.getJSONObject("pieces")
+        val wanted = listOf(
+            "!charactercreatedropdown-nineslice-edgeleft", "!charactercreatedropdown-nineslice-edgeright", "128-redbutton-highlight",
+            "128-redbutton-left", "128-redbutton-left-disabled", "128-redbutton-left-pressed", "128-redbutton-right", "128-redbutton-right-disabled",
+            "128-redbutton-right-pressed", "_128-redbutton-center", "_128-redbutton-center-disabled", "_128-redbutton-center-pressed",
+            "_charactercreatedropdown-nineslice-edgebottom", "_charactercreatedropdown-nineslice-edgetop",
+            "charactercreate-customize-backbutton", "charactercreate-customize-backbutton-disabled", "charactercreate-customize-backbutton-down",
+            "charactercreate-customize-dropdownbox", "charactercreate-customize-dropdownbox-hover", "charactercreate-customize-dropdownbox-open",
+            "charactercreate-customize-nextbutton", "charactercreate-customize-nextbutton-disabled", "charactercreate-customize-nextbutton-down",
+            "charactercreate-customize-palette", "charactercreate-customize-palette-half", "charactercreate-customize-palette-selected",
+            "charactercreate-icon-alliance", "charactercreate-icon-horde", "charactercreate-icon-dice",
+            "charactercreate-icon-customize-head", "charactercreate-icon-customize-head-selected", "charactercreate-icon-customize-hair",
+            "charactercreate-icon-customize-hair-selected", "charactercreate-icon-customize-accessories", "charactercreate-icon-customize-accessories-selected",
+            "charactercreate-icon-customize-body", "charactercreate-icon-customize-body-selected",
+            "charactercreate-ring-alliance", "charactercreate-ring-horde", "charactercreate-ring-metaldark", "charactercreate-ring-metallight", "charactercreate-ring-select",
+            "charactercreate-vignette-bottom", "charactercreate-vignette-sides", "charactercreate-vignette-top",
+            "charactercreate-gendericon-female", "charactercreate-gendericon-female-selected", "charactercreate-gendericon-male", "charactercreate-gendericon-male-selected",
+            "charactercreatedropdown-nineslice-center", "charactercreatedropdown-nineslice-cornerbottomleft", "charactercreatedropdown-nineslice-cornerbottomright",
+            "charactercreatedropdown-nineslice-cornertopleft", "charactercreatedropdown-nineslice-cornertopright",
+            "common-button-square-gray-down", "common-button-square-gray-up", "common-gray-button-entrybox-center", "common-gray-button-entrybox-left",
+            "common-gray-button-entrybox-right", "common-icon-rotateleft", "common-icon-rotateright", "common-icon-undo", "common-icon-zoomin", "common-icon-zoomout",
+            "common-icon-backarrow", "common-icon-backarrow-disable", "common-icon-forwardarrow", "common-icon-forwardarrow-disable",
+        )
+        val missing = wanted.filter { !pieces.has(it) }
+        assertTrue(missing.isEmpty(), "missing: $missing")
+        // the woman's Body picture is made on the phone from the Face piece; the switch's check box is plain files (ids only)
+        assertFalse(pieces.has("charactercreate-icon-customize-figure"))
+        val files = doc.getJSONObject("files")
+        for (n in listOf("checkbox-up", "checkbox-down", "checkbox-highlight", "checkbox-check", "checkbox-check-disabled")) {
+            val f = files.getJSONObject(n); assertTrue(f.getInt("f") > 0); assertEquals(32, f.getJSONArray("s").getInt(0))
+        }
+    }
 }

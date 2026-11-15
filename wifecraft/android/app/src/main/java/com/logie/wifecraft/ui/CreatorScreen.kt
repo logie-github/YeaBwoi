@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
@@ -37,6 +38,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
@@ -47,6 +49,7 @@ import androidx.compose.ui.unit.TextUnit
 import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.Catalog
 import com.logie.wifecraft.creator.Choice
+import com.logie.wifecraft.creator.Race
 import com.logie.wifecraft.creator.CreatorModel
 import com.logie.wifecraft.creator.ResolvedLook
 import com.logie.wifecraft.creator.Sex
@@ -125,11 +128,12 @@ fun CreatorScreen(
         }
     }
 
+    val words = remember(tables) { CreatorStrings(tables) }
     val density = LocalDensity.current
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val k = constraints.maxHeight / CL.SCREEN_H           // pixels in one of the screen's units
         val width = constraints.maxWidth / k
-        val ui = Ui(k, density, art2, art.friz, width)
+        val ui = Ui(k, density, art2, art.friz, width, words)
         val female = model.appearance.sex == Sex.FEMALE
         val cats = bodyLast(model.categories()) { it.name }
         val cat = cats.firstOrNull { it.id == category } ?: cats.firstOrNull()
@@ -167,6 +171,8 @@ fun CreatorScreen(
 
             ui.ViewPanel(view) { tick }
 
+            // a tap anywhere but the list closes an open popout (the Lua's catcher, 1243-1247); the list itself stays under a finger
+            if (open != null) ui.PopoutCatcher { closePopout() }
             ui.OptionList(width, rows, scroll, { tick }, open, onOpen = { open = it }, onChange = { closeIt: Boolean ->
                 if (closeIt) closePopout()
                 changed()
@@ -175,27 +181,36 @@ fun CreatorScreen(
             open?.let { o ->
                 val row = rows.getOrNull(o.row)
                 if (row != null && !row.option.isSwitch) {
-                    ui.Popout(row.option.choices, row.chosen, o.box, onPick = { c ->
+                    ui.Popout(row.option.choices, row.chosen, o.box, shift = { tick; (o.scrollAtOpen - scroll.offset) * k }, onPick = { c ->
                         model.choose(row.option.id, c.id); closePopout(); changed()
-                    }, onClose = { closePopout() })
+                    })
                 }
             }
         }
 
         // the foot (Customize's Back and Finish; the first step's Back and Customize are in RaceStep)
         if (step == 2) {
-            ui.RedButton(navRect(false, width), "Back", arrow = "back") { step = 1; closePopout(); view.setZoom(1f, CL.RESET_FOCUS) }
-            ui.RedButton(navRect(true, width), "Finish", arrow = null) { onFinish(name, model.appearance) }
+            ui.RedButton(navRect(false, width), ui.words.back, arrow = "back") { step = 1; closePopout(); view.setZoom(1f, CL.RESET_FOCUS) }
+            ui.RedButton(navRect(true, width), ui.words.finish, arrow = null) { onFinish(name, model.appearance) }
         }
     }
 }
 
-/** A list of choices opened under (or over) a row's box (screen units, y down). */
-data class OpenList(val row: Int, val box: Rect)
+/** The Lua's catcher (1243-1247): while a popout is open, a tap on anything but it and the option list only closes it. */
+@Composable
+private fun Ui.PopoutCatcher(onClose: () -> Unit) {
+    Box(Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { onClose() } })
+}
+
+/**
+ * A list of choices opened under (or over) a row's box (screen units, y down): the box as it was on the screen when it opened and the
+ * option list's scroll then, so that the popout moves with the row as the list scrolls (the Lua anchors it to the box, 1343).
+ */
+data class OpenList(val row: Int, val box: Rect, val scrollAtOpen: Float = 0f)
 
 // ---- the drawing kit ---------------------------------------------------------------------------------------------------------
 
-private class Ui(val k: Float, val density: Density, val atlas: ArtAtlas, val font: FontFamily?, val widthU: Float) {
+private class Ui(val k: Float, val density: Density, val atlas: ArtAtlas, val font: FontFamily?, val widthU: Float, val words: CreatorStrings) {
     fun px(u: Float): Int = (u * k).roundToInt()
     fun dp(u: Float): Dp = with(density) { (u * k).toDp() }
     fun sp(size: Float): TextUnit = with(density) { (CL.u(size) * k).toSp() }
@@ -266,9 +281,14 @@ private fun Ui.SmallButton(r: Rect, icon: String, onHeld: (Boolean) -> Unit = {}
 
 /** CharCustomizeMaskedButtonTemplate (Lua 226-261): the round picture (already trimmed: "<piece>.<kind>") in its ring, the gold ring when chosen. */
 @Composable
-private fun Ui.RoundButton(r: Rect, spec: CL.Round, icon: String?, on: Boolean, off: Boolean, flip: Boolean, onTap: () -> Unit) {
-    var held by remember { mutableStateOf(false) }
-    At(r, press({ held = it }, { if (!off) onTap() })) {
+private fun Ui.RoundButton(
+    r: Rect, spec: CL.Round, icon: String?, on: Boolean, off: Boolean, flip: Boolean,
+    interactive: Boolean = true, pressed: Boolean = false, onTap: () -> Unit = {},
+) {
+    var own by remember { mutableStateOf(false) }
+    val held = own || pressed
+    // (a button in a scrolling column is touched by the column's own gesture: it only shows the press)
+    At(r, if (interactive) press({ own = it }, { if (!off) onTap() }) else Modifier) {
         Canvas(Modifier.fillMaxSize()) {
             val dim = if (off) CL.DIM_OFF else 1f
             if (icon != null) art(piece("$icon.${spec.kind}"), 0f, 0f, size.width, size.height, tint = Color(dim, dim, dim), flip = flip)
@@ -289,6 +309,11 @@ private fun Ui.RoundButton(r: Rect, spec: CL.Round, icon: String?, on: Boolean, 
 @Composable
 private fun Ui.RedButton(r: Rect, caption: String, arrow: String?, enabled: Boolean = true, onTap: () -> Unit) {
     var held by remember { mutableStateOf(false) }
+    // the caption's width as this font sets it, to put the arrow its gap beside the text (the Lua anchors it to the text itself)
+    val measurer = rememberTextMeasurer()
+    val textPx = remember(caption, font, k, measurer) {
+        measurer.measure(caption, TextStyle(fontFamily = font, fontSize = sp(CL.FONT_BUTTON)), maxLines = 1, softWrap = false).size.width.toFloat()
+    }
     At(r, press({ held = it }, { if (enabled) onTap() })) {
         val state = if (!enabled) "-disabled" else if (held) "-pressed" else ""
         val lean = if (arrow != null) (CL.u(CL.ARROW_W) + CL.u(CL.ARROW_GAP)) / 2f * (if (arrow == "forward") -1f else 1f) else 0f
@@ -303,7 +328,7 @@ private fun Ui.RedButton(r: Rect, caption: String, arrow: String?, enabled: Bool
             if (arrow != null) {
                 val aw = CL.u(CL.ARROW_W) * k; val ah = CL.u(CL.ARROW_H) * k
                 // the arrow after the text of the button that goes on, before the text of the one that goes back
-                val textHalf = captionWidth(caption) / 2f * k
+                val textHalf = textPx / 2f
                 val gap = CL.u(CL.ARROW_GAP) * k
                 val cx = size.width / 2f + (lean + nudge) * k
                 val x = if (arrow == "forward") cx + textHalf + gap else cx - textHalf - gap - aw
@@ -313,9 +338,6 @@ private fun Ui.RedButton(r: Rect, caption: String, arrow: String?, enabled: Bool
         Label(caption, CL.FONT_BUTTON, goldColour, Modifier.fillMaxSize().offset { IntOffset(px(lean + nudge), px(nudge)) }, outline = true)
     }
 }
-
-/** The width of a caption in units, as Friz Quadrata sets it, near enough to put an arrow beside it (0.5 of its size a letter). */
-private fun captionWidth(text: String): Float = CL.u(CL.FONT_BUTTON) * 0.5f * text.length
 
 /** Shadowlands darkens the screen's edges (Lua 791-808). */
 @Composable
@@ -342,22 +364,13 @@ private fun Ui.RaceStep(model: CreatorModel, female: Boolean, onChosen: () -> Un
         val textW = CL.u(180f)
         val tx = if (alliance) logo.right - CL.u(CL.HEADER_NAME_DX) else logo.x + CL.u(CL.HEADER_NAME_DX) - textW
         At(Rect(tx, logo.y + (logo.h - CL.u(24f)) / 2f + CL.u(CL.HEADER_NAME_DY), textW, CL.u(24f))) {
-            Label(if (alliance) "Alliance" else "Horde", CL.FONT_LARGE, goldColour, Modifier.fillMaxSize(), align = if (alliance) TextAlign.Left else TextAlign.Right)
+            Label(if (alliance) words.alliance else words.horde, CL.FONT_LARGE, goldColour, Modifier.fillMaxSize(), align = if (alliance) TextAlign.Left else TextAlign.Right)
         }
     }
-    // the races down the sides, a side's sixth and later in a second column beside the first and 68 lower (Lua 1460-1494)
+    // the races down the sides, a side's sixth and later in a second column beside the first and 68 lower (Lua 1460-1494);
+    // a side with more than the screen holds scrolls under a finger
     for (alliance in listOf(true, false)) {
-        catalog.races.filter { it.alliance == alliance }.forEachIndexed { i, race ->
-            val r = raceRect(raceSlot(i, alliance), widthU)
-            val has = catalog.model(race.id, me.sex) != null
-            val piece = racePiece(race.key, female) { atlas.has("$it") }
-            RoundButton(r, if (alliance) CL.RACE_ALLIANCE else CL.RACE_HORDE, piece, on = race.id == me.raceId, off = !has, flip = !alliance) {
-                model.setRace(race.id); onChosen()
-            }
-            At(Rect(r.x - r.w / 2f, r.bottom - CL.u(CL.RACE_NAME_UP), r.w * 2f, CL.u(18f))) {
-                Label(race.name, CL.FONT_MED, goldColour, Modifier.fillMaxSize().offset { IntOffset(px(CL.u(CL.RACE_NAME_DX)), 0) }, outline = true)
-            }
-        }
+        RaceColumn(alliance, catalog.races.filter { isAllianceSide(it.key, it.alliance) == alliance }, model, female, onChosen)
     }
     // the sexes at the top (Lua 1405-1413)
     for ((i, sex) in listOf(Sex.MALE, Sex.FEMALE).withIndex()) {
@@ -365,8 +378,67 @@ private fun Ui.RaceStep(model: CreatorModel, female: Boolean, onChosen: () -> Un
         val has = catalog.model(me.raceId, sex) != null
         RoundButton(sexRect(i, widthU), CL.SEX, sexPiece(sex == Sex.FEMALE, chosen), on = chosen, off = !has, flip = false) { model.setSex(sex); onChosen() }
     }
-    RedButton(navRect(false, widthU), "Back", arrow = "back") { onLeave() }
-    RedButton(navRect(true, widthU), "Customize", arrow = "forward") { onCustomize() }
+    RedButton(navRect(false, widthU), words.back, arrow = "back") { onLeave() }
+    RedButton(navRect(true, widthU), words.customize, arrow = "forward") { onCustomize() }
+}
+
+/** One side's races (Lua 1460-1494): in their column or columns, in a window that scrolls where there are more than fit. */
+@Composable
+private fun Ui.RaceColumn(alliance: Boolean, races: List<Race>, model: CreatorModel, female: Boolean, onChosen: () -> Unit) {
+    val catalog = model.catalog
+    val me = model.appearance
+    val scroll = remember(alliance, races.size, widthU) { raceScroll(alliance, widthU, races.size) }
+    var tick by remember { mutableIntStateOf(0) }
+    var held by remember { mutableIntStateOf(-1) }
+    LaunchedEffect(scroll) {
+        var last = 0L; var was = false
+        while (true) {
+            withFrameNanos { t ->
+                val dt = if (last == 0L) 0f else min((t - last) / 1e9f, 0.1f)
+                last = t
+                scroll.update(dt)
+                if (scroll.busy() || was) tick++
+                was = scroll.busy()
+            }
+        }
+    }
+    val racesNow by rememberUpdatedState(races)
+    val meNow by rememberUpdatedState(me)
+    val view = raceViewport(alliance, widthU)
+    At(view, Modifier.clipToBounds().pointerInput(alliance, widthU) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            scroll.press(-down.position.y / k)
+            // the button under the finger, in the column's own (unscrolled) coordinates
+            val px = down.position.x / k + view.x; val py = down.position.y / k + view.y + scroll.offset
+            val hit = racesNow.indices.firstOrNull { raceRect(raceSlot(it, alliance), widthU).contains(px, py) } ?: -1
+            held = hit
+            while (true) {
+                val e = awaitPointerEvent()
+                val c = e.changes.firstOrNull { it.id == down.id } ?: break
+                if (c.changedToUp()) { scroll.release(c.uptimeMillis / 1000f); break }
+                scroll.drag(-c.position.y / k, c.uptimeMillis / 1000f)
+                if (scroll.moved) { held = -1; c.consume() }
+            }
+            val race = racesNow.getOrNull(hit)
+            if (scroll.tapped() && race != null && catalog.model(race.id, meNow.sex) != null) { model.setRace(race.id); onChosen() }
+            held = -1
+        }
+    }) {
+        Box(Modifier.offset { tick; IntOffset(0, -px(scroll.offset)) }) {
+            races.forEachIndexed { i, race ->
+                val r = raceRect(raceSlot(i, alliance), widthU)
+                val local = Rect(r.x - view.x, r.y - view.y, r.w, r.h)
+                val has = catalog.model(race.id, me.sex) != null
+                val piece = racePiece(race.key, female) { atlas.has(it) }
+                RoundButton(local, if (alliance) CL.RACE_ALLIANCE else CL.RACE_HORDE, piece, on = race.id == me.raceId, off = !has, flip = !alliance,
+                    interactive = false, pressed = held == i)
+                At(Rect(local.x - local.w / 2f, local.bottom - CL.u(CL.RACE_NAME_UP), local.w * 2f, CL.u(18f))) {
+                    Label(race.name, CL.FONT_MED, goldColour, Modifier.fillMaxSize().offset { IntOffset(px(CL.u(CL.RACE_NAME_DX)), 0) }, outline = true)
+                }
+            }
+        }
+    }
 }
 
 // ---- the Customize step ------------------------------------------------------------------------------------------------------------
@@ -375,7 +447,7 @@ private fun Ui.RaceStep(model: CreatorModel, female: Boolean, onChosen: () -> Un
 @Composable
 private fun Ui.NameBox(width: Float, name: String, onName: (String) -> Unit, random: (() -> Unit)?) {
     val title = nameTitleRect(width); val box = nameBoxRect(width)
-    At(title) { Label("Name", CL.FONT_LARGE, Color.White, Modifier.fillMaxSize()) }
+    At(title) { Label(words.name, CL.FONT_LARGE, Color.White, Modifier.fillMaxSize()) }
     At(box) {
         Canvas(Modifier.fillMaxSize()) {
             val l = CL.u(CL.NAME_LEFT_PIECE) * k; val r = CL.u(CL.NAME_RIGHT_PIECE) * k
@@ -503,7 +575,7 @@ private fun Ui.OptionList(
                 else {
                     val g = geometry[rowIndex]
                     // where the box is on the screen now
-                    onOpen(OpenList(rowIndex, Rect(panel.x + g.choice.x, panel.y + g.choice.y - scroll.offset, g.choice.w, g.choice.h)))
+                    onOpen(OpenList(rowIndex, Rect(panel.x + g.choice.x, panel.y + g.choice.y - scroll.offset, g.choice.w, g.choice.h), scroll.offset))
                 }
             }
             RowPart.CHECK -> {
@@ -511,7 +583,7 @@ private fun Ui.OptionList(
                 val pick = o.choices.getOrNull(if (on) 0 else 1) ?: return
                 model.choose(o.id, pick.id); onChange(true)
             }
-            RowPart.NONE -> {}
+            RowPart.NONE -> if (open != null) onOpen(null)
         }
     }
 
@@ -531,10 +603,10 @@ private fun Ui.OptionList(
                 val c = e.changes.firstOrNull { it.id == down.id } ?: break
                 if (c.changedToUp()) { scroll.release(c.uptimeMillis / 1000f); break }
                 scroll.drag(-c.position.y / k, c.uptimeMillis / 1000f)
-                if (scroll.moved) { held = null; if (openNow != null) onOpen(null) }
-                if (scroll.moved) c.consume()
+                // (a list opened stays open and moves with its row)
+                if (scroll.moved) { held = null; c.consume() }
             }
-            if (scroll.tapped() && ri >= 0) tapNow(ri, part)
+            if (scroll.tapped()) { if (ri >= 0) tapNow(ri, part) else if (openNow != null) onOpen(null) }
             held = null
         }
     }) {
@@ -563,7 +635,7 @@ private fun Ui.OptionList(
                     }
                 } else {
                     val on = at == 2
-                    At(g.check) { Canvas(Modifier.fillMaxSize()) { checkBox(on, held == (i to RowPart.CHECK), k) } }
+                    At(g.check) { Canvas(Modifier.fillMaxSize()) { checkBox(this@OptionList, on, held == (i to RowPart.CHECK), k) } }
                     At(Rect(g.check.right + CL.u(CL.CHECK_TEXT_GAP), g.check.y, CL.u(160f), g.check.h)) {
                         Label(row.chosen.name.ifEmpty { if (on) "On" else "Off" }, CL.FONT_SMALL, goldColour, Modifier.fillMaxSize(), align = TextAlign.Left)
                     }
@@ -579,8 +651,17 @@ private fun Ui.OptionList(
     }
 }
 
-/** The switch's box (the game's own check box in Wrath++; drawn plain here: a dark box, a gold edge, a gold tick). */
-private fun DrawScope.checkBox(on: Boolean, held: Boolean, k: Float) {
+/**
+ * The switch's check box (Lua 1144-1151): the game's own pictures, Interface\Buttons\UI-CheckBox-Up, -Down while pressed and -Check over it
+ * when on (the 9.2.7 atlas tables have no piece for it: creator_art.json's "files"). Plain drawing only until they are fetched.
+ */
+private fun DrawScope.checkBox(ui: Ui, on: Boolean, held: Boolean, k: Float) {
+    val up = ui.piece("checkbox-up"); val down = ui.piece("checkbox-down")
+    if (up != null && down != null) {
+        art(if (held) down else up, 0f, 0f, size.width, size.height)
+        if (on) art(ui.piece("checkbox-check"), 0f, 0f, size.width, size.height)
+        return
+    }
     drawRect(if (held) Color(0.17f, 0.16f, 0.12f, 0.95f) else Color(0.08f, 0.08f, 0.1f, 0.95f))
     drawRect(goldColour.copy(alpha = 0.8f), style = Stroke(CL.u(1.5f) * k))
     if (on) {
@@ -608,13 +689,16 @@ private fun Ui.Swatches(c1: Int, c2: Int?, w: Float, h: Float, scale: Float) {
  * name or its colour, the one on in gold. Under the box, or over it where there is more room.
  */
 @Composable
-private fun Ui.Popout(choices: List<Choice>, chosen: Choice, box: Rect, onPick: (Choice) -> Unit, onClose: () -> Unit) {
-    // a tap anywhere else closes it
-    Box(Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { onClose() } })
+private fun Ui.Popout(choices: List<Choice>, chosen: Choice, box: Rect, shift: () -> Float, onPick: (Choice) -> Unit) {
     val (under, room) = popoutSide(box.y, box.bottom, CL.SCREEN_H, choices.size)
     val lay = fillPopout(choices.size, named = choices.any { it.name.isNotEmpty() }, coloured = choices.any { it.swatch1 != null }, room = room)
     val where = popoutPlace(under, box.y, box.bottom, box.right, lay.width, lay.height)
     val frame = Rect(where.left, where.top, lay.width, lay.height)
+    // all of it moves with the list as it scrolls: the popout hangs from its row's box (the Lua anchors it there)
+    Box(Modifier.fillMaxSize().graphicsLayer { translationY = shift() }) {
+    // a tap on its frame between the entries does nothing, as on the Lua's popout
+    At(Rect(frame.x - CL.u(CL.NS_OUT_X), frame.y - CL.u(CL.NS_OUT_Y), frame.w + 2 * CL.u(CL.NS_OUT_X), frame.h + 2 * CL.u(CL.NS_OUT_Y)),
+        Modifier.pointerInput(Unit) { detectTapGestures { } })
     // the frame: nine pieces set out from it, the middle inside
     Canvas(Modifier.fillMaxSize()) {
         for (s in nineSlice(frame)) {
@@ -646,5 +730,6 @@ private fun Ui.Popout(choices: List<Choice>, chosen: Choice, box: Rect, onPick: 
                 }
             }
         }
+    }
     }
 }

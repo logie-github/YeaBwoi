@@ -1,5 +1,6 @@
 package com.logie.wifecraft.ui
 
+import com.logie.wifecraft.creator.Tables
 import com.logie.wifecraft.story.CameraPose
 import com.logie.wifecraft.story.Vec3
 import kotlin.math.abs
@@ -9,6 +10,9 @@ import kotlin.math.exp
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.pow
+import kotlin.math.round
+import kotlin.math.sqrt
 import kotlin.math.tan
 
 /*
@@ -79,6 +83,7 @@ object CL {
     const val HEADER_NAME_DX = 18; const val HEADER_NAME_DY = 2
     const val RACES_X = 68; const val RACES_Y = 106; const val RACE_PITCH = 79 + 18; const val RACE_COLUMN_DROP = 68
     const val RACES_PER_COLUMN = 5
+    const val RACE_VIEW_PAD = 40     // the race column's window is this much wider than its buttons, for their names
     const val RACE_NAME_DX = 2; const val RACE_NAME_UP = 7
     const val SEX_PITCH = 46 + 22; const val SEX_TOP = 27
 
@@ -321,12 +326,45 @@ fun raceSlot(k: Int, alliance: Boolean): RaceSlot {
     return RaceSlot(k, column * CL.u(CL.RACE_PITCH).toFloat(), line * CL.u(CL.RACE_PITCH) + column * CL.u(CL.RACE_COLUMN_DROP), !alliance)
 }
 
-/** The screen rectangle of a race button, for a screen [width] units wide. */
-fun raceRect(slot: RaceSlot, width: Float): Rect {
+/** The screen rectangle of a race button, for a screen [width] units wide, its side's column scrolled [scroll] units up. */
+fun raceRect(slot: RaceSlot, width: Float, scroll: Float = 0f): Rect {
     val w = CL.u(79)
     val colX = if (slot.right) width - CL.u(CL.RACES_X) - w else CL.u(CL.RACES_X)
     val x = if (slot.right) colX - slot.x else colX + slot.x
-    return Rect(x, CL.u(CL.RACES_Y) + slot.y, w, w)
+    return Rect(x, CL.u(CL.RACES_Y) + slot.y - scroll, w, w)
+}
+
+/**
+ * Which side a race stands on. The Lua puts a race on the Alliance's side where its ALLIANCE table (Lua 47-48, by the race's file
+ * name, upper case) says so and on the Horde's otherwise; the game's own tables give the faction of the races that table
+ * does not know (the allied races of Battle for Azeroth on, a race of ChrRaces.Alliance 0), so a race is the Alliance's where
+ * either says so.
+ */
+private val LUA_ALLIANCE = setOf("HUMAN", "DWARF", "NIGHTELF", "GNOME", "DRAENEI", "WORGEN", "VOIDELF", "LIGHTFORGEDDRAENEI", "HIGHORDER",
+    "PANDAREN", "KULTIRAN", "DARKIRONDWARF", "MECHAGNOME")
+
+fun raceToken(key: String): String = key.uppercase().filter { it in 'A'..'Z' }
+
+fun isAllianceSide(key: String, tablesSayAlliance: Boolean): Boolean = raceToken(key) in LUA_ALLIANCE || tablesSayAlliance
+
+/** The race column's window: from the races' top (Lua 825) to above the foot's buttons, as tall as the option list's is. */
+fun raceViewport(alliance: Boolean, width: Float): Rect {
+    val pad = CL.u(CL.RACE_VIEW_PAD)
+    val w = CL.u(CL.RACE_PITCH) + CL.u(79) + 2 * pad
+    val x = if (alliance) CL.u(CL.RACES_X) - pad else width - CL.u(CL.RACES_X) + pad - w
+    return Rect(x, CL.u(CL.RACES_Y) - pad, w, CL.SCREEN_H - CL.u(CL.RACES_Y) - CL.u(CL.FOOT_Y + CL.NAV_H + 14) + pad)
+}
+
+/** How tall a side's races are, the buttons and the names set under them: where more than the window holds, the column scrolls. */
+fun raceContentHeight(count: Int): Float {
+    if (count <= 0) return 0f
+    return (0 until count).maxOf { raceSlot(it, true).y } + CL.u(79) + CL.u(CL.RACE_VIEW_PAD)
+}
+
+/** The scroller of a side's races: the window's height from the races' top, and their height. */
+fun raceScroll(alliance: Boolean, width: Float, count: Int): ListScroll {
+    val v = raceViewport(alliance, width)
+    return ListScroll(v.h - CL.u(CL.RACE_VIEW_PAD), raceContentHeight(count))
 }
 
 /** Lua 1602: the categories' round buttons in a row ending 20 from the right; k from 0 of [n]; the button's rectangle. */
@@ -579,5 +617,262 @@ object CreatorCamera {
         val v2 = 2f * d * tan(Math.toRadians(fov / 2.0)).toFloat()
         val at = point - (focusY - 0.5f) * v2
         return CameraPose(Vec3(d, 0f, at), Vec3(0f, 0f, at), fov)
+    }
+}
+
+// ---- Words ----------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ * The creator's words, from where Wrath++ takes them. Its Lua asks the client's global strings for the faction names, Back and
+ * Name (FACTION_ALLIANCE, FACTION_HORDE, BACK, NAME: Lua 820, 866, 900, 904) and has a literal for each where the client has none;
+ * "Customize", "Finish" and the four views are its own literals and stay exactly as the Lua has them (Lua 898, 906, 1025-1028).
+ * Here the strings are the game's GlobalStrings table (BaseTag, TagText_lang) when the host has fetched it, else the Lua's literals.
+ */
+class CreatorStrings(tables: Tables?) {
+    private val found: Map<String, String> = run {
+        val out = HashMap<String, String>()
+        if (tables != null) for (r in tables.rows("GlobalStrings")) {
+            val tag = r["BaseTag"] ?: continue
+            if (tag in TAGS) { val text = r["TagText_lang"].orEmpty(); if (text.isNotEmpty()) out.putIfAbsent(tag, text) }
+            if (out.size == TAGS.size) break
+        }
+        out
+    }
+    private fun of(tag: String, literal: String) = found[tag] ?: literal
+    val alliance get() = of("FACTION_ALLIANCE", LUA_ALLIANCE_NAME)
+    val horde get() = of("FACTION_HORDE", LUA_HORDE_NAME)
+    val back get() = of("BACK", LUA_BACK)
+    val name get() = of("NAME", LUA_NAME)
+    val customize get() = LUA_CUSTOMIZE
+    val finish get() = LUA_FINISH
+
+    companion object {
+        private val TAGS = setOf("FACTION_ALLIANCE", "FACTION_HORDE", "BACK", "NAME")
+        // WrathppCreate.lua's own literals
+        const val LUA_ALLIANCE_NAME = "Alliance"; const val LUA_HORDE_NAME = "Horde"; const val LUA_BACK = "Back"; const val LUA_NAME = "Name"
+        const val LUA_CUSTOMIZE = "Customize"; const val LUA_FINISH = "Finish"
+    }
+}
+
+// ---- The woman's Body tab picture (body_icon.py) -----------------------------------------------------------------------------------------
+
+/**
+ * Wrath++'s "charactercreate-icon-customize-figure": the Body tab of a woman, which Shadowlands has no picture for. Ported from
+ * realm/warcraft/wrathpp/tools/body_icon.py (a woman's torso in the relief of the category pictures, lit from the top left, gold
+ * with a glow where chosen, grey where not, on the Face picture's own ring and disc with its head painted out), so that the phone
+ * makes it from the Face piece it has cut from the game's sheet: nothing of it is a file. Differences from the Python, all
+ * invisible at 104 x 105: the faint facets' random numbers are java.util.Random's (the shapes and places are the Python's only
+ * in kind), the figure is made smaller by area averaging where Pillow uses Lanczos, and Pillow's blur is a true Gaussian here.
+ * Colours are ARGB ints, not premultiplied, as Android's Bitmap.getPixels gives them.
+ */
+object BodyIcon {
+    private fun smooth(x: Double): Double { val c = x.coerceIn(0.0, 1.0); return c * c * (3 - 2 * c) }
+    private fun clip01(x: Double) = x.coerceIn(0.0, 1.0)
+
+    private val KS = doubleArrayOf(0.00, 0.06, 0.13, 0.20, 0.30, 0.40, 0.50, 0.58, 0.68, 0.78, 0.88, 1.00)
+    private val WS = doubleArrayOf(0.20, 0.24, 0.60, 0.66, 0.60, 0.53, 0.44, 0.42, 0.52, 0.62, 0.60, 0.50)
+
+    private fun interp(x: Double, xs: DoubleArray, ys: DoubleArray): Double {
+        if (x <= xs[0]) return ys[0]
+        for (i in 1 until xs.size) if (x <= xs[i]) { val t = (x - xs[i - 1]) / (xs[i] - xs[i - 1]); return ys[i - 1] + t * (ys[i] - ys[i - 1]) }
+        return ys.last()
+    }
+
+    /** A Gaussian blur of a [w] x [h] plane, edges extended, [sigma] in pixels. */
+    fun blur(a: DoubleArray, w: Int, h: Int, sigma: Double): DoubleArray {
+        if (sigma <= 0.0) return a.copyOf()
+        val r = max(1, ceil(sigma * 3).toInt())
+        val k = DoubleArray(2 * r + 1) { kotlin.math.exp(-((it - r) * (it - r)) / (2 * sigma * sigma)) }
+        val sum = k.sum(); for (i in k.indices) k[i] /= sum
+        val tmp = DoubleArray(a.size); val out = DoubleArray(a.size)
+        for (y in 0 until h) for (x in 0 until w) {
+            var v = 0.0
+            for (i in -r..r) v += k[i + r] * a[y * w + (x + i).coerceIn(0, w - 1)]
+            tmp[y * w + x] = v
+        }
+        for (y in 0 until h) for (x in 0 until w) {
+            var v = 0.0
+            for (i in -r..r) v += k[i + r] * tmp[(y + i).coerceIn(0, h - 1) * w + x]
+            out[y * w + x] = v
+        }
+        return out
+    }
+
+    /** torso_height: the figure's height above the disc and its soft outline, [n] x [n] (row major). */
+    fun torso(n: Int): Pair<DoubleArray, DoubleArray> {
+        // the half-width down the figure, eased (Pillow's 8-bit blur of the profile, n/40)
+        val prof = DoubleArray(n) { floor(interp(it / (n - 1.0), KS, WS) * 255) }
+        val half = blur(prof, 1, n, n / 40.0).map { round(it) / 255.0 }
+        val height = DoubleArray(n * n); val edge = DoubleArray(n * n)
+        for (i in 0 until n) {
+            val v = i / (n - 1.0)
+            for (j in 0 until n) {
+                val u = (j / (n - 1.0) - 0.5) * 2
+                val hw = half[i]
+                var inside = hw - abs(u)
+                inside -= smooth((v - 0.84) / 0.08) * smooth((0.06 - abs(u)) / 0.04) * 0.2
+                val e = smooth(inside / 0.06) * smooth(v / 0.03) * smooth((1 - v) / 0.02)
+                var h = sqrt(clip01(inside / max(hw, 1e-3))) * 0.55
+                for (s in intArrayOf(-1, 1)) {
+                    val d = sqrt(((u - 0.30 * s) / 0.27).pow(2) + ((v - 0.33) / 0.13).pow(2))
+                    h += 0.62 * clip01(1 - d).pow(1.3)
+                }
+                h += 0.18 * clip01(1 - sqrt((u / 0.36).pow(2) + ((v - 0.66) / 0.16).pow(2))).pow(1.5)
+                for (s in intArrayOf(-1, 1)) {
+                    val d = sqrt(((u - 0.42 * s) / 0.25).pow(2) + ((v - 0.80) / 0.14).pow(2))
+                    h += 0.22 * clip01(1 - d).pow(1.4)
+                }
+                h -= 0.10 * clip01(1 - sqrt((u / 0.035).pow(2) + ((v - 0.62) / 0.03).pow(2)))
+                h -= 0.05 * clip01(1 - sqrt((u / 0.04).pow(2) + ((v - 0.47) / 0.10).pow(2)))
+                height[i * n + j] = h * e; edge[i * n + j] = e
+            }
+        }
+        return height to edge
+    }
+
+    private val GOLD_T = doubleArrayOf(0.0, 0.35, 0.7, 0.92, 1.0)
+    private val GOLD = arrayOf(doubleArrayOf(70.0, 45.0, 0.0), doubleArrayOf(170.0, 120.0, 0.0), doubleArrayOf(226.0, 186.0, 14.0), doubleArrayOf(255.0, 236.0, 90.0), doubleArrayOf(255.0, 250.0, 170.0))
+    private val GREY = arrayOf(doubleArrayOf(40.0, 40.0, 42.0), doubleArrayOf(98.0, 97.0, 96.0), doubleArrayOf(150.0, 148.0, 146.0), doubleArrayOf(205.0, 204.0, 202.0), doubleArrayOf(245.0, 245.0, 245.0))
+
+    /** shade: lit relief colours (r, g, b interleaved, 0..255) of a height field, the rim darker. */
+    fun shade(h: DoubleArray, edge: DoubleArray, n: Int, selected: Boolean): DoubleArray {
+        val ramp = if (selected) GOLD else GREY
+        val g = DoubleArray(n * n) { h[it] * n * 0.06 }
+        fun at(i: Int, j: Int) = g[i.coerceIn(0, n - 1) * n + j.coerceIn(0, n - 1)]
+        // numpy.gradient: central differences inside, one-sided at the ends
+        fun dRow(i: Int, j: Int) = if (i == 0) at(1, j) - at(0, j) else if (i == n - 1) at(n - 1, j) - at(n - 2, j) else (at(i + 1, j) - at(i - 1, j)) / 2
+        fun dCol(i: Int, j: Int) = if (j == 0) at(i, 1) - at(i, 0) else if (j == n - 1) at(i, n - 1) - at(i, n - 2) else (at(i, j + 1) - at(i, j - 1)) / 2
+        val ll = sqrt(0.55 * 0.55 + 0.65 * 0.65 + 0.52 * 0.52)
+        val lx = -0.55 / ll; val ly = -0.65 / ll; val lz = 0.52 / ll
+        val hn = sqrt(lx * lx + ly * ly + (lz + 1) * (lz + 1)); val hx = lx / hn; val hy = ly / hn; val hz = (lz + 1) / hn
+        // the faint broad facets of the stone
+        val rng = java.util.Random(7)
+        val px = DoubleArray(26); val py = DoubleArray(26)
+        for (k in 0 until 26) { px[k] = rng.nextDouble() * n; py[k] = rng.nextDouble() * n }
+        val shift = DoubleArray(26) { (rng.nextDouble() - 0.5) * 0.06 }
+        val out = DoubleArray(n * n * 3)
+        for (i in 0 until n) for (j in 0 until n) {
+            val gy = dRow(i, j); val gx = dCol(i, j)
+            val nl = sqrt(gx * gx + gy * gy + 1.0)
+            val nx = -gx / nl; val ny = -gy / nl; val nz = 1 / nl
+            val lit = clip01(nx * lx + ny * ly + nz * lz)
+            val spec = clip01(nx * hx + ny * hy + nz * hz).pow(24)
+            var cell = 0; var best = Double.MAX_VALUE
+            for (k in 0 until 26) { val d = (i - py[k]).pow(2) + (j - px[k]).pow(2); if (d < best) { best = d; cell = k } }
+            val t = clip01(clip01(0.18 + 0.82 * lit) + shift[cell])
+            val rim = smooth((edge[i * n + j] - 0.02) / 0.5).pow(0.6)
+            for (c in 0 until 3) {
+                val v = (interp(t, GOLD_T, DoubleArray(5) { ramp[it][c] }) + spec * 60).coerceIn(0.0, 255.0)
+                out[(i * n + j) * 3 + c] = v * (0.45 + 0.55 * rim)
+            }
+        }
+        return out
+    }
+
+    /** disc_only: the piece's ring and disc with its head painted out, in ARGB. */
+    fun discOnly(piece: IntArray, pw: Int, ph: Int): IntArray {
+        val n = if (max(ph, pw) < 200) 256.0 * max(ph, pw) / 158.0 else max(ph, pw).toDouble()
+        val inner = 0.118 * n; val outer = 0.148 * n
+        val cx = (pw - 1) / 2.0; val cy = (ph - 1) / 2.0
+        val rr = DoubleArray(pw * ph) { kotlin.math.hypot((it / pw) - cy, (it % pw) - cx) }
+        val prof = ArrayList<DoubleArray>()
+        for (r0 in 0..(outer.toInt() + 1)) {
+            val centre = if (r0 >= inner) r0.toDouble() else inner
+            val band = ArrayList<Int>()
+            for (p in rr.indices) if (abs(rr[p] - centre) < 1.0) band += p
+            if (band.isEmpty()) { prof += doubleArrayOf(0.0, 0.0, 0.0); continue }
+            val lum = band.map { p -> val c = piece[p]; ((c shr 16 and 255) + (c shr 8 and 255) + (c and 255)) / 3.0 }
+            val sorted = lum.sorted()
+            // numpy.percentile(lum, 60), linear
+            val pos = 0.6 * (sorted.size - 1); val lo = floor(pos).toInt(); val hi = min(lo + 1, sorted.size - 1)
+            val cut = sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo)
+            var cnt = 0; val acc = DoubleArray(3)
+            for ((q, p) in band.withIndex()) if (lum[q] <= cut) { val c = piece[p]; acc[0] += c shr 16 and 255; acc[1] += c shr 8 and 255; acc[2] += c and 255; cnt++ }
+            prof += DoubleArray(3) { if (cnt > 0) acc[it] / cnt else 0.0 }
+        }
+        val out = IntArray(piece.size)
+        for (p in piece.indices) {
+            val m = prof[round(rr[p]).toInt().coerceIn(0, prof.size - 1)]
+            val w = smooth((outer - rr[p]) / (0.02 * n))
+            val c = piece[p]
+            fun mix(k: Int, own: Int) = (m[k] * w + own * (1 - w)).toInt().coerceIn(0, 255)
+            out[p] = (c ushr 24 shl 24) or (mix(0, c shr 16 and 255) shl 16) or (mix(1, c shr 8 and 255) shl 8) or mix(2, c and 255)
+        }
+        return out
+    }
+
+    /** Area average of a [sw] x [sh] plane to [dw] x [dh]. */
+    private fun resize(a: DoubleArray, sw: Int, sh: Int, dw: Int, dh: Int): DoubleArray {
+        val out = DoubleArray(dw * dh)
+        for (y in 0 until dh) for (x in 0 until dw) {
+            val x0 = x * sw.toDouble() / dw; val x1 = (x + 1) * sw.toDouble() / dw
+            val y0 = y * sh.toDouble() / dh; val y1 = (y + 1) * sh.toDouble() / dh
+            var acc = 0.0; var wsum = 0.0
+            var sy = floor(y0).toInt()
+            while (sy < y1 && sy < sh) {
+                val wy = min(y1, sy + 1.0) - max(y0, sy.toDouble())
+                var sx = floor(x0).toInt()
+                while (sx < x1 && sx < sw) {
+                    val wx = min(x1, sx + 1.0) - max(x0, sx.toDouble())
+                    acc += a[sy * sw + sx] * wx * wy; wsum += wx * wy
+                    sx++
+                }
+                sy++
+            }
+            out[y * dw + x] = if (wsum > 0) acc / wsum else 0.0
+        }
+        return out
+    }
+
+    /**
+     * figure_piece: [head] is the Face picture's pixels (ARGB, [pw] x [ph]); the Body picture, chosen (gold, glowing) or not
+     * (grey), the same size.
+     */
+    fun figure(head: IntArray, pw: Int, ph: Int, selected: Boolean, sizeFrac: Double = 0.255): IntArray {
+        val n = if (max(ph, pw) < 200) 256.0 * max(ph, pw) / 158.0 else max(ph, pw).toDouble()
+        val base = discOnly(head, pw, ph)
+        val m = round(n * sizeFrac).toInt()
+        val big = m * 2
+        val (h, edge) = torso(big)
+        val rgb = shade(h, edge, big, selected)
+        val fw = m; val fh = (m * 1.18).toInt()
+        // premultiplied colours made smaller, then straight again
+        val chan = Array(3) { c -> resize(DoubleArray(big * big) { rgb[it * 3 + c] * edge[it] }, big, big, fw, fh) }
+        val alpha = resize(edge, big, big, fw, fh)
+        val x0 = Math.floorDiv(pw - fw, 2); val y0 = Math.floorDiv(ph - fh, 2) + (n * 0.005).toInt()
+        // working canvas: straight RGB (0..255) and alpha (0..1)
+        val r = DoubleArray(pw * ph); val g = DoubleArray(pw * ph); val b = DoubleArray(pw * ph); val a = DoubleArray(pw * ph)
+        for (p in base.indices) { val c = base[p]; a[p] = (c ushr 24) / 255.0; r[p] = (c shr 16 and 255).toDouble(); g[p] = (c shr 8 and 255).toDouble(); b[p] = (c and 255).toDouble() }
+        fun over(p: Int, sr: Double, sg: Double, sb: Double, sa: Double) {
+            if (sa <= 0.0) return
+            val oa = sa + a[p] * (1 - sa)
+            r[p] = (sr * sa + r[p] * a[p] * (1 - sa)) / oa; g[p] = (sg * sa + g[p] * a[p] * (1 - sa)) / oa; b[p] = (sb * sa + b[p] * a[p] * (1 - sa)) / oa
+            a[p] = oa
+        }
+        fun placed(dx: Int, dy: Int): DoubleArray {
+            val plane = DoubleArray(pw * ph)
+            for (y in 0 until fh) for (x in 0 until fw) {
+                val px = x0 + dx + x; val py = y0 + dy + y
+                if (px in 0 until pw && py in 0 until ph) plane[py * pw + px] = alpha[y * fw + x]
+            }
+            return plane
+        }
+        if (selected) {                                   // the glow round the figure
+            val glow = blur(placed(0, 0), pw, ph, n / 40.0)
+            for (p in glow.indices) over(p, 255.0, 210.0, 40.0, floor(glow[p] * 255) * 0.8 / 255.0)
+        }
+        val shadow = blur(placed(2, 2), pw, ph, 3.0)       // and a shadow, two down and right
+        for (p in shadow.indices) over(p, 0.0, 0.0, 0.0, floor(shadow[p] * 255) * 0.6 / 255.0)
+        for (y in 0 until fh) for (x in 0 until fw) {
+            val px = x0 + x; val py = y0 + y
+            if (px !in 0 until pw || py !in 0 until ph) continue
+            val al = alpha[y * fw + x]
+            if (al <= 0.0) continue
+            over(py * pw + px, chan[0][y * fw + x] / al, chan[1][y * fw + x] / al, chan[2][y * fw + x] / al, al)
+        }
+        return IntArray(pw * ph) { p ->
+            val al = (a[p] * 255 + 0.5).toInt().coerceIn(0, 255)
+            (al shl 24) or (r[p].toInt().coerceIn(0, 255) shl 16) or (g[p].toInt().coerceIn(0, 255) shl 8) or b[p].toInt().coerceIn(0, 255)
+        }
     }
 }

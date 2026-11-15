@@ -39,6 +39,8 @@ class ArtAtlas private constructor(private val dir: File, private val doc: JSONO
     private val pieceDefs = doc.getJSONObject("pieces")
     private val sheets = doc.getJSONObject("sheets")
     private val masked = doc.getJSONObject("masked")
+    /** Pictures that are plain files, not atlas pieces (the switch's check box): name -> {"f": file id, "s": [w, h]}. */
+    private val fileDefs = doc.optJSONObject("files") ?: JSONObject()
     private val cut = HashMap<String, ArtPiece>()
 
     /** Bumps when pieces arrive, so that what reads [piece] is drawn again. */
@@ -48,8 +50,11 @@ class ArtAtlas private constructor(private val dir: File, private val doc: JSONO
     @Volatile var error: String? = null
         private set
 
-    /** Whether the table has the piece at all (before it is cut). */
-    fun has(name: String): Boolean = pieceDefs.has(name)
+    /**
+     * Whether the table has the piece at all (before it is cut). The woman's Body tab picture ([FIGURE]) is made on the phone
+     * from the Face piece (BodyIcon, body_icon.py's port), so it is there where the Face piece is.
+     */
+    fun has(name: String): Boolean = pieceDefs.has(name) || fileDefs.has(name) || (name == FIGURE && pieceDefs.has(HEAD))
 
     /** The piece, or null (not cut yet, or not in the table). Reads [version]. */
     fun piece(name: String): ArtPiece? {
@@ -58,7 +63,8 @@ class ArtAtlas private constructor(private val dir: File, private val doc: JSONO
     }
 
     /** Every file id the art needs (the sheets and the mask). */
-    fun fileIds(): List<Int> = sheets.keys().asSequence().map { it.toInt() }.toList() + maskId
+    fun fileIds(): List<Int> =
+        sheets.keys().asSequence().map { it.toInt() }.toList() + maskId + fileDefs.keys().asSequence().map { fileDefs.getJSONObject(it).getInt("f") }
 
     private fun file(id: Int) = File(dir, "$id-$build")
 
@@ -67,6 +73,7 @@ class ArtAtlas private constructor(private val dir: File, private val doc: JSONO
         try {
             if (fetch) for (id in fileIds()) if (!file(id).let { it.isFile && it.length() > 0 }) download(id)
             val mask = decode(maskId)
+            val heads = HashMap<String, Bitmap>()          // the Face pieces, kept for the Body picture made from them
             val bySheet = HashMap<Int, MutableList<String>>()
             for (name in pieceDefs.keys()) bySheet.getOrPut(pieceDefs.getJSONObject(name).getInt("f")) { ArrayList() }.add(name)
             for ((sheetId, names) in bySheet) {
@@ -79,12 +86,34 @@ class ArtAtlas private constructor(private val dir: File, private val doc: JSONO
                     val bmp = Bitmap.createBitmap(sheet, l, t, r - l, bt - t)
                     val size = IntSize(s.getInt(0), s.getInt(1))
                     put(name, ArtPiece(bmp.asImageBitmap(), size))
+                    if (name == HEAD || name == "$HEAD-selected") heads[name] = bmp
                     val kind = KINDS.firstOrNull { it.second(name) }?.first
                     if (kind != null && mask != null) {
                         val m = masked.getJSONArray(kind)
                         put("$name.$kind", ArtPiece(trim(bmp, mask, m.getInt(0), m.getInt(1), m.getInt(2)).asImageBitmap(), size))
                     }
                 }
+            }
+            // the plain-file pictures: the switch's check box, drawn at the size the table of files gives
+            for (name in fileDefs.keys()) {
+                val def = fileDefs.getJSONObject(name)
+                val bmp = decode(def.getInt("f")) ?: continue
+                val s = def.getJSONArray("s")
+                put(name, ArtPiece(bmp.asImageBitmap(), IntSize(s.getInt(0), s.getInt(1))))
+            }
+            // the woman's Body tab picture, made from the Face piece: the picture and its round-button trim, chosen and not
+            if (mask != null) for (state in listOf("", "-selected")) {
+                val head = heads[HEAD + state] ?: continue
+                val s = pieceDefs.getJSONObject(HEAD + state).getJSONArray("s")
+                val px = IntArray(head.width * head.height)
+                head.getPixels(px, 0, head.width, 0, 0, head.width, head.height)
+                val made = BodyIcon.figure(px, head.width, head.height, state == "-selected")
+                val fig = Bitmap.createBitmap(head.width, head.height, Bitmap.Config.ARGB_8888)
+                fig.setPixels(made, 0, head.width, 0, 0, head.width, head.height)
+                val size = IntSize(s.getInt(0), s.getInt(1))
+                put(FIGURE + state, ArtPiece(fig.asImageBitmap(), size))
+                val m = masked.getJSONArray("category")
+                put("$FIGURE$state.category", ArtPiece(trim(fig, mask, m.getInt(0), m.getInt(1), m.getInt(2)).asImageBitmap(), size))
             }
             synchronized(cut) { version++ }
             error = null
@@ -131,6 +160,8 @@ class ArtAtlas private constructor(private val dir: File, private val doc: JSONO
     }
 
     companion object {
+        const val HEAD = "charactercreate-icon-customize-head"
+        const val FIGURE = "charactercreate-icon-customize-figure"
         private val KINDS: List<Pair<String, (String) -> Boolean>> = listOf(
             "category" to { n: String -> n.startsWith("charactercreate-icon-customize-") },
             "race" to { n: String -> n.startsWith("raceicon128-") },
