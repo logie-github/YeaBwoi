@@ -21,7 +21,7 @@ playing the game's emotes; the menus are WoW's own interface.
    Dalaran (the places' backdrop) and its props, then **every race's looks**, then the music and
    sounds. The bar counts files ("N of M files") and bytes. **Pause** stops, **Resume** carries on
    (also after the app was closed or killed: what is on the phone is never fetched again);
-   **Wi-Fi only** (on by default) waits for Wi-Fi. A file wago.tools won't give is tried five times
+   **Wi-Fi only** (on by default) waits for Wi-Fi. Options' **Download speed** (Gentle 24, Normal 48, Fast 96 files at once; Fast by default, changes the running download at once) is a ceiling: when wago.tools, a free service, answers 429/502/503/504, resets or times out, the download halves (never below 8), obeys Retry-After and climbs back by 4 every 50 good files; the Gather screen says "slowed to N". A file wago.tools won't give is tried five times
    and set aside, the rest carry on; at the end "N files could not be fetched: **Retry**".
 2. **Every race's looks** is every file the character creator can draw (creator/Prefetch.kt), so no
    character waits for a download later: for every race and both sexes (26 races, 52 models in
@@ -128,7 +128,7 @@ to the editor.
 ## Options
 
 Music and sound volume; text speed; the parchment talking head instead of Legion's dark one; Wi-Fi
-only for the first launch's gathering; and, from the title, the creator's **Imports**:
+only for the first launch's gathering; its download speed (24, 48 or 96 files at once); and, from the title, the creator's **Imports**:
 
 | Import | The zip | What it does |
 | --- | --- | --- |

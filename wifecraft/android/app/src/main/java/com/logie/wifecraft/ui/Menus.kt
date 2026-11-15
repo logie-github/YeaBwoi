@@ -21,6 +21,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -82,6 +84,8 @@ fun OptionsPanel(
     textSpeed: Int, onTextSpeed: (Int) -> Unit,
     parchment: Boolean, onParchment: (Boolean) -> Unit,
     wifiOnly: Boolean, onWifiOnly: (Boolean) -> Unit,
+    /** Files fetched at once by the first launch's gathering (24, 48 or 96). */
+    downloadSpeed: Int, onDownloadSpeed: (Int) -> Unit,
     musicVolume: Int, onMusicVolume: (Int) -> Unit,
     soundVolume: Int, onSoundVolume: (Int) -> Unit,
     onBack: () -> Unit,
@@ -110,6 +114,16 @@ fun OptionsPanel(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(wifiOnly, onWifiOnly, colors = goldCheckbox())
                 Text("Gather the game's files on Wi-Fi only (a look's own files come as it is shown)", style = frizStyle(13.sp, Color.White))
+            }
+            Text("Download speed (files at once; it slows itself when wago.tools asks for less)", style = frizStyle(13.sp, Color.White))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                for ((label, n) in listOf("Gentle 24" to 24, "Normal 48" to 48, "Fast 96" to 96)) {
+                    RadioButton(
+                        downloadSpeed == n, { onDownloadSpeed(n) },
+                        colors = RadioButtonDefaults.colors(selectedColor = WowColors.gold, unselectedColor = WowColors.gold.copy(alpha = 0.7f)),
+                    )
+                    Text(label, style = frizStyle(13.sp, Color.White), modifier = Modifier.padding(end = 10.dp))
+                }
             }
             more?.invoke()
             WowButton("Back", onBack, Modifier.align(Alignment.CenterHorizontally), width = 150.dp, height = 38.dp)

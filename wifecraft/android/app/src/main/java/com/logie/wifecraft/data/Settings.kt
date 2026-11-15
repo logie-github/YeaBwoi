@@ -21,8 +21,19 @@ class Settings(context: Context) {
     var soundVolume: Int
         get() = prefs.getInt("soundVolume", 85)
         set(v) = prefs.edit().putInt("soundVolume", v).apply()
+    /** Files fetched at once by the first launch's gathering: Gentle 24, Normal 48, Fast 96 (the ceiling; it backs off by itself). */
+    var downloadSpeed: Int
+        get() = prefs.getInt("downloadSpeed", FAST).let { if (it in CHOICES) it else FAST }
+        set(v) = prefs.edit().putInt("downloadSpeed", v).apply()
     /** The first launch's gathering waits for Wi-Fi (a look's own files are fetched as it is shown, on any connection). */
     var wifiOnly: Boolean
         get() = prefs.getBoolean("wifiOnly", true)
         set(v) = prefs.edit().putBoolean("wifiOnly", v).apply()
+
+    companion object {
+        const val GENTLE = 24
+        const val NORMAL = 48
+        const val FAST = 96
+        val CHOICES = listOf(GENTLE, NORMAL, FAST)
+    }
 }
