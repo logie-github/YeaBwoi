@@ -519,8 +519,8 @@ fun ItemCard(
             if (onFavourite != null) Box(Modifier.align(Alignment.TopEnd).size(48.dp).warPress(onClick = onFavourite), contentAlignment = Alignment.TopEnd) {
                 Canvas(Modifier.padding(7.dp).size(22.dp)) {
                     val star = war?.piece(if (favourite) WarIcons.STAR else WarIcons.STAR_OFF)
-                    if (star != null) drawFitted(star, center.x, center.y, size.minDimension)
-                    else drawCircle(if (favourite) War.gold else War.muted, size.minDimension / 3)
+                    if (star != null) drawFitted(star, center.x, center.y, this.size.minDimension)
+                    else drawCircle(if (favourite) War.gold else War.muted, this.size.minDimension / 3)
                 }
             }
             if (badge != null) Badge(badge, Modifier.align(Alignment.BottomEnd).padding(6.dp))

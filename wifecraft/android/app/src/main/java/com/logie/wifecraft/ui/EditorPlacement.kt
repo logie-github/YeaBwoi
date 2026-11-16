@@ -435,6 +435,7 @@ fun EditorPlacement(
 
     BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF140D08))) {
         val layout = BuildLayout.of(maxWidth.value, maxHeight.value)
+        val boxH = maxHeight // read here: inside Row/Column scopes the layout DSL marker hides BoxWithConstraints' receiver
         val barH = with(density) { barPx.toDp() }
         val pageShown = book.visible(bar.flyout, placing != null)
 
@@ -594,7 +595,7 @@ fun EditorPlacement(
             Modifier.align(Alignment.BottomStart).padding(start = WarSize.GUTTER.dp, bottom = barH + 16.dp, end = 64.dp),
             verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            val roomH = (maxHeight - (WarSize.TOP_BAR + 24).dp - barH - 16.dp).coerceAtLeast(64.dp)
+            val roomH = (boxH - (WarSize.TOP_BAR + 24).dp - barH - 16.dp).coerceAtLeast(64.dp)
             Column(horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (layout.clusterHorizontal && cluster.hint != null) Tooltip(cluster.tip(shownSel))
                 ToolClusterView(layout, cluster, shownSel, ::useTool, { cluster = cluster.longPress(it) }, Modifier.heightIn(max = roomH))
