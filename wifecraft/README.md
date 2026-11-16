@@ -16,8 +16,13 @@ playing the game's emotes; the menus are WoW's own interface.
 
 ## First launch
 
+In short: the first launch downloads WoW's interface, the game's tables (about 27 MB) and Dalaran from wago.tools, then,
+in the background, every file the character creator can draw (about 6 GB; Options' **Download speed** and **Wi-Fi
+only**). An editor location (the Stormwind Embassy, 30.5 MB) and an emote's animation file are fetched when first used,
+and the 37 MB sound table streams once. Nothing of the game is in the app.
+
 1. The title says the files aren't here yet: **Gather the Files**, then **Start**. It fetches WoW's
-   interface first, then the game's tables the character creator reads (about 20 MB), then
+   interface first, then the game's tables the character creator reads (about 27 MB), then
    Dalaran (the places' backdrop) and its props, then **every race's looks**, then the music and
    sounds. The bar counts files ("N of M files") and bytes. **Pause** stops, **Resume** carries on
    (also after the app was closed or killed: what is on the phone is never fetched again);
@@ -69,6 +74,45 @@ described under "Sims 4 animations" below. **Options** and **Updates** are below
   offers the library's animations ("Pose: name"): the line is spoken while the person holds it. **Check** lists what would stop it playing; **Play** plays the
   project from this scene.
 
+## The look
+
+The editor (the placement editor, the scene builder, the projects, the cast and the scenes) is "build mode, themed like
+Warcraft": the game's own current interface pieces, softened and warmed, with big friendly buttons. The character creator
+keeps Wrath++'s look exactly (Shadowlands' own art, `creator_art.json`) and is not part of this.
+
+- **Where the pieces come from**: `assets/ui_art.json` (made by `tools/ui_art.py` from the real `UiTextureAtlas*` tables and
+  `ManifestInterfaceData` at the app's build, 12.1.7.70892; ids and boxes only) names 90 atlas pieces on 29 sheets and 65
+  icon keys (57 icon files): the housing editor's round tool buttons, picture-card frames, wooden corbels and sign, the
+  spellbook's page, ribbon and side tab, the talent tree's gold rings, the action bar's slot frames, parchment, the neutral
+  ribbon, the radio button's disc and dot, the minimal scroll bar and slider, the gold glyphs (back, undo, redo, delete,
+  check...), and item and spell icons for the catalogue's tabs and every category, the tools and the emote groups. They
+  are fetched from wago.tools on the phone the first time the editor opens (about **58 MB**, once, into `files/war-art`),
+  cut, and warmed (a little less saturation, red up, blue down, the darks lifted: `WarKit.WarTint`). Until they are here
+  everything draws plainly in the same palette. Nothing of the game is in the app or this repository.
+- **Palette and sizes** (`ui/WarKit.kt`): cream and parchment grounds, amber highlights, deep brown words on parchment,
+  the game's gold (#FFD100) for names and the chosen things; rounded corners (10, 16, 22 dp); 56 dp round buttons, nothing
+  under 48 dp to touch; a press sinks a button a little and plays the interface's click.
+- **The placement editor**: the scene fills the screen. A slim **top bar**: Back, the scene's name on a parchment ribbon,
+  Undo, Redo, **Camera** (home view, look at the selected thing, show hidden things, tips again), **Snap** (its Grid and
+  Turn steps appear under the bar while it is on), **Stage** (the stage picker) and **Play**. The **catalogue bar** along the
+  bottom: round category tabs (Starter pack, Props, Buildings, Creatures, My NPCs, Favourites, Recent; the chosen one raised
+  in a gold ring, counts on the small ones' rims), the magnifying glass (the search box in their place), the category chips
+  (All, the biggest categories with their icons and counts, **More…** opens every category and style on a spellbook page),
+  and a sideways row of picture cards (the decor chest's frames, the star for Favourites, the armed one gold; the page turns
+  at the row's ends). The **−** folds the bar to its tabs. The **tool cluster** in the bottom-left corner: Select (move),
+  Rotate, Scale, Delete, **Eyedropper** (tap a placed thing: another of it is armed for placing, then the cluster goes back
+  to Select), Duplicate, Lock, Hide, Emote, Focus; a long press names a tool and says what it does on the tooltip strip; what
+  needs a selection is dimmed without one. **Things**, **Selected** and **Animation** are spellbook pages that slide in from
+  the right and fold to the spellbook's side tabs (remembered). The gizmo and the ghost are as they were.
+- **Every screen size**: everything is placed from the real width and height (`BuildLayout`): on the Fold's inner screen
+  (about 832 x 750 dp either way) big 104 dp cards, a chip row and the cluster in two columns; on a short screen (the cover
+  screen on its side, about 960 x 411 dp) 80 dp cards, the chips beside the tabs, the cluster in one row and the side tabs
+  across the top. Pages and the flyout are never taller than the room between the top bar and the bar.
+- **Not compiled here and not run on a phone**: the Compose code (`ui/WarArt.kt`, `ui/WarWidgets.kt` and the rebuilt
+  screens) is compiled by CI only. The pure parts (`WarKit`, `BuildModeState`: the layout, the tint, the tool cluster, the
+  Eyedropper, the tabs, chips, flyout and pages) are JVM-tested. The look was judged on mock images drawn from the real cut
+  pieces over a screenshot of the Embassy, at 2184 x 1968, 1968 x 2184 and 2520 x 1080.
+
 ## Placement editor
 
 Pick a thing or an NPC, put it in the scene, drag it where you want it, and give it an animation or an emote (the
@@ -82,9 +126,8 @@ Creation Kit's way). It works on the scene builder's stage.
   own music and ambience play (the Embassy's ZoneMusic and SoundAmbience).
   **Play opens a location scene on the view's camera** (its own, else a look at its spawn) and shows the location's
   name (for example Stormwind Embassy: Inside) instead of the bare id; the cast still stands on the plain stage's marks.
-- **Place things** opens the placement editor on that stage. **Add** opens the **library**: on a wide screen (the Fold's
-  inner screen, a tablet, a phone on its side) it is a panel beside the stage, so the stage stays in view; on a narrow one
-  (the cover screen upright) a sheet over the lower part of the stage, never more than about half its height.
+- **Place things** opens the placement editor on that stage. The **library** is the catalogue bar along its bottom (see
+  "The look": tabs, chips, a sideways row of cards; it folds to its tabs).
   - **Picture cards**: each entry is a small picture of its model (drawn on the phone as its card comes on screen and
     kept; its name shows until the picture is ready, an NPC of your cast shows its initial). A line under the grid says
     why pictures can't be drawn, if they can't.
@@ -117,11 +160,11 @@ Creation Kit's way). It works on the scene builder's stage.
   height it stood above the ground), and two fingers on it turn and resize it. A locked thing shows no handles (the bar
   says Locked, with Unlock). One finger anywhere else orbits the camera; two pan and pinch to zoom. **View** puts the
   camera back.
-- **The panels** (Things, Selected, Animation) fold to slim tabs at the side (or the bottom) with **Hide**, so the stage is
-  not covered; a tab opens them again. Whether they are open is remembered. They fold by themselves while the library is
+- **The pages** (Things, Selected, Animation) fold to the spellbook's side tabs (a tap on the open page's tab), so the stage is
+  not covered; a tab opens them again. Whether they are open is remembered. They fold by themselves while the category flyout is
   open or while placing.
 - **Tips**: a one-line tip over the stage says what the current mode does ("Drag the ghost to place, lift to drop",
-  "Drag an arrow to move along an axis"...). **Got it** hides that tip for good; **Tips** in the tool row brings them back.
+  "Drag an arrow to move along an axis"...). **Got it** hides that tip for good; **Tips again** (Camera, in the top bar) brings them back.
 - **Selected**: X, Y, Z (yards, Z up), Turn (degrees) and Size typed in, a size slider (0.05 to 20) and a turn
   slider (**Size** works on people and creatures too: their own look's size times it); the nudge buttons (**Left**, **Right**, **Away**, **Near** as the camera sees the floor, **Up**, **Down**: a
   tenth of a yard, or the grid while snapping); **Copy** (beside the original) and **Delete** (its Emote and Animation
@@ -132,10 +175,12 @@ Creation Kit's way). It works on the scene builder's stage.
 - **Things**: each placed thing, what it is, and for the selected one **Hide**, **Lock**, **Rename** and **Look** (the
   camera turns to it). **Hide** and **Lock** are saved with the scene. A hidden thing stays in Things (greyed) but is
   left out of Play (the compiled script says so in a comment, and drops the Emote and Animation beats on it); the editor
-  draws it only while **Show hidden** (the tool row) is on, undimmed. A locked thing can't be moved, turned or resized by
+  draws it only while **Show hidden** (Camera in the top bar, or the Things page) is on, undimmed. A locked thing can't be moved, turned or resized by
   drag, handles, nudge buttons or the Inspector's fields (they are greyed); unlock it to change it. A copy is unlocked.
 - **Animation** (a person or a creature): every emote and animation of its race and sex, grouped (Emotes, Dance, Sit,
-  sleep and kneel, Work and life, Combat, Spells...), with a search box. **Play** (or tapping the row) previews it on
+  sleep and kneel, Work and life, Combat, Spells...), with a search box. Each reads as words: the game's chat tokens
+  written out (**Talk (Excited)**, **For the Alliance!**), an animation's name split, its weapon or stance in brackets
+  (**Ready (Unarmed)**, **Dance (Special)**, **Sit Chair (Medium)**; tools/emotes.py's labels). **Play** (or tapping the row) previews it on
   the stage with its voice; **Use** makes it what it plays in the scene; **None** goes back to standing. **Held**
   keeps it looping, **Sound** turns its voice and sounds on or off. A creature also has its own sounds to hear
   (Fidget, Alert, Attack, Wound, Death, Shout, Loop). A creature that isn't one of the player races is offered every

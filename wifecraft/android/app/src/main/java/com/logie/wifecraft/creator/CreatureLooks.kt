@@ -22,6 +22,11 @@ import java.util.WeakHashMap
  *   collection pieces skinned to the body (ModelType 1), the cape's texture (type 2), and what a helm hides
  *   (HelmetGeosetData). Weapons aren't the display's (the server equips them): none are drawn.
  *
+ * A look's scale is the game's own size for the display, on the model's units (yards), and the engine adds nothing to
+ * it: measured beside a night elf woman in engine-test, a boar (display 503, boar2 at 0.6) stands 1.2 yards, a guard 2.1,
+ * a raptor hatchling (its model data's 0.15) 0.7. What the tables can't say is a server's own scale for a creature: a
+ * display can be huge as it is (52696, Draenor's giant war boar, 8 yards tall at 1), and the editor's Size sets it.
+ *
  * Pure JVM; the small tables are indexed once per [Tables], the big ones looked up by key ([Tables.rowsBy]).
  */
 object CreatureLooks {

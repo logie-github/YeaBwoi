@@ -23,6 +23,8 @@ class CreatureLooksTest {
             9000,902,1.5,0,7001,7002,0,7004
             9001,902,0,0,7001,0,0,0
             9002,903,1,0,0,0,0,0
+            9003,905,0.6,0,0,0,0,0
+            9004,906,1,0,0,0,0,0
             9500,901,1,7,0,0,0,0
             9501,901,1,8,0,0,0,0
             9502,901,1,99,0,0,0,0
@@ -35,6 +37,8 @@ class CreatureLooksTest {
             902,4002,2
             903,0,1
             904,4004,1
+            905,4005,0
+            906,4006,0.15
         """,
         "CreatureDisplayInfoGeosetData" to """
             ID,GeosetIndex,GeosetValue,CreatureDisplayInfoID
@@ -135,6 +139,21 @@ class CreatureLooksTest {
         assertEquals(setOf(4002, 7001, 7002, 7004), look.needsFiles)
         // a scale of 0 is 1
         assertEquals(2.0f, CreatureLooks.resolve(tables, 9001)!!.scale)
+    }
+
+    /**
+     * A look's size is the game's: the display's CreatureModelScale times the model data's ModelScale on the model's own
+     * yards, nothing added for a creature (CreatureLooksRealTest measures the real ones). A boar at 0.6 is 0.6, a model
+     * data of 0 is 1, a pet's model data at 0.15 makes its display's 1 a hatchling's 0.15; the call carries it as it is.
+     */
+    @Test fun aCreaturesSizeIsItsDisplaysTimesItsModelDatas() {
+        assertEquals(0.6f, CreatureLooks.resolve(tables, 9003)!!.scale)
+        assertEquals(0.15f, CreatureLooks.resolve(tables, 9004)!!.scale)
+        assertEquals(1.25f, CreatureLooks.resolve(tables, 802)!!.scale)
+        for (d in listOf(9000, 9003, 9004)) {
+            val look = CreatureLooks.resolve(tables, d)!!
+            assertEquals(look.scale, CreatureLooks.call(tables, look).scale)
+        }
     }
 
     @Test fun theCallBindsEachSkinWholeAndShowsTheDefaultGeosets() {

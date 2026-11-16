@@ -100,6 +100,8 @@ import com.logie.wifecraft.ui.ImportsSection
 import com.logie.wifecraft.ui.LoadingBar
 import com.logie.wifecraft.ui.LocalArt
 import com.logie.wifecraft.ui.LocalSounds
+import com.logie.wifecraft.ui.LocalWar
+import com.logie.wifecraft.ui.WarArt
 import com.logie.wifecraft.ui.LogPanel
 import com.logie.wifecraft.ui.OptionsPanel
 import com.logie.wifecraft.ui.Overlay
@@ -222,6 +224,8 @@ class MainActivity : ComponentActivity() {
         var panel by remember { mutableStateOf(Panel.None) }
         var director by remember { mutableStateOf<Director?>(null) }
         var art by remember { mutableStateOf<WowArt?>(null) }
+        // the editor's build-mode art (WarArt: the game's current interface pieces and icons, fetched once, cut and warmed)
+        val war = remember { WarArt.open(applicationContext) }
         var catalog by remember { mutableStateOf<Catalog?>(null) }
         var frame by remember { mutableIntStateOf(0) }
         var last by remember { mutableStateOf(projects.list().firstOrNull()) }
@@ -242,6 +246,10 @@ class MainActivity : ComponentActivity() {
         // WoW's interface art, once its files are here (and again when downloads finish).
         LaunchedEffect(progress.complete.contains("interface")) {
             if (files.packComplete("interface")) art = withContext(Dispatchers.IO) { WowArt.load(files) }
+        }
+        // The build-mode art: what is already here at once, the rest fetched once the game's files are gathered (or the editor opens).
+        LaunchedEffect(progress.complete.contains("interface"), screen is Screen.Editor) {
+            if (files.packComplete("interface") || screen is Screen.Editor) runCatching { war.load() }
         }
         // The creator's races, options and choices, from the game's tables once they are all here.
         LaunchedEffect(progress.complete.contains(GameFiles.TABLES)) {
@@ -322,7 +330,7 @@ class MainActivity : ComponentActivity() {
         val ready = needed.all { p -> p.files.all { files.has(it.first) } } && progress.complete.contains(GameFiles.TABLES)
         val soundMissing = files.packs.filter { it.name == "sound" }
             .sumOf { p -> p.files.filter { !files.has(it.first) }.sumOf { it.second } }
-        CompositionLocalProvider(LocalArt provides art, LocalSounds provides { name: String -> audio?.ui(name) }) {
+        CompositionLocalProvider(LocalArt provides art, LocalWar provides war, LocalSounds provides { name: String -> audio?.ui(name) }) {
             Box(Modifier.fillMaxSize()) {
                 when (val s = screen) {
                     Screen.Title -> TitleScreen(

@@ -14,7 +14,9 @@ enum class EmoteKind { TEXT, NPC, ANIM }
  * model), [variation] the one to play (0; [variations] says how many the model has), [soundFiles] the voice's recordings
  * for the model's race and sex (one is played at random; empty for none), [loop] whether it is held (a state: sit, sleep,
  * kneel, dance) rather than played once. Ids: a text emote's EmotesText id; an NPC emote's 10000 + Emotes id; an
- * animation's 100000 + its id.
+ * animation's 100000 + its id. [name] is the game's own word for it (the chat token "Talkex", the NPC emote's command,
+ * the animation's "ReadyUnarmed"); [label] is what the player reads ("Talk (Excited)", "For the Alliance!",
+ * "Ready (Unarmed)"; tools/emotes.py's), the name where the file has none.
  */
 data class Emote(
     val id: Int,
@@ -26,6 +28,7 @@ data class Emote(
     val category: String = EmoteCatalog.EMOTES,
     val loop: Boolean = false,
     val variations: Int = 1,
+    val label: String = name,
 )
 
 /**
@@ -41,9 +44,10 @@ class EmoteCatalog private constructor(
     private val text: List<Row>,
     private val npc: List<Row>,
     private val anims: Map<Int, String>,
+    private val labels: Map<Int, String>,
     private val models: Map<String, ModelRow>,
 ) {
-    private class Row(val id: Int, val name: String, val anim: Int, val kind: Int)
+    private class Row(val id: Int, val name: String, val anim: Int, val kind: Int, val label: String)
     private class ModelRow(val chrModel: Int, val file: Int, val variations: Map<Int, Int>, val voices: Map<Int, List<Int>>)
 
     private val cache = HashMap<String, List<Emote>>()
@@ -53,6 +57,9 @@ class EmoteCatalog private constructor(
 
     /** An animation's name (wow.export's, from wow.tools: AnimationData has none), or null. */
     fun animName(anim: Int): String? = anims[anim]
+
+    /** An animation's name for the player ("Ready (Unarmed)"), else its name, or null. */
+    fun animLabel(anim: Int): String? = labels[anim] ?: anims[anim]
 
     /** The model's M2 file id for a race and sex (0: not in the file). */
     fun modelFile(raceId: Int, sex: Sex): Int = models[key(raceId, sex)]?.file ?: 0
@@ -72,26 +79,28 @@ class EmoteCatalog private constructor(
             if (!has && voice.isEmpty()) continue
             val loop = r.kind != 0
             if (has) { played += r.anim to loop; covered += r.anim }
-            out += Emote(r.id, r.name, if (has) r.anim else -1, 0, voice, EmoteKind.TEXT, EMOTES, loop, if (has) m.variations.getValue(r.anim) else 1)
+            out += Emote(r.id, r.name, if (has) r.anim else -1, 0, voice, EmoteKind.TEXT, EMOTES, loop,
+                if (has) m.variations.getValue(r.anim) else 1, r.label)
         }
-        out.sortWith(compareBy({ it.name.lowercase() }, { it.id }))
+        out.sortWith(compareBy({ it.label.lowercase() }, { it.id }))
         val npcOut = ArrayList<Emote>()
         for (r in npc) {
             val loop = r.kind != 0
             if (r.anim !in m.variations || (r.anim to loop) in played) continue
             played += r.anim to loop
             covered += r.anim
-            npcOut += Emote(r.id, r.name, r.anim, 0, emptyList(), EmoteKind.NPC, categoryOf(anims[r.anim] ?: ""), loop, m.variations.getValue(r.anim))
+            npcOut += Emote(r.id, r.name, r.anim, 0, emptyList(), EmoteKind.NPC, categoryOf(anims[r.anim] ?: ""), loop,
+                m.variations.getValue(r.anim), r.label)
         }
-        npcOut.sortWith(compareBy({ it.category }, { it.name.lowercase() }, { it.id }))
+        npcOut.sortWith(compareBy({ it.category }, { it.label.lowercase() }, { it.id }))
         out += npcOut
         val rest = ArrayList<Emote>()
         for ((anim, n) in m.variations) {
             if (anim in covered || anim in LAYERS) continue
             val name = anims[anim] ?: "Anim$anim"
-            rest += Emote(ANIM_BASE + anim, name, anim, 0, emptyList(), EmoteKind.ANIM, categoryOf(name), false, n)
+            rest += Emote(ANIM_BASE + anim, name, anim, 0, emptyList(), EmoteKind.ANIM, categoryOf(name), false, n, labels[anim] ?: name)
         }
-        rest.sortWith(compareBy({ CATEGORIES.indexOf(it.category) }, { it.name.lowercase() }))
+        rest.sortWith(compareBy({ CATEGORIES.indexOf(it.category) }, { it.label.lowercase() }))
         out += rest
         out
     }
@@ -140,10 +149,15 @@ class EmoteCatalog private constructor(
             val o = JSONObject(json)
             fun rows(name: String): List<Row> {
                 val a = o.optJSONArray(name) ?: return emptyList()
-                return List(a.length()) { i -> a.getJSONArray(i).let { Row(it.getInt(0), it.getString(1), it.getInt(2), it.getInt(3)) } }
+                // [id, name, anim, kind, label]: the label (tools/emotes.py's) is the fifth, absent in older files
+                return List(a.length()) { i ->
+                    a.getJSONArray(i).let { Row(it.getInt(0), it.getString(1), it.getInt(2), it.getInt(3), it.optString(4).ifEmpty { it.getString(1) }) }
+                }
             }
             val an = o.optJSONObject("anims") ?: JSONObject()
             val anims = an.keys().asSequence().associate { it.toInt() to an.getString(it) }
+            val lb = o.optJSONObject("labels") ?: JSONObject()
+            val labels = lb.keys().asSequence().associate { it.toInt() to lb.getString(it) }
             val ms = o.optJSONObject("models") ?: JSONObject()
             val models = ms.keys().asSequence().associateWith { k ->
                 val m = ms.getJSONObject(k)
@@ -155,7 +169,7 @@ class EmoteCatalog private constructor(
                 val voices = v.keys().asSequence().associate { t -> t.toInt() to v.getJSONArray(t).let { f -> List(f.length()) { f.getInt(it) } } }
                 ModelRow(m.optInt("m"), m.optInt("f"), vars, voices)
             }
-            return EmoteCatalog(rows("text"), rows("npc"), anims, models)
+            return EmoteCatalog(rows("text"), rows("npc"), anims, labels, models)
         }
     }
 }

@@ -25,6 +25,9 @@ val pureUi = tasks.register<Copy>("pureUi") {
     from("../android/app/src/main/java/com/logie/wifecraft/ui/PlaceState.kt")
     from("../android/app/src/main/java/com/logie/wifecraft/ui/PlaceModes.kt")
     from("../android/app/src/main/java/com/logie/wifecraft/ui/PlaceLibraryModel.kt")
+    // the editor's build-mode look (WarKit: palette, sizes, tint, layout) and its buttons' behaviour (BuildModeState)
+    from("../android/app/src/main/java/com/logie/wifecraft/ui/WarKit.kt")
+    from("../android/app/src/main/java/com/logie/wifecraft/ui/BuildModeState.kt")
     into(layout.buildDirectory.dir("gen/pureUi"))
 }
 
@@ -80,6 +83,8 @@ tasks.test {
     systemProperty("wifecraft.assets", file("../android/app/src/main/assets").absolutePath)
     // downloaded game files (each named by its id), for the tests that check the real ones (-Dwifecraft.gamefiles=DIR)
     System.getProperty("wifecraft.gamefiles")?.let { systemProperty("wifecraft.gamefiles", it) }
+    // the build mode's layout for the mock images (WarKitTest.dumpForMocks: -Dwifecraft.layoutOut=FILE)
+    System.getProperty("wifecraft.layoutOut")?.let { systemProperty("wifecraft.layoutOut", it) }
     testLogging {
         events("passed", "failed")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL

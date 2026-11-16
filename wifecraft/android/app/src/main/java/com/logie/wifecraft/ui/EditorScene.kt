@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -133,13 +135,28 @@ fun EditorSceneBuilder(
     // the selected placed thing is outlined
     LaunchedEffect(placing, placeUi.selected) { view.select(if (placing) placeUi.selected?.let(PlaceKeys::of) else null) }
 
+    val stages = StageChoices.list(places, locations)
+    fun pickStage(id: String) = state.setStageId(sceneId, id, stages.firstOrNull { it.first == id }?.second ?: id)
+
+    fun play() {
+        try {
+            onPlay(Compile.toScript(project.copy(start = sceneId)))
+        } catch (e: Exception) {
+            failure = e.message ?: e.toString()
+        }
+    }
+
     if (placing && engine != null) {
         EditorPlacement(
             project, state, sceneId, view, engine, stageName,
             camera = orbit, onCamera = { orbit = it }, onResetCamera = { orbit = home },
             ui = placeUi, onUi = { placeUi = it }, live = live, onLive = { live = it },
             onDone = { live = null; placing = false },
+            stages = stages, stageId = stageId, onStage = { pickStage(it) },
+            // Play from the placement editor: what would stop it is shown on the scene builder's page
+            onPlay = { val p = state.problems(); if (p.isEmpty()) play() else { live = null; placing = false; report = p } },
         )
+        failure?.let { msg -> ConfirmDialog("It can't be played: " + msg, "Close", { failure = null }) { failure = null } }
         return
     }
 
@@ -152,40 +169,39 @@ fun EditorSceneBuilder(
         }
     }
 
-    fun play() {
-        try {
-            onPlay(Compile.toScript(project.copy(start = sceneId)))
-        } catch (e: Exception) {
-            failure = e.message ?: e.toString()
-        }
-    }
+    var stagePicker by remember { mutableStateOf(false) }
 
     EditorFrame(
         project.title + ": " + sc.name, onBack,
         actions = {
-            SmallButton("Rename", { renaming = true }, width = 104.dp)
-            SmallButton("Check", { report = state.problems() }, width = 90.dp)
-            WowButton("Play", { val p = state.problems(); if (p.isEmpty()) play() else report = p }, width = 110.dp, height = 40.dp)
+            RoundIconButton(Face(icon = "menu.scene"), { renaming = true }, description = "Rename")
+            RoundIconButton(Face(glyph = WarIcons.CHECK), { report = state.problems() }, description = "Check")
+            RoundIconButton(Face(glyph = WarIcons.PLAY), { val p = state.problems(); if (p.isEmpty()) play() else report = p }, primary = true, size = 64.dp, description = "Play")
         },
     ) {
         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1.1f).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(Modifier.weight(1f).fillMaxWidth().background(Color.Black).border(1.dp, Color(0x66FFD100))) {
+                Box(Modifier.weight(1f).fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(WarSize.R_CARD.dp)).background(Color.Black)
+                    .border(1.5.dp, War.goldSoft, androidx.compose.foundation.shape.RoundedCornerShape(WarSize.R_CARD.dp))) {
                     AndroidView({ (view.parent as? ViewGroup)?.removeView(view); view }, Modifier.fillMaxSize())
                     if (engine != null) PlaceLoading(status, engine::clearErrors, Modifier.align(Alignment.TopCenter))
                 }
-                val stages = StageChoices.list(places, locations)
-                PickRow("Place", stages, stageId, { id ->
-                    state.setStageId(sceneId, id, stages.firstOrNull { it.first == id }?.second ?: id)
-                })
+                // the stage: a row that opens the stage picker (the studio, Dalaran's places, every location's views)
+                EditorCard(onClick = { stagePicker = true }) {
+                    RoundIconButton(Face(icon = if (StageChoices.locationOf(stageId) != null) "menu.location" else "tool.stage"), { stagePicker = true }, size = 48.dp, description = "Stage")
+                    Column(Modifier.weight(1f)) {
+                        Text("Stage", style = frizStyle(12.sp, WowColors.grey, false))
+                        Text(stageName, style = frizStyle(16.sp, War.cream, false), maxLines = 1)
+                    }
+                }
                 PickRow("Light", EditorChoices.lights.map { it to it.replaceFirstChar(Char::uppercase) }, sc.stage.light, {
                     state.setStage(sceneId, sc.stage.place, it, sc.stage.name)
                     // setStage puts the place in the stage id too: a location keeps its own
                     if (stageId != sc.stage.place) state.setStageId(sceneId, stageId, stageName)
                 })
-                WowButton(
+                PillButton(
                     if (sc.placements.isEmpty()) "Place things" else "Place things (${sc.placements.size})", { placing = true },
-                    Modifier.align(Alignment.CenterHorizontally), enabled = engine != null, width = 260.dp, height = 48.dp,
+                    Modifier.align(Alignment.CenterHorizontally).widthIn(min = 260.dp), enabled = engine != null, glyph = WarIcons.PLUS,
                 )
             }
             Column(Modifier.weight(1f).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -209,7 +225,7 @@ fun EditorSceneBuilder(
                         }
                     }
                 }
-                WowButton("Add beat", { adding = true }, Modifier.align(Alignment.CenterHorizontally), width = 220.dp, height = 40.dp)
+                PillButton("Add beat", { adding = true }, Modifier.align(Alignment.CenterHorizontally).widthIn(min = 220.dp), glyph = WarIcons.PLUS)
             }
         }
     }
@@ -219,32 +235,25 @@ fun EditorSceneBuilder(
         val at = state.addBeat(sceneId, state.newBeat(BeatKind.valueOf(name), sceneId), sel?.plus(1))
         selected = at.takeIf { it >= 0 }
     }
+    if (stagePicker) StagePicker(stages, stageId, { stagePicker = false }) { id -> stagePicker = false; pickStage(id) }
     if (renaming) NameDialog("Rename scene", sc.name, "Rename", { renaming = false }) { renaming = false; state.renameScene(sceneId, it) }
     report?.let { problems ->
-        Overlay({ report = null }) {
-            MetalPanel(Modifier.width(560.dp)) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(if (problems.isEmpty()) "Nothing is wrong." else plural(problems.size, "thing") + " to look at", style = frizStyle(18.sp), modifier = Modifier.align(Alignment.CenterHorizontally))
-                    LazyColumn(Modifier.heightIn(max = 220.dp)) {
-                        itemsIndexed(problems) { _, p -> Text(p, style = frizStyle(14.sp, Color.White, false), modifier = Modifier.padding(vertical = 2.dp)) }
-                    }
-                    Row(Modifier.align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        WowButton("Close", { report = null }, width = 150.dp)
-                        WowButton("Play anyway", { report = null; play() }, width = 190.dp)
-                    }
-                }
+        WarDialog({ report = null }) {
+            Text(if (problems.isEmpty()) "Nothing is wrong." else plural(problems.size, "thing") + " to look at", style = warTitle(20.sp), modifier = Modifier.align(Alignment.CenterHorizontally))
+            LazyColumn(Modifier.heightIn(max = 220.dp)) {
+                itemsIndexed(problems) { _, p -> Text(p, style = warText(14.sp), modifier = Modifier.padding(vertical = 2.dp)) }
+            }
+            Row(Modifier.align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PillButton("Close", { report = null }, Modifier.widthIn(min = 140.dp))
+                PillButton("Play anyway", { report = null; play() }, Modifier.widthIn(min = 170.dp), glyph = WarIcons.PLAY)
             }
         }
     }
     failure?.let { msg ->
-        Overlay({ failure = null }) {
-            MetalPanel(Modifier.width(520.dp)) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("It can't be played", style = frizStyle(18.sp), modifier = Modifier.align(Alignment.CenterHorizontally))
-                    Text(msg, style = frizStyle(14.sp, Color.White, false))
-                    WowButton("Close", { failure = null }, Modifier.align(Alignment.CenterHorizontally), width = 150.dp)
-                }
-            }
+        WarDialog({ failure = null }) {
+            Text("It can't be played", style = warTitle(20.sp), modifier = Modifier.align(Alignment.CenterHorizontally))
+            Text(msg, style = warText(14.sp))
+            PillButton("Close", { failure = null }, Modifier.align(Alignment.CenterHorizontally).widthIn(min = 140.dp))
         }
     }
 }
@@ -326,12 +335,12 @@ private fun BeatEditor(
                 val p = placed.firstOrNull { it.id == pid }
                 val emotes = remember(p?.kind, p?.asset, p?.actorId, project.cast) { if (p == null || engine == null) emptyList() else engine.emotesFor(p, project.cast) }
                 if (beat is Beat.Emote) {
-                    PickRow("Emote", emotes.map { it.id.toString() to "${it.name} (${it.category})" }, beat.emoteId.toString(), { put(beat.copy(emoteId = it.toInt())) })
+                    PickRow("Emote", emotes.map { it.id.toString() to "${it.label} (${it.category})" }, beat.emoteId.toString(), { put(beat.copy(emoteId = it.toInt())) })
                     val e = emotes.firstOrNull { it.id == beat.emoteId }
                     SmallButton("Preview", { if (p != null && e != null) engine?.previewEmote(p, e, project.cast) }, enabled = p != null && e != null, width = 120.dp)
                 } else if (beat is Beat.Anim) {
                     val byAnim = emotes.filter { it.anim >= 0 }.distinctBy { it.anim }
-                    PickRow("Animation", byAnim.map { it.anim.toString() to "${it.name} (${it.anim})" }, beat.anim.toString(), { put(beat.copy(anim = it.toInt())) })
+                    PickRow("Animation", byAnim.map { it.anim.toString() to "${it.label} (${it.anim})" }, beat.anim.toString(), { put(beat.copy(anim = it.toInt())) })
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         PToggle("Loops", beat.loop, { put(beat.copy(loop = it)) }, width = 110.dp)
                         val e = byAnim.firstOrNull { it.anim == beat.anim }

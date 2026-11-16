@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
@@ -33,7 +34,7 @@ fun EditorCast(
     var deleting by remember { mutableStateOf<String?>(null) }
     EditorFrame(
         "${project.title}: Cast", onBack,
-        actions = { SmallButton("Scenes", onScenes, width = 120.dp) },
+        actions = { RoundIconButton(Face(icon = "menu.scene"), onScenes, description = "Scenes") },
     ) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (project.cast.isEmpty()) {
@@ -42,6 +43,7 @@ fun EditorCast(
             LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(project.cast, key = { it.id }) { a ->
                     EditorCard(onClick = { onEdit(a.id) }) {
+                        RoundIconButton(Face(icon = "tab.npcs"), { onEdit(a.id) }, size = 48.dp, description = a.name)
                         Column(Modifier.weight(1f)) {
                             Text(a.name, style = frizStyle(18.sp), maxLines = 1)
                             Text(
@@ -55,7 +57,7 @@ fun EditorCast(
                     }
                 }
             }
-            WowButton("New NPC", onNew, Modifier.align(Alignment.CenterHorizontally), width = 240.dp)
+            PillButton("New NPC", onNew, Modifier.align(Alignment.CenterHorizontally).widthIn(min = 240.dp), glyph = WarIcons.PLUS)
         }
     }
     deleting?.let { id ->
