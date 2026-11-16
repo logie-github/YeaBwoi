@@ -6,11 +6,13 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -53,7 +55,8 @@ import com.logie.wifecraft.engine.SceneView
 sealed interface EditorStart {
     data object Projects : EditorStart
     data object New : EditorStart
-    data class Open(val project: Project) : EditorStart
+    /** [sceneId]: open that scene's builder (back from the animation library). */
+    data class Open(val project: Project, val sceneId: String? = null) : EditorStart
 }
 
 /** The renderer's key of the character creator's actor (CreatorScreen's actorKey). */
@@ -92,6 +95,9 @@ fun EditorScreen(
     animLibrary: AnimLibrary? = null,
     /** The placement editor's engine (MainActivity's): the locations, the library, the placed things on the stage. */
     placeEngine: PlaceEngine? = null,
+    /** The Game Menu's Animations (the library; [sceneId] the scene to come back to) and Options. */
+    onAnimations: (project: Project, sceneId: String?) -> Unit = { _, _ -> },
+    onOptions: () -> Unit = {},
 ) {
     /**
      * The checks, with the animation library's ids when there is one (read when they run, so a deleted animation shows) and
@@ -105,7 +111,9 @@ fun EditorScreen(
     var state by remember {
         mutableStateOf((start as? EditorStart.Open)?.let { s -> EditorState(s.project, validator, onChange = { api.save(it); rev++ }) })
     }
-    var page by remember { mutableStateOf<Page>(Page.Cast) }
+    var page by remember {
+        mutableStateOf<Page>((start as? EditorStart.Open)?.let { o -> o.sceneId?.takeIf { id -> o.project.scenes.any { it.id == id } } }?.let { Page.Builder(it) } ?: Page.Cast)
+    }
     @Suppress("UNUSED_EXPRESSION") rev   // changes redraw the open project
 
     val st = state
@@ -148,6 +156,16 @@ fun EditorScreen(
             onBack = { page = Page.Scenes },
             animLibrary = animLibrary,
             engine = placeEngine,
+            onMenu = { item ->
+                when (item) {
+                    GameMenuItem.CAST -> page = Page.Cast
+                    GameMenuItem.SCENES -> page = Page.Scenes
+                    GameMenuItem.ANIMATIONS -> onAnimations(st.project, p.sceneId)
+                    GameMenuItem.OPTIONS -> onOptions()
+                    GameMenuItem.SAVE_EXIT -> onBack()
+                    GameMenuItem.RESUME, GameMenuItem.PLAY -> Unit
+                }
+            },
         )
         is Page.Creator -> {
             val actor = p.actorId?.let { st.actorOf(it) }
@@ -190,33 +208,50 @@ fun defaultAppearance(c: Catalog): Appearance? {
 }
 
 /**
- * The projects (the build-mode look: a spellbook page over the warm dark ground): each project a parchment row with the
- * quill, its cast and scenes counted, Rename and Delete; New Project at the foot. Open one with a tap.
+ * The projects, as a WoW list window over the title's art: each project a row (its name in gold, when it was last saved, its
+ * cast and scenes counted). A tap picks a row (a tap on the picked one opens it) and shows its own line: Rename and Delete.
+ * **Open** and **New Project** at the foot.
  */
 @Composable
 fun EditorHome(api: ProjectsApi, onBack: () -> Unit, onOpen: (Project) -> Unit, askNew: Boolean = false) {
     var projects by remember { mutableStateOf(api.list()) }
     var asking by remember { mutableStateOf<Ask?>(if (askNew) Ask.New else null) }
+    var picked by remember { mutableStateOf(projects.firstOrNull()?.id) }
     BackHandler(onBack = onBack)
-    WarScreen("Projects", onBack, actions = {
-        RoundIconButton(Face(glyph = WarIcons.PLUS), { asking = Ask.New }, description = "New Project")
-    }) {
-        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            BookHeader("Your stories", if (projects.isEmpty()) "No stories yet" else plural(projects.size, "project"))
+    BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)) {
+        val layout = ChromeLayout.of(maxWidth.value, maxHeight.value)
+        androidx.compose.foundation.Image(
+            androidx.compose.ui.res.painterResource(com.logie.wifecraft.R.drawable.wc_header), null, Modifier.fillMaxSize(),
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop, alignment = androidx.compose.ui.BiasAlignment(0.6f, -0.4f),
+        )
+        Box(Modifier.fillMaxSize().background(Color(0x8C000000)))
+        WowWindow("Projects", onBack, Modifier.align(Alignment.Center).width(layout.listW.dp).height(layout.listH.dp)) {
+            if (projects.isEmpty()) WowNote("No stories yet: New Project starts one.", Modifier.padding(6.dp))
             val list = androidx.compose.foundation.lazy.rememberLazyListState()
-            LazyColumn(Modifier.weight(1f).warScrollbar(list), list, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            LazyColumn(Modifier.weight(1f).fillMaxWidth().warScrollbar(list), list, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(projects, key = { it.id }) { p ->
-                    WarRow({ onOpen(p) }, Modifier.padding(end = 10.dp), icon = "menu.project") {
-                        Column(Modifier.weight(1f)) {
-                            Text(p.title, style = warTitle(19.sp), maxLines = 1)
-                            Text(plural(p.cast.size, "NPC") + " · " + plural(p.scenes.size, "scene"), style = warText(12.sp, War.brownSoft))
-                        }
-                        RoundIconButton(Face(icon = "menu.scene"), { asking = Ask.Rename(p) }, size = 48.dp, label = "Rename", onLight = true)
-                        RoundIconButton(Face(glyph = WarIcons.DELETE), { asking = Ask.Delete(p) }, size = 48.dp, label = "Delete", onLight = true)
-                    }
+                    val sel = p.id == picked
+                    WowListRow(
+                        p.title,
+                        listOfNotNull(
+                            api.modified(p.id).takeIf { it > 0 }?.let { java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM).format(java.util.Date(it)) },
+                            plural(p.cast.size, "NPC"), plural(p.scenes.size, "scene"),
+                        ).joinToString("  ·  "),
+                        selected = sel,
+                        onClick = { if (sel) onOpen(p) else picked = p.id },
+                        modifier = Modifier.padding(end = 10.dp),
+                        icon = "menu.project",
+                        context = {
+                            TextAction("Rename", { asking = Ask.Rename(p) })
+                            TextAction("Delete", { asking = Ask.Delete(p) }, danger = true)
+                        },
+                    )
                 }
             }
-            PillButton("New Project", { asking = Ask.New }, Modifier.align(Alignment.CenterHorizontally).widthIn(min = 240.dp), glyph = WarIcons.PLUS)
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                RedButton("New Project", { asking = Ask.New }, Modifier.weight(1f))
+                RedButton("Open", { projects.firstOrNull { it.id == picked }?.let(onOpen) }, Modifier.weight(1f), enabled = projects.any { it.id == picked })
+            }
         }
     }
     when (val a = asking) {
@@ -234,6 +269,7 @@ fun EditorHome(api: ProjectsApi, onBack: () -> Unit, onOpen: (Project) -> Unit, 
             asking = null
             api.delete(a.p.id)
             projects = api.list()
+            if (projects.none { it.id == picked }) picked = projects.firstOrNull()?.id
         }
         null -> Unit
     }
@@ -293,40 +329,43 @@ fun SmallButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
 fun EditorField(value: String, onChange: (String) -> Unit, hint: String, modifier: Modifier = Modifier, singleLine: Boolean = true) =
     WarField(value, onChange, hint, modifier.fillMaxWidth(), singleLine = singleLine)
 
-/** A name to type, on a parchment page over the screen. */
+/** A name to type, in a small WoW window over the screen. */
 @Composable
 fun NameDialog(title: String, initial: String, ok: String, onCancel: () -> Unit, onOk: (String) -> Unit) {
     var text by remember { mutableStateOf(initial) }
-    WarDialog(onCancel) {
-        Text(title, style = warTitle(22.sp), modifier = Modifier.align(Alignment.CenterHorizontally))
-        WarField(text, { text = it.take(60) }, "Name")
-        Row(Modifier.align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PillButton("Cancel", onCancel, Modifier.widthIn(min = 140.dp))
-            PillButton(ok, { onOk(text) }, Modifier.widthIn(min = 140.dp), glyph = WarIcons.CHECK)
+    Overlay(onCancel) {
+        WowWindow(title, onCancel, Modifier.widthIn(max = 480.dp).padding(16.dp)) {
+            WowTextField(text, { text = it.take(60) }, "Name", Modifier.fillMaxWidth())
+            Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                RedButton("Cancel", onCancel, Modifier.weight(1f))
+                RedButton(ok, { onOk(text) }, Modifier.weight(1f))
+            }
         }
     }
 }
 
+/** A question in a small WoW window: Cancel and [ok]. */
 @Composable
 fun ConfirmDialog(question: String, ok: String, onCancel: () -> Unit, onOk: () -> Unit) {
-    WarDialog(onCancel) {
-        Text(question, style = warText(16.sp), modifier = Modifier.align(Alignment.CenterHorizontally))
-        Row(Modifier.align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PillButton("Cancel", onCancel, Modifier.widthIn(min = 140.dp))
-            PillButton(ok, onOk, Modifier.widthIn(min = 140.dp), danger = ok == "Delete")
+    Overlay(onCancel) {
+        WowWindow(if (ok == "Delete") "Delete" else ok, onCancel, Modifier.widthIn(max = 480.dp).padding(16.dp)) {
+            Text(question, style = frizStyle(15.sp, Color.White), modifier = Modifier.padding(vertical = 6.dp))
+            Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                RedButton("Cancel", onCancel, Modifier.weight(1f))
+                RedButton(ok, onOk, Modifier.weight(1f))
+            }
         }
     }
 }
 
-/** A list of (id, label) to pick one from, on a parchment page over the screen. */
+/** A list of (id, label) to pick one from, in a WoW list window over the screen. */
 @Composable
 fun PickDialog(title: String, items: List<Pair<String, String>>, current: String?, onCancel: () -> Unit, onPick: (String) -> Unit) {
-    WarDialog(onCancel) {
-        Text(title, style = warTitle(22.sp), modifier = Modifier.align(Alignment.CenterHorizontally))
-        LazyColumn(Modifier.heightIn(max = 340.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            items(items, key = { it.first }) { (id, label) ->
-                WarRow({ onPick(id) }, selected = id == current) {
-                    Text(label, style = warText(16.sp), maxLines = 1)
+    Overlay(onCancel) {
+        WowWindow(title, onCancel, Modifier.widthIn(max = 520.dp).heightIn(max = 520.dp).padding(16.dp)) {
+            LazyColumn(Modifier.weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                items(items, key = { it.first }) { (id, label) ->
+                    WowListRow(label, null, selected = id == current, onClick = { onPick(id) })
                 }
             }
         }

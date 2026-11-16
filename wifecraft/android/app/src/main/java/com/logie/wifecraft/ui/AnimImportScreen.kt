@@ -104,7 +104,7 @@ private enum class Phase { Pick, Running, Review, Saved }
  * assets/sims_profile.json); [library] receives what the review saves.
  */
 @Composable
-fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig) -> Retarget, onBack: () -> Unit) {
+fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig) -> Retarget, onBack: () -> Unit, onLibrary: (() -> Unit)? = null) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val main = remember { Handler(Looper.getMainLooper()) }
@@ -184,7 +184,9 @@ fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig)
 
     val pickFiles = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { start(it) }
 
-    EditorFrame("Import Animations", { if (phase != Phase.Running) { if (phase == Phase.Review) phase = Phase.Pick else onBack() } }) {
+    EditorFrame("Import Animations", { if (phase != Phase.Running) { if (phase == Phase.Review) phase = Phase.Pick else onBack() } },
+        // the animation library (the title keeps six buttons: it is reached from here and from the editor's Game Menu)
+        actions = { if (onLibrary != null && phase != Phase.Running) TextAction("Animations", onLibrary) }) {
         when (phase) {
             Phase.Pick -> PickPage(
                 hasRig, rigBones, rigMessage, rigBusy, run,

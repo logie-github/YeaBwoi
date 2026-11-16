@@ -1,16 +1,13 @@
 package com.logie.wifecraft.ui
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -19,71 +16,76 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.logie.wifecraft.catalog.Emote
 import com.logie.wifecraft.editor.Placement
 
 /**
- * The animation and emote of a placed person or creature (the Animation page): every emote and animation its race and sex
- * have (EmoteCatalog.forModel), in the catalogue's groups (Emotes, Dance, Sit, sleep and kneel, Work and life, Combat...)
- * each with its icon, by the names the player reads ([Emote.label]: "Talk (Excited)"), with a search box (the label or the
- * game's own name). Tapping a row or Play previews it on the stage with its voice; Use makes it the one it plays in the
- * scene. Held (loops) and Sound (its voice and its own sounds) are switches; None goes back to standing. A creature also
- * has its own sounds to hear.
+ * The emotes of a placed person or creature, as a WoW window: one search box and one category dropdown (All, Emotes, Dance,
+ * Sit, sleep and kneel, Work and life, Combat, Spells... with their counts: EmoteGroups), then the list by the names the
+ * player reads ([Emote.label]: "Talk (Excited)"). Tapping a row picks it and previews it on the stage with its voice;
+ * **Use** makes it what the thing plays in the scene, **None** goes back to standing, **Preview** plays the picked one again.
+ * Held (loops) and Sound (its voice and its own sounds) are check boxes; a creature also has its own sounds to hear.
  */
 @Composable
-fun EmotePicker(
+fun EmoteWindow(
     emotes: List<Emote>,
     p: Placement,
     onPreview: (Emote) -> Unit,
     onUse: (Emote?) -> Unit,
     onLoop: (Boolean) -> Unit,
     onSound: (Boolean) -> Unit,
-    onCreatureSound: ((String) -> Unit)? = null,
+    onCreatureSound: ((String) -> Unit)?,
+    onClose: () -> Unit,
+    width: Dp,
+    height: Dp,
 ) {
     var filter by remember { mutableStateOf("") }
-    var open by remember(p.id) { mutableStateOf<String?>(null) }
+    var group by remember(p.id) { mutableStateOf<String?>(null) }
+    var picked by remember(p.id) { mutableStateOf(emotes.firstOrNull { it.id == p.emoteId }) }
     val groups = remember(emotes, filter) { EmoteGroups.of(emotes, filter) }
-    val chosen = emotes.firstOrNull { it.id == p.emoteId }
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        BookHeader("Animation", p.name, "Now: " + (chosen?.label ?: p.anim?.let { "animation $it" } ?: "standing"))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            WarToggle("Held", p.loop, onLoop)
-            WarToggle("Sound", p.sound, onSound)
-        }
-        PillButton("None (standing)", { onUse(null) }, Modifier.fillMaxWidth())
-        if (onCreatureSound != null) {
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                for (k in listOf("fidget", "alert", "attack", "wound", "death", "shout", "loop")) Chip(k.replaceFirstChar { it.uppercase() }, null, false, { onCreatureSound(k) })
+    val shown = remember(groups, group) { (if (group == null) groups else groups.filter { it.first == group }).flatMap { it.second } }
+    val now = emotes.firstOrNull { it.id == p.emoteId }
+    Overlay(onClose) {
+        WowWindow("Emotes: ${p.name}", onClose, Modifier.width(width).height(height)) {
+            Text("Now: " + (now?.label ?: p.anim?.let { "animation $it" } ?: "standing"), style = frizStyle(13.sp, Color.White), maxLines = 1,
+                overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(bottom = 6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                WowSearchBox(filter, { filter = it.take(40) }, "Search ${emotes.size} emotes", Modifier.weight(1f))
+                val options = listOf<Pair<String?, String>>(null to "All  (${groups.sumOf { it.second.size }})") + groups.map { (g, rows) -> g to "$g  (${rows.size})" }
+                WowDropdown(options.firstOrNull { it.first == group }?.second ?: options.first().second, options, { group = it }, Modifier.weight(0.8f))
             }
-        }
-        WarField(filter, { filter = it.take(40) }, "Search ${emotes.size} emotes and animations")
-        if (emotes.isEmpty()) {
-            Text("This model's emotes aren't known (only the character creator's races and sexes are in emotes.json).", style = warText(13.sp, War.brownSoft))
-        }
-        val list = rememberLazyListState()
-        LazyColumn(Modifier.weight(1f).fillMaxWidth().warScrollbar(list), list, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            for ((category, rows) in groups) {
-                val shown = open == category || filter.isNotBlank() || groups.size == 1
-                item(key = "h:$category") {
-                    WarRow({ open = if (open == category) null else category }, selected = shown, icon = WarIcons.emoteGroup(category), modifier = Modifier.padding(end = 10.dp)) {
-                        Text(category, style = warTitle(17.sp), modifier = Modifier.weight(1f), maxLines = 1)
-                        Badge("${rows.size}")
-                    }
+            if (emotes.isEmpty()) WowNote("This model's emotes aren't known (only the character creator's races and sexes are in emotes.json).", Modifier.padding(6.dp))
+            val list = rememberLazyListState()
+            LazyColumn(Modifier.fillMaxWidth().weight(1f).padding(top = 6.dp).warScrollbar(list), list, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                items(shown, key = { "e:${it.id}" }) { e ->
+                    WowListRow(
+                        e.label, EmoteGroups.detail(e), selected = e.id == picked?.id,
+                        onClick = { picked = e; onPreview(e) },
+                        modifier = Modifier.padding(end = 10.dp),
+                        icon = WarIcons.emoteGroup(e.category),
+                        trailing = { if (e.id == p.emoteId) Text("in use", style = frizStyle(12.sp, WowColors.gold)) },
+                    )
                 }
-                if (shown) items(rows, key = { "e:${it.id}" }) { e ->
-                    WarRow({ onPreview(e) }, selected = e.id == p.emoteId, modifier = Modifier.padding(start = 14.dp, end = 10.dp)) {
-                        Column(Modifier.weight(1f).padding(vertical = 2.dp)) {
-                            Text(e.label, style = warText(14.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(EmoteGroups.detail(e), style = warText(11.sp, War.brownSoft), maxLines = 1)
-                        }
-                        RoundIconButton(Face(glyph = WarIcons.PLAY), { onPreview(e) }, size = 48.dp, description = "Play ${e.label}")
-                        RoundIconButton(Face(glyph = WarIcons.CHECK), { onUse(e) }, size = 48.dp, lit = e.id == p.emoteId, description = "Use ${e.label}")
-                    }
-                }
+            }
+            Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                WowCheckRow("Held", p.loop, onLoop)
+                WowCheckRow("Sound", p.sound, onSound)
+                if (onCreatureSound != null) WowDropdown(
+                    "Creature sound", listOf("fidget", "alert", "attack", "wound", "death", "shout", "loop").map { it to it.replaceFirstChar(Char::uppercase) },
+                    { onCreatureSound(it) }, Modifier.width(190.dp),
+                )
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                RedButton("None", { onUse(null) }, Modifier.weight(1f))
+                RedButton("Preview", { picked?.let(onPreview) }, Modifier.weight(1f), enabled = picked != null)
+                RedButton("Use", { picked?.let(onUse) }, Modifier.weight(1f), enabled = picked != null)
             }
         }
     }
 }
+

@@ -105,7 +105,7 @@ import com.logie.wifecraft.ui.WarArt
 import com.logie.wifecraft.ui.WarArtOverlay
 import com.logie.wifecraft.ui.WarArtRow
 import com.logie.wifecraft.ui.LogPanel
-import com.logie.wifecraft.ui.OptionsPanel
+import com.logie.wifecraft.ui.OptionsWindow
 import com.logie.wifecraft.ui.Overlay
 import com.logie.wifecraft.ui.PauseMenu
 import com.logie.wifecraft.ui.PlaceInfo
@@ -157,7 +157,8 @@ class MainActivity : ComponentActivity() {
         data class Editor(val start: EditorStart) : Screen
         data class Story(val projectId: String) : Screen
         data object ImportAnims : Screen
-        data object Animations : Screen
+        /** The animation library; [back]: where its Back goes (the title, or the editor's scene it was opened from). */
+        data class Animations(val back: Screen = Title) : Screen
     }
     enum class Panel { None, Pause, Log, Options, Update }
 
@@ -212,10 +213,10 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
-    /** Options' volumes on the scene's sounds: music; ambience and effects at Sounds; voices at Voices. */
+    /** Options' volumes on the scene's sounds: music, ambience, effects (Sounds) and voices, each its own. */
     private fun applySceneVolumes() {
         val s = settings.soundVolume / 100f
-        sceneAudio?.volumes = SoundVolumes(music = settings.musicVolume / 100f, ambience = s, effects = s, voices = settings.voiceVolume / 100f)
+        sceneAudio?.volumes = SoundVolumes(music = settings.musicVolume / 100f, ambience = settings.ambienceVolume / 100f, effects = s, voices = settings.voiceVolume / 100f)
     }
 
     private fun sceneView(): SceneView = scene ?: SceneView(this, files.dir.path).also { scene = it; it.softBody(Settings(this).softBody) }
@@ -241,6 +242,7 @@ class MainActivity : ComponentActivity() {
         var soundVolume by remember { mutableIntStateOf(settings.soundVolume) }
         var softBody by remember { mutableIntStateOf(settings.softBody) }
         var voiceVolume by remember { mutableIntStateOf(settings.voiceVolume) }
+        var ambienceVolume by remember { mutableIntStateOf(settings.ambienceVolume) }
         val progress by files.progress.collectAsState()
         val importsSlot: @Composable () -> Unit = { ImportsSection(imports, listfile) }
         val fetching by dresser.fetching.collectAsState()
@@ -325,7 +327,7 @@ class MainActivity : ComponentActivity() {
                 panel != Panel.None && panel != Panel.Pause && screen is Screen.Story -> panel = Panel.Pause
                 panel != Panel.None -> panel = Panel.None
                 screen is Screen.Story -> panel = Panel.Pause
-                else -> screen = Screen.Title
+                else -> screen = (screen as? Screen.Animations)?.back ?: Screen.Title
             }
         }
 
@@ -349,14 +351,15 @@ class MainActivity : ComponentActivity() {
                         onOptions = { panel = Panel.Options },
                         onUpdates = { updateStatus = ""; panel = Panel.Update },
                         onImportAnims = { screen = Screen.ImportAnims },
-                        onAnimations = { screen = Screen.Animations },
+                        onAnimations = { screen = Screen.Animations() },
                     )
                     Screen.ImportAnims -> AnimImportScreen(
                         library = anims, rigs = rigs,
                         retargeter = { rig -> Retargeter(Profile.load(profileJson), rig) },
                         onBack = { screen = Screen.Title },
+                        onLibrary = { screen = Screen.Animations() },
                     )
-                    Screen.Animations -> AnimLibraryScreen(anims, onImport = { screen = Screen.ImportAnims }, onBack = { screen = Screen.Title })
+                    is Screen.Animations -> AnimLibraryScreen(anims, onImport = { screen = Screen.ImportAnims }, onBack = { screen = s.back })
                     Screen.Gather -> GatherScreen(
                         progress = progress,
                         packLabels = listOf(
@@ -389,6 +392,9 @@ class MainActivity : ComponentActivity() {
                             onPlayProject = { project, text -> play(project, text) },
                             animLibrary = anims,
                             placeEngine = placer,
+                            // the Game Menu's Animations (back to the scene it was opened from) and Options (over the editor)
+                            onAnimations = { p, sceneId -> screen = Screen.Animations(Screen.Editor(EditorStart.Open(p, sceneId))) },
+                            onOptions = { panel = Panel.Options },
                         )
                     }
                     is Screen.Story -> director?.let { d ->
@@ -429,29 +435,30 @@ class MainActivity : ComponentActivity() {
                         LogPanel(d?.runner?.state?.log ?: emptyList(), { who -> d?.nameOf(who) ?: who }, onBack = { panel = Panel.None })
                     }
                     Panel.Options -> Overlay({ panel = if (d != null) Panel.Pause else Panel.None }) {
-                        OptionsPanel(
+                        OptionsWindow(
                             textSpeed, { textSpeed = it; settings.textSpeed = if (it >= 120) 0 else it },
                             parchment, { parchment = it; settings.boxStyle = if (it) "parchment" else "dark" },
                             wifiOnly, { wifiOnly = it; settings.wifiOnly = it },
                             downloadSpeed, { downloadSpeed = it; settings.downloadSpeed = it; files.setDownloadSpeed(it) },
                             musicVolume, { musicVolume = it; settings.musicVolume = it; audio?.musicVolume = it / 100f; applySceneVolumes() },
+                            ambienceVolume, { ambienceVolume = it; settings.ambienceVolume = it; applySceneVolumes() },
                             soundVolume, { soundVolume = it; settings.soundVolume = it; audio?.soundVolume = it / 100f; applySceneVolumes() },
+                            voiceVolume, { voiceVolume = it; settings.voiceVolume = it; applySceneVolumes() },
                             softBody, { softBody = it; settings.softBody = it; scene?.softBody(it) },
                             onBack = { panel = if (d != null) Panel.Pause else Panel.None },
-                            // the emotes' voices; from the title, the creator's imports (Ralia's mod, Alternate Female Options, the body options)
-                            more = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("Voices: ${if (voiceVolume == 0) "off" else "$voiceVolume%"}", style = frizStyle(13.sp, Color.White), modifier = Modifier.width(110.dp))
-                                    Slider(
-                                        voiceVolume.toFloat(), { voiceVolume = it.toInt(); settings.voiceVolume = it.toInt(); applySceneVolumes() },
-                                        valueRange = 0f..100f, modifier = Modifier.height(32.dp),
-                                        colors = SliderDefaults.colors(thumbColor = WowColors.gold, activeTrackColor = WowColors.gold, inactiveTrackColor = Color(0xFF3A3020)),
-                                    )
-                                }
-                                if (d == null) importsSlot()
-                                // the editor's build-mode art: how much is here, what failed, Retry
-                                WarArtRow(war)
+                            // from the title and the editor: the creator's imports (Ralia's mod, Alternate Female Options, the body
+                            // options, the undead skins) and the Sims 4 skeleton; never while a story plays
+                            imports = if (d == null) importsSlot else null,
+                            simsSkeleton = if (rigs.has()) "Loaded (kept on the phone)" else "Not loaded: choose a game package in Import Animations",
+                            onImportAnims = if (d == null) ({ panel = Panel.None; screen = Screen.ImportAnims }) else null,
+                            // the editor's build-mode art: how much is here, what failed, Retry
+                            interfaceArt = { WarArtRow(war) },
+                            gameFiles = when {
+                                !ready -> "Not all here yet"
+                                soundMissing > 0 -> "Music and sounds not here yet (%.0f MB)".format(soundMissing / 1e6)
+                                else -> null
                             },
+                            onGather = if (d == null && (!ready || soundMissing > 0)) ({ panel = Panel.None; screen = Screen.Gather }) else null,
                         )
                     }
                     Panel.Update -> Overlay({ panel = Panel.None }) {

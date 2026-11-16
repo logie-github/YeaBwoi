@@ -28,6 +28,8 @@ val pureUi = tasks.register<Copy>("pureUi") {
     // the editor's build-mode look (WarKit: palette, sizes, tint, layout) and its buttons' behaviour (BuildModeState)
     from("../android/app/src/main/java/com/logie/wifecraft/ui/WarKit.kt")
     from("../android/app/src/main/java/com/logie/wifecraft/ui/BuildModeState.kt")
+    // the WoW-like menus: the action bar, the dropdowns, the windows, the Game Menu, the title, Options (MenuModel)
+    from("../android/app/src/main/java/com/logie/wifecraft/ui/MenuModel.kt")
     // the art's loading (its state machine, the answer's check) and the glyphs drawn when a picture is missing (WarArtPlan)
     from("../android/app/src/main/java/com/logie/wifecraft/ui/WarArtPlan.kt")
     into(layout.buildDirectory.dir("gen/pureUi"))

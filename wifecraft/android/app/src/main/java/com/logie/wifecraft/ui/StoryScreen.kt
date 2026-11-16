@@ -182,15 +182,15 @@ fun PauseMenu(
     onOptions: () -> Unit,
     onLeave: () -> Unit,
 ) {
-    Box(Modifier.fillMaxSize().background(Color(0x99000000))) {
-        MetalPanel(Modifier.align(Alignment.Center).width(250.dp)) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text("Game Menu", style = frizStyle(16.sp))
-                if (chapter.isNotEmpty()) Text(chapter, style = frizStyle(11.sp, WowColors.grey))
-                WowButton("Resume", onResume, width = 200.dp, height = 40.dp)
-                WowButton("What Was Said", onLog, width = 200.dp, height = 40.dp)
-                WowButton("Options", onOptions, width = 200.dp, height = 40.dp)
-                WowButton("Stop Playing", onLeave, width = 200.dp, height = 40.dp)
+    Box(Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.Center) {
+        // the game's Game Menu: the metal frame, its red buttons stacked
+        WowWindow("Game Menu", onClose = null, modifier = Modifier.width(288.dp)) {
+            if (chapter.isNotEmpty()) Text(chapter, style = frizStyle(11.sp, WowColors.grey), modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 4.dp))
+            Column(Modifier.align(Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                RedButton("Resume", onResume, Modifier.width(240.dp))
+                RedButton("What Was Said", onLog, Modifier.width(240.dp))
+                RedButton("Options", onOptions, Modifier.width(240.dp))
+                RedButton("Stop Playing", onLeave, Modifier.width(240.dp))
             }
         }
     }

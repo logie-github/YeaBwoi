@@ -24,7 +24,9 @@ class WarArtPlanTest {
         val dir = File(System.getProperty("wifecraft.ui"))
         return dir.listFiles()!!.filter { it.name.endsWith(".kt") && !it.name.startsWith("Creator") }
             .associate { it.name to it.readText() }
-            .filter { (_, s) -> "LocalWar" in s || "Face(" in s || "WarIcons" in s || "WarSlices" in s || "WarGlyphs" in s }
+            .filter { (_, s) -> "LocalWar" in s || "Face(" in s || "WarIcons" in s || "WarSlices" in s || "WarGlyphs" in s ||
+                // the WoW-like menus' pieces (WowMenus: windows, list rows, dropdown icons, picture cards)
+                "WowWindow(" in s || "WowListRow(" in s || "MenuIcon(" in s || "ItemCard(" in s }
     }
 
     private val iconKey = Regex("\"((?:tab|cat|tool|emote|menu)\\.[a-z][a-z \\-]*)\"")
@@ -33,7 +35,7 @@ class WarArtPlanTest {
 
     @Test fun everyPictureTheKitNamesIsInTheJson() {
         val src = kitSources()
-        assertTrue(src.keys.containsAll(listOf("WarWidgets.kt", "WarKit.kt", "EditorPlacement.kt", "PlaceLibrarySheet.kt", "EditorHome.kt")), "${src.keys}")
+        assertTrue(src.keys.containsAll(listOf("WarWidgets.kt", "WarKit.kt", "EditorPlacement.kt", "PlaceLibrarySheet.kt", "EditorHome.kt", "WowMenus.kt", "MenuModel.kt")), "${src.keys}")
         val missing = ArrayList<String>()
         for ((f, s) in src) {
             for (m in iconKey.findAll(s)) if (m.groupValues[1] !in icons) missing += "$f: icon ${m.groupValues[1]}"
@@ -61,7 +63,7 @@ class WarArtPlanTest {
         // not a failure: the pieces fetched with a sheet the kit needs anyway, kept for what comes next
         val text = kitSources().filterKeys { it != "WarArtPlan.kt" }.values.joinToString("\n")   // the glyph table names them all
         val unusedIcons = icons.filter { "\"$it\"" !in text && !(it.startsWith("cat.") && it in WarIcons.CATEGORIES) }.sorted()
-        assertEquals(listOf("tool.lock", "tool.tips"), unusedIcons)
+        assertEquals(listOf("tool.lock"), unusedIcons)
     }
 
     @Test fun everyPictureHasAGlyph() {

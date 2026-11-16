@@ -8,6 +8,9 @@ import com.logie.wifecraft.editor.Placement
 // Pure Kotlin, no android.* and no Compose: what the editor's build mode does with its buttons (JVM-tested:
 // unit-tests/.../ui/BuildModeStateTest). The tool cluster's modes and one-tap actions, the Eyedropper, the catalogue bar's
 // round tabs and category chips and its spellbook flyout, the spellbook pages that slide in and fold to side tabs.
+// Since W40 (the WoW-like menus: MenuModel.kt) the editor draws the action bar, More and the Library window instead: the
+// cluster's modes and actions (ToolCluster) and the Eyedropper are still what the bar's slots and More's rows do; the
+// catalogue bar's and the pages' state (CatalogueBar, BookPages) is no longer drawn and is kept with its tests.
 
 /** The tool cluster's buttons, in the order they stand. [glyph]: an atlas glyph or the housing editor's own button; [icon]: an item icon key. */
 enum class BuildTool(val label: String, val tip: String, val mode: Boolean) {

@@ -27,6 +27,8 @@ interface ProjectsApi {
     fun save(p: Project)
     fun delete(id: String)
     fun create(title: String): Project
+    /** When project [id] was last saved (ms since 1970), 0 when unknown: the Projects window's date. */
+    fun modified(id: String): Long = 0L
 }
 
 /** The projects on disk as the editor's list sees them. */
@@ -35,6 +37,7 @@ class StoreApi(private val store: ProjectStore) : ProjectsApi {
     override fun save(p: Project) = store.save(p)
     override fun delete(id: String) = store.delete(id)
     override fun create(title: String) = store.newProject(title)
+    override fun modified(id: String) = store.modified(id)
 }
 
 /** A short ID from a name: lower-case letters, digits and underscores, unique among [taken]. */

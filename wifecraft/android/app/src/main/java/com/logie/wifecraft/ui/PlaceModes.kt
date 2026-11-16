@@ -499,7 +499,7 @@ enum class PlaceTip(val id: String, val text: String) {
     MOVE("move", "Drag an arrow to move along an axis; drag the square or the thing itself to slide it on the floor."),
     ROTATE("rotate", "Drag the ring to turn it about its feet."),
     SCALE("scale", "Drag a box to make it bigger or smaller."),
-    LOCKED("locked", "It's locked: unlock it (long-press, or Things) to move it.");
+    LOCKED("locked", "It's locked: unlock it (long-press it, or the Unlock line above) to move it.");
 
     companion object {
         fun of(placing: Boolean, selected: Boolean, locked: Boolean, tool: GizmoTool): PlaceTip = when {
