@@ -160,6 +160,65 @@ object M2Files {
         return out
     }
 
+    /**
+     * The animation files [anim] needs on [model] (the files the renderer's M2Model.ensureSequence reads): through the
+     * model, its skeleton and the skeleton's parent, each file's AFID entries of [anim] at every variation, and of the
+     * sequences an [anim] sequence is an alias of (flag 0x40: its keys are another's, aliasNext in the same file's
+     * sequence list). [read] gives a file's bytes (null when it isn't here: what it would name is left out). An emote's
+     * files are fetched with this when it is played ([anim] 0, the idle, is in [closure] already). Pure.
+     */
+    fun animFiles(model: Int, anim: Int, read: (Int) -> ByteArray?): Set<Int> {
+        val out = LinkedHashSet<Int>()
+        val todo = ArrayDeque(listOf(model))
+        val seen = HashSet<Int>()
+        while (todo.isNotEmpty()) {
+            val f = todo.removeFirst()
+            if (!seen.add(f)) continue
+            val bytes = read(f) ?: continue
+            out += animFilesOf(bytes, anim)
+            todo += skeletons(bytes)
+        }
+        return out
+    }
+
+    /** One model's or skeleton's own files for [anim] (see [animFiles]). */
+    fun animFilesOf(bytes: ByteArray, anim: Int): List<Int> {
+        fun u16(at: Int): Int = (bytes[at].toInt() and 0xFF) or ((bytes[at + 1].toInt() and 0xFF) shl 8)
+        fun u32(at: Int): Int = u16(at) or (u16(at + 2) shl 16)
+        val afid = ArrayList<IntArray>()          // (anim, variation, file)
+        val seqs = ArrayList<IntArray>()          // (anim, variation, flags, aliasNext)
+        fun sequences(arrayAt: Int, base: Int, end: Int) {
+            if (arrayAt + 8 > end) return
+            val count = u32(arrayAt); val off = u32(arrayAt + 4)
+            for (i in 0 until count) {
+                val o = base + off + i * 64
+                if (off < 0 || o < base || o + 64 > end) break
+                seqs += intArrayOf(u16(o), u16(o + 2), u32(o + 12), u16(o + 62))
+            }
+        }
+        walk(bytes) { tag, at, size, _ ->
+            when (tag) {
+                "AFID" -> for (i in 0 until size / 8) afid += intArrayOf(u16(at + 8 * i), u16(at + 8 * i + 2), u32(at + 8 * i + 4))
+                "SKS1" -> sequences(at + 8, at, at + size)              // a skeleton's sequences: after its global loops
+                "MD21" -> if (size >= 36) sequences(at + 28, at, at + size)   // a model's own (MD20's header at 28)
+            }
+        }
+        val keys = HashSet<Long>()
+        fun key(a: Int, v: Int) = a.toLong() shl 16 or v.toLong()
+        for (e in afid) if (e[0] == anim) keys += key(e[0], e[1])
+        for (s in seqs) {
+            if (s[0] != anim) continue
+            var cur = s
+            var guard = 0
+            while (cur[2] and 0x40 != 0 && guard++ < 16) {
+                val next = seqs.getOrNull(cur[3]) ?: break
+                keys += key(next[0], next[1])
+                cur = next
+            }
+        }
+        return afid.filter { it[2] != 0 && key(it[0], it[1]) in keys }.map { it[2] }.distinct()
+    }
+
     /** The skeleton files a model or skeleton names (SKID; SKPD's parent). */
     fun skeletons(bytes: ByteArray): List<Int> {
         val out = ArrayList<Int>()

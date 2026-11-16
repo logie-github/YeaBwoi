@@ -38,21 +38,27 @@ class Dresser(
     private val overrides: Overrides,
     private val scope: CoroutineScope,
 ) {
-    /** Files fetched of those asked for since the last time all were in ([total] 0: nothing to fetch); the last failure. */
-    data class Fetching(val done: Int = 0, val total: Int = 0, val error: String? = null)
+    /**
+     * Files fetched of those asked for since the last time all were in ([total] 0: nothing to fetch); the last failure;
+     * [emotes]: emotes whose animation files are on their way ([fetchAnim]: the screen says "Loading emote…").
+     */
+    data class Fetching(val done: Int = 0, val total: Int = 0, val error: String? = null, val emotes: Int = 0)
 
     private val _fetching = MutableStateFlow(Fetching())
     val fetching: StateFlow<Fetching> = _fetching
     private val jobs = HashMap<String, Job>()
+    /** The body model each key was last dressed in: an emote's animation files are that model's. */
+    private val bodies = java.util.concurrent.ConcurrentHashMap<String, Int>()
     /** Why the last file wasn't fetched, for the failure the screen shows. */
     @Volatile private var lastFailure: String? = null
 
     fun dress(scene: SceneView, catalog: Catalog, key: String, a: Appearance) {
         jobs.remove(key)?.cancel()
+        bodies.remove(key)
         jobs[key] = scope.launch {
             val call = withContext(Dispatchers.IO) {
                 try {
-                    prepare(catalog, a)
+                    prepare(key, catalog, a)
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -72,10 +78,11 @@ class Dresser(
      */
     fun dressLook(scene: SceneView, key: String, look: ResolvedLook) {
         jobs.remove(key)?.cancel()
+        bodies.remove(key)
         jobs[key] = scope.launch {
             val call = withContext(Dispatchers.IO) {
                 try {
-                    prepareLook(look)?.let { it to CreatureLooks.isCharacter(tables, look) }
+                    prepareLook(key, look)?.let { it to CreatureLooks.isCharacter(tables, look) }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -86,7 +93,7 @@ class Dresser(
         }
     }
 
-    private suspend fun prepareLook(look: ResolvedLook): DressCall? {
+    private suspend fun prepareLook(key: String, look: ResolvedLook): DressCall? {
         if (look.model == 0) { fail("This creature has no model in the game's tables."); return null }
         fetch(look.needsFiles)
         coroutineContext.ensureActive()
@@ -96,10 +103,11 @@ class Dresser(
             M2Files.closure(m, if (m == look.model) Emotes.all else emptySet(), read) { fetch(it) }
             coroutineContext.ensureActive()
         }
+        bodies[key] = look.model
         return CreatureLooks.call(tables, look)
     }
 
-    private suspend fun prepare(catalog: Catalog, a: Appearance): Pair<DressCall, BodyCall>? {
+    private suspend fun prepare(key: String, catalog: Catalog, a: Appearance): Pair<DressCall, BodyCall>? {
         val look = LookResolver.resolve(catalog, tables, a, overrides)
         if (look.model == 0) { fail("This race has no model in the game's tables."); return null }
         // the face's bone files aren't drawn yet (and the pinned build has some empty): not waited for
@@ -113,6 +121,7 @@ class Dresser(
             M2Files.closure(m, if (m == look.model) Emotes.all else emptySet(), read) { fetch(it) }
             coroutineContext.ensureActive()
         }
+        bodies[key] = look.model
         // a skin or skeleton that didn't come is said by the renderer (SceneView.dress's onFail: Native.modelError)
         val body = try {
             Dressing.body(files.dir.parentFile!!, a, overrides.hasBody())
@@ -120,6 +129,35 @@ class Dresser(
             fail("The body options: ${e.message ?: e}"); BodyCall.NONE
         }
         return Dressing.call(tables, Dressing.layout(catalog, tables, a), look) to body
+    }
+
+    /**
+     * Fetches the animation files game animation [anim] needs on the actor dressed under [key] (M2Files.animFiles: every
+     * variation, an alias's own sequence, through the skeleton and its parent), once its look is dressed; those already
+     * here (GameFiles keeps them) aren't fetched again. The renderer holds the actor's pose meanwhile and starts the
+     * animation the moment its file is in (Scene::playAnim). A file that won't come is said on the screen. Main thread.
+     */
+    fun fetchAnim(key: String, anim: Int) {
+        if (anim <= 0) return
+        val dressing = jobs[key]
+        scope.launch {
+            dressing?.join()
+            val model = bodies[key] ?: return@launch
+            val failed = withContext(Dispatchers.IO) {
+                val read = { id: Int -> if (files.has(id)) runCatching { files.file(id).readBytes() }.getOrNull() else null }
+                val missing = M2Files.animFiles(model, anim, read).filter { it in 1 until ImportStore.FIRST_ID && !files.has(it) }
+                if (missing.isEmpty()) return@withContext null
+                update { it.copy(emotes = it.emotes + 1) }
+                try {
+                    missing.mapNotNull { id ->
+                        try { files.fetchNow(id); null } catch (e: Exception) { "file $id: ${e.message ?: e}" }
+                    }.firstOrNull()
+                } finally {
+                    update { it.copy(emotes = (it.emotes - 1).coerceAtLeast(0)) }
+                }
+            }
+            if (failed != null) fail("The emote's animation couldn't be fetched ($failed); it plays once its file is in.")
+        }
     }
 
     /** Fetches what of [ids] isn't here (the user's imported files are always here: their ids are the app's own). */
@@ -134,7 +172,7 @@ class Dresser(
                 lastFailure = e.message ?: e.toString()
                 update { it.copy(error = "File $id couldn't be fetched: ${e.message ?: e}") }
             }
-            update { f -> (f.done + 1).let { d -> if (d >= f.total) Fetching(error = f.error) else f.copy(done = d) } }
+            update { f -> (f.done + 1).let { d -> if (d >= f.total) f.copy(done = 0, total = 0) else f.copy(done = d) } }
         }
     }
 

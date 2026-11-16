@@ -110,7 +110,11 @@ Creation Kit's way). It works on the scene builder's stage.
   the stage with its voice; **Use** makes it what it plays in the scene; **None** goes back to standing. **Held**
   keeps it looping, **Sound** turns its voice and sounds on or off. A creature also has its own sounds to hear
   (Fidget, Alert, Attack, Wound, Death, Shout, Loop). A creature that isn't one of the player races is offered every
-  animation the game names; it plays the ones its model has.
+  animation the game names; it plays the ones its model has. An emote's animation file is fetched the first time it is
+  played (picked, previewed, spawned with a placement or run by a script's `emote`/`anim`), every variation of it, and
+  kept: the screen says **Loading emote…** (about 0.1 MB an emote, at most 1 MB), the person goes on with what they were
+  doing (never the arms-out bind pose) and the emote starts the moment its file is in; a file that won't come is said in
+  red. A look's own download stays the story's emotes only.
 - **Limits**: a prop has no GameObjectDisplayInfo id in the library, so no sound plays for props yet (its **Sound**
   switch in Selected says "Sound (none for props yet)"); Hide's dimmed look is only the greyed name in Things (the renderer
   has no transparency for a placed thing); Play's people still stand on the plain stage's marks in a location.
