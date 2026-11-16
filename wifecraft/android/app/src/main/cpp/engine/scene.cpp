@@ -780,12 +780,31 @@ void Scene::playAnim(int id, uint16_t animId, bool loop, uint32_t nowMs) {
     if (seq < 0) seq = m.findSequence(0);
     if (seq < 0 && !m.sequences.empty()) seq = 0;
     if (seq >= 0) m.ensureSequence(seq, files_);
+    a.waitSeq = -1;
     // a loop asked for again goes on as it is (walking, then walking on: no restart)
     if (loop && a.loop && a.seq >= 0 && seq >= 0 && size_t(a.seq) < m.sequences.size() &&
         m.sequences[size_t(a.seq)].id == m.sequences[size_t(seq)].id) {
         a.animId = animId;
         return;
     }
+    // Keys not here yet (an emote's .anim file still being fetched): drawing it now would be the bind pose, arms out. The
+    // actor goes on with what it plays (or its idle) and the animation starts once the file is in (checkWaiting).
+    if (seq >= 0 && !m.sequenceReady(seq)) {
+        a.waitSeq = seq; a.waitAnim = animId; a.waitLoop = loop; a.waitTry = animClock_;
+        bool playing = a.seq >= 0 && size_t(a.seq) < m.sequences.size() && m.sequenceReady(a.seq) && (a.loop || a.seq == seq);
+        if (!playing) {
+            int idle = m.findSequence(a.idleAnim);
+            if (idle < 0) idle = m.findSequence(0);
+            if (idle >= 0) m.ensureSequence(idle, files_);
+            if (idle >= 0 && idle != seq && m.sequenceReady(idle)) startSeq(a, idle, a.idleAnim, true);
+        }
+        return;
+    }
+    startSeq(a, seq, animId, loop);
+}
+
+void Scene::startSeq(Actor& a, int seq, uint16_t animId, bool loop) {
+    M2Model& m = *a.mesh->model;
     if (a.seq >= 0 && seq >= 0) blendFromCurrent(a, blendTime(m, seq));
     a.seq = seq;
     a.animId = animId;
@@ -800,6 +819,19 @@ void Scene::blendFromCurrent(Actor& a, uint32_t ms) {
     a.pb = a.pa;
     a.fadeStart = animClock_;
     a.fadeMs = ms;
+}
+
+void Scene::checkWaiting(int id, Actor& a, uint32_t now) {
+    constexpr uint32_t kWaitRetryMs = 200;
+    if (a.waitSeq < 0 || now - a.waitTry < kWaitRetryMs) return;
+    a.waitTry = now;
+    M2Model& m = *a.mesh->model;
+    if (size_t(a.waitSeq) >= m.sequences.size()) { a.waitSeq = -1; return; }
+    m.ensureSequence(a.waitSeq, files_);
+    if (!m.sequenceReady(a.waitSeq)) return;
+    int seq = a.waitSeq;
+    a.waitSeq = -1;
+    startSeq(a, seq, a.waitAnim, a.waitLoop);
 }
 
 void Scene::nextLoop(Actor& a) {
@@ -994,7 +1026,8 @@ void Scene::animate(Actor& a, uint32_t now) {
             t = std::min(t, dur - 1);
         }
         a.animTime = t;
-        m.pose(a.seq, t, now, a.pa, a.loop);
+        // a sequence without its keys would be the bind pose: the pose last drawn holds instead
+        if (m.sequenceReady(a.seq) || !a.posed || a.pa.size() != m.bones.size()) m.pose(a.seq, t, now, a.pa, a.loop);
     }
     applyBoneAnim(a, now);
     // a change of animation: from the pose last drawn to this one, eased in and out; turns by slerp, the rest linearly
@@ -1251,9 +1284,15 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     for (auto& [id, a] : actors_) {
         if (!a.visible) continue;
         M2Model& m = *a.mesh->model;
+        checkWaiting(id, a, clock);
         if (!a.loop && a.seq >= 0 && size_t(a.seq) < m.sequences.size() &&
-            clock - a.start >= std::max<uint32_t>(1, m.sequences[a.seq].duration))
-            playAnim(id, a.idleAnim, true, clock);
+            clock - a.start >= std::max<uint32_t>(1, m.sequences[a.seq].duration)) {
+            // (an animation still waiting for its file keeps waiting: the idle meanwhile)
+            int idle = a.waitSeq >= 0 ? m.findSequence(a.idleAnim) : -1;
+            if (a.waitSeq < 0) playAnim(id, a.idleAnim, true, clock);
+            else if (idle >= 0 && m.sequenceReady(idle)) startSeq(a, idle, a.idleAnim, true);
+            else a.loop = true;
+        }
         animate(a, clock);
         stepSoft(a, clock);   // the pause-proof animation clock, not the wall clock
         // Skinned models move with the body's bones.

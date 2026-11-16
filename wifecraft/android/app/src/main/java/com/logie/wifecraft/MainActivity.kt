@@ -381,7 +381,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 // a look's files on their way (the creator, the scene builder, Play)
-                if (fetching.total > 0 || fetching.error != null) {
+                if (fetching.total > 0 || fetching.error != null || fetching.emotes > 0) {
                     Column(
                         Modifier.align(Alignment.TopCenter).padding(top = 6.dp).background(Color(0xB0000000))
                             .clickable { dresser.clearError() }.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -391,6 +391,7 @@ class MainActivity : ComponentActivity() {
                             Text("Fetching the look's files… ${fetching.done} of ${fetching.total}", style = frizStyle(13.sp))
                             LoadingBar(fetching.done.toFloat() / fetching.total, Modifier.width(320.dp).height(30.dp))
                         }
+                        if (fetching.emotes > 0) Text("Loading emote…", style = frizStyle(13.sp))
                         fetching.error?.let { Text(it, style = frizStyle(12.sp, Color(0xFFFF6A5A))) }
                     }
                 }
@@ -620,6 +621,8 @@ class MainActivity : ComponentActivity() {
             if (p.kind != PlaceKind.PROP) {
                 // its size is the look's own times the placement's (SceneView.setActorScale); its place is the frame's in the editor, set here once in Play
                 v.setActorScale(key, p.scale)
+                // its animation's files on demand (an emote's are fetched when it is played, not with the look)
+                p.anim?.let { dresser.fetchAnim(key, it) }
                 whenOnStage(key) { h, id ->
                     if (play) { Native.place(h, id, p.x, p.y, p.z, p.yaw); Native.show(h, id, true) }
                     Native.anim(h, id, p.anim ?: 0, if (p.anim == null) true else p.loop, Clock.now())
@@ -653,6 +656,7 @@ class MainActivity : ComponentActivity() {
                     if (p.kind != PlaceKind.PROP && (old.anim != p.anim || old.loop != p.loop)) {
                         val anim = p.anim ?: 0
                         val loop = p.anim == null || p.loop
+                        dresser.fetchAnim(PlaceKeys.of(p.id), anim)
                         whenOnStage(PlaceKeys.of(p.id)) { h, id -> Native.anim(h, id, anim, loop, Clock.now()) }
                     }
                     if (old.sound != p.sound) sceneAudio?.setEnabled(PlaceKeys.of(p.id), p.sound)
@@ -707,7 +711,11 @@ class MainActivity : ComponentActivity() {
 
         fun emote(p: Placement, e: Emote, lookOf: (String) -> Appearance?) {
             val key = PlaceKeys.of(p.id)
-            if (e.anim >= 0) whenOnStage(key) { h, id -> Native.anim(h, id, e.anim, e.loop, Clock.now()) }
+            if (e.anim >= 0) {
+                // its animation files come now if they aren't here (Loading emote…); the renderer starts it once they are
+                dresser.fetchAnim(key, e.anim)
+                whenOnStage(key) { h, id -> Native.anim(h, id, e.anim, e.loop, Clock.now()) }
+            }
             if (p.sound) raceSex(p, lookOf)?.let { (race, sex) -> sceneAudio?.emote(race, if (sex == Sex.MALE) 0 else 1, e, key) }
         }
 
@@ -753,6 +761,7 @@ class MainActivity : ComponentActivity() {
             }
 
             override fun playAnim(id: String, anim: Int, loop: Boolean) {
+                dresser.fetchAnim(PlaceKeys.of(id), anim)
                 whenOnStage(PlaceKeys.of(id)) { h, a -> Native.anim(h, a, anim, loop, Clock.now()) }
             }
 

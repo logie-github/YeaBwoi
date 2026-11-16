@@ -247,6 +247,12 @@ private:
         uint32_t animTime = 0;         // how far into `seq` this frame is (ms)
         uint32_t replays = 0;          // times the playing variation plays again before another is chosen
         uint32_t rng = 0;              // the actor's own random numbers (variations), seeded by its id
+        // An animation asked for whose keys aren't here yet (its .anim file is on its way): the actor goes on with what it
+        // was playing (never the bind pose) and it starts the moment the file is in (looked for every kWaitRetryMs).
+        int waitSeq = -1;
+        uint16_t waitAnim = 0;
+        bool waitLoop = false;
+        uint32_t waitTry = 0;
         unsigned boneTex = 0;
         // pa: this frame's local pose; pb: the pose a change of animation blends from (the last one drawn, held), for
         // fadeMs from fadeStart.
@@ -414,6 +420,8 @@ private:
     void applyBoneAnim(Actor& a, uint32_t now);
     void blendFromCurrent(Actor& a, uint32_t ms);   // the next frames blend from the pose last drawn
     void nextLoop(Actor& a);                         // a looping animation came round: again, or another variation
+    void startSeq(Actor& a, int seq, uint16_t animId, bool loop);   // plays `seq` from its start, blending from the pose drawn
+    void checkWaiting(int id, Actor& a, uint32_t now);              // the waiting animation's file came: it starts
     void drawAttached(Actor& a, const M4& world, uint32_t now, bool transparent);
     void drawActor(Actor& a, uint32_t now, bool transparent);
     void refreshSkin(Actor& a);

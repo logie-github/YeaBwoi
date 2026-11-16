@@ -43,6 +43,14 @@ class EmoteCatalogTest {
         assertEquals(emptyList(), EmoteCatalog.parse(small).forModel(1, Sex.MALE))
     }
 
+    @Test fun aFaceLayerIsNotOfferedAlone() {
+        // FacePose keys the face only: alone it left the body in the bind pose, arms out
+        val c = EmoteCatalog.parse(small.replace("\"229\":\"FlyStand\"", "\"229\":\"FlyStand\",\"808\":\"FacePose\"").replace("229,1]", "229,1,808,1]"))
+        val anims = c.forModel(1, Sex.FEMALE).map { it.anim }
+        assertTrue(229 in anims)
+        assertTrue(808 !in anims)
+    }
+
     @Test fun categories() {
         assertEquals("Dance", EmoteCatalog.categoryOf("EmoteDance"))
         assertEquals("Sit, sleep and kneel", EmoteCatalog.categoryOf("SitChairMed"))

@@ -87,7 +87,7 @@ class EmoteCatalog private constructor(
         out += npcOut
         val rest = ArrayList<Emote>()
         for ((anim, n) in m.variations) {
-            if (anim in covered) continue
+            if (anim in covered || anim in LAYERS) continue
             val name = anims[anim] ?: "Anim$anim"
             rest += Emote(ANIM_BASE + anim, name, anim, 0, emptyList(), EmoteKind.ANIM, categoryOf(name), false, n)
         }
@@ -100,6 +100,12 @@ class EmoteCatalog private constructor(
         const val NPC_BASE = 10000
         const val ANIM_BASE = 100000
         const val EMOTES = "Emotes"
+
+        /**
+         * Animations that are a layer over another, never played alone: FacePose (808) keys the face only, and played on its
+         * own leaves the body in the bind pose, arms out (measured on all seven test models).
+         */
+        val LAYERS = setOf(808)
 
         /** The categories of [categoryOf], in the order the list shows them. */
         val CATEGORIES = listOf(EMOTES, "Dance", "Sit, sleep and kneel", "Work and life", "Combat", "Spells", "Death and injury",
