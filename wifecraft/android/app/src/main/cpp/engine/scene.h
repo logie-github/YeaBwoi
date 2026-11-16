@@ -182,6 +182,51 @@ public:
     bool groundAt(float x, float y, float z, float& out) const;
     void render(int width, int height, uint32_t nowMs);
 
+    // ---------------------------------------------------------------- the placement editor's view (editview.cpp)
+    // The gizmo: handles drawn over everything at the pivot (the feet) of the selected prop (kind 1) or actor (2), the same
+    // size on the screen however near or far, along the world's axes. Move: three arrows (x red, y green, z blue) and a
+    // square on the floor between x and y (free movement on the floor); Rotate: the yaw ring about z; Scale: a box at the
+    // pivot (uniform) and a box on each axis. Handles are see-through but the active one (activeAxis), drawn bright.
+    enum GizmoMode { kGizmoOff = 0, kGizmoMove = 1, kGizmoRotate = 2, kGizmoScale = 3 };
+    enum GizmoAxis { kAxisNone = -1, kAxisX = 0, kAxisY = 1, kAxisZ = 2, kAxisYaw = 3, kAxisUniform = 4, kAxisFloor = 5 };
+    void setGizmo(int mode, int kind, int id, int activeAxis);
+    // The handle under the screen point (sx, sy) of a width x height view of the last camera, within slopPx pixels (the
+    // nearest one), or kAxisNone.
+    int gizmoHit(float sx, float sy, int width, int height, float slopPx) const;
+    // The gizmo's pivot and its length in yards this frame (false: no gizmo, or its thing is gone).
+    bool gizmoFrame(V3& pivot, float& length, int width, int height) const;
+    // The camera as last drawn: eye, target, up, vertical field of view (degrees), aspect, and its matrices.
+    struct CameraInfo { V3 eye, target, up; float fovY = 45, aspect = 1; M4 view, proj; };
+    CameraInfo cameraInfo() const;
+    // The loaded location's view's camera (false: no location, or the view has none).
+    bool viewCamera(const std::string& view, V3& eye, V3& target, float& fov) const;
+
+    // The ghost: what is about to be placed, drawn half see-through and tinted blue-white over the scene (depth-tested, each
+    // pixel once), never picked, never saved. A prop by file id (an M2 or a WMO, its files here), or an actor already
+    // added (ghostActor: it is drawn as the ghost and left out of picking until removed). One at a time: a new one replaces it.
+    bool ghostProp(uint32_t fileId, V3 pos, float yaw, float scale);
+    void ghostActor(int id);
+    void ghostMove(V3 pos, float yaw);
+    void ghostClear();            // the ghost prop is forgotten; a ghost actor stays an actor (its owner removes it)
+    bool ghostBounds(V3& mn, V3& mx) const;
+    int ghostActorId() const { return ghost_.actor; }
+
+    // A thumbnail: a prop (propFile, an M2 or a WMO) or a look (an actor dressed as `look` says), alone in an off-screen
+    // framebuffer of this context, framed from three quarters in front, softly lit on a neutral gradient; RGBA, size x size,
+    // top row first. Nothing of the live scene is changed (its camera, light and things are put back; the temporary actor,
+    // WMO and any model or texture that was loaded only for it are released). False and `error` when it can't be drawn.
+    struct ThumbLook {
+        uint32_t model = 0;
+        float scale = 1;
+        std::map<uint32_t, uint32_t> textures;   // by texture type, as addActor takes them (a look's own: none)
+        std::map<int, int> geo;
+        std::vector<SkinLayer> layers;
+        std::vector<DressModel> extras;
+        std::vector<float> morph;
+        float bodyK = 0, bodyFold = 0;
+    };
+    bool thumbnail(uint32_t propFile, const ThumbLook* look, int size, std::vector<uint8_t>& rgba, std::string& error);
+
 private:
     struct ModelGl {
         std::unique_ptr<M2Model> model;
@@ -268,6 +313,7 @@ private:
         std::vector<std::pair<int, float>> breath;   // a held imported pose breathes: these bones, by these shares
         SoftDraw soft;                 // the soft body (softbody.h)
         bool character = false;        // setCharacter: the soft body applies (a creature's never does)
+        bool ghost = false;            // ghostActor: drawn as the ghost, never picked
     };
     struct GroupGl {
         unsigned vao = 0, vbo = 0, ibo = 0;
@@ -432,6 +478,27 @@ private:
     void drawBodyLayer(Actor& a, const M4& world);
     void stepSoft(Actor& a, uint32_t now);
 
+    // ---- the placement editor's view (editview.cpp)
+    struct Ghost {
+        bool on = false;
+        uint32_t fileId = 0;
+        V3 pos0, pos;                     // where it was placed (a WMO's vertices are there) and where it is drawn
+        float yaw0 = 0, yaw = 0, scale = 1;
+        ModelGl* mesh = nullptr;          // an M2's
+        std::unique_ptr<PlacedWmo> wmo;   // a WMO's
+        int actor = 0;                    // an actor's
+    };
+    Ghost ghost_;
+    float ghostTint_[4] = {1, 1, 1, 1};   // multiplies what is drawn (the ghost's tint while it is drawn; else white)
+    int gizmoMode_ = 0, gizmoKind_ = 0, gizmoId_ = 0, gizmoAxis_ = -1;
+    unsigned gizmoProg_ = 0, gizmoVao_ = 0, gizmoVbo_ = 0;
+    int viewW_ = 1, viewH_ = 1;           // the last frame's size
+    M4 ghostDelta() const;                // a WMO ghost: from where it was placed to where it is drawn
+    void drawGhost(const M4& viewProj, uint32_t now);
+    void drawGizmo();
+    void freeWmoGl(PlacedWmo& w);
+    void litSetup(unsigned prog, const M4& viewProj);                            // scene.cpp
+    void staticSetup(unsigned prog, const M4& viewProj, const float intAmbient[3]); // location.cpp
 };
 
 } // namespace wc

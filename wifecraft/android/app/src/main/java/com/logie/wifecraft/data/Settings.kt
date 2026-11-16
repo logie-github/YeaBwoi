@@ -39,6 +39,17 @@ class Settings(context: Context) {
         get() = prefs.getInt("softBody", SOFT_NATURAL).let { if (it in 0..3) it else SOFT_NATURAL }
         set(v) = prefs.edit().putInt("softBody", v).apply()
 
+    /**
+     * The placement editor's own switches, kept for the user ([name]: "place.panel" the side panel open, "place.tip.<id>"
+     * a first-use tip dismissed). Only names starting with "place." are kept.
+     */
+    fun placeFlag(name: String, default: Boolean): Boolean =
+        if (!name.startsWith("place.")) default else prefs.getBoolean(name, default)
+
+    fun setPlaceFlag(name: String, on: Boolean) {
+        if (name.startsWith("place.")) prefs.edit().putBoolean(name, on).apply()
+    }
+
     companion object {
         const val SOFT_NATURAL = 2
         val SOFT_NAMES = listOf("Off", "Subtle", "Natural", "Strong")

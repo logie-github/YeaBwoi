@@ -48,25 +48,41 @@ class PropLoader(private val files: GameFiles, private val scope: CoroutineScope
 
     /** Fetches what [model] needs; false (and the error said) when the model itself didn't come. */
     private suspend fun prepare(model: Int): Boolean {
-        fetch(listOf(model))
-        if (!files.has(model)) { fail("The prop (file $model) couldn't be fetched: ${lastFailure ?: "wago.tools didn't give it"}."); return false }
-        val read = { id: Int -> if (files.has(id)) runCatching { files.file(id).readBytes() }.getOrNull() else null }
-        val bytes = read(model) ?: run { fail("The prop (file $model) couldn't be read."); return false }
-        val models = if (WmoFiles.isWmo(bytes)) {
-            val deps = WmoFiles.deps(bytes)
-            fetch(deps.groups + deps.textures)
-            coroutineContext.ensureActive()
-            fetch(deps.models)
-            deps.models
-        } else {
-            listOf(model)
+        val why = closure(files, model) { fetch(it) } ?: return true
+        fail(if (why == UNREAD) "The prop (file $model) couldn't be read." else "The prop (file $model) couldn't be fetched: ${lastFailure ?: "wago.tools didn't give it"}.")
+        return false
+    }
+
+    companion object {
+        /** [closure]'s answer when the model came but can't be read. */
+        const val UNREAD = "unread"
+
+        /**
+         * Fetches through [fetch] everything prop [model] needs (an M2: its skin, textures and skeleton; a WMO: its groups,
+         * textures, its doodads' models and theirs): null when the model is here, else [UNREAD] or "missing". Shared with
+         * Thumbs. Off the main thread.
+         */
+        suspend fun closure(files: GameFiles, model: Int, fetch: (Collection<Int>) -> Unit): String? {
+            fetch(listOf(model))
+            if (!files.has(model)) return "missing"
+            val read = { id: Int -> if (files.has(id)) runCatching { files.file(id).readBytes() }.getOrNull() else null }
+            val bytes = read(model) ?: return UNREAD
+            val models = if (WmoFiles.isWmo(bytes)) {
+                val deps = WmoFiles.deps(bytes)
+                fetch(deps.groups + deps.textures)
+                coroutineContext.ensureActive()
+                fetch(deps.models)
+                deps.models
+            } else {
+                listOf(model)
+            }
+            for (m in models) {
+                if (!files.has(m)) continue
+                M2Files.closure(m, emptySet(), read) { fetch(it) }
+                coroutineContext.ensureActive()
+            }
+            return null
         }
-        for (m in models) {
-            if (!files.has(m)) continue
-            M2Files.closure(m, emptySet(), read) { fetch(it) }
-            coroutineContext.ensureActive()
-        }
-        return true
     }
 
     private fun fetch(ids: Collection<Int>) {

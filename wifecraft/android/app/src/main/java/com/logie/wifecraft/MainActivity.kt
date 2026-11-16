@@ -57,6 +57,11 @@ import com.logie.wifecraft.engine.PropLoader
 import com.logie.wifecraft.location.LocationInfo
 import com.logie.wifecraft.play.PlaceHost
 import com.logie.wifecraft.ui.PlaceEngine
+import com.logie.wifecraft.ui.ThumbSource
+import com.logie.wifecraft.ui.LibraryModel
+import com.logie.wifecraft.editor.LibraryPrefs
+import com.logie.wifecraft.engine.Thumbs
+import android.graphics.Bitmap
 import com.logie.wifecraft.ui.PlaceKeys
 import com.logie.wifecraft.ui.PlaceStatus
 import com.logie.wifecraft.ui.StageChoices
@@ -494,6 +499,46 @@ class MainActivity : ComponentActivity() {
     private inner class ScenePlacer : PlaceEngine {
         private val _library = MutableStateFlow<com.logie.wifecraft.catalog.Catalog?>(null)
         override val library: StateFlow<com.logie.wifecraft.catalog.Catalog?> = _library
+
+        // ------------------------------------------------------------------ the library's pictures, lists and the editor's switches
+
+        /** engine/Thumbs (W35): a library entry drawn small on the renderer, cached; made with the 3D view. */
+        private val thumbMaker: Thumbs? by lazy { runCatching { Thumbs(applicationContext, files, sceneView(), tables) }.getOrNull() }
+        private val noThumbErrors = MutableStateFlow<String?>("The library's pictures couldn't be set up: names only.")
+
+        override val thumbs: ThumbSource? by lazy {
+            object : ThumbSource {
+                /** A prop or building by its model file, a creature by its display ([LibraryModel.thumbOf]); none for an own NPC. */
+                override fun request(a: com.logie.wifecraft.catalog.Asset, size: Int, onReady: (Bitmap?) -> Unit) {
+                    val t = thumbMaker
+                    val (creature, id) = LibraryModel.thumbOf(a) ?: run { onReady(null); return }
+                    if (t == null) { onReady(null); return }
+                    t.request(if (creature) PlaceKind.CREATURE else PlaceKind.PROP, id, size, onReady)
+                }
+
+                override fun cached(a: com.logie.wifecraft.catalog.Asset, size: Int): Bitmap? {
+                    val (creature, id) = LibraryModel.thumbOf(a) ?: return null
+                    return thumbMaker?.cached(if (creature) PlaceKind.CREATURE else PlaceKind.PROP, id, size)
+                }
+
+                override fun cancelAll() { thumbMaker?.cancelAll() }
+                override val errors: StateFlow<String?> get() = thumbMaker?.errors ?: noThumbErrors
+            }
+        }
+
+        /** The projects' folder (files/projects), for each project's prefs.json beside its project.json. */
+        private val prefsStore by lazy { ProjectStore(File(filesDir, "projects")) }
+
+        override fun libraryPrefs(projectId: String): LibraryPrefs = runCatching { prefsStore.prefs(projectId) }.getOrDefault(LibraryPrefs())
+
+        override fun saveLibraryPrefs(projectId: String, prefs: LibraryPrefs) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                runCatching { prefsStore.savePrefs(projectId, prefs) }.onFailure { lookError.value = "The library's favourites couldn't be saved: ${it.message ?: it}" }
+            }
+        }
+
+        override fun flag(name: String, default: Boolean): Boolean = settings.placeFlag(name, default)
+        override fun setFlag(name: String, on: Boolean) = settings.setPlaceFlag(name, on)
         override val locations: List<LocationInfo> get() = locationLoader.locations
 
         /** The location on the stage now (its id), null for none. */

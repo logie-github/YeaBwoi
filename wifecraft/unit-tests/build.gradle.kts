@@ -23,6 +23,8 @@ val pureUi = tasks.register<Copy>("pureUi") {
     from("../android/app/src/main/java/com/logie/wifecraft/ui/EditorState.kt")
     from("../android/app/src/main/java/com/logie/wifecraft/ui/AnimState.kt")
     from("../android/app/src/main/java/com/logie/wifecraft/ui/PlaceState.kt")
+    from("../android/app/src/main/java/com/logie/wifecraft/ui/PlaceModes.kt")
+    from("../android/app/src/main/java/com/logie/wifecraft/ui/PlaceLibraryModel.kt")
     into(layout.buildDirectory.dir("gen/pureUi"))
 }
 

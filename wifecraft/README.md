@@ -82,17 +82,46 @@ Creation Kit's way). It works on the scene builder's stage.
   own music and ambience play (the Embassy's ZoneMusic and SoundAmbience).
   **Play opens a location scene on the view's camera** (its own, else a look at its spawn) and shows the location's
   name (for example Stormwind Embassy: Inside) instead of the bare id; the cast still stands on the plain stage's marks.
-- **Place things** opens the placement editor on that stage. **Add** opens the library: **Starter pack** (a style's
-  everyday props: furniture, light, containers, food, books, banners, nature; the Embassy starts on Human, the style
-  chips change it), **Props**, **Buildings**, **Creatures** (the game's named creatures and its creature models) and
-  **My NPCs** (the project's cast). Search by name, filter by the category chips, Back and Next through pages of 40.
-  Entries are names only (no pictures yet). A pick lands where the middle of the view meets the floor, facing you, and
-  is selected; its files are fetched then (the stage shows them coming).
-- **Select**: tap a thing on the stage, or in **Things** (the list of everything placed).
-- **Move**: drag the selected thing with one finger: it slides on the floor and follows the ground under it (keeping
-  the height it stood above the ground). Two fingers on it turn it and pinch its size. The **Turn** handle beside it
-  turns it about its feet, the **Lift** handle above it raises and lowers it. One finger anywhere else orbits the
-  camera; two pan and pinch to zoom. **View** puts the camera back.
+- **Place things** opens the placement editor on that stage. **Add** opens the **library**: on a wide screen (the Fold's
+  inner screen, a tablet, a phone on its side) it is a panel beside the stage, so the stage stays in view; on a narrow one
+  (the cover screen upright) a sheet over the lower part of the stage, never more than about half its height.
+  - **Picture cards**: each entry is a small picture of its model (drawn on the phone as its card comes on screen and
+    kept; its name shows until the picture is ready, an NPC of your cast shows its initial). A line under the grid says
+    why pictures can't be drawn, if they can't.
+  - **The tree** (a rail down the side of a wide panel, two rows of chips on a narrow one), each with how many it has:
+    **Favourites**, **Recent** (the last 30 you placed), **Starter pack** (a style's everyday props: the Embassy starts on
+    Human, the style chips change it), **Props**, **Buildings**, **Creatures** (the game's named creatures and its
+    creature models) and **My NPCs** (the project's cast). Under Props, Buildings and Creatures: their categories
+    (Furniture, Lighting, Food and drink, Containers, Architecture, Nature, Water, Ships and docks, Banners and flags,
+    Tents, Statues..., or a creature's type) and their styles (Human, Forsaken, Night elf...), each with its count.
+  - **Search as you type**: the results come a moment after the last letter, from everything, grouped as **Props**,
+    **Buildings**, **Creatures** and **My NPCs** with their counts and the matched words lit; **All** on a group pages
+    through all of it (40 a page). With a category or style picked, the search stays inside it.
+  - **Favourites**: the star on a card. Favourites and Recent are kept per project (beside it, in `prefs.json`).
+- **Placing**: tapping a card arms it ("Placing: name" over the stage). A see-through copy of it, the **ghost**, appears
+  at the crosshair once its model is loaded. **Drag one finger over the stage and the ghost follows it** (onto the floor,
+  or on top of a table or another thing), snapping to the grid while Snap is on; **lift the finger to drop it there**. It
+  stays armed: drag again for another, as many as you like. A **tap** moves the crosshair (and the ghost) without
+  dropping; **Drop** puts one at the crosshair. **Turn ‹** and **Turn ›** turn the ghost (15°, or the snap angle).
+  Two fingers move the camera (pan, pinch, twist) without dropping anything. **Done** or Back leaves placing. Each drop
+  is one undo step; a model that can't be loaded says why in the bar and drops nothing.
+- **Selecting**: tap a thing. **Tap the same spot again for the one behind it** (round through everything under your
+  finger). **Double-tap** to look at it (the camera comes near, the thing in the middle). A **long press** opens its menu:
+  **Duplicate**, **Delete**, **Lock**/**Unlock**, **Hide**/**Show**, **Emote** (a person or a creature: the Animation tab)
+  and **Focus**. Tapping the empty floor deselects. In **Things**, tapping a row selects it and looks at it.
+- **Moving, turning, sizing**: the selected thing carries a **gizmo** (the Creation Kit's), with a mode bar at the bottom of
+  the stage: **Move** (arrows: drag one to move along X, Y or up and down; the square at its feet slides it on the floor),
+  **Rotate** (drag the ring to turn it about its feet), **Scale** (drag a box to make it bigger or smaller: one size for
+  the whole thing). The handle you hold is lit and named in the bar; the camera never moves while you drag a handle; each
+  drag is one undo step. Dragging the thing's body slides it on the floor too (it follows the ground under it, keeping the
+  height it stood above the ground), and two fingers on it turn and resize it. A locked thing shows no handles (the bar
+  says Locked, with Unlock). One finger anywhere else orbits the camera; two pan and pinch to zoom. **View** puts the
+  camera back.
+- **The panels** (Things, Selected, Animation) fold to slim tabs at the side (or the bottom) with **Hide**, so the stage is
+  not covered; a tab opens them again. Whether they are open is remembered. They fold by themselves while the library is
+  open or while placing.
+- **Tips**: a one-line tip over the stage says what the current mode does ("Drag the ghost to place, lift to drop",
+  "Drag an arrow to move along an axis"...). **Got it** hides that tip for good; **Tips** in the tool row brings them back.
 - **Selected**: X, Y, Z (yards, Z up), Turn (degrees) and Size typed in, a size slider (0.05 to 20) and a turn
   slider (**Size** works on people and creatures too: their own look's size times it); the nudge buttons (**Left**, **Right**, **Away**, **Near** as the camera sees the floor, **Up**, **Down**: a
   tenth of a yard, or the grid while snapping); **Copy** (beside the original) and **Delete** (its Emote and Animation
@@ -318,3 +347,11 @@ doesn't include them.
 ## Undead skins import
 
 A fourth import beside Ralia's mod, Alternate Female Options and the body options: **Undead skins** (`wrathpp-undead-skins.zip` or `undead-skins.zip`, the same package Wrath++ takes: a `manifest.json` and BLP skins and faces under `client/Character/<Race>/<Sex>/`). Options, Imports: choose the zip, or remove it. With it in, the creator shows an **Undead** switch under Accessories (the race's last category where there is none), for the races and sexes the package has (all ten races but the Forsaken, both sexes; no blood elf man). While on, Skin Color lists the undead skins and the Face row is hidden; women's underwear is dropped where the package says so. Without the package the row is greyed "Import the undead skins in Options". Verified on the desktop with the real package (renders of a blood elf and an orc); not run on a phone.
+
+### Placing, made easier (gizmo, ghost, thumbnails)
+
+- **Ghost:** tap a library item and a see-through copy follows one finger on the floor; lifting drops it, and it stays armed for the next one until Done. Two fingers move the camera. The ghost is drawn at half strength, never picked and never saved.
+- **Gizmo:** Move, Rotate and Scale buttons on the selected thing. Arrows move along an axis (X red, Y green, Z blue), a small floor square moves it freely, the ring turns it, the boxes resize it. Handles keep one size on screen at any distance, the active one lights up, and the camera does not move while one is dragged. Axes are world-aligned and the pivot is the feet. A placement has only a yaw, so there are no pitch or roll rings. Locked placements show no handles.
+- **Thumbnails:** the library shows a picture per item, drawn on the phone the first time the card is visible (it downloads that model once) and kept in `files/thumbs/`. A thumbnail never touches the live scene.
+- **Selection:** tapping the same spot again cycles through what is under the finger, a double tap focuses the camera, a long press opens a menu (Duplicate, Delete, Lock, Hide, Emote, Focus).
+- Not run on a phone; Compose and Android Kotlin compiled by CI only.
