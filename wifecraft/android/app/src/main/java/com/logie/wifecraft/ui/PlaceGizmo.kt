@@ -374,48 +374,26 @@ fun GizmoBar(tool: GizmoTool, onTool: (GizmoTool) -> Unit, locked: Boolean, onUn
     }
 }
 
-/** What the context menu (a long press on a placed thing) can do. */
-enum class PlaceAction(val label: String) { DUPLICATE("Duplicate"), DELETE("Delete"), LOCK("Lock"), HIDE("Hide"), EMOTE("Emote"), FOCUS("Focus") }
-
 /**
- * The small menu of a long-pressed thing [p], beside where the finger was ([at], pixels of the stage [stageW] x [stageH]),
- * kept inside the stage: Duplicate, Delete, Lock (Unlock), Hide (Show), Emote (a person or a creature), Focus. A tap
- * outside closes it.
+ * The selected thing's long-press menu (a WoW dropdown: plain rows with small icons, [EditorMenus.context]) beside where the
+ * finger was ([at], pixels of the stage [stageW] x [stageH]), kept inside the stage and above the action bar ([bottomPx]
+ * from the bottom kept free). A tap outside closes it.
  */
 @Composable
-fun PlaceContextMenu(p: Placement, at: Pair<Float, Float>, stageW: Int, stageH: Int, onAction: (PlaceAction) -> Unit, onDismiss: () -> Unit) {
+fun PlaceContextMenu(p: Placement, at: Pair<Float, Float>, stageW: Int, stageH: Int, bottomPx: Float, onAction: (MenuAction) -> Unit, onDismiss: () -> Unit) {
     val density = LocalDensity.current
     Box(Modifier.fillMaxSize().clickable(onClick = onDismiss))
-    val actions = PlaceAction.values().filter { it != PlaceAction.EMOTE || p.kind != PlaceKind.PROP }
-    val wPx = with(density) { 180.dp.toPx() }
-    val hPx = with(density) { (48.dp * actions.size + 40.dp).toPx() }
-    val x = (at.first + 12f).coerceAtMost(stageW - wPx).coerceAtLeast(0f)
-    val y = (at.second - hPx / 3f).coerceAtMost(stageH - hPx).coerceAtLeast(0f)
-    // the build mode's look: a small parchment card with a round glyph or icon per action
-    val shape = androidx.compose.foundation.shape.RoundedCornerShape(WarSize.R_CARD.dp)
-    Column(
-        Modifier.offset { IntOffset(x.roundToInt(), y.roundToInt()) }.width(180.dp)
-            .background(War.cream, shape).border(1.5.dp, War.goldSoft, shape).padding(4.dp),
-    ) {
-        Text(p.name, style = warTitle(16.sp), maxLines = 1, modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp))
-        for (a in actions) {
-            val label = when (a) {
-                PlaceAction.LOCK -> if (p.locked) "Unlock" else "Lock"
-                PlaceAction.HIDE -> if (p.hidden) "Show" else "Hide"
-                else -> a.label
-            }
-            val face = when (a) {
-                PlaceAction.DUPLICATE -> toolFace(BuildTool.DUPLICATE); PlaceAction.DELETE -> toolFace(BuildTool.DELETE)
-                PlaceAction.LOCK -> toolFace(BuildTool.LOCK); PlaceAction.HIDE -> toolFace(BuildTool.HIDE)
-                PlaceAction.EMOTE -> toolFace(BuildTool.EMOTE); PlaceAction.FOCUS -> toolFace(BuildTool.FOCUS)
-            }
-            androidx.compose.foundation.layout.Row(
-                Modifier.height(48.dp).width(172.dp).warPress { onAction(a) }.padding(horizontal = 4.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                RoundIconButton(face, { onAction(a) }, size = 40.dp, description = label)
-                Text(label, style = warText(15.sp, if (a == PlaceAction.DELETE) War.danger else War.brown))
-            }
-        }
-    }
+    val rows = EditorMenus.context(p)
+    val wDp = 250.dp
+    val wPx = with(density) { wDp.toPx() }
+    val margin = with(density) { 12.dp.toPx() }
+    val room = (stageH - bottomPx - 2 * margin).coerceAtLeast(with(density) { 120.dp.toPx() })
+    val hPx = minOf(with(density) { EditorMenus.height(rows, true).dp.toPx() }, room)
+    val x = (at.first + 16f).coerceAtMost(stageW - wPx - margin).coerceAtLeast(margin)
+    val y = (at.second - hPx / 3f).coerceAtMost(stageH - bottomPx - hPx - margin).coerceAtLeast(margin)
+    WowDropdownList(
+        p.name, rows, { r -> onAction(r.action) },
+        Modifier.offset { IntOffset(x.roundToInt(), y.roundToInt()) }.width(wDp),
+        maxHeight = with(density) { (hPx - EditorMenus.TITLE.dp.toPx() - 8.dp.toPx()).toDp() },
+    )
 }

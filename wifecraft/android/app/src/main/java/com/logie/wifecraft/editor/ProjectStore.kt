@@ -21,6 +21,9 @@ class ProjectStore(private val dir: File) {
             .mapNotNull { f -> runCatching { Project.fromJson(JSONObject(f.readText())) }.getOrNull() }
     }
 
+    /** When project [id] was last saved (ms since 1970), 0 when it isn't there. */
+    fun modified(id: String): Long = runCatching { fileOf(id).lastModified() }.getOrDefault(0L)
+
     fun load(id: String): Project? {
         val f = fileOf(id)
         if (!f.isFile) return null

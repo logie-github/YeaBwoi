@@ -155,6 +155,7 @@ object WarIcons {
 }
 
 /**
+ * (Before W40; the editor's layout is now ChromeLayout in MenuModel.kt, this is kept with its tests.)
  * Where the editor's parts go on a screen [wDp] x [hDp] (the real size; portrait or landscape): the slim top bar, the
  * catalogue bar along the bottom (its round tabs, its chips, its row of picture cards), the tool cluster in the bottom-left
  * corner above the bar, the spellbook pages sliding in from the right (folded: their side tabs on the right edge), and

@@ -71,6 +71,13 @@ PIECES = (
     "common-icon-sound", "common-icon-checkmark-yellow", "common-icon-plus", "common-icon-minus", "common-icon-exit",
     "common-icon-speak", "common-icon-redx", "icon-camera-target", "ui-charactercreate-padlock",
     "auctionhouse-icon-favorite", "auctionhouse-icon-favorite-off",
+    # the WoW-style menus (W40): a window's red close X, the frame's bottom tabs (up and chosen), the settings' checkbox and
+    # its tick, the dropdown's arrow button (shut and open)
+    "redbutton-exit", "redbutton-exit-pressed",
+    "uiframe-tab-left", "uiframe-tab-right", "_uiframe-tab-center",
+    "uiframe-activetab-left", "uiframe-activetab-right", "_uiframe-activetab-center",
+    "checkbox-minimal", "checkmark-minimal",
+    "common-dropdown-a-button", "common-dropdown-a-button-open",
 )
 
 # The icons (Interface\Icons\<name>.blp), by what they stand for. Keys are read by WarKit (WarIcons).

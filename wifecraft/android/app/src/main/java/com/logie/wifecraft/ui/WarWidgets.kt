@@ -502,6 +502,8 @@ fun ItemCard(
     modifier: Modifier = Modifier,
     placeholder: String = name.text.take(1).uppercase(),
     badge: String? = null,
+    /** On parchment (the Library window): the name in deep brown instead of cream. */
+    onLight: Boolean = false,
 ) {
     val war = LocalWar.current
     Column(modifier.width(size), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -536,7 +538,7 @@ fun ItemCard(
             }
             if (badge != null) Badge(badge, Modifier.align(Alignment.BottomEnd).padding(6.dp))
         }
-        Text(name, style = warText(11.5.sp, if (armed) War.gold else War.ink, true), maxLines = 2, overflow = TextOverflow.Ellipsis,
+        Text(name, style = if (onLight) warText(12.sp, if (armed) War.wood else War.brown) else warText(11.5.sp, if (armed) War.gold else War.ink, true), maxLines = 2, overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
     }
 }

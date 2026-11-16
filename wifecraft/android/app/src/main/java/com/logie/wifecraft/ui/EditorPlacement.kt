@@ -11,12 +11,14 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,7 +43,9 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
@@ -149,26 +153,23 @@ internal fun PButton(text: String, onClick: () -> Unit, modifier: Modifier = Mod
 internal fun PToggle(text: String, on: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier, width: Dp = 104.dp) =
     Chip(text, null, on, { onChange(!on) }, modifier.widthIn(min = width))
 
-private const val PANEL_FLAG = "place.panel"
-private const val BAR_FLAG = "place.bar"
+
 private fun tipFlag(t: PlaceTip) = "place.tip." + t.id
 
 /**
- * The placement editor of one scene, laid out as the Sims' build mode in the game's own interface (WarArt, softened):
+ * The placement editor of one scene, as simple as the game's own screen (MenuModel: [ActionSlot], [EditorChrome]):
  *
- * - **The scene fills the screen.** A slim top bar over it: Back, the scene's name on its ribbon, Undo, Redo, Camera (home
- *   view, look at the selected thing, show hidden things, tips again), Snap (with its Grid and Turn steps under the bar
- *   while it is on), Stage (the stage picker) and Play.
- * - **The catalogue bar** along the bottom (PlaceCatalogueBar): round category tabs (Starter pack, Props, Buildings,
- *   Creatures, My NPCs, Favourites, Recent), the category chips (More… opens the whole tree as a spellbook-page flyout), a
- *   sideways row of picture cards. Tapping a card arms it: its see-through ghost follows a finger dragged over the stage
- *   and lifting drops one (one undo step each); a tap aims the crosshair and Drop puts one there; it stays armed until Done.
- * - **The tool cluster** in the bottom-left corner: Select (move), Rotate, Scale, Delete, Eyedropper (tap a placed thing to
- *   arm another of it), Duplicate, Lock, Hide, Emote, Focus. A long press names a tool in the tooltip strip.
- * - **The spellbook pages** on the right: Things (the outliner), Selected (the inspector), Animation (the emotes); they slide
- *   in, fold to their side tabs (remembered), and fold by themselves while placing or while the flyout is open.
- * - Selecting as before: tap a thing; tap the same spot again for the one behind it; double tap to look at it; long press for
- *   its menu; the gizmo on the selected thing (Move arrows and floor square, Rotate ring, Scale boxes) follows the cluster.
+ * - **On screen**: the scene, the **Menu** button (top left, the Game Menu), the zone name, **Undo**, **Redo** and **Play**
+ *   (top right), and the **action bar** along the bottom: Select (move), Rotate, Scale, Delete, **Add** (the Library window)
+ *   and **More** (a dropdown: Duplicate, Lock, Hide, Emote, Look at it; Eyedropper, Snap to grid, Show hidden things; Home view,
+ *   Objects in this scene, Stage, Tips again). A long press on a slot says what it does.
+ * - **The selected thing** shows as the game's tooltip (bottom right): its name, Emote, Details (its fields and switches
+ *   folded open). A long press on a thing opens its dropdown (Duplicate, Lock, Hide, Emote, Look at it, Details, Delete).
+ * - **Windows** (one at a time, over the dimmed scene): the Library ([LibraryWindowView]: tapping a card arms it and the
+ *   window closes), Objects in this scene, Emotes, and the **Game Menu** (Resume, Scenes, Cast, Animations, Options, Play,
+ *   Save and Exit: [onMenu]). Back closes what is open, and with nothing open opens the Game Menu.
+ * - Placing, selecting, the gizmo and the camera are as they were: tap a thing (again for the one behind), double tap to look
+ *   at it; an armed card's ghost follows a finger dragged over the stage and lifting drops one (one undo step each).
  *
  * [camera] and [ui] are the scene builder's (kept while it is open); [live] is the thing being moved before it is let go.
  * [stages] (id, name) and [onStage] are the stage picker's; [onPlay] plays the project from this scene.
@@ -193,6 +194,8 @@ fun EditorPlacement(
     stageId: String = "",
     onStage: (String) -> Unit = {},
     onPlay: (() -> Unit)? = null,
+    /** The Game Menu's Scenes, Cast, Animations, Options and Save and Exit (Resume and Play are the editor's own). */
+    onMenu: (GameMenuItem) -> Unit = { if (it == GameMenuItem.SCENES || it == GameMenuItem.SAVE_EXIT) onDone() },
 ) {
     val scene = state.sceneOf(sceneId) ?: return
     val library by engine.library.collectAsState()
@@ -205,22 +208,20 @@ fun EditorPlacement(
     var cluster by remember { mutableStateOf(ToolCluster()) }
     val tool = cluster.gizmo
     var activeAxis by remember { mutableIntStateOf(GizmoAxis.NONE) }
-    var bar by remember { mutableStateOf(CatalogueBar(open = engine.flag(BAR_FLAG, true))) }
-    var query by remember(sceneId) { mutableStateOf(LibraryQuery(style = LibraryPager.styleOf(scene.stageId))) }
+    var chrome by remember { mutableStateOf(EditorChrome()) }
+    var slotHint by remember { mutableStateOf<ActionSlot?>(null) }
+    var query by remember(sceneId) { mutableStateOf(LibraryQuery(tab = LibraryTab.PROPS, style = LibraryPager.styleOf(scene.stageId))) }
     var placing by remember { mutableStateOf<Placing?>(null) }
-    var book by remember { mutableStateOf(BookPages(open = engine.flag(PANEL_FLAG, true))) }
     var renaming by remember { mutableStateOf<String?>(null) }
     var confirmDelete by remember { mutableStateOf<String?>(null) }
     var size by remember { mutableStateOf(0 to 0) }
     var cycle by remember { mutableStateOf(TapCycle()) }
     var lastTap by remember { mutableStateOf<Pair<Long, Pair<Float, Float>>?>(null) }
-    var menu by remember { mutableStateOf<Pair<String, Pair<Float, Float>>?>(null) }
+    var menuAt by remember { mutableStateOf<Pair<String, Pair<Float, Float>>?>(null) }
     var matrices by remember { mutableStateOf<ViewMatrices?>(null) }
     var prefs by remember(project.id) { mutableStateOf(engine.libraryPrefs(project.id)) }
     var tipsSeen by remember { mutableStateOf(PlaceTip.values().filter { engine.flag(tipFlag(it), false) }.map { it.id }.toSet()) }
-    var cameraMenu by remember { mutableStateOf(false) }
     var stagePicker by remember { mutableStateOf(false) }
-    var barPx by remember { mutableIntStateOf(0) }
     // the ghost's pick: one asked of the renderer at a time, the newest finger point asked next
     val ghostPick = remember { object { var busy = false; var next: FloatArray? = null } }
 
@@ -246,8 +247,11 @@ fun EditorPlacement(
         val key = shownSel?.id?.takeIf { canMoveSel && placing == null }?.let(PlaceKeys::of)
         view.showGizmo(if (key == null) null else tool, key, activeAxis)
     }
-    // the tooltip's hint goes after a moment
+    // the hints go after a moment
     LaunchedEffect(cluster.hint) { if (cluster.hint != null) { delay(3500); cluster = cluster.clearHint() } }
+    LaunchedEffect(slotHint) { if (slotHint != null) { delay(3500); slotHint = null } }
+    // the selected thing's details fold away when another is selected
+    LaunchedEffect(ui.selected) { if (ui.selected == null && chrome.details) chrome = chrome.copy(details = false) }
     DisposableEffect(Unit) {
         onDispose {
             view.showGizmo(null, null)
@@ -293,8 +297,6 @@ fun EditorPlacement(
         view.pick(sx, sy, w, h) { hit ->
             cycle = SelectCycle.next(cycle, sx, sy, under(hit, sx, sy, w, h), with(density) { 24.dp.toPx() })
             onUi(uiNow.select(cycle.selected))
-            val now = cycle.selected?.let { i -> sceneNow.placements.firstOrNull { it.id == i } }
-            book = book.selected(now)
         }
     }
 
@@ -303,7 +305,8 @@ fun EditorPlacement(
             val id = under(hit, sx, sy, w, h).firstOrNull() ?: return@pick
             onUi(uiNow.select(id))
             cycle = TapCycle(sx to sy, listOf(id), 0)
-            menu = id to (sx to sy)
+            menuAt = id to (sx to sy)
+            chrome = chrome.open(EditorWindow.CONTEXT)
         }
     }
 
@@ -366,7 +369,7 @@ fun EditorPlacement(
         view.ghostOff()
         val pose = camera.pose()
         placing = Placing(a, yaw = Shots.facing(camera.target, pose.eye))
-        menu = null
+        chrome = chrome.close()
         val probe = placementOf(a, Vec3(0f, 0f, 0f), 0f, emptyList())
         val look = probe.actorId?.let { id -> project.cast.firstOrNull { it.id == id }?.appearance }
         if (probe.kind == PlaceKind.NPC && look == null) {
@@ -385,7 +388,7 @@ fun EditorPlacement(
         }
     }
 
-    /** The Eyedropper: what is under the finger is armed to be placed again, and the cluster goes back to Select. */
+    /** The Eyedropper: what is under the finger is armed to be placed again, and the bar goes back to Select. */
     fun eyedrop(sx: Float, sy: Float, w: Int, h: Int) {
         view.pick(sx, sy, w, h) { hit ->
             val id = under(hit, sx, sy, w, h).firstOrNull() ?: return@pick
@@ -403,10 +406,7 @@ fun EditorPlacement(
         }
     }
 
-    fun setBook(b: BookPages) { book = b; engine.setFlag(PANEL_FLAG, b.open) }
-    fun setBar(b: CatalogueBar) { if (b.open != bar.open) engine.setFlag(BAR_FLAG, b.open); bar = b }
-
-    /** A tool of the cluster tapped: its mode, or its action on the selected thing. */
+    /** A tool of the old cluster (Select, Rotate, Scale, Delete; the More dropdown's Duplicate, Lock, Hide, Emote, Look at it). */
     fun useTool(t: BuildTool) {
         val (next, action) = cluster.tap(t, shownSel)
         cluster = next
@@ -417,27 +417,54 @@ fun EditorPlacement(
             ToolAction.DUPLICATE -> state.duplicatePlacement(sceneId, p.id)?.let { onUi(ui.select(it)) }
             ToolAction.TOGGLE_LOCK -> state.setPlacementLocked(sceneId, p.id, !p.locked)
             ToolAction.TOGGLE_HIDE -> { state.setPlacementHidden(sceneId, p.id, !p.hidden); onUi(ui.afterHide(p.copy(hidden = !p.hidden))) }
-            ToolAction.OPEN_EMOTES -> setBook(BookPages(true, BookTab.ANIMATION))
+            ToolAction.OPEN_EMOTES -> chrome = chrome.open(EditorWindow.EMOTES)
             ToolAction.FOCUS -> focus(p)
         }
     }
 
-    BackHandler(onBack = onDone)
-    BackHandler(enabled = menu != null || placing != null || bar.flyout || cameraMenu || cluster.eyedropping) {
+    /** A row of More's dropdown or of the long-press menu, on [target] (the selected thing, or the long-pressed one). */
+    fun act(a: MenuAction, target: Placement?) {
+        // a switch's row leaves the dropdown open (as the game's check box rows do); everything else closes it
+        if (a != MenuAction.SNAP && a != MenuAction.SHOW_HIDDEN) chrome = chrome.close()
+        when (a) {
+            MenuAction.DUPLICATE -> target?.let { p -> state.duplicatePlacement(sceneId, p.id)?.let { onUi(ui.select(it)) } }
+            MenuAction.LOCK -> target?.let { p -> state.setPlacementLocked(sceneId, p.id, !p.locked) }
+            MenuAction.HIDE -> target?.let { p -> state.setPlacementHidden(sceneId, p.id, !p.hidden); onUi(ui.afterHide(p.copy(hidden = !p.hidden))) }
+            MenuAction.EMOTE -> if (target != null && target.kind != PlaceKind.PROP) chrome = chrome.open(EditorWindow.EMOTES)
+            MenuAction.FOCUS -> target?.let { focus(it) }
+            MenuAction.DETAILS -> if (target != null) chrome = chrome.copy(window = EditorWindow.NONE, details = true)
+            MenuAction.DELETE -> target?.let { confirmDelete = it.id }
+            MenuAction.EYEDROPPER -> cluster = if (cluster.eyedropping) cluster.picked() else cluster.tap(BuildTool.EYEDROPPER, shownSel).first
+            MenuAction.SNAP -> snap = snap.copy(on = !snap.on)
+            MenuAction.SHOW_HIDDEN -> onUi(ui.toggleShowHidden())
+            MenuAction.HOME_VIEW -> onResetCamera()
+            MenuAction.OBJECTS -> chrome = chrome.open(EditorWindow.OBJECTS)
+            MenuAction.STAGE -> stagePicker = true
+            MenuAction.TIPS -> { for (t in PlaceTip.values()) engine.setFlag(tipFlag(t), false); tipsSeen = emptySet() }
+        }
+    }
+
+    fun slot(s: ActionSlot) {
+        when (s) {
+            ActionSlot.ADD -> chrome = chrome.toggle(EditorWindow.LIBRARY)
+            ActionSlot.MORE -> chrome = chrome.toggle(EditorWindow.MORE)
+            else -> { chrome = chrome.close(); s.tool?.let { useTool(it) } }
+        }
+    }
+
+    // Back: leaves placing or the Eyedropper first, then closes what is open; with nothing open it opens the Game Menu
+    BackHandler {
         when {
-            menu != null -> menu = null
-            cameraMenu -> cameraMenu = false
-            placing != null -> stopPlacing()
-            bar.flyout -> setBar(bar.closeFlyout())
-            else -> cluster = cluster.picked()
+            placing != null && chrome.window == EditorWindow.NONE -> stopPlacing()
+            cluster.eyedropping && chrome.window == EditorWindow.NONE -> cluster = cluster.picked()
+            else -> chrome = chrome.back()
         }
     }
 
     BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF140D08))) {
-        val layout = BuildLayout.of(maxWidth.value, maxHeight.value)
-        val boxH = maxHeight // read here: inside Row/Column scopes the layout DSL marker hides BoxWithConstraints' receiver
-        val barH = with(density) { barPx.toDp() }
-        val pageShown = book.visible(bar.flyout, placing != null)
+        val layout = ChromeLayout.of(maxWidth.value, maxHeight.value)
+        val boxH = maxHeight
+        val barTopPx = with(density) { layout.barTop.dp.toPx() }
 
         // ---- the scene, the whole screen
         PlaceViewport(
@@ -445,7 +472,10 @@ fun EditorPlacement(
             placing = placing != null, crosshair = placing?.cross,
             rays = { w, h -> rays(w, h) },
             actions = ViewportActions(
-                onTap = { sx, sy, w, h, ms -> menu = null; cameraMenu = false; if (clusterNow.eyedropping) eyedrop(sx, sy, w, h) else tapped(sx, sy, w, h, ms) },
+                onTap = { sx, sy, w, h, ms ->
+                    if (chrome.window != EditorWindow.NONE) chrome = chrome.close()
+                    if (clusterNow.eyedropping) eyedrop(sx, sy, w, h) else tapped(sx, sy, w, h, ms)
+                },
                 onLongPress = { sx, sy, w, h -> longPressed(sx, sy, w, h) },
                 onLive = { onLive(it) },
                 onCommit = { commit(it) },
@@ -467,181 +497,176 @@ fun EditorPlacement(
             modifier = Modifier.fillMaxSize(),
         )
 
-        // ---- the top bar
-        TopBar(scene.name.ifBlank { stageName }, onDone, Modifier.align(Alignment.TopStart)) {
-            RoundIconButton(Face(glyph = WarIcons.UNDO), { state.undo(); onLive(null) }, enabled = state.canUndo, description = "Undo")
-            RoundIconButton(Face(glyph = WarIcons.REDO), { state.redo(); onLive(null) }, enabled = state.canRedo, description = "Redo")
-            RoundIconButton(Face(icon = "tool.camera"), { cameraMenu = !cameraMenu }, lit = cameraMenu, description = "Camera")
-            RoundIconButton(Face(decor = if (snap.on) "decor-ability-snap-active" else "decor-ability-snap-default"), { snap = snap.copy(on = !snap.on) },
-                lit = snap.on, description = "Snap")
-            if (stages.isNotEmpty()) RoundIconButton(Face(icon = "tool.stage"), { stagePicker = true }, description = "Stage")
-            if (onPlay != null) RoundIconButton(Face(glyph = WarIcons.PLAY), onPlay, primary = true, size = if (layout.compact) 56.dp else 64.dp, description = "Play")
-        }
+        if (chrome.barShown) {
+            // a soft fade at the top so the few buttons read over a bright scene
+            Box(Modifier.fillMaxWidth().height(96.dp).background(Brush.verticalGradient(listOf(Color(0x96140E09), Color.Transparent))))
 
-        // ---- under the top bar: placing, the snap steps, the camera menu, tips, loading
-        Column(
-            Modifier.align(Alignment.TopCenter).padding(top = (WarSize.TOP_BAR + 6).dp, start = 72.dp, end = 72.dp).widthIn(max = 760.dp),
-            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            placing?.let { pl ->
-                PlacingBar(
-                    pl,
-                    onTurn = { d -> val n = pl.turned(d); placing = n; n.at?.let { view.ghostTo(it, n.yaw) } },
-                    turnStep = Math.toRadians((if (snap.on) snap.angleDeg else 15f).toDouble()).toFloat(),
-                    onDrop = {
-                        val (next, at) = pl.dropHere()
-                        placing = next
-                        if (at != null) drop(next.asset, at, next.yaw)
-                    },
-                    onDone = { stopPlacing() },
-                )
+            // ---- top left: the Menu button and the zone name
+            Row(
+                Modifier.align(Alignment.TopStart).padding(ChromeLayout.G.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                MenuCogButton({ chrome = chrome.toggle(EditorWindow.GAME_MENU) })
+                if (layout.nameW > 0f) Text(scene.name.ifBlank { stageName }, style = frizStyle(16.sp), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = layout.nameW.dp))
             }
-            if (snap.on) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Chip("Grid ${showNumber(snap.grid)} yd", null, false, { snap = snap.copy(grid = Snap.GRIDS[(Snap.GRIDS.indexOf(snap.grid) + 1) % Snap.GRIDS.size]) })
-                Chip("Turn ${snap.angleDeg.toInt()}°", null, false, { snap = snap.copy(angleDeg = Snap.ANGLES[(Snap.ANGLES.indexOf(snap.angleDeg) + 1) % Snap.ANGLES.size]) })
+            // ---- top right: Undo, Redo, Play
+            Row(
+                Modifier.align(Alignment.TopEnd).padding(ChromeLayout.G.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                RoundIconButton(Face(glyph = WarIcons.UNDO), { state.undo(); onLive(null) }, enabled = state.canUndo, description = "Undo")
+                RoundIconButton(Face(glyph = WarIcons.REDO), { state.redo(); onLive(null) }, enabled = state.canRedo, description = "Redo")
+                if (onPlay != null) RoundIconButton(Face(glyph = WarIcons.PLAY), onPlay, primary = true, size = 60.dp, description = "Play")
             }
-            if (cameraMenu) GlassStrip {
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    PillButton("Home view", { onResetCamera(); cameraMenu = false })
-                    PillButton("Look at it", { shownSel?.let { focus(it) }; cameraMenu = false }, enabled = shownSel != null)
-                    WarToggle("Show hidden", ui.showHidden, { onUi(ui.toggleShowHidden()) }, dark = true)
-                    PillButton("Tips again", {
-                        for (t in PlaceTip.values()) engine.setFlag(tipFlag(t), false)
-                        tipsSeen = emptySet(); cameraMenu = false
-                    })
-                }
-            }
-            when {
-                shownSel?.locked == true && placing == null -> Tooltip("${shownSel.name} is locked", onDismiss = { state.setPlacementLocked(sceneId, shownSel.id, false) }, dismissLabel = "Unlock")
-                activeAxis != GizmoAxis.NONE -> Tooltip(GizmoAxis.name(activeAxis))
-                else -> {
-                    val tip = PlaceTip.of(placing != null, shownSel != null, shownSel?.locked == true, tool)
-                    if (tip.id !in tipsSeen && cluster.hint == null) Tooltip(tip.text, onDismiss = { tipsSeen = tipsSeen + tip.id; engine.setFlag(tipFlag(tip), true) })
-                }
-            }
-            PlaceLoading(status, engine::clearErrors)
-        }
 
-        // ---- the spellbook pages' side tabs, and the open page
-        val tabs: @Composable () -> Unit = {
-            for (t in book.tabs(shownSel)) SideTab(t.icon, t.label, pageShown && book.shown(shownSel) == t, { setBook(book.tap(t)) })
-        }
-        if (layout.sideTabsRow) Row(
-            Modifier.align(Alignment.TopEnd).padding(top = (WarSize.TOP_BAR + 4).dp, end = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) { tabs() }
-        else Column(
-            Modifier.align(Alignment.TopEnd).padding(top = (WarSize.TOP_BAR + 18).dp, end = 2.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) { tabs() }
-        AnimatedVisibility(
-            pageShown,
-            Modifier.align(Alignment.TopEnd).padding(top = (WarSize.TOP_BAR + if (layout.sideTabsRow) 68 else 6).dp, end = if (layout.sideTabsRow) 12.dp else 56.dp),
-            enter = slideInHorizontally(tween(WarSize.SLIDE_MS)) { it } + fadeIn(),
-            exit = slideOutHorizontally(tween(WarSize.SLIDE_MS)) { it } + fadeOut(),
-        ) {
-            val pageH = if (layout.compact) maxHeight - (WarSize.TOP_BAR + 80).dp else maxHeight - (WarSize.TOP_BAR + 18).dp - barH
-            BookPage(Modifier.width(layout.pageW.dp).height(pageH.coerceAtLeast(160.dp))) {
-                when (book.shown(shownSel)) {
-                    BookTab.THINGS -> Column(Modifier.fillMaxSize()) {
-                        BookHeader(stageName, "Things", "${plural(scene.placements.size, "placed thing")}") {
-                            WarToggle("Hidden", ui.showHidden, { onUi(ui.toggleShowHidden()) })
-                        }
-                        PlaceOutliner(
-                            scene.placements, ui,
-                            onSelect = { id ->
-                                onUi(ui.select(id))
-                                id?.let { i -> scene.placements.firstOrNull { it.id == i } }?.let { focus(it) }
-                            },
-                            onHide = { id -> scene.placements.firstOrNull { it.id == id }?.let { p -> state.setPlacementHidden(sceneId, id, !p.hidden); onUi(ui.afterHide(p.copy(hidden = !p.hidden))) } },
-                            onLock = { id -> scene.placements.firstOrNull { it.id == id }?.let { p -> state.setPlacementLocked(sceneId, id, !p.locked) } },
-                            onRename = { renaming = it },
-                            onLookAt = { p -> focus(p) },
-                            nameOf = { a -> project.cast.firstOrNull { it.id == a }?.name },
-                        )
-                    }
-                    BookTab.SELECTED -> if (shownSel == null) Column {
-                        BookHeader(null, "Selected")
-                        Text("Tap something in the scene, or in Things, to select it. Pick a card in the catalogue below, then drag it into the scene.",
-                            style = warText(14.sp, War.brownSoft))
-                    } else PlaceInspector(
-                        shownSel, snap, camera.pose(), locked = shownSel.locked,
-                        onChange = { p -> state.updatePlacement(sceneId, p.id) { p } },
-                        onSlide = { p -> state.updatePlacement(sceneId, p.id, "slide:$sceneId:${p.id}") { p } },
-                        onSlideEnd = { state.endGesture() },
-                        onNudge = { d -> state.nudgePlacement(sceneId, shownSel.id, d.x, d.y, d.z) },
-                        onDuplicate = { state.duplicatePlacement(sceneId, shownSel.id)?.let { onUi(ui.select(it)) } },
-                        onDelete = { confirmDelete = shownSel.id },
-                        onAnimation = { setBook(BookPages(true, BookTab.ANIMATION)) },
-                        onSound = { on -> state.setPlacementSound(sceneId, shownSel.id, on); engine.setSound(shownSel, on) },
+            // ---- under the top: placing, the snap steps, the one tip line, loading
+            Column(
+                Modifier.align(Alignment.TopCenter).padding(top = 76.dp, start = 12.dp, end = 12.dp).widthIn(max = 640.dp),
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                placing?.let { pl ->
+                    PlacingBar(
+                        pl,
+                        onTurn = { d -> val n = pl.turned(d); placing = n; n.at?.let { view.ghostTo(it, n.yaw) } },
+                        turnStep = Math.toRadians((if (snap.on) snap.angleDeg else 15f).toDouble()).toFloat(),
+                        onDrop = {
+                            val (next, at) = pl.dropHere()
+                            placing = next
+                            if (at != null) drop(next.asset, at, next.yaw)
+                        },
+                        onDone = { stopPlacing() },
                     )
-                    BookTab.ANIMATION -> if (shownSel == null || shownSel.kind == PlaceKind.PROP) {
-                        Text("Select a person or a creature to give them an animation or an emote.", style = warText(14.sp, War.brownSoft))
-                    } else {
-                        val emotes = remember(shownSel.kind, shownSel.asset, shownSel.actorId, project.cast) { engine.emotesFor(shownSel, project.cast) }
-                        EmotePicker(
-                            emotes, shownSel,
-                            onPreview = { e -> engine.previewEmote(shownSel, e, project.cast) },
-                            onUse = { e -> state.updatePlacement(sceneId, shownSel.id) { EmoteGroups.apply(it, e) } },
-                            onLoop = { state.setPlacementLoop(sceneId, shownSel.id, it) },
-                            onSound = { on -> state.setPlacementSound(sceneId, shownSel.id, on); engine.setSound(shownSel, on) },
-                            onCreatureSound = if (shownSel.kind == PlaceKind.CREATURE) { k -> engine.creatureSound(shownSel, k) } else null,
-                        )
+                }
+                if (snap.on) TipLine(null) {
+                    TextAction("Grid ${showNumber(snap.grid)} yd", { snap = snap.copy(grid = Snap.GRIDS[(Snap.GRIDS.indexOf(snap.grid) + 1) % Snap.GRIDS.size]) })
+                    TextAction("Turn ${snap.angleDeg.toInt()}°", { snap = snap.copy(angleDeg = Snap.ANGLES[(Snap.ANGLES.indexOf(snap.angleDeg) + 1) % Snap.ANGLES.size]) })
+                    TextAction("Snap off", { snap = snap.copy(on = false) })
+                }
+                when {
+                    slotHint != null -> TipLine("${slotHint!!.label}: ${slotHint!!.tip}")
+                    cluster.hint != null -> TipLine(cluster.tip(shownSel))
+                    cluster.eyedropping -> TipLine("Eyedropper: tap a placed thing to place another of it") { TextAction("Cancel", { cluster = cluster.picked() }) }
+                    shownSel?.locked == true && placing == null -> TipLine("${shownSel.name} is locked") {
+                        TextAction("Unlock", { state.setPlacementLocked(sceneId, shownSel.id, false) })
+                    }
+                    activeAxis != GizmoAxis.NONE -> TipLine(GizmoAxis.name(activeAxis))
+                    else -> {
+                        val tip = PlaceTip.of(placing != null, shownSel != null, shownSel?.locked == true, tool)
+                        if (tip.id !in tipsSeen) TipLine(tip.text) { TextAction("Got it", { tipsSeen = tipsSeen + tip.id; engine.setFlag(tipFlag(tip), true) }) }
                     }
                 }
+                PlaceLoading(status, engine::clearErrors)
             }
-        }
 
-        // ---- the tool cluster, bottom left over the scene, above the bar; its tooltip strip beside it
-        if (placing == null) Row(
-            Modifier.align(Alignment.BottomStart).padding(start = WarSize.GUTTER.dp, bottom = barH + 16.dp, end = 64.dp),
-            verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            val roomH = (boxH - (WarSize.TOP_BAR + 24).dp - barH - 16.dp).coerceAtLeast(64.dp)
-            Column(horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (layout.clusterHorizontal && cluster.hint != null) Tooltip(cluster.tip(shownSel))
-                ToolClusterView(layout, cluster, shownSel, ::useTool, { cluster = cluster.longPress(it) }, Modifier.heightIn(max = roomH))
-            }
-            if (!layout.clusterHorizontal && cluster.hint != null) Tooltip(cluster.tip(shownSel), Modifier.weight(1f, fill = false))
-        }
-
-        // ---- the catalogue bar, and its flyout over it
-        PlaceCatalogueBar(
-            library, own, query, { query = it }, prefs,
-            onFavourite = { a -> savePrefs(prefs.toggleFavourite(a.key)) },
-            thumbs = engine.thumbs, thumbError = thumbError,
-            layout = layout, bar = bar, onBar = { setBar(it) },
-            armed = placing?.asset?.key,
-            onPick = { a -> if (placing?.asset?.key == a.key) stopPlacing() else arm(a) },
-            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().onSizeChanged { barPx = it.height },
-        )
-        AnimatedVisibility(
-            bar.flyout && library != null,
-            Modifier.align(Alignment.BottomStart).padding(start = WarSize.GUTTER.dp, bottom = barH + 4.dp),
-            enter = slideInVertically(tween(WarSize.SLIDE_MS)) { it / 3 } + fadeIn(),
-            exit = slideOutVertically(tween(WarSize.SLIDE_MS)) { it / 3 } + fadeOut(),
-        ) {
-            library?.let { lib ->
-                PlaceCategoryFlyout(
-                    lib, own.size, prefs, query,
-                    onPick = { q -> query = q; setBar(bar.closeFlyout()) },
-                    onClose = { setBar(bar.closeFlyout()) },
-                    modifier = Modifier.width(layout.flyoutW.dp).heightIn(max = (maxHeight - (WarSize.TOP_BAR + 12).dp - barH).coerceAtLeast(160.dp)),
+            // ---- the selected thing's tooltip, bottom right over the bar
+            if (shownSel != null && chrome.inspectorShown(true, placing != null)) {
+                val emotes = remember(shownSel.kind, shownSel.asset, shownSel.actorId, project.cast) {
+                    if (shownSel.kind == PlaceKind.PROP) emptyList() else engine.emotesFor(shownSel, project.cast)
+                }
+                InspectorTooltip(
+                    shownSel, snap, camera.pose(), chrome.details,
+                    onDetails = { chrome = chrome.toggleDetails() },
+                    onEmote = { chrome = chrome.open(EditorWindow.EMOTES) },
+                    onChange = { p -> state.updatePlacement(sceneId, p.id) { p } },
+                    onNudge = { d -> state.nudgePlacement(sceneId, shownSel.id, d.x, d.y, d.z) },
+                    onSound = { on -> state.setPlacementSound(sceneId, shownSel.id, on); engine.setSound(shownSel, on) },
+                    onLoop = { state.setPlacementLoop(sceneId, shownSel.id, it) },
+                    emoteName = emotes.firstOrNull { it.id == shownSel.emoteId }?.label,
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = ChromeLayout.G.dp, bottom = (layout.barTop + 12).dp).width(layout.inspectorW.dp),
+                    maxHeight = (boxH - (layout.barTop + 12 + 76).dp).coerceAtLeast(120.dp),
                 )
             }
+
+            // ---- the action bar
+            ActionBarView(
+                layout.slot.dp,
+                {
+                    for (s in ActionSlot.values()) ActionSlotButton(
+                        slotFace(s), s.label, { slot(s) }, layout.slot.dp,
+                        lit = ActionBarModel.lit(s, cluster, chrome, placing != null),
+                        enabled = ActionBarModel.enabled(s, cluster, shownSel),
+                        onLongPress = { slotHint = s },
+                    )
+                },
+                Modifier.align(Alignment.BottomCenter).padding(bottom = ChromeLayout.BAR_MARGIN.dp),
+            )
         }
 
-        menu?.let { (id, at) ->
+        // ---- More's dropdown, over the bar's right end
+        if (chrome.window == EditorWindow.MORE) {
+            Box(Modifier.fillMaxSize().clickable { chrome = chrome.close() })
+            val rows = EditorMenus.more(shownSel, cluster, snap.on, ui.showHidden, stages.isNotEmpty())
+            val wants = EditorMenus.height(rows, true)
+            val room = maxHeight.value - layout.barTop - 8f - ChromeLayout.G
+            val h = ChromeLayout.dropdownH(wants, room)
+            val end = ((maxWidth.value - layout.barW) / 2f + 18f).coerceAtLeast(ChromeLayout.G)
+            WowDropdownList(
+                "More", rows, { r -> act(r.action, shownSel) },
+                Modifier.align(Alignment.BottomEnd).padding(end = end.dp, bottom = (layout.barTop + 8).dp).width(300.dp),
+                maxHeight = (h - EditorMenus.TITLE - 8f).dp,
+            )
+        }
+        // ---- the long-pressed thing's dropdown
+        if (chrome.window == EditorWindow.CONTEXT) menuAt?.let { (id, at) ->
             val p = scene.placements.firstOrNull { it.id == id }
-            if (p == null) menu = null else PlaceContextMenu(p, at, size.first, size.second, onAction = { a ->
-                menu = null
-                when (a) {
-                    PlaceAction.DUPLICATE -> state.duplicatePlacement(sceneId, id)?.let { onUi(ui.select(it)) }
-                    PlaceAction.DELETE -> confirmDelete = id
-                    PlaceAction.LOCK -> state.setPlacementLocked(sceneId, id, !p.locked)
-                    PlaceAction.HIDE -> { state.setPlacementHidden(sceneId, id, !p.hidden); onUi(ui.afterHide(p.copy(hidden = !p.hidden))) }
-                    PlaceAction.EMOTE -> setBook(BookPages(true, BookTab.ANIMATION))
-                    PlaceAction.FOCUS -> focus(p)
-                }
-            }, onDismiss = { menu = null })
+            if (p == null) chrome = chrome.close()
+            else PlaceContextMenu(p, at, size.first, size.second, barTopPx, onAction = { a -> act(a, p) }, onDismiss = { chrome = chrome.close() })
+        }
+
+        // ---- the windows
+        when (chrome.window) {
+            EditorWindow.LIBRARY -> LibraryWindowView(
+                library, own, query, { query = it }, prefs,
+                onFavourite = { a -> savePrefs(prefs.toggleFavourite(a.key)) },
+                thumbs = engine.thumbs, thumbError = thumbError,
+                armed = placing?.asset?.key,
+                onPick = { a -> if (placing?.asset?.key == a.key) { stopPlacing(); chrome = chrome.close() } else arm(a) },
+                onClose = { chrome = chrome.close() },
+                width = layout.libraryW.dp, height = layout.libraryH.dp, card = layout.card.dp,
+            )
+            EditorWindow.OBJECTS -> ObjectsWindow(
+                scene.placements, ui,
+                onSelect = { id ->
+                    onUi(ui.select(id))
+                    id?.let { i -> scene.placements.firstOrNull { it.id == i } }?.let { focus(it) }
+                },
+                onHide = { id -> scene.placements.firstOrNull { it.id == id }?.let { p -> state.setPlacementHidden(sceneId, id, !p.hidden); onUi(ui.afterHide(p.copy(hidden = !p.hidden))) } },
+                onLock = { id -> scene.placements.firstOrNull { it.id == id }?.let { p -> state.setPlacementLocked(sceneId, id, !p.locked) } },
+                onRename = { renaming = it },
+                onLookAt = { p -> focus(p); chrome = chrome.close() },
+                onShowHidden = { onUi(ui.toggleShowHidden()) },
+                nameOf = { a -> project.cast.firstOrNull { it.id == a }?.name },
+                onClose = { chrome = chrome.close() },
+                width = layout.listW.dp, height = layout.listH.dp,
+            )
+            EditorWindow.EMOTES -> if (shownSel == null || shownSel.kind == PlaceKind.PROP) chrome = chrome.close() else {
+                val emotes = remember(shownSel.kind, shownSel.asset, shownSel.actorId, project.cast) { engine.emotesFor(shownSel, project.cast) }
+                EmoteWindow(
+                    emotes, shownSel,
+                    onPreview = { e -> engine.previewEmote(shownSel, e, project.cast) },
+                    onUse = { e -> state.updatePlacement(sceneId, shownSel.id) { EmoteGroups.apply(it, e) } },
+                    onLoop = { state.setPlacementLoop(sceneId, shownSel.id, it) },
+                    onSound = { on -> state.setPlacementSound(sceneId, shownSel.id, on); engine.setSound(shownSel, on) },
+                    onCreatureSound = if (shownSel.kind == PlaceKind.CREATURE) { k -> engine.creatureSound(shownSel, k) } else null,
+                    onClose = { chrome = chrome.close() },
+                    width = layout.listW.dp, height = layout.listH.dp,
+                )
+            }
+            EditorWindow.GAME_MENU -> GameMenuPanel(
+                Menus.game(onPlay != null), layout.gameMenuCols,
+                onPick = { item ->
+                    chrome = chrome.close()
+                    when (item) {
+                        GameMenuItem.RESUME -> Unit
+                        GameMenuItem.PLAY -> onPlay?.invoke()
+                        else -> { stopPlacing(); onMenu(item) }
+                    }
+                },
+                onDismiss = { chrome = chrome.close() },
+                subtitle = scene.name.ifBlank { stageName },
+            )
+            else -> Unit
         }
     }
 
@@ -663,74 +688,52 @@ fun EditorPlacement(
     }
 }
 
-/** The tool cluster's face for each tool: the housing editor's own buttons for Select, Rotate and Scale, glyphs and icons for the rest. */
-fun toolFace(t: BuildTool): Face = when (t) {
-    BuildTool.POINTER -> Face(decor = "decor-ability-move-default")
-    BuildTool.ROTATE -> Face(decor = "decor-ability-expert-rotate-default")
-    BuildTool.SCALE -> Face(decor = "decor-ability-expert-scale-default")
-    BuildTool.DELETE -> Face(glyph = WarIcons.DELETE)
-    BuildTool.EYEDROPPER -> Face(icon = "tool.eyedropper")
-    BuildTool.DUPLICATE -> Face(icon = "tool.duplicate")
-    BuildTool.LOCK -> Face(glyph = WarIcons.LOCK)
-    BuildTool.HIDE -> Face(icon = "tool.hide")
-    BuildTool.EMOTE -> Face(icon = "tool.emote")
-    BuildTool.FOCUS -> Face(icon = "tool.focus")
-}
-
-/**
- * The round tool cluster on its dark glass panel: [BuildLayout]'s columns and rows (a row along the bottom of a short
- * scene; a column that scrolls when even that won't fit), the mode lit gold, what can't be used now dimmed.
- */
+/** One line over the scene in the game's tooltip box: [text] (none: only the actions), then [actions] (text buttons). */
 @Composable
-fun ToolClusterView(layout: BuildLayout, cluster: ToolCluster, sel: Placement?, onTap: (BuildTool) -> Unit, onLong: (BuildTool) -> Unit, modifier: Modifier = Modifier) {
-    val tools = BuildTool.values().toList()
-    val button: @Composable (BuildTool) -> Unit = { t ->
-        RoundIconButton(toolFace(t), { onTap(t) }, lit = cluster.lit(t, sel), enabled = cluster.enabled(t, sel), description = t.label, onLongPress = { onLong(t) })
-    }
-    GlassPanel(modifier) {
-        when {
-            layout.clusterHorizontal -> Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) { tools.forEach { button(it) } }
-            else -> {
-                val perCol = if (layout.clusterScrolls) tools.size else (tools.size + layout.clusterCols - 1) / layout.clusterCols
-                Row(Modifier.verticalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    for (c in tools.chunked(perCol)) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { c.forEach { button(it) } }
-                }
-            }
+fun TipLine(text: String?, modifier: Modifier = Modifier, actions: (@Composable RowScope.() -> Unit)? = null) {
+    WowTooltipBox(modifier.heightIn(min = 44.dp)) {
+        Row(Modifier.padding(start = 14.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (text != null) Text(text, style = frizStyle(13.sp, Color.White), maxLines = 2, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false).padding(vertical = 8.dp, horizontal = 0.dp))
+            actions?.invoke(this)
         }
     }
 }
 
-/** The stage picker: the studio, Dalaran's places and every location's views, as rows on a page; the current one lit. */
+/** The stage picker: the studio, Dalaran's places and every location's views, as a WoW list window; the current one lit. */
 @Composable
 fun StagePicker(stages: List<Pair<String, String>>, current: String, onCancel: () -> Unit, onPick: (String) -> Unit) {
-    WarDialog(onCancel) {
-        BookHeader("The stage", "Where it happens")
-        LazyColumn(Modifier.heightIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(stages, key = { it.first }) { (id, name) ->
-                WarRow({ onPick(id) }, selected = id == current, icon = if (StageChoices.locationOf(id) != null) "menu.location" else if (id == EditorChoices.STUDIO) "menu.studio" else "tool.stage") {
-                    Text(name, style = warText(16.sp), maxLines = 1, modifier = Modifier.weight(1f))
+    Overlay(onCancel) {
+        WowWindow("The stage", onCancel, Modifier.widthIn(max = 560.dp).heightIn(max = 560.dp).padding(12.dp)) {
+            LazyColumn(Modifier.weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                items(stages, key = { it.first }) { (id, name) ->
+                    WowListRow(
+                        name, null, selected = id == current, onClick = { onPick(id) },
+                        icon = if (StageChoices.locationOf(id) != null) "menu.location" else if (id == EditorChoices.STUDIO) "menu.studio" else "tool.stage",
+                    )
                 }
             }
         }
-        PillButton("Close", onCancel, Modifier.align(Alignment.CenterHorizontally).width(160.dp))
     }
 }
 
 /**
- * The placing mode's strip under the top bar: "Placing: <name>", the ghost's turn (a step each way), Drop (one at the
- * crosshair), Done; under it the mode's line (loading, why the model can't be drawn, how many were placed).
+ * The placing mode's strip under the top: "Placing: <name>", the ghost's turn (a step each way), Drop (one at the crosshair),
+ * Done; under it the mode's line (loading, why the model can't be drawn, how many were placed).
  */
 @Composable
 private fun PlacingBar(p: Placing, onTurn: (Float) -> Unit, turnStep: Float, onDrop: () -> Unit, onDone: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        GlassStrip {
-            Text(p.title, style = warText(15.sp, War.gold, true), maxLines = 1, modifier = Modifier.widthIn(max = 220.dp))
-            RoundIconButton(Face(glyph = WarIcons.UNDO), { onTurn(turnStep) }, size = 48.dp, enabled = p.error == null, description = "Turn left")
-            RoundIconButton(Face(glyph = WarIcons.REDO), { onTurn(-turnStep) }, size = 48.dp, enabled = p.error == null, description = "Turn right")
-            RoundIconButton(Face(glyph = WarIcons.PLUS), onDrop, size = 48.dp, enabled = p.canDrop, description = "Drop")
-            RoundIconButton(Face(glyph = WarIcons.CHECK), onDone, size = 48.dp, description = "Done")
+        WowTooltipBox {
+            Row(Modifier.padding(start = 14.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(p.title, style = frizStyle(15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 220.dp))
+                TextAction("Turn ‹", { onTurn(turnStep) }, enabled = p.error == null)
+                TextAction("Turn ›", { onTurn(-turnStep) }, enabled = p.error == null)
+                TextAction("Drop", onDrop, enabled = p.canDrop)
+                TextAction("Done", onDone)
+            }
         }
-        Text(p.line, style = warText(12.sp, if (p.error != null) Color(0xFFFF8A6A) else War.ink, true), maxLines = 2)
+        Text(p.line, style = frizStyle(12.sp, if (p.error != null) Color(0xFFFF8A6A) else Color.White), maxLines = 2)
     }
 }
 
@@ -738,25 +741,20 @@ private fun PlacingBar(p: Placing, onTurn: (Float) -> Unit, turnStep: Float, onD
 @Composable
 fun PlaceLoading(s: PlaceStatus, onClear: () -> Unit, modifier: Modifier = Modifier) {
     if (!s.loadingStage && s.fetchTotal == 0 && s.errors.isEmpty() && !s.soundPreparing) return
-    Column(
-        modifier.widthIn(max = 520.dp).warPress(onClick = onClear).padding(horizontal = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        GlassStrip {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(vertical = 4.dp)) {
-                if (s.loadingStage) {
-                    val mb = if (s.stageBytesTotal > 0) " (%.1f of %.1f MB)".format(s.stageBytesDone / 1e6, s.stageBytesTotal / 1e6) else ""
-                    Text(
-                        if (s.stageTotal > 0) "Fetching ${s.stageName}: ${s.stageDone} of ${s.stageTotal} files$mb" else "Loading ${s.stageName}…",
-                        style = warText(13.sp, War.gold, true),
-                    )
-                    LoadingBar(if (s.stageTotal > 0) s.stageDone.toFloat() / s.stageTotal else 0f, Modifier.width(320.dp).height(30.dp))
-                }
-                if (s.fetchTotal > 0) Text("Fetching a placed thing's files… ${s.fetchDone} of ${s.fetchTotal}", style = warText(12.sp, War.ink, true))
-                if (s.soundPreparing) Text("Preparing sounds…", style = warText(12.sp, War.ink, true))
-                for (e in s.errors) Text(e, style = warText(12.sp, Color(0xFFFF8A6A), true))
-                if (s.errors.isNotEmpty()) Text("Dismiss", style = warText(13.sp, War.gold, true), modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
+    WowTooltipBox(modifier.widthIn(max = 520.dp).warPress(onClick = onClear)) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (s.loadingStage) {
+                val mb = if (s.stageBytesTotal > 0) " (%.1f of %.1f MB)".format(s.stageBytesDone / 1e6, s.stageBytesTotal / 1e6) else ""
+                Text(
+                    if (s.stageTotal > 0) "Fetching ${s.stageName}: ${s.stageDone} of ${s.stageTotal} files$mb" else "Loading ${s.stageName}…",
+                    style = frizStyle(13.sp),
+                )
+                LoadingBar(if (s.stageTotal > 0) s.stageDone.toFloat() / s.stageTotal else 0f, Modifier.width(320.dp).height(30.dp))
             }
+            if (s.fetchTotal > 0) Text("Fetching a placed thing's files… ${s.fetchDone} of ${s.fetchTotal}", style = frizStyle(12.sp, Color.White))
+            if (s.soundPreparing) Text("Preparing sounds…", style = frizStyle(12.sp, Color.White))
+            for (e in s.errors) Text(e, style = frizStyle(12.sp, Color(0xFFFF8A6A)))
+            if (s.errors.isNotEmpty()) Text("Dismiss", style = frizStyle(13.sp), modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
         }
     }
 }

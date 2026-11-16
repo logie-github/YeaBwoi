@@ -25,6 +25,10 @@ class Settings(context: Context) {
     var voiceVolume: Int
         get() = prefs.getInt("voiceVolume", soundVolume)
         set(v) = prefs.edit().putInt("voiceVolume", v).apply()
+    /** The places' ambience in a scene (SceneAudio's ambience), 0 to 100; the Sounds level until it is set. */
+    var ambienceVolume: Int
+        get() = prefs.getInt("ambienceVolume", soundVolume)
+        set(v) = prefs.edit().putInt("ambienceVolume", v).apply()
     /** Files fetched at once by the first launch's gathering: Gentle 24, Normal 48, Fast 96 (the ceiling; it backs off by itself). */
     var downloadSpeed: Int
         get() = prefs.getInt("downloadSpeed", FAST).let { if (it in CHOICES) it else FAST }

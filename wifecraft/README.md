@@ -50,9 +50,12 @@ and the 37 MB sound table streams once. Nothing of the game is in the app.
 
 ## The title
 
-**Continue** opens the project you worked on last, **New Project** starts one, **Projects** lists
-them all (open, rename, delete). **Import Animations** and **Animations** (the library) are
-described under "Sims 4 animations" below. **Options** and **Updates** are below.
+The title stacks the game's own red buttons as WoW's Game Menu does, six at most: **Continue** (the project you worked on
+last, named under the stack), **New Project**, **Projects** (a WoW list window: each project's name, when it was last
+saved, its cast and scenes; a tap picks one, a tap on the picked one opens it, and its own line holds **Rename** and
+**Delete**; **New Project** and **Open** at the foot), **Options**, **Import Animations** (the animation library is reached
+from there and from the editor's Game Menu) and **Updates**. Until the game's files are here, **Gather the Files** stands in
+Continue's place. On the cover screen on its side the six stand in two columns.
 
 ## The editor
 
@@ -78,55 +81,69 @@ described under "Sims 4 animations" below. **Options** and **Updates** are below
 
 ## The look
 
-The editor (the placement editor, the scene builder, the projects, the cast and the scenes) is "build mode, themed like
-Warcraft": the game's own current interface pieces, softened and warmed, with big friendly buttons. The character creator
-keeps Wrath++'s look exactly (Shadowlands' own art, `creator_art.json`) and is not part of this.
+The editor's menus are World of Warcraft's own (W40, the user on 1.0.42: "way too many buttons or options. Simplify the menu
+and keep the menus like you'd find it in WoW"): the scene, a few buttons, and everything else one tap further, in the
+game's windows, dropdowns and Game Menu. The character creator keeps Wrath++'s look exactly (Shadowlands' own art,
+`creator_art.json`) and is not part of this.
 
+- **On screen while placing things**: the scene; the **Menu** button (top left: the action bar's frame with a gold cog;
+  it opens the Game Menu) and the scene's name in gold; **Undo**, **Redo** and **Play** (top right, the only round buttons);
+  and the **action bar** along the bottom, six framed slots on the housing editor's ability bar: **Select** (move),
+  **Rotate**, **Scale**, **Delete**, **Add** (the Library window) and **More**. That is 10 things to tap (11 with a tip's
+  Got it); the old screen had about 50 (the 1.0.42 inner-screen layout with nothing selected: Back and six top buttons, ten
+  tools, three side tabs, the Things page, the catalogue's search, seven tabs and fold, five chips, seven cards and their
+  stars). A long press on a slot says what it does.
+- **More** (a WoW dropdown: the tooltip's dark box, plain rows of white words with small icons, check boxes): Duplicate,
+  Lock, Hide, Emote…, Look at it (the selected thing's, dimmed without one); Eyedropper, Snap to grid, Show hidden things;
+  Home view, Objects in this scene…, Stage…, Tips again.
+- **The selected thing** shows as the game's tooltip, bottom right: its name in gold, what it is and what it plays,
+  **Emote** (a person or a creature) and **Details** (folds open X, Y, Z, Turn and Size typed in, the nudge buttons, Sound
+  and Held). A **long press** on a thing opens its dropdown: Duplicate, Lock, Hide, Emote…, Look at it, Details…, and
+  Delete in red.
+- **Windows** (one at a time, over the dimmed scene, the bar put away under them; the red close X, a tap outside or Back
+  closes them): the **Library** (the spellbook's parchment in the metal frame, four tabs along its bottom edge: Props,
+  Buildings, People, Favourites), **Objects in this scene**, **Emotes**, the stage picker.
+- **The Game Menu** (the Menu button, or Back with nothing open; Back again is Resume): the metal frame with the game's
+  red buttons stacked, seven: **Resume**, **Scenes** (this scene's beats; Back from there lists the scenes), **Cast**,
+  **Animations** (the library; Back comes back to this scene), **Options**, **Play**, **Save and Exit** (everything is
+  saved as it changes; it goes to the title). On the cover screen on its side, two columns.
+- **Options** is the game's settings window: the categories down its left side (Game, Sound, Graphics, Interface,
+  Advanced last; a dropdown instead on a narrow screen), gold labels, the game's minimal check boxes and sliders, its
+  dropdown button, **Okay**.
+- **The cast and the scenes** are lists of WoW rows: a tap picks a row and shows its own line of text buttons (Edit,
+  Duplicate, Delete; Open, Up, Down, Start here, Rename, Delete), a tap on the picked row opens it. Names, dialogs and
+  questions are small WoW windows with red buttons.
 - **Where the pieces come from**: `assets/ui_art.json` (made by `tools/ui_art.py` from the real `UiTextureAtlas*` tables and
-  `ManifestInterfaceData` at the app's build, 12.1.7.70892; ids and boxes only) names 90 atlas pieces on 29 sheets and 65
-  icon keys (57 icon files): the housing editor's round tool buttons, picture-card frames, wooden corbels and sign, the
-  spellbook's page, ribbon and side tab, the talent tree's gold rings, the action bar's slot frames, parchment, the neutral
-  ribbon, the radio button's disc and dot, the minimal scroll bar and slider, the gold glyphs (back, undo, redo, delete,
-  check...), and item and spell icons for the catalogue's tabs and every category, the tools and the emote groups. They
-  are fetched from wago.tools on the phone the first time the editor opens (about **58 MB**, once, into `files/war-art`),
-  cut, and warmed (a little less saturation, red up, blue down, the darks lifted: `WarKit.WarTint`). Nothing of the game is
-  in the app or this repository.
+  `ManifestInterfaceData` at the app's build, 12.1.7.70892; ids and boxes only) names 102 atlas pieces on 33 sheets and 65
+  icon keys (57 icon files): the housing editor's tool pictures and ability bar with its wooden corbels, the action bar's
+  slot frame, the decor chest's picture cards, the spellbook's page, the tooltip's corners, the frame's bottom tabs
+  (`uiframe-tab-*`, `uiframe-activetab-*`), the red close X (`redbutton-exit`), the minimal check box and tick
+  (`checkbox-minimal`, `checkmark-minimal`), the minimal slider, the dropdown's arrow button (`common-dropdown-a-button`),
+  the search box's glass, the gold glyphs (undo, redo, delete...), and item and spell icons for the tabs, the categories,
+  the More rows and the emote groups. The metal frame, its stone and the 128-RedButton are the interface pack's own
+  (`WowArt`). The atlas pieces are fetched from wago.tools on the phone the first time the editor opens (about **60 MB**,
+  once, into `files/war-art`), cut, and warmed a little (`WarKit.WarTint`). Nothing of the game is in the app or this
+  repository.
 - **Loading the art** (`ui/WarArt.kt`, its rules in `ui/WarArtPlan.kt`): four files fetched at a time, each kept only when it
   is a BLP2 texture (wago.tools answers a file it lacks with JSON or nothing); the pieces go into observable state, so every
   button draws again the moment its picture arrives. A file that fails is tried again by itself after 5 s, 15 s, 45 s...
   (five times), one that is here but can't be read is deleted and fetched again. The editor's first open shows **Preparing
-  the interface: n of m pieces** over it (with the failures, **Retry** and **Continue**); **Options** has an **Interface art**
-  row: how many pieces are loaded, what failed and why, Retry.
-- **A button is never blank**: until its picture is here (or when it can't be had) every round button, tab, chip, side tab,
-  row and pill draws a plain vector glyph in the same frame (`ui/WarGlyphDraw.kt`: hand, rotate, scale, trash, eyedropper,
-  copy, lock, eye, speech, crosshair, star, search, undo, redo, camera, play, back, plus, minus, cube, house, paw, person,
-  heart, clock, cog, check, close, page; `WarGlyphs` says which stands for which picture).
-- **Palette and sizes** (`ui/WarKit.kt`): cream and parchment grounds, amber highlights, deep brown words on parchment,
-  the game's gold (#FFD100) for names and the chosen things; rounded corners (10, 16, 22 dp); 56 dp round buttons, nothing
-  under 48 dp to touch; a press sinks a button a little and plays the interface's click.
-- **The placement editor**: the scene fills the screen. A slim **top bar**: Back, the scene's name on a parchment ribbon,
-  Undo, Redo, **Camera** (home view, look at the selected thing, show hidden things, tips again), **Snap** (its Grid and
-  Turn steps appear under the bar while it is on), **Stage** (the stage picker) and **Play**. The **catalogue bar** along the
-  bottom: round category tabs (Starter pack, Props, Buildings, Creatures, My NPCs, Favourites, Recent; the chosen one raised
-  in a gold ring, counts on the small ones' rims), the magnifying glass (the search box in their place), the category chips
-  (All, the biggest categories with their icons and counts, **More…** opens every category and style on a spellbook page),
-  and a sideways row of picture cards (the decor chest's frames, the star for Favourites, the armed one gold; the page turns
-  at the row's ends). The **−** folds the bar to its tabs. The **tool cluster** in the bottom-left corner: Select (move),
-  Rotate, Scale, Delete, **Eyedropper** (tap a placed thing: another of it is armed for placing, then the cluster goes back
-  to Select), Duplicate, Lock, Hide, Emote, Focus; a long press names a tool and says what it does on the tooltip strip; what
-  needs a selection is dimmed without one. **Things**, **Selected** and **Animation** are spellbook pages that slide in from
-  the right and fold to the spellbook's side tabs (remembered). The gizmo and the ghost are as they were.
-- **Every screen size**: everything is placed from the real width and height (`BuildLayout`): on the Fold's inner screen
-  (about 832 x 750 dp either way) big 104 dp cards, a chip row and the cluster in two columns; on a short screen (the cover
-  screen on its side, about 960 x 411 dp) 80 dp cards, the chips beside the tabs, the cluster in one row and the side tabs
-  across the top. Pages and the flyout are never taller than the room between the top bar and the bar.
-- **Not compiled here and not run on a phone**: the Compose code (`ui/WarArt.kt`, `ui/WarWidgets.kt` and the rebuilt
-  screens) is compiled by CI only. The pure parts (`WarKit`, `BuildModeState`: the layout, the tint, the tool cluster, the
-  Eyedropper, the tabs, chips, flyout and pages; `WarArtPlan`: the loader's states, the answer's check, the glyph table, and a
-  source scan that every picture the kit names is in `ui_art.json`) are JVM-tested. Every file `ui_art.json` lists was
-  fetched at the pinned build and decoded by the app's own decoder (`engine-test`'s `harness --decode FILE --out OUT.png`):
-  all 86 are BLP2 textures it reads, every piece and icon cuts cleanly. The look was judged on mock images drawn from the real cut
-  pieces over a screenshot of the Embassy, at 2184 x 1968, 1968 x 2184 and 2520 x 1080.
+  the interface: n of m pieces** over it (with the failures, **Retry** and **Continue**); **Options** (Game) has an
+  **Interface art** row: how many pieces are loaded, what failed and why, Retry.
+- **A button is never blank**: until its picture is here (or when it can't be had) every slot, window, row, tab and button
+  draws plainly in the same colours, with a vector glyph (`ui/WarGlyphDraw.kt`) where a picture would be.
+- **Every screen size** (`ChromeLayout` in `ui/MenuModel.kt`, from the real width and height): the slots are 60 dp (48 at
+  least, on the cover screen upright); the scene's name gives way to Undo, Redo and Play on a narrow screen; the selected
+  thing's tooltip spans the width on a narrow screen; windows are never taller than the screen (their lists and grids
+  scroll inside), the Library's cards are 92 dp on the inner screen and 76 dp on the cover; the Game Menu and the title go
+  to two columns where one doesn't fit. Nothing to touch is under 48 dp.
+- **Not compiled here and not run on a phone**: the Compose code (`ui/WowMenus.kt` and the rebuilt screens) is compiled by
+  CI only. The pure parts (`MenuModel`: the action bar, the chrome and Back, More's and the context menu's rows, the
+  Library's tabs and dropdown, the Game Menu, the title, Options' pages, the layout at the Fold's four sizes; `WarKit`,
+  `BuildModeState`, `WarArtPlan`) are JVM-tested, with a source scan that every picture the kit names is in `ui_art.json`.
+  The look was judged on mock images drawn from the real cut pieces over a screenshot of the Embassy and the title's art, at
+  2184 x 1968, 1080 x 2520 and 2520 x 1080 (the editor, More, the context menu, the selected thing's tooltip, the Library,
+  the Game Menu, the title, Options and Projects). The four new sheets were fetched at the pinned build and cut.
 
 ## Placement editor
 
@@ -141,75 +158,81 @@ Creation Kit's way). It works on the scene builder's stage.
   own music and ambience play (the Embassy's ZoneMusic and SoundAmbience).
   **Play opens a location scene on the view's camera** (its own, else a look at its spawn) and shows the location's
   name (for example Stormwind Embassy: Inside) instead of the bare id; the cast still stands on the plain stage's marks.
-- **Place things** opens the placement editor on that stage. The **library** is the catalogue bar along its bottom (see
-  "The look": tabs, chips, a sideways row of cards; it folds to its tabs).
+- **Place things** opens the placement editor on that stage. The **library** is the Library window (**Add** on the action
+  bar; see "The look"): four tabs (Props, Buildings, People: your NPCs and the game's creatures, Favourites: the recent
+  picks on top), one search box, one category dropdown with its counts, a grid of picture cards; Props starts with
+  "Suggested for this place" (the place's starter pack). Tapping a card arms it and the window closes.
   - **Picture cards**: each entry is a small picture of its model (drawn on the phone as its card comes on screen and
     kept; its name shows until the picture is ready, an NPC of your cast shows its initial). A line under the grid says
     why pictures can't be drawn, if they can't.
-  - **The tree** (a rail down the side of a wide panel, two rows of chips on a narrow one), each with how many it has:
-    **Favourites**, **Recent** (the last 30 you placed), **Starter pack** (a style's everyday props: the Embassy starts on
-    Human, the style chips change it), **Props**, **Buildings**, **Creatures** (the game's named creatures and its
-    creature models) and **My NPCs** (the project's cast). Under Props, Buildings and Creatures: their categories
-    (Furniture, Lighting, Food and drink, Containers, Architecture, Nature, Water, Ships and docks, Banners and flags,
-    Tents, Statues..., or a creature's type) and their styles (Human, Forsaken, Night elf...), each with its count.
+  - **The dropdown**, each row with how many it has: Props and Buildings: all of it, its categories (Furniture, Lighting,
+    Food and drink, Containers, Architecture, Nature, Water, Ships and docks, Banners and flags, Tents, Statues...) and its
+    styles (Human, Forsaken, Night elf...); People: **Your NPCs** (the project's cast), **All creatures** (the game's
+    named creatures and its creature models) and each creature type. Favourites has no dropdown: **Recently placed** (the
+    last 30) on top, then your favourites. The suggestions (the starter pack) follow the place's style (the Embassy:
+    Human).
   - **Search as you type**: the results come a moment after the last letter, from everything, grouped as **Props**,
-    **Buildings**, **Creatures** and **My NPCs** with their counts and the matched words lit; **All** on a group pages
-    through all of it (40 a page). With a category or style picked, the search stays inside it.
+    **Buildings**, **Creatures** and **My NPCs** with their counts and the matched words lit; **Show all** on a group
+    pages through all of it (40 a page: **Previous** and **Next** at the grid's end). With a category or style picked, the
+    search stays inside it.
   - **Favourites**: the star on a card. Favourites and Recent are kept per project (beside it, in `prefs.json`).
 - **Placing**: tapping a card arms it ("Placing: name" over the stage). A see-through copy of it, the **ghost**, appears
   at the crosshair once its model is loaded. **Drag one finger over the stage and the ghost follows it** (onto the floor,
   or on top of a table or another thing), snapping to the grid while Snap is on; **lift the finger to drop it there**. It
   stays armed: drag again for another, as many as you like. A **tap** moves the crosshair (and the ghost) without
   dropping; **Drop** puts one at the crosshair. **Turn ‹** and **Turn ›** turn the ghost (15°, or the snap angle).
-  Two fingers move the camera (pan, pinch, twist) without dropping anything. **Done** or Back leaves placing. Each drop
+  Two fingers move the camera (pan, pinch, twist) without dropping anything. **Done** or Back leaves placing; **Add** opens
+  the Library again for another card. Each drop
   is one undo step; a model that can't be loaded says why in the bar and drops nothing.
 - **Selecting**: tap a thing. **Tap the same spot again for the one behind it** (round through everything under your
-  finger). **Double-tap** to look at it (the camera comes near, the thing in the middle). A **long press** opens its menu:
-  **Duplicate**, **Delete**, **Lock**/**Unlock**, **Hide**/**Show**, **Emote** (a person or a creature: the Animation tab)
-  and **Focus**. Tapping the empty floor deselects. In **Things**, tapping a row selects it and looks at it.
-- **Moving, turning, sizing**: the selected thing carries a **gizmo** (the Creation Kit's), with a mode bar at the bottom of
-  the stage: **Move** (arrows: drag one to move along X, Y or up and down; the square at its feet slides it on the floor),
+  finger). **Double-tap** to look at it (the camera comes near, the thing in the middle). A **long press** opens its
+  dropdown: **Duplicate**, **Lock**/**Unlock**, **Hide**/**Show**, **Emote…** (a person or a creature), **Look at it**,
+  **Details…** and **Delete**. Tapping the empty floor deselects. In **Objects in this scene** (More), tapping a row selects
+  it and looks at it.
+- **Moving, turning, sizing**: the selected thing carries a **gizmo** (the Creation Kit's), its mode the action bar's slot:
+  **Select** (move) (arrows: drag one to move along X, Y or up and down; the square at its feet slides it on the floor),
   **Rotate** (drag the ring to turn it about its feet), **Scale** (drag a box to make it bigger or smaller: one size for
   the whole thing). The handle you hold is lit and named in the bar; the camera never moves while you drag a handle; each
   drag is one undo step. Dragging the thing's body slides it on the floor too (it follows the ground under it, keeping the
   height it stood above the ground), and two fingers on it turn and resize it. A locked thing shows no handles (the bar
   says Locked, with Unlock). One finger anywhere else orbits the camera; two pan and pinch to zoom. **View** puts the
   camera back.
-- **The pages** (Things, Selected, Animation) fold to the spellbook's side tabs (a tap on the open page's tab), so the stage is
-  not covered; a tab opens them again. Whether they are open is remembered. They fold by themselves while the category flyout is
-  open or while placing.
+- **Nothing stays over the stage** but the bar and the selected thing's tooltip: Objects in this scene and Emotes are windows
+  opened when wanted (More, the tooltip's Emote, the long-press dropdown).
 - **Tips**: a one-line tip over the stage says what the current mode does ("Drag the ghost to place, lift to drop",
-  "Drag an arrow to move along an axis"...). **Got it** hides that tip for good; **Tips again** (Camera, in the top bar) brings them back.
-- **Selected**: X, Y, Z (yards, Z up), Turn (degrees) and Size typed in, a size slider (0.05 to 20) and a turn
-  slider (**Size** works on people and creatures too: their own look's size times it); the nudge buttons (**Left**, **Right**, **Away**, **Near** as the camera sees the floor, **Up**, **Down**: a
-  tenth of a yard, or the grid while snapping); **Copy** (beside the original) and **Delete** (its Emote and Animation
-  beats go too).
-- **Snap**: positions to a grid (0.25, 0.5, 1 or 2 yards: tap **Grid**) and turns to steps (5°, 15°, 45° or 90°: tap
-  **Turn**).
+  "Drag an arrow to move along an axis"...). **Got it** hides that tip for good; **Tips again** (More) brings them back.
+- **Details** (the selected thing's tooltip): X, Y, Z (yards, Z up), Turn (degrees, to the snap's step while snapping) and
+  Size (0.05 to 20) typed in (**Size** works on people and creatures too: their own look's size times it); the nudge
+  buttons (**Left**, **Right**, **Away**, **Near** as the camera sees the floor, **Up**, **Down**: a tenth of a yard, or the
+  grid while snapping); **Sound** and **Held**. **Duplicate** (beside the original) is in More and the long-press dropdown;
+  **Delete** is on the bar (its Emote and Animation beats go too).
+- **Snap** (More's Snap to grid): positions to a grid (0.25, 0.5, 1 or 2 yards: tap **Grid** on the line under the top)
+  and turns to steps (5°, 15°, 45° or 90°: tap **Turn**); **Snap off** there too.
 - **Undo** and **Redo**: every change (a whole drag is one).
-- **Things**: each placed thing, what it is, and for the selected one **Hide**, **Lock**, **Rename** and **Look** (the
-  camera turns to it). **Hide** and **Lock** are saved with the scene. A hidden thing stays in Things (greyed) but is
+- **Objects in this scene** (More): each placed thing, what it is, and on the picked one's own line **Hide**, **Lock**,
+  **Rename** and **Look at it** (the camera turns to it). **Hide** and **Lock** are saved with the scene. A hidden thing stays in the list (greyed) but is
   left out of Play (the compiled script says so in a comment, and drops the Emote and Animation beats on it); the editor
-  draws it only while **Show hidden** (Camera in the top bar, or the Things page) is on, undimmed. A locked thing can't be moved, turned or resized by
+  draws it only while **Show hidden things** (More, or the Objects window's check box) is on, undimmed. A locked thing can't be moved, turned or resized by
   drag, handles, nudge buttons or the Inspector's fields (they are greyed); unlock it to change it. A copy is unlocked.
-- **Animation** (a person or a creature): every emote and animation of its race and sex, grouped (Emotes, Dance, Sit,
-  sleep and kneel, Work and life, Combat, Spells...), with a search box. Each reads as words: the game's chat tokens
+- **Emotes** (a person or a creature: the tooltip's Emote, More, the long-press dropdown; a WoW window): every emote and
+  animation of its race and sex, with one search box and one dropdown of its groups (Emotes, Dance, Sit, sleep and kneel,
+  Work and life, Combat, Spells..., with their counts). Each reads as words: the game's chat tokens
   written out (**Talk (Excited)**, **For the Alliance!**), an animation's name split, its weapon or stance in brackets
-  (**Ready (Unarmed)**, **Dance (Special)**, **Sit Chair (Medium)**; tools/emotes.py's labels). **Play** (or tapping the row) previews it on
-  the stage with its voice; **Use** makes it what it plays in the scene; **None** goes back to standing. **Held**
-  keeps it looping, **Sound** turns its voice and sounds on or off. A creature also has its own sounds to hear
-  (Fidget, Alert, Attack, Wound, Death, Shout, Loop). A creature that isn't one of the player races is offered every
+  (**Ready (Unarmed)**, **Dance (Special)**, **Sit Chair (Medium)**; tools/emotes.py's labels). Tapping a row picks it and previews it on the
+  stage with its voice (**Preview** plays it again); **Use** makes it what it plays in the scene; **None** goes back to
+  standing. **Held** keeps it looping, **Sound** turns its voice and sounds on or off. A creature also has its own sounds
+  to hear (the Creature sound dropdown: Fidget, Alert, Attack, Wound, Death, Shout, Loop). A creature that isn't one of the player races is offered every
   animation the game names; it plays the ones its model has. An emote's animation file is fetched the first time it is
   played (picked, previewed, spawned with a placement or run by a script's `emote`/`anim`), every variation of it, and
   kept: the screen says **Loading emote…** (about 0.1 MB an emote, at most 1 MB), the person goes on with what they were
   doing (never the arms-out bind pose) and the emote starts the moment its file is in; a file that won't come is said in
   red. A look's own download stays the story's emotes only.
 - **Limits**: a prop has no GameObjectDisplayInfo id in the library, so no sound plays for props yet (its **Sound**
-  switch in Selected says "Sound (none for props yet)"); Hide's dimmed look is only the greyed name in Things (the renderer
+  check box in Details says "Sound (none for props yet)"); Hide's dimmed look is only the greyed name in Objects (the renderer
   has no transparency for a placed thing); Play's people still stand on the plain stage's marks in a location.
 - **Beats**: **Emote** and **Animation** beats play one on a placed person or creature in the middle of a scene.
 - **Play** shows everything placed, in its animation, with its sounds.
-- Options has a **Voices** volume beside Music and Sounds.
+- Options' Sound page has **Music**, **Ambience**, **Effects** and **Voices**.
 
 ## Sims 4 animations
 
@@ -234,7 +257,7 @@ use. Nothing from the Sims game is in the app or the repository: you bring the f
    sets one category for the batch. **Save** adds them to the library. The same source (the file's
    hash and the clip's name) is skipped with a message; the same display name gets " (2)".
 
-**Animations** (the title, or Import's neighbour) is the library: search by name, category or
+**Animations** (top right of Import Animations, or the editor's Game Menu) is the library: search by name, category or
 source file, filter by category, **Rename**, **Category**, **Delete**. It is stored as one JSON
 file per animation plus an index, under `files/anims/`, written atomically. Playing an animation
 from the library screen is not there; use a Pose beat's **Preview** in the scene builder.
@@ -269,8 +292,19 @@ to the editor.
 
 ## Options
 
-Music and sound volume; text speed; the parchment talking head instead of Legion's dark one; Wi-Fi
-only for the first launch's gathering; its download speed (24, 48 or 96 files at once); **Soft body**; and, from the title, the creator's **Imports**:
+The game's settings window (from the title, the editor's Game Menu and the story's Game Menu): the categories down its
+left side and the chosen page's rows, short:
+
+| Page | Rows |
+| --- | --- |
+| Game | **Imports** (a page of its own: Ralia's mod, Alternate Female Options, the body options, the undead skins, each with its state, Choose zip, Use, Remove; and the Sims 4 skeleton's state with the way to Import Animations); **Interface art** (pieces loaded, failures, Retry) |
+| Sound | **Music**, **Ambience** (the places' ambience), **Effects** (Sounds), **Voices** |
+| Graphics | **Soft body** (Off, Subtle, Natural, Strong); **Download speed** (Gentle 24, Normal 48, Fast 96 files at once) |
+| Interface | **Text speed**; **Parchment talking head** (instead of Legion's dark one) |
+| Advanced | **Gather on Wi-Fi only**; **The game's files** (what is missing, **Gather**: the first launch's screen, with the music and sounds) |
+
+The imports are set from the title's or the editor's Options, not while a story plays. There is no resolution scale (the
+renderer draws at the screen's own).
 
 **Soft body** (Off, Subtle, Natural by default, Strong; applies at once, kept between runs): the chest, belly, rear,
 thighs and upper arms are soft. Each region is a damped spring hung on the bone that carries it (the chest, the lower

@@ -32,6 +32,8 @@ fun EditorCast(
     onBack: () -> Unit,
 ) {
     var deleting by remember { mutableStateOf<String?>(null) }
+    // a tap picks an NPC (its line: Edit, Duplicate, Delete); a tap on the picked one opens it in the creator
+    var picked by remember { mutableStateOf<String?>(null) }
     EditorFrame(
         "${project.title}: Cast", onBack,
         actions = { RoundIconButton(Face(icon = "menu.scene"), onScenes, description = "Scenes") },
@@ -40,24 +42,21 @@ fun EditorCast(
             if (project.cast.isEmpty()) {
                 Text("Nobody yet. Make your first NPC.", style = frizStyle(16.sp, WowColors.grey), modifier = Modifier.padding(8.dp))
             }
-            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(project.cast, key = { it.id }) { a ->
-                    EditorCard(onClick = { onEdit(a.id) }) {
-                        RoundIconButton(Face(icon = "tab.npcs"), { onEdit(a.id) }, size = 48.dp, description = a.name)
-                        Column(Modifier.weight(1f)) {
-                            Text(a.name, style = frizStyle(18.sp), maxLines = 1)
-                            Text(
-                                lookSummary(catalog.races.firstOrNull { it.id == a.appearance.raceId }, a.appearance),
-                                style = frizStyle(12.sp, WowColors.grey), maxLines = 1,
-                            )
-                        }
-                        SmallButton("Edit", { onEdit(a.id) })
-                        SmallButton("Duplicate", { state.duplicateActor(a.id) })
-                        SmallButton("Delete", { deleting = a.id })
-                    }
+                    val sel = a.id == picked
+                    WowListRow(
+                        a.name, lookSummary(catalog.races.firstOrNull { it.id == a.appearance.raceId }, a.appearance),
+                        selected = sel, onClick = { if (sel) onEdit(a.id) else picked = a.id }, icon = "tab.npcs",
+                        context = {
+                            TextAction("Edit", { onEdit(a.id) })
+                            TextAction("Duplicate", { state.duplicateActor(a.id) })
+                            TextAction("Delete", { deleting = a.id }, danger = true)
+                        },
+                    )
                 }
             }
-            PillButton("New NPC", onNew, Modifier.align(Alignment.CenterHorizontally).widthIn(min = 240.dp), glyph = WarIcons.PLUS)
+            RedButton("New NPC", onNew, Modifier.align(Alignment.CenterHorizontally).widthIn(min = 240.dp))
         }
     }
     deleting?.let { id ->

@@ -1,6 +1,9 @@
 package com.logie.wifecraft.ui
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -32,6 +35,8 @@ fun EditorScenes(
     var renaming by remember { mutableStateOf<String?>(null) }
     var deleting by remember { mutableStateOf<String?>(null) }
     var adding by remember { mutableStateOf(false) }
+    // a tap picks a scene (its line: Open, Up, Down, Start here, Rename, Delete); a tap on the picked one opens it
+    var picked by remember { mutableStateOf<String?>(null) }
     EditorFrame(
         "${project.title}: Scenes", onBack,
         actions = { RoundIconButton(Face(icon = "menu.cast"), onCast, description = "Cast") },
@@ -40,26 +45,28 @@ fun EditorScenes(
             if (project.scenes.isEmpty()) {
                 Text("No scenes yet.", style = frizStyle(16.sp, WowColors.grey), modifier = Modifier.padding(8.dp))
             }
-            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 itemsIndexed(project.scenes, key = { _, s -> s.id }) { i, s ->
-                    EditorCard(onClick = { onOpen(s.id) }, selected = s.id == project.start) {
-                        Column(Modifier.weight(1f)) {
-                            Text((if (s.id == project.start) "* " else "") + s.name, style = frizStyle(18.sp), maxLines = 1)
-                            Text(
-                                (places.firstOrNull { it.id == com.logie.wifecraft.editor.Compile.stageOf(s) }?.name ?: s.stage.name.ifBlank { com.logie.wifecraft.editor.Compile.stageOf(s) }) +
-                                    " · " + s.stage.light + " · " + plural(s.beats.size, "beat") + (if (s.placements.isEmpty()) "" else " · " + plural(s.placements.size, "placed thing")),
-                                style = frizStyle(12.sp, WowColors.grey), maxLines = 1,
-                            )
-                        }
-                        SmallButton("Up", { state.moveScene(s.id, -1) }, enabled = i > 0, width = 64.dp)
-                        SmallButton("Down", { state.moveScene(s.id, 1) }, enabled = i < project.scenes.size - 1, width = 74.dp)
-                        SmallButton("Start", { state.setStart(s.id) }, enabled = s.id != project.start, width = 80.dp)
-                        SmallButton("Rename", { renaming = s.id })
-                        SmallButton("Delete", { deleting = s.id }, width = 90.dp)
-                    }
+                    val sel = s.id == picked
+                    WowListRow(
+                        (if (s.id == project.start) "* " else "") + s.name,
+                        (places.firstOrNull { it.id == com.logie.wifecraft.editor.Compile.stageOf(s) }?.name ?: s.stage.name.ifBlank { com.logie.wifecraft.editor.Compile.stageOf(s) }) +
+                            " · " + s.stage.light + " · " + plural(s.beats.size, "beat") + (if (s.placements.isEmpty()) "" else " · " + plural(s.placements.size, "placed thing")),
+                        selected = sel, onClick = { if (sel) onOpen(s.id) else picked = s.id }, icon = "menu.scene",
+                        context = {
+                            Row(Modifier.horizontalScroll(rememberScrollState())) {
+                                TextAction("Open", { onOpen(s.id) })
+                                TextAction("Up", { state.moveScene(s.id, -1) }, enabled = i > 0)
+                                TextAction("Down", { state.moveScene(s.id, 1) }, enabled = i < project.scenes.size - 1)
+                                TextAction("Start here", { state.setStart(s.id) }, enabled = s.id != project.start)
+                                TextAction("Rename", { renaming = s.id })
+                                TextAction("Delete", { deleting = s.id }, danger = true)
+                            }
+                        },
+                    )
                 }
             }
-            PillButton("Add scene", { adding = true }, Modifier.align(Alignment.CenterHorizontally).widthIn(min = 240.dp), glyph = WarIcons.PLUS)
+            RedButton("Add scene", { adding = true }, Modifier.align(Alignment.CenterHorizontally).widthIn(min = 240.dp))
         }
     }
     if (adding) NameDialog("New scene", "", "Add", { adding = false }) { name ->

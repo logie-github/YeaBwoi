@@ -67,6 +67,8 @@ fun EditorSceneBuilder(
     animLibrary: AnimLibrary? = null,
     /** The placement editor's engine (MainActivity's): without it the scene has no locations and no placing. */
     engine: PlaceEngine? = null,
+    /** The placement editor's Game Menu: Cast, Animations, Options, Save and Exit (Scenes comes back to this page). */
+    onMenu: (GameMenuItem) -> Unit = {},
 ) {
     val sc = project.scenes.firstOrNull { it.id == sceneId }
     if (sc == null) {
@@ -155,6 +157,10 @@ fun EditorSceneBuilder(
             stages = stages, stageId = stageId, onStage = { pickStage(it) },
             // Play from the placement editor: what would stop it is shown on the scene builder's page
             onPlay = { val p = state.problems(); if (p.isEmpty()) play() else { live = null; placing = false; report = p } },
+            onMenu = { item ->
+                live = null; placing = false
+                if (item != GameMenuItem.SCENES) onMenu(item)
+            },
         )
         failure?.let { msg -> ConfirmDialog("It can't be played: " + msg, "Close", { failure = null }) { failure = null } }
         return
