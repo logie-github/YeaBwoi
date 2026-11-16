@@ -59,6 +59,8 @@
 //   build/harness --location JSONFILE --files DIR --out OUT.png [--id ID] [--view inside|outside|...] [--size WxH]
 //                 [--camera EX,EY,EZ,TX,TY,TZ,FOV] [--props "MODEL,X,Y,Z,YAW,SCALE;..."] [--select N] [--pick SX,SY]
 //                 [--look LOOKFILE]   (a person standing at the view's spawn)
+// Or one BLP decoded by the app's own decoder (engine/blp.cpp, what Native.decodeBlp runs; no GL), to an RGBA picture:
+//   build/harness --decode BLPFILE --out OUT.png [--max N]   prints "W H" (exit 1: not a BLP2 the decoder takes)
 // Or a library thumbnail alone:
 //   build/harness --thumb prop|look FILE_ID|LOOKFILE --files DIR --out OUT.png [--tsize N]
 // --location also takes --gizmo move|rotate|scale (on --select's prop, or the --look person with --gizmoactor 1), --axis N,
@@ -81,6 +83,7 @@
 #include <sys/stat.h>
 #include <vector>
 
+#include "../android/app/src/main/cpp/engine/blp.h"
 #include "../android/app/src/main/cpp/engine/scene.h"
 
 using namespace wc;
@@ -191,11 +194,11 @@ static uint32_t crc32(const uint8_t* p, size_t n, uint32_t c = 0) {
     return ~c;
 }
 
-static void writePng(const std::string& path, int w, int h, const std::vector<uint8_t>& rgbTopDown) {
+static void writePng(const std::string& path, int w, int h, const std::vector<uint8_t>& rgbTopDown, int channels = 3) {
     std::vector<uint8_t> raw;
     for (int y = 0; y < h; ++y) {
         raw.push_back(0);
-        raw.insert(raw.end(), rgbTopDown.begin() + size_t(y) * w * 3, rgbTopDown.begin() + size_t(y + 1) * w * 3);
+        raw.insert(raw.end(), rgbTopDown.begin() + size_t(y) * w * channels, rgbTopDown.begin() + size_t(y + 1) * w * channels);
     }
     std::vector<uint8_t> z{0x78, 0x01};
     uint32_t a = 1, b = 0;
@@ -224,7 +227,7 @@ static void writePng(const std::string& path, int w, int h, const std::vector<ui
     const uint8_t sig[8] = {137, 80, 78, 71, 13, 10, 26, 10};
     std::fwrite(sig, 1, 8, f);
     std::vector<uint8_t> ihdr = {uint8_t(w >> 24), uint8_t(w >> 16), uint8_t(w >> 8), uint8_t(w),
-                                 uint8_t(h >> 24), uint8_t(h >> 16), uint8_t(h >> 8), uint8_t(h), 8, 2, 0, 0, 0};
+                                 uint8_t(h >> 24), uint8_t(h >> 16), uint8_t(h >> 8), uint8_t(h), 8, uint8_t(channels == 4 ? 6 : 2), 0, 0, 0};
     chunk("IHDR", ihdr);
     chunk("IDAT", z);
     chunk("IEND", {});
@@ -430,6 +433,16 @@ int main(int argc, char** argv) {
             if (std::string(argv[i]) == "--thumb" && i + 2 < argc) { opt["--thumb"] = std::string(argv[i + 1]) + ":" + argv[i + 2]; ++i; continue; }
             opt[argv[i]] = argv[i + 1];
         }
+
+    if (opt.count("--decode")) {
+        Bytes file;
+        Image img;
+        int maxSize = opt.count("--max") ? std::atoi(opt["--max"].c_str()) : 4096;
+        if (!readFile(opt["--decode"], file) || !decodeBlp(file, maxSize, img)) { std::fprintf(stderr, "decode %s: FAILED\n", opt["--decode"].c_str()); return 1; }
+        std::printf("%d %d\n", img.width, img.height);
+        if (opt.count("--out")) writePng(opt["--out"], img.width, img.height, img.rgba, 4);
+        return 0;
+    }
 
     EGLDisplay dpy = EGL_NO_DISPLAY;
     auto getPlatformDisplay = (PFNEGLGETPLATFORMDISPLAYEXTPROC)eglGetProcAddress("eglGetPlatformDisplayEXT");

@@ -231,9 +231,12 @@ fun RoundIconButton(
                     else { drawCircle(War.woodDark, r, c); drawCircle(Color(0xFF9C7A4C), r, c, style = Stroke(r * 0.14f)) }
                 }
                 val a = if (enabled) 1f else 0.42f
+                // what the button shows, or (its picture not here yet, or failed) the same thing as a vector glyph
+                var drawn = false
                 face.decor?.let { name ->
                     val p = war?.piece(name)
                     if (p != null) {
+                        drawn = true
                         // the housing button's picture without its square frame: its middle, round
                         val k = (p.width * 0.17f).toInt()
                         val path = Path().apply { addOval(androidx.compose.ui.geometry.Rect(c.x - r * 0.74f, c.y - r * 0.74f, c.x + r * 0.74f, c.y + r * 0.74f)) }
@@ -244,11 +247,12 @@ fun RoundIconButton(
                         }
                     }
                 }
-                face.icon?.let { drawCircled(war?.icon(it), c.x, c.y, 2 * r * WarSize.ICON_IN_ROUND, a) }
-                face.glyph?.let { g ->
+                if (!drawn) face.icon?.let { k -> war?.icon(k)?.let { drawCircled(it, c.x, c.y, 2 * r * WarSize.ICON_IN_ROUND, a); drawn = true } }
+                if (!drawn) face.glyph?.let { g ->
                     val img = war?.piece(g)
-                    if (img != null) drawFitted(img, c.x + if (g == WarIcons.PLAY) r * 0.08f else 0f, c.y, 2 * r * (if (primary) 0.46f else 0.5f), a)
+                    if (img != null) { drawFitted(img, c.x + if (g == WarIcons.PLAY) r * 0.08f else 0f, c.y, 2 * r * (if (primary) 0.46f else 0.5f), a); drawn = true }
                 }
+                if (!drawn) drawGlyphFor(face.glyph ?: face.icon ?: face.decor, c.x, c.y, 2 * r * 0.52f, if (primary) War.brown else War.gold, a)
                 if (!enabled) drawCircle(Color(0x781E140C), r, c)
                 if (lit) {
                     val ring = war?.piece("talents-node-circle-yellow")
@@ -256,10 +260,6 @@ fun RoundIconButton(
                     if (ring != null) drawWar(ring, c.x - rr, c.y - rr, 2 * rr, 2 * rr)
                     else drawCircle(War.gold, r * 1.02f, c, style = Stroke(3.dp.toPx()))
                 }
-            }
-            // a picture that isn't here yet: the label's first letter, so the button still says what it is
-            if (war?.piece(face.glyph ?: "") == null && war?.icon(face.icon) == null && war?.piece(face.decor ?: "") == null && label != null) {
-                Text(label.take(1), style = warText(18.sp, if (primary) War.brown else War.gold, true), modifier = Modifier.align(Alignment.Center))
             }
             if (badge != null) Badge(badge, Modifier.align(Alignment.TopEnd).offset(x = 6.dp, y = (-4).dp))
         }
@@ -299,13 +299,13 @@ fun CategoryTab(tab: CatalogueTab, chosen: Boolean, onClick: () -> Unit, modifie
                 drawCircle(Color(WarPalette.SHADOW), r, c + Offset(0f, (if (chosen) 5 else 2).dp.toPx()))
                 val disc = war?.piece("common-radiobutton-circle")
                 if (disc != null) drawWar(disc, c.x - r, c.y - r, 2 * r, 2 * r) else drawCircle(War.woodDark, r, c)
-                drawCircled(war?.icon(tab.icon), c.x, c.y, 2 * r * 0.74f)
+                val img = war?.icon(tab.icon)
+                if (img != null) drawCircled(img, c.x, c.y, 2 * r * 0.74f) else drawGlyphFor(tab.icon, c.x, c.y, 2 * r * 0.52f)
                 val ring = war?.piece(if (chosen) "talents-node-circle-yellow" else "talents-node-circle-gray")
                 val rr = r * 1.12f
                 if (ring != null) drawWar(ring, c.x - rr, c.y - rr, 2 * rr, 2 * rr)
                 else drawCircle(if (chosen) War.gold else War.muted, r, c, style = Stroke(2.5.dp.toPx()))
             }
-            if (war?.icon(tab.icon) == null) Text(tab.label.take(1), style = warText(18.sp, War.gold, true), modifier = Modifier.align(Alignment.Center))
             if (showCount && tab.count > 0) Badge(compactCount(tab.count), Modifier.align(Alignment.TopEnd).offset(x = 8.dp, y = (-4).dp))
         }
         Text(tab.label, style = warText(11.sp, if (chosen) War.gold else War.ink, true), maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -327,7 +327,11 @@ fun Chip(label: String, count: Int?, on: Boolean, onClick: () -> Unit, modifier:
             .warPress(onClick = onClick).padding(start = if (icon != null) 6.dp else 14.dp, end = 14.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        if (icon != null) Canvas(Modifier.size(28.dp)) { drawCircled(war?.icon(icon), center.x, center.y, size.minDimension) }
+        if (icon != null) Canvas(Modifier.size(28.dp)) {
+            val img = war?.icon(icon)
+            if (img != null) drawCircled(img, center.x, center.y, size.minDimension)
+            else { drawCircle(War.woodDark, size.minDimension / 2); drawGlyphFor(icon, center.x, center.y, size.minDimension * 0.62f) }
+        }
         Text(label, style = warText(13.sp), maxLines = 1)
         if (count != null) Text("%,d".format(count), style = warText(11.sp, War.brownSoft), maxLines = 1)
     }
@@ -345,8 +349,12 @@ fun PillButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier,
             .warPress(enabled, onClick = onClick).padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
     ) {
-        if (glyph != null && war?.piece(glyph) != null) {
-            Canvas(Modifier.size(22.dp)) { drawFitted(war.piece(glyph), center.x, center.y, size.minDimension, if (enabled) 1f else 0.45f) }
+        if (glyph != null) {
+            Canvas(Modifier.size(22.dp)) {
+                val img = war?.piece(glyph)
+                if (img != null) drawFitted(img, center.x, center.y, size.minDimension, if (enabled) 1f else 0.45f)
+                else drawGlyphFor(glyph, center.x, center.y, size.minDimension, if (danger) War.cream else War.gold, if (enabled) 1f else 0.45f)
+            }
             Spacer(Modifier.width(8.dp))
         }
         Text(text, style = warText(14.sp, if (!enabled) War.muted else if (danger) War.cream else War.gold, true), maxLines = 1, textAlign = TextAlign.Center)
@@ -464,7 +472,10 @@ fun WarSearch(value: String, onChange: (String) -> Unit, hint: String, onClear: 
         modifier.height(48.dp).clip(shape).background(War.cream).border(1.5.dp, War.goldSoft, shape).padding(start = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Canvas(Modifier.size(22.dp)) { drawFitted(war?.piece(WarIcons.SEARCH), center.x, center.y, size.minDimension) }
+        Canvas(Modifier.size(22.dp)) {
+            val img = war?.piece(WarIcons.SEARCH)
+            if (img != null) drawFitted(img, center.x, center.y, size.minDimension) else drawGlyph(WarGlyph.SEARCH, center.x, center.y, size.minDimension, War.brown)
+        }
         Box(Modifier.weight(1f).padding(horizontal = 8.dp)) {
             if (value.isEmpty()) Text(hint, style = warText(14.sp, War.muted), maxLines = 1)
             BasicTextField(value, onChange, singleLine = true, textStyle = warText(15.sp), cursorBrush = SolidColor(War.brown), modifier = Modifier.fillMaxWidth())
@@ -520,7 +531,7 @@ fun ItemCard(
                 Canvas(Modifier.padding(7.dp).size(22.dp)) {
                     val star = war?.piece(if (favourite) WarIcons.STAR else WarIcons.STAR_OFF)
                     if (star != null) drawFitted(star, center.x, center.y, this.size.minDimension)
-                    else drawCircle(if (favourite) War.gold else War.muted, this.size.minDimension / 3)
+                    else drawGlyph(WarGlyph.STAR, center.x, center.y, this.size.minDimension, if (favourite) War.gold else War.muted)
                 }
             }
             if (badge != null) Badge(badge, Modifier.align(Alignment.BottomEnd).padding(6.dp))
@@ -584,9 +595,9 @@ fun SideTab(icon: String, label: String, on: Boolean, onClick: () -> Unit, modif
             val img = war?.icon(icon)
             val x = 9.dp.toPx(); val y = 12.dp.toPx(); val s = 32.dp.toPx()
             if (img != null) clipPath(Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(x, y, x + s, y + s, CornerRadius(6.dp.toPx()))) }) { drawWar(img, x, y, s, s) }
+            else drawGlyphFor(icon, x + s / 2, y + s / 2, s * 0.8f)
             if (on) drawRoundRect(War.gold, Offset(5.dp.toPx(), 8.dp.toPx()), Size(40.dp.toPx(), 40.dp.toPx()), CornerRadius(8.dp.toPx()), style = Stroke(2.5.dp.toPx()))
         }
-        if (war?.icon(icon) == null) Text(label.take(1), style = warText(16.sp, War.gold, true), modifier = Modifier.align(Alignment.Center))
     }
 }
 
@@ -719,7 +730,7 @@ fun WarRow(onClick: () -> Unit, modifier: Modifier = Modifier, selected: Boolean
         if (icon != null) Canvas(Modifier.size(40.dp)) {
             val img = war?.icon(icon)
             if (img != null) clipPath(Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(0f, 0f, size.width, size.height, CornerRadius(10.dp.toPx()))) }) { drawWar(img, 0f, 0f, size.width, size.height) }
-            else drawRoundRect(War.parchmentDeep, cornerRadius = CornerRadius(10.dp.toPx()))
+            else { drawRoundRect(War.woodDark, cornerRadius = CornerRadius(10.dp.toPx())); drawGlyphFor(icon, center.x, center.y, size.minDimension * 0.6f) }
         }
         content()
     }

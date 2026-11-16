@@ -370,13 +370,17 @@ class GameFiles(private val context: Context) {
         val target = file(id)
         val part = File(dir, "$id.part")
         var last: Exception? = null
+        // a file the pinned build answers empty (Dalaran's loading art, 7963775, at 12.1.7.70892: 200 and no bytes, while
+        // the latest build has it whole) is asked for again without the build
+        var unpinned = false
         for (attempt in 0 until 5) {
             if (cancel?.get() == true) return
             if (!limiter.acquire { cancel?.get() == true }) return
             var held = true
             fun letGo() { if (held) { held = false; limiter.release() } }
             try {
-                val conn = URL(source.replace("<id>", id.toString())).openConnection() as HttpURLConnection
+                val url = source.replace("<id>", id.toString()).let { if (unpinned) unpin(it) else it }
+                val conn = URL(url).openConnection() as HttpURLConnection
                 conn.connectTimeout = 15000
                 conn.readTimeout = 60000
                 conn.setRequestProperty("User-Agent", "Wifecraft/${BuildConfig.VERSION_NAME} (+https://github.com/logie-github/YeaBwoi)")
@@ -396,7 +400,7 @@ class GameFiles(private val context: Context) {
                 } finally {
                     conn.disconnect()
                 }
-                if (part.length() == 0L) throw IOException("File $id came empty")     // not a sign of load
+                if (part.length() == 0L) { unpinned = true; throw IOException("File $id came empty") }     // not a sign of load
                 if (!part.renameTo(target)) throw IOException("Can't save file $id")
                 letGo()
                 limiter.onSuccess()
@@ -416,6 +420,9 @@ class GameFiles(private val context: Context) {
     }
 
     private class NoSuchFile(message: String) : IOException(message)
+
+    /** [url] without its pinned build (wago.tools then answers the latest build's file). */
+    internal fun unpin(url: String): String = url.replace(Regex("&version=[^&]*"), "")
 
     companion object {
         /** The most files ever fetched at once (Settings.FAST); the limiter holds it to the player's choice. */
