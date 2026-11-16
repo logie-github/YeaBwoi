@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
@@ -188,33 +189,34 @@ fun defaultAppearance(c: Catalog): Appearance? {
     return Appearance(race.id, sex)
 }
 
-/** The projects: open one, make one, rename or delete one. */
+/**
+ * The projects (the build-mode look: a spellbook page over the warm dark ground): each project a parchment row with the
+ * quill, its cast and scenes counted, Rename and Delete; New Project at the foot. Open one with a tap.
+ */
 @Composable
 fun EditorHome(api: ProjectsApi, onBack: () -> Unit, onOpen: (Project) -> Unit, askNew: Boolean = false) {
     var projects by remember { mutableStateOf(api.list()) }
     var asking by remember { mutableStateOf<Ask?>(if (askNew) Ask.New else null) }
     BackHandler(onBack = onBack)
-    EditorFrame("Projects", onBack) {
+    WarScreen("Projects", onBack, actions = {
+        RoundIconButton(Face(glyph = WarIcons.PLUS), { asking = Ask.New }, description = "New Project")
+    }) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (projects.isEmpty()) {
-                Text("No stories yet.", style = frizStyle(16.sp, WowColors.grey), modifier = Modifier.padding(8.dp))
-            }
-            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            BookHeader("Your stories", if (projects.isEmpty()) "No stories yet" else plural(projects.size, "project"))
+            val list = androidx.compose.foundation.lazy.rememberLazyListState()
+            LazyColumn(Modifier.weight(1f).warScrollbar(list), list, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(projects, key = { it.id }) { p ->
-                    EditorCard(onClick = { onOpen(p) }) {
+                    WarRow({ onOpen(p) }, Modifier.padding(end = 10.dp), icon = "menu.project") {
                         Column(Modifier.weight(1f)) {
-                            Text(p.title, style = frizStyle(18.sp), maxLines = 1)
-                            Text(
-                                plural(p.cast.size, "NPC") + " · " + plural(p.scenes.size, "scene"),
-                                style = frizStyle(12.sp, WowColors.grey),
-                            )
+                            Text(p.title, style = warTitle(19.sp), maxLines = 1)
+                            Text(plural(p.cast.size, "NPC") + " · " + plural(p.scenes.size, "scene"), style = warText(12.sp, War.brownSoft))
                         }
-                        SmallButton("Rename", { asking = Ask.Rename(p) })
-                        SmallButton("Delete", { asking = Ask.Delete(p) })
+                        RoundIconButton(Face(icon = "menu.scene"), { asking = Ask.Rename(p) }, size = 48.dp, label = "Rename", onLight = true)
+                        RoundIconButton(Face(glyph = WarIcons.DELETE), { asking = Ask.Delete(p) }, size = 48.dp, label = "Delete", onLight = true)
                     }
                 }
             }
-            WowButton("New Project", { asking = Ask.New }, Modifier.align(Alignment.CenterHorizontally), width = 240.dp)
+            PillButton("New Project", { asking = Ask.New }, Modifier.align(Alignment.CenterHorizontally).widthIn(min = 240.dp), glyph = WarIcons.PLUS)
         }
     }
     when (val a = asking) {
@@ -246,8 +248,9 @@ private sealed interface Ask {
 fun plural(n: Int, word: String): String = "$n $word" + if (n == 1) "" else "s"
 
 // ------------------------------------------------------------------------ the editor's pieces
+// In the build-mode look (WarWidgets): the warm dark ground, rounded glass panels, wood pills with gold words, cream fields.
 
-/** A full-screen window: the title in gold, Back at the right, the content in the metal frame. */
+/** A full-screen window: Back and the title on its ribbon in the top bar, [actions] beside them, the content on warm glass. */
 @Composable
 fun EditorFrame(
     title: String,
@@ -255,26 +258,25 @@ fun EditorFrame(
     actions: @Composable RowScope.() -> Unit = {},
     content: @Composable () -> Unit,
 ) {
-    Box(Modifier.fillMaxSize().background(Color(0xFF0A0710))) {
-        Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(title, style = morpheusStyle(26.sp), modifier = Modifier.weight(1f), maxLines = 1)
-                actions()
-                WowButton("Back", onBack, width = 130.dp, height = 40.dp)
+    Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0xFF2A1C12), Color(0xFF140D08))))) {
+        Column(Modifier.fillMaxSize()) {
+            TopBar(title, onBack, actions = actions)
+            GlassPanel(Modifier.weight(1f).fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp), corbel = false) {
+                Box(Modifier.fillMaxSize().padding(8.dp)) { content() }
             }
-            MetalPanel(Modifier.weight(1f).fillMaxWidth()) { content() }
         }
     }
 }
 
-/** A row on a list: dark, gold-edged, lit when [selected]. */
+/** A row on a list over the dark glass: warm, rounded, gold-edged, lit when [selected]. */
 @Composable
 fun EditorCard(onClick: () -> Unit, selected: Boolean = false, content: @Composable RowScope.() -> Unit) {
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(WarSize.R_CARD.dp)
     Row(
-        Modifier.fillMaxWidth()
-            .background(if (selected) Color(0x55FFD100) else Color(0x66000000))
-            .border(1.dp, if (selected) WowColors.gold else Color(0x66FFD100))
-            .clickable(onClick = onClick)
+        Modifier.fillMaxWidth().heightIn(min = 56.dp)
+            .background(if (selected) Color(0x66E3A33B) else Color(0x803A2414), shape)
+            .border(if (selected) 2.dp else 1.dp, if (selected) War.gold else Color(0x88B08850), shape)
+            .warPress(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -284,68 +286,47 @@ fun EditorCard(onClick: () -> Unit, selected: Boolean = false, content: @Composa
 
 @Composable
 fun SmallButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, width: androidx.compose.ui.unit.Dp = 104.dp) =
-    WowButton(text, onClick, modifier, enabled, width, 36.dp)
+    PillButton(text, onClick, modifier.widthIn(min = width), enabled)
 
-/** A line of text the author types, in the game's black edit box. */
+/** A line of text the author types, in a cream field. */
 @Composable
-fun EditorField(value: String, onChange: (String) -> Unit, hint: String, modifier: Modifier = Modifier, singleLine: Boolean = true) {
-    Box(modifier.fillMaxWidth().background(Color.Black).border(1.dp, Color(0xFF6B6B6B)).padding(10.dp)) {
-        if (value.isEmpty()) Text(hint, style = frizStyle(16.sp, WowColors.grey, false))
-        BasicTextField(
-            value, onChange, singleLine = singleLine,
-            textStyle = frizStyle(16.sp, Color.White, false),
-            cursorBrush = SolidColor(WowColors.gold),
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
+fun EditorField(value: String, onChange: (String) -> Unit, hint: String, modifier: Modifier = Modifier, singleLine: Boolean = true) =
+    WarField(value, onChange, hint, modifier.fillMaxWidth(), singleLine = singleLine)
 
-/** A name to type, in a window over the page. */
+/** A name to type, on a parchment page over the screen. */
 @Composable
 fun NameDialog(title: String, initial: String, ok: String, onCancel: () -> Unit, onOk: (String) -> Unit) {
     var text by remember { mutableStateOf(initial) }
-    Overlay(onCancel) {
-        MetalPanel(Modifier.width(480.dp)) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(title, style = frizStyle(18.sp), modifier = Modifier.align(Alignment.CenterHorizontally))
-                EditorField(text, { text = it.take(60) }, "Name")
-                Row(Modifier.align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    WowButton("Cancel", onCancel, width = 150.dp)
-                    WowButton(ok, { onOk(text) }, width = 150.dp)
-                }
-            }
+    WarDialog(onCancel) {
+        Text(title, style = warTitle(22.sp), modifier = Modifier.align(Alignment.CenterHorizontally))
+        WarField(text, { text = it.take(60) }, "Name")
+        Row(Modifier.align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            PillButton("Cancel", onCancel, Modifier.widthIn(min = 140.dp))
+            PillButton(ok, { onOk(text) }, Modifier.widthIn(min = 140.dp), glyph = WarIcons.CHECK)
         }
     }
 }
 
 @Composable
 fun ConfirmDialog(question: String, ok: String, onCancel: () -> Unit, onOk: () -> Unit) {
-    Overlay(onCancel) {
-        MetalPanel(Modifier.width(480.dp)) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(question, style = frizStyle(16.sp, Color.White), modifier = Modifier.align(Alignment.CenterHorizontally))
-                Row(Modifier.align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    WowButton("Cancel", onCancel, width = 150.dp)
-                    WowButton(ok, onOk, width = 150.dp)
-                }
-            }
+    WarDialog(onCancel) {
+        Text(question, style = warText(16.sp), modifier = Modifier.align(Alignment.CenterHorizontally))
+        Row(Modifier.align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            PillButton("Cancel", onCancel, Modifier.widthIn(min = 140.dp))
+            PillButton(ok, onOk, Modifier.widthIn(min = 140.dp), danger = ok == "Delete")
         }
     }
 }
 
-/** A list of (id, label) to pick one from, in a window over the page. */
+/** A list of (id, label) to pick one from, on a parchment page over the screen. */
 @Composable
 fun PickDialog(title: String, items: List<Pair<String, String>>, current: String?, onCancel: () -> Unit, onPick: (String) -> Unit) {
-    Overlay(onCancel) {
-        MetalPanel(Modifier.width(420.dp)) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(title, style = frizStyle(18.sp), modifier = Modifier.align(Alignment.CenterHorizontally))
-                LazyColumn(Modifier.heightIn(max = 300.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    items(items, key = { it.first }) { (id, label) ->
-                        EditorCard(onClick = { onPick(id) }, selected = id == current) {
-                            Text(label, style = frizStyle(16.sp, if (id == current) WowColors.gold else Color.White), maxLines = 1)
-                        }
-                    }
+    WarDialog(onCancel) {
+        Text(title, style = warTitle(22.sp), modifier = Modifier.align(Alignment.CenterHorizontally))
+        LazyColumn(Modifier.heightIn(max = 340.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            items(items, key = { it.first }) { (id, label) ->
+                WarRow({ onPick(id) }, selected = id == current) {
+                    Text(label, style = warText(16.sp), maxLines = 1)
                 }
             }
         }
@@ -358,10 +339,11 @@ fun PickRow(label: String, items: List<Pair<String, String>>, current: String?, 
     var open by remember { mutableStateOf(false) }
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, style = frizStyle(14.sp), modifier = Modifier.width(86.dp))
+        val shape = androidx.compose.foundation.shape.RoundedCornerShape(WarSize.R_SMALL.dp)
         Box(
-            Modifier.weight(1f).background(Color.Black).border(1.dp, Color(0xFF6B6B6B)).clickable { open = true }.padding(10.dp),
+            Modifier.weight(1f).heightIn(min = 48.dp).background(War.cream, shape).border(1.dp, War.edge, shape).warPress { open = true }.padding(12.dp),
         ) {
-            Text((items.firstOrNull { it.first == current }?.second ?: current ?: "").ifEmpty { "Choose" }, style = frizStyle(15.sp, Color.White, false), maxLines = 1)
+            Text((items.firstOrNull { it.first == current }?.second ?: current ?: "").ifEmpty { "Choose" }, style = warText(15.sp), maxLines = 1)
         }
     }
     if (open) PickDialog(label, items, current, { open = false }) { open = false; onPick(it) }

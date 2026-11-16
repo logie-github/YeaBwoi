@@ -2,16 +2,21 @@ package com.logie.wifecraft.ui
 
 import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,6 +26,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -35,11 +42,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.logie.wifecraft.catalog.Asset
+import com.logie.wifecraft.catalog.AssetKind
 import com.logie.wifecraft.catalog.Emote
 import com.logie.wifecraft.editor.Actor
 import com.logie.wifecraft.editor.LibraryPrefs
@@ -56,6 +65,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.math.max
 import com.logie.wifecraft.catalog.Catalog as Library
+
 
 /**
  * The library's pictures (engine/Thumbs, MainActivity): a small picture of an entry, asked for when its card is on screen,
@@ -129,41 +139,39 @@ data class PlaceStatus(
     val errors: List<String> get() = listOfNotNull(stageError, fetchError, soundError)
 }
 
-/** A button at the touch size the placement editor keeps to (48 dp high). */
+/** A button at the touch size the placement editor keeps to (48 dp high): the build mode's wood pill. */
 @Composable
 internal fun PButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, width: Dp = 104.dp) =
-    WowButton(text, onClick, modifier, enabled, width, 48.dp)
+    PillButton(text, onClick, modifier.widthIn(min = width), enabled)
 
-/** A switch drawn as a button: lit gold while on. */
+/** A switch drawn as a chip: deep parchment with a gold edge while on. */
 @Composable
-internal fun PToggle(text: String, on: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier, width: Dp = 104.dp) {
-    Box(
-        modifier.width(width).height(48.dp)
-            .background(if (on) Color(0x66FFD100) else Color(0x66000000))
-            .border(1.dp, if (on) WowColors.gold else Color(0x66FFD100))
-            .clickable { onChange(!on) },
-        contentAlignment = Alignment.Center,
-    ) { Text(text, style = frizStyle(14.sp, if (on) Color.White else WowColors.gold), maxLines = 1) }
-}
-
-private enum class PanelTab(val label: String) { THINGS("Things"), SELECTED("Selected"), ANIMATION("Animation") }
+internal fun PToggle(text: String, on: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier, width: Dp = 104.dp) =
+    Chip(text, null, on, { onChange(!on) }, modifier.widthIn(min = width))
 
 private const val PANEL_FLAG = "place.panel"
+private const val BAR_FLAG = "place.bar"
 private fun tipFlag(t: PlaceTip) = "place.tip." + t.id
 
 /**
- * The placement editor of one scene (the Creation Kit's way): the stage full size with what is placed on it.
+ * The placement editor of one scene, laid out as the Sims' build mode in the game's own interface (WarArt, softened):
  *
- * - **Adding**: Add opens the library (a side panel on a wide screen, a bottom sheet otherwise). Tapping an entry arms it:
- *   its see-through ghost follows a finger dragged over the stage and lifting drops one (one undo step each); a tap aims
- *   the crosshair and Drop puts one there; it stays armed for the next until Done or Back.
- * - **Selecting**: tap a thing; tap the same spot again for the one behind it; double tap to look at it; long press for its
- *   menu (Duplicate, Delete, Lock, Hide, Emote, Focus); tap the floor to deselect; the outliner selects and looks.
- * - **Moving**: the gizmo on the selected thing (Move arrows and floor square, Rotate ring, Scale boxes: the mode bar), or
- *   drag its body on the floor; two fingers on it turn and resize it; nudges and numbers in Selected.
- * - The panels fold to slim tabs (remembered); a one-line tip says what the mode does until it is dismissed.
+ * - **The scene fills the screen.** A slim top bar over it: Back, the scene's name on its ribbon, Undo, Redo, Camera (home
+ *   view, look at the selected thing, show hidden things, tips again), Snap (with its Grid and Turn steps under the bar
+ *   while it is on), Stage (the stage picker) and Play.
+ * - **The catalogue bar** along the bottom (PlaceCatalogueBar): round category tabs (Starter pack, Props, Buildings,
+ *   Creatures, My NPCs, Favourites, Recent), the category chips (More… opens the whole tree as a spellbook-page flyout), a
+ *   sideways row of picture cards. Tapping a card arms it: its see-through ghost follows a finger dragged over the stage
+ *   and lifting drops one (one undo step each); a tap aims the crosshair and Drop puts one there; it stays armed until Done.
+ * - **The tool cluster** in the bottom-left corner: Select (move), Rotate, Scale, Delete, Eyedropper (tap a placed thing to
+ *   arm another of it), Duplicate, Lock, Hide, Emote, Focus. A long press names a tool in the tooltip strip.
+ * - **The spellbook pages** on the right: Things (the outliner), Selected (the inspector), Animation (the emotes); they slide
+ *   in, fold to their side tabs (remembered), and fold by themselves while placing or while the flyout is open.
+ * - Selecting as before: tap a thing; tap the same spot again for the one behind it; double tap to look at it; long press for
+ *   its menu; the gizmo on the selected thing (Move arrows and floor square, Rotate ring, Scale boxes) follows the cluster.
  *
  * [camera] and [ui] are the scene builder's (kept while it is open); [live] is the thing being moved before it is let go.
+ * [stages] (id, name) and [onStage] are the stage picker's; [onPlay] plays the project from this scene.
  */
 @Composable
 fun EditorPlacement(
@@ -181,6 +189,10 @@ fun EditorPlacement(
     live: Placement?,
     onLive: (Placement?) -> Unit,
     onDone: () -> Unit,
+    stages: List<Pair<String, String>> = emptyList(),
+    stageId: String = "",
+    onStage: (String) -> Unit = {},
+    onPlay: (() -> Unit)? = null,
 ) {
     val scene = state.sceneOf(sceneId) ?: return
     val library by engine.library.collectAsState()
@@ -190,13 +202,13 @@ fun EditorPlacement(
     val density = LocalDensity.current
 
     var snap by remember { mutableStateOf(Snap()) }
-    var tool by remember { mutableStateOf(GizmoTool.MOVE) }
+    var cluster by remember { mutableStateOf(ToolCluster()) }
+    val tool = cluster.gizmo
     var activeAxis by remember { mutableIntStateOf(GizmoAxis.NONE) }
-    var libraryOpen by remember { mutableStateOf(false) }
+    var bar by remember { mutableStateOf(CatalogueBar(open = engine.flag(BAR_FLAG, true))) }
     var query by remember(sceneId) { mutableStateOf(LibraryQuery(style = LibraryPager.styleOf(scene.stageId))) }
     var placing by remember { mutableStateOf<Placing?>(null) }
-    var panelOpen by remember { mutableStateOf(engine.flag(PANEL_FLAG, true)) }
-    var tab by remember { mutableStateOf(PanelTab.THINGS) }
+    var book by remember { mutableStateOf(BookPages(open = engine.flag(PANEL_FLAG, true))) }
     var renaming by remember { mutableStateOf<String?>(null) }
     var confirmDelete by remember { mutableStateOf<String?>(null) }
     var size by remember { mutableStateOf(0 to 0) }
@@ -206,12 +218,16 @@ fun EditorPlacement(
     var matrices by remember { mutableStateOf<ViewMatrices?>(null) }
     var prefs by remember(project.id) { mutableStateOf(engine.libraryPrefs(project.id)) }
     var tipsSeen by remember { mutableStateOf(PlaceTip.values().filter { engine.flag(tipFlag(it), false) }.map { it.id }.toSet()) }
+    var cameraMenu by remember { mutableStateOf(false) }
+    var stagePicker by remember { mutableStateOf(false) }
+    var barPx by remember { mutableIntStateOf(0) }
     // the ghost's pick: one asked of the renderer at a time, the newest finger point asked next
     val ghostPick = remember { object { var busy = false; var next: FloatArray? = null } }
 
     val sceneNow by rememberUpdatedState(scene)
     val uiNow by rememberUpdatedState(ui)
     val camNow by rememberUpdatedState(camera)
+    val clusterNow by rememberUpdatedState(cluster)
 
     val selected = ui.selected?.let { id -> scene.placements.firstOrNull { it.id == id } }
     val shownSel = if (live != null && live.id == selected?.id) live else selected
@@ -230,6 +246,8 @@ fun EditorPlacement(
         val key = shownSel?.id?.takeIf { canMoveSel && placing == null }?.let(PlaceKeys::of)
         view.showGizmo(if (key == null) null else tool, key, activeAxis)
     }
+    // the tooltip's hint goes after a moment
+    LaunchedEffect(cluster.hint) { if (cluster.hint != null) { delay(3500); cluster = cluster.clearHint() } }
     DisposableEffect(Unit) {
         onDispose {
             view.showGizmo(null, null)
@@ -275,7 +293,8 @@ fun EditorPlacement(
         view.pick(sx, sy, w, h) { hit ->
             cycle = SelectCycle.next(cycle, sx, sy, under(hit, sx, sy, w, h), with(density) { 24.dp.toPx() })
             onUi(uiNow.select(cycle.selected))
-            if (cycle.selected != null && tab == PanelTab.THINGS) tab = PanelTab.SELECTED
+            val now = cycle.selected?.let { i -> sceneNow.placements.firstOrNull { it.id == i } }
+            book = book.selected(now)
         }
     }
 
@@ -366,235 +385,266 @@ fun EditorPlacement(
         }
     }
 
+    /** The Eyedropper: what is under the finger is armed to be placed again, and the cluster goes back to Select. */
+    fun eyedrop(sx: Float, sy: Float, w: Int, h: Int) {
+        view.pick(sx, sy, w, h) { hit ->
+            val id = under(hit, sx, sy, w, h).firstOrNull() ?: return@pick
+            val p = sceneNow.placements.firstOrNull { it.id == id } ?: return@pick
+            val lib = library
+            val a = Eyedropper.assetFor(
+                p, find = { k -> own.firstOrNull { it.key == k } ?: lib?.get(k) },
+                byDisplay = { d ->
+                    lib?.assets?.firstOrNull { it.kind == AssetKind.CREATURE && it.display == d }
+                        ?: lib?.assets?.firstOrNull { it.kind == AssetKind.CREATURE_MODEL && it.display == d }
+                },
+            )
+            cluster = clusterNow.picked()
+            arm(a)
+        }
+    }
+
+    fun setBook(b: BookPages) { book = b; engine.setFlag(PANEL_FLAG, b.open) }
+    fun setBar(b: CatalogueBar) { if (b.open != bar.open) engine.setFlag(BAR_FLAG, b.open); bar = b }
+
+    /** A tool of the cluster tapped: its mode, or its action on the selected thing. */
+    fun useTool(t: BuildTool) {
+        val (next, action) = cluster.tap(t, shownSel)
+        cluster = next
+        val p = shownSel ?: return
+        when (action) {
+            ToolAction.NONE -> Unit
+            ToolAction.DELETE -> confirmDelete = p.id
+            ToolAction.DUPLICATE -> state.duplicatePlacement(sceneId, p.id)?.let { onUi(ui.select(it)) }
+            ToolAction.TOGGLE_LOCK -> state.setPlacementLocked(sceneId, p.id, !p.locked)
+            ToolAction.TOGGLE_HIDE -> { state.setPlacementHidden(sceneId, p.id, !p.hidden); onUi(ui.afterHide(p.copy(hidden = !p.hidden))) }
+            ToolAction.OPEN_EMOTES -> setBook(BookPages(true, BookTab.ANIMATION))
+            ToolAction.FOCUS -> focus(p)
+        }
+    }
+
     BackHandler(onBack = onDone)
-    BackHandler(enabled = menu != null || placing != null || libraryOpen) {
+    BackHandler(enabled = menu != null || placing != null || bar.flyout || cameraMenu || cluster.eyedropping) {
         when {
             menu != null -> menu = null
+            cameraMenu -> cameraMenu = false
             placing != null -> stopPlacing()
-            else -> libraryOpen = false
+            bar.flyout -> setBar(bar.closeFlyout())
+            else -> cluster = cluster.picked()
         }
     }
 
-    BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF0A0710))) {
-        val sheet = LibraryModel.sheet(maxWidth.value, maxHeight.value)
-        val wide = maxWidth >= 600.dp && maxWidth >= maxHeight * 0.9f
-        val panelW = (maxWidth * 0.34f).coerceIn(280.dp, 400.dp)
-        val panelH = (maxHeight * 0.42f).coerceIn(160.dp, 420.dp)
-        // the panel folds while the library is beside the stage or over it, and while placing
-        val panelShown = panelOpen && !libraryOpen && placing == null
+    BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF140D08))) {
+        val layout = BuildLayout.of(maxWidth.value, maxHeight.value)
+        val barH = with(density) { barPx.toDp() }
+        val pageShown = book.visible(bar.flyout, placing != null)
 
-        Column(Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            // the tools: every one at least 48 dp; the row scrolls on a narrow screen
-            Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(stageName, style = morpheusStyle(20.sp), maxLines = 1, modifier = Modifier.widthIn(max = 260.dp).padding(end = 4.dp))
-                PToggle("Add", libraryOpen, { libraryOpen = it }, width = 90.dp)
-                PButton("Undo", { state.undo(); onLive(null) }, enabled = state.canUndo, width = 90.dp)
-                PButton("Redo", { state.redo(); onLive(null) }, enabled = state.canRedo, width = 90.dp)
-                PToggle("Snap", snap.on, { snap = snap.copy(on = it) }, width = 80.dp)
-                if (snap.on) {
-                    PButton("Grid ${showNumber(snap.grid)}", { snap = snap.copy(grid = Snap.GRIDS[(Snap.GRIDS.indexOf(snap.grid) + 1) % Snap.GRIDS.size]) }, width = 110.dp)
-                    PButton("Turn ${snap.angleDeg.toInt()}°", { snap = snap.copy(angleDeg = Snap.ANGLES[(Snap.ANGLES.indexOf(snap.angleDeg) + 1) % Snap.ANGLES.size]) }, width = 110.dp)
-                }
-                PToggle("Show hidden", ui.showHidden, { onUi(ui.toggleShowHidden()) }, width = 130.dp)
-                PButton("View", onResetCamera, width = 80.dp)
-                PButton("Tips", {
-                    for (t in PlaceTip.values()) engine.setFlag(tipFlag(t), false)
-                    tipsSeen = emptySet()
-                }, width = 80.dp)
-                PButton("Done", onDone, width = 90.dp)
-            }
+        // ---- the scene, the whole screen
+        PlaceViewport(
+            view, camera, onCamera, shownSel, canMoveSel, snap, tool,
+            placing = placing != null, crosshair = placing?.cross,
+            rays = { w, h -> rays(w, h) },
+            actions = ViewportActions(
+                onTap = { sx, sy, w, h, ms -> menu = null; cameraMenu = false; if (clusterNow.eyedropping) eyedrop(sx, sy, w, h) else tapped(sx, sy, w, h, ms) },
+                onLongPress = { sx, sy, w, h -> longPressed(sx, sy, w, h) },
+                onLive = { onLive(it) },
+                onCommit = { commit(it) },
+                onActiveAxis = { activeAxis = it },
+                onGhostPress = { placing = placing?.press() },
+                onGhostDrag = { sx, sy, w, h -> ghostAt(sx, sy, w, h) },
+                onGhostRelease = {
+                    val pl = placing
+                    if (pl != null) {
+                        val (next, at) = pl.release()
+                        placing = next
+                        if (at != null) drop(next.asset, at, next.yaw)
+                    }
+                },
+                onGhostCancel = { placing = placing?.cancelDrag() },
+                onAim = { sx, sy, w, h -> placing = placing?.aim(sx, sy); ghostAt(sx, sy, w, h) },
+            ),
+            onSize = { w, h -> size = w to h },
+            modifier = Modifier.fillMaxSize(),
+        )
 
-            val panel: @Composable (Modifier) -> Unit = { m ->
-                MetalPanel(m) {
-                    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            for (t in PanelTab.values()) {
-                                val can = t != PanelTab.ANIMATION || (shownSel != null && shownSel.kind != PlaceKind.PROP)
-                                if (can || t == tab) PToggle(t.label, tab == t, { tab = t }, Modifier.weight(1f), width = 120.dp)
-                            }
-                            PButton("Hide", { panelOpen = false; engine.setFlag(PANEL_FLAG, false) }, width = 72.dp)
-                        }
-                        Box(Modifier.weight(1f).fillMaxWidth()) {
-                            when (tab) {
-                                PanelTab.THINGS -> PlaceOutliner(
-                                    scene.placements, ui,
-                                    onSelect = { id ->
-                                        onUi(ui.select(id))
-                                        id?.let { i -> scene.placements.firstOrNull { it.id == i } }?.let { focus(it) }
-                                    },
-                                    onHide = { id -> scene.placements.firstOrNull { it.id == id }?.let { p -> state.setPlacementHidden(sceneId, id, !p.hidden); onUi(ui.afterHide(p.copy(hidden = !p.hidden))) } },
-                                    onLock = { id -> scene.placements.firstOrNull { it.id == id }?.let { p -> state.setPlacementLocked(sceneId, id, !p.locked) } },
-                                    onRename = { renaming = it },
-                                    onLookAt = { p -> focus(p) },
-                                    nameOf = { a -> project.cast.firstOrNull { it.id == a }?.name },
-                                )
-                                PanelTab.SELECTED -> if (shownSel == null) {
-                                    Text("Tap something on the stage, or in Things, to select it. Add opens the library: pick a thing, then drag it onto the stage.",
-                                        style = frizStyle(14.sp, WowColors.grey, false), modifier = Modifier.padding(6.dp))
-                                } else PlaceInspector(
-                                    shownSel, snap, camera.pose(), locked = shownSel.locked,
-                                    onChange = { p -> state.updatePlacement(sceneId, p.id) { p } },
-                                    onSlide = { p -> state.updatePlacement(sceneId, p.id, "slide:$sceneId:${p.id}") { p } },
-                                    onSlideEnd = { state.endGesture() },
-                                    onNudge = { d -> state.nudgePlacement(sceneId, shownSel.id, d.x, d.y, d.z) },
-                                    onDuplicate = { state.duplicatePlacement(sceneId, shownSel.id)?.let { onUi(ui.select(it)) } },
-                                    onDelete = { confirmDelete = shownSel.id },
-                                    onAnimation = { tab = PanelTab.ANIMATION },
-                                    onSound = { on -> state.setPlacementSound(sceneId, shownSel.id, on); engine.setSound(shownSel, on) },
-                                )
-                                PanelTab.ANIMATION -> if (shownSel == null || shownSel.kind == PlaceKind.PROP) {
-                                    Text("Select a person or a creature to give them an animation or an emote.", style = frizStyle(14.sp, WowColors.grey, false), modifier = Modifier.padding(6.dp))
-                                } else {
-                                    val emotes = remember(shownSel.kind, shownSel.asset, shownSel.actorId, project.cast) { engine.emotesFor(shownSel, project.cast) }
-                                    EmotePicker(
-                                        emotes, shownSel,
-                                        onPreview = { e -> engine.previewEmote(shownSel, e, project.cast) },
-                                        onUse = { e -> state.updatePlacement(sceneId, shownSel.id) { EmoteGroups.apply(it, e) } },
-                                        onLoop = { state.setPlacementLoop(sceneId, shownSel.id, it) },
-                                        onSound = { on -> state.setPlacementSound(sceneId, shownSel.id, on); engine.setSound(shownSel, on) },
-                                        onCreatureSound = if (shownSel.kind == PlaceKind.CREATURE) { k -> engine.creatureSound(shownSel, k) } else null,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            // the panel folded: its tabs only, a slim strip (a tap opens it on that tab)
-            val tabs: @Composable (Modifier, Boolean) -> Unit = { m, vertical ->
-                val items: @Composable () -> Unit = {
-                    for (t in PanelTab.values()) {
-                        val can = t != PanelTab.ANIMATION || (shownSel != null && shownSel.kind != PlaceKind.PROP)
-                        if (!can) continue
-                        Box(
-                            Modifier.heightIn(min = 48.dp).widthIn(min = 48.dp).background(Color(0xC0000000)).border(1.dp, Color(0x66FFD100))
-                                .clickable { tab = t; panelOpen = true; libraryOpen = false; engine.setFlag(PANEL_FLAG, true) }
-                                .padding(horizontal = 8.dp),
-                            contentAlignment = Alignment.Center,
-                        ) { Text(if (vertical) t.label.take(5) else t.label, style = frizStyle(12.sp), maxLines = 1) }
-                    }
-                }
-                if (vertical) Column(m.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) { items() }
-                else Row(m.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) { items() }
-            }
+        // ---- the top bar
+        TopBar(scene.name.ifBlank { stageName }, onDone, Modifier.align(Alignment.TopStart)) {
+            RoundIconButton(Face(glyph = WarIcons.UNDO), { state.undo(); onLive(null) }, enabled = state.canUndo, description = "Undo")
+            RoundIconButton(Face(glyph = WarIcons.REDO), { state.redo(); onLive(null) }, enabled = state.canRedo, description = "Redo")
+            RoundIconButton(Face(icon = "tool.camera"), { cameraMenu = !cameraMenu }, lit = cameraMenu, description = "Camera")
+            RoundIconButton(Face(decor = if (snap.on) "decor-ability-snap-active" else "decor-ability-snap-default"), { snap = snap.copy(on = !snap.on) },
+                lit = snap.on, description = "Snap")
+            if (stages.isNotEmpty()) RoundIconButton(Face(icon = "tool.stage"), { stagePicker = true }, description = "Stage")
+            if (onPlay != null) RoundIconButton(Face(glyph = WarIcons.PLAY), onPlay, primary = true, size = if (layout.compact) 56.dp else 64.dp, description = "Play")
+        }
 
-            val viewport: @Composable (Modifier) -> Unit = { m ->
-                Box(m.background(Color.Black).border(1.dp, Color(0x66FFD100))) {
-                    PlaceViewport(
-                        view, camera, onCamera, shownSel, canMoveSel, snap, tool,
-                        placing = placing != null, crosshair = placing?.cross,
-                        rays = { w, h -> rays(w, h) },
-                        actions = ViewportActions(
-                            onTap = { sx, sy, w, h, ms -> menu = null; tapped(sx, sy, w, h, ms) },
-                            onLongPress = { sx, sy, w, h -> longPressed(sx, sy, w, h) },
-                            onLive = { onLive(it) },
-                            onCommit = { commit(it) },
-                            onActiveAxis = { activeAxis = it },
-                            onGhostPress = { placing = placing?.press() },
-                            onGhostDrag = { sx, sy, w, h -> ghostAt(sx, sy, w, h) },
-                            onGhostRelease = {
-                                val pl = placing
-                                if (pl != null) {
-                                    val (next, at) = pl.release()
-                                    placing = next
-                                    if (at != null) drop(next.asset, at, next.yaw)
-                                }
-                            },
-                            onGhostCancel = { placing = placing?.cancelDrag() },
-                            onAim = { sx, sy, w, h -> placing = placing?.aim(sx, sy); ghostAt(sx, sy, w, h) },
-                        ),
-                        onSize = { w, h -> size = w to h },
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                    Column(
-                        Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(6.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        placing?.let { pl ->
-                            PlacingBar(
-                                pl,
-                                onTurn = { d -> val n = pl.turned(d); placing = n; n.at?.let { view.ghostTo(it, n.yaw) } },
-                                turnStep = Math.toRadians((if (snap.on) snap.angleDeg else 15f).toDouble()).toFloat(),
-                                onDrop = {
-                                    val (next, at) = pl.dropHere()
-                                    placing = next
-                                    if (at != null) drop(next.asset, at, next.yaw)
-                                },
-                                onDone = { stopPlacing() },
-                            )
-                        }
-                        val tip = PlaceTip.of(placing != null, shownSel != null, shownSel?.locked == true, tool)
-                        if (tip.id !in tipsSeen) PlaceTipStrip(tip, { t -> tipsSeen = tipsSeen + t.id; engine.setFlag(tipFlag(t), true) })
-                        PlaceLoading(status, engine::clearErrors)
-                    }
-                    if (shownSel != null && placing == null) {
-                        GizmoBar(
-                            tool, { tool = it }, locked = shownSel.locked,
-                            onUnlock = { state.setPlacementLocked(sceneId, shownSel.id, false) },
-                            active = activeAxis,
-                            modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
-                        )
-                    }
-                    menu?.let { (id, at) ->
-                        val p = scene.placements.firstOrNull { it.id == id }
-                        if (p == null) menu = null else PlaceContextMenu(p, at, size.first, size.second, onAction = { a ->
-                            menu = null
-                            when (a) {
-                                PlaceAction.DUPLICATE -> state.duplicatePlacement(sceneId, id)?.let { onUi(ui.select(it)) }
-                                PlaceAction.DELETE -> confirmDelete = id
-                                PlaceAction.LOCK -> state.setPlacementLocked(sceneId, id, !p.locked)
-                                PlaceAction.HIDE -> { state.setPlacementHidden(sceneId, id, !p.hidden); onUi(ui.afterHide(p.copy(hidden = !p.hidden))) }
-                                PlaceAction.EMOTE -> { tab = PanelTab.ANIMATION; panelOpen = true; libraryOpen = false; engine.setFlag(PANEL_FLAG, true) }
-                                PlaceAction.FOCUS -> focus(p)
-                            }
-                        }, onDismiss = { menu = null })
-                    }
-                }
-            }
-
-            val librarySheet: @Composable (Modifier) -> Unit = { m ->
-                PlaceLibrarySheet(
-                    library, own, query, { query = it }, prefs,
-                    onFavourite = { a -> savePrefs(prefs.toggleFavourite(a.key)) },
-                    thumbs = engine.thumbs, thumbError = thumbError,
-                    spec = sheet, armed = placing?.asset?.key,
-                    onPick = { a -> arm(a); if (!sheet.side) libraryOpen = false },
-                    onClose = { libraryOpen = false; engine.thumbs?.cancelAll() },
-                    modifier = m,
+        // ---- under the top bar: placing, the snap steps, the camera menu, tips, loading
+        Column(
+            Modifier.align(Alignment.TopCenter).padding(top = (WarSize.TOP_BAR + 6).dp, start = 72.dp, end = 72.dp).widthIn(max = 760.dp),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            placing?.let { pl ->
+                PlacingBar(
+                    pl,
+                    onTurn = { d -> val n = pl.turned(d); placing = n; n.at?.let { view.ghostTo(it, n.yaw) } },
+                    turnStep = Math.toRadians((if (snap.on) snap.angleDeg else 15f).toDouble()).toFloat(),
+                    onDrop = {
+                        val (next, at) = pl.dropHere()
+                        placing = next
+                        if (at != null) drop(next.asset, at, next.yaw)
+                    },
+                    onDone = { stopPlacing() },
                 )
             }
-
-            if (wide) {
-                Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (libraryOpen && sheet.side) librarySheet(Modifier.width(sheet.widthDp.dp).fillMaxHeight())
-                    viewport(Modifier.weight(1f).fillMaxHeight())
-                    if (panelShown) panel(Modifier.width(panelW).fillMaxHeight())
-                    else tabs(Modifier.width(64.dp).fillMaxHeight(), true)
+            if (snap.on) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Chip("Grid ${showNumber(snap.grid)} yd", null, false, { snap = snap.copy(grid = Snap.GRIDS[(Snap.GRIDS.indexOf(snap.grid) + 1) % Snap.GRIDS.size]) })
+                Chip("Turn ${snap.angleDeg.toInt()}°", null, false, { snap = snap.copy(angleDeg = Snap.ANGLES[(Snap.ANGLES.indexOf(snap.angleDeg) + 1) % Snap.ANGLES.size]) })
+            }
+            if (cameraMenu) GlassStrip {
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    PillButton("Home view", { onResetCamera(); cameraMenu = false })
+                    PillButton("Look at it", { shownSel?.let { focus(it) }; cameraMenu = false }, enabled = shownSel != null)
+                    WarToggle("Show hidden", ui.showHidden, { onUi(ui.toggleShowHidden()) }, dark = true)
+                    PillButton("Tips again", {
+                        for (t in PlaceTip.values()) engine.setFlag(tipFlag(t), false)
+                        tipsSeen = emptySet(); cameraMenu = false
+                    })
                 }
-            } else {
-                viewport(Modifier.weight(1f).fillMaxWidth())
-                if (panelShown) panel(Modifier.fillMaxWidth().height(panelH))
-                else tabs(Modifier.fillMaxWidth(), false)
+            }
+            when {
+                shownSel?.locked == true && placing == null -> Tooltip("${shownSel.name} is locked", onDismiss = { state.setPlacementLocked(sceneId, shownSel.id, false) }, dismissLabel = "Unlock")
+                activeAxis != GizmoAxis.NONE -> Tooltip(GizmoAxis.name(activeAxis))
+                else -> {
+                    val tip = PlaceTip.of(placing != null, shownSel != null, shownSel?.locked == true, tool)
+                    if (tip.id !in tipsSeen && cluster.hint == null) Tooltip(tip.text, onDismiss = { tipsSeen = tipsSeen + tip.id; engine.setFlag(tipFlag(tip), true) })
+                }
+            }
+            PlaceLoading(status, engine::clearErrors)
+        }
+
+        // ---- the spellbook pages' side tabs, and the open page
+        val tabs: @Composable () -> Unit = {
+            for (t in book.tabs(shownSel)) SideTab(t.icon, t.label, pageShown && book.shown(shownSel) == t, { setBook(book.tap(t)) })
+        }
+        if (layout.sideTabsRow) Row(
+            Modifier.align(Alignment.TopEnd).padding(top = (WarSize.TOP_BAR + 4).dp, end = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) { tabs() }
+        else Column(
+            Modifier.align(Alignment.TopEnd).padding(top = (WarSize.TOP_BAR + 18).dp, end = 2.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) { tabs() }
+        AnimatedVisibility(
+            pageShown,
+            Modifier.align(Alignment.TopEnd).padding(top = (WarSize.TOP_BAR + if (layout.sideTabsRow) 68 else 6).dp, end = if (layout.sideTabsRow) 12.dp else 56.dp),
+            enter = slideInHorizontally(tween(WarSize.SLIDE_MS)) { it } + fadeIn(),
+            exit = slideOutHorizontally(tween(WarSize.SLIDE_MS)) { it } + fadeOut(),
+        ) {
+            val pageH = if (layout.compact) maxHeight - (WarSize.TOP_BAR + 80).dp else maxHeight - (WarSize.TOP_BAR + 18).dp - barH
+            BookPage(Modifier.width(layout.pageW.dp).height(pageH.coerceAtLeast(160.dp))) {
+                when (book.shown(shownSel)) {
+                    BookTab.THINGS -> Column(Modifier.fillMaxSize()) {
+                        BookHeader(stageName, "Things", "${plural(scene.placements.size, "placed thing")}") {
+                            WarToggle("Hidden", ui.showHidden, { onUi(ui.toggleShowHidden()) })
+                        }
+                        PlaceOutliner(
+                            scene.placements, ui,
+                            onSelect = { id ->
+                                onUi(ui.select(id))
+                                id?.let { i -> scene.placements.firstOrNull { it.id == i } }?.let { focus(it) }
+                            },
+                            onHide = { id -> scene.placements.firstOrNull { it.id == id }?.let { p -> state.setPlacementHidden(sceneId, id, !p.hidden); onUi(ui.afterHide(p.copy(hidden = !p.hidden))) } },
+                            onLock = { id -> scene.placements.firstOrNull { it.id == id }?.let { p -> state.setPlacementLocked(sceneId, id, !p.locked) } },
+                            onRename = { renaming = it },
+                            onLookAt = { p -> focus(p) },
+                            nameOf = { a -> project.cast.firstOrNull { it.id == a }?.name },
+                        )
+                    }
+                    BookTab.SELECTED -> if (shownSel == null) Column {
+                        BookHeader(null, "Selected")
+                        Text("Tap something in the scene, or in Things, to select it. Pick a card in the catalogue below, then drag it into the scene.",
+                            style = warText(14.sp, War.brownSoft))
+                    } else PlaceInspector(
+                        shownSel, snap, camera.pose(), locked = shownSel.locked,
+                        onChange = { p -> state.updatePlacement(sceneId, p.id) { p } },
+                        onSlide = { p -> state.updatePlacement(sceneId, p.id, "slide:$sceneId:${p.id}") { p } },
+                        onSlideEnd = { state.endGesture() },
+                        onNudge = { d -> state.nudgePlacement(sceneId, shownSel.id, d.x, d.y, d.z) },
+                        onDuplicate = { state.duplicatePlacement(sceneId, shownSel.id)?.let { onUi(ui.select(it)) } },
+                        onDelete = { confirmDelete = shownSel.id },
+                        onAnimation = { setBook(BookPages(true, BookTab.ANIMATION)) },
+                        onSound = { on -> state.setPlacementSound(sceneId, shownSel.id, on); engine.setSound(shownSel, on) },
+                    )
+                    BookTab.ANIMATION -> if (shownSel == null || shownSel.kind == PlaceKind.PROP) {
+                        Text("Select a person or a creature to give them an animation or an emote.", style = warText(14.sp, War.brownSoft))
+                    } else {
+                        val emotes = remember(shownSel.kind, shownSel.asset, shownSel.actorId, project.cast) { engine.emotesFor(shownSel, project.cast) }
+                        EmotePicker(
+                            emotes, shownSel,
+                            onPreview = { e -> engine.previewEmote(shownSel, e, project.cast) },
+                            onUse = { e -> state.updatePlacement(sceneId, shownSel.id) { EmoteGroups.apply(it, e) } },
+                            onLoop = { state.setPlacementLoop(sceneId, shownSel.id, it) },
+                            onSound = { on -> state.setPlacementSound(sceneId, shownSel.id, on); engine.setSound(shownSel, on) },
+                            onCreatureSound = if (shownSel.kind == PlaceKind.CREATURE) { k -> engine.creatureSound(shownSel, k) } else null,
+                        )
+                    }
+                }
             }
         }
 
-        // the narrow screen's library: a bottom sheet over the lower part of the stage (the stage above stays usable)
-        if (libraryOpen && !sheet.side) {
-            PlaceLibrarySheet(
-                library, own, query, { query = it }, prefs,
-                onFavourite = { a -> savePrefs(prefs.toggleFavourite(a.key)) },
-                thumbs = engine.thumbs, thumbError = thumbError,
-                spec = sheet, armed = placing?.asset?.key,
-                onPick = { a -> arm(a); libraryOpen = false },
-                onClose = { libraryOpen = false; engine.thumbs?.cancelAll() },
-                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(sheet.heightDp.dp),
-            )
+        // ---- the tool cluster, bottom left over the scene, above the bar; its tooltip strip beside it
+        if (placing == null) Row(
+            Modifier.align(Alignment.BottomStart).padding(start = WarSize.GUTTER.dp, bottom = barH + 16.dp, end = 64.dp),
+            verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            val roomH = (maxHeight - (WarSize.TOP_BAR + 24).dp - barH - 16.dp).coerceAtLeast(64.dp)
+            Column(horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (layout.clusterHorizontal && cluster.hint != null) Tooltip(cluster.tip(shownSel))
+                ToolClusterView(layout, cluster, shownSel, ::useTool, { cluster = cluster.longPress(it) }, Modifier.heightIn(max = roomH))
+            }
+            if (!layout.clusterHorizontal && cluster.hint != null) Tooltip(cluster.tip(shownSel), Modifier.weight(1f, fill = false))
+        }
+
+        // ---- the catalogue bar, and its flyout over it
+        PlaceCatalogueBar(
+            library, own, query, { query = it }, prefs,
+            onFavourite = { a -> savePrefs(prefs.toggleFavourite(a.key)) },
+            thumbs = engine.thumbs, thumbError = thumbError,
+            layout = layout, bar = bar, onBar = { setBar(it) },
+            armed = placing?.asset?.key,
+            onPick = { a -> if (placing?.asset?.key == a.key) stopPlacing() else arm(a) },
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().onSizeChanged { barPx = it.height },
+        )
+        AnimatedVisibility(
+            bar.flyout && library != null,
+            Modifier.align(Alignment.BottomStart).padding(start = WarSize.GUTTER.dp, bottom = barH + 4.dp),
+            enter = slideInVertically(tween(WarSize.SLIDE_MS)) { it / 3 } + fadeIn(),
+            exit = slideOutVertically(tween(WarSize.SLIDE_MS)) { it / 3 } + fadeOut(),
+        ) {
+            library?.let { lib ->
+                PlaceCategoryFlyout(
+                    lib, own.size, prefs, query,
+                    onPick = { q -> query = q; setBar(bar.closeFlyout()) },
+                    onClose = { setBar(bar.closeFlyout()) },
+                    modifier = Modifier.width(layout.flyoutW.dp).heightIn(max = (maxHeight - (WarSize.TOP_BAR + 12).dp - barH).coerceAtLeast(160.dp)),
+                )
+            }
+        }
+
+        menu?.let { (id, at) ->
+            val p = scene.placements.firstOrNull { it.id == id }
+            if (p == null) menu = null else PlaceContextMenu(p, at, size.first, size.second, onAction = { a ->
+                menu = null
+                when (a) {
+                    PlaceAction.DUPLICATE -> state.duplicatePlacement(sceneId, id)?.let { onUi(ui.select(it)) }
+                    PlaceAction.DELETE -> confirmDelete = id
+                    PlaceAction.LOCK -> state.setPlacementLocked(sceneId, id, !p.locked)
+                    PlaceAction.HIDE -> { state.setPlacementHidden(sceneId, id, !p.hidden); onUi(ui.afterHide(p.copy(hidden = !p.hidden))) }
+                    PlaceAction.EMOTE -> setBook(BookPages(true, BookTab.ANIMATION))
+                    PlaceAction.FOCUS -> focus(p)
+                }
+            }, onDismiss = { menu = null })
         }
     }
 
+    if (stagePicker) StagePicker(stages, stageId, { stagePicker = false }) { id -> stagePicker = false; onStage(id) }
     renaming?.let { id ->
         val p = scene.placements.firstOrNull { it.id == id }
         if (p == null) renaming = null else NameDialog("Rename", p.name, "Rename", { renaming = null }) { renaming = null; state.renamePlacement(sceneId, id, it) }
@@ -612,28 +662,74 @@ fun EditorPlacement(
     }
 }
 
+/** The tool cluster's face for each tool: the housing editor's own buttons for Select, Rotate and Scale, glyphs and icons for the rest. */
+fun toolFace(t: BuildTool): Face = when (t) {
+    BuildTool.POINTER -> Face(decor = "decor-ability-move-default")
+    BuildTool.ROTATE -> Face(decor = "decor-ability-expert-rotate-default")
+    BuildTool.SCALE -> Face(decor = "decor-ability-expert-scale-default")
+    BuildTool.DELETE -> Face(glyph = WarIcons.DELETE)
+    BuildTool.EYEDROPPER -> Face(icon = "tool.eyedropper")
+    BuildTool.DUPLICATE -> Face(icon = "tool.duplicate")
+    BuildTool.LOCK -> Face(glyph = WarIcons.LOCK)
+    BuildTool.HIDE -> Face(icon = "tool.hide")
+    BuildTool.EMOTE -> Face(icon = "tool.emote")
+    BuildTool.FOCUS -> Face(icon = "tool.focus")
+}
+
 /**
- * The placing mode's bar over the stage: "Placing: <name>", the ghost's turn (a step each way), Drop (one at the
+ * The round tool cluster on its dark glass panel: [BuildLayout]'s columns and rows (a row along the bottom of a short
+ * scene; a column that scrolls when even that won't fit), the mode lit gold, what can't be used now dimmed.
+ */
+@Composable
+fun ToolClusterView(layout: BuildLayout, cluster: ToolCluster, sel: Placement?, onTap: (BuildTool) -> Unit, onLong: (BuildTool) -> Unit, modifier: Modifier = Modifier) {
+    val tools = BuildTool.values().toList()
+    val button: @Composable (BuildTool) -> Unit = { t ->
+        RoundIconButton(toolFace(t), { onTap(t) }, lit = cluster.lit(t, sel), enabled = cluster.enabled(t, sel), description = t.label, onLongPress = { onLong(t) })
+    }
+    GlassPanel(modifier) {
+        when {
+            layout.clusterHorizontal -> Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) { tools.forEach { button(it) } }
+            else -> {
+                val perCol = if (layout.clusterScrolls) tools.size else (tools.size + layout.clusterCols - 1) / layout.clusterCols
+                Row(Modifier.verticalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for (c in tools.chunked(perCol)) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { c.forEach { button(it) } }
+                }
+            }
+        }
+    }
+}
+
+/** The stage picker: the studio, Dalaran's places and every location's views, as rows on a page; the current one lit. */
+@Composable
+fun StagePicker(stages: List<Pair<String, String>>, current: String, onCancel: () -> Unit, onPick: (String) -> Unit) {
+    WarDialog(onCancel) {
+        BookHeader("The stage", "Where it happens")
+        LazyColumn(Modifier.heightIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(stages, key = { it.first }) { (id, name) ->
+                WarRow({ onPick(id) }, selected = id == current, icon = if (StageChoices.locationOf(id) != null) "menu.location" else if (id == EditorChoices.STUDIO) "menu.studio" else "tool.stage") {
+                    Text(name, style = warText(16.sp), maxLines = 1, modifier = Modifier.weight(1f))
+                }
+            }
+        }
+        PillButton("Close", onCancel, Modifier.align(Alignment.CenterHorizontally).width(160.dp))
+    }
+}
+
+/**
+ * The placing mode's strip under the top bar: "Placing: <name>", the ghost's turn (a step each way), Drop (one at the
  * crosshair), Done; under it the mode's line (loading, why the model can't be drawn, how many were placed).
  */
 @Composable
 private fun PlacingBar(p: Placing, onTurn: (Float) -> Unit, turnStep: Float, onDrop: () -> Unit, onDone: () -> Unit) {
-    Column(
-        Modifier.widthIn(max = 720.dp).background(Color(0xD0100C08)).border(1.dp, WowColors.gold).padding(6.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Row(
-            Modifier.horizontalScroll(rememberScrollState()),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(p.title, style = frizStyle(15.sp), maxLines = 1, modifier = Modifier.widthIn(max = 260.dp).padding(horizontal = 6.dp))
-            PButton("Turn ‹", { onTurn(turnStep) }, enabled = p.error == null, width = 88.dp)
-            PButton("Turn ›", { onTurn(-turnStep) }, enabled = p.error == null, width = 88.dp)
-            PButton("Drop", onDrop, enabled = p.canDrop, width = 84.dp)
-            PButton("Done", onDone, width = 84.dp)
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        GlassStrip {
+            Text(p.title, style = warText(15.sp, War.gold, true), maxLines = 1, modifier = Modifier.widthIn(max = 220.dp))
+            RoundIconButton(Face(glyph = WarIcons.UNDO), { onTurn(turnStep) }, size = 48.dp, enabled = p.error == null, description = "Turn left")
+            RoundIconButton(Face(glyph = WarIcons.REDO), { onTurn(-turnStep) }, size = 48.dp, enabled = p.error == null, description = "Turn right")
+            RoundIconButton(Face(glyph = WarIcons.PLUS), onDrop, size = 48.dp, enabled = p.canDrop, description = "Drop")
+            RoundIconButton(Face(glyph = WarIcons.CHECK), onDone, size = 48.dp, description = "Done")
         }
-        Text(p.line, style = frizStyle(12.sp, if (p.error != null) Color(0xFFFF6A5A) else Color.White, false), maxLines = 2,
-            modifier = Modifier.padding(horizontal = 6.dp))
+        Text(p.line, style = warText(12.sp, if (p.error != null) Color(0xFFFF8A6A) else War.ink, true), maxLines = 2)
     }
 }
 
@@ -642,21 +738,24 @@ private fun PlacingBar(p: Placing, onTurn: (Float) -> Unit, turnStep: Float, onD
 fun PlaceLoading(s: PlaceStatus, onClear: () -> Unit, modifier: Modifier = Modifier) {
     if (!s.loadingStage && s.fetchTotal == 0 && s.errors.isEmpty() && !s.soundPreparing) return
     Column(
-        modifier.widthIn(max = 520.dp).background(Color(0xC0000000)).clickable(onClick = onClear)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+        modifier.widthIn(max = 520.dp).warPress(onClick = onClear).padding(horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        if (s.loadingStage) {
-            val mb = if (s.stageBytesTotal > 0) " (%.1f of %.1f MB)".format(s.stageBytesDone / 1e6, s.stageBytesTotal / 1e6) else ""
-            Text(
-                if (s.stageTotal > 0) "Fetching ${s.stageName}: ${s.stageDone} of ${s.stageTotal} files$mb" else "Loading ${s.stageName}…",
-                style = frizStyle(13.sp),
-            )
-            LoadingBar(if (s.stageTotal > 0) s.stageDone.toFloat() / s.stageTotal else 0f, Modifier.width(320.dp).height(30.dp))
+        GlassStrip {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+                if (s.loadingStage) {
+                    val mb = if (s.stageBytesTotal > 0) " (%.1f of %.1f MB)".format(s.stageBytesDone / 1e6, s.stageBytesTotal / 1e6) else ""
+                    Text(
+                        if (s.stageTotal > 0) "Fetching ${s.stageName}: ${s.stageDone} of ${s.stageTotal} files$mb" else "Loading ${s.stageName}…",
+                        style = warText(13.sp, War.gold, true),
+                    )
+                    LoadingBar(if (s.stageTotal > 0) s.stageDone.toFloat() / s.stageTotal else 0f, Modifier.width(320.dp).height(30.dp))
+                }
+                if (s.fetchTotal > 0) Text("Fetching a placed thing's files… ${s.fetchDone} of ${s.fetchTotal}", style = warText(12.sp, War.ink, true))
+                if (s.soundPreparing) Text("Preparing sounds…", style = warText(12.sp, War.ink, true))
+                for (e in s.errors) Text(e, style = warText(12.sp, Color(0xFFFF8A6A), true))
+                if (s.errors.isNotEmpty()) Text("Dismiss", style = warText(13.sp, War.gold, true), modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
+            }
         }
-        if (s.fetchTotal > 0) Text("Fetching a placed thing's files… ${s.fetchDone} of ${s.fetchTotal}", style = frizStyle(12.sp, Color.White))
-        if (s.soundPreparing) Text("Preparing sounds…", style = frizStyle(12.sp, Color.White))
-        for (e in s.errors) Text(e, style = frizStyle(12.sp, Color(0xFFFF6A5A), false))
-        if (s.errors.isNotEmpty()) Text("Dismiss", style = frizStyle(13.sp, WowColors.gold), modifier = Modifier.clickable(onClick = onClear).padding(horizontal = 16.dp, vertical = 12.dp))
     }
 }

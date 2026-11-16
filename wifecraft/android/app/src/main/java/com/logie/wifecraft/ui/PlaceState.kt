@@ -443,7 +443,11 @@ object StageChoices {
 object EmoteGroups {
     fun of(emotes: List<Emote>, filter: String = ""): List<Pair<String, List<Emote>>> {
         val f = filter.trim().lowercase()
-        val shown = if (f.isEmpty()) emotes else emotes.filter { e -> f.split(' ').filter { it.isNotEmpty() }.all { w -> e.name.lowercase().contains(w) } }
+        // the words match the label the player reads ("Talk (Excited)") or the game's own name ("Talkex")
+        val shown = if (f.isEmpty()) emotes else emotes.filter { e ->
+            val label = e.label.lowercase(); val name = e.name.lowercase()
+            f.split(' ').filter { it.isNotEmpty() }.all { w -> label.contains(w) || name.contains(w) }
+        }
         val groups = shown.groupBy { it.category }
         val order = EmoteCatalog.CATEGORIES + groups.keys.filter { it !in EmoteCatalog.CATEGORIES }.sorted()
         return order.mapNotNull { c -> groups[c]?.let { c to it } }

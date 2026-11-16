@@ -391,21 +391,31 @@ fun PlaceContextMenu(p: Placement, at: Pair<Float, Float>, stageW: Int, stageH: 
     val hPx = with(density) { (48.dp * actions.size + 40.dp).toPx() }
     val x = (at.first + 12f).coerceAtMost(stageW - wPx).coerceAtLeast(0f)
     val y = (at.second - hPx / 3f).coerceAtMost(stageH - hPx).coerceAtLeast(0f)
+    // the build mode's look: a small parchment card with a round glyph or icon per action
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(WarSize.R_CARD.dp)
     Column(
         Modifier.offset { IntOffset(x.roundToInt(), y.roundToInt()) }.width(180.dp)
-            .background(Color(0xF0100C08)).border(1.dp, WowColors.gold).padding(4.dp),
+            .background(War.cream, shape).border(1.5.dp, War.goldSoft, shape).padding(4.dp),
     ) {
-        Text(p.name, style = frizStyle(14.sp), maxLines = 1, modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp))
+        Text(p.name, style = warTitle(16.sp), maxLines = 1, modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp))
         for (a in actions) {
             val label = when (a) {
                 PlaceAction.LOCK -> if (p.locked) "Unlock" else "Lock"
                 PlaceAction.HIDE -> if (p.hidden) "Show" else "Hide"
                 else -> a.label
             }
-            Box(
-                Modifier.height(48.dp).width(172.dp).clickable { onAction(a) }.padding(horizontal = 12.dp),
-                contentAlignment = Alignment.CenterStart,
-            ) { Text(label, style = frizStyle(15.sp, if (a == PlaceAction.DELETE) Color(0xFFFF6A5A) else Color.White)) }
+            val face = when (a) {
+                PlaceAction.DUPLICATE -> toolFace(BuildTool.DUPLICATE); PlaceAction.DELETE -> toolFace(BuildTool.DELETE)
+                PlaceAction.LOCK -> toolFace(BuildTool.LOCK); PlaceAction.HIDE -> toolFace(BuildTool.HIDE)
+                PlaceAction.EMOTE -> toolFace(BuildTool.EMOTE); PlaceAction.FOCUS -> toolFace(BuildTool.FOCUS)
+            }
+            androidx.compose.foundation.layout.Row(
+                Modifier.height(48.dp).width(172.dp).warPress { onAction(a) }.padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                RoundIconButton(face, { onAction(a) }, size = 40.dp, description = label)
+                Text(label, style = warText(15.sp, if (a == PlaceAction.DELETE) War.danger else War.brown))
+            }
         }
     }
 }

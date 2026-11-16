@@ -86,4 +86,60 @@ class EmoteCatalogTest {
         assertEquals(1000764, c.modelFile(1, Sex.FEMALE))
         assertEquals("EmoteLaugh", c.animName(70))
     }
+
+    /** Each entry has a label the player reads: the chat token written out, the animation's name in words. */
+    @Test fun labelsReadAsWords() {
+        val labelled = small.replace("[60,\"Laugh\",70,0]", "[60,\"Laugh\",70,0,\"Laugh\"]")
+            .replace("[1,\"Agree\",-1,0]", "[1,\"Agree\",-1,0],[94,\"Talkex\",-1,0,\"Talk (Excited)\"]")
+            .replace("[10094,\"Dance\",69,0]", "[10094,\"Dancespecial\",69,0,\"Dance (Special)\"]")
+            .replace("\"models\"", "\"labels\":{\"17\":\"Attack (One-Handed)\",\"229\":\"Stand (Flying)\"},\"models\"")
+            .replace("\"v\":{\"60\":[11,12],", "\"v\":{\"60\":[11,12],\"94\":[14],")
+        val e = EmoteCatalog.parse(labelled).forModel(1, Sex.FEMALE)
+        assertEquals("Talk (Excited)", e.first { it.id == 94 }.label)
+        assertEquals("Talkex", e.first { it.id == 94 }.name)                 // the name stays the game's token
+        assertEquals("Dance (Special)", e.first { it.id == 10094 }.label)
+        assertEquals("Attack (One-Handed)", e.first { it.anim == 17 && it.kind == EmoteKind.ANIM }.label)
+        // no label in the file: the name
+        assertEquals("Sigh", e.first { it.id == 85 }.label)
+        assertEquals("Walk", e.first { it.anim == 4 }.label)
+        // the text emotes are in the order of their labels
+        val text = e.filter { it.kind == EmoteKind.TEXT }.map { it.label }
+        assertEquals(text.sortedBy { it.lowercase() }, text)
+        assertEquals("Attack (One-Handed)", EmoteCatalog.parse(labelled).animLabel(17))
+        assertEquals("Walk", EmoteCatalog.parse(labelled).animLabel(4))
+        // an older file (four columns, no labels) still reads, its names as labels
+        assertEquals("Laugh", EmoteCatalog.parse(small).forModel(1, Sex.FEMALE).first { it.id == 60 }.label)
+    }
+
+    /** The app's file: the game's tokens and animation names come out as words (tools/emotes.py's labels). */
+    @Test fun theAppsLabels() {
+        val f = File(System.getProperty("wifecraft.assets") ?: "../android/app/src/main/assets", "emotes.json")
+        val c = EmoteCatalog.parse(f.readText())
+        val all = c.keys.flatMap { k ->
+            val (race, sex) = k.split(":").map { it.toInt() }
+            c.forModel(race, if (sex == 0) Sex.MALE else Sex.FEMALE)
+        }
+        fun label(name: String, kind: EmoteKind) = all.first { it.name == name && it.kind == kind }.label
+        assertEquals("Talk (Excited)", label("Talkex", EmoteKind.TEXT))
+        assertEquals("Talk (Question)", label("Talkq", EmoteKind.TEXT))
+        assertEquals("For the Alliance!", label("Forthealliance", EmoteKind.TEXT))
+        assertEquals("For the Horde!", label("Forthehorde", EmoteKind.TEXT))
+        assertEquals("Laugh", label("Laugh", EmoteKind.TEXT))
+        fun anim(name: String) = (0..5000).first { c.animName(it) == name }
+        assertEquals("Ready (Unarmed)", c.animLabel(anim("ReadyUnarmed")))
+        assertEquals("Dance (Special)", c.animLabel(anim("EmoteDanceSpecial")))
+        assertEquals("Sit Chair (Medium)", c.animLabel(anim("SitChairMed")))
+        assertEquals("Ready (One-Handed, Flying)", c.animLabel(anim("FlyReady1H")))
+        assertEquals("Guard Stand 1", c.animLabel(anim("WAGuardStand01")))
+        assertEquals("Lift Off", c.animLabel(anim("LiftOff")))
+        assertEquals("Work (Weapon Out)", c.animLabel(anim("EmoteWorkNoSheathe")))
+        // an NPC emote held in a loop says so, by its animation's name
+        assertEquals("Ready (Unarmed, Looping)", all.first { it.kind == EmoteKind.NPC && it.name == "Readyunarmed" && it.loop }.label)
+        // nothing run together is left: every label is words (a capital after a lower-case letter, or a lower-case word
+        // over 12 letters, would be a name not split)
+        for (e in all) {
+            assertTrue(!Regex("[a-z][A-Z]").containsMatchIn(e.label), "${e.name}: ${e.label}")
+            assertTrue(e.label.split(' ', '(', ')', ',').none { it.length > 13 && it.all(Char::isLetter) }, "${e.name}: ${e.label}")
+        }
+    }
 }

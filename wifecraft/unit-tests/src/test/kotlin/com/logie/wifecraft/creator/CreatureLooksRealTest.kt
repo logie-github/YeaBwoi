@@ -3,6 +3,7 @@ package com.logie.wifecraft.creator
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -65,6 +66,51 @@ class CreatureLooksRealTest {
         fun character(d: Int) = CreatureLooks.isCharacter(t, assertNotNull(CreatureLooks.resolve(t, d), "display $d"))
         for (d in listOf(52696, 81061, 3619)) assertTrue(!character(d), "display $d (a creature) has a soft body")
         for (d in listOf(89902, 99391)) assertTrue(character(d), "display $d (a playable race's NPC) has no soft body")
+    }
+
+    /**
+     * A creature's size is its display's CreatureModelScale times its model data's ModelScale, on the model's own units
+     * (yards), as the game draws it before a server's own scale: measured in engine-test next to a night elf woman
+     * (display 89902, 2.36 yards with her ears) at the Stand pose, these come out at the game's sizes. The boar of display
+     * 52696 is Draenor's giant war boar (creature/giantboar, 8 yards tall at 1: the game's own pet copy of it, display
+     * 55679, is 0.1, the Bladespire Goresnouts 0.375 and 0.6); an ordinary boar is boar2 (display 503, 0.6: 1.2 yards
+     * tall). Every named creature's look keeps the rule.
+     */
+    @Test fun sizesAreTheGames() {
+        val t = tables()
+        fun scale(d: Int) = assertNotNull(CreatureLooks.resolve(t, d), "display $d").scale
+        val expected = mapOf(
+            89902 to 1f,      // a night elf woman (a Sentinel)
+            3167 to 1f,       // a Stormwind guard
+            48774 to 1f,      // a gnome
+            45379 to 1f,      // a tauren
+            503 to 0.6f,      // a boar (boar2: 1.2 yards tall)
+            52696 to 1f,      // the giant war boar (8 yards tall)
+            55679 to 0.1f,    // the same model as a pet
+            52659 to 0.375f,  // and as a young one
+            802 to 1f,        // a wolf
+            983 to 1f,        // a murloc
+            822 to 1f,        // a bear
+            45025 to 2f,      // a great ogre
+            1141 to 1f,       // a rat
+            328 to 1f,        // a rabbit
+            2410 to 1f,       // a horse
+            29802 to 0.15f,   // a raptor hatchling: CreatureModelScale 1 times the pet model data's ModelScale 0.15
+        )
+        for ((d, s) in expected) assertEquals(s, scale(d), 1e-4f, "display $d")
+        // every named creature: the display's scale times the model data's (0 is 1)
+        fun f(row: Map<String, String>?, k: String) = row?.get(k)?.toFloatOrNull()?.takeIf { it > 0f } ?: 1f
+        var n = 0
+        for (c in t.rows("Creature")) {
+            if (c["Name_lang"].isNullOrBlank()) continue
+            val d = (0..3).map { c.int("DisplayID_$it") }.firstOrNull { it != 0 } ?: continue
+            val look = CreatureLooks.resolve(t, d) ?: continue
+            val disp = t.rowBy("CreatureDisplayInfo", "ID", d)
+            val data = t.rowBy("CreatureModelData", "ID", disp!!.int("ModelID"))
+            assertEquals(f(disp, "CreatureModelScale") * f(data, "ModelScale"), look.scale, 1e-4f, "display $d")
+            n++
+        }
+        assertTrue(n > 20000, "$n creatures")
     }
 
     /** engine-test's look file (harness.cpp) for a call. */

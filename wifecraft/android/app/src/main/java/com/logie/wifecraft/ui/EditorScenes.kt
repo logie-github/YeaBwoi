@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Text
@@ -33,7 +34,7 @@ fun EditorScenes(
     var adding by remember { mutableStateOf(false) }
     EditorFrame(
         "${project.title}: Scenes", onBack,
-        actions = { SmallButton("Cast", onCast, width = 120.dp) },
+        actions = { RoundIconButton(Face(icon = "menu.cast"), onCast, description = "Cast") },
     ) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (project.scenes.isEmpty()) {
@@ -58,7 +59,7 @@ fun EditorScenes(
                     }
                 }
             }
-            WowButton("Add scene", { adding = true }, Modifier.align(Alignment.CenterHorizontally), width = 240.dp)
+            PillButton("Add scene", { adding = true }, Modifier.align(Alignment.CenterHorizontally).widthIn(min = 240.dp), glyph = WarIcons.PLUS)
         }
     }
     if (adding) NameDialog("New scene", "", "Add", { adding = false }) { name ->

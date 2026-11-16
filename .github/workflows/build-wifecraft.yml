@@ -130,7 +130,7 @@ jobs:
         run: |
           notes="$APP_NAME, a story editor with WoW's characters, for Android, built from commit ${GITHUB_SHA::7}.
 
-          Download **$APK_FILE** below on your phone and open it to install. On first launch it fetches WoW's interface, the character creator's tables and Dalaran's stages (about 210 MB) from wago.tools; each race's model and textures come when a character first wears them."
+          Download **$APK_FILE** below on your phone and open it to install. On first launch it downloads WoW's interface, the game's tables (about 27 MB) and Dalaran from wago.tools, then, in the background, every file the character creator can draw (about 6 GB; Download speed and Wi-Fi only are in Options). An editor location (the Stormwind Embassy, 30.5 MB) and an emote's animation file are fetched when first used, and the 37 MB sound table streams once."
           gh release create "$RELEASE_TAG" "dist/$APK_FILE" \
             --target "$GITHUB_SHA" \
             --title "$APP_NAME $WC_VERSION_NAME" \

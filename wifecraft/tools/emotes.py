@@ -23,6 +23,14 @@ What is in it:
   npc      the game's NPC emotes that no text emote uses (Emotes, AnimID >= 0): [10000 + Emotes id, name, anim, kind],
            one per animation and kind.
   anims    {anim id: name} for every animation any model has (wow.export's names; "Anim<id>" past its list).
+  labels   {anim id: label}: each animation's name for the player ("Ready (Unarmed)", "Sit Chair (Medium)").
+A text and an NPC emote's row ends with its label too: [id, name, anim, kind, label] ("Talk (Excited)", "For the
+Alliance!"). The game has no display names for them at this build: EmotesText.Name is the chat token ("TALKEX"),
+GlobalStrings has only the slash commands (EMOTE95_CMD1 "/talkex", CMD2 "/excited") and EmotesTextData the chat lines
+("You talk excitedly."): text_label() writes the compound tokens out (TEXT_LABELS) and capitalises the one-word ones;
+anim_label() splits an animation's camel-case name and puts its qualifiers in brackets.
+
+    python3 -I tools/emotes.py labels [JSON]    (re)writes the labels of an emotes.json already made, from its names
 """
 import csv
 import json
@@ -145,7 +153,137 @@ def pretty(cmd):
     return " ".join(words).capitalize() if words else cmd.capitalize()
 
 
+# The text emotes whose chat token is several words run together, or an abbreviation (EmotesText.Name), written out.
+TEXT_LABELS = {
+    "ATTACKMYTARGET": "Attack My Target", "BADFEELING": "Bad Feeling", "BRB": "Be Right Back",
+    "COVEREARS": "Cover Ears", "CROSSARMS": "Cross Arms", "FORTHEALLIANCE": "For the Alliance!",
+    "FORTHEHORDE": "For the Horde!", "GOLFCLAP": "Golf Clap", "GOODLUCK": "Good Luck", "HEALME": "Heal Me",
+    "HELPME": "Help Me", "HIGHFIVE": "High Five", "HOLDHAND": "Hold Hands", "JK": "Just Kidding", "LAYDOWN": "Lie Down",
+    "MOUNTSPECIAL": "Mount Special", "NOSEPICK": "Pick Nose", "OOM": "Out of Mana", "OPENFIRE": "Open Fire",
+    "ROFL": "ROFL", "ROLLEYES": "Roll Eyes", "SHAKEFIST": "Shake Fist", "STOPATTACK": "Stop Attack",
+    "TALKEX": "Talk (Excited)", "TALKQ": "Talk (Question)", "YW": "You're Welcome", "FACEPALM": "Facepalm",
+    "HUZZAH": "Huzzah!", "WHOA": "Whoa!", "OOPS": "Oops!", "BOOP": "Boop",
+}
+
+# An animation name's words (anim_label): prefixes written out, the abbreviations expanded, and which are qualifiers
+# (put in brackets after the rest: "Attack (One-Handed, Off-Hand)").
+ANIM_PREFIX = {"DH": "Demon Hunter", "Pal": "Paladin", "Dk": "Death Knight", "Pri": "Priest", "Sha": "Shaman",
+               "Mag": "Mage", "Loc": "Warlock", "Dru": "Druid", "Drac": "Dracthyr", "Art": "Artifact"}
+ANIM_WORDS = {"1H": "One-Handed", "2H": "Two-Handed", "2HL": "Two-Handed Loose", "Off": "Off-Hand", "Glv": "Glaive",
+              "Med": "Medium", "Q": "Question", "Ex": "Excited", "Bartend": "Bartender"}
+ANIM_PAIRS = {("No", "Sheathe"): "Weapon Out", ("No", "Sheath"): "Weapon Out", ("Lift", "Off"): "Lift Off",
+              ("Take", "Off"): "Take Off", ("Blow", "Dart"): "Blow Dart", ("Fist", "1H"): "Fist Weapon",
+              ("2H", "Loose"): "2HL", ("Bar", "Tend"): "Bartender"}
+QUALIFIERS = {"Unarmed", "One-Handed", "Two-Handed", "Two-Handed Loose", "Off-Hand", "Bow", "Rifle", "Thrown",
+              "Crossbow", "Dart", "Blow Dart", "Joust", "Glaive", "Fist Weapon", "FL", "Special", "Excited",
+              "Exclamation", "Question", "Subdued", "Frustrated", "Left", "Right", "Up", "Down", "Forward", "Backward",
+              "Backwards", "Front", "Both", "Start", "Loop", "End", "Finish", "Low", "Medium", "High", "Pierce", "Big",
+              "Channel", "Omni", "Directed", "Weapon Out", "Flying", "Var1"}
+
+
+def anim_words(name):
+    """An animation's camel-case name in words: "Attack2HL" -> Attack, 2HL; "WAGuardStand01" -> WA, Guard, Stand, 01."""
+    return re.findall(r"[A-Z]+(?=[A-Z][a-z])|\d+[A-Z]*(?![a-z])|\d+|[A-Z]?[a-z]+|[A-Z]+", name)
+
+
+def anim_label(name):
+    """An animation's name for the player: "ReadyUnarmed" -> "Ready (Unarmed)", "EmoteDanceSpecial" ->
+    "Dance (Special)", "FlyAttack1H" -> "Attack (One-Handed, Flying)", "WAGuardStand01" -> "Guard Stand 1",
+    "Anim1776" as it is."""
+    if re.fullmatch(r"Anim\d+", name):
+        return name
+    words = [x for w in anim_words(name) for x in (["Walk", "Backwards"] if w == "Walkbackwards" else [w])]
+    if not words:
+        return name
+    # words that go together (NoSheathe: played with the weapon out; LiftOff isn't the off hand)
+    joined = []
+    i = 0
+    while i < len(words):
+        pair = ANIM_PAIRS.get(tuple(words[i:i + 2]))
+        if pair:
+            joined.append(pair)
+            i += 2
+            continue
+        joined.append(words[i])
+        i += 1
+    words = joined
+    main, quals = [], []
+    flying = False
+    for k, w in enumerate(words):
+        if k == 0 and w == "Fly" and len(words) > 1:
+            flying = True
+            continue
+        if w in ("Emote", "WA") and len(words) > 1:
+            continue
+        if k == 0 and w in ANIM_PREFIX:
+            main.append(ANIM_PREFIX[w])
+            continue
+        w = ANIM_WORDS.get(w, w)
+        if w.isdigit():
+            main.append(str(int(w)))
+        elif w in QUALIFIERS and main and (w != "Special" or main == ["Dance"]):
+            quals.append("Variation 1" if w == "Var1" else w)
+        else:
+            main.append(w if not w.islower() else w.capitalize())
+    if flying:
+        quals.append("Flying")
+    if not main:
+        main, quals = quals[:1], quals[1:]
+    out = " ".join(main)
+    return out + (" (%s)" % ", ".join(dict.fromkeys(quals)) if quals else "")
+
+
+def text_label(token):
+    """A text emote's name for the player from its chat token (EmotesText.Name): "TALKEX" -> "Talk (Excited)"."""
+    t = token.upper()
+    return TEXT_LABELS.get(t, t.capitalize())
+
+
+# An NPC emote's command words run together where its animation has no name to split them by.
+NPC_WORDS = {"Waarmscrossed": "Arms Crossed"}
+
+
+def npc_label(cmd_name, anim_name, kind):
+    """An NPC emote's name: its animation's (anim_label; the command's words when the animation has no name), with
+    "Looping" when it is held (kind 2) and the animation's name doesn't say so."""
+    if anim_name and not re.fullmatch(r"Anim\d+", anim_name):
+        label = anim_label(anim_name)
+    else:
+        words = [w.capitalize() for w in cmd_name.split()]
+        out = [NPC_WORDS.get(w, w) for w in words if w not in ("Nosheathe", "Nosheath")]
+        label = " ".join(out) + (" (Weapon Out)" if len(out) < len(words) else "")
+    if kind == 2 and "Loop" not in label:
+        label = label[:-1] + ", Looping)" if label.endswith(")") else label + " (Looping)"
+    return label
+
+
+def add_labels(out):
+    """The labels of an emotes.json's rows and animations, from its own names (text: the token; NPC: the animation)."""
+    anims = out["anims"]
+    for row in out["text"]:
+        del row[4:]
+        row.append(text_label(row[1]))
+    for row in out["npc"]:
+        del row[4:]
+        row.append(npc_label(row[1], anims.get(str(row[2])), row[3]))
+    out["labels"] = {k: anim_label(v) for k, v in anims.items()}
+    return out
+
+
+def relabel(path):
+    with open(path) as f:
+        out = json.load(f)
+    add_labels(out)
+    with open(path, "w") as f:
+        json.dump(out, f, separators=(",", ":"), sort_keys=True)
+        f.write("\n")
+    print("%d text emotes, %d NPC emotes, %d animations labelled; %d bytes" % (
+        len(out["text"]), len(out["npc"]), len(out["labels"]), os.path.getsize(path)))
+
+
 def main():
+    if len(sys.argv) >= 2 and sys.argv[1] == "labels":
+        return relabel(sys.argv[2] if len(sys.argv) > 2 else OUT)
     if len(sys.argv) < 4:
         raise SystemExit(__doc__)
     d, files, js = sys.argv[1:4]
@@ -216,7 +354,7 @@ def main():
 
     anims = {str(a): (names[a] if a < len(names) else "Anim%d" % a) for a in sorted(have_any | {x[2] for x in text + npc if x[2] >= 0})}
     unknown = sorted(a for a in have_any if a not in anim_ids)
-    out = {"build": BUILD, "text": text, "npc": npc, "anims": anims, "models": models}
+    out = add_labels({"build": BUILD, "text": text, "npc": npc, "anims": anims, "models": models})
     with open(out_path, "w") as f:
         json.dump(out, f, separators=(",", ":"), sort_keys=True)
         f.write("\n")
