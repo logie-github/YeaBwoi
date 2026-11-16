@@ -102,6 +102,8 @@ import com.logie.wifecraft.ui.LocalArt
 import com.logie.wifecraft.ui.LocalSounds
 import com.logie.wifecraft.ui.LocalWar
 import com.logie.wifecraft.ui.WarArt
+import com.logie.wifecraft.ui.WarArtOverlay
+import com.logie.wifecraft.ui.WarArtRow
 import com.logie.wifecraft.ui.LogPanel
 import com.logie.wifecraft.ui.OptionsPanel
 import com.logie.wifecraft.ui.Overlay
@@ -247,9 +249,10 @@ class MainActivity : ComponentActivity() {
         LaunchedEffect(progress.complete.contains("interface")) {
             if (files.packComplete("interface")) art = withContext(Dispatchers.IO) { WowArt.load(files) }
         }
-        // The build-mode art: what is already here at once, the rest fetched once the game's files are gathered (or the editor opens).
+        // The build-mode art: fetched (four at a time) and cut once the game's interface files are here or the editor opens;
+        // what is already cached is cut at once. Its own loader retries a failed file by itself (WarArt.start is idempotent).
         LaunchedEffect(progress.complete.contains("interface"), screen is Screen.Editor) {
-            if (files.packComplete("interface") || screen is Screen.Editor) runCatching { war.load() }
+            if (files.packComplete("interface") || screen is Screen.Editor || !war.firstOpen) war.start()
         }
         // The creator's races, options and choices, from the game's tables once they are all here.
         LaunchedEffect(progress.complete.contains(GameFiles.TABLES)) {
@@ -393,6 +396,9 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                // the editor's first open: "Preparing the interface: n of m" until its art is here (or Continue)
+                if (screen is Screen.Editor && ready && art != null && catalog != null) WarArtOverlay(war)
+
                 // a look's files on their way (the creator, the scene builder, Play)
                 if (fetching.total > 0 || fetching.error != null || fetching.emotes > 0) {
                     Column(
@@ -443,6 +449,8 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                                 if (d == null) importsSlot()
+                                // the editor's build-mode art: how much is here, what failed, Retry
+                                WarArtRow(war)
                             },
                         )
                     }

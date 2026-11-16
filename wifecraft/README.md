@@ -27,7 +27,9 @@ and the 37 MB sound table streams once. Nothing of the game is in the app.
    sounds. The bar counts files ("N of M files") and bytes. **Pause** stops, **Resume** carries on
    (also after the app was closed or killed: what is on the phone is never fetched again);
    **Wi-Fi only** (on by default) waits for Wi-Fi. Options' **Download speed** (Gentle 24, Normal 48, Fast 96 files at once; Fast by default, changes the running download at once) is a ceiling: when wago.tools, a free service, answers 429/502/503/504, resets or times out, the download halves (never below 8), obeys Retry-After and climbs back by 4 every 50 good files; the Gather screen says "slowed to N". A file wago.tools won't give is tried five times
-   and set aside, the rest carry on; at the end "N files could not be fetched: **Retry**".
+   and set aside, the rest carry on; at the end "N files could not be fetched: **Retry**". A file the pinned build answers
+   with nothing (Dalaran's loading art, 7963775, at 12.1.7.70892: 200 and no bytes, so a new install's interface files never
+   finished and the editor said they weren't all here) is asked for again without the build, which gives it whole.
 2. **Every race's looks** is every file the character creator can draw (creator/Prefetch.kt), so no
    character waits for a download later: for every race and both sexes (26 races, 52 models in
    November 2026), every option and every choice, each choice resolved on the default look (and with
@@ -87,8 +89,18 @@ keeps Wrath++'s look exactly (Shadowlands' own art, `creator_art.json`) and is n
   ribbon, the radio button's disc and dot, the minimal scroll bar and slider, the gold glyphs (back, undo, redo, delete,
   check...), and item and spell icons for the catalogue's tabs and every category, the tools and the emote groups. They
   are fetched from wago.tools on the phone the first time the editor opens (about **58 MB**, once, into `files/war-art`),
-  cut, and warmed (a little less saturation, red up, blue down, the darks lifted: `WarKit.WarTint`). Until they are here
-  everything draws plainly in the same palette. Nothing of the game is in the app or this repository.
+  cut, and warmed (a little less saturation, red up, blue down, the darks lifted: `WarKit.WarTint`). Nothing of the game is
+  in the app or this repository.
+- **Loading the art** (`ui/WarArt.kt`, its rules in `ui/WarArtPlan.kt`): four files fetched at a time, each kept only when it
+  is a BLP2 texture (wago.tools answers a file it lacks with JSON or nothing); the pieces go into observable state, so every
+  button draws again the moment its picture arrives. A file that fails is tried again by itself after 5 s, 15 s, 45 s...
+  (five times), one that is here but can't be read is deleted and fetched again. The editor's first open shows **Preparing
+  the interface: n of m pieces** over it (with the failures, **Retry** and **Continue**); **Options** has an **Interface art**
+  row: how many pieces are loaded, what failed and why, Retry.
+- **A button is never blank**: until its picture is here (or when it can't be had) every round button, tab, chip, side tab,
+  row and pill draws a plain vector glyph in the same frame (`ui/WarGlyphDraw.kt`: hand, rotate, scale, trash, eyedropper,
+  copy, lock, eye, speech, crosshair, star, search, undo, redo, camera, play, back, plus, minus, cube, house, paw, person,
+  heart, clock, cog, check, close, page; `WarGlyphs` says which stands for which picture).
 - **Palette and sizes** (`ui/WarKit.kt`): cream and parchment grounds, amber highlights, deep brown words on parchment,
   the game's gold (#FFD100) for names and the chosen things; rounded corners (10, 16, 22 dp); 56 dp round buttons, nothing
   under 48 dp to touch; a press sinks a button a little and plays the interface's click.
@@ -110,7 +122,10 @@ keeps Wrath++'s look exactly (Shadowlands' own art, `creator_art.json`) and is n
   across the top. Pages and the flyout are never taller than the room between the top bar and the bar.
 - **Not compiled here and not run on a phone**: the Compose code (`ui/WarArt.kt`, `ui/WarWidgets.kt` and the rebuilt
   screens) is compiled by CI only. The pure parts (`WarKit`, `BuildModeState`: the layout, the tint, the tool cluster, the
-  Eyedropper, the tabs, chips, flyout and pages) are JVM-tested. The look was judged on mock images drawn from the real cut
+  Eyedropper, the tabs, chips, flyout and pages; `WarArtPlan`: the loader's states, the answer's check, the glyph table, and a
+  source scan that every picture the kit names is in `ui_art.json`) are JVM-tested. Every file `ui_art.json` lists was
+  fetched at the pinned build and decoded by the app's own decoder (`engine-test`'s `harness --decode FILE --out OUT.png`):
+  all 86 are BLP2 textures it reads, every piece and icon cuts cleanly. The look was judged on mock images drawn from the real cut
   pieces over a screenshot of the Embassy, at 2184 x 1968, 1968 x 2184 and 2520 x 1080.
 
 ## Placement editor

@@ -28,6 +28,8 @@ val pureUi = tasks.register<Copy>("pureUi") {
     // the editor's build-mode look (WarKit: palette, sizes, tint, layout) and its buttons' behaviour (BuildModeState)
     from("../android/app/src/main/java/com/logie/wifecraft/ui/WarKit.kt")
     from("../android/app/src/main/java/com/logie/wifecraft/ui/BuildModeState.kt")
+    // the art's loading (its state machine, the answer's check) and the glyphs drawn when a picture is missing (WarArtPlan)
+    from("../android/app/src/main/java/com/logie/wifecraft/ui/WarArtPlan.kt")
     into(layout.buildDirectory.dir("gen/pureUi"))
 }
 
@@ -81,6 +83,8 @@ tasks.test {
     useJUnitPlatform()
     // The app's assets (places.json), for the tests that check them.
     systemProperty("wifecraft.assets", file("../android/app/src/main/assets").absolutePath)
+    // the app's ui sources, for the art key audit (WarArtPlanTest: every picture the kit names is in ui_art.json)
+    systemProperty("wifecraft.ui", file("../android/app/src/main/java/com/logie/wifecraft/ui").absolutePath)
     // downloaded game files (each named by its id), for the tests that check the real ones (-Dwifecraft.gamefiles=DIR)
     System.getProperty("wifecraft.gamefiles")?.let { systemProperty("wifecraft.gamefiles", it) }
     // the build mode's layout for the mock images (WarKitTest.dumpForMocks: -Dwifecraft.layoutOut=FILE)
