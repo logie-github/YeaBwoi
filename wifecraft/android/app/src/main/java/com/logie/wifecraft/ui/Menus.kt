@@ -170,7 +170,7 @@ fun OptionsWindow(
                             if (imports != null) imports() else Text("The imports are set from the title's or the editor's Options.", style = frizStyle(13.sp, Color.White))
                         }
                         OptionKey.SIMS_SKELETON -> ChoiceRow(k.label, simsSkeleton ?: "Chosen in Import Animations") {
-                            if (onImportAnims != null) RedButton("Import Animations", onImportAnims, Modifier.fillMaxWidth(), size = 13.sp)
+                            if (onImportAnims != null) RedButton("Import Animations", onImportAnims, Modifier.fillMaxWidth(), textSize = 13.sp)
                         }
                     }
                 }

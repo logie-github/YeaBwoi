@@ -188,7 +188,7 @@ fun WowTab(label: String, chosen: Boolean, onClick: () -> Unit, modifier: Modifi
 
 /** The game's red button (128-RedButton, WowArt): gold words, 48 dp high, as wide as [modifier] makes it. */
 @Composable
-fun RedButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, size: TextUnit = 15.sp) {
+fun RedButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, textSize: TextUnit = 15.sp) {
     val click = LocalSounds.current
     val art = LocalArt.current
     val source = remember { MutableInteractionSource() }
@@ -214,7 +214,7 @@ fun RedButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, 
             }.padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, style = frizStyle(size, if (enabled) WowColors.gold else WowColors.grey), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(text, style = frizStyle(textSize, if (enabled) WowColors.gold else WowColors.grey), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
