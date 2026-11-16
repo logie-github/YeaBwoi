@@ -19,6 +19,8 @@ bool WmoRoot::load(const Bytes& file) {
                 WmoMaterial m;
                 m.flags = cr.u32(o); m.shader = cr.u32(o + 4); m.blend = cr.u32(o + 8);
                 m.texture1 = cr.u32(o + 12); m.texture2 = cr.u32(o + 24); m.texture3 = cr.u32(o + 36);
+                // the newer shaders (housing's pieces) leave the first texture empty: the second is the surface's
+                if (!m.texture1) m.texture1 = m.texture2;
                 materials.push_back(m);
             }
         } else if (c.tag == rtag("MOGN")) {

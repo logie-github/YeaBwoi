@@ -20,7 +20,8 @@ import com.logie.wifecraft.editor.PlaceKind
 import com.logie.wifecraft.editor.Placement
 
 /**
- * The outliner: every placed thing of the scene in the order it was added, what it is, and its switches: Hide (off the
+ * The outliner: every placed thing of the scene in the order it was added (a tap selects it and the editor's camera looks
+ * at it; a tap on the selected one deselects), what it is, and its switches: Hide (off the
  * editor's view; Play still shows it), Lock (selected but not moved), Rename, Look (the camera turns to it). The list scrolls
  * inside its panel.
  */

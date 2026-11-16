@@ -72,11 +72,23 @@ data class OrbitCamera(val target: Vec3, val yaw: Float, val pitch: Float, val d
     /** Looks at [p] from where it is now (the distance kept): the outliner's "Look at". */
     fun lookAt(p: Vec3): OrbitCamera = copy(target = p)
 
+    /**
+     * Focuses on a thing [size] yards across whose middle is [p] (a double tap, the outliner): it looks at it from the same
+     * side, near enough that the thing fills about half the view's height.
+     */
+    fun focus(p: Vec3, size: Float): OrbitCamera {
+        val s = if (size.isFinite() && size > 0f) size else 1.8f
+        val d = s / tan(Math.toRadians(fov / 2.0).toFloat())
+        return copy(target = p, distance = d.coerceIn(MIN_DISTANCE * 2f, FOCUS_MAX))
+    }
+
     companion object {
         const val MIN_PITCH = -0.15f
         const val MAX_PITCH = 1.50f
         const val MIN_DISTANCE = 0.6f
         const val MAX_DISTANCE = 600f
+        /** A focus never goes further back than this (a building is seen from where its door is). */
+        const val FOCUS_MAX = 80f
 
         /** The orbit camera that sees what [pose] sees (a location view's or a place's camera). */
         fun from(pose: CameraPose): OrbitCamera {
@@ -274,7 +286,8 @@ fun duplicateOf(p: Placement, taken: Collection<String>): Placement =
 
 /** The library sheet's tabs. */
 enum class LibraryTab(val label: String) {
-    STARTER("Starter pack"), PROPS("Props"), BUILDINGS("Buildings"), CREATURES("Creatures"), MY_NPCS("My NPCs");
+    STARTER("Starter pack"), PROPS("Props"), BUILDINGS("Buildings"), CREATURES("Creatures"), MY_NPCS("My NPCs"),
+    FAVOURITES("Favourites"), RECENT("Recent");
 
     /** The catalogue kinds a tab searches. */
     val kinds: Set<AssetKind>
@@ -283,6 +296,7 @@ enum class LibraryTab(val label: String) {
             BUILDINGS -> setOf(AssetKind.BUILDING)
             CREATURES -> setOf(AssetKind.CREATURE, AssetKind.CREATURE_MODEL)
             MY_NPCS -> setOf(AssetKind.OWN_NPC)
+            FAVOURITES, RECENT -> AssetKind.values().toSet()
         }
 }
 
@@ -293,13 +307,26 @@ data class LibraryQuery(
     val category: String? = null,
     val style: String = Catalog.ANY,
     val page: Int = 0,
+    /** The category tree's style under Props, Buildings or Creatures ("Forsaken"); null: every style. */
+    val styleFilter: String? = null,
+    /** The words search only this tab (a group's "Show all"); otherwise words search everything, grouped. */
+    val scoped: Boolean = false,
 ) {
     val offset: Int get() = page * PAGE
 
+    /**
+     * Whether the sheet shows the grouped search (Props, Buildings, Creatures, My NPCs, each with its count): words are
+     * typed and nothing narrows them (no category or style picked in the tree, no group's "Show all").
+     */
+    val grouped: Boolean get() = text.isNotBlank() && category == null && styleFilter == null && !scoped
+
     /** Another tab: its own chips and first page (the words stay). */
-    fun withTab(t: LibraryTab) = if (t == tab) this else copy(tab = t, category = null, page = 0)
-    fun withText(s: String) = copy(text = s, page = 0)
-    fun withCategory(c: String?) = copy(category = if (c == category) null else c, page = 0)
+    fun withTab(t: LibraryTab) = if (t == tab) copy(scoped = false) else copy(tab = t, category = null, styleFilter = null, page = 0, scoped = false)
+    fun withText(s: String) = copy(text = s, page = 0, scoped = if (s.isBlank()) false else scoped)
+    fun withCategory(c: String?) = copy(category = if (c == category) null else c, styleFilter = null, page = 0)
+    fun withStyleFilter(s: String?) = copy(styleFilter = if (s == styleFilter) null else s, category = null, page = 0)
+    /** A group's "Show all" of the grouped search: that tab, the same words, its pages. */
+    fun showAll(t: LibraryTab) = copy(tab = t, category = null, styleFilter = null, page = 0, scoped = true)
     fun withStyle(s: String) = copy(style = s, page = 0)
     fun next(total: Int) = copy(page = (page + 1).coerceAtMost(pages(total) - 1))
     fun prev() = copy(page = (page - 1).coerceAtLeast(0))
@@ -316,15 +343,25 @@ data class LibraryQuery(
  * is [own] (the project's cast); the other tabs search the whole [library] (props, buildings, the game's creatures).
  */
 object LibraryPager {
-    fun page(library: Catalog, own: List<Asset>, q: LibraryQuery): Page = when (q.tab) {
+    /**
+     * [favourites] and [recent] are the project's lists as entries (LibraryPrefs resolved: [LibraryModel.resolve]); they
+     * keep their own order (the newest pick first) unless words are typed.
+     */
+    fun page(library: Catalog, own: List<Asset>, q: LibraryQuery, favourites: List<Asset> = emptyList(), recent: List<Asset> = emptyList()): Page = when (q.tab) {
         LibraryTab.STARTER -> Catalog(library.starterPack(q.style)).search(q.text, q.category, null, null, q.offset, LibraryQuery.PAGE)
         LibraryTab.MY_NPCS -> Catalog(own).search(q.text, null, null, null, q.offset, LibraryQuery.PAGE)
-        else -> library.search(q.text, q.category, null, q.tab.kinds, q.offset, LibraryQuery.PAGE)
+        LibraryTab.FAVOURITES, LibraryTab.RECENT -> {
+            val list = if (q.tab == LibraryTab.FAVOURITES) favourites else recent
+            val shown = if (q.text.isBlank()) list else Catalog(list).search(q.text, null, null, null, 0, Int.MAX_VALUE).items
+            val from = q.offset.coerceIn(0, shown.size)
+            Page(shown.subList(from, (from + LibraryQuery.PAGE).coerceAtMost(shown.size)), shown.size, from)
+        }
+        else -> library.search(q.text, q.category, q.styleFilter, q.tab.kinds, q.offset, LibraryQuery.PAGE)
     }
 
-    /** The category chips of a tab (the most used first, at most [most]); none for My NPCs. */
+    /** The category chips of a tab (the most used first, at most [most]); none for My NPCs, Favourites and Recent. */
     fun chips(library: Catalog, q: LibraryQuery, most: Int = 24): List<String> = when (q.tab) {
-        LibraryTab.MY_NPCS -> emptyList()
+        LibraryTab.MY_NPCS, LibraryTab.FAVOURITES, LibraryTab.RECENT -> emptyList()
         LibraryTab.STARTER -> library.starterPack(q.style).map { it.category }.distinct()
         else -> library.categories(q.tab.kinds).sortedByDescending { it.second }.take(most).map { it.first }
     }

@@ -156,6 +156,63 @@ object Native {
     const val PICK_GROUND = 3
     const val PICK_LOCATION = 4
 
+    // ---- the placement editor's view (cpp engine/editview.cpp)
+
+    /**
+     * The gizmo: handles over the selected prop ([kind] [PICK_PROP]) or actor ([PICK_ACTOR]) [id], at its pivot (its feet),
+     * the same size on the screen near or far, along the world's axes, drawn over everything. [mode]: [GIZMO_OFF],
+     * [GIZMO_MOVE] (arrows x red, y green, z blue, and [AXIS_FLOOR]'s square on the floor), [GIZMO_ROTATE] (the [AXIS_YAW]
+     * ring), [GIZMO_SCALE] ([AXIS_UNIFORM]'s box at the pivot and a box on each axis). [axis] (an AXIS_ value, -1 none) is
+     * drawn bright, the others dimmed.
+     */
+    @JvmStatic external fun gizmo(scene: Long, mode: Int, kind: Int, id: Int, axis: Int)
+    /** The handle under the screen point ([sx], [sy] pixels of a [width] x [height] view, the camera last drawn) within [slop] pixels, or -1. */
+    @JvmStatic external fun gizmoHit(scene: Long, sx: Float, sy: Float, width: Int, height: Int, slop: Float): Int
+    /** The camera last drawn: eye x,y,z, target x,y,z, up x,y,z, vertical fov (degrees), aspect, view (16), projection (16), column-major. */
+    @JvmStatic external fun cameraInfo(scene: Long): FloatArray
+    /** The loaded location's [view]'s camera: eye x,y,z, target x,y,z, fov; null when it has none. */
+    @JvmStatic external fun viewCamera(scene: Long, view: String): FloatArray?
+    /** Actor [actor]'s standing box placed at x, y, z turned [facing]: min x,y,z, max x,y,z; null when there is no such actor. */
+    @JvmStatic external fun actorBounds(scene: Long, actor: Int, x: Float, y: Float, z: Float, facing: Float): FloatArray?
+
+    /**
+     * The ghost of a prop about to be placed ([model] an M2 or a WMO, its files downloaded): drawn half see-through, tinted
+     * blue-white, depth-tested, never picked, never saved. Replaces the ghost before. False: [modelError] says why.
+     */
+    @JvmStatic external fun ghostProp(scene: Long, model: Int, x: Float, y: Float, z: Float, yaw: Float, scale: Float): Boolean
+    /** Actor [actor] (already added and dressed) becomes the ghost: drawn as it is, never picked, until removed. */
+    @JvmStatic external fun ghostActor(scene: Long, actor: Int)
+    @JvmStatic external fun ghostMove(scene: Long, x: Float, y: Float, z: Float, yaw: Float)
+    /** No ghost (a ghost actor stays out of sight until it is removed). */
+    @JvmStatic external fun ghostClear(scene: Long)
+    /** The ghost's box in the world (min x,y,z, max x,y,z), or null. */
+    @JvmStatic external fun ghostBounds(scene: Long): FloatArray?
+
+    /**
+     * A prop's thumbnail ([model] an M2 or a WMO, its files downloaded), drawn alone in an off-screen framebuffer of the
+     * scene's context (GL thread, between frames; the live scene is left as it was): [size, size, ARGB...] or null
+     * ([thumbError] says why). [size] 16 to 512.
+     */
+    @JvmStatic external fun thumbProp(scene: Long, model: Int, size: Int): IntArray?
+    /** A look's thumbnail: the arrays as [dress] and [body] take them (DressCall, BodyCall); as [thumbProp]. */
+    @JvmStatic external fun thumbLook(
+        scene: Long, model: Int, scale: Float, geosetKeys: IntArray, geosetValues: IntArray, layerFiles: IntArray,
+        layerMeta: IntArray, tintColours: IntArray, extraModels: IntArray, morph: FloatArray?, k: Float, fold: Float, size: Int,
+    ): IntArray?
+    /** Why the last thumbnail couldn't be drawn. */
+    @JvmStatic external fun thumbError(scene: Long): String
+
+    const val GIZMO_OFF = 0
+    const val GIZMO_MOVE = 1
+    const val GIZMO_ROTATE = 2
+    const val GIZMO_SCALE = 3
+    const val AXIS_X = 0
+    const val AXIS_Y = 1
+    const val AXIS_Z = 2
+    const val AXIS_YAW = 3
+    const val AXIS_UNIFORM = 4
+    const val AXIS_FLOOR = 5
+
     /** [width, height, ARGB...] of a game texture, or null. Any thread. */
     @JvmStatic external fun decodeBlp(path: String, maxSize: Int): IntArray?
 }

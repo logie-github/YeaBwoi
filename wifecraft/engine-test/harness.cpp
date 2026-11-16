@@ -25,6 +25,12 @@
 //   pick SX SY WIDTH HEIGHT                    prints what that screen point hits (Scene::pick)
 //   ground X Y Z                               prints the floor under the point (Scene::groundAt)
 //   stats                                      prints the location's counts and the last frame's draws
+//   gizmo off|move|rotate|scale [prop N | actor N] [AXIS]   the placement editor's handles on a prop or person (AXIS lit)
+//   gizmohit SX SY WIDTH HEIGHT [SLOP]         prints the handle under that screen point (Scene::gizmoHit; -1 none)
+//   ghost MODEL X Y Z YAW SCALE | ghostlook LOOKFILE X Y Z YAW   the ghost of what is about to be placed (a prop, a look)
+//   ghostmove X Y Z YAW | ghostclear
+//   thumb prop FILE_ID|look LOOKFILE SIZE OUT.png   a library thumbnail (Scene::thumbnail), drawn between frames
+//   camerainfo                                 prints the camera as last drawn (Scene::cameraInfo)
 //
 // An anim file (anim/AnimArrays as text; one key per line, # comments; keys of a bone and channel in time order):
 //   duration SECONDS
@@ -53,6 +59,11 @@
 //   build/harness --location JSONFILE --files DIR --out OUT.png [--id ID] [--view inside|outside|...] [--size WxH]
 //                 [--camera EX,EY,EZ,TX,TY,TZ,FOV] [--props "MODEL,X,Y,Z,YAW,SCALE;..."] [--select N] [--pick SX,SY]
 //                 [--look LOOKFILE]   (a person standing at the view's spawn)
+// Or a library thumbnail alone:
+//   build/harness --thumb prop|look FILE_ID|LOOKFILE --files DIR --out OUT.png [--tsize N]
+// --location also takes --gizmo move|rotate|scale (on --select's prop, or the --look person with --gizmoactor 1), --axis N,
+// --gizmohit "SX,SY;..." (prints each point's handle), --ghost "MODEL,X,Y,Z,YAW,SCALE", and --thumbcheck "prop:ID" or
+// "look:FILE" (draws the scene, the thumbnail, the scene again, and says whether the two scenes are the same pixels).
 // --strip draws N pictures side by side, from --time every STEP_MS, the scene stepped at 60 frames a second between them
 // (as the phone draws), and prints each soft body region's displacement at each.
 #include <EGL/egl.h>
@@ -355,6 +366,59 @@ static Light preset(const std::string& name) {
     return l;
 }
 
+// A look file as Scene::thumbnail takes it.
+static Scene::ThumbLook thumbLook(const LookFile& lf) {
+    Scene::ThumbLook t;
+    t.model = lf.model; t.scale = lf.scale; t.textures = lf.tex; t.geo = lf.geo; t.layers = lf.layers; t.extras = lf.extras;
+    if (lf.body) { t.morph = lf.morph; t.bodyK = lf.bodyK; t.bodyFold = lf.bodyFold; }
+    return t;
+}
+
+// "prop:ID" or "look:FILE": the thumbnail, written to `out` (false: why, printed).
+static bool thumbTo(Scene& scene, const std::string& what, int size, const std::string& out) {
+    size_t colon = what.find(':');
+    std::string kind = what.substr(0, colon), asset = colon == std::string::npos ? "" : what.substr(colon + 1);
+    std::vector<uint8_t> rgba;
+    std::string err;
+    bool ok;
+    if (kind == "look") {
+        LookFile lf;
+        if (!readLook(asset, lf)) return false;
+        Scene::ThumbLook t = thumbLook(lf);
+        ok = scene.thumbnail(0, &t, size, rgba, err);
+    } else {
+        ok = scene.thumbnail(uint32_t(std::strtoul(asset.c_str(), nullptr, 10)), nullptr, size, rgba, err);
+    }
+    if (!ok) { std::fprintf(stderr, "thumb %s: FAILED: %s\n", what.c_str(), err.c_str()); return false; }
+    std::vector<uint8_t> rgb(size_t(size) * size * 3);
+    for (size_t i = 0; i < size_t(size) * size; ++i) std::copy(&rgba[i * 4], &rgba[i * 4] + 3, &rgb[i * 3]);
+    writePng(out, size, size, rgb);
+    std::fprintf(stderr, "thumb %s: wrote %s (%dx%d, GL error %#x)\n", what.c_str(), out.c_str(), size, size, glGetError());
+    return true;
+}
+
+static int gizmoMode(const std::string& s) {
+    return s == "move" ? Scene::kGizmoMove : s == "rotate" ? Scene::kGizmoRotate : s == "scale" ? Scene::kGizmoScale : Scene::kGizmoOff;
+}
+
+// The pixels of the scene drawn now (RGBA, bottom row first).
+static std::vector<uint8_t> grab(Scene& scene, int w, int h, uint32_t t) {
+    unsigned fbo, color, depth;
+    glGenFramebuffers(1, &fbo); glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glGenRenderbuffers(1, &color); glBindRenderbuffer(GL_RENDERBUFFER, color);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, w, h);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, color);
+    glGenRenderbuffers(1, &depth); glBindRenderbuffer(GL_RENDERBUFFER, depth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, w, h);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth);
+    scene.render(w, h, t);
+    std::vector<uint8_t> px(size_t(w) * h * 4);
+    glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDeleteFramebuffers(1, &fbo); glDeleteRenderbuffers(1, &color); glDeleteRenderbuffers(1, &depth);
+    return px;
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) {
         std::fprintf(stderr, "usage: harness COMMANDS | harness --look LOOKFILE --files DIR --out OUT.png [--size WxH] [--shot body|torso|face] [--facing RADIANS] [--time MS]\n");
@@ -362,7 +426,10 @@ int main(int argc, char** argv) {
     }
     std::map<std::string, std::string> opt;
     if (std::string(argv[1]).rfind("--", 0) == 0)
-        for (int i = 1; i + 1 < argc; i += 2) opt[argv[i]] = argv[i + 1];
+        for (int i = 1; i + 1 < argc; i += 2) {
+            if (std::string(argv[i]) == "--thumb" && i + 2 < argc) { opt["--thumb"] = std::string(argv[i + 1]) + ":" + argv[i + 2]; ++i; continue; }
+            opt[argv[i]] = argv[i + 1];
+        }
 
     EGLDisplay dpy = EGL_NO_DISPLAY;
     auto getPlatformDisplay = (PFNEGLGETPLATFORMDISPLAYEXTPROC)eglGetProcAddress("eglGetPlatformDisplayEXT");
@@ -390,6 +457,12 @@ int main(int argc, char** argv) {
     std::map<int, int> actors, props;
     Light light;
 
+    if (opt.count("--thumb") && !opt.count("--location")) {
+        dir = opt["--files"];
+        int size = opt.count("--tsize") ? std::atoi(opt["--tsize"].c_str()) : 160;
+        return thumbTo(scene, opt["--thumb"], size, opt.count("--out") ? opt["--out"] : "thumb.png") ? 0 : 1;
+    }
+
     if (opt.count("--location")) {
         dir = opt["--files"];
         std::string json;
@@ -412,6 +485,15 @@ int main(int argc, char** argv) {
         if (opt.count("--select")) {
             size_t n = size_t(std::atoi(opt["--select"].c_str()));
             if (n >= 1 && n <= props.size()) scene.select(1, props[n - 1]);
+            if (n >= 1 && n <= props.size() && opt.count("--gizmo"))
+                scene.setGizmo(gizmoMode(opt["--gizmo"]), Scene::kPickProp, props[n - 1], opt.count("--axis") ? std::atoi(opt["--axis"].c_str()) : -1);
+        }
+        {
+            float g[6] = {0, 0, 0, 0, 0, 1};
+            if (opt.count("--ghost") && std::sscanf(opt["--ghost"].c_str(), "%f,%f,%f,%f,%f,%f", &g[0], &g[1], &g[2], &g[3], &g[4], &g[5]) >= 4)
+                std::fprintf(stderr, "ghost %u: %s\n", uint32_t(g[0]), scene.ghostProp(uint32_t(g[0]), V3(g[1], g[2], g[3]), g[4], g[5]) ? "ok" : scene.modelError(uint32_t(g[0])).c_str());
+            V3 a, b;
+            if (scene.ghostBounds(a, b)) std::fprintf(stderr, "ghost bounds %.2f %.2f %.2f .. %.2f %.2f %.2f\n", a.x, a.y, a.z, b.x, b.y, b.z);
         }
         if (opt.count("--look")) {
             LookFile lf;
@@ -427,6 +509,8 @@ int main(int argc, char** argv) {
                     V3 e = it->second.eye;
                     scene.placeActor(id, sp, std::atan2(e.y - sp.y, e.x - sp.x));
                     std::fprintf(stderr, "person at %.2f %.2f %.2f\n", sp.x, sp.y, sp.z);
+                    if (opt.count("--gizmo") && opt.count("--gizmoactor"))
+                        scene.setGizmo(gizmoMode(opt["--gizmo"]), Scene::kPickActor, id, opt.count("--axis") ? std::atoi(opt["--axis"].c_str()) : -1);
                 }
             }
         }
@@ -434,6 +518,23 @@ int main(int argc, char** argv) {
         if (opt.count("--size")) std::sscanf(opt["--size"].c_str(), "%dx%d", &w, &ht);
         renderTo(scene, opt.count("--out") ? opt["--out"] : "location.png", w, ht, 0);
         printStats(scene);
+        for (const std::string& one : split(opt["--gizmohit"], ';')) {
+            float hx, hy;
+            if (std::sscanf(one.c_str(), "%f,%f", &hx, &hy) == 2)
+                std::fprintf(stderr, "gizmohit %.0f,%.0f: %d\n", hx, hy, scene.gizmoHit(hx, hy, w, ht, 40));
+        }
+        if (opt.count("--thumbcheck")) {
+            // the live scene before and after a thumbnail: the same pixels (nothing of it was changed)
+            std::vector<uint8_t> before = grab(scene, w, ht, 0);
+            Scene::CameraInfo c0 = scene.cameraInfo();
+            thumbTo(scene, opt["--thumbcheck"], 160, opt.count("--thumbout") ? opt["--thumbout"] : "thumbcheck.png");
+            std::vector<uint8_t> after = grab(scene, w, ht, 0);
+            Scene::CameraInfo c1 = scene.cameraInfo();
+            size_t diff = 0;
+            for (size_t i = 0; i < before.size(); ++i) diff += before[i] != after[i];
+            bool sameCam = std::memcmp(c0.view.m, c1.view.m, 64) == 0 && std::memcmp(c0.proj.m, c1.proj.m, 64) == 0;
+            std::fprintf(stderr, "thumbcheck: %zu of %zu bytes differ after the thumbnail; camera %s\n", diff, before.size(), sameCam ? "unchanged" : "CHANGED");
+        }
         float px, py;
         if (opt.count("--pick") && std::sscanf(opt["--pick"].c_str(), "%f,%f", &px, &py) == 2) {
             Scene::PickHit h = scene.pick(px, py, w, ht);
@@ -643,6 +744,52 @@ int main(int argc, char** argv) {
             std::fprintf(stderr, "ground at %.2f %.2f below %.2f: %s %.3f\n", x, y, z, ok ? "floor" : "none", out);
         } else if (cmd == "stats") {
             printStats(scene);
+        } else if (cmd == "gizmo") {
+            std::string mode, kind; int n = 0, axis = -1;
+            ss >> mode >> kind >> n >> axis;
+            int id = kind == "actor" ? (actors.count(n) ? actors[n] : 0) : (props.count(n) ? props[n] : 0);
+            scene.setGizmo(gizmoMode(mode), kind == "actor" ? Scene::kPickActor : Scene::kPickProp, id, axis);
+        } else if (cmd == "gizmohit") {
+            float sx, sy, slop = 40; int w, h;
+            ss >> sx >> sy >> w >> h >> slop;
+            std::fprintf(stderr, "gizmohit %.0f,%.0f: %d\n", sx, sy, scene.gizmoHit(sx, sy, w, h, slop));
+        } else if (cmd == "ghost") {
+            uint32_t model; float x, y, z, yaw, sc;
+            ss >> model >> x >> y >> z >> yaw >> sc;
+            bool ok = scene.ghostProp(model, V3(x, y, z), yaw, sc);
+            V3 a, b;
+            if (ok) scene.ghostBounds(a, b);
+            std::fprintf(stderr, "ghost %u: %s (bounds %.2f %.2f %.2f .. %.2f %.2f %.2f)\n", model, ok ? "ok" : scene.modelError(model).c_str(), a.x, a.y, a.z, b.x, b.y, b.z);
+        } else if (cmd == "ghostlook") {
+            std::string path; float x, y, z, yaw;
+            ss >> path >> x >> y >> z >> yaw;
+            LookFile lf;
+            if (!readLook(path, lf)) continue;
+            int id = scene.addActor(lf.model, lf.tex, lf.geo, lf.scale);
+            if (id <= 0) { std::fprintf(stderr, "ghostlook: FAILED\n"); continue; }
+            scene.setCharacter(id, lf.character);
+            scene.dress(id, lf.geo, lf.layers, lf.extras);
+            scene.placeActor(id, V3(x, y, z), yaw);
+            scene.ghostActor(id);
+            scene.ghostMove(V3(x, y, z), yaw);
+        } else if (cmd == "ghostmove") {
+            float x, y, z, yaw;
+            ss >> x >> y >> z >> yaw;
+            scene.ghostMove(V3(x, y, z), yaw);
+            V3 a, b;
+            if (scene.ghostBounds(a, b)) std::fprintf(stderr, "ghost bounds %.2f %.2f %.2f .. %.2f %.2f %.2f\n", a.x, a.y, a.z, b.x, b.y, b.z);
+        } else if (cmd == "ghostclear") {
+            int actor = scene.ghostActorId();
+            scene.ghostClear();
+            if (actor) scene.removeActor(actor);
+        } else if (cmd == "thumb") {
+            std::string kind, asset, out; int size = 160;
+            ss >> kind >> asset >> size >> out;
+            thumbTo(scene, kind + ":" + asset, size, out);
+        } else if (cmd == "camerainfo") {
+            Scene::CameraInfo c = scene.cameraInfo();
+            std::fprintf(stderr, "camera eye %.2f %.2f %.2f target %.2f %.2f %.2f up %.2f %.2f %.2f fov %.1f aspect %.3f\n",
+                         c.eye.x, c.eye.y, c.eye.z, c.target.x, c.target.y, c.target.z, c.up.x, c.up.y, c.up.z, c.fovY, c.aspect);
         } else if (cmd == "render") {
             std::string out; int w, h; uint32_t t;
             ss >> out >> w >> h >> t;

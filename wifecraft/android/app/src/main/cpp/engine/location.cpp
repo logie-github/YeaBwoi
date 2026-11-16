@@ -105,6 +105,7 @@ uniform vec2 uFog;
 uniform vec3 uEye;
 uniform vec4 uFlat;
 uniform float uGlow;
+uniform vec4 uGhost;   // the placement editor's ghost: its colour mixed toward rgb by a (a 0: none)
 out vec4 fragColor;
 void main() {
     float d = distance(vWorld, uEye);
@@ -128,6 +129,7 @@ void main() {
     float f = smoothstep(uFog.x, uFog.y, d);
     f = mix(f * f * f, f, uExtLight == 1 ? 1.0 : clamp(vLight.a, 0.0, 1.0));
     rgb = mix(rgb, uFogColor, f);
+    rgb = mix(rgb, uGhost.rgb, uGhost.a);
     fragColor = vec4(rgb, uOpaque == 1 ? 1.0 : c.a);
 }
 )";
@@ -935,7 +937,7 @@ Scene::PickHit Scene::pick(float sx, float sy, int width, int height) const {
     }
     // the people: their standing box, turned with them
     for (const auto& [id, a] : actors_) {
-        if (!a.visible) continue;
+        if (!a.visible || a.ghost) continue;
         V3 mn, mx;
         if (!actorBounds(id, mn, mx)) continue;
         M4 inv = invertAffine(M4::translation(a.position) * M4::rotationZ(a.facing));
@@ -1014,12 +1016,15 @@ void staticUniforms(unsigned p, const Light& l, const V3& eye, const M4& viewPro
 
 } // namespace
 
+void Scene::staticSetup(unsigned prog, const M4& viewProj, const float intAmbient[3]) {
+    staticUniforms(prog, light_, eye_, viewProj, intAmbient);
+}
+
 void Scene::drawWmoGroups(const PlacedWmo& w, bool transparent, const Frustum& f, float glow) {
     unsigned p = locProg_;
     glUniform3fv(loc(p, "uIntAmbient"), 1, w.intAmbient);
     glUniform1f(loc(p, "uGlow"), glow);
-    float white[4] = {1, 1, 1, 1};
-    glUniform4fv(loc(p, "uColor"), 1, white);
+    glUniform4fv(loc(p, "uColor"), 1, ghostTint_);   // (white but for the ghost)
     float fogEnd = std::max(light_.fogEnd, light_.fogStart + 1.0f);
     for (const StaticGroup& g : w.groups) {
         if (!g.vao || !f.box(g.boundsMin, g.boundsMax) || boxDistance(eye_, g.boundsMin, g.boundsMax) > fogEnd) continue;
@@ -1105,6 +1110,7 @@ void Scene::drawInstances(const std::vector<const Instance*>& listIn, bool trans
             m.evalColor(b.colorIndex == 0xFFFF ? -1 : int(b.colorIndex), -1, 0, 0, c);
             c[3] *= m.evalWeight(b.weightCombo == 0xFFFF ? -1 : int(b.weightCombo), -1, 0, 0);
             if (c[3] <= 0.004f) continue;
+            for (int i = 0; i < 4; ++i) c[i] *= ghostTint_[i];   // (white but for the ghost)
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, texture(tex.fileId, kLocTex).id);
             glUniform4fv(loc(p, "uColor"), 1, c);

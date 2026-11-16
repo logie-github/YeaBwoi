@@ -249,6 +249,137 @@ JNIEXPORT jfloat JNICALL FN(groundAt)(JNIEnv*, jclass, jlong h, jfloat x, jfloat
     return scene(h)->groundAt(x, y, z, out) ? out : std::numeric_limits<float>::quiet_NaN();
 }
 
+// ---- the placement editor's view (engine/editview.cpp; Native.kt documents them)
+
+JNIEXPORT void JNICALL FN(gizmo)(JNIEnv*, jclass, jlong h, jint mode, jint kind, jint id, jint axis) {
+    scene(h)->setGizmo(mode, kind, id, axis);
+}
+
+JNIEXPORT jint JNICALL FN(gizmoHit)(JNIEnv*, jclass, jlong h, jfloat sx, jfloat sy, jint w, jint ht, jfloat slop) {
+    return scene(h)->gizmoHit(sx, sy, w, ht, slop);
+}
+
+// eye 3, target 3, up 3, fovY, aspect, view 16, proj 16 (column-major)
+JNIEXPORT jfloatArray JNICALL FN(cameraInfo)(JNIEnv* env, jclass, jlong h) {
+    Scene::CameraInfo c = scene(h)->cameraInfo();
+    float v[43] = {c.eye.x, c.eye.y, c.eye.z, c.target.x, c.target.y, c.target.z, c.up.x, c.up.y, c.up.z, c.fovY, c.aspect};
+    std::copy(c.view.m, c.view.m + 16, v + 11);
+    std::copy(c.proj.m, c.proj.m + 16, v + 27);
+    jfloatArray arr = env->NewFloatArray(43);
+    env->SetFloatArrayRegion(arr, 0, 43, v);
+    return arr;
+}
+
+// eye 3, target 3, fov; null when the loaded location's view has no camera
+JNIEXPORT jfloatArray JNICALL FN(viewCamera)(JNIEnv* env, jclass, jlong h, jstring view) {
+    V3 eye, target;
+    float fov = 50;
+    if (!scene(h)->viewCamera(view ? str(env, view) : "", eye, target, fov)) return nullptr;
+    float v[7] = {eye.x, eye.y, eye.z, target.x, target.y, target.z, fov};
+    jfloatArray arr = env->NewFloatArray(7);
+    env->SetFloatArrayRegion(arr, 0, 7, v);
+    return arr;
+}
+
+namespace {
+jfloatArray boxArray(JNIEnv* env, const V3& mn, const V3& mx) {
+    float v[6] = {mn.x, mn.y, mn.z, mx.x, mx.y, mx.z};
+    jfloatArray arr = env->NewFloatArray(6);
+    env->SetFloatArrayRegion(arr, 0, 6, v);
+    return arr;
+}
+std::string gThumbError;
+} // namespace
+
+// An actor's box in the world (its standing box, turned and placed as it stands); null: no such actor.
+JNIEXPORT jfloatArray JNICALL FN(actorBounds)(JNIEnv* env, jclass, jlong h, jint id, jfloat x, jfloat y, jfloat z, jfloat facing) {
+    V3 a, b;
+    if (!scene(h)->actorBounds(id, a, b)) return nullptr;
+    M4 m = M4::translation(V3(x, y, z)) * M4::rotationZ(facing);
+    V3 mn(1e30f, 1e30f, 1e30f), mx(-1e30f, -1e30f, -1e30f);
+    for (int k = 0; k < 8; ++k) {
+        V3 p = m.point(V3((k & 1) ? b.x : a.x, (k & 2) ? b.y : a.y, (k & 4) ? b.z : a.z));
+        mn = V3(std::min(mn.x, p.x), std::min(mn.y, p.y), std::min(mn.z, p.z));
+        mx = V3(std::max(mx.x, p.x), std::max(mx.y, p.y), std::max(mx.z, p.z));
+    }
+    return boxArray(env, mn, mx);
+}
+
+JNIEXPORT jboolean JNICALL FN(ghostProp)(JNIEnv*, jclass, jlong h, jint model, jfloat x, jfloat y, jfloat z, jfloat yaw, jfloat scale) {
+    return scene(h)->ghostProp(uint32_t(model), V3(x, y, z), yaw, scale);
+}
+
+JNIEXPORT void JNICALL FN(ghostActor)(JNIEnv*, jclass, jlong h, jint id) { scene(h)->ghostActor(id); }
+
+JNIEXPORT void JNICALL FN(ghostMove)(JNIEnv*, jclass, jlong h, jfloat x, jfloat y, jfloat z, jfloat yaw) {
+    scene(h)->ghostMove(V3(x, y, z), yaw);
+}
+
+JNIEXPORT void JNICALL FN(ghostClear)(JNIEnv*, jclass, jlong h) { scene(h)->ghostClear(); }
+
+JNIEXPORT jfloatArray JNICALL FN(ghostBounds)(JNIEnv* env, jclass, jlong h) {
+    V3 mn, mx;
+    if (!scene(h)->ghostBounds(mn, mx)) return nullptr;
+    return boxArray(env, mn, mx);
+}
+
+namespace {
+jintArray thumbPixels(JNIEnv* env, const std::vector<uint8_t>& rgba, int size) {
+    std::vector<jint> out(size_t(size) * size + 2);
+    out[0] = size; out[1] = size;
+    for (size_t i = 0; i < size_t(size) * size; ++i) {
+        const uint8_t* p = &rgba[i * 4];
+        out[i + 2] = jint(uint32_t(p[3]) << 24 | uint32_t(p[0]) << 16 | uint32_t(p[1]) << 8 | p[2]);
+    }
+    jintArray arr = env->NewIntArray(jsize(out.size()));
+    env->SetIntArrayRegion(arr, 0, jsize(out.size()), out.data());
+    return arr;
+}
+} // namespace
+
+// [size, size, ARGB pixels...] of a prop's thumbnail, or null (thumbError says why).
+JNIEXPORT jintArray JNICALL FN(thumbProp)(JNIEnv* env, jclass, jlong h, jint model, jint size) {
+    std::vector<uint8_t> rgba;
+    gThumbError.clear();
+    int s = std::clamp(int(size), 16, 512);
+    if (!scene(h)->thumbnail(uint32_t(model), nullptr, s, rgba, gThumbError)) return nullptr;
+    return thumbPixels(env, rgba, s);
+}
+
+// A look's thumbnail (the arrays as Native.dress and Native.body take them), or null (thumbError says why).
+JNIEXPORT jintArray JNICALL FN(thumbLook)(JNIEnv* env, jclass, jlong h, jint model, jfloat scale, jintArray geosetKeys,
+                                         jintArray geosetValues, jintArray layerFiles, jintArray layerMeta, jintArray tintColours,
+                                         jintArray extraModels, jfloatArray morph, jfloat k, jfloat fold, jint size) {
+    constexpr size_t kMeta = 9, kTints = 2, kExtra = 4;
+    Scene::ThumbLook look;
+    look.model = uint32_t(model);
+    look.scale = scale;
+    auto gk = ints(env, geosetKeys), gv = ints(env, geosetValues);
+    for (size_t i = 0; i < gk.size() && i < gv.size(); ++i) look.geo[gk[i]] = gv[i];
+    auto files = ints(env, layerFiles), meta = ints(env, layerMeta), tints = ints(env, tintColours);
+    for (size_t i = 0; i < files.size() && (i + 1) * kMeta <= meta.size(); ++i) {
+        const int* m = &meta[i * kMeta];
+        SkinLayer l;
+        l.fileId = uint32_t(files[i]);
+        l.textureType = m[0]; l.layer = m[1]; l.blend = m[2];
+        l.x = m[3]; l.y = m[4]; l.w = m[5]; l.h = m[6];
+        l.materialW = m[7]; l.materialH = m[8];
+        if ((i + 1) * kTints <= tints.size()) { l.tint1 = uint32_t(tints[i * kTints]); l.tint2 = uint32_t(tints[i * kTints + 1]); }
+        look.layers.push_back(l);
+    }
+    auto ex = ints(env, extraModels);
+    for (size_t i = 0; i + kExtra <= ex.size(); i += kExtra) look.extras.push_back({ex[i], uint32_t(ex[i + 1]), uint32_t(ex[i + 2]), ex[i + 3]});
+    look.morph = floats(env, morph);
+    look.bodyK = k; look.bodyFold = fold;
+    std::vector<uint8_t> rgba;
+    gThumbError.clear();
+    int s = std::clamp(int(size), 16, 512);
+    if (!scene(h)->thumbnail(0, &look, s, rgba, gThumbError)) return nullptr;
+    return thumbPixels(env, rgba, s);
+}
+
+JNIEXPORT jstring JNICALL FN(thumbError)(JNIEnv* env, jclass, jlong) { return env->NewStringUTF(gThumbError.c_str()); }
+
 // [width, height, ARGB pixels...] or null: for the interface's textures, decoded off the GL thread.
 JNIEXPORT jintArray JNICALL FN(decodeBlp)(JNIEnv* env, jclass, jstring path, jint maxSize) {
     Bytes b;

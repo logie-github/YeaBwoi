@@ -110,6 +110,7 @@ uniform vec3 uAmbient;
 uniform vec3 uFogColor;
 uniform vec2 uFog;
 uniform vec3 uEye;
+uniform vec4 uGhost;   // the placement editor's ghost: its colour mixed toward rgb by a (a 0: none)
 out vec4 fragColor;
 void main() {
     vec4 c = texture(uTex, vUv) * uColor;
@@ -122,6 +123,7 @@ void main() {
     }
     float f = clamp((distance(vWorld, uEye) - uFog.x) / max(uFog.y - uFog.x, 1.0), 0.0, 1.0);
     rgb = mix(rgb, uFogColor, f);
+    rgb = mix(rgb, uGhost.rgb, uGhost.a);
     fragColor = vec4(rgb, uOpaque == 1 ? 1.0 : c.a);
 }
 )";
@@ -280,6 +282,7 @@ bool Scene::initGl() {
     }
     if (cityLoaded_) { uploadCityGl(); warmCity(); }
     staticGl();
+    if (ghost_.wmo) for (StaticGroup& g : ghost_.wmo->groups) uploadStatic(g);
     return true;
 }
 
@@ -298,6 +301,8 @@ void Scene::releaseGl() {
     }
     groups_.clear();
     forgetStaticGl();
+    gizmoProg_ = gizmoVao_ = gizmoVbo_ = 0;
+    if (ghost_.wmo) for (StaticGroup& g : ghost_.wmo->groups) g.vao = g.vbo = g.ibo = 0;
 }
 
 GlTexture Scene::texture(uint32_t fileId, int maxSize) {
@@ -1198,7 +1203,7 @@ void Scene::drawModel(ModelGl& mg, const M4& world, const std::map<uint32_t, uin
 
 void Scene::drawAttached(Actor& a, const M4& world, uint32_t now, bool transparent) {
     const M2Model& m = *a.mesh->model;
-    float one[4] = {1, 1, 1, 1};
+    const float* one = ghostTint_;   // (white but for the ghost)
     for (int list = 0; list < 2; ++list)
     for (Attached& at : list ? a.hung : a.attached) {
         if (at.attachment >= m.attachmentLookup.size()) continue;
@@ -1213,7 +1218,7 @@ void Scene::drawAttached(Actor& a, const M4& world, uint32_t now, bool transpare
 }
 
 void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
-    float one[4] = {1, 1, 1, 1};
+    const float* one = ghostTint_;   // (white but for the ghost)
     M4 w = M4::translation(a.position) * M4::rotationZ(a.facing) * M4::scaling(V3(a.scale, a.scale, a.scale));
     uint32_t dur = std::max<uint32_t>(1, a.seq >= 0 ? a.mesh->model->sequences[a.seq].duration : 1);
     // The soft body: the body, its layer and its skinned models move with it; hung items don't.
@@ -1252,6 +1257,7 @@ void Scene::render(int width, int height, uint32_t nowMs) {
         for (const DressModel& d : a.pendingModels) if (!files_(d.model).empty()) { arrived = true; break; }
         if (arrived) dressModels(a);
     }
+    viewW_ = std::max(1, width); viewH_ = std::max(1, height);
     glViewport(0, 0, width, height);
     glClearColor(light_.skyHorizon[0], light_.skyHorizon[1], light_.skyHorizon[2], 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1319,7 +1325,7 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     Frustum frustum(viewProj);
     for (Prop& pr : props_) pr.seen = cityShown_ && frustum.sphere(pr.centre, pr.radius) && (pr.centre - eye_).length() - pr.radius < light_.fogEnd;
     for (Prop& pr : props_) if (pr.seen) drawModel(*pr.mesh, pr.world, nullptr, nullptr, pr.mesh->boneTex, -1, 0, nowMs, one, false, kPropTex);
-    for (auto& [id, a] : actors_) if (a.visible) { lightActor(a.position, false); drawActor(a, nowMs, false); }
+    for (auto& [id, a] : actors_) if (a.visible && !a.ghost) { lightActor(a.position, false); drawActor(a, nowMs, false); }
     lightActor(V3(), true);
     drawStatic(false, viewProj);    // the location, its doodads and the editor's props (location.cpp)
     drawGround(viewProj);
@@ -1329,9 +1335,15 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     litUniforms(m2Prog_, light_, eye_, viewProj);
     for (Prop& pr : props_) if (pr.seen) drawModel(*pr.mesh, pr.world, nullptr, nullptr, pr.mesh->boneTex, -1, 0, nowMs, one, true, kPropTex);
     drawStatic(true, viewProj);
-    for (auto& [id, a] : actors_) if (a.visible) { lightActor(a.position, false); drawActor(a, nowMs, true); }
+    for (auto& [id, a] : actors_) if (a.visible && !a.ghost) { lightActor(a.position, false); drawActor(a, nowMs, true); }
     lightActor(V3(), true);
+    // the placement editor's ghost and gizmo (editview.cpp), over the scene
+    litUniforms(m2Prog_, light_, eye_, viewProj);
+    drawGhost(viewProj, nowMs);
+    drawGizmo();
 }
+
+void Scene::litSetup(unsigned prog, const M4& viewProj) { litUniforms(prog, light_, eye_, viewProj); }
 
 // ------------------------------------------------------------------------------------------------ Wrath++'s body options
 

@@ -11,6 +11,7 @@ add_library(wcengine SHARED
     engine/blp.cpp
     engine/bodyshape.cpp
     engine/bytes.cpp
+    engine/editview.cpp
     engine/json.cpp
     engine/location.cpp
     engine/m2.cpp

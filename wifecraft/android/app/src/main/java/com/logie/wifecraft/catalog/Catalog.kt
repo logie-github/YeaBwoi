@@ -41,6 +41,19 @@ data class Asset(
 data class Page(val items: List<Asset>, val total: Int, val offset: Int)
 
 /**
+ * A node of the library's category tree ([Catalog.tree]): a kind of entry (Props: [kinds]), or under it a [category]
+ * ("Furniture") or a [style] ("Forsaken"), with how many entries it has ([count]).
+ */
+data class CategoryNode(
+    val label: String,
+    val count: Int,
+    val kinds: Set<AssetKind>,
+    val category: String? = null,
+    val style: String? = null,
+    val children: List<CategoryNode> = emptyList(),
+)
+
+/**
  * The placement editor's library: the props, buildings and creature models of assets/catalog.tsv (tools/catalog.py), the
  * game's named creatures from its tables ([creatures]) and the author's own people ([ownNpc]). Search by name words,
  * filter by category, style and kind, a page at a time. Pure JVM; nothing is downloaded to browse it (a model is
@@ -93,23 +106,75 @@ class Catalog(val assets: List<Asset>) {
             if (category != null && a.category != category) continue
             if (style != null && a.style != style) continue
             if (kinds != null && a.kind !in kinds) continue
-            if (tokens.isEmpty()) { hits += i to 3; continue }
-            var rank = 1
-            var ok = true
-            for (t in tokens) {
-                if (words[i].any { it.startsWith(t) }) continue
-                if (t.length >= 3 && (names[i].contains(t) || a.alias.lowercase().contains(t))) { rank = 2; continue }
-                ok = false
-                break
-            }
-            if (!ok) continue
-            if (names[i].startsWith(q) || a.alias.lowercase().startsWith(q)) rank = 0
-            hits += i to rank
+            val rank = rank(i, q, tokens)
+            if (rank >= 0) hits += i to rank
         }
-        hits.sortWith(compareBy<Pair<Int, Int>>({ it.second }, { names[it.first].length }, { names[it.first] }, { assets[it.first].key }))
+        hits.sortWith(byRank)
         val from = offset.coerceIn(0, hits.size)
         val to = (from + limit.coerceAtLeast(0)).coerceAtMost(hits.size)
         return Page(hits.subList(from, to).map { assets[it.first] }, hits.size, from)
+    }
+
+    /** How entry [i] matches the lower-cased [q] (its [tokens]): 0 its name begins with it, 1 whole words, 2 inside, 3 no words; -1 no match. */
+    private fun rank(i: Int, q: String, tokens: List<String>): Int {
+        if (tokens.isEmpty()) return 3
+        val a = assets[i]
+        var rank = 1
+        for (t in tokens) {
+            if (words[i].any { it.startsWith(t) }) continue
+            if (t.length >= 3 && (names[i].contains(t) || a.alias.lowercase().contains(t))) { rank = 2; continue }
+            return -1
+        }
+        if (names[i].startsWith(q) || a.alias.lowercase().startsWith(q)) rank = 0
+        return rank
+    }
+
+    private val byRank = compareBy<Pair<Int, Int>>({ it.second }, { names[it.first].length }, { names[it.first] }, { assets[it.first].key })
+
+    /**
+     * The search-as-you-type of the library: [query] matched as [search] does, in one pass over everything, the matches
+     * split into [groups] (each a set of kinds: Props, Buildings, Creatures...), each group's best [perGroup] first and its
+     * whole count ([Page.total]); [category] and [style] narrow it where given. One page per group, in [groups]' order.
+     */
+    fun searchGrouped(query: String, groups: List<Set<AssetKind>>, perGroup: Int = 12, category: String? = null, style: String? = null): List<Page> {
+        val q = query.trim().lowercase()
+        val tokens = WORD.findAll(q).map { it.value }.toList()
+        val hits = List(groups.size) { ArrayList<Pair<Int, Int>>() }
+        for (i in assets.indices) {
+            val a = assets[i]
+            if (category != null && a.category != category) continue
+            if (style != null && a.style != style) continue
+            val g = groups.indexOfFirst { a.kind in it }
+            if (g < 0) continue
+            val rank = rank(i, q, tokens)
+            if (rank >= 0) hits[g] += i to rank
+        }
+        return hits.map { h ->
+            h.sortWith(byRank)
+            Page(h.take(perGroup.coerceAtLeast(0)).map { assets[it.first] }, h.size, 0)
+        }
+    }
+
+    /**
+     * The library's category tree with counts: Props, Buildings and Creatures (each the number of its entries), under each
+     * its categories (most entries first) and then its styles other than [ANY] ("Forsaken", "Night elf", "Human"...).
+     * Counted once ([tree] is kept).
+     */
+    val tree: List<CategoryNode> by lazy {
+        TREE_KINDS.map { (label, kinds) ->
+            val cats = HashMap<String, Int>()
+            val styles = HashMap<String, Int>()
+            var n = 0
+            for (a in assets) if (a.kind in kinds) {
+                n++
+                cats[a.category] = (cats[a.category] ?: 0) + 1
+                if (a.style != ANY) styles[a.style] = (styles[a.style] ?: 0) + 1
+            }
+            val order = compareBy<Map.Entry<String, Int>>({ -it.value }, { it.key })
+            CategoryNode(label, n, kinds, children =
+                cats.entries.sortedWith(order).map { CategoryNode(it.key, it.value, kinds, category = it.key) } +
+                    styles.entries.sortedWith(order).map { CategoryNode(it.key, it.value, kinds, style = it.key) })
+        }
     }
 
     /**
@@ -192,5 +257,11 @@ class Catalog(val assets: List<Asset>) {
         fun ownNpc(actorId: String, name: String): Asset = Asset("n:$actorId", AssetKind.OWN_NPC, 0, name, MY_PEOPLE)
 
         const val MY_PEOPLE = "My people"
+
+        /** The kinds the tree and the grouped search put together, in the order they are shown. */
+        val PROP_KINDS = setOf(AssetKind.PROP)
+        val BUILDING_KINDS = setOf(AssetKind.BUILDING)
+        val CREATURE_KINDS = setOf(AssetKind.CREATURE, AssetKind.CREATURE_MODEL)
+        val TREE_KINDS = listOf("Props" to PROP_KINDS, "Buildings" to BUILDING_KINDS, "Creatures" to CREATURE_KINDS)
     }
 }
