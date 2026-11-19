@@ -37,6 +37,8 @@ val pureUi = tasks.register<Copy>("pureUi") {
     from("../android/app/src/main/java/com/logie/wifecraft/ui/ImageCache.kt")
     // the menus' motion: durations, the reduce-motion switch, the double-tap gate, touch boxes, scroll thumb, list keys (MenuMotion)
     from("../android/app/src/main/java/com/logie/wifecraft/ui/MenuMotion.kt")
+    // the live scene's HUD: the action bar's orders and pages, the help line, the clock, the layout, the animation tabs (SceneHud)
+    from("../android/app/src/main/java/com/logie/wifecraft/ui/SceneHud.kt")
     into(layout.buildDirectory.dir("gen/pureUi"))
 }
 
@@ -56,6 +58,8 @@ val purePlay = tasks.register<Copy>("purePlay") {
 val pureAudio = tasks.register<Copy>("pureAudio") {
     from("../android/app/src/main/java/com/logie/wifecraft/audio/SceneAudioCore.kt")
     from("../android/app/src/main/java/com/logie/wifecraft/audio/SoundIndex.kt")
+    // the soundscape's decisions: the mixer, the ducking, the crossfade, which music where, sounds.json (Soundscape)
+    from("../android/app/src/main/java/com/logie/wifecraft/audio/Soundscape.kt")
     // the partner animations' sounds folder (resolution, names, hashes, zip import)
     from("../android/app/src/main/java/com/logie/wifecraft/audio/SoundNames.kt")
     from("../android/app/src/main/java/com/logie/wifecraft/audio/PartnerSounds.kt")

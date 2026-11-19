@@ -23,7 +23,9 @@ data class SceneSnapshot(
 ) {
     /** [partner]: the other NPC of a two-person animation, else null; [queued] orders waiting; [repeating] one repeating. */
     data class PersonView(val id: String, val activity: Activity, val directed: Boolean,
-        val queued: Int = 0, val repeating: Boolean = false, val partner: String? = null)
+        val queued: Int = 0, val repeating: Boolean = false, val partner: String? = null,
+        /** The other NPC of a conversation, else null. */
+        val talkingWith: String? = null)
 
     /** Whether [id] may use [item] now. */
     fun available(item: SceneObject, id: String): Boolean = item in usable && holders[item].let { it == null || it == id }
@@ -51,6 +53,9 @@ class LiveScene(
     pairs: List<PartnerPair> = emptyList(),
     emotes: ModelEmotes = ModelEmotes.STANDARD,
     partnerChance: Float = PartnerFrequency.SOMETIMES.chance,
+    /** The NPCs' small talk: what they say ([Chatter]; null: no words) and how often they go and talk (0: never). */
+    chatter: Chatter? = null,
+    chatterChance: Float = 0f,
 ) {
     /** Where the frame goes (the 3D view, or a test's recorder). GL thread. */
     interface Sink {
@@ -66,6 +71,13 @@ class LiveScene(
         fun playback(index: Int, clip: ClipPlayback?) {}
         /** A performance's sound event [name] for person [index] is due (its time on the performance's clock passed). */
         fun sound(index: Int, name: String) {}
+        /** Person [index] says [text] now (a speech bubble; [id] new for every line), or stops ([text] null, [id] 0). */
+        fun speech(index: Int, text: String?, id: Long) {}
+        /**
+         * Person [index]'s game animation while talking changes this frame: a gesture, a nod or standing between lines, or
+         * (the talk over) back to their activity's own [animation]. Called after [activity] in the same frame.
+         */
+        fun gesture(index: Int, animation: Int) {}
     }
 
     companion object {
@@ -78,7 +90,8 @@ class LiveScene(
     }
 
     private val simulation = SceneSimulation(ids, objects, random, durations, initiallyReady = false, wanderOnly = wanderOnly,
-        route = route, partnerChance = partnerChance, pairs = pairs, emotes = emotes)
+        route = route, partnerChance = partnerChance, pairs = pairs, emotes = emotes,
+        chatterChance = chatterChance, chatter = chatter)
     /** The frame's sink while [frame] runs (the simulation's sound events go to it). */
     private var frameSink: Sink? = null
     val clock = FixedStep()
@@ -110,6 +123,8 @@ class LiveScene(
     private val shownFacing = FloatArray(n)
     private val lastActivity = arrayOfNulls<Activity>(n)
     private val lastPlayback = arrayOfNulls<ClipPlayback>(n)
+    private val lastSpeech = LongArray(n)
+    private val lastGesture = IntArray(n) { -1 }
     private var lastPairStarts = 0
     private val cosR = cos(rotation)
     private val sinR = sin(rotation)
@@ -131,7 +146,7 @@ class LiveScene(
 
     /** The menus' view now (allocates: on change only). */
     fun snapshot(): SceneSnapshot {
-        val people = simulation.people().map { SceneSnapshot.PersonView(it.id, it.activity, it.directed, it.queued, it.repeating, it.partner) }
+        val people = simulation.people().map { SceneSnapshot.PersonView(it.id, it.activity, it.directed, it.queued, it.repeating, it.partner, it.talkingWith) }
         val holders = HashMap<SceneObject, String>()
         val usable = HashSet<SceneObject>()
         for (item in simulation.objects) {
@@ -177,13 +192,29 @@ class LiveScene(
             val z = if (pose.playback != null) pose.z else prevZ[i] + (curZ[i] - prevZ[i]) * a
             val onFurniture = pose.furniture != null && (pose.activity == Activity.SIT || pose.activity == Activity.REST)
             shownFacing[i] = if (onFurniture || pose.playback != null) pose.facing else turnToward(shownFacing[i], pose.facing, turn)
+            var activityChanged = false
             if (running && lastActivity[i] != pose.activity) {
                 lastActivity[i] = pose.activity
+                activityChanged = true
                 sink.activity(i, pose.activity)
             }
             if (running && lastPlayback[i] != pose.playback) {
                 lastPlayback[i] = pose.playback
                 sink.playback(i, pose.playback)
+            }
+            if (running) {
+                // the talking gesture over the activity's animation; when it ends, the activity's own again
+                val g = pose.gesture
+                if (g != lastGesture[i] || (activityChanged && g >= 0)) {
+                    val was = lastGesture[i]
+                    lastGesture[i] = g
+                    if (g >= 0) sink.gesture(i, g) else if (was >= 0 && !activityChanged) sink.gesture(i, pose.activity.animation)
+                }
+                val said = if (pose.speech != null) pose.speechId else 0L
+                if (said != lastSpeech[i]) {
+                    lastSpeech[i] = said
+                    sink.speech(i, pose.speech, said)
+                }
             }
             val facing = shownFacing[i] + rotation
             if (onFurniture) {

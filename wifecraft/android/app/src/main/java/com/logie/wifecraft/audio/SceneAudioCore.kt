@@ -60,6 +60,8 @@ class SceneAudioCore(
     private val out: SoundOut,
     private val sched: SoundScheduler,
     private val onError: (String) -> Unit = {},
+    /** How many voices (emotes' voices) are playing, told each time it changes: the music ducks under them (Audio). */
+    private val onVoices: (Int) -> Unit = {},
 ) {
     private enum class Channel { MUSIC, AMBIENCE, EFFECT, VOICE }
     private class Live(val voice: SoundVoice, val channel: Channel, val placement: String?, var ended: Boolean = false)
@@ -239,16 +241,24 @@ class SceneAudioCore(
 
     private fun start(file: Int, c: Channel, placement: String?, loop: Boolean, fadeMs: Int, done: () -> Unit = {}): Live? {
         lateinit var l: Live
-        val v = out.play(file, loop, level(c), fadeMs) { l.ended = true; live.remove(l); done() } ?: return null
+        val v = out.play(file, loop, level(c), fadeMs) { l.ended = true; live.remove(l); if (c == Channel.VOICE) tellVoices(); done() } ?: return null
         l = Live(v, c, placement)
         live += l
         if (paused) v.pause()
+        if (c == Channel.VOICE) tellVoices()
         return l
     }
 
     private fun stopLive(l: Live, fadeMs: Int) {
         l.ended = true; live.remove(l)
         l.voice.stop(fadeMs)
+        if (l.channel == Channel.VOICE) tellVoices()
+    }
+
+    private var toldVoices = 0
+    private fun tellVoices() {
+        val n = live.count { it.channel == Channel.VOICE }
+        if (n != toldVoices) { toldVoices = n; onVoices(n) }
     }
 
     /** [then] on the main thread with whether the file is here: fetched first when it isn't (the error is told, once per try). */

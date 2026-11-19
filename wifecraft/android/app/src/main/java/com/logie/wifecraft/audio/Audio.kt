@@ -6,208 +6,314 @@ import android.media.MediaPlayer
 import android.media.SoundPool
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import com.logie.wifecraft.data.GameFiles
 import com.logie.wifecraft.play.Sounds
-import org.json.JSONObject
+import java.util.concurrent.Executors
 import kotlin.random.Random
 
 /**
- * The game's music and sounds (assets/sounds.json, tools/sounds.py), played from the files fetched
- * from wago.tools: music crossfades between two players and loops; the city's ambience loops under
- * it; effects, voices and the interface's sounds go through a sound pool. Anything not fetched yet
- * stays silent. Main thread only.
+ * The app's soundscape on the phone: a music bed and an ambience bed, each through a [Crossfader] (two MediaPlayers fading
+ * into one another), the title's music ([title]) and a place's ([place]: ZoneMusic's tracks one after another with a
+ * short gap, its ambience looped under them), the interface's sounds through a SoundPool ([ui]), the Sound page's mixer
+ * ([levels]), the beds ducking while someone speaks ([voices]), and silence when the app is paused. The decisions are
+ * Soundscape.kt's (JVM-tested); this only plays them.
+ *
+ * Files are the game's, by id (assets/sounds.json), fetched from wago.tools as they are first needed, off the main thread
+ * ([GameFiles.fetchNow]); one that can't be fetched leaves its bed silent and is tried again later ([RetryPolicy]): nothing
+ * here throws. MediaPlayer decodes the game's .mp3 music and .ogg sounds itself. Main thread only. NOT heard on a phone: it
+ * compiles in CI; no one has listened to it.
  */
 class Audio(context: Context, private val files: GameFiles) : Sounds {
-    private val music: Map<String, Int>
-    private val ambiences: Map<String, Int>
-    private val ui: Map<String, List<Int>>
-    private val voices: Map<String, Map<String, List<Int>>>
-    private val effects: Map<String, List<Int>>
-
-    init {
-        val o = JSONObject(context.assets.open("sounds.json").bufferedReader().use { it.readText() })
-        fun ints(m: JSONObject) = m.keys().asSequence().associateWith { m.getInt(it) }
-        fun lists(m: JSONObject) = m.keys().asSequence().associateWith { k -> m.getJSONArray(k).let { a -> List(a.length()) { a.getInt(it) } } }
-        music = ints(o.getJSONObject("music"))
-        ambiences = ints(o.getJSONObject("ambience"))
-        ui = lists(o.getJSONObject("ui"))
-        effects = lists(o.getJSONObject("effects"))
-        val v = o.getJSONObject("voices")
-        voices = v.keys().asSequence().associateWith { lists(v.getJSONObject(it)) }
-    }
-
-    /** 0..1, from the options. */
-    var musicVolume = 0.7f
-        set(value) { field = value; applyVolumes() }
-    var soundVolume = 0.85f
-        set(value) { field = value; applyVolumes() }
-
+    private val book: SoundBook = SoundBook.parse(context.assets.open("sounds.json").bufferedReader().use { it.readText() })
     private val handler = Handler(Looper.getMainLooper())
-    private val pool = SoundPool.Builder().setMaxStreams(8).setAudioAttributes(
-        AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build(),
-    ).build()
-    private val loaded = mutableMapOf<Int, Int>()       // file id -> sound pool id, once loaded
-    private val loading = mutableMapOf<Int, Int>()      // sound pool id -> file id, while loading
-    private val playWhenLoaded = mutableSetOf<Int>()    // sound pool ids asked for before they loaded
+    private val io = Executors.newSingleThreadExecutor { r -> Thread(r, "audio-fetch").apply { isDaemon = true } }
 
-    private class Track(val name: String, val player: MediaPlayer, val isAmbience: Boolean = false) {
-        var level = 0f       // its own fade, 0..1
-        var target = 0f
-        var step = 0f        // per tick
-    }
-    private var current: Track? = null
-    private val fading = mutableListOf<Track>()
-    private var ambience: Track? = null
+    /** The Sound page's levels (Options): applied at once to everything playing. */
+    var levels = MixLevels()
+        set(value) { field = value; applyVolumes(); if (!value.enabled) pool.autoPause() else if (!paused) pool.autoResume() }
+
+    private val ducker = Ducker()
+
+    /**
+     * Whether a file not on the phone may be fetched now (the player has gathered the game's files, so has said yes to
+     * downloading): until then only what is already here plays. Turning it on starts what should already be playing.
+     */
+    var fetchAllowed = false
+        set(value) {
+            val was = field
+            field = value
+            if (value && !was) { bed?.let { b -> bed = null; ambienceKey = ""; setBed(b, MusicPicker.FADE_MS) }; filesArrived() }
+        }
+
+    // ---- the beds ---------------------------------------------------------------------------------------------------
+
+    private val music = Crossfader<Int>()
+    private val ambience = Crossfader<Int>()
+    private val players = HashMap<Int, MediaPlayer>()        // deck id -> its player (music and ambience decks: ids never clash, see deckKey)
+    private var bed: MusicBed? = null
+    private var ambienceKey = ""
+    private var token = 0                                    // a new bed makes the old one's pending work do nothing
+    private var played = 0                                   // tracks of this bed so far
+    private var seed = 0L
     private var paused = false
-    private var wantedMusic = ""
+    private val attempts = HashMap<Int, Int>()
 
-    init {
-        pool.setOnLoadCompleteListener { p, id, status ->
-            val file = loading.remove(id) ?: return@setOnLoadCompleteListener
-            if (status != 0) return@setOnLoadCompleteListener
-            loaded[file] = id
-            if (playWhenLoaded.remove(id) && !paused) p.play(id, soundVolume, soundVolume, 1, 0, 1f)
-        }
-        // The short sounds are loaded ahead, so they play on time.
-        for (ids in ui.values + effects.values + voices.values.flatMap { it.values }) for (id in ids) load(id)
+    /** Off the main thread (nothing once released). */
+    private fun background(task: () -> Unit) { runCatching { io.execute(task) } }
+
+    private fun deckKey(isAmbience: Boolean, id: Int) = if (isAmbience) -id else id
+
+    /** The title's music (sounds.json's title), the ambience off. */
+    fun title() = setBed(MusicPicker.title(book), MusicPicker.TITLE_FADE_MS)
+
+    /** A place's music and ambience (sounds.json's places, by the location's id); silence for a place without sound. */
+    fun place(locationId: String, night: Boolean = false) {
+        val p = book.places[locationId]?.let { MusicPicker.place(it, night) }
+        if (p == null) silence() else setBed(p, MusicPicker.FADE_MS)
     }
 
-    private fun load(file: Int): Int? {
-        loaded[file]?.let { return it }
-        loading.entries.firstOrNull { it.value == file }?.let { return it.key }
-        if (!files.has(file)) return null
-        val id = pool.load(files.file(file).path, 1)
-        loading[id] = file
-        return id
-    }
-
-    private fun playShort(file: Int) {
-        if (paused) return
-        val id = load(file) ?: return
-        if (loaded[file] == id) pool.play(id, soundVolume, soundVolume, 1, 0, 1f) else playWhenLoaded += id
-    }
-
-    override fun music(name: String, fadeMs: Int) {
-        wantedMusic = name
-        if (current?.name == name) return
-        current?.let { fadeOut(it, fadeMs) }
-        current = null
-        val file = music[name] ?: return
-        val player = start(file, loop = true) ?: return
-        current = Track(name, player).also { t ->
-            t.target = 1f
-            t.step = if (fadeMs <= 0) 1f else TICK_MS.toFloat() / fadeMs
-            if (fadeMs <= 0) t.level = 1f
-        }
-        applyVolumes()
+    /** Both beds fade out (a screen without music: the creator, the importers). */
+    fun silence(fadeMs: Int = MusicPicker.FADE_MS) {
+        token++; bed = null; ambienceKey = ""
+        music.stop(fadeMs); ambience.stop(fadeMs)
         tick()
     }
 
-    override fun ambience(name: String) {
-        val file = ambiences[name]
-        if (ambience?.name == name) return
-        ambience?.let { fadeOut(it, 1200) }
-        ambience = null
-        if (file == null) return
-        val player = start(file, loop = true) ?: return
-        ambience = Track(name, player, isAmbience = true).also { it.target = 1f; it.step = TICK_MS / 1200f }
-        applyVolumes()
+    private fun setBed(b: MusicBed, fadeMs: Int) {
+        if (bed?.key == b.key) return
+        bed = b
+        val t = ++token
+        played = 0
+        seed = b.key.hashCode().toLong() * 31 + SystemClock.elapsedRealtime() / 60_000
+        // the ambience: the new loop crossfades in, or the old one fades away
+        val amb = b.ambience.firstOrNull()
+        val ak = amb?.toString() ?: ""
+        if (ak != ambienceKey) {
+            ambienceKey = ak
+            if (amb == null || !files.has(amb)) ambience.stop(fadeMs)
+            if (amb != null) ready(amb, t) { startDeck(amb, isAmbience = true, loop = true, fadeMs = fadeMs, t = t) }
+        }
+        if (b.tracks.isEmpty()) music.stop(fadeMs) else nextTrack(t, fadeMs)
         tick()
     }
 
-    override fun effect(name: String) {
-        effects[name]?.takeIf { it.isNotEmpty() }?.let { playShort(it[Random.nextInt(it.size)]) }
+    private fun nextTrack(t: Int, fadeMs: Int) {
+        val b = bed ?: return
+        if (t != token) return
+        val file = (if (b.loop) b.tracks.firstOrNull() else MusicPicker.at(b.tracks, seed, played)) ?: return
+        // what plays now fades at once when the next file has to be fetched first (no old music carrying on meanwhile)
+        if (!files.has(file)) music.stop(fadeMs)
+        ready(file, t) { startDeck(file, isAmbience = false, loop = b.loop, fadeMs = fadeMs, t = t) }
     }
 
-    override fun voice(look: String, emote: String) {
-        voices[look]?.get(emote)?.takeIf { it.isNotEmpty() }?.let { playShort(it[Random.nextInt(it.size)]) }
+    /** [then] on the main thread once [file] is on the phone (fetched now when it isn't); retried later when it can't be had. */
+    private fun ready(file: Int, t: Int, then: () -> Unit) {
+        if (files.has(file)) { then(); return }
+        if (!fetchAllowed) return
+        background {
+            val ok = try { files.fetchNow(file); files.has(file) } catch (e: Exception) { false }
+            handler.post {
+                if (t != token) return@post
+                if (ok) { attempts.remove(file); then() }
+                else {
+                    // offline, or wago.tools said no: this bed stays quiet and tries again in a while
+                    val n = (attempts[file] ?: 0) + 1
+                    attempts[file] = n
+                    handler.postDelayed({ if (t == token) ready(file, t, then) }, RetryPolicy.delayMs(n))
+                }
+            }
+        }
     }
 
-    override fun ui(name: String) {
-        ui[name]?.firstOrNull()?.let { playShort(it) }
-    }
-
-    private fun start(file: Int, loop: Boolean): MediaPlayer? {
-        if (!files.has(file)) return null
-        return try {
+    private fun startDeck(file: Int, isAmbience: Boolean, loop: Boolean, fadeMs: Int, t: Int) {
+        if (t != token) return
+        val fader = if (isAmbience) ambience else music
+        val player = try {
             MediaPlayer().apply {
                 setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
                 setDataSource(files.file(file).path)
                 isLooping = loop
                 setVolume(0f, 0f)
-                prepare()
-                if (!paused) start()
             }
-        } catch (e: Exception) {
-            null
+        } catch (e: Exception) { return }
+        val deck = fader.play(file, fadeMs)
+        val key = deckKey(isAmbience, deck.id)
+        players[key] = player
+        player.setOnErrorListener { _, _, _ ->
+            // a file the phone can't decode: dropped quietly (a music bed moves on to its next track)
+            fader.end(deck.id); players.remove(key)?.let { runCatching { it.release() } }
+            if (!isAmbience && t == token) handler.postDelayed({ played++; nextTrack(t, MusicPicker.FADE_MS) }, MusicPicker.MIN_GAP_MS)
+            true
         }
+        player.setOnCompletionListener {
+            fader.end(deck.id); players.remove(key)?.let { runCatching { it.release() } }
+            val b = bed
+            if (!isAmbience && t == token && b != null) {
+                played++
+                handler.postDelayed({ nextTrack(t, MusicPicker.FADE_MS) }, MusicPicker.gapMs(b.gapMs, seed + played))
+            }
+        }
+        player.setOnPreparedListener { p ->
+            if (players[key] !== p) return@setOnPreparedListener
+            applyVolumes()
+            if (!paused) runCatching { p.start() }
+            tick()
+        }
+        runCatching { player.prepareAsync() }.onFailure { fader.end(deck.id); players.remove(key); runCatching { player.release() } }
+        tick()
     }
 
-    private fun fadeOut(t: Track, ms: Int) {
-        t.target = 0f
-        t.step = if (ms <= 0) 1f else TICK_MS.toFloat() / ms
-        fading += t
+    // ---- the mixer and its clock ------------------------------------------------------------------------------------
+
+    /** How many voices are speaking now (SceneAudio.onVoices): the beds dip under them. */
+    fun voices(n: Int) {
+        ducker.setVoices(n)
         tick()
     }
 
     private var ticking = false
+    private var last = 0L
+
     private fun tick() {
         if (ticking) return
         ticking = true
+        last = SystemClock.uptimeMillis()
         handler.post(object : Runnable {
             override fun run() {
-                var busy = false
-                val all = listOfNotNull(current, ambience) + fading
-                for (t in all) {
-                    if (t.level < t.target) t.level = minOf(t.target, t.level + t.step)
-                    else if (t.level > t.target) t.level = maxOf(t.target, t.level - t.step)
-                    if (t.level != t.target) busy = true
-                }
-                for (t in fading.filter { it.level <= 0f }) {
-                    runCatching { t.player.release() }
-                    fading.remove(t)
-                }
+                val now = SystemClock.uptimeMillis()
+                val dt = (now - last).coerceIn(1, 200)
+                last = now
+                for (d in music.step(dt)) players.remove(deckKey(false, d.id))?.let { runCatching { it.release() } }
+                for (d in ambience.step(dt)) players.remove(deckKey(true, d.id))?.let { runCatching { it.release() } }
+                ducker.step(dt)
                 applyVolumes()
-                if (busy || fading.isNotEmpty()) handler.postDelayed(this, TICK_MS.toLong()) else ticking = false
+                if (music.busy || ambience.busy || ducker.moving) handler.postDelayed(this, TICK_MS) else ticking = false
             }
         })
     }
 
     private fun applyVolumes() {
-        for (t in listOfNotNull(current, ambience) + fading) {
-            val v = t.level * if (t.isAmbience) soundVolume * AMBIENCE_LEVEL else musicVolume
-            runCatching { t.player.setVolume(v, v) }
-        }
+        val m = Mixer.gain(levels, Bus.MUSIC, ducker.level)
+        val a = Mixer.gain(levels, Bus.AMBIENCE, ducker.ambienceLevel)
+        for (d in music.decks) players[deckKey(false, d.id)]?.let { p -> val v = d.level * m; runCatching { p.setVolume(v, v) } }
+        for (d in ambience.decks) players[deckKey(true, d.id)]?.let { p -> val v = d.level * a; runCatching { p.setVolume(v, v) } }
     }
 
-    /** The app went to the background (or came back). */
+    // ---- short sounds: the interface, the story's effects and voices --------------------------------------------------
+
+    private val pool = SoundPool.Builder().setMaxStreams(8).setAudioAttributes(
+        AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build(),
+    ).build()
+    private val loaded = HashMap<Int, Int>()            // file id -> sound pool id, once loaded
+    private val loading = HashMap<Int, Int>()           // sound pool id -> file id, while loading
+    private val fetching = HashSet<Int>()
+    private val playWhenLoaded = HashMap<Int, Bus>()     // sound pool ids asked for before they loaded
+
+    init {
+        pool.setOnLoadCompleteListener { p, id, status ->
+            val file = loading.remove(id) ?: return@setOnLoadCompleteListener
+            val bus = playWhenLoaded.remove(id)
+            if (status != 0) return@setOnLoadCompleteListener
+            loaded[file] = id
+            if (bus != null && !paused) Mixer.gain(levels, bus).let { v -> if (v > 0f) p.play(id, v, v, 1, 0, 1f) }
+        }
+        filesArrived()
+    }
+
+    private fun load(file: Int): Int? {
+        loaded[file]?.let { return it }
+        loading.entries.firstOrNull { it.value == file }?.let { return it.key }
+        if (!files.has(file)) {
+            // the interface's sounds are tiny: fetched as they are first wanted (played from the next time)
+            if (fetchAllowed && fetching.add(file)) background {
+                val ok = runCatching { files.fetchNow(file) }.isSuccess
+                handler.post { fetching.remove(file); if (ok) load(file) }
+            }
+            return null
+        }
+        val id = runCatching { pool.load(files.file(file).path, 1) }.getOrNull() ?: return null
+        loading[id] = file
+        return id
+    }
+
+    private fun playShort(file: Int, bus: Bus) {
+        if (paused) return
+        val v = Mixer.gain(levels, bus)
+        if (v <= 0f) return
+        val id = load(file) ?: return
+        if (loaded[file] == id) pool.play(id, v, v, 1, 0, 1f) else playWhenLoaded[id] = bus
+    }
+
+    private fun pick(list: List<Int>?): Int? = list?.takeIf { it.isNotEmpty() }?.let { it[Random.nextInt(it.size)] }
+
+    override fun ui(name: String) {
+        val n = UiSounds.resolve(name, book.ui.keys) ?: return
+        pick(book.ui[n])?.let { playShort(it, Bus.UI) }
+    }
+
+    override fun effect(name: String) { pick(book.effects[name])?.let { playShort(it, Bus.EFFECTS) } }
+
+    override fun voice(look: String, emote: String) { pick(book.voices[look]?.get(emote))?.let { playShort(it, Bus.DIALOG) } }
+
+    // ---- the story's named music and ambience (play/Sounds) -----------------------------------------------------------
+
+    override fun music(name: String, fadeMs: Int) {
+        val file = book.music[name]
+        if (file == null) { token++; bed = null; music.stop(fadeMs); tick(); return }
+        val b = MusicBed("story:$name", listOf(file), loop = true)
+        if (bed?.key == b.key) return
+        bed = b
+        val t = ++token
+        played = 0
+        nextTrack(t, fadeMs)
+        tick()
+    }
+
+    override fun ambience(name: String) {
+        val file = book.ambience[name]
+        val key = file?.toString() ?: ""
+        if (key == ambienceKey) return
+        ambienceKey = key
+        if (file == null) { ambience.stop(1200); tick(); return }
+        val t = token
+        ready(file, t) { startDeck(file, isAmbience = true, loop = true, fadeMs = 1200, t = t) }
+    }
+
+    // ---- the app's life ---------------------------------------------------------------------------------------------
+
+    /** The app went to the background: everything holds, silent. */
     fun pause() {
         paused = true
-        for (t in listOfNotNull(current, ambience) + fading) runCatching { if (t.player.isPlaying) t.player.pause() }
+        for (p in players.values) runCatching { if (p.isPlaying) p.pause() }
         pool.autoPause()
     }
 
+    /** Back: what was playing carries on. */
     fun resume() {
+        if (!paused) return
         paused = false
-        for (t in listOfNotNull(current, ambience)) runCatching { t.player.start() }
-        pool.autoResume()
+        for (p in players.values) runCatching { p.start() }
+        if (levels.enabled) pool.autoResume()
+        tick()
     }
 
-    /** Once the sounds are fetched: start what should already be playing. */
+    /** The sound files were gathered: the short sounds loaded ahead, so they play on time. */
     fun filesArrived() {
-        for (ids in ui.values + effects.values + voices.values.flatMap { it.values }) for (id in ids) load(id)
-        if (current == null && wantedMusic.isNotEmpty()) music(wantedMusic, 1500)
+        // what is here is loaded; what isn't is fetched when fetching is allowed (load decides)
+        for (id in book.shortFiles) load(id)
     }
 
     fun release() {
+        token++
         handler.removeCallbacksAndMessages(null)
-        for (t in listOfNotNull(current, ambience) + fading) runCatching { t.player.release() }
-        current = null; ambience = null; fading.clear()
+        for (p in players.values) runCatching { p.release() }
+        players.clear(); music.clear(); ambience.clear()
+        io.shutdownNow()
         pool.release()
     }
 
     private companion object {
-        const val TICK_MS = 50
-        const val AMBIENCE_LEVEL = 0.55f   // under the music
+        const val TICK_MS = 40L
     }
 }

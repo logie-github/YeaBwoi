@@ -37,7 +37,8 @@ class ImportResult(val anims: List<Anim>, val pairs: List<PairAnim>, val unpaire
  *  A package's clips are first paired ([Pairing]: its tuning, the clip names, the geometry); a pair is converted
  *  together ([Retarget.convertPair]) and reported as [ImportEvent.Paired]; every other clip is converted alone,
  *  those that look like half of a pair also reported as [ImportEvent.Unpaired]. A package of one clip is a single.
- *  The converted animations are returned unsaved: the review screen renames them and adds them to the [AnimLibrary]. */
+ *  The converted animations are returned unsaved: the review screen renames them and adds them to the [AnimLibrary].
+ *  A converted clip or pair that would play broken ([ClipValidation]) is reported as [ImportEvent.Skipped], not returned. */
 class ImportPipeline(
     private val retarget: Retarget,
     private val tmpDir: File,
@@ -214,7 +215,10 @@ class ImportPipeline(
             onEvent(ImportEvent.Found(label))
             try {
                 val p = retargetForClip(f.a).convertPair(f.a, f.b, f.def)
-                onEvent(ImportEvent.Paired(p.name, p, f.mode))
+                // a pair that would play broken is said and left out, never saved (ClipValidation)
+                val broken = ClipValidation.problem(p)
+                if (broken != null) onEvent(ImportEvent.Skipped(label, broken))
+                else onEvent(ImportEvent.Paired(p.name, p, f.mode))
             } catch (e: Exception) {
                 onEvent(ImportEvent.Failed(label, e.message ?: e.javaClass.simpleName))
                 // a pair that does not convert is still two clips the person can try by hand
@@ -245,6 +249,9 @@ class ImportPipeline(
         try {
             val anim = retargetForClip(clip).convert(clip)
             val result = anim.copy(name = anim.name.ifBlank { name }, source = anim.source.ifBlank { clip.sourceKey })
+            // a clip that would play broken is said and left out, never saved (ClipValidation)
+            val broken = ClipValidation.problem(result)
+            if (broken != null) { onEvent(ImportEvent.Skipped(label, broken)); return }
             out.add(result)
             onEvent(ImportEvent.Done(result))
         } catch (e: Exception) {

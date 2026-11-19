@@ -144,7 +144,16 @@ public:
     // The local pose of every bone at `timeMs` into sequence `seq` (`globalMs` drives looping
     // effects that run on their own clock). `looping`: past a track's last key the pose moves on toward its first (the
     // game's keys often end before the sequence does), so a loop has no seam; otherwise the last key holds.
-    void pose(int seq, uint32_t timeMs, uint32_t globalMs, std::vector<BonePose>& out, bool looping = false) const;
+    // `base`: a layer's ([isLayer]) other bones (those it has no keys for) take their pose from `base` (the pose it is
+    // played over) instead of the bind pose; null, or a sequence that is no layer: every bone from `seq`'s own tracks.
+    void pose(int seq, uint32_t timeMs, uint32_t globalMs, std::vector<BonePose>& out, bool looping = false,
+              const std::vector<BonePose>* base = nullptr) const;
+    // Whether bone `bone`'s rotation has keys of its own in sequence `seq` (false while its .anim isn't loaded).
+    bool boneKeyed(int bone, int seq) const;
+    // A layer: a sequence (its keys loaded) that keys only part of the body, made to be played over another (FacePose:
+    // the face; HandsClosed: the hands; Stop: the arms). Played alone, the body bones it leaves out would stand in the
+    // bind pose, arms out. Measured on the body's main bones (kLayerBones in m2.cpp): a quarter or more without keys.
+    bool isLayer(int seq) const;
     // The sequences of the same animation as `seq` (its variations, `seq` included), in the file's order.
     std::vector<int> variations(int seq) const;
     // Turns local poses into each bone's matrix in model space.
@@ -187,8 +196,10 @@ private:
     bool keys(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs,
               const uint8_t*& data, size_t& dataSize, uint32_t& tsOff, uint32_t& valOff,
               uint32_t& count, uint32_t& time, uint32_t* loop = nullptr, bool looping = false) const;
-    V3 evalV3(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs, V3 def, bool looping = false) const;
-    Quat evalQuat(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs, bool looping = false) const;
+    // `keyed` (if given): whether the track had keys for this moment (false: `def`, or the identity, was returned).
+    V3 evalV3(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs, V3 def, bool looping = false, bool* keyed = nullptr) const;
+    Quat evalQuat(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs, bool looping = false, bool* keyed = nullptr) const;
+    mutable std::map<int, bool> layers_;    // isLayer's answers, by data sequence (asked once its keys are in)
     float evalShort(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs, float def) const;
 };
 

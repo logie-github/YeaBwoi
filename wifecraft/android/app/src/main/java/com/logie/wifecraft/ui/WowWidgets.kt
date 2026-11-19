@@ -44,6 +44,42 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.TextOverflow
 
 /** WoW's colours: the gold of names and buttons, white words, the parchment's ink. */
 object WowColors {
@@ -297,3 +333,452 @@ fun GossipOption(text: String, onClick: () -> Unit, modifier: Modifier = Modifie
 fun Black(alpha: Float) {
     if (alpha > 0.001f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = alpha.coerceIn(0f, 1f))))
 }
+
+// ================================================================================================ the front menus' kit
+//
+// The title, the scene's setup, Options and Updates in the current game's look (Dragonflight and The War Within's menus):
+// dark slate panels with a thin gold trim, rounded buttons that glow when hovered or pressed, gold Friz headings over pale
+// words, one set of spacing and type sizes ([WifeTheme]). They draw with the game's fonts (LocalArt) and play the game's
+// interface sounds (LocalSounds: open, close, click, tab, check_on/off); every touch target is 48 dp or more and every motion
+// is MenuMotion's / FrontMotion's (none under reduced motion). The creator keeps its own look (WarWidgets, RedButton).
+
+/** The front menus' colours, spacing, corners and type, in one place. */
+object WifeTheme {
+    // colours
+    val slate = Color(0xF2171C24)
+    val slateDeep = Color(0xF20B0E13)
+    val slateRaised = Color(0xFF232A35)
+    val trim = Color(0xFFC9A55C)
+    val trimSoft = Color(0x59C9A55C)
+    val glow = Color(0xFFFFD37A)
+    val gold = WowColors.gold
+    val text = Color(0xFFF1E9DA)
+    val textDim = Color(0xFFA8A49C)
+    val danger = Color(0xFFE5574A)
+    val good = Color(0xFF86D98A)
+    val primaryTop = Color(0xFF9A2416)
+    val primaryBottom = Color(0xFF5C0F08)
+    val secondaryTop = Color(0xFF2C3440)
+    val secondaryBottom = Color(0xFF181D25)
+    val track = Color(0xFF0A0D12)
+
+    // spacing, sizes, corners
+    val gapXs = 4.dp
+    val gapS = 8.dp
+    val gapM = 12.dp
+    val gapL = 16.dp
+    val gapXl = 24.dp
+    val touch = 48.dp
+    val radius = 14.dp
+    val buttonRadius = 10.dp
+    val trimWidth = 1.dp
+
+    // type sizes
+    val display = 50.sp
+    val title = 20.sp
+    val heading = 16.sp
+    val label = 15.sp
+    val body = 14.sp
+    val caption = 12.sp
+
+    @Composable fun displayStyle(size: TextUnit = display): TextStyle = morpheusStyle(size)
+    @Composable fun titleStyle(): TextStyle = frizStyle(title, gold)
+    @Composable fun headingStyle(): TextStyle = frizStyle(heading, gold)
+    @Composable fun labelStyle(color: Color = text): TextStyle = frizStyle(label, color)
+    @Composable fun bodyStyle(color: Color = text): TextStyle = frizStyle(body, color)
+    @Composable fun captionStyle(color: Color = textDim): TextStyle = frizStyle(caption, color, shadow = false)
+}
+
+/** How a [WifeButton] looks: the game's red (the main action), slate (the others), or words alone. */
+enum class WifeButtonKind { PRIMARY, SECONDARY, QUIET }
+
+/** The slate body with its gold trim and a faint light along its top edge, in [shape]'s corners. */
+fun Modifier.wifeSurface(radius: Dp = WifeTheme.radius, raised: Boolean = false): Modifier = this
+    .shadow(if (raised) 14.dp else 8.dp, RoundedCornerShape(radius), clip = false)
+    .clip(RoundedCornerShape(radius))
+    .drawBehind {
+        val r = CornerRadius(radius.toPx())
+        drawRoundRect(Brush.verticalGradient(listOf(WifeTheme.slate, WifeTheme.slateDeep)), cornerRadius = r)
+        // the light from above: a thin pale band under the top edge
+        drawRect(Brush.verticalGradient(listOf(Color(0x14FFFFFF), Color.Transparent), endY = 36.dp.toPx()))
+        val w = WifeTheme.trimWidth.toPx()
+        drawRoundRect(WifeTheme.trim.copy(alpha = 0.85f), Offset(w / 2, w / 2), Size(size.width - w, size.height - w), r, style = Stroke(w))
+        // the inner hairline, as the game's frames have
+        val i = 4.dp.toPx()
+        drawRoundRect(WifeTheme.trimSoft, Offset(i, i), Size(size.width - 2 * i, size.height - 2 * i), CornerRadius((radius.toPx() - i).coerceAtLeast(0f)), style = Stroke(w))
+    }
+
+/** A slate panel holding [content] in a column with the theme's padding. */
+@Composable
+fun WifePanel(modifier: Modifier = Modifier, padding: Dp = WifeTheme.gapL, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier.wifeSurface().padding(padding), content = content)
+}
+
+/** A gold rule with a small diamond in its middle (under a window's title). */
+@Composable
+fun WifeDivider(modifier: Modifier = Modifier) {
+    Canvas(modifier.fillMaxWidth().height(9.dp)) {
+        val y = size.height / 2; val cx = size.width / 2; val d = 4.dp.toPx()
+        drawLine(Brush.horizontalGradient(listOf(Color.Transparent, WifeTheme.trim, Color.Transparent)), Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
+        val p = androidx.compose.ui.graphics.Path().apply { moveTo(cx, y - d); lineTo(cx + d, y); lineTo(cx, y + d); lineTo(cx - d, y); close() }
+        drawPath(p, WifeTheme.trim)
+    }
+}
+
+/** A small gold heading over a group of rows, with a hairline after it. */
+@Composable
+fun WifeSectionHeader(text: String, modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth().padding(top = WifeTheme.gapS, bottom = WifeTheme.gapXs), verticalAlignment = Alignment.CenterVertically) {
+        Text(text.uppercase(), style = frizStyle(WifeTheme.caption, WifeTheme.gold).copy(letterSpacing = 1.2.sp), maxLines = 1)
+        Box(Modifier.padding(start = WifeTheme.gapS).weight(1f).height(1.dp).background(WifeTheme.trimSoft))
+    }
+}
+
+/**
+ * A rounded button, 48 dp high at least: [kind] the game's red, slate, or words alone; a soft gold glow while hovered (a mouse
+ * or a stylus) or pressed, the press's sink (MenuMotion), the interface's [sound], a second tap in the quiet time ignored.
+ */
+@Composable
+fun WifeButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    kind: WifeButtonKind = WifeButtonKind.SECONDARY,
+    sound: String = "click",
+) {
+    val play = LocalSounds.current
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val hovered by source.collectIsHoveredAsState()
+    val reduced = reduceMotion()
+    val glow by animateFloatAsState(
+        when { !enabled -> 0f; pressed -> 1f; hovered -> 0.6f; else -> 0f },
+        tween(MenuMotion.duration(FrontMotion.GLOW_MS, reduced)), label = "glow",
+    )
+    val sink by animateFloatAsState(MenuMotion.pressScale(pressed && enabled, reduced), tween(MenuMotion.duration(MenuMotion.PRESS_MS, reduced)), label = "press")
+    val gate = rememberClickGate()
+    val shape = RoundedCornerShape(WifeTheme.buttonRadius)
+    Box(
+        modifier
+            .heightIn(min = WifeTheme.touch)
+            .graphicsLayer { scaleX = sink; scaleY = sink }
+            .hoverable(source, enabled)
+            .clickable(source, null, enabled = enabled, role = Role.Button, onClick = { if (gate.pass()) { play(sound); onClick() } })
+            .drawBehind {
+                val r = CornerRadius(WifeTheme.buttonRadius.toPx())
+                val a = if (enabled) 1f else 0.45f
+                when (kind) {
+                    WifeButtonKind.PRIMARY -> drawRoundRect(Brush.verticalGradient(listOf(WifeTheme.primaryTop, WifeTheme.primaryBottom)), cornerRadius = r, alpha = a)
+                    WifeButtonKind.SECONDARY -> drawRoundRect(Brush.verticalGradient(listOf(WifeTheme.secondaryTop, WifeTheme.secondaryBottom)), cornerRadius = r, alpha = a)
+                    WifeButtonKind.QUIET -> if (glow > 0f) drawRoundRect(Color(0x14FFFFFF), cornerRadius = r)
+                }
+                if (glow > 0f) drawRoundRect(
+                    Brush.radialGradient(listOf(WifeTheme.glow.copy(alpha = 0.32f * glow), Color.Transparent), center = Offset(size.width / 2, size.height), radius = (size.width * 0.6f).coerceAtLeast(1f)),
+                    cornerRadius = r,
+                )
+                if (kind != WifeButtonKind.QUIET) {
+                    // the top's sheen and the gold edge (brighter as it glows)
+                    drawRoundRect(Brush.verticalGradient(listOf(Color(0x22FFFFFF), Color.Transparent), endY = size.height * 0.5f), cornerRadius = r)
+                    val w = (1f + glow).dp.toPx()
+                    val edge = if (enabled) WifeTheme.trim.copy(alpha = 0.7f + 0.3f * glow) else WifeTheme.trimSoft
+                    drawRoundRect(edge, Offset(w / 2, w / 2), Size(size.width - w, size.height - w), r, style = Stroke(w))
+                }
+            }
+            .clip(shape)
+            .padding(horizontal = WifeTheme.gapL, vertical = WifeTheme.gapS),
+        contentAlignment = Alignment.Center,
+    ) {
+        val color = when {
+            !enabled -> WowColors.grey
+            kind == WifeButtonKind.QUIET -> WifeTheme.gold
+            else -> if (glow > 0.5f) Color.White else WifeTheme.gold
+        }
+        Text(text, style = frizStyle(WifeTheme.label, color), textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/**
+ * A window in the front menus' look: a slate panel, its [title] in gold with the rule under it, a round close button ([onClose]
+ * null: none), optional [tabs] under the title, the [content] (the caller scrolls it), and a [footer] row of buttons at its foot.
+ * It plays the interface's open sound as it first shows; it fades and grows in unless an [Overlay] moves it already.
+ */
+@Composable
+fun WifeWindow(
+    title: String,
+    onClose: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    tabs: List<String> = emptyList(),
+    tab: Int = 0,
+    onTab: (Int) -> Unit = {},
+    footer: (@Composable RowScope.() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val play = LocalSounds.current
+    LaunchedEffect(Unit) { play("open") }
+    val enter = if (LocalInMovingOverlay.current) null else rememberEnter()
+    Column(
+        (if (enter != null) modifier.windowMotion { enter.value } else modifier)
+            .wifeSurface(raised = true)
+            .padding(start = WifeTheme.gapL, end = WifeTheme.gapS, top = WifeTheme.gapXs, bottom = WifeTheme.gapL),
+    ) {
+        Row(Modifier.fillMaxWidth().heightIn(min = WifeTheme.touch), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f).padding(end = WifeTheme.gapS)) {
+                Text(title, style = WifeTheme.titleStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (subtitle != null) Text(subtitle, style = WifeTheme.captionStyle(), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            if (onClose != null) WifeCloseButton(onClose)
+        }
+        Column(Modifier.padding(end = WifeTheme.gapS)) {
+            WifeDivider(Modifier.padding(bottom = WifeTheme.gapS))
+            if (tabs.isNotEmpty()) WifeTabs(tabs, tab, onTab, Modifier.padding(bottom = WifeTheme.gapM))
+        }
+        Column(Modifier.weight(1f, fill = false).padding(end = WifeTheme.gapS), content = content)
+        if (footer != null) Row(
+            Modifier.fillMaxWidth().padding(top = WifeTheme.gapM, end = WifeTheme.gapS),
+            horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS, Alignment.End), verticalAlignment = Alignment.CenterVertically, content = footer,
+        )
+    }
+}
+
+/** The round close button: a thin gold ring with an X, 48 dp to touch; plays the close sound. */
+@Composable
+fun WifeCloseButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val source = remember { MutableInteractionSource() }
+    val hovered by source.collectIsHoveredAsState()
+    Box(
+        modifier.size(WifeTheme.touch).semantics { contentDescription = "Close" }.hoverable(source).warPress(sound = "close", onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.size(30.dp)) {
+            val c = center; val r = size.minDimension / 2
+            drawCircle(if (hovered) Color(0x33FFD37A) else Color(0x1AFFFFFF), r)
+            drawCircle(WifeTheme.trim, r - 0.5.dp.toPx(), style = Stroke(1.dp.toPx()))
+            val k = r * 0.38f; val w = 1.8.dp.toPx()
+            drawLine(WifeTheme.gold, Offset(c.x - k, c.y - k), Offset(c.x + k, c.y + k), w)
+            drawLine(WifeTheme.gold, Offset(c.x + k, c.y - k), Offset(c.x - k, c.y + k), w)
+        }
+    }
+}
+
+/**
+ * Tabs as the current game's: words side by side, the chosen one white with a gold bar under it that slides between them.
+ * Equal parts when they fit, else a strip that scrolls ([FrontLayout.tabsScroll]). Each is 48 dp high.
+ */
+@Composable
+fun WifeTabs(labels: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+    val reduced = reduceMotion()
+    val at by animateFloatAsState(selected.toFloat(), tween(MenuMotion.duration(FrontMotion.TAB_MS, reduced)), label = "tab")
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val scroll = FrontLayout.tabsScroll(maxWidth.value, labels.size)
+        val row = if (scroll) Modifier.horizontalScroll(rememberScrollState()) else Modifier.fillMaxWidth()
+        Box(Modifier.drawBehind { drawRect(WifeTheme.trimSoft, Offset(0f, size.height - 1.dp.toPx()), Size(size.width, 1.dp.toPx())) }) {
+            Row(row) {
+                labels.forEachIndexed { i, label ->
+                    val on = i == selected
+                    Box(
+                        (if (scroll) Modifier.widthIn(min = 96.dp) else Modifier.weight(1f)).height(WifeTheme.touch)
+                            .semantics { this.selected = on }
+                            .warPress(sound = "tab") { if (!on) onSelect(i) }
+                            .drawBehind {
+                                // the bar under the chosen tab (sliding across while the choice changes)
+                                val d = 1f - kotlin.math.abs(at - i).coerceAtMost(1f)
+                                if (d > 0f) {
+                                    val w = size.width * 0.7f * d
+                                    drawRoundRect(WifeTheme.gold, Offset((size.width - w) / 2, size.height - 3.dp.toPx()), Size(w, 3.dp.toPx()), CornerRadius(1.5.dp.toPx()))
+                                }
+                            }
+                            .padding(horizontal = WifeTheme.gapS),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(label, style = frizStyle(WifeTheme.label, if (on) Color.White else WifeTheme.gold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** A slider: a dark track, its gold fill, a round thumb that glows while held; taps and drags set [value] (0..1). 48 dp high. */
+@Composable
+fun WifeSlider(value: Float, onChange: (Float) -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, onFinished: () -> Unit = {}) {
+    val change by rememberUpdatedState(onChange)
+    val finished by rememberUpdatedState(onFinished)
+    var held by remember { mutableStateOf(false) }
+    val reduced = reduceMotion()
+    val glow by animateFloatAsState(if (held) 1f else 0f, tween(MenuMotion.duration(FrontMotion.GLOW_MS, reduced)), label = "thumb")
+    val v = value.coerceIn(0f, 1f)
+    Canvas(
+        modifier.height(WifeTheme.touch)
+            .then(if (!enabled) Modifier else Modifier
+                .pointerInput(Unit) {
+                    val k = 22.dp.toPx()
+                    detectTapGestures(onPress = { held = true; tryAwaitRelease(); held = false }) { o ->
+                        change(((o.x - k / 2) / (size.width - k)).coerceIn(0f, 1f)); finished()
+                    }
+                }
+                .pointerInput(Unit) {
+                    val k = 22.dp.toPx()
+                    detectHorizontalDragGestures(
+                        onDragStart = { held = true },
+                        onDragEnd = { held = false; finished() },
+                        onDragCancel = { held = false },
+                    ) { ch, _ -> ch.consume(); change(((ch.position.x - k / 2) / (size.width - k)).coerceIn(0f, 1f)) }
+                }),
+    ) {
+        val k = 22.dp.toPx(); val th = 6.dp.toPx(); val y = size.height / 2; val x0 = k / 2; val w = size.width - k
+        val a = if (enabled) 1f else 0.45f
+        drawRoundRect(WifeTheme.track, Offset(x0, y - th / 2), Size(w, th), CornerRadius(th / 2), alpha = a)
+        drawRoundRect(WifeTheme.trimSoft, Offset(x0, y - th / 2), Size(w, th), CornerRadius(th / 2), style = Stroke(1.dp.toPx()), alpha = a)
+        drawRoundRect(Brush.horizontalGradient(listOf(Color(0xFF8A6A2A), WifeTheme.gold)), Offset(x0, y - th / 2), Size(w * v, th), CornerRadius(th / 2), alpha = a)
+        val kx = x0 + w * v
+        if (glow > 0f) drawCircle(WifeTheme.glow.copy(alpha = 0.3f * glow), k * 0.95f, Offset(kx, y))
+        drawCircle(Brush.verticalGradient(listOf(Color(0xFFF6E2B0), Color(0xFFB08A3A)), startY = y - k / 2, endY = y + k / 2), k / 2, Offset(kx, y), alpha = a)
+        drawCircle(Color(0xFF3A2A10), k / 2, Offset(kx, y), style = Stroke(1.dp.toPx()), alpha = a)
+    }
+}
+
+/**
+ * A slider row (the Sound page's): the label, the slider, the value. Side by side, or the label over the slider on a narrow
+ * row ([FrontLayout.sliderStacked]); the row's height never changes as the value does.
+ */
+@Composable
+fun WifeSliderRow(
+    label: String,
+    value: Int,
+    onChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    valueText: String = if (value <= 0) "Off" else "$value%",
+    range: IntRange = 0..100,
+    enabled: Boolean = true,
+) {
+    val span = (range.last - range.first).coerceAtLeast(1)
+    val frac = (value - range.first).toFloat() / span
+    val set: (Float) -> Unit = { f -> onChange(range.first + (f * span).roundToInt()) }
+    BoxWithConstraints(modifier.fillMaxWidth().semantics { stateDescription = valueText }) {
+        val labelStyle = WifeTheme.labelStyle(if (enabled) WifeTheme.text else WifeTheme.textDim)
+        if (FrontLayout.sliderStacked(maxWidth.value)) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(label, style = labelStyle, maxLines = 2, modifier = Modifier.weight(1f))
+                    Text(valueText, style = WifeTheme.bodyStyle(WifeTheme.gold), maxLines = 1)
+                }
+                WifeSlider(frac, set, Modifier.fillMaxWidth(), enabled)
+            }
+        } else {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapM)) {
+                Text(label, style = labelStyle, maxLines = 2, modifier = Modifier.weight(0.4f))
+                WifeSlider(frac, set, Modifier.weight(0.6f), enabled)
+                Text(valueText, style = WifeTheme.bodyStyle(WifeTheme.gold), maxLines = 1, textAlign = TextAlign.End, modifier = Modifier.width(52.dp))
+            }
+        }
+    }
+}
+
+/** A switch row: the label (and a line under it), a rounded switch at its end; the whole row toggles, 48 dp or more. */
+@Composable
+fun WifeSwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier, detail: String? = null, enabled: Boolean = true) {
+    val reduced = reduceMotion()
+    val t by animateFloatAsState(if (checked) 1f else 0f, tween(MenuMotion.duration(FrontMotion.GLOW_MS, reduced)), label = "switch")
+    val knob by animateColorAsState(if (checked) WifeTheme.gold else Color(0xFF9A958C), tween(MenuMotion.duration(FrontMotion.GLOW_MS, reduced)), label = "knob")
+    Row(
+        modifier.fillMaxWidth().heightIn(min = WifeTheme.touch)
+            .semantics { stateDescription = if (checked) "On" else "Off" }
+            .warPress(enabled, sound = if (checked) "check_off" else "check_on") { onChange(!checked) },
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapM),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(label, style = WifeTheme.labelStyle(if (enabled) WifeTheme.text else WifeTheme.textDim), maxLines = 2)
+            if (detail != null) Text(detail, style = WifeTheme.captionStyle(), maxLines = 3)
+        }
+        Canvas(Modifier.width(46.dp).height(26.dp)) {
+            val a = if (enabled) 1f else 0.45f
+            val r = CornerRadius(size.height / 2)
+            drawRoundRect(lerpColor(WifeTheme.track, Color(0xFF5A4318), t), cornerRadius = r, alpha = a)
+            drawRoundRect(WifeTheme.trim.copy(alpha = 0.5f + 0.5f * t), cornerRadius = r, style = Stroke(1.dp.toPx()), alpha = a)
+            val d = size.height - 6.dp.toPx()
+            val x = 3.dp.toPx() + d / 2 + (size.width - d - 6.dp.toPx()) * t
+            drawCircle(knob, d / 2, Offset(x, size.height / 2), alpha = a)
+        }
+    }
+}
+
+private fun lerpColor(a: Color, b: Color, t: Float): Color = androidx.compose.ui.graphics.lerp(a, b, t.coerceIn(0f, 1f))
+
+/** A slim progress bar: a dark track, a gold fill, a light running along it while [busy] and nothing can be counted. */
+@Composable
+fun WifeProgress(fraction: Float, modifier: Modifier = Modifier) {
+    val f = fraction.coerceIn(0f, 1f)
+    Canvas(modifier.fillMaxWidth().height(10.dp)) {
+        val r = CornerRadius(size.height / 2)
+        drawRoundRect(WifeTheme.track, cornerRadius = r)
+        if (f > 0f) drawRoundRect(Brush.horizontalGradient(listOf(Color(0xFF8A6A2A), WifeTheme.gold)), size = Size(size.width * f, size.height), cornerRadius = r)
+        drawRoundRect(WifeTheme.trimSoft, cornerRadius = r, style = Stroke(1.dp.toPx()))
+    }
+}
+
+/**
+ * A picture card (a scene, an NPC): the picture rounded in a slate frame (its initial until it is drawn), the gold trim and a
+ * glow when [selected], the name under it in two lines at most. [side] square; dimmed when not [enabled].
+ */
+@Composable
+fun WifeCard(
+    name: String,
+    picture: ImageBitmap?,
+    side: Dp,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    val reduced = reduceMotion()
+    val lit by animateFloatAsState(if (selected) 1f else 0f, tween(MenuMotion.duration(FrontMotion.GLOW_MS, reduced)), label = "card")
+    val shape = RoundedCornerShape(WifeTheme.buttonRadius)
+    Column(modifier.width(side).graphicsLayer { alpha = if (enabled || selected) 1f else 0.5f }, horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            Modifier.size(side)
+                .semantics { contentDescription = name; this.selected = selected }
+                .warPress(enabled || selected, sound = "select", onClick = onClick)
+                .drawBehind {
+                    if (lit > 0f) drawRoundRect(WifeTheme.glow.copy(alpha = 0.28f * lit), Offset(-3.dp.toPx(), -3.dp.toPx()),
+                        Size(size.width + 6.dp.toPx(), size.height + 6.dp.toPx()), CornerRadius((WifeTheme.buttonRadius + 3.dp).toPx()))
+                }
+                .clip(shape)
+                .background(Brush.verticalGradient(listOf(WifeTheme.slateRaised, WifeTheme.slateDeep)))
+                .border(if (selected) 2.dp else 1.dp, if (selected) WifeTheme.gold else WifeTheme.trimSoft, shape),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (picture != null) Image(picture, null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+            else Text(name.take(1).uppercase(), style = WifeTheme.displayStyle(28.sp).copy(color = WifeTheme.textDim))
+        }
+        Text(name, style = frizStyle(WifeTheme.caption, if (selected) WifeTheme.gold else WifeTheme.text), maxLines = 2, overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center, modifier = Modifier.padding(top = WifeTheme.gapXs))
+    }
+}
+
+/** A rounded chip (a cast member): the name, an x to take it out; 48 dp to touch. */
+@Composable
+fun WifeChip(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, trailing: String? = "×") {
+    val shape = RoundedCornerShape(50)
+    Box(modifier.heightIn(min = WifeTheme.touch).warPress(onClick = onClick), contentAlignment = Alignment.Center) {
+        Row(
+            Modifier.clip(shape).background(WifeTheme.slateRaised).border(1.dp, WifeTheme.trim.copy(alpha = 0.7f), shape)
+                .padding(horizontal = WifeTheme.gapM, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(text, style = frizStyle(WifeTheme.body, WifeTheme.text), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 160.dp))
+            if (trailing != null) Text(trailing, style = frizStyle(WifeTheme.body, WifeTheme.gold), maxLines = 1)
+        }
+    }
+}
+
+/** A line of help on a front-menu panel: dim, wrapping, never clipped. */
+@Composable
+fun WifeNote(text: String, modifier: Modifier = Modifier, color: Color = WifeTheme.textDim) {
+    Text(text, style = frizStyle(WifeTheme.caption, color, shadow = false), modifier = modifier)
+}
+
+/** Space between groups of rows. */
+@Composable
+fun WifeGap(space: Dp = WifeTheme.gapS) = Spacer(Modifier.height(space))

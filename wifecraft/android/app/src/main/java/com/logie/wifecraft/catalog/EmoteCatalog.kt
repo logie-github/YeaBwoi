@@ -98,12 +98,21 @@ class EmoteCatalog private constructor(
         for ((anim, n) in m.variations) {
             if (anim in covered || anim in LAYERS) continue
             val name = anims[anim] ?: "Anim$anim"
-            rest += Emote(ANIM_BASE + anim, name, anim, 0, emptyList(), EmoteKind.ANIM, categoryOf(name), false, n, labels[anim] ?: name)
+            rest += Emote(ANIM_BASE + anim, name, anim, 0, emptyList(), EmoteKind.ANIM, categoryOf(name), EmotePlayability.heldByName(name),
+                n, labels[anim] ?: name)
         }
         rest.sortWith(compareBy({ CATEGORIES.indexOf(it.category) }, { it.label.lowercase() }))
         out += rest
         out
     }
+
+    /**
+     * [forModel] without what can't be played well on its own in a scene ([EmotePlayability.problem]: layers, and
+     * animations made for a mount, flight, water or mid-air). [includeVoiceOnly]: keep text emotes this model only has a
+     * voice for (no animation); false for lists of animations (Play animation, the partner fallback).
+     */
+    fun playableForModel(raceId: Int, sex: Sex, includeVoiceOnly: Boolean = true): List<Emote> =
+        EmotePlayability.playable(forModel(raceId, sex), includeVoiceOnly) { animName(it) }
 
     companion object {
         const val NPC_BASE = 10000
@@ -111,10 +120,12 @@ class EmoteCatalog private constructor(
         const val EMOTES = "Emotes"
 
         /**
-         * Animations that are a layer over another, never played alone: FacePose (808) keys the face only, and played on its
-         * own leaves the body in the bind pose, arms out (measured on all seven test models).
+         * Animations that are a layer over another, never listed alone: FacePose (808) keys the face only, HandsClosed (15) the
+         * hands, Stop (3) the arms, Sheath (89) and HipSheath (90) the arms. Played on its own the engine now poses the rest of
+         * the body as the idle (M2Model::isLayer), so each would show as standing. Measured on the 50 creator models (Nov
+         * 2026, engine-test/boneanim_test and the audit in the commit): 808 on all, 15 on 31, 3 on 11, 89 and 90 on one each.
          */
-        val LAYERS = setOf(808)
+        val LAYERS = setOf(808, 15, 3, 89, 90)
 
         /** The categories of [categoryOf], in the order the list shows them. */
         val CATEGORIES = listOf(EMOTES, "Dance", "Sit, sleep and kneel", "Work and life", "Combat", "Spells", "Death and injury",
@@ -127,7 +138,7 @@ class EmoteCatalog private constructor(
             val n = name.lowercase()
             fun any(vararg w: String) = w.any { it in n }
             return when {
-                n.startsWith("fly") -> "Flying"
+                n.startsWith("fly") && "kick" !in n -> "Flying"
                 any("dance") -> "Dance"
                 any("sit", "sleep", "kneel", "lean", "crouch") -> "Sit, sleep and kneel"
                 any("death", "dead", "drown", "knockdown", "wound", "stun", "cower", "rise", "critical") -> "Death and injury"

@@ -76,6 +76,11 @@ class Pose {
     var furniture: SceneObject? = null
     var playback: ClipPlayback? = null
     var ex = 0f; var ey = 0f; var ez = 0f
+    /** The line said now (a speech bubble), or null; [speechId] is new for every line said. */
+    var speech: String? = null
+    var speechId = 0L
+    /** A game animation played over the activity's while talking (a gesture, a nod, standing between lines), or -1. */
+    var gesture = -1
 }
 
 /** What a person's partner animation is, for the menus and the tests ([SceneSimulation.partnerOf]). [stage] is APPROACH
@@ -99,6 +104,10 @@ class SceneSimulation(
     var pairs: List<PartnerPair> = emptyList(),
     /** Which game animations each NPC's model has (the fallback's emotes are picked from both models'). */
     var emotes: ModelEmotes = ModelEmotes.STANDARD,
+    /** The chance an idle NPC's decision is to go and talk with another (0: never; [ChatterFrequency]). */
+    var chatterChance: Float = 0f,
+    /** What NPCs say to each other (null: they chat without words, as before). */
+    var chatter: Chatter? = null,
 ) {
     data class Person(
         val id: String, val position: Vec3, val facing: Float, val activity: Activity, val directed: Boolean,
@@ -106,6 +115,8 @@ class SceneSimulation(
         val queued: Int = 0, val repeating: Boolean = false,
         /** The other NPC of a two-person animation (walking to their places or playing), else null. */
         val partner: String? = null,
+        /** The other NPC of a conversation (walking to it or talking), else null. */
+        val talkingWith: String? = null,
     )
 
     /** A performance's sound event is due: actor [index] (the cast's order), sound [name]. Called inside [tick]. */
@@ -184,7 +195,23 @@ class SceneSimulation(
         var directed = false
         /** Seconds before this person may start another partner animation by themselves. */
         var cooldown = 0f
+        /** The conversation this person is in (walking to it, or talking), else null. */
+        var talk: Talk? = null
+        /** Seconds before this person may start or be drawn into another conversation by themselves. */
+        var chatCooldown = 0f
+        /** The last line this person said, its serial, until when it is up, and until when its talking gesture plays. */
+        var spoken: String? = null
+        var spokenId = 0L
+        var spokenUntil = 0f
+        var sayGestureUntil = 0f
     }
+
+    /** Two people talking: [a] went to [b]; [conversation] is its lines' clock (started when [a] arrives). */
+    private class Talk(val a: Actor, val b: Actor, val conversation: Conversation, val directed: Boolean)
+
+    /** Seconds the simulation has run (the speech bubbles' clock). */
+    private var time = 0f
+    private var speechSerial = 0L
 
     private val actors = actorIds.distinct().mapIndexed { i, id ->
         Actor(id, i, Vec3((i % 3 - 1) * 1.2f, -0.6f + (i / 3) * 1.45f, 0f), -1.4f, 0.6f + i * 0.45f)
@@ -213,6 +240,41 @@ class SceneSimulation(
         out.furniture = item
         val entry = item?.let { spots[it]?.entry }
         if (entry != null) { out.ex = entry.x; out.ey = entry.y; out.ez = entry.z } else { out.ex = a.x; out.ey = a.y; out.ez = a.z }
+        out.speech = a.spoken?.takeIf { time < a.spokenUntil }
+        out.speechId = a.spokenId
+        out.gesture = gestureOf(a)
+    }
+
+    private fun gestureOf(a: Actor): Int {
+        val talk = a.talk
+        if (talk != null) return if (a.phase == Phase.ACTING) talk.conversation.gesture(if (talk.a === a) 0 else 1) else -1
+        val free = a.phase != Phase.MOVING && a.performance == null && a.target == null
+        return if (a.spoken != null && time < a.sayGestureUntil && free) Gestures.TALK else -1
+    }
+
+    /** What [id] is saying now (tests), or null. */
+    fun speech(id: String): String? = actors[id]?.let { a -> a.spoken?.takeIf { time < a.spokenUntil } }
+
+    /** Whether [id] is in a conversation (walking to it or talking). */
+    fun talking(id: String): Boolean = actors[id]?.talk != null
+
+    /** The other of [id]'s conversation, or null. */
+    fun talkingWith(id: String): String? = actors[id]?.talk?.let { if (it.a.id == id) it.b.id else it.a.id }
+
+    /**
+     * The player's Say: [id] says [text] in a speech bubble (up for its reading time), talking as it does when standing
+     * free. False: no such person or nothing to say.
+     */
+    fun say(id: String, text: String): Boolean {
+        val actor = actors[id] ?: return false
+        val line = text.trim()
+        if (line.isEmpty()) return false
+        val seconds = Reading.seconds(line)
+        actor.spoken = line
+        actor.spokenId = ++speechSerial
+        actor.spokenUntil = time + seconds
+        actor.sayGestureUntil = time + minOf(seconds, Conversation.GESTURE_SECONDS + 0.8f)
+        return true
     }
 
     /** Whether [item]'s spot has been measured (it can be used). */
@@ -225,7 +287,8 @@ class SceneSimulation(
         val item = actor.target.takeIf { actor.phase == Phase.ACTING }
         Person(actor.id, actor.position, actor.facing, if (actor.phase == Phase.MOVING) Activity.WALK else actor.activity,
             actor.directed, item, item?.let { spots[it]?.entry } ?: actor.position,
-            actor.queue.size, actor.performance?.repeat == true, partnerOf(actor)?.id)
+            actor.queue.size, actor.performance?.repeat == true, partnerOf(actor)?.id,
+            actor.talk?.let { if (it.a === actor) it.b.id else it.a.id })
     }
 
     private fun partnerOf(actor: Actor): Actor? = actor.performance?.let { if (it.lead === actor) it.other else it.lead }
@@ -430,9 +493,11 @@ class SceneSimulation(
     fun tick(seconds: Float) {
         val dt = if (seconds.isNaN()) 0f else seconds.coerceIn(0f, 0.1f)
         steps++
+        time += dt
         for (actor in order) startQueuedPerformance(actor)
         for (actor in order) {
             if (actor.cooldown > 0f) actor.cooldown -= dt
+            if (actor.chatCooldown > 0f) actor.chatCooldown -= dt
             when (actor.phase) {
                 Phase.WAITING -> {
                     actor.remaining -= dt
@@ -465,6 +530,21 @@ class SceneSimulation(
                             actor.facing = atan2(coming.y - actor.y, coming.x - actor.x)
                         }
                         continue
+                    }
+                    val talk = actor.talk
+                    if (talk != null && performance == null) {
+                        if (talk.a === actor && talk.conversation.started) {
+                            val begun = talk.conversation.advance(dt)
+                            if (begun >= 0) speak(talk, begun)
+                            if (talk.conversation.done) endTalk(talk)
+                        } else if (talk.b === actor && !talk.conversation.started) {
+                            // waiting for the other to come over: face them as they come
+                            val coming = talk.a
+                            if (coming.phase == Phase.MOVING && hypot(coming.x - actor.x, coming.y - actor.y) <= FACE_RANGE) {
+                                actor.facing = atan2(coming.y - actor.y, coming.x - actor.x)
+                            }
+                        }
+                        if (talk.a === actor || talk.b === actor) continue
                     }
                     if (actor.activity == Activity.LISTEN || (performance != null && performance.lead !== actor)) continue
                     val before = if (performance != null) performance.seconds - actor.remaining else 0f
@@ -506,6 +586,10 @@ class SceneSimulation(
             val other = nearestFree(actor)
             if (other != null && random.nextFloat() < partnerChance && pick(actor, other) && startPartner(actor, other, directed = false)) return
         }
+        if (chatterChance > 0f && actor.chatCooldown <= 0f && !actor.directed && actor.queue.isEmpty()) {
+            val other = nearestFree(actor, chat = true)
+            if (other != null && random.nextFloat() < chatterChance && startChat(actor, other, directed = false)) return
+        }
         if (wanderOnly) {
             wander(actor)
             return
@@ -532,8 +616,38 @@ class SceneSimulation(
         other.partner = actor
         other.activity = Activity.LISTEN
         other.phase = Phase.ACTING
+        chatter?.let { words ->
+            val talk = Talk(actor, other, Conversation(words.conversation(actor.id, other.id, random)), directed)
+            actor.talk = talk
+            other.talk = talk
+        }
         version++
         return true
+    }
+
+    /** Line [index] of [talk] begins: its speaker's bubble (the other's is taken down). */
+    private fun speak(talk: Talk, index: Int) {
+        val line = talk.conversation.lines[index]
+        val who = if (line.speaker == 0) talk.a else talk.b
+        val other = if (who === talk.a) talk.b else talk.a
+        who.spoken = line.text
+        who.spokenId = ++speechSerial
+        who.spokenUntil = time + Reading.seconds(line.text)
+        who.sayGestureUntil = 0f
+        if (other.spokenUntil > time) other.spokenUntil = time
+    }
+
+    /** [talk] ran to its end: both carry on (and now and then, being friends, go into a partner animation together). */
+    private fun endTalk(talk: Talk) {
+        val a = talk.a
+        val b = talk.b
+        release(a)
+        if (b.talk === talk) release(b)
+        a.chatCooldown = MIN_CHAT_COOLDOWN + random.nextFloat() * (MAX_CHAT_COOLDOWN - MIN_CHAT_COOLDOWN)
+        b.chatCooldown = MIN_CHAT_COOLDOWN + random.nextFloat() * (MAX_CHAT_COOLDOWN - MIN_CHAT_COOLDOWN)
+        if (!talk.directed && partnerChance > 0f && random.nextFloat() < FRIENDLY_CHANCE && free(a) && free(b) && pick(a, b)) {
+            startPartner(a, b, directed = false)
+        }
     }
 
     private fun movementOrigin(actor: Actor): Vec3 =
@@ -584,6 +698,9 @@ class SceneSimulation(
             actor.facing = atan2(other.position.y - actor.position.y, other.position.x - actor.position.x)
             other.facing = atan2(actor.position.y - other.position.y, actor.position.x - other.position.x)
         }
+        actor.talk?.let { talk ->
+            if (talk.a === actor && !talk.conversation.started && talk.conversation.start() == 0) speak(talk, 0)
+        }
     }
 
     private fun release(actor: Actor) {
@@ -591,6 +708,12 @@ class SceneSimulation(
         if (actor.performance?.partnerActivity == true) actor.cooldown = MIN_COOLDOWN + random.nextFloat() * (MAX_COOLDOWN - MIN_COOLDOWN)
         val partner = actor.partner
         actor.partner = null
+        actor.talk?.let { talk ->
+            // a conversation cut short: its bubbles come down with it
+            for (who in arrayOf(talk.a, talk.b)) {
+                if (who.talk === talk) { who.talk = null; if (who.spokenUntil > time) who.spokenUntil = time }
+            }
+        }
         actor.performance = null
         actor.completedPerformance = null
         actor.playback = null
@@ -611,17 +734,21 @@ class SceneSimulation(
 
     private fun free(o: Actor) = o.phase == Phase.WAITING && o.performance == null && !o.directed && o.cooldown <= 0f && o.queue.isEmpty()
 
+    /** Free to be talked to: idle, in nothing else, not lately in a conversation. */
+    private fun freeToChat(o: Actor) = o.phase == Phase.WAITING && o.performance == null && o.talk == null && !o.directed &&
+        o.chatCooldown <= 0f && o.queue.isEmpty()
+
     /** The free person nearest [actor] within [PARTNER_RANGE] (ties within [TIE_YARDS]: a random one), or null. */
-    private fun nearestFree(actor: Actor): Actor? {
+    private fun nearestFree(actor: Actor, chat: Boolean = false): Actor? {
         var best = Float.MAX_VALUE
         for (o in order) {
-            if (o === actor || !free(o)) continue
+            if (o === actor || !(if (chat) freeToChat(o) else free(o))) continue
             val d = hypot(o.x - actor.x, o.y - actor.y)
             if (d <= PARTNER_RANGE && d < best) best = d
         }
         if (best == Float.MAX_VALUE) return null
         val near = peopleScratch.apply { clear() }
-        for (o in order) if (o !== actor && free(o) && hypot(o.x - actor.x, o.y - actor.y) <= best + TIE_YARDS) near.add(o)
+        for (o in order) if (o !== actor && (if (chat) freeToChat(o) else free(o)) && hypot(o.x - actor.x, o.y - actor.y) <= best + TIE_YARDS) near.add(o)
         return if (near.size == 1) near[0] else near[random.nextInt(near.size)]
     }
 
@@ -737,6 +864,11 @@ class SceneSimulation(
         /** Seconds before either may start another partner animation by themselves. */
         const val MIN_COOLDOWN = 20f
         const val MAX_COOLDOWN = 60f
+        /** Seconds before either may start another conversation by themselves. */
+        const val MIN_CHAT_COOLDOWN = 25f
+        const val MAX_CHAT_COOLDOWN = 60f
+        /** The chance a conversation that ran its course leads the two into a partner animation (when those are on). */
+        const val FRIENDLY_CHANCE = 0.2f
         private const val DEG = 0.017453292f
         private val NO_PLACE = Any()
     }

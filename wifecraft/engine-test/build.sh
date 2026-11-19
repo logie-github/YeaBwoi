@@ -20,3 +20,9 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/bodyshape_test.cpp" "$engine/bodyshape.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" \
     -o "$here/build/bodyshape_test"
 echo "$here/build/bodyshape_test"
+# Imported animations as the engine plays them (engine/boneanim.h: keys, the loop's wrap, the fit to a model's rest pose) and
+# the game's layers (M2Model::isLayer, a layer posed over its base): build/boneanim_test [FILES_DIR], exit 0 when all pass.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/boneanim_test.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" \
+    -o "$here/build/boneanim_test"
+echo "$here/build/boneanim_test"
