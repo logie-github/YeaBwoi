@@ -61,6 +61,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
@@ -504,10 +507,16 @@ fun ItemCard(
     badge: String? = null,
     /** On parchment (the Library window): the name in deep brown instead of cream. */
     onLight: Boolean = false,
+    enabled: Boolean = true,
+    selection: Boolean? = null,
 ) {
     val war = LocalWar.current
     Column(modifier.width(size), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(size).semantics { contentDescription = name.text }.warPress(onClick = onClick)) {
+        Box(Modifier.size(size).semantics {
+            contentDescription = name.text
+            if (selection != null) selected = selection
+            if (enabled) onClick { onClick(); true } else disabled()
+        }.warPress(enabled, onClick = onClick)) {
             Canvas(Modifier.matchParentSize()) {
                 val s = this.size.width
                 drawRoundRect(Color(WarPalette.SHADOW), Offset(0f, 3.dp.toPx()), this.size, CornerRadius(16.dp.toPx()))

@@ -133,7 +133,9 @@ jobs:
 
           New NPCs start clothed, each Transmog slot offers None, and the wardrobe shows Warcraft item icons. The race menu uses race IDs to find portraits, with portraits rendered from Warcraft models where needed.
 
-          Options now shows a download progress bar and file counts. The app uses Warcraft menu and loading art and the stock Stormwind Embassy scene.
+          The scene selector shows a live preview of the Warcraft location. The NPC selector shows character portraits, roster search, and a cast strip where you can remove selected NPCs. Both use Warcraft menu art.
+
+          Options shows a download progress bar and file counts for Warcraft assets.
 
           Download **$APK_FILE** and open it on your phone to install. Warcraft models and the Stormwind Embassy location use the app's existing wago.tools downloads."
           gh release create "$RELEASE_TAG" "dist/$APK_FILE" \

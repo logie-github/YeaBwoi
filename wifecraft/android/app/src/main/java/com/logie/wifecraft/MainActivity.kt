@@ -304,7 +304,7 @@ class MainActivity : ComponentActivity() {
                         update?.title,
                         onChooseScene = {
                             step = SetupStep.LOCATION
-                            location = null
+                            location = stages.firstOrNull()?.id
                             cast = emptySet()
                             objects = SceneObject.entries.toSet()
                             screen = Screen.SETUP
@@ -324,36 +324,56 @@ class MainActivity : ComponentActivity() {
                         onPause = { files.pause() },
                         onBack = { screen = Screen.TITLE },
                     )
-                    Screen.SETUP -> SceneSetupScreen(
-                        step, stages, location, { location = it }, roster, cast,
-                        onToggleActor = { id -> cast = if (id in cast) cast - id else cast + id },
-                        objects = objects,
-                        onToggleObject = { item -> objects = if (item in objects) objects - item else objects + item },
-                        onCreate = { screen = Screen.CREATOR },
-                        onAnimations = { screen = Screen.ANIMATIONS },
-                        onBack = {
-                            when (step) {
-                                SetupStep.LOCATION -> screen = Screen.TITLE
-                                SetupStep.CAST -> step = SetupStep.LOCATION
-                                SetupStep.OBJECTS -> step = SetupStep.CAST
+                    Screen.SETUP -> {
+                        val previewView = if (step == SetupStep.OBJECTS) null else sceneView()
+                        val portraits = if (step == SetupStep.CAST) {
+                            remember { Thumbs(applicationContext, files, previewView, tables) }.also { source ->
+                                DisposableEffect(source) { onDispose { source.close() } }
                             }
-                        },
-                        onNext = {
-                            when (step) {
-                                SetupStep.LOCATION -> step = SetupStep.CAST
-                                SetupStep.CAST -> step = SetupStep.OBJECTS
-                                SetupStep.OBJECTS -> if (location != null && chosen.isNotEmpty()) {
-                                    if (wardrobe == null && chosen.any { it.appearance.starterClothing && it.appearance.gear }) {
-                                        val lastError = wardrobeStatus
-                                        loadTransmog()
-                                        problem = lastError ?: "Starter clothing is loading. Try Begin scene again once the clothes are ready."
-                                    } else {
-                                        screen = Screen.LIVE
+                        } else null
+                        SceneSetupScreen(
+                            step, stages, location, { location = it }, roster, cast,
+                            onToggleActor = { id ->
+                                if (id in cast) cast = cast - id
+                                else if (cast.size < 6) cast = cast + id
+                            },
+                            previewView = previewView,
+                            locationLoader = locationLoader,
+                            portraits = portraits,
+                            portraitActor = { actor ->
+                                val raw = actor.appearance
+                                val clothes = wardrobe
+                                val appearance = if (raw.starterClothing && raw.gear) clothes?.equipStarter(raw) else raw
+                                appearance?.let { actor.copy(appearance = it) }
+                            },
+                            objects = objects,
+                            onToggleObject = { item -> objects = if (item in objects) objects - item else objects + item },
+                            onCreate = { screen = Screen.CREATOR },
+                            onAnimations = { screen = Screen.ANIMATIONS },
+                            onBack = {
+                                when (step) {
+                                    SetupStep.LOCATION -> screen = Screen.TITLE
+                                    SetupStep.CAST -> step = SetupStep.LOCATION
+                                    SetupStep.OBJECTS -> step = SetupStep.CAST
+                                }
+                            },
+                            onNext = {
+                                when (step) {
+                                    SetupStep.LOCATION -> step = SetupStep.CAST
+                                    SetupStep.CAST -> step = SetupStep.OBJECTS
+                                    SetupStep.OBJECTS -> if (location != null && chosen.isNotEmpty()) {
+                                        if (wardrobe == null && chosen.any { it.appearance.starterClothing && it.appearance.gear }) {
+                                            val lastError = wardrobeStatus
+                                            loadTransmog()
+                                            problem = lastError ?: "Starter clothing is loading. Try Begin scene again once the clothes are ready."
+                                        } else {
+                                            screen = Screen.LIVE
+                                        }
                                     }
                                 }
-                            }
-                        },
-                    )
+                            },
+                        )
+                    }
                     Screen.CREATOR -> {
                         val c = checkNotNull(catalog)
                         val view = sceneView()
@@ -484,14 +504,14 @@ class MainActivity : ComponentActivity() {
                         val actorKey: (String) -> String = { "$session:npc:$it" }
                         val objectKey: (SceneObject) -> String = { "$session:object:${it.name}" }
                         val bookKey = "$session:book"
-                        val locationReady = stage.id == preset.id && stage.ready
+                        var locationResult by remember(session) { mutableStateOf<Boolean?>(null) }
                         DisposableEffect(session) {
                             view.removeAll()
                             view.clearProps()
                             propLoader.clearError()
                             view.showCity(false)
                             view.light(Lights.of("day"))
-                            locationLoader.load(view, preset.id, "inside")
+                            locationLoader.load(view, preset.id, "inside") { locationResult = it }
                             for (actor in chosen) {
                                 val dressed = wardrobe?.equipStarter(actor.appearance) ?: actor.appearance
                                 dresser.dress(view, c, actorKey(actor.id), dressed)
@@ -552,10 +572,10 @@ class MainActivity : ComponentActivity() {
                             },
                             durations = clips.filterValues { !it.loop }.mapValues { it.value.duration },
                             onEnd = { screen = Screen.TITLE },
-                            ready = locationReady,
+                            ready = locationResult == true,
                             status = when {
-                                stage.id == preset.id && stage.error != null -> stage.error
-                                !locationReady -> "Opening ${preset.name}…"
+                                locationResult != null && stage.id == preset.id && stage.error != null -> stage.error
+                                locationResult != true -> "Opening ${preset.name}…"
                                 fetching.total > 0 -> "Loading NPCs… ${fetching.done}/${fetching.total}"
                                 props.total > 0 -> "Loading objects… ${props.done}/${props.total}"
                                 fetching.error != null -> fetching.error

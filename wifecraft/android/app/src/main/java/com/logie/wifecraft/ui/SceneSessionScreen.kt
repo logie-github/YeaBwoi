@@ -20,6 +20,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.editor.Actor
 import com.logie.wifecraft.engine.Hit
+import com.logie.wifecraft.engine.LocationLoader
+import com.logie.wifecraft.engine.Thumbs
 import com.logie.wifecraft.engine.Placement
 import com.logie.wifecraft.engine.SceneView
 import com.logie.wifecraft.location.LocationInfo
@@ -40,6 +42,10 @@ fun SceneSetupScreen(
     roster: List<Actor>,
     cast: Set<String>,
     onToggleActor: (String) -> Unit,
+    previewView: SceneView?,
+    locationLoader: LocationLoader,
+    portraits: Thumbs?,
+    portraitActor: (Actor) -> Actor?,
     objects: Set<SceneObject>,
     onToggleObject: (SceneObject) -> Unit,
     onCreate: () -> Unit,
@@ -52,26 +58,15 @@ fun SceneSetupScreen(
         WarcraftLoadingArt(Modifier.fillMaxSize())
         val layout = ChromeLayout.of(maxWidth.value, maxHeight.value)
         WowWindow(step.title, onBack, Modifier.width(layout.optionsW.dp).height(layout.optionsH.dp)) {
-            Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                when (step) {
-                    SetupStep.LOCATION -> for (preset in locations) {
-                        WowListRow(preset.name, null, selected = preset.id == location, onClick = { onLocation(preset.id) })
+            val body = Modifier.weight(1f).fillMaxWidth()
+            when (step) {
+                SetupStep.LOCATION -> SceneBrowser(locations, location, onLocation, checkNotNull(previewView), locationLoader, body)
+                SetupStep.CAST -> NpcBrowser(roster, cast, onToggleActor, onCreate, checkNotNull(previewView), portraits, portraitActor, body)
+                SetupStep.OBJECTS -> Column(body.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (item in SceneObject.entries) {
+                        WowCheckRow(item.label, item in objects, { onToggleObject(item) })
                     }
-                    SetupStep.CAST -> {
-                        Text("Choose up to six NPCs.", style = frizStyle(13.sp))
-                        RedButton("Create NPC", onCreate)
-                        for (actor in roster) {
-                            WowCheckRow(actor.name, actor.id in cast, { onToggleActor(actor.id) },
-                                enabled = actor.id in cast || cast.size < 6)
-                        }
-                    }
-                    SetupStep.OBJECTS -> {
-                        for (item in SceneObject.entries) {
-                            WowCheckRow(item.label, item in objects, { onToggleObject(item) })
-                        }
-                        RedButton("Sims 4 animations", onAnimations)
-                    }
+                    RedButton("Sims 4 animations", onAnimations)
                 }
             }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {

@@ -196,8 +196,12 @@ class Thumbs(context: Context, private val files: GameFiles, private val scene: 
         fetch(resolved.needsFiles - resolved.boneFiles.toSet())
         if (!files.has(resolved.model)) return LookSource.Prepared(error = "model ${resolved.model} couldn't be fetched (${lastFailure ?: "wago.tools didn't give it"})")
         for (m in Dressing.models(resolved)) M2Files.closure(m, if (m == resolved.model) setOf(Emotes.STAND) else emptySet(), read) { fetch(it) }
-        val call: DressCall = if (kind == PlaceKind.CREATURE) CreatureLooks.call(tables, resolved)
-            else Dressing.call(tables, Dressing.layout(creator!!, tables, appearance!!), resolved)
+        val call: DressCall = if (kind == PlaceKind.CREATURE) CreatureLooks.call(tables, resolved) else {
+            val npc = checkNotNull(appearance)
+            val layout = Dressing.layout(checkNotNull(creator), tables, npc)
+            if (npc.gear && npc.clothing.isNotEmpty()) CreatureLooks.call(tables, resolved, layout)
+            else Dressing.call(tables, layout, resolved)
+        }
         val character = if (kind == PlaceKind.CREATURE) CreatureLooks.isCharacter(tables, resolved) else true
         return LookSource.Prepared(call, BodyCall.NONE, character)
     }
