@@ -231,6 +231,43 @@ class SimsReaderTest {
         assertTrue(s.failures[0].first.endsWith("0000000000000002"))
     }
 
+    @Test fun streamedImportsReadVersion18AndContinuePastAnUnsupportedClip() {
+        val bytes = poseClip()
+        val version18 = bytes.copyOf().apply { this[0] = 18 }
+        val incompatible = bytes.copyOf().apply { this[0] = 99 }
+        val humanoid = listOf("b__ROOT_bind__", "b__Pelvis__", "b__Head__", "b__L_Thigh__", "b__R_Thigh__")
+        fun rig(names: List<String>): ByteArray {
+            val b = Buf().u32(4).u32(2).u32(names.size)
+            for ((i, name) in names.withIndex()) {
+                repeat(6) { b.f32(0f) }
+                repeat(4) { b.f32(1f) }
+                b.str32(name).u32(-1).u32(if (i == 0) -1 else 0).u32(SimsHash.fnv32(name)).u32(0)
+            }
+            return b.get()
+        }
+        val pkg = dbpf(
+            Res(ClipDecoder.TYPE, 1, incompatible),
+            Res(SimsRig.TYPE, 2, rig(listOf("b__Root__", "b__Head__"))),
+            Res(ClipDecoder.TYPE, 3, version18),
+            Res(SimsRig.TYPE, 4, rig(humanoid)),
+        )
+        val file = Files.createTempFile("mod-import", ".package").toFile()
+        try {
+            file.writeBytes(pkg)
+            DbpfFile(file).use { disk ->
+                assertEquals(humanoid.size, SimsReader.humanoidRigs(disk).single().bones.size)
+                val clips = mutableListOf<SimsClip>()
+                val failures = mutableListOf<String>()
+                assertEquals(2, SimsReader.visitClips(disk, { clips += it }, { key, _ -> failures += key }))
+                assertTrue(failures.single().endsWith("0000000000000001"))
+                assertEquals(ClipDecoder.decode(bytes).name, clips.single().name)
+                assertEquals(ClipDecoder.decode(bytes).tracks.size, clips.single().tracks.size)
+            }
+        } finally {
+            file.delete()
+        }
+    }
+
     @Test fun garbageNeverCrashes() {
         val rnd = Random(1357)
         val good = dbpf(Res(ClipDecoder.TYPE, 1, poseClip()), Res(SimsRig.TYPE, 2, ByteArray(40)))

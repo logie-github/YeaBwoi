@@ -426,7 +426,7 @@ fun SceneAnimationScreen(
     }
     rememberHeld(editing)?.let { activity ->
         PickDialog(activity.label, listOf("" to "Warcraft default") + clips.map { it.id to it.name },
-            bindings[activity], onCancel = { editing = null }, visible = editing != null) { id ->
+            bindings[activity], onCancel = { editing = null }, visible = editing != null, searchHint = "Find animations") { id ->
             onChange(activity, id.takeIf { it.isNotEmpty() })
             editing = null
         }

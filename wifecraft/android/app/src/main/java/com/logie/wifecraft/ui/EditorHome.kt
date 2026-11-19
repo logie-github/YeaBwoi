@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -119,14 +120,33 @@ fun ConfirmDialog(question: String, ok: String, onCancel: () -> Unit, onOk: () -
 
 /** A list of (id, label) to pick one from, in a WoW list window over the screen. */
 @Composable
-fun PickDialog(title: String, items: List<Pair<String, String>>, current: String?, onCancel: () -> Unit, visible: Boolean = true, onPick: (String) -> Unit) {
+fun PickDialog(
+    title: String,
+    items: List<Pair<String, String>>,
+    current: String?,
+    onCancel: () -> Unit,
+    visible: Boolean = true,
+    searchHint: String? = null,
+    onPick: (String) -> Unit,
+) {
+    var query by remember(title) { mutableStateOf("") }
+    val shown = remember(items, query) {
+        if (query.isBlank()) items else items.filter { it.second.contains(query.trim(), ignoreCase = true) }
+    }
     Overlay(onCancel, visible) {
         WowWindow(title, onCancel, Modifier.widthIn(max = 520.dp).heightIn(max = 520.dp).padding(16.dp)) {
-            // opens on the chosen one, not at the top of a long list; keys stay unique even if two ids repeat
-            val keys = remember(items) { ListKeys.unique(items.map { it.first }) }
-            val list = rememberLazyListState(initialFirstVisibleItemIndex = items.indexOfFirst { it.first == current }.let { if (it > 0) it - 1 else 0 })
+            val keys = remember(shown) { ListKeys.unique(shown.map { it.first }) }
+            val list = rememberLazyListState(initialFirstVisibleItemIndex = shown.indexOfFirst { it.first == current }.let { if (it > 0) it - 1 else 0 })
+            if (searchHint != null) {
+                WowSearchBox(query, { query = it }, searchHint, Modifier.fillMaxWidth())
+                LaunchedEffect(query) { if (query.isNotEmpty()) list.scrollToItem(0) }
+            }
             LazyColumn(Modifier.weight(1f, fill = false).warScrollbar(list), list, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                items(items.size, key = { keys[it] }, contentType = { "row" }) { i -> val (id, label) = items[i]
+                if (shown.isEmpty() && searchHint != null) item {
+                    Text("No matching animations.", Modifier.padding(8.dp), style = frizStyle(14.sp))
+                }
+                items(shown.size, key = { keys[it] }, contentType = { "row" }) { i ->
+                    val (id, label) = shown[i]
                     WowListRow(label, null, selected = id == current, onClick = { onPick(id) })
                 }
             }

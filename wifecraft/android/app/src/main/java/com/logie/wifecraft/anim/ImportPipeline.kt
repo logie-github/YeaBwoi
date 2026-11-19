@@ -1,8 +1,9 @@
 package com.logie.wifecraft.anim
 
+import com.logie.wifecraft.sims.DbpfFile
 import com.logie.wifecraft.sims.SimsClip
-import com.logie.wifecraft.sims.SimsFormatException
 import com.logie.wifecraft.sims.SimsReader
+import com.logie.wifecraft.sims.SimsRig
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -27,7 +28,8 @@ class ImportPipeline(
     private val retarget: Retarget,
     private val tmpDir: File,
     private val limits: ArchiveLimits = ArchiveLimits(),
-    private val reader: (ByteArray) -> List<SimsClip> = { SimsReader.clips(it) },
+    private val reader: ((ByteArray) -> List<SimsClip>)? = null,
+    private val embeddedRetargeter: ((SimsRig) -> Retarget)? = null,
 ) {
     fun run(inputs: List<ImportInput>, onEvent: (ImportEvent) -> Unit): List<Anim> {
         val out = ArrayList<Anim>()
@@ -88,30 +90,54 @@ class ImportPipeline(
     private fun onePackage(pname: String, pfile: File, onEvent: (ImportEvent) -> Unit, out: MutableList<Anim>) {
         onEvent(ImportEvent.Found(pname))
         if (pfile.length() > MAX_PACKAGE) {
-            onEvent(ImportEvent.Failed(pname, "The package is larger than ${MAX_PACKAGE shr 20} MB, too big to read on the phone")); return
+            onEvent(ImportEvent.Failed(pname, "The package exceeds the ${MAX_PACKAGE shr 20} MB import limit")); return
         }
-        val clips = try {
-            reader(pfile.readBytes())
-        } catch (e: SimsFormatException) {
-            onEvent(ImportEvent.Failed(pname, e.message ?: "not a readable Sims 4 package")); return
-        }
-        if (clips.isEmpty()) {
-            onEvent(ImportEvent.Skipped(pname, "No animation clips in this package (it may hold only objects, CAS parts or other mods)")); return
-        }
-        val base = pname.substringAfterLast('/').removeSuffix(".package").removeSuffix(".Package")
-        for (clip in clips) {
-            val cname = clip.name.ifBlank { base }
-            val label = "$pname :: $cname"
-            onEvent(ImportEvent.Found(label))
-            try {
-                var a = retarget.convert(clip)
-                if (a.name.isBlank()) a = a.copy(name = cname)
-                if (a.source.isBlank()) a = a.copy(source = clip.sourceKey)
-                out.add(a)
-                onEvent(ImportEvent.Done(a))
-            } catch (e: Exception) {
-                onEvent(ImportEvent.Failed(label, e.message ?: e.javaClass.simpleName))
+        val base = pname.substringAfterLast('/').substringBeforeLast('.')
+        val count = if (reader != null) {
+            val clips = reader(pfile.readBytes())
+            for (clip in clips) convert(pname, base, clip, { retarget }, onEvent, out)
+            clips.size
+        } else {
+            DbpfFile(pfile).use { pkg ->
+                val rigs = if (embeddedRetargeter != null) SimsReader.humanoidRigs(pkg) else emptyList()
+                val converters = HashMap<SimsRig, Retarget>()
+                fun converter(clip: SimsClip): Retarget {
+                    if (rigs.isEmpty() || embeddedRetargeter == null) return retarget
+                    val hashes = clip.tracks.mapTo(HashSet()) { it.boneHash }
+                    val rig = rigs.maxBy { it.coverage(hashes) }
+                    return converters.getOrPut(rig) { embeddedRetargeter.invoke(rig) }
+                }
+                SimsReader.visitClips(pkg,
+                    onClip = { clip -> convert(pname, base, clip, ::converter, onEvent, out) },
+                    onFailure = { key, why ->
+                        val label = "$pname :: $key"
+                        onEvent(ImportEvent.Found(label))
+                        onEvent(ImportEvent.Failed(label, why))
+                    },
+                )
             }
+        }
+        if (count == 0) onEvent(ImportEvent.Skipped(pname, "No animation clips in this package (it may hold only objects, CAS parts or other mods)"))
+    }
+
+    private fun convert(
+        packageName: String,
+        base: String,
+        clip: SimsClip,
+        retargetForClip: (SimsClip) -> Retarget,
+        onEvent: (ImportEvent) -> Unit,
+        out: MutableList<Anim>,
+    ) {
+        val name = clip.name.ifBlank { base }
+        val label = "$packageName :: $name"
+        onEvent(ImportEvent.Found(label))
+        try {
+            val anim = retargetForClip(clip).convert(clip)
+            val result = anim.copy(name = anim.name.ifBlank { name }, source = anim.source.ifBlank { clip.sourceKey })
+            out.add(result)
+            onEvent(ImportEvent.Done(result))
+        } catch (e: Exception) {
+            onEvent(ImportEvent.Failed(label, e.message ?: e.javaClass.simpleName))
         }
     }
 

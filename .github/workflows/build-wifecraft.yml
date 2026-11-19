@@ -139,6 +139,8 @@ jobs:
 
           Select an NPC and open NPC camera to follow them. Drag to orbit, pinch or use the zoom buttons, and select Room camera to return to the room view. Resting and sitting use the furniture's measured surface for placement.
 
+          The Sims 4 importer can read large mod archives one clip at a time and can use a compatible skeleton inside a package. Unsupported clips are reported individually. Search imported clips when assigning an animation to an NPC action.
+
           Options shows a download progress bar and file counts for Warcraft assets.
 
           Download **$APK_FILE** and open it on your phone to install. Warcraft models and the Stormwind Embassy location use the app's existing wago.tools downloads."

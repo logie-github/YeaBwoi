@@ -23,18 +23,46 @@ object SimsReader {
         val dbpf = open(pkg)
         val clips = ArrayList<SimsClip>()
         val failures = ArrayList<Pair<String, String>>()
-        for (e in dbpf.entries) {
-            if (e.type != ClipDecoder.TYPE) continue
-            try {
-                clips += ClipDecoder.decode(dbpf.read(e), e.key)
-            } catch (x: SimsFormatException) {
-                failures += e.key to (x.message ?: "unreadable")
-            } catch (x: RuntimeException) {
-                failures += e.key to "unexpected data (${x.javaClass.simpleName}): the clip is damaged or in a layout this reader does not know"
-            }
-        }
+        visitClips(dbpf.entries, dbpf::read, { clips += it }, { key, why -> failures += key to why })
         return Scan(clips, failures)
     }
+
+    /** Reads one resource at a time from disk, including the failure of any individual clip. */
+    fun visitClips(pkg: DbpfFile, onClip: (SimsClip) -> Unit, onFailure: (String, String) -> Unit): Int =
+        visitClips(pkg.entries, pkg::read, onClip, onFailure)
+
+    private fun visitClips(
+        entries: List<Dbpf.Entry>,
+        read: (Dbpf.Entry) -> ByteArray,
+        onClip: (SimsClip) -> Unit,
+        onFailure: (String, String) -> Unit,
+    ): Int {
+        var found = 0
+        for (entry in entries) {
+            if (entry.type != ClipDecoder.TYPE) continue
+            found++
+            val clip = try {
+                ClipDecoder.decode(read(entry), entry.key)
+            } catch (e: SimsFormatException) {
+                onFailure(entry.key, e.message ?: "Unreadable clip")
+                continue
+            } catch (e: RuntimeException) {
+                onFailure(entry.key, "Unreadable clip data (${e.javaClass.simpleName})")
+                continue
+            }
+            onClip(clip)
+        }
+        return found
+    }
+
+    /** An animation archive can contain rigs for props and animals alongside its human rigs. */
+    fun humanoidRigs(pkg: DbpfFile): List<SimsRig> = pkg.entries.filter { it.type == SimsRig.TYPE }.mapNotNull { entry ->
+        val rig = runCatching { SimsRig.parse(pkg.read(entry)) }.getOrNull()
+        rig?.takeIf { it.coverage(humanoidBones) == humanoidBones.size }
+    }
+
+    private val humanoidBones = listOf("b__ROOT_bind__", "b__Pelvis__", "b__Head__", "b__L_Thigh__", "b__R_Thigh__")
+        .map(SimsHash::fnv32)
 
     /** Every rig in [pkg]. Throws [SimsFormatException] when the package cannot be read or holds no readable rig. */
     fun rigs(pkg: ByteArray): List<SimsRig> {

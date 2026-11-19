@@ -25,7 +25,7 @@ class SimsClip(
 )
 
 /**
- * The Sims 4's CLIP resource (type 0x6B20C4F3), versions 1 to 14.
+ * The Sims 4's CLIP resource (type 0x6B20C4F3), versions 1 to 14 and 18.
  *
  * The resource: u32 version, u32 flags, f32 duration (seconds), the initial offset (quaternion x,y,z,w
  * and vector x,y,z), then by version: (5+) a namespace hash, (10+) two surface hashes, (11+) a surface
@@ -59,7 +59,7 @@ object ClipDecoder {
         if (data.size < 40) r.fail("is only ${data.size} bytes; a Sims 4 clip header alone is 40")
         val version = r.u32(0)
         if (version == SIMS3_TAG) r.fail("is a Sims 3 clip; only Sims 4 clips are read")
-        if (version < 1 || version > 14) r.fail("is CLIP version $version; this reader knows versions 1 to 14 (The Sims 4 writes 14)")
+        if (version !in 1..14 && version != 18) r.fail("is CLIP version $version; supported versions are 1 to 14 and 18")
         val duration = r.f32(8)
         var p = 40
         if (version >= 5) p += 4

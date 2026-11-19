@@ -101,7 +101,7 @@ private fun displayName(ctx: Context, uri: Uri): String {
     return uri.lastPathSegment?.substringAfterLast('/') ?: "file"
 }
 
-private enum class Phase { Pick, Running, Review, Saved }
+private enum class Phase { Pick, Running, Review, Saving, Saved }
 
 /**
  * The import flow. [retargeter] makes the converter for the loaded skeleton (anim/Retargeter with the profile in
@@ -129,8 +129,8 @@ fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig)
     }
     BackHandler {
         when {
-            newCategory != null -> newCategory = null   // the open dialog first
-            phase == Phase.Running -> Unit   // the import finishes first (it never leaves files behind)
+            newCategory != null -> newCategory = null
+            phase == Phase.Running || phase == Phase.Saving -> Unit
             phase == Phase.Review -> phase = Phase.Pick
             else -> onBack()
         }
@@ -170,7 +170,10 @@ fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig)
             val results = withContext(Dispatchers.IO) {
                 try {
                     val rig = RigImport.load(rigs)
-                    val pipeline = ImportPipeline(if (rig == null) NoRigRetarget() else retargeter(rig), tmp)
+                    val pipeline = ImportPipeline(
+                        if (rig == null) NoRigRetarget() else retargeter(rig), tmp,
+                        embeddedRetargeter = retargeter.takeIf { rig == null },
+                    )
                     pipeline.run(inputs) { e -> main.post { r.apply(e); rev++ } }
                 } catch (e: Exception) {
                     main.post { r.apply(com.logie.wifecraft.anim.ImportEvent.Failed("Import", e.message ?: e.toString())) }
@@ -189,10 +192,9 @@ fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig)
 
     val pickFiles = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { start(it) }
 
-    EditorFrame("Import Animations", { if (phase != Phase.Running) { if (phase == Phase.Review) phase = Phase.Pick else onBack() } },
-        // the animation library (the title keeps six buttons: it is reached from here and from the editor's Game Menu)
-        actions = { if (onLibrary != null && phase != Phase.Running) TextAction("Animations", onLibrary) }) {
-        // one step gives way to the next with a short cross-fade (none under reduced motion)
+    val busy = phase == Phase.Running || phase == Phase.Saving
+    EditorFrame("Import Animations", { if (!busy) { if (phase == Phase.Review) phase = Phase.Pick else onBack() } },
+        actions = { if (onLibrary != null && !busy) TextAction("Animations", onLibrary) }) {
         Crossfade(phase, animationSpec = tween(MenuMotion.duration(MenuMotion.PAGE_MS, reduceMotion())), label = "phase") { step ->
         when (step) {
             Phase.Pick -> PickPage(
@@ -206,10 +208,20 @@ fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig)
                     d, library.categories(), run.summary(),
                     changed = { rev++ },
                     onNewCategory = { newCategory = it },
-                    onSave = { saved = d.save(library.asStore()); phase = Phase.Saved },
+                    onSave = {
+                        if (phase == Phase.Review) {
+                            phase = Phase.Saving
+                            scope.launch {
+                                saved = withContext(Dispatchers.IO) { d.save(library.asStore()) }
+                                draft = null
+                                phase = Phase.Saved
+                            }
+                        }
+                    },
                     onCancel = { phase = Phase.Pick },
                 )
             }
+            Phase.Saving -> Text("Saving animations…", style = frizStyle(16.sp))
             Phase.Saved -> Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(ReviewDraft.summary(saved) + ".", style = frizStyle(18.sp))
                 LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -255,13 +267,13 @@ private fun PickPage(hasRig: Boolean, bones: Int?, rigMessage: String?, rigBusy:
             Column(Modifier.weight(1f)) {
                 Text("Sims 4 skeleton", style = frizStyle(16.sp))
                 Text(RigStore.status(hasRig, bones), style = frizStyle(13.sp, if (hasRig) Color(0xFF7CFC7C) else Color(0xFFFF6A5A), false))
-                if (!hasRig) Text(AnimText.NO_RIG, style = frizStyle(12.sp, WowColors.grey, false))
+                if (!hasRig) Text("Wifecraft can also use a humanoid skeleton included in an animation package.",
+                    style = frizStyle(12.sp, WowColors.grey, false))
                 rigMessage?.let { Text(it, style = frizStyle(12.sp, Color.White, false)) }
             }
             SmallButton(if (hasRig) "Replace" else "Choose package", onRig, enabled = !rigBusy, width = 150.dp)
         }
         WowButton("Choose animation files", onFiles, Modifier.align(Alignment.CenterHorizontally), width = 280.dp, height = 44.dp)
-        if (!hasRig) Text("Without the skeleton the files can still be picked, but each is reported as failed.", style = frizStyle(12.sp, WowColors.grey, false))
         if (last.rows.isNotEmpty()) {
             Text("Last import: ${last.summary()}", style = frizStyle(14.sp))
             LazyColumn(Modifier.weight(1f), rememberLazyListState(), verticalArrangement = Arrangement.spacedBy(3.dp)) { rowsList(last.rows) }
