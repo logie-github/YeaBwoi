@@ -42,6 +42,10 @@ enum class SceneObject(val label: String, val model: Int, val position: Vec3, va
 
 data class PlaybackRole(val clip: String, val offset: Vec3, val facing: Float)
 data class ClipPlayback(val clip: String, val command: Long)
+data class PerformanceOrder(
+    val partnerId: String?, val roles: List<PlaybackRole>, val seconds: Float,
+    val repeat: Boolean = false, val repetitions: Int = 1,
+)
 
 data class InteractionSpot(val entry: Vec3, val pose: Vec3, val facing: Float)
 
@@ -70,6 +74,7 @@ class SceneSimulation(
     data class Person(
         val id: String, val position: Vec3, val facing: Float, val activity: Activity, val directed: Boolean,
         val furniture: SceneObject? = null, val entry: Vec3 = position,
+        val queued: Int = 0, val repeating: Boolean = false,
     )
 
     private val spots = if (initiallyReady) objects.associateWith { item ->
@@ -89,7 +94,7 @@ class SceneSimulation(
 
     private class Performance(
         val lead: Actor, val other: Actor?, val roles: List<PlaybackRole>, val seconds: Float,
-        val anchor: Vec3, val heading: Float, val command: Long,
+        val anchor: Vec3, val heading: Float, var repeat: Boolean, var remainingCycles: Int,
     ) {
         var started = false
     }
@@ -114,6 +119,8 @@ class SceneSimulation(
         var partner: Actor? = null
         var performance: Performance? = null
         var playback: ClipPlayback? = null
+        val queue = ArrayDeque<PerformanceOrder>()
+        var completedPerformance: Performance? = null
         var directed = false
     }
 
@@ -153,7 +160,8 @@ class SceneSimulation(
     fun people(): List<Person> = actors.values.map { actor ->
         val item = actor.target.takeIf { actor.phase == Phase.ACTING }
         Person(actor.id, actor.position, actor.facing, if (actor.phase == Phase.MOVING) Activity.WALK else actor.activity,
-            actor.directed, item, item?.let { spots[it]?.entry } ?: actor.position)
+            actor.directed, item, item?.let { spots[it]?.entry } ?: actor.position,
+            actor.queue.size, actor.performance?.repeat == true)
     }
 
     fun available(target: SceneObject, id: String): Boolean =
@@ -178,17 +186,56 @@ class SceneSimulation(
         return startChat(actor, other, directed = true)
     }
 
-    fun perform(id: String, otherId: String?, roles: List<PlaybackRole>, seconds: Float): Boolean {
-        val lead = actors[id] ?: return false
-        val other = otherId?.let { actors[it] ?: return false }
-        if (other === lead || roles.size != if (other == null) 1 else 2) return false
+    fun perform(id: String, otherId: String?, roles: List<PlaybackRole>, seconds: Float): Boolean =
+        perform(id, PerformanceOrder(otherId, roles, seconds))
+
+    fun perform(id: String, request: PerformanceOrder): Boolean {
+        val actor = actors[id] ?: return false
+        return valid(actor, request) && startPerformance(actor, request)
+    }
+
+    fun enqueue(id: String, requests: List<PerformanceOrder>): Boolean {
+        val actor = actors[id] ?: return false
+        if (requests.isEmpty() || requests.size > MAX_QUEUED - actor.queue.size || requests.any { !valid(actor, it) }) return false
+        actor.queue.addAll(requests)
+        version++
+        return true
+    }
+
+    fun clearQueue(id: String) {
+        val actor = actors[id] ?: return
+        actor.queue.clear()
+        actor.completedPerformance = null
+        version++
+    }
+
+    fun stopRepeat(id: String) {
+        val performance = actors[id]?.performance ?: return
+        if (performance.repeat) {
+            performance.repeat = false
+            performance.remainingCycles = 1
+            version++
+        }
+    }
+
+    private fun valid(lead: Actor, request: PerformanceOrder): Boolean =
+        request.seconds.isFinite() && request.seconds > 0f && request.repetitions in 1..100 &&
+            if (request.partnerId == null) request.roles.size == 1
+            else request.partnerId != lead.id && request.partnerId in actors && request.roles.size == 2
+
+    private fun startPerformance(lead: Actor, request: PerformanceOrder, continuation: Performance? = null): Boolean {
+        val other = request.partnerId?.let(actors::get)
+        val previous = continuation?.takeIf { it.other === other }
+        val anchor = previous?.anchor ?: movementOrigin(lead)
+        val heading = previous?.heading ?: lead.facing
+        val performance = Performance(lead, other, request.roles, request.seconds.coerceIn(0.25f, 3600f),
+            anchor, heading, request.repeat, request.repetitions)
+        if (other != null && previous == null &&
+            !begin(other, Activity.PERFORM, rolePosition(performance, request.roles[1]), directed = true)) return false
+
         release(lead)
-        if (other != null) release(other)
-        val performance = Performance(lead, other, roles, seconds.coerceIn(0.25f, 600f), lead.position, lead.facing, ++version)
-        if (other == null) play(performance)
-        else {
-            val entry = rolePosition(performance, roles[1])
-            if (!begin(other, Activity.PERFORM, entry, directed = true)) return false
+        if (other != null) {
+            if (previous != null) release(other)
             lead.partner = other
             other.partner = lead
             lead.performance = performance
@@ -196,8 +243,26 @@ class SceneSimulation(
             lead.phase = Phase.ACTING
             lead.directed = true
         }
+        if (other == null || previous != null) play(performance)
         return true
     }
+
+    private fun startQueuedPerformance(actor: Actor) {
+        if (actor.performance != null || actor.directed) return
+        val next = actor.queue.firstOrNull() ?: return
+        val partner = next.partnerId?.let(actors::get)
+        if (partner?.let { it.directed || it.performance != null } == true) return
+        actor.queue.removeFirst()
+        val previous = actor.completedPerformance
+        actor.completedPerformance = null
+        if (!startPerformance(actor, next, previous)) queueNotice = "The NPCs couldn’t reach their starting positions."
+        version++
+    }
+
+    var queueNotice: String? = null
+        private set
+
+    fun takeQueueNotice(): String? = queueNotice.also { queueNotice = null }
 
     private fun rolePosition(performance: Performance, role: PlaybackRole): Vec3 {
         val x = role.offset.x
@@ -209,12 +274,13 @@ class SceneSimulation(
 
     private fun play(performance: Performance) {
         performance.started = true
+        val command = ++version
         for ((index, actor) in listOfNotNull(performance.lead, performance.other).withIndex()) {
             val role = performance.roles[index]
             actor.position = rolePosition(performance, role)
             actor.facing = performance.heading + role.facing
             actor.performance = performance
-            actor.playback = ClipPlayback(role.clip, performance.command)
+            actor.playback = ClipPlayback(role.clip, command)
             actor.activity = Activity.PERFORM
             actor.phase = Phase.ACTING
             actor.remaining = performance.seconds
@@ -224,11 +290,16 @@ class SceneSimulation(
     }
 
     fun freeWill(id: String) {
-        actors[id]?.let { release(it) }
+        actors[id]?.let { actor ->
+            clearQueue(actor.id)
+            actor.performance?.lead?.takeUnless { it === actor }?.let { clearQueue(it.id) }
+            release(actor)
+        }
     }
 
     fun tick(seconds: Float) {
         val dt = if (seconds.isNaN()) 0f else seconds.coerceIn(0f, 0.1f)
+        for (actor in order) startQueuedPerformance(actor)
         for (actor in order) {
             when (actor.phase) {
                 Phase.WAITING -> {
@@ -258,7 +329,17 @@ class SceneSimulation(
                     if (actor.activity == Activity.LISTEN ||
                         (performance != null && (!performance.started || performance.lead !== actor))) continue
                     actor.remaining -= dt
-                    if (actor.remaining <= 0f) release(actor)
+                    if (actor.remaining <= 0f) {
+                        val repeat = performance?.repeat == true && actor.queue.isEmpty() &&
+                            performance.other?.queue?.isNotEmpty() != true
+                        if (performance != null && (--performance.remainingCycles > 0 || repeat)) {
+                            play(performance)
+                        } else {
+                            release(actor)
+                            actor.completedPerformance = performance?.takeIf { actor.queue.isNotEmpty() }
+                            startQueuedPerformance(actor)
+                        }
+                    }
                 }
             }
         }
@@ -301,8 +382,11 @@ class SceneSimulation(
         return true
     }
 
+    private fun movementOrigin(actor: Actor): Vec3 =
+        spots[actor.target]?.entry?.takeIf { actor.phase == Phase.ACTING } ?: actor.position
+
     private fun begin(actor: Actor, activity: Activity, destination: Vec3, directed: Boolean, target: SceneObject? = null): Boolean {
-        val from = spots[actor.target]?.entry?.takeIf { actor.phase == Phase.ACTING } ?: actor.position
+        val from = movementOrigin(actor)
         val path = if (route == null) listOf(destination) else route.invoke(from, destination).orEmpty()
         if (path.isEmpty()) return false
         release(actor)
@@ -349,6 +433,7 @@ class SceneSimulation(
         val partner = actor.partner
         actor.partner = null
         actor.performance = null
+        actor.completedPerformance = null
         actor.playback = null
         if (actor.phase == Phase.ACTING) actor.target?.let { actor.position = spots.getValue(it).entry }
         actor.target = null
@@ -366,5 +451,6 @@ class SceneSimulation(
     companion object {
         /** Yards a second a person walks. */
         const val WALK_SPEED = 1.25f
+        private const val MAX_QUEUED = 64
     }
 }

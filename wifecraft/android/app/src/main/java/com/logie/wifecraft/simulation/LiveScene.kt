@@ -19,7 +19,8 @@ data class SceneSnapshot(
     /** The last command's refusal ("Chair is in use."), or null. */
     val notice: String?,
 ) {
-    data class PersonView(val id: String, val activity: Activity, val directed: Boolean)
+    data class PersonView(val id: String, val activity: Activity, val directed: Boolean,
+        val queued: Int = 0, val repeating: Boolean = false)
 
     /** Whether [id] may use [item] now. */
     fun available(item: SceneObject, id: String): Boolean = item in usable && holders[item].let { it == null || it == id }
@@ -112,7 +113,7 @@ class LiveScene(
 
     /** The menus' view now (allocates: on change only). */
     fun snapshot(): SceneSnapshot {
-        val people = simulation.people().map { SceneSnapshot.PersonView(it.id, it.activity, it.directed) }
+        val people = simulation.people().map { SceneSnapshot.PersonView(it.id, it.activity, it.directed, it.queued, it.repeating) }
         val holders = HashMap<SceneObject, String>()
         val usable = HashSet<SceneObject>()
         for (item in simulation.objects) {
@@ -138,6 +139,7 @@ class LiveScene(
             for (s in 0 until due) {
                 for (i in 0 until n) { prevX[i] = curX[i]; prevY[i] = curY[i]; prevZ[i] = curZ[i] }
                 simulation.tick(clock.step)
+                simulation.takeQueueNotice()?.let { notice = it; noticeChanged = true }
                 for (i in 0 until n) {
                     simulation.pose(i, pose)
                     curX[i] = pose.x; curY[i] = pose.y; curZ[i] = pose.z

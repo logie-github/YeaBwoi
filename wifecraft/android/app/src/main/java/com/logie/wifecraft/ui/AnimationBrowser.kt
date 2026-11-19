@@ -28,15 +28,21 @@ import com.logie.wifecraft.story.Vec3
 import java.util.UUID
 import kotlin.math.PI
 
+internal enum class AnimationOrderMode(val label: String) {
+    PLAY("Play now"), QUEUE("Queue"), REPEAT("Repeat"), SEQUENCE("Queue stages"),
+}
+
 @Composable
 internal fun AnimationBrowser(
     choices: List<AnimationChoice>,
     preview: (@Composable (CheckedAnimation) -> Unit)?,
     onClose: () -> Unit,
-    onPlay: ((AnimationChoice) -> Unit)? = null,
+    onPlay: ((AnimationChoice, AnimationOrderMode) -> Unit)? = null,
+    notice: String? = null,
 ) {
     var query by remember { mutableStateOf("") }
     var selection by remember { mutableStateOf<String?>(null) }
+    var mode by remember { mutableStateOf(AnimationOrderMode.PLAY) }
     val selected = choices.firstOrNull { it.id == selection }
     val grouped = remember(choices, query) {
         val search = query.trim()
@@ -68,18 +74,37 @@ internal fun AnimationBrowser(
                                 items(entries, key = { it.id }) { choice ->
                                     val count = "${choice.participantCount} NPC${if (choice.participantCount == 1) "" else "s"}"
                                     val detail = listOfNotNull(count, choice.setting.takeIf(String::isNotBlank),
+                                        "${choice.repetitions} cycles".takeIf { choice.repetitions > 1 },
                                         "Missing track".takeUnless { choice.playable }).joinToString(" · ")
                                     WowListRow(choice.name, detail, selected = choice.id == selection, onClick = {
-                                        if (onPlay != null && choice.playable) onPlay(choice) else selection = choice.id
+                                        if (onPlay != null && choice.playable) onPlay(choice, mode) else selection = choice.id
                                     })
                                 }
                             }
                         }
                     }
                     Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (onPlay != null) {
+                            for (row in AnimationOrderMode.entries.chunked(2)) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    for (option in row) WowCheckRow(option.label, mode == option, { mode = option },
+                                        modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
                         if (selected == null) {
-                            Text(if (onPlay == null) "Choose an animation to preview." else "Choose an animation. Partner clips ask for a second NPC.",
+                            val hint = when {
+                                onPlay == null -> "Choose an animation to preview."
+                                mode == AnimationOrderMode.SEQUENCE -> "Choose a stage to queue it and its linked stages."
+                                mode == AnimationOrderMode.REPEAT -> "Choose an animation to repeat until stopped or another clip is queued."
+                                mode == AnimationOrderMode.QUEUE -> "Choose animations in the order you want them to play."
+                                else -> "Partner clips ask for a second NPC."
+                            }
+                            Text(hint,
                                 style = frizStyle(14.sp))
+                            if (notice != null && (mode == AnimationOrderMode.QUEUE || mode == AnimationOrderMode.SEQUENCE)) {
+                                Text(notice, style = frizStyle(13.sp))
+                            }
                         } else {
                             Text(selected.name, style = frizStyle(15.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
                             if (selected.setting.isNotEmpty()) Text("Source setting · ${selected.setting}", style = frizStyle(12.sp))

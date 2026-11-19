@@ -13,8 +13,10 @@ data class PerformanceRole(val source: String, val offset: Vec3, val facing: Flo
 
 data class ImportedPerformance(
     val id: String, val name: String, val dance: Boolean, val roles: List<PerformanceRole>, val setting: String = "",
+    val stage: String = "", val nextStages: List<String> = emptyList(), val repetitions: Int = 1, val style: String = "",
 ) {
     fun toJson(): JSONObject = JSONObject().put("id", id).put("name", name).put("dance", dance).put("setting", setting)
+        .put("stage", stage).put("nextStages", JSONArray(nextStages)).put("repetitions", repetitions).put("style", style)
         .put("roles", JSONArray().also { array ->
             for (role in roles) array.put(JSONObject().put("source", role.source)
                 .put("x", role.offset.x.toDouble()).put("y", role.offset.y.toDouble()).put("z", role.offset.z.toDouble())
@@ -31,7 +33,9 @@ data class ImportedPerformance(
                     role.getDouble("facing").toFloat())
             }
             return ImportedPerformance(json.getString("id"), json.getString("name"), json.optBoolean("dance"), roles,
-                json.optString("setting"))
+                json.optString("setting"), json.optString("stage"),
+                json.optJSONArray("nextStages")?.let { a -> List(a.length()) { a.getString(it) } }.orEmpty(),
+                json.optInt("repetitions", 1).coerceIn(1, 100), json.optString("style"))
         }
     }
 }
@@ -73,9 +77,15 @@ internal object ImportedPerformances {
             }
             val name = item.field(if (dance) "raw_display_name" else "animation_raw_display_name")
                 ?: names.first().substringAfterLast(':').replace('_', ' ')
-            val stage = item.field("animation_stage_name")?.replace('_', ' ')
+            val stage = item.field("animation_stage_name")?.takeUnless { it.equals("None", ignoreCase = true) }.orEmpty()
+            val next = item.child("animation_next_stages")?.let { element ->
+                element.children().mapNotNull { it.textContent?.trim()?.takeIf(String::isNotEmpty) }
+                    .ifEmpty { element.textContent.split(',').map(String::trim).filter(String::isNotEmpty) }
+            }.orEmpty()
+            val repetitions = item.field("animation_loops")?.toIntOrNull()?.coerceIn(1, 100) ?: 1
+            val style = if (dance) item.field("dance_type").orEmpty() else ""
             val setting = item.child("animation_locations")?.textContent.orEmpty().trim().replace('_', ' ').lowercase()
-            ImportedPerformance("$resource:$index", listOfNotNull(name, stage).joinToString(" · "), dance, roles, setting)
+            ImportedPerformance("$resource:$index", name, dance, roles, setting, stage, next, repetitions, style)
         }
     }
 
@@ -88,6 +98,7 @@ internal object ImportedPerformances {
 data class AnimationChoice(
     val id: String, val name: String, val group: String, val preview: CheckedAnimation,
     val clips: List<CheckedAnimation>, val roles: List<PerformanceRole>, val setting: String = "",
+    val stage: String = "", val nextStages: List<String> = emptyList(), val repetitions: Int = 1,
 ) {
     val participantCount: Int get() = roles.size
     val playable: Boolean get() = clips.size == roles.size && clips.all { it.inspection.type != ClipType.INVALID }
@@ -96,20 +107,61 @@ data class AnimationChoice(
 fun animationChoices(clips: List<CheckedAnimation>): List<AnimationChoice> {
     val bySource = clips.filter { it.clip.source.isNotBlank() }.associateBy { it.clip.source }
     val groups = clips.flatMap { it.clip.performances }.distinctBy { it.id }
+    val authoredGroups = groups.distinctBy { it.copy(id = "") }
     val authoredSources = groups.flatMap { it.roles }.mapNotNullTo(HashSet()) { it.source.takeIf(String::isNotBlank) }
-    val coordinated = groups.mapNotNull { group ->
+    val coordinated = authoredGroups.mapNotNull { group ->
         val lead = group.roles.firstNotNullOfOrNull { bySource[it.source] } ?: return@mapNotNull null
+        val numbered = stageName.matchEntire(group.stage)
         val groupName = when {
+            numbered != null -> "${readable(numbered.groupValues[1])} sequence"
+            group.dance && group.style.isNotEmpty() -> readable(group.style)
             group.dance && group.roles.size == 2 -> "Partner dances"
             group.dance -> "Solo dances"
             group.roles.size == 2 -> "Partner animations"
             else -> lead.inspection.type.label
         }
-        AnimationChoice(group.id, group.name, groupName, lead, group.roles.mapNotNull { bySource[it.source] }, group.roles, group.setting)
+        val stageLabel = numbered?.groupValues?.get(2)?.let { "Stage $it" } ?: group.stage.takeIf(String::isNotBlank)?.let(::readable)
+        val name = listOfNotNull(stageLabel, group.name).joinToString(" · ")
+        AnimationChoice(group.id, name, groupName, lead, group.roles.mapNotNull { bySource[it.source] }, group.roles,
+            group.setting, group.stage, group.nextStages, group.repetitions)
     }
-    val solos = clips.filterNot { it.clip.source in authoredSources }.map {
-        AnimationChoice(it.clip.id, it.clip.name, "Solo · ${it.inspection.type.label}", it, listOf(it),
+    val standalone = clips.filterNot { it.clip.source in authoredSources }
+    val families = standalone.mapNotNull { sourceFamily(it)?.lowercase() }.groupingBy { it }.eachCount()
+    val solos = standalone.map {
+        val family = sourceFamily(it)?.takeIf { label -> (families[label.lowercase()] ?: 0) > 1 }
+        val label = family ?: "Solo · ${it.inspection.type.label}"
+        AnimationChoice(it.clip.id, it.clip.name, label, it, listOf(it),
             listOf(PerformanceRole(it.clip.source, Vec3(0f, 0f, 0f), 0f)))
     }
-    return (coordinated + solos).sortedWith(compareBy({ it.group }, { it.name.lowercase() }))
+    return (coordinated + solos).sortedWith(compareBy({ it.group },
+        { stageName.matchEntire(it.stage)?.groupValues?.get(2)?.takeWhile(Char::isDigit)?.toIntOrNull() ?: Int.MAX_VALUE },
+        { it.stage.lowercase() }, { it.name.lowercase() }))
+}
+
+private val stageName = Regex("""(.+?)[_-]stage[_-](\d+[a-z]*)""", RegexOption.IGNORE_CASE)
+private val clipFamily = Regex("""(.+?)[_-](?:set[_-]\d+|start|loop|end|enter|exit)""", RegexOption.IGNORE_CASE)
+private fun sourceFamily(animation: CheckedAnimation): String? {
+    val name = animation.clip.sourceName.ifBlank { animation.clip.name }
+    val family = clipFamily.matchEntire(name.substringAfterLast(':'))?.groupValues?.get(1) ?: return null
+    return listOfNotNull(name.substringBefore(':', "").takeIf(String::isNotBlank), readable(family)).joinToString(" · ")
+}
+
+private fun readable(name: String) = name.replace('_', ' ').split(' ').joinToString(" ") { word ->
+    if (word.all { !it.isLetter() || it.isUpperCase() }) word.lowercase().replaceFirstChar(Char::uppercase) else word
+}
+
+/** Follow the author’s stage references. Stop before an ambiguous, missing, or already visited stage. */
+fun animationSequence(start: AnimationChoice, choices: List<AnimationChoice>): List<AnimationChoice> {
+    val scope = start.id.substringBeforeLast(':')
+    val stages = choices.filter { it.stage.isNotEmpty() && it.playable && it.participantCount == start.participantCount &&
+        it.id.substringBeforeLast(':') == scope }.groupBy { it.stage.lowercase() }
+    val visited = mutableSetOf<String>()
+    val sequence = mutableListOf<AnimationChoice>()
+    var current: AnimationChoice? = start
+    while (current != null && visited.add(current.id)) {
+        sequence += current
+        val successors = current.nextStages.flatMap { stages[it.lowercase()].orEmpty() }.distinctBy { it.id }
+        current = successors.singleOrNull()
+    }
+    return sequence
 }

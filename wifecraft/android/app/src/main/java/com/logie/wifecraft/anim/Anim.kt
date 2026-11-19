@@ -28,6 +28,7 @@ data class Anim(
     val conversionRevision: Int = 0,
     val omittedChannels: Boolean = false,
     val performances: List<ImportedPerformance> = emptyList(),
+    val sourceName: String = "",
 )
 
 /** Converts one Sims clip to a WoW-side [Anim] (implemented by the Retargeter). May throw for a clip it cannot convert. */
@@ -54,6 +55,7 @@ object AnimJson {
             .put("duration", a.duration.toDouble()).put("loop", a.loop).put("source", a.source)
             .put("importedAt", a.importedAt).put("tracks", tracks)
             .put("conversionRevision", a.conversionRevision).put("omittedChannels", a.omittedChannels)
+            .put("sourceName", a.sourceName)
             .put("performances", JSONArray().also { array -> a.performances.forEach { array.put(it.toJson()) } })
     }
 
@@ -79,6 +81,7 @@ object AnimJson {
             performances = o.optJSONArray("performances")?.let { array ->
                 List(array.length()) { ImportedPerformance.fromJson(array.getJSONObject(it)) }
             }.orEmpty(),
+            sourceName = o.optString("sourceName"),
         )
     }
 

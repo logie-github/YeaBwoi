@@ -39,6 +39,8 @@ import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.anim.AnimationChoice
 import com.logie.wifecraft.anim.BoneTrack
 import com.logie.wifecraft.anim.animationChoices
+import com.logie.wifecraft.anim.animationSequence
+import com.logie.wifecraft.simulation.PerformanceOrder
 import com.logie.wifecraft.sims.Channel
 import com.logie.wifecraft.simulation.ClipPlayback
 import com.logie.wifecraft.simulation.PlaybackRole
@@ -115,6 +117,8 @@ fun SceneSetupScreen(
     }
 }
 
+private data class PendingAnimation(val owner: String, val choice: AnimationChoice, val mode: AnimationOrderMode)
+
 /**
  * The live scene. Nothing here changes every frame: the simulation, the people's motion and the camera run on the GL
  * thread ([LiveScene] driving the [SceneView] through its [FrameDriver]); this screen gets a [SceneSnapshot] only when what
@@ -154,7 +158,7 @@ fun LiveSceneScreen(
     var npcCamera by remember { mutableStateOf(false) }
     var ending by remember { mutableStateOf(false) }
     var choosingAnimation by remember { mutableStateOf<String?>(null) }
-    var choosingPartner by remember { mutableStateOf<Pair<String, AnimationChoice>?>(null) }
+    var choosingPartner by remember { mutableStateOf<PendingAnimation?>(null) }
     val choices = remember(clips) { animationChoices(clips) }
     val playback = remember(live) { ConcurrentHashMap<String, Anim>() }
     val names = remember(cast) { cast.associate { it.id to it.name } }
@@ -168,9 +172,10 @@ fun LiveSceneScreen(
         else ending = true
     }
 
-    fun play(owner: String, other: String?, choice: AnimationChoice) {
+    fun request(other: String?, choice: AnimationChoice, repeat: Boolean): PerformanceOrder {
+        val animations = choice.clips.map { checkNotNull(it.forPlayback()) }
         val roles = choice.roles.mapIndexed { index, role ->
-            val animation = checkNotNull(choice.clips[index].forPlayback())
+            val animation = animations[index].copy(loop = false)
             val key = "${choice.id}:$index"
             val scale = 1.2f
             val lift = role.offset.z * scale
@@ -183,12 +188,25 @@ fun LiveSceneScreen(
             })
             PlaybackRole(key, role.offset * scale, role.facing)
         }
-        val duration = choice.clips.maxOf {
-            val animation = checkNotNull(it.forPlayback())
-            if (animation.loop || animation.duration == 0f) 12f else animation.duration
-        }
-        live.order { sim ->
-            if (sim.perform(owner, other, roles, duration)) null else "The NPCs couldn’t reach their starting positions."
+        val cycle = animations.maxOf { it.duration }.takeIf { it > 0f } ?: 12f
+        return PerformanceOrder(other, roles, cycle, repeat, choice.repetitions)
+    }
+
+    fun schedule(order: PendingAnimation, partner: String?) {
+        val (owner, choice, mode) = order
+        if (mode == AnimationOrderMode.QUEUE || mode == AnimationOrderMode.SEQUENCE) {
+            val stages = if (mode == AnimationOrderMode.SEQUENCE) animationSequence(choice, choices) else listOf(choice)
+            val requests = stages.map { request(partner, it, false) }
+            live.order { sim ->
+                if (sim.enqueue(owner, requests)) "${requests.size} animation${if (requests.size == 1) "" else "s"} queued."
+                else "Couldn’t add these animations to the queue."
+            }
+        } else {
+            val request = request(partner, choice, mode == AnimationOrderMode.REPEAT)
+            live.order { sim ->
+                if (sim.perform(owner, request)) null
+                else "The NPCs couldn’t reach their starting positions."
+            }
         }
     }
 
@@ -379,6 +397,12 @@ fun LiveSceneScreen(
                 Row(Modifier.fillMaxSize().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically) {
                     RedButton("Play animation", { choosingAnimation = id }, enabled = ready)
+                    if (active?.id == id && active.repeating) {
+                        RedButton("Stop repeat", { live.order { sim -> sim.stopRepeat(id); null } })
+                    }
+                    if (active?.id == id && active.queued > 0) {
+                        RedButton("Clear queue (${active.queued})", { live.order { sim -> sim.clearQueue(id); null } })
+                    }
                     for (item in objects) key(item) {
                         val action = when (item) {
                             SceneObject.CHAIR -> "Sit in chair"
@@ -400,21 +424,25 @@ fun LiveSceneScreen(
             maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
     choosingAnimation?.let { owner ->
-        AnimationBrowser(choices, preview = null, onClose = { choosingAnimation = null }, onPlay = { choice ->
-            choosingAnimation = null
-            if (choice.participantCount == 2) choosingPartner = owner to choice
-            else play(owner, null, choice)
-        })
+        AnimationBrowser(
+            choices, preview = null, onClose = { choosingAnimation = null }, notice = snapshot.notice,
+            onPlay = { choice, mode ->
+                if (mode == AnimationOrderMode.PLAY || mode == AnimationOrderMode.REPEAT) choosingAnimation = null
+                val order = PendingAnimation(owner, choice, mode)
+                if (choice.participantCount == 2) choosingPartner = order
+                else schedule(order, null)
+            },
+        )
     }
-    choosingPartner?.let { (owner, choice) ->
-        val candidates = cast.filter { it.id != owner }.map { it.id to it.name }
+    choosingPartner?.let { order ->
+        val candidates = cast.filter { it.id != order.owner }.map { it.id to it.name }
         if (candidates.isEmpty()) {
             ConfirmDialog("Add a second NPC to the scene to play this animation.", "OK",
                 { choosingPartner = null }, { choosingPartner = null })
         } else {
             PickDialog("Choose a partner", candidates, null, { choosingPartner = null }) { partner ->
                 choosingPartner = null
-                play(owner, partner, choice)
+                schedule(order, partner)
             }
         }
     }
