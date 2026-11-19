@@ -141,7 +141,7 @@ jobs:
 
           The Sims 4 importer can read large mod archives one clip at a time and can use a compatible skeleton inside a package. Unsupported clips are reported individually. Search imported clips when assigning an animation to an NPC action.
 
-          Import WickedWhims opens a dedicated flow with the author’s download page, local file selection, and a WickedWhims category for saved clips.
+          Tap Install in Import WickedWhims to download directly from the author’s itch.io site, see download progress, and save compatible clips under WickedWhims.
 
           Options shows a download progress bar and file counts for Warcraft assets.
 

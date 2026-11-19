@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -33,7 +34,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.logie.wifecraft.anim.Anim
@@ -41,6 +44,7 @@ import com.logie.wifecraft.anim.AnimLibrary
 import com.logie.wifecraft.anim.ImportInput
 import com.logie.wifecraft.anim.ImportPipeline
 import com.logie.wifecraft.anim.Retarget
+import com.logie.wifecraft.anim.WickedWhimsDownload
 import com.logie.wifecraft.sims.DbpfFile
 import com.logie.wifecraft.sims.SimsClip
 import com.logie.wifecraft.sims.SimsRig
@@ -102,7 +106,7 @@ private fun displayName(ctx: Context, uri: Uri): String {
     return uri.lastPathSegment?.substringAfterLast('/') ?: "file"
 }
 
-private enum class Phase { Pick, Running, Review, Saving, Saved }
+private enum class Phase { Pick, Downloading, Running, Review, Saving, Saved }
 
 /**
  * The import flow. [retargeter] makes the converter for the loaded skeleton (anim/Retargeter with the profile in
@@ -125,6 +129,8 @@ fun AnimImportScreen(
     var run by remember { mutableStateOf(ImportRun()) }
     var draft by remember { mutableStateOf<ReviewDraft?>(null) }
     var saved by remember { mutableStateOf<List<SaveOutcome>>(emptyList()) }
+    var download by remember { mutableStateOf(WickedWhimsDownload.Progress()) }
+    val busy = phase == Phase.Downloading || phase == Phase.Running || phase == Phase.Saving
     var rigBones by remember { mutableStateOf<Int?>(null) }
     var hasRig by remember { mutableStateOf(rigs.has()) }
     var rigMessage by remember { mutableStateOf<String?>(null) }
@@ -138,7 +144,7 @@ fun AnimImportScreen(
     BackHandler {
         when {
             newCategory != null -> newCategory = null
-            phase == Phase.Running || phase == Phase.Saving -> Unit
+            busy -> Unit
             phase == Phase.Review -> phase = Phase.Pick
             else -> onBack()
         }
@@ -166,13 +172,12 @@ fun AnimImportScreen(
         }
     }
 
-    fun start(uris: List<Uri>) {
-        if (phase != Phase.Pick || uris.isEmpty()) return
-        val inputs = uris.map { u ->
-            ImportInput(displayName(ctx, u)) { ctx.contentResolver.openInputStream(u) ?: throw IOException("The file couldn't be opened.") }
-        }
+    fun start(inputs: List<ImportInput>) {
+        if (phase != Phase.Pick || inputs.isEmpty()) return
         val r = ImportRun()
-        run = r; phase = Phase.Running
+        run = r
+        download = WickedWhimsDownload.Progress()
+        phase = if (wickedWhims) Phase.Downloading else Phase.Running
         scope.launch {
             val tmp = File(ctx.cacheDir, "anim-import")
             val results = withContext(Dispatchers.IO) {
@@ -192,29 +197,49 @@ fun AnimImportScreen(
             }
             r.finish()
             val anims = results.ifEmpty { r.converted }
-            draft = if (anims.isEmpty()) null else ReviewDraft(anims, defaultCategory = "WickedWhims".takeIf { wickedWhims })
             rev++
-            phase = if (anims.isEmpty()) Phase.Pick else Phase.Review
+            when {
+                anims.isEmpty() -> phase = Phase.Pick
+                wickedWhims -> {
+                    phase = Phase.Saving
+                    saved = withContext(Dispatchers.IO) { ReviewDraft(anims, "WickedWhims").save(library.asStore()) }
+                    phase = Phase.Saved
+                }
+                else -> {
+                    draft = ReviewDraft(anims)
+                    phase = Phase.Review
+                }
+            }
         }
     }
 
-    val pickFiles = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { start(it) }
-    val pickWickedWhims = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) start(listOf(uri))
+    val pickFiles = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        start(uris.map { uri ->
+            ImportInput(displayName(ctx, uri)) {
+                ctx.contentResolver.openInputStream(uri) ?: throw IOException("The file couldn't be opened.")
+            }
+        })
     }
 
-    val busy = phase == Phase.Running || phase == Phase.Saving
     EditorFrame(if (wickedWhims) "Import WickedWhims" else "Import Animations", { if (!busy) { if (phase == Phase.Review) phase = Phase.Pick else onBack() } },
         actions = { if (onLibrary != null && !busy) TextAction("Animations", onLibrary) }) {
         Crossfade(phase, animationSpec = tween(MenuMotion.duration(MenuMotion.PAGE_MS, reduceMotion())), label = "phase") { step ->
         when (step) {
             Phase.Pick -> if (wickedWhims) {
-                WickedWhimsPickPage(run) { pickWickedWhims.launch(arrayOf("*/*")) }
+                WickedWhimsPickPage(run) {
+                    start(listOf(ImportInput("WickedWhims.zip") {
+                        WickedWhimsDownload.open(
+                            onProgress = { progress -> main.post { download = progress } },
+                            onDownloaded = { main.post { if (phase == Phase.Downloading) phase = Phase.Running } },
+                        )
+                    }))
+                }
             } else PickPage(
                 hasRig, rigBones, rigMessage, rigBusy, run,
                 onRig = { pickRig.launch(arrayOf("*/*")) },
                 onFiles = { pickFiles.launch(arrayOf("*/*")) },
             )
+            Phase.Downloading -> WickedWhimsDownloadPage(download)
             Phase.Running -> ProgressPage(run)
             Phase.Review -> draft?.let { d ->
                 ReviewPage(
@@ -237,6 +262,7 @@ fun AnimImportScreen(
             Phase.Saving -> Text("Saving animations…", style = frizStyle(16.sp))
             Phase.Saved -> Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(ReviewDraft.summary(saved) + ".", style = frizStyle(18.sp))
+                if (wickedWhims) Text(run.summary(), style = frizStyle(13.sp))
                 LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     itemsIndexed(saved, key = { i, _ -> i }, contentType = { _, o -> o::class.simpleName }) { _, o ->
                         val (txt, col) = when (o) {
@@ -248,7 +274,9 @@ fun AnimImportScreen(
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    WowButton("Import more", { phase = Phase.Pick }, width = 190.dp, height = 40.dp)
+                    if (!wickedWhims || saved.any { it is SaveOutcome.Failed }) {
+                        WowButton(if (wickedWhims) "Try again" else "Import more", { phase = Phase.Pick }, width = 190.dp, height = 40.dp)
+                    }
                     WowButton("Done", onBack, width = 150.dp, height = 40.dp)
                 }
             }
@@ -269,30 +297,32 @@ fun AnimImportScreen(
 }
 
 @Composable
-private fun WickedWhimsPickPage(last: ImportRun, onChoose: () -> Unit) {
-    val uriHandler = LocalUriHandler.current
-    var downloadError by remember { mutableStateOf(false) }
+private fun WickedWhimsPickPage(last: ImportRun, onInstall: () -> Unit) {
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Choose the WickedWhims ZIP or its Tuning.package. Compatible animations will appear for review before you save them.",
+        Text("Download WickedWhims from the author and install compatible animations in your library.",
             style = frizStyle(14.sp, Color.White, false))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            RedButton("Download from author", {
-                try {
-                    uriHandler.openUri("https://turbodriver.itch.io/wickedwhims")
-                    downloadError = false
-                } catch (_: IllegalArgumentException) {
-                    downloadError = true
-                }
-            }, Modifier.weight(1f), textSize = 13.sp)
-            RedButton("Choose downloaded file", onChoose, Modifier.weight(1f), textSize = 13.sp)
-        }
-        if (downloadError) {
-            Text("The download page couldn't open. Open turbodriver.itch.io/wickedwhims in your browser.",
-                style = frizStyle(13.sp, WowColors.grey, false))
-        }
+        RedButton(if (last.rows.isEmpty()) "Install" else "Try again", onInstall)
         if (last.rows.isNotEmpty()) {
             Text("Last import: ${last.summary()}", style = frizStyle(14.sp))
             LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) { rowsList(last.rows) }
+        }
+    }
+}
+
+@Composable
+private fun WickedWhimsDownloadPage(progress: WickedWhimsDownload.Progress) {
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        val total = progress.total
+        val downloaded = "%.1f MB".format(progress.bytes / 1_000_000.0)
+        if (total != null) {
+            val fraction = (progress.bytes.toFloat() / total).coerceIn(0f, 1f)
+            Text("Downloading WickedWhims… $downloaded / ${"%.1f MB".format(total / 1_000_000.0)}", style = frizStyle(16.sp))
+            LoadingBar(fraction, Modifier.fillMaxWidth().height(28.dp).semantics {
+                progressBarRangeInfo = ProgressBarRangeInfo(fraction, 0f..1f)
+            })
+        } else {
+            Text(if (progress.bytes == 0L) "Connecting to the download site…" else "Downloading WickedWhims… $downloaded",
+                style = frizStyle(16.sp))
         }
     }
 }
