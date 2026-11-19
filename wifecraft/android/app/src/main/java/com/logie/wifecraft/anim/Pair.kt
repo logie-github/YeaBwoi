@@ -1,5 +1,6 @@
 package com.logie.wifecraft.anim
 
+import com.logie.wifecraft.story.Vec3
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -40,8 +41,20 @@ data class PairAnim(
 ) {
     val duration: Float get() = maxOf(a.duration, b.duration)
 
+    /** This partner animation as an entry of the animation browser (group: its category); ids "pair:<id>". */
+    fun choice(): AnimationChoice {
+        val clips = listOf(CheckedAnimation(a), CheckedAnimation(b))
+        val roles = listOf(offsetA, offsetB).zip(listOf(a, b)) { o, clip ->
+            PerformanceRole(clip.source, Vec3(o.x, o.y, o.z), Math.toRadians(o.yawDeg.toDouble()).toFloat())
+        }
+        return AnimationChoice("$CHOICE_PREFIX$id", name, category, clips[0], clips, roles,
+            locations.sorted().joinToString(", ") { it.lowercase().replace('_', ' ') }, yards = true, sounds = sounds)
+    }
+
     companion object {
         const val CATEGORY = "Partner"
+        /** The browser's ids of partner animations: "pair:" and the pair's id. */
+        const val CHOICE_PREFIX = "pair:"
 
         /** The source of a pair made of the clips with sources [a] and [b], the same whichever is first. */
         fun sourceOf(a: String, b: String): String = listOf(a, b).sorted().joinToString("+")

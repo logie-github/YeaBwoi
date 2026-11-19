@@ -127,7 +127,7 @@ jobs:
         run: |
           notes="$APP_NAME for Android, built from commit ${GITHUB_SHA::7}.
 
-          Choose a preset scene, select or create NPCs, and pick the interactable furniture. NPCs act on their own until you select one and give them a command. You can import Sims 4 rigs and clips and assign retargeted animations to NPC actions in scene setup.
+          Choose a preset scene, select or create NPCs, and pick the interactable furniture. NPCs act on their own until you select one and give them a command. You can import Sims 4 rigs and clips and play their retargeted animations during the scene.
 
           Transmog in the character creator supports complete outfits and individual clothing slots. The creator loads Warcraft's original race-selection backdrop models from wago.tools. Options can cache scenes, clothing, and Warcraft animations for offline use.
 
@@ -138,6 +138,20 @@ jobs:
           The original Wifecraft menu pictures are back on the title, scene and NPC setup, and first-launch download screens. The selectors use the earlier Warcraft location and NPC icons.
 
           Select an NPC and open NPC camera to follow them. Drag to orbit, pinch or use the zoom buttons, and select Room camera to return to the room view. Resting and sitting use the furniture's measured surface for placement.
+
+          The Sims 4 importer can read large mod archives one clip at a time and can use a compatible skeleton inside a package. Unsupported clips are reported individually. Search imported clips in the live animation picker.
+
+          Tap Install in Import WickedWhims to download directly from the author’s itch.io site, see download progress, and save compatible clips under WickedWhims.
+
+          Direct WickedWhims installs respect the download server’s retry timing and show a countdown when it limits requests.
+
+          Browse animations groups checked clips by actual motion and previews them on a Warcraft NPC. Reinstalling a pack refreshes older conversions and keeps saved names and categories.
+
+          NPCs wander until directed. Select an NPC and choose Play animation during the scene. Authored partner animations ask for a second NPC and synchronize both tracks. Reinstall WickedWhims to load its role groups.
+
+          In NPC camera mode, tap the floor to move the selected NPC. Stormwind Embassy’s study table and books can now be used where the Warcraft scene places them.
+
+          Live animations support Repeat, Queue, and Queue stages. Partner clips repeat together. Reinstall WickedWhims to refresh the animation names, groups, stage links, and authored cycle counts.
 
           Options shows a download progress bar and file counts for Warcraft assets.
 

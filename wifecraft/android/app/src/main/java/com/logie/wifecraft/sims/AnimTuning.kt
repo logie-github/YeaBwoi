@@ -53,6 +53,19 @@ object AnimTuning {
         return out
     }
 
+    /** As [pairs] for a package read from disk one resource at a time (the importer's streamed path). */
+    fun pairs(pkg: DbpfFile): List<PairDefinition> {
+        val out = ArrayList<PairDefinition>()
+        for (e in pkg.entries) {
+            if (e.type != TYPE || e.size !in 1..MAX_TUNING) continue
+            val bytes = try { pkg.read(e) } catch (x: Exception) { continue }
+            out += parse(bytes)
+        }
+        return out
+    }
+
+    private const val MAX_TUNING = 2_000_000
+
     fun parse(xml: ByteArray): List<PairDefinition> = parse(String(xml, Charsets.UTF_8))
 
     /** The entries with actors in one tuning file; empty for anything that is not readable XML. */

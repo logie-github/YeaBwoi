@@ -251,6 +251,15 @@ JNIEXPORT jfloatArray JNICALL FN(propContact)(JNIEnv* env, jclass, jlong h, jint
 JNIEXPORT void JNICALL FN(select)(JNIEnv*, jclass, jlong h, jint kind, jint id) { scene(h)->select(kind, id); }
 
 // [kind, id, x, y, z, distance] (kind 0: nothing)
+JNIEXPORT jint JNICALL FN(locationObject)(JNIEnv*, jclass, jlong h, jint model, jfloat x, jfloat y, jfloat z) {
+    return scene(h)->locationObject(uint32_t(model), V3(x, y, z));
+}
+
+JNIEXPORT jboolean JNICALL FN(walkSegment)(JNIEnv*, jclass, jlong h,
+                                           jfloat x, jfloat y, jfloat z, jfloat tx, jfloat ty, jfloat tz) {
+    return scene(h)->walkSegment(V3(x, y, z), V3(tx, ty, tz));
+}
+
 JNIEXPORT jfloatArray JNICALL FN(pick)(JNIEnv* env, jclass, jlong h, jfloat sx, jfloat sy, jint w, jint ht) {
     Scene::PickHit hit = scene(h)->pick(sx, sy, w, ht);
     float v[6] = {float(hit.kind), float(hit.id), hit.point.x, hit.point.y, hit.point.z, hit.distance};

@@ -11,7 +11,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The partner activity: choreography, slots, loops, sounds, cooldown, interruption, fallback, places, determinism. */
+/**
+ * The partner activity: choreography, slots, loops, sounds, cooldown, interruption, fallback, places, determinism.
+ * Since the merge with the performance runtime (PerformanceTest) a partner animation is a two-person Performance: the
+ * stages are APPROACH (walking to their places) and PLAY; there is no separate eased ALIGN or RELEASE stage (the one gone to
+ * stands still on its slot, the other walks onto its own; at the end both step apart at once), and the renderer hears of
+ * it through Pose.playback (PlaybackKeys) instead of a pair, a role and a serial.
+ */
 class PartnerActivityTest {
     private val step = 1f / 120f
 
@@ -48,11 +54,11 @@ class PartnerActivityTest {
         while (startA < 0 || startC < 0) {
             s.tick(step)
             s.partnerOf("a")?.let { stages += it.stage }
-            if (startA < 0 && activity(s, 0) == Activity.PARTNER) startA = s.steps
-            if (startC < 0 && activity(s, 2) == Activity.PARTNER) startC = s.steps
+            if (startA < 0 && activity(s, 0) == Activity.PERFORM && Pose().also { p -> s.pose(0, p) }.playback != null) startA = s.steps
+            if (startC < 0 && activity(s, 2) == Activity.PERFORM && Pose().also { p -> s.pose(2, p) }.playback != null) startC = s.steps
             check(s.steps < 10_000)
         }
-        assertEquals(listOf("APPROACH", "ALIGN", "PLAY"), stages.toList())
+        assertEquals(listOf("APPROACH", "PLAY"), stages.toList())
         assertEquals(startA, startC, "both start on one step")
         assertEquals(startA, s.partnerOf("a")!!.startStep)
         assertEquals(s.partnerOf("a")!!.startStep, s.partnerOf("c")!!.startStep)
@@ -60,8 +66,10 @@ class PartnerActivityTest {
         val c = s.people()[2]; val a = s.people()[0]
         assertTrue(hypot(a.position.x - c.position.x, a.position.y - c.position.y) < 1.2f)
         val pose = Pose(); s.pose(0, pose)
-        assertEquals("hug", pose.pair?.id); assertEquals(0, pose.role)
-        s.pose(2, pose); assertEquals(1, pose.role)
+        assertEquals(PlaybackKeys.pair("hug", 0), pose.playback?.clip); assertEquals(0, s.partnerOf("a")!!.role)
+        val command = pose.playback!!.command
+        s.pose(2, pose); assertEquals(PlaybackKeys.pair("hug", 1), pose.playback?.clip); assertEquals(1, s.partnerOf("c")!!.role)
+        assertEquals(command, pose.playback!!.command, "one command: one start for both")
         assertEquals(listOf("c", null, "a"), s.people().map { it.partner })
     }
 
@@ -110,22 +118,22 @@ class PartnerActivityTest {
         s.sounds = { index, name -> heard += index to name }
         assertTrue(s.partner("a", "b"))
         until(s) { s.partnerOf("a")?.stage == "PLAY" }
-        var loops = 0
         var clock = 0f
+        // the view is read before each step: the last one (ending it) adds one step to the clock
         until(s) {
-            s.partnerOf("a")?.let { loops = it.loops; clock = it.clock }
-            s.partnerOf("a")?.stage == "RELEASE"
+            s.partnerOf("a")?.let { clock = it.clock }
+            s.partnerOf("a") == null
         }
+        clock += step
+        val loops = heard.count { it == (1 to "middle") }
         assertTrue(loops in 1..13, "loops: $loops")
         assertEquals(loops * 2f, clock, 0.05f)
         assertTrue(clock >= SceneSimulation.MIN_LOOP_TIME - 0.05f && clock <= SceneSimulation.MAX_LOOP_TIME + 2f)
-        assertEquals(loops, heard.count { it == (1 to "middle") })
-        assertTrue(heard.count { it == (0 to "start") } >= loops)
-        // both stop together, stay a moment, then walk apart
-        assertEquals(Activity.IDLE, activity(s, 0)); assertEquals(Activity.IDLE, activity(s, 1))
-        until(s) { s.partnerOf("a") == null }
+        assertEquals(loops, heard.count { it == (0 to "start") })
+        // both stop together and step apart
         assertNull(s.partnerOf("b"))
         assertEquals(listOf(Activity.WALK, Activity.WALK), s.people().map { it.activity })
+        assertTrue(s.people().all { it.partner == null })
     }
 
     @Test fun theCooldownKeepsThemFromStartingAgainAtOnce() {
@@ -155,13 +163,12 @@ class PartnerActivityTest {
         assertTrue(s.partner("a", "b"))
         until(s) { s.partnerOf("a")?.stage == "PLAY" }
         val pose = Pose(); s.pose(1, pose)
-        val serial = pose.pairSerial
+        assertTrue(pose.playback != null)
         assertTrue(s.use("a", SceneObject.CHAIR))
         assertNull(s.partnerOf("a")); assertNull(s.partnerOf("b"))
         s.pose(1, pose)
         assertEquals(Activity.IDLE, pose.activity)
-        assertNull(pose.pair)
-        assertTrue(pose.pairSerial != serial, "the renderer hears the stop")
+        assertNull(pose.playback, "the renderer hears the stop")
         assertEquals(Activity.WALK, s.people()[0].activity)
         // and the partner is free again, not frozen: it carries on by itself
         val seen = HashSet<Activity>()
@@ -261,8 +268,8 @@ class PartnerActivityTest {
             override fun camera(eyeX: Float, eyeY: Float, eyeZ: Float, atX: Float, atY: Float, atZ: Float, fov: Float) {}
             override fun place(index: Int, x: Float, y: Float, z: Float, facing: Float, furniture: SceneObject?, sx: Float, sy: Float, sz: Float) {}
             override fun activity(index: Int, activity: Activity) {}
-            override fun partner(index: Int, pair: PartnerPair?, role: Int, emote: Int, loop: Boolean) {
-                if (pair != null) started[index] = frame else stopped[index] = frame
+            override fun playback(index: Int, clip: ClipPlayback?) {
+                if (clip != null) started.putIfAbsent(index, frame) else if (index in started) stopped.putIfAbsent(index, frame)
             }
             override fun sound(index: Int, name: String) { heard += index to name }
         }

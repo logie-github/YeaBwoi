@@ -15,8 +15,7 @@ enum class Activity(val label: String, val description: String, val animation: I
     READ("Read a book", "Reading", 520, 9f),
     CHAT("Chat", "Chatting", 60, 7f),
     LISTEN("Listen", "Listening", 0, 7f),
-    /** A two-person animation with another NPC (the partner activity: an imported pair, or a game emote together). */
-    PARTNER("Partner", "With a partner", 0, 0f),
+    PERFORM("Play animation", "Performing", 0, 0f),
 }
 
 enum class SceneObject(val label: String, val model: Int, val position: Vec3, val approach: Vec3, val action: Activity) {
@@ -41,6 +40,29 @@ enum class SceneObject(val label: String, val model: Int, val position: Vec3, va
     companion object { const val BOOK_MODEL = 198029 }
 }
 
+/** One actor's part of a performance: the clip to play (a key the screen resolves: [PlaybackKeys]), where it stands from
+ *  the performance's anchor (x forward, y left; z is a lift the clip carries) and its facing (radians) from the heading. */
+data class PlaybackRole(val clip: String, val offset: Vec3, val facing: Float)
+data class ClipPlayback(val clip: String, val command: Long)
+/**
+ * An animation for one or two NPCs: [roles] in order (the lead's, then [partnerId]'s), one cycle of [seconds], played
+ * [repetitions] times (or until stopped when [repeat]). [name] is shown while it plays; [sounds] are its sound events on
+ * the cycle's clock ([PartnerSound.actor]: the role's index).
+ */
+data class PerformanceOrder(
+    val partnerId: String?, val roles: List<PlaybackRole>, val seconds: Float,
+    val repeat: Boolean = false, val repetitions: Int = 1,
+    val name: String = "", val sounds: List<PartnerSound> = emptyList(),
+)
+
+/** The clip keys of [PlaybackRole.clip] that are not imported single clips: a partner pair's role, a Warcraft emote. */
+object PlaybackKeys {
+    fun pair(id: String, role: Int) = "pair:$id:$role"
+    fun emote(anim: Int) = "emote:$anim"
+    /** The game animation of an emote key, else null. */
+    fun emoteOf(key: String): Int? = if (key.startsWith("emote:")) key.removePrefix("emote:").toIntOrNull() else null
+}
+
 data class InteractionSpot(val entry: Vec3, val pose: Vec3, val facing: Float)
 
 /**
@@ -52,18 +74,12 @@ class Pose {
     var facing = 0f
     var activity = Activity.IDLE
     var furniture: SceneObject? = null
+    var playback: ClipPlayback? = null
     var ex = 0f; var ey = 0f; var ez = 0f
-    /** Goes up whenever this person's partner animation starts or stops (the renderer starts or stops it then). */
-    var pairSerial = 0
-    /** The pair being played (null: none, or a game emote: [emote]); [role] 0 the initiator, 1 the partner. */
-    var pair: PartnerPair? = null
-    var role = 0
-    /** The game emote played with the partner (-1 none) and whether it is held. */
-    var emote = -1
-    var emoteLoop = false
 }
 
-/** What a person's partner activity is, for the menus and the tests ([SceneSimulation.partnerOf]). */
+/** What a person's partner animation is, for the menus and the tests ([SceneSimulation.partnerOf]). [stage] is APPROACH
+ *  (walking to their places) or PLAY; [role] 0 is the one who went to the other (or the lead of an ordered one). */
 data class PartnerView(
     val stage: String, val partner: String, val name: String, val role: Int, val loops: Int, val clock: Float,
     val startStep: Long, val ox: Float, val oy: Float, val yaw: Float, val furniture: SceneObject?, val emote: Int,
@@ -75,9 +91,11 @@ class SceneSimulation(
     private val random: Random = Random.Default,
     private val durations: Map<Activity, Float> = emptyMap(),
     initiallyReady: Boolean = true,
-    /** The chance an idle NPC's decision is to go to a partner (0: never; [PartnerFrequency]). */
-    var partnerChance: Float = PartnerFrequency.SOMETIMES.chance,
-    /** The library's enabled pairs to pick from (empty: the Warcraft emotes, [PartnerEmotes]). */
+    private val wanderOnly: Boolean = false,
+    private val route: ((Vec3, Vec3) -> List<Vec3>?)? = null,
+    /** The chance an idle NPC's decision is to start a partner animation with another (0: never; [PartnerFrequency]). */
+    var partnerChance: Float = 0f,
+    /** The partner animations an NPC picks from by itself (empty: the Warcraft emotes, [PartnerEmotes]). */
     var pairs: List<PartnerPair> = emptyList(),
     /** Which game animations each NPC's model has (the fallback's emotes are picked from both models'). */
     var emotes: ModelEmotes = ModelEmotes.STANDARD,
@@ -85,18 +103,19 @@ class SceneSimulation(
     data class Person(
         val id: String, val position: Vec3, val facing: Float, val activity: Activity, val directed: Boolean,
         val furniture: SceneObject? = null, val entry: Vec3 = position,
-        /** The partner's id while in a partner activity (walking to them, playing, parting), else null. */
+        val queued: Int = 0, val repeating: Boolean = false,
+        /** The other NPC of a two-person animation (walking to their places or playing), else null. */
         val partner: String? = null,
     )
 
-    /** A pair's sound event is due: actor [index] (the cast's order), sound [name]. Called inside [tick]. */
+    /** A performance's sound event is due: actor [index] (the cast's order), sound [name]. Called inside [tick]. */
     var sounds: ((index: Int, name: String) -> Unit)? = null
 
-    /** Steps run ([tick]s): two people start a pair at the same one. */
+    /** Steps run ([tick]s): both people of a performance start on the same one. */
     var steps = 0L
         private set
 
-    /** How many partner animations have started, and the last one's name (the screen's notice). */
+    /** How many partner animations (by themselves or sent with Send to partner) have started, and the last one's name. */
     var pairStarts = 0
         private set
     var lastPairName: String? = null
@@ -117,31 +136,30 @@ class SceneSimulation(
     var version = 0L
         private set
 
-    private enum class Phase { WAITING, MOVING, ACTING, PAIRED }
-
-    private enum class Stage { APPROACH, ALIGN, PLAY, RELEASE }
-
-    /** Two people's partner activity, from the walk over to the parting (pooled: none is made during play). */
-    private class PairRun {
-        var active = false
-        var a: Actor? = null
-        var b: Actor? = null
-        var pair: PartnerPair? = null
-        var emote: PartnerEmote? = null
-        var furniture: SceneObject? = null
-        var stage = Stage.APPROACH
-        var ox = 0f; var oy = 0f; var oz = 0f; var yaw = 0f
-        /** The shared clock: seconds since both started (one value for both, moved once a step). */
+    /**
+     * One performance: [roles] for [lead] and [other], placed from [anchor] turned by [heading]. A partner animation
+     * ([partnerActivity]: started by an NPC itself or by Send to partner) was begun by [initiator], may hold [furniture],
+     * plays an [emote] when no imported pair fits, and ends with both stepping apart and a cooldown.
+     */
+    private class Performance(
+        val lead: Actor, val other: Actor?, val roles: List<PlaybackRole>, val seconds: Float,
+        val anchor: Vec3, val heading: Float, var repeat: Boolean, var remainingCycles: Int,
+        val directed: Boolean = true, val name: String = "", val sounds: List<PartnerSound> = emptyList(),
+        val partnerActivity: Boolean = false, val initiator: Actor? = null, val furniture: SceneObject? = null,
+        val emote: Int = -1,
+    ) {
+        var started = false
+        /** Seconds played since the first cycle started, and cycles finished: one clock for both. */
         var clock = 0f
-        /** Where in the current cycle the clock is, and the cycles finished. */
-        var cycle = 0f
         var loops = 0
-        var playFor = 0f
-        var hold = 0f
         var startStep = 0L
-        // the walk over: where a goes
-        var tx = 0f; var ty = 0f
     }
+
+    /** How a partner animation is set up (the partner activity's placement): see [startPartner]. */
+    private class Setup(val anchor: Vec3, val heading: Float, val furniture: SceneObject?, val emote: Int,
+        val initiator: Actor, val directed: Boolean)
+
+    private enum class Phase { WAITING, MOVING, ACTING }
 
     private class Actor(val id: String, val index: Int, start: Vec3, var facing: Float, var remaining: Float) {
         // the position as plain numbers: walking moves them every tick without making a Vec3
@@ -153,23 +171,19 @@ class SceneSimulation(
             set(v) { x = v.x; y = v.y; z = v.z }
         var phase = Phase.WAITING
         var destination = position
+        var waypoints = emptyList<Vec3>()
+        var waypoint = 0
+        var wanderCenter = start
         var activity = Activity.IDLE
         var target: SceneObject? = null
         var partner: Actor? = null
+        var performance: Performance? = null
+        var playback: ClipPlayback? = null
+        val queue = ArrayDeque<PerformanceOrder>()
+        var completedPerformance: Performance? = null
         var directed = false
-        // the partner activity
-        var run: PairRun? = null
-        var role = 0
-        /** Seconds before this person may start another partner activity by themselves. */
+        /** Seconds before this person may start another partner animation by themselves. */
         var cooldown = 0f
-        var pairSerial = 0
-        var showing = false
-        var pairActivity = Activity.IDLE
-        var slotX = 0f; var slotY = 0f; var slotZ = 0f; var slotF = 0f
-        var fromX = 0f; var fromY = 0f; var fromZ = 0f
-        var alignT = 0f; var alignFor = 0f
-        var legWalking = false
-        var aligned = false
     }
 
     private val actors = actorIds.distinct().mapIndexed { i, id ->
@@ -182,8 +196,6 @@ class SceneSimulation(
     private val peopleScratch = ArrayList<Actor>(order.size)
     private val pairScratch = ArrayList<PartnerPair>()
     private val emoteScratch = ArrayList<PartnerEmote>(PartnerEmotes.ALL.size)
-    private val slotScratch = FloatArray(4)
-    private val runs = Array(maxOf(1, order.size / 2)) { PairRun() }
 
     /** How many people are on stage (the indices [pose] takes, in the cast's order). */
     val count: Int get() = order.size
@@ -195,18 +207,7 @@ class SceneSimulation(
         val a = order[index]
         out.x = a.x; out.y = a.y; out.z = a.z
         out.facing = a.facing
-        out.pairSerial = a.pairSerial
-        val run = a.run
-        if (run != null && a.showing) {
-            out.pair = run.pair; out.role = a.role
-            out.emote = run.emote?.anim ?: -1; out.emoteLoop = run.emote?.loop ?: false
-        } else { out.pair = null; out.role = 0; out.emote = -1; out.emoteLoop = false }
-        if (run != null) {
-            out.activity = a.pairActivity
-            out.furniture = null
-            out.ex = a.x; out.ey = a.y; out.ez = a.z
-            return
-        }
+        out.playback = a.playback
         out.activity = if (a.phase == Phase.MOVING) Activity.WALK else a.activity
         val item = a.target.takeIf { a.phase == Phase.ACTING }
         out.furniture = item
@@ -221,47 +222,45 @@ class SceneSimulation(
     fun holder(item: SceneObject): String? = order.firstOrNull { it.target == item }?.id
 
     fun people(): List<Person> = actors.values.map { actor ->
-        val run = actor.run
-        if (run != null) {
-            val other = if (actor.role == 0) run.b else run.a
-            return@map Person(actor.id, actor.position, actor.facing, actor.pairActivity, actor.directed, null, actor.position, other?.id)
-        }
         val item = actor.target.takeIf { actor.phase == Phase.ACTING }
         Person(actor.id, actor.position, actor.facing, if (actor.phase == Phase.MOVING) Activity.WALK else actor.activity,
-            actor.directed, item, item?.let { spots[it]?.entry } ?: actor.position)
+            actor.directed, item, item?.let { spots[it]?.entry } ?: actor.position,
+            actor.queue.size, actor.performance?.repeat == true, partnerOf(actor)?.id)
     }
 
-    /** [id]'s partner activity now, or null (menus and tests; allocates). */
+    private fun partnerOf(actor: Actor): Actor? = actor.performance?.let { if (it.lead === actor) it.other else it.lead }
+
+    /** [id]'s two-person animation now, or null (menus and tests; allocates). */
     fun partnerOf(id: String): PartnerView? {
         val actor = actors[id] ?: return null
-        val run = actor.run ?: return null
-        val other = (if (actor.role == 0) run.b else run.a) ?: return null
-        return PartnerView(run.stage.name, other.id, run.pair?.name ?: run.emote?.name.orEmpty(), actor.role, run.loops,
-            run.clock, run.startStep, run.ox, run.oy, run.yaw, run.furniture, run.emote?.anim ?: -1)
+        val p = actor.performance ?: return null
+        val other = partnerOf(actor) ?: return null
+        val role = if (p.initiator != null) (if (actor === p.initiator) 0 else 1) else (if (actor === p.lead) 0 else 1)
+        return PartnerView(if (p.started) "PLAY" else "APPROACH", other.id, p.name, role, p.loops, p.clock, p.startStep,
+            p.anchor.x, p.anchor.y, p.heading, p.furniture, p.emote)
     }
 
     /** Where [id] stands (tests). */
     fun position(id: String): Vec3? = actors[id]?.position
 
     /**
-     * The player's order: [id] goes to [otherId] and starts a random partner animation with them (an imported pair, else
-     * a game emote both have). Whatever either was doing stops (but someone carrying out another order of the player's
-     * is not taken). False: no such person, the other is busy with an order, or nothing fits them both.
+     * The player's Send to partner: [id] goes to [otherId] and they play a random partner animation (an imported pair that
+     * fits, else a Warcraft emote both models have). Whatever either was doing stops, but someone carrying out another of
+     * the player's orders is not taken. False: no such person, the other is busy with an order, nothing fits, or no path.
      */
     fun partner(id: String, otherId: String): Boolean {
         val actor = actors[id] ?: return false
         val other = actors[otherId] ?: return false
-        if (actor === other || (other.directed && other.run == null)) return false
+        if (actor === other || (other.directed && other.performance?.partnerActivity != true)) return false
         if (!pick(actor, other)) return false
         release(actor)
         release(other)
-        start(actor, other, directed = true)
-        return true
+        return startPartner(actor, other, directed = true)
     }
 
-    /** Ends every partner activity at once (the scene ends): both of each pair back to idle where they stand. */
+    /** Ends every partner animation at once (the scene ends): both of each back to idle where they stand. */
     fun endPartners() {
-        for (run in runs) if (run.active) breakRun(run)
+        for (actor in order) if (actor.performance?.partnerActivity == true) release(actor)
     }
 
     fun available(target: SceneObject, id: String): Boolean =
@@ -270,29 +269,171 @@ class SceneSimulation(
     fun use(id: String, target: SceneObject): Boolean {
         val actor = actors[id] ?: return false
         if (!available(target, id)) return false
-        begin(actor, target.action, spots.getValue(target).entry, directed = true, target = target)
-        return true
+        return begin(actor, target.action, spots.getValue(target).entry, directed = true, target = target)
+    }
+
+    fun walk(id: String, destination: Vec3): Boolean {
+        val actor = actors[id] ?: return false
+        if (!destination.x.isFinite() || !destination.y.isFinite() || !destination.z.isFinite()) return false
+        return begin(actor, Activity.IDLE, destination, directed = true)
     }
 
     fun chat(id: String, otherId: String): Boolean {
         val actor = actors[id] ?: return false
         val other = actors[otherId] ?: return false
         if (actor === other) return false
-        startChat(actor, other, directed = true)
+        return startChat(actor, other, directed = true)
+    }
+
+    fun perform(id: String, otherId: String?, roles: List<PlaybackRole>, seconds: Float): Boolean =
+        perform(id, PerformanceOrder(otherId, roles, seconds))
+
+    fun perform(id: String, request: PerformanceOrder): Boolean {
+        val actor = actors[id] ?: return false
+        return valid(actor, request) && startPerformance(actor, request)
+    }
+
+    fun enqueue(id: String, requests: List<PerformanceOrder>): Boolean {
+        val actor = actors[id] ?: return false
+        if (requests.isEmpty() || requests.size > MAX_QUEUED - actor.queue.size || requests.any { !valid(actor, it) }) return false
+        actor.queue.addAll(requests)
+        version++
         return true
     }
 
+    fun clearQueue(id: String) {
+        val actor = actors[id] ?: return
+        actor.queue.clear()
+        actor.completedPerformance = null
+        version++
+    }
+
+    fun stopRepeat(id: String) {
+        val performance = actors[id]?.performance ?: return
+        if (performance.repeat) {
+            performance.repeat = false
+            performance.remainingCycles = 1
+            version++
+        }
+    }
+
+    private fun valid(lead: Actor, request: PerformanceOrder): Boolean =
+        request.seconds.isFinite() && request.seconds > 0f && request.repetitions in 1..100 &&
+            if (request.partnerId == null) request.roles.size == 1
+            else request.partnerId != lead.id && request.partnerId in actors && request.roles.size == 2
+
+    private fun startPerformance(lead: Actor, request: PerformanceOrder, continuation: Performance? = null, setup: Setup? = null): Boolean {
+        val other = request.partnerId?.let(actors::get)
+        val previous = continuation?.takeIf { it.other === other }
+        val anchor = previous?.anchor ?: setup?.anchor ?: movementOrigin(lead)
+        val heading = previous?.heading ?: setup?.heading ?: lead.facing
+        val directed = setup?.directed ?: true
+        val furniture = setup?.furniture
+        val performance = Performance(lead, other, request.roles, request.seconds.coerceIn(0.25f, 3600f),
+            anchor, heading, request.repeat, request.repetitions, directed, request.name, request.sounds,
+            setup != null, setup?.initiator, furniture, setup?.emote ?: -1)
+        if (other != null && previous == null &&
+            !begin(other, Activity.PERFORM, rolePosition(performance, request.roles[1]), directed, furniture)) return false
+
+        // the lead steps to its own place too when it is not there already, so nobody jumps when the clips start
+        val leadSpot = if (other != null && previous == null) rolePosition(performance, request.roles[0]) else null
+        val leadWalks = leadSpot != null && hypot(leadSpot.x - lead.x, leadSpot.y - lead.y) > LEAD_STEP &&
+            begin(lead, Activity.PERFORM, leadSpot, directed, furniture)
+        if (!leadWalks) release(lead)
+        if (other != null) {
+            if (previous != null) release(other)
+            lead.partner = other
+            other.partner = lead
+            lead.performance = performance
+            other.performance = performance
+            if (!leadWalks) {
+                lead.phase = Phase.ACTING
+                lead.target = furniture
+            }
+            lead.directed = directed
+        }
+        if (other == null || previous != null) play(performance)
+        return true
+    }
+
+    private fun startQueuedPerformance(actor: Actor) {
+        if (actor.performance != null || actor.directed) return
+        val next = actor.queue.firstOrNull() ?: return
+        val partner = next.partnerId?.let(actors::get)
+        if (partner?.let { it.directed || it.performance != null } == true) return
+        actor.queue.removeFirst()
+        val previous = actor.completedPerformance
+        actor.completedPerformance = null
+        if (!startPerformance(actor, next, previous)) queueNotice = "The NPCs couldn’t reach their starting positions."
+        version++
+    }
+
+    var queueNotice: String? = null
+        private set
+
+    fun takeQueueNotice(): String? = queueNotice.also { queueNotice = null }
+
+    private fun rolePosition(performance: Performance, role: PlaybackRole): Vec3 {
+        val x = role.offset.x
+        val y = role.offset.y
+        val c = cos(performance.heading)
+        val s = sin(performance.heading)
+        return performance.anchor + Vec3(x * c - y * s, x * s + y * c, 0f)
+    }
+
+    private fun play(performance: Performance) {
+        val first = !performance.started
+        performance.started = true
+        val command = ++version
+        for ((index, actor) in listOfNotNull(performance.lead, performance.other).withIndex()) {
+            val role = performance.roles[index]
+            actor.position = rolePosition(performance, role)
+            actor.facing = performance.heading + role.facing
+            actor.performance = performance
+            actor.playback = ClipPlayback(role.clip, command)
+            actor.activity = Activity.PERFORM
+            actor.phase = Phase.ACTING
+            actor.remaining = performance.seconds
+            actor.directed = performance.directed
+        }
+        if (first) {
+            performance.startStep = steps
+            if (performance.partnerActivity) {
+                pairStarts++
+                lastPairName = performance.name
+            }
+        }
+        fire(performance, -1f, 0f)
+        version++
+    }
+
+    /** [performance]'s sound events whose time is in (from, to] of the cycle. */
+    private fun fire(performance: Performance, from: Float, to: Float) {
+        val listener = sounds ?: return
+        if (to <= from) return
+        for (sound in performance.sounds) {
+            if (sound.timeSec > from && sound.timeSec <= to) {
+                val who = if (sound.actor == 1) performance.other else performance.lead
+                if (who != null) listener(who.index, sound.name)
+            }
+        }
+    }
+
     fun freeWill(id: String) {
-        actors[id]?.let { release(it) }
+        actors[id]?.let { actor ->
+            clearQueue(actor.id)
+            actor.performance?.lead?.takeUnless { it === actor }?.let { clearQueue(it.id) }
+            release(actor)
+        }
     }
 
     fun tick(seconds: Float) {
         val dt = if (seconds.isNaN()) 0f else seconds.coerceIn(0f, 0.1f)
         steps++
+        for (actor in order) startQueuedPerformance(actor)
         for (actor in order) {
             if (actor.cooldown > 0f) actor.cooldown -= dt
             when (actor.phase) {
-                Phase.PAIRED -> Unit
                 Phase.WAITING -> {
                     actor.remaining -= dt
                     if (actor.remaining <= 0f) choose(actor)
@@ -302,26 +443,72 @@ class SceneSimulation(
                     val dy = actor.destination.y - actor.y
                     val step = dt * WALK_SPEED
                     val distance = hypot(dx, dy)
-                    if (distance <= step) arrive(actor)
-                    else { actor.x += dx * (step / distance); actor.y += dy * (step / distance) }
+                    if (distance <= step) {
+                        if (actor.waypoint + 1 == actor.waypoints.size) arrive(actor)
+                        else {
+                            actor.position = actor.destination
+                            nextWaypoint(actor)
+                        }
+                    } else {
+                        val fraction = step / distance
+                        actor.x += dx * fraction
+                        actor.y += dy * fraction
+                        actor.z += (actor.destination.z - actor.z) * fraction
+                    }
                 }
                 Phase.ACTING -> {
-                    if (actor.activity == Activity.LISTEN) continue
+                    val performance = actor.performance
+                    if (performance != null && !performance.started) {
+                        // waiting for the other to reach their place: face them as they come
+                        val coming = partnerOf(actor)
+                        if (coming != null && coming.phase == Phase.MOVING && hypot(coming.x - actor.x, coming.y - actor.y) <= FACE_RANGE) {
+                            actor.facing = atan2(coming.y - actor.y, coming.x - actor.x)
+                        }
+                        continue
+                    }
+                    if (actor.activity == Activity.LISTEN || (performance != null && performance.lead !== actor)) continue
+                    val before = if (performance != null) performance.seconds - actor.remaining else 0f
                     actor.remaining -= dt
-                    if (actor.remaining <= 0f) release(actor)
+                    if (performance != null) {
+                        performance.clock += dt
+                        fire(performance, before, minOf(performance.seconds - actor.remaining, performance.seconds))
+                    }
+                    if (actor.remaining <= 0f) {
+                        if (performance != null) performance.loops++
+                        val repeat = performance?.repeat == true && actor.queue.isEmpty() &&
+                            performance.other?.queue?.isNotEmpty() != true
+                        if (performance != null && (--performance.remainingCycles > 0 || repeat)) {
+                            // the next cycle keeps the step's overshoot: cycles stay on the one clock, never drifting
+                            val over = actor.remaining
+                            play(performance)
+                            actor.remaining += over
+                            fire(performance, 0f, -over)
+                        } else {
+                            release(actor)
+                            actor.completedPerformance = performance?.takeIf { actor.queue.isNotEmpty() }
+                            startQueuedPerformance(actor)
+                            if (performance?.partnerActivity == true) part(performance)
+                        }
+                    }
                 }
             }
         }
-        for (run in runs) if (run.active) tickRun(run, dt)
+    }
+
+    private fun wander(actor: Actor) {
+        val center = actor.wanderCenter
+        val target = center + Vec3(random.nextFloat() * 3 - 1.5f, random.nextFloat() * 2 - 1f, 0f)
+        if (!begin(actor, Activity.IDLE, target, false)) actor.remaining = 0.8f
     }
 
     private fun choose(actor: Actor) {
-        if (partnerChance > 0f && actor.cooldown <= 0f && !actor.directed) {
+        if (partnerChance > 0f && actor.cooldown <= 0f && !actor.directed && actor.queue.isEmpty()) {
             val other = nearestFree(actor)
-            if (other != null && random.nextFloat() < partnerChance && pick(actor, other)) {
-                start(actor, other, directed = false)
-                return
-            }
+            if (other != null && random.nextFloat() < partnerChance && pick(actor, other) && startPartner(actor, other, directed = false)) return
+        }
+        if (wanderOnly) {
+            wander(actor)
+            return
         }
         val options = optionScratch.apply { clear(); for (o in objects) if (available(o, actor.id)) add(o) }
         val people = peopleScratch.apply { clear(); for (o in order) if (o !== actor && o.phase == Phase.WAITING) add(o) }
@@ -329,37 +516,63 @@ class SceneSimulation(
         when {
             choice < options.size -> options[choice].let { begin(actor, it.action, spots.getValue(it).entry, false, it) }
             choice < options.size + people.size -> startChat(actor, people[choice - options.size], directed = false)
-            else -> begin(actor, Activity.IDLE, Vec3(random.nextFloat() * 3 - 1.5f, random.nextFloat() * 2 - 1.4f, 0f), false)
+            else -> wander(actor)
         }
     }
 
-    private fun startChat(actor: Actor, other: Actor, directed: Boolean) {
+    private fun startChat(actor: Actor, other: Actor, directed: Boolean): Boolean {
         release(actor)
         release(other)
         val side = if (other.position.x > 0f) -1f else 1f
-        begin(actor, Activity.CHAT, Vec3(other.position.x + side * 0.85f, other.position.y, 0f), directed)
+        if (!begin(actor, Activity.CHAT, Vec3(other.x + side * 0.85f, other.y, other.z), directed)) {
+            actor.remaining = 0.8f
+            return false
+        }
         actor.partner = other
         other.partner = actor
         other.activity = Activity.LISTEN
         other.phase = Phase.ACTING
         version++
+        return true
     }
 
-    private fun begin(actor: Actor, activity: Activity, destination: Vec3, directed: Boolean, target: SceneObject? = null) {
+    private fun movementOrigin(actor: Actor): Vec3 =
+        spots[actor.target]?.entry?.takeIf { actor.phase == Phase.ACTING } ?: actor.position
+
+    private fun begin(actor: Actor, activity: Activity, destination: Vec3, directed: Boolean, target: SceneObject? = null): Boolean {
+        val from = movementOrigin(actor)
+        val path = if (route == null) listOf(destination) else route.invoke(from, destination).orEmpty()
+        if (path.isEmpty()) return false
         release(actor)
         version++
         actor.activity = activity
         actor.target = target
         actor.directed = directed
-        actor.destination = destination
-        val delta = destination - actor.position
-        if (delta.x * delta.x + delta.y * delta.y > 0.001f) actor.facing = atan2(delta.y, delta.x)
+        actor.waypoints = path
+        actor.waypoint = -1
+        nextWaypoint(actor)
         actor.phase = Phase.MOVING
+        return true
+    }
+
+    private fun nextWaypoint(actor: Actor) {
+        actor.destination = actor.waypoints[++actor.waypoint]
+        val delta = actor.destination - actor.position
+        if (delta.x * delta.x + delta.y * delta.y > 0.001f) actor.facing = atan2(delta.y, delta.x)
     }
 
     private fun arrive(actor: Actor) {
+        actor.performance?.let { performance ->
+            // at their place: the clips start once both are there
+            version++
+            actor.position = actor.destination
+            actor.phase = Phase.ACTING
+            if (performance.lead.phase != Phase.MOVING && performance.other?.phase != Phase.MOVING) play(performance)
+            return
+        }
         version++
         actor.position = actor.destination
+        if (actor.activity == Activity.IDLE && actor.directed) actor.wanderCenter = actor.position
         actor.phase = Phase.ACTING
         actor.remaining = durations[actor.activity]?.takeIf { it.isFinite() && it > 0f } ?: actor.activity.seconds
         actor.target?.let { target ->
@@ -375,12 +588,15 @@ class SceneSimulation(
 
     private fun release(actor: Actor) {
         version++
-        actor.run?.let { breakRun(it) }
+        if (actor.performance?.partnerActivity == true) actor.cooldown = MIN_COOLDOWN + random.nextFloat() * (MAX_COOLDOWN - MIN_COOLDOWN)
         val partner = actor.partner
         actor.partner = null
+        actor.performance = null
+        actor.completedPerformance = null
+        actor.playback = null
         if (actor.phase == Phase.ACTING) actor.target?.let { actor.position = spots.getValue(it).entry }
         actor.target = null
-        actor.z = 0f
+        actor.waypoints = emptyList()
         actor.activity = Activity.IDLE
         actor.phase = Phase.WAITING
         actor.remaining = 1.25f + random.nextFloat() * 2f
@@ -391,41 +607,25 @@ class SceneSimulation(
         }
     }
 
-    // ---- the partner activity
+    // ---- the partner activity: an idle NPC goes to another and they play a two-person animation (a Performance)
 
-    private fun free(o: Actor) = o.phase == Phase.WAITING && o.run == null && !o.directed && o.cooldown <= 0f
+    private fun free(o: Actor) = o.phase == Phase.WAITING && o.performance == null && !o.directed && o.cooldown <= 0f && o.queue.isEmpty()
 
-    /** The free person nearest [actor] that it can see and reach (ties within a quarter yard: a random one), or null. */
+    /** The free person nearest [actor] within [PARTNER_RANGE] (ties within [TIE_YARDS]: a random one), or null. */
     private fun nearestFree(actor: Actor): Actor? {
         var best = Float.MAX_VALUE
         for (o in order) {
-            if (o === actor || !free(o) || !visible(actor.x, actor.y, o.x, o.y)) continue
+            if (o === actor || !free(o)) continue
             val d = hypot(o.x - actor.x, o.y - actor.y)
             if (d <= PARTNER_RANGE && d < best) best = d
         }
         if (best == Float.MAX_VALUE) return null
         val near = peopleScratch.apply { clear() }
-        for (o in order) {
-            if (o === actor || !free(o) || !visible(actor.x, actor.y, o.x, o.y)) continue
-            if (hypot(o.x - actor.x, o.y - actor.y) <= best + TIE_YARDS) near.add(o)
-        }
+        for (o in order) if (o !== actor && free(o) && hypot(o.x - actor.x, o.y - actor.y) <= best + TIE_YARDS) near.add(o)
         return if (near.size == 1) near[0] else near[random.nextInt(near.size)]
     }
 
-    /** Whether nothing of the scene's furniture stands on the line between two points. */
-    private fun visible(ax: Float, ay: Float, bx: Float, by: Float): Boolean {
-        val dx = bx - ax; val dy = by - ay
-        val len2 = dx * dx + dy * dy
-        if (len2 < 1e-6f) return true
-        for (o in objects) {
-            val t = (((o.position.x - ax) * dx + (o.position.y - ay) * dy) / len2).coerceIn(0f, 1f)
-            val px = ax + dx * t - o.position.x; val py = ay + dy * t - o.position.y
-            if (px * px + py * py < BLOCK_RADIUS * BLOCK_RADIUS) return false
-        }
-        return true
-    }
-
-    // what [pick] chose, read by [start]
+    // what [pick] chose, read by [startPartner]
     private var picked: PartnerPair? = null
     private var pickedEmote: PartnerEmote? = null
     private var pickedFurniture: SceneObject? = null
@@ -456,318 +656,88 @@ class SceneSimulation(
         return if (PartnerPlaces.free(p)) null else NO_PLACE
     }
 
-    private fun start(a: Actor, b: Actor, directed: Boolean) {
-        val run = runs.firstOrNull { !it.active } ?: return
-        version++
-        run.active = true
-        run.a = a; run.b = b
-        run.pair = picked; run.emote = pickedEmote; run.furniture = pickedFurniture
-        run.stage = Stage.APPROACH
-        run.clock = 0f; run.cycle = 0f; run.loops = 0
-        for (actor in arrayOf(a, b)) {
-            actor.run = run
-            actor.phase = Phase.PAIRED
-            actor.activity = Activity.PARTNER
-            actor.target = run.furniture
-            actor.directed = false
-            actor.showing = false
-            actor.aligned = false
-            actor.pairActivity = Activity.IDLE
-        }
-        a.role = 0; b.role = 1
-        a.directed = directed
-        // a walks up to b's front: a little short of b, on the side a comes from
-        val dx = a.x - b.x; val dy = a.y - b.y
-        val d = hypot(dx, dy)
-        if (d <= APPROACH_GAP + 0.2f) { beginAlign(run); return }
-        run.tx = b.x + dx / d * APPROACH_GAP
-        run.ty = b.y + dy / d * APPROACH_GAP
-        a.pairActivity = Activity.WALK
-        a.facing = atan2(run.ty - a.y, run.tx - a.x)
-    }
-
-    private fun tickRun(run: PairRun, dt: Float) {
-        val a = run.a ?: return
-        val b = run.b ?: return
-        when (run.stage) {
-            Stage.APPROACH -> {
-                val dx = run.tx - a.x; val dy = run.ty - a.y
-                val distance = hypot(dx, dy)
-                val step = dt * WALK_SPEED
-                if (hypot(a.x - b.x, a.y - b.y) <= FACE_RANGE) b.facing = atan2(a.y - b.y, a.x - b.x)
-                if (distance <= step) { a.x = run.tx; a.y = run.ty; beginAlign(run) }
-                else { a.x += dx * (step / distance); a.y += dy * (step / distance) }
-            }
-            Stage.ALIGN -> {
-                alignStep(a, dt)
-                alignStep(b, dt)
-                if (a.aligned && b.aligned) beginPlay(run)
-            }
-            Stage.PLAY -> {
-                val previous = run.cycle
-                run.clock += dt
-                val pair = run.pair
-                val length = pair?.duration ?: 0f
-                if (pair != null && length > 0f) {
-                    var next = previous + dt
-                    if (pair.loops) {
-                        var from = previous
-                        while (next >= length) {
-                            fire(run, from, length)
-                            next -= length
-                            run.loops++
-                            from = -1f
-                        }
-                        fire(run, from, next)
-                        run.cycle = next
-                    } else {
-                        if (previous < length) fire(run, previous, minOf(next, length))
-                        if (next >= length && previous < length) run.loops = 1
-                        run.cycle = next
-                    }
-                } else run.cycle += dt
-                if (run.clock >= run.playFor - 1e-4f) beginRelease(run)
-            }
-            Stage.RELEASE -> {
-                run.hold -= dt
-                if (run.hold <= 0f) part(run)
-            }
-        }
-    }
-
-    /** Sounds of [run]'s pair whose time is in (from, to] of the cycle. */
-    private fun fire(run: PairRun, from: Float, to: Float) {
-        val pair = run.pair ?: return
-        val listener = sounds ?: return
-        if (to <= from) return
-        for (i in pair.sounds.indices) {
-            val s = pair.sounds[i]
-            if (s.timeSec > from && s.timeSec <= to) {
-                val who = if (s.actor == 1) run.b else run.a
-                if (who != null) listener(who.index, s.name)
-            }
-        }
-    }
-
-    private fun beginAlign(run: PairRun) {
-        val a = run.a ?: return
-        val b = run.b ?: return
-        version++
-        run.stage = Stage.ALIGN
-        val slotA = run.pair?.slotA ?: PartnerEmotes.SLOT_A
-        val slotB = run.pair?.slotB ?: PartnerEmotes.SLOT_B
-        val item = run.furniture
-        val spot = item?.let { spots[it] }
+    /**
+     * [initiator] goes to [target] and they play what [pick] chose, as a [Performance] led by [target]: on the floor, the
+     * shared origin is put so that the target's slot is where it stands, turned so the slots line up with the two of them
+     * (the initiator walks to its slot, the target stays); on furniture, the origin is the seat or bed, facing as it does,
+     * and both walk to their slots. The clips start on one step and play on one clock.
+     */
+    private fun startPartner(initiator: Actor, target: Actor, directed: Boolean): Boolean {
+        val pair = picked
+        val emote = pickedEmote
+        val furniture = pickedFurniture
+        if (pair == null && emote == null) return false
+        val slotI = pair?.slotA ?: PartnerEmotes.SLOT_A
+        val slotT = pair?.slotB ?: PartnerEmotes.SLOT_B
+        val keyI = if (pair != null) PlaybackKeys.pair(pair.id, 0) else PlaybackKeys.emote(emote!!.anim)
+        val keyT = if (pair != null) PlaybackKeys.pair(pair.id, 1) else PlaybackKeys.emote(emote!!.anim)
+        val spot = furniture?.let { spots[it] }
+        val anchor: Vec3
+        val heading: Float
         if (spot != null) {
-            // on furniture: the origin on the floor under its seat or bed, facing as it does (the clip lifts them onto it)
-            run.ox = spot.pose.x; run.oy = spot.pose.y; run.oz = 0f; run.yaw = spot.facing
+            anchor = Vec3(spot.pose.x, spot.pose.y, spot.entry.z)
+            heading = spot.facing
         } else {
-            snapFloor((a.x + b.x) * 0.5f, (a.y + b.y) * 0.5f)
-            run.ox = snapX; run.oy = snapY; run.oz = 0f
-            run.yaw = PartnerMath.yaw(a.x, a.y, b.x, b.y, slotA, slotB, a.facing)
+            heading = PartnerMath.yaw(initiator.x, initiator.y, target.x, target.y, slotI, slotT, initiator.facing)
+            val c = cos(heading); val s = sin(heading)
+            anchor = Vec3(target.x - (slotT.x * c - slotT.y * s), target.y - (slotT.x * s + slotT.y * c), target.z)
         }
-        aim(a, run, slotA)
-        aim(b, run, slotB)
-    }
-
-    /** Sets [actor]'s slot and how it gets there: a walk when far, then a short eased move. */
-    private fun aim(actor: Actor, run: PairRun, slot: PartnerSlot) {
-        PartnerMath.place(run.ox, run.oy, run.oz, run.yaw, slot, slotScratch)
-        actor.slotX = slotScratch[0]; actor.slotY = slotScratch[1]; actor.slotZ = slotScratch[2]; actor.slotF = slotScratch[3]
-        actor.aligned = false
-        val d = hypot(actor.slotX - actor.x, actor.slotY - actor.y)
-        actor.legWalking = d > ALIGN_REACH
-        if (actor.legWalking) {
-            actor.facing = atan2(actor.slotY - actor.y, actor.slotX - actor.x)
-            actor.pairActivity = Activity.WALK
-        } else startEase(actor)
-    }
-
-    private fun startEase(actor: Actor) {
-        actor.legWalking = false
-        actor.fromX = actor.x; actor.fromY = actor.y; actor.fromZ = actor.z
-        val d = hypot(actor.slotX - actor.x, actor.slotY - actor.y)
-        actor.alignT = 0f
-        actor.alignFor = (d / WALK_SPEED).coerceIn(MIN_EASE, MAX_EASE)
-        actor.facing = actor.slotF
-        actor.pairActivity = if (d > 0.08f) Activity.WALK else Activity.IDLE
-    }
-
-    private fun alignStep(actor: Actor, dt: Float) {
-        if (actor.aligned) return
-        if (actor.legWalking) {
-            val dx = actor.slotX - actor.x; val dy = actor.slotY - actor.y
-            val d = hypot(dx, dy)
-            val step = dt * WALK_SPEED
-            val left = d - EASE_FROM
-            if (left <= step) {
-                actor.x += dx / d * left.coerceAtLeast(0f); actor.y += dy / d * left.coerceAtLeast(0f)
-                startEase(actor)
-            } else { actor.x += dx * (step / d); actor.y += dy * (step / d) }
-            return
-        }
-        actor.alignT += dt
-        val t = (actor.alignT / actor.alignFor).coerceIn(0f, 1f)
-        val k = t * t * (3f - 2f * t)
-        actor.x = actor.fromX + (actor.slotX - actor.fromX) * k
-        actor.y = actor.fromY + (actor.slotY - actor.fromY) * k
-        actor.z = actor.fromZ + (actor.slotZ - actor.fromZ) * k
-        if (t >= 1f) {
-            actor.x = actor.slotX; actor.y = actor.slotY; actor.z = actor.slotZ
-            actor.aligned = true
-            actor.pairActivity = Activity.IDLE
-        }
-    }
-
-    private fun beginPlay(run: PairRun) {
-        val a = run.a ?: return
-        val b = run.b ?: return
-        version++
-        run.stage = Stage.PLAY
-        run.clock = 0f; run.cycle = 0f; run.loops = 0
-        run.startStep = steps
-        val pair = run.pair
-        run.playFor = when {
-            pair == null -> if (run.emote?.loop == true) 6f + random.nextFloat() * 6f else 3f + random.nextFloat() * 2f
-            !pair.loops -> maxOf(pair.duration, MIN_HOLD)
-            pair.duration <= 0f -> MIN_LOOP_TIME + random.nextFloat() * (MAX_LOOP_TIME - MIN_LOOP_TIME)
+        val (seconds, cycles) = when {
+            pair == null -> (if (emote!!.loop) 6f + random.nextFloat() * 6f else 3f + random.nextFloat() * 2f) to 1
+            !pair.loops -> maxOf(pair.duration, MIN_HOLD) to 1
+            pair.duration <= 0f -> (MIN_LOOP_TIME + random.nextFloat() * (MAX_LOOP_TIME - MIN_LOOP_TIME)) to 1
             else -> {
                 val loops = 1 + random.nextInt(4)
-                if (loops * pair.duration >= MIN_LOOP_TIME) loops * pair.duration
+                if (loops * pair.duration >= MIN_LOOP_TIME) pair.duration to loops
                 else {
                     val time = MIN_LOOP_TIME + random.nextFloat() * (MAX_LOOP_TIME - MIN_LOOP_TIME)
-                    kotlin.math.ceil(time / pair.duration) * pair.duration
+                    pair.duration to kotlin.math.ceil(time / pair.duration).toInt()
                 }
             }
         }
-        for (actor in arrayOf(a, b)) {
-            actor.facing = actor.slotF
-            actor.pairActivity = Activity.PARTNER
-            actor.showing = true
-            actor.pairSerial++
-        }
-        pairStarts++
-        lastPairName = pair?.name ?: run.emote?.name
-        fire(run, -1f, 0f)
+        // the pair's actor 0 is the initiator, the performance's role 0 the target (its lead)
+        val sounds = pair?.sounds.orEmpty().map { it.copy(actor = if (it.actor == 0) 1 else 0) }
+        val request = PerformanceOrder(initiator.id, listOf(role(keyT, slotT), role(keyI, slotI)), seconds, false,
+            cycles.coerceIn(1, 100), pair?.name ?: emote!!.name, sounds)
+        return startPerformance(target, request, null, Setup(anchor, heading, furniture, emote?.anim ?: -1, initiator, directed))
     }
 
-    private fun beginRelease(run: PairRun) {
-        version++
-        run.stage = Stage.RELEASE
-        run.hold = 0.6f + random.nextFloat() * 0.6f
-        for (actor in arrayOf(run.a, run.b)) {
-            if (actor == null) continue
-            actor.pairActivity = Activity.IDLE
-            if (actor.showing) { actor.showing = false; actor.pairSerial++ }
-        }
-    }
+    private fun role(key: String, slot: PartnerSlot) = PlaybackRole(key, Vec3(slot.x, slot.y, slot.z), slot.yawDeg * DEG)
 
-    /** The end of a finished pair: both walk a few steps apart, then carry on by themselves. */
-    private fun part(run: PairRun) {
-        val a = run.a; val b = run.b
-        val ox = run.ox; val oy = run.oy
-        val item = run.furniture
-        detach(run)
-        for (actor in arrayOf(a, b)) {
-            if (actor == null) continue
-            if (item != null) spots[item]?.entry?.let { actor.x = it.x; actor.y = it.y }
-            actor.z = 0f
+    /** The end of a finished partner animation (both already released): they step a little apart, then carry on. */
+    private fun part(performance: Performance) {
+        val ox = performance.anchor.x
+        val oy = performance.anchor.y
+        for (actor in listOfNotNull(performance.lead, performance.other)) {
+            if (actor.performance != null || actor.phase != Phase.WAITING) continue
             var dx = actor.x - ox; var dy = actor.y - oy
             var d = hypot(dx, dy)
             if (d < 0.05f) { dx = -cos(actor.facing); dy = -sin(actor.facing); d = 1f }
             val away = 1f + random.nextFloat() * 0.6f
-            snapFloor(actor.x + dx / d * away, actor.y + dy / d * away, avoid = false)
-            begin(actor, Activity.IDLE, Vec3(snapX, snapY, 0f), directed = false)
+            begin(actor, Activity.IDLE, Vec3(actor.x + dx / d * away, actor.y + dy / d * away, actor.z), directed = false)
         }
-    }
-
-    /** Ends [run] at once (an order, the scene's end): both idle where they stand (off the furniture), nobody frozen. */
-    private fun breakRun(run: PairRun) {
-        val a = run.a; val b = run.b
-        val item = run.furniture
-        detach(run)
-        for (actor in arrayOf(a, b)) {
-            if (actor == null) continue
-            if (item != null && actor.z > 0.01f) spots[item]?.entry?.let { actor.x = it.x; actor.y = it.y }
-            actor.z = 0f
-            actor.phase = Phase.WAITING
-            actor.activity = Activity.IDLE
-            actor.directed = false
-            actor.remaining = 1.25f + random.nextFloat() * 2f
-        }
-    }
-
-    /** Lets go of [run]: both leave it (stopping what they showed) with a cooldown; the pool slot is free again. */
-    private fun detach(run: PairRun) {
-        version++
-        for (actor in arrayOf(run.a, run.b)) {
-            if (actor == null) continue
-            if (actor.showing) { actor.showing = false; actor.pairSerial++ }
-            actor.run = null
-            actor.target = null
-            actor.pairActivity = Activity.IDLE
-            actor.cooldown = MIN_COOLDOWN + random.nextFloat() * (MAX_COOLDOWN - MIN_COOLDOWN)
-        }
-        run.active = false
-        run.a = null; run.b = null
-        run.pair = null; run.emote = null; run.furniture = null
-    }
-
-    private var snapX = 0f
-    private var snapY = 0f
-
-    /** A floor point near ([x], [y]): inside the room's free floor and (with [avoid]) clear of the furniture. */
-    private fun snapFloor(x: Float, y: Float, avoid: Boolean = true) {
-        var px = x.coerceIn(FLOOR_MIN_X, FLOOR_MAX_X)
-        var py = y.coerceIn(FLOOR_MIN_Y, FLOOR_MAX_Y)
-        if (avoid) repeat(3) {
-            for (o in objects) {
-                val dx = px - o.position.x; val dy = py - o.position.y
-                val d = hypot(dx, dy)
-                if (d < CLEAR_RADIUS) {
-                    if (d < 1e-3f) { px += CLEAR_RADIUS; continue }
-                    px = o.position.x + dx / d * CLEAR_RADIUS
-                    py = o.position.y + dy / d * CLEAR_RADIUS
-                }
-            }
-            px = px.coerceIn(FLOOR_MIN_X, FLOOR_MAX_X)
-            py = py.coerceIn(FLOOR_MIN_Y, FLOOR_MAX_Y)
-        }
-        snapX = px; snapY = py
     }
 
     companion object {
         /** Yards a second a person walks. */
         const val WALK_SPEED = 1.25f
+        private const val MAX_QUEUED = 64
+        /** A performance's lead farther than this from its place walks there first. */
+        private const val LEAD_STEP = 0.02f
         /** How far an idle NPC looks for a partner (yards). */
         const val PARTNER_RANGE = 6f
         /** Partners nearer than the nearest by this much are as near (a random one is taken). */
         const val TIE_YARDS = 0.25f
-        /** The initiator stops this far from the partner's front. */
-        const val APPROACH_GAP = 1.1f
-        /** The partner turns to the initiator within this distance. */
+        /** The one waiting turns to the one coming within this distance. */
         const val FACE_RANGE = 3f
-        /** Slots farther than this are walked to before the eased move. */
-        const val ALIGN_REACH = 1.2f
-        /** The eased move starts this far from the slot after a walk. */
-        const val EASE_FROM = 0.6f
-        const val MIN_EASE = 0.25f
-        const val MAX_EASE = 1.2f
         /** A one-shot pair holds its last pose at least this long; a looping one plays this long at least, at most [MAX_LOOP_TIME]. */
         const val MIN_HOLD = 3f
         const val MIN_LOOP_TIME = 6f
         const val MAX_LOOP_TIME = 25f
-        /** Seconds before either may start another partner activity by themselves. */
+        /** Seconds before either may start another partner animation by themselves. */
         const val MIN_COOLDOWN = 20f
         const val MAX_COOLDOWN = 60f
-        /** Furniture this close to the line between two people hides one from the other. */
-        const val BLOCK_RADIUS = 0.45f
-        /** A free pair's origin keeps this far from the furniture. */
-        const val CLEAR_RADIUS = 1.1f
-        const val FLOOR_MIN_X = -2.2f
-        const val FLOOR_MAX_X = 2.2f
-        const val FLOOR_MIN_Y = -2.0f
-        const val FLOOR_MAX_Y = 1.3f
+        private const val DEG = 0.017453292f
         private val NO_PLACE = Any()
     }
 }

@@ -181,6 +181,8 @@ public:
     // What the screen point (sx, sy) of a `width` x `height` view of the last camera hits first: a prop, an actor, the
     // location (a floor facing up is the ground) or the plain ground.
     PickHit pick(float sx, float sy, int width, int height) const;
+    int locationObject(uint32_t model, V3 origin) const;
+    bool walkSegment(V3 from, V3 to) const;
     // The floor under (x, y) nearest below z (a little above counts: a step up): the location's groups and WMO props,
     // else its plain ground. False when there is none.
     bool groundAt(float x, float y, float z, float& out) const;
@@ -356,6 +358,7 @@ private:
         V3 meanLight;                     // its vertices' mean precomputed light (props standing in it take it)
     };
     struct Instance {
+        uint32_t modelFileId = 0;
         ModelGl* mesh = nullptr;
         M4 world;
         V3 centre;

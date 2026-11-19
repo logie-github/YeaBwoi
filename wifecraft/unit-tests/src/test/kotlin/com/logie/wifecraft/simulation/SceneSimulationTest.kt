@@ -8,6 +8,22 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class SceneSimulationTest {
+    @Test fun aFloorOrderWalksThroughWaypointsAndKeepsTheDestinationHeight() {
+        val goal = Vec3(1f, -0.6f, 0.25f)
+        val corner = Vec3(0f, 0.2f, 0.1f)
+        val sim = SceneSimulation(listOf("a"), emptySet(), Random(1),
+            route = { _, to -> if (to == goal) listOf(corner, goal) else null })
+        assertFalse(sim.walk("a", Vec3(5f, 0f, 0f)))
+        assertTrue(sim.walk("a", goal))
+        assertEquals(Activity.WALK, sim.people().single().activity)
+        repeat(10) { sim.tick(0.1f) }
+        assertTrue(sim.people().single().position.y > -0.6f)
+        repeat(24) { sim.tick(0.1f) }
+        assertEquals(goal, sim.people().single().position)
+        sim.freeWill("a")
+        assertEquals(goal, sim.people().single().position)
+    }
+
     @Test fun aCommandWalksToAndReservesItsObject() {
         val sim = SceneSimulation(listOf("a", "b"), setOf(SceneObject.CHAIR), Random(1))
         assertFalse(sim.use("a", SceneObject.TABLE))

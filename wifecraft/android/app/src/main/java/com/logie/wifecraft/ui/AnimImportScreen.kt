@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.OpenableColumns
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -33,6 +35,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.logie.wifecraft.anim.Anim
@@ -41,10 +46,14 @@ import com.logie.wifecraft.anim.ImportInput
 import com.logie.wifecraft.anim.ImportPipeline
 import com.logie.wifecraft.anim.PairAnim
 import com.logie.wifecraft.anim.Retarget
+import com.logie.wifecraft.anim.WickedWhimsDownload
 import com.logie.wifecraft.sims.DbpfFile
 import com.logie.wifecraft.sims.SimsClip
 import com.logie.wifecraft.sims.SimsRig
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -111,14 +120,21 @@ private fun displayName(ctx: Context, uri: Uri): String {
     return uri.lastPathSegment?.substringAfterLast('/') ?: "file"
 }
 
-private enum class Phase { Pick, Running, Review, Saved }
+private enum class Phase { Pick, Downloading, Running, Review, Saving, Saved }
 
 /**
  * The import flow. [retargeter] makes the converter for the loaded skeleton (anim/Retargeter with the profile in
  * assets/sims_profile.json); [library] receives what the review saves.
  */
 @Composable
-fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig) -> Retarget, onBack: () -> Unit, onLibrary: (() -> Unit)? = null) {
+fun AnimImportScreen(
+    library: AnimLibrary,
+    rigs: RigStore,
+    retargeter: (SimsRig) -> Retarget,
+    onBack: () -> Unit,
+    onLibrary: (() -> Unit)? = null,
+    wickedWhims: Boolean = false,
+) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val main = remember { Handler(Looper.getMainLooper()) }
@@ -133,6 +149,10 @@ fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig)
     var pairBusy by remember { mutableStateOf(false) }
     var newPairCategory by remember { mutableStateOf<Int?>(null) }
     var saved by remember { mutableStateOf<List<SaveOutcome>>(emptyList()) }
+    var download by remember { mutableStateOf(WickedWhimsDownload.Progress()) }
+    var retrySeconds by remember { mutableStateOf<Long?>(null) }
+    var importJob by remember { mutableStateOf<Job?>(null) }
+    val busy = phase == Phase.Downloading || phase == Phase.Running || phase == Phase.Saving
     var rigBones by remember { mutableStateOf<Int?>(null) }
     var hasRig by remember { mutableStateOf(rigs.has()) }
     var rigMessage by remember { mutableStateOf<String?>(null) }
@@ -147,7 +167,7 @@ fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig)
         when {
             newCategory != null -> newCategory = null   // the open dialog first
             newPairCategory != null -> newPairCategory = null
-            phase == Phase.Running -> Unit   // the import finishes first (it never leaves files behind)
+            busy -> Unit   // the download, import or save finishes first (it never leaves files behind)
             phase == Phase.Review -> phase = Phase.Pick
             else -> onBack()
         }
@@ -175,61 +195,123 @@ fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig)
         }
     }
 
-    fun start(uris: List<Uri>) {
-        if (uris.isEmpty()) return
-        val inputs = uris.map { u ->
-            ImportInput(displayName(ctx, u)) { ctx.contentResolver.openInputStream(u) ?: throw IOException("The file couldn't be opened.") }
-        }
+    fun cancelWait() {
+        if (retrySeconds == null) return
+        importJob?.cancel()
+        retrySeconds = null
+        phase = Phase.Pick
+    }
+
+    fun start(inputs: List<ImportInput> = emptyList()) {
+        if (phase != Phase.Pick || (!wickedWhims && inputs.isEmpty())) return
         val r = ImportRun()
-        run = r; phase = Phase.Running
+        run = r
         pairMessage = null
-        scope.launch {
+        download = WickedWhimsDownload.Progress()
+        retrySeconds = null
+        phase = if (wickedWhims) Phase.Downloading else Phase.Running
+        importJob = scope.launch {
             val tmp = File(ctx.cacheDir, "anim-import")
             val results = withContext(Dispatchers.IO) {
                 try {
                     val rig = RigImport.load(rigs)
-                    val pipeline = ImportPipeline(if (rig == null) NoRigRetarget() else retargeter(rig), tmp)
-                    val res = pipeline.runAll(inputs) { e -> main.post { r.apply(e); rev++ } }
+                    val pipeline = ImportPipeline(
+                        if (rig == null) NoRigRetarget() else retargeter(rig), tmp,
+                        embeddedRetargeter = retargeter.takeIf { wickedWhims || rig == null },
+                    )
+                    fun convert(files: List<ImportInput>) = pipeline.runAll(files) { event ->
+                        main.post { r.apply(event); rev++ }
+                    }
+                    val res = if (wickedWhims) {
+                        val archive = WickedWhimsDownload.openWithRetry(
+                            wait = { waitMillis ->
+                                val start = SystemClock.elapsedRealtime()
+                                while (true) {
+                                    val remaining = waitMillis - (SystemClock.elapsedRealtime() - start)
+                                    if (remaining <= 0) break
+                                    withContext(Dispatchers.Main) { retrySeconds = (remaining - 1) / 1000 + 1 }
+                                    delay(minOf(remaining, 1000L))
+                                }
+                                withContext(Dispatchers.Main) { retrySeconds = null }
+                            },
+                            onProgress = { progress -> main.post { download = progress } },
+                            onDownloaded = { main.post { if (phase == Phase.Downloading) phase = Phase.Running } },
+                        )
+                        archive.use { convert(listOf(ImportInput("WickedWhims.zip") { it })) }
+                    } else convert(inputs)
                     main.post { pairer = { a, b -> pipeline.pairByHand(a, b) } }
                     res
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
                 } catch (e: Exception) {
                     main.post { r.apply(com.logie.wifecraft.anim.ImportEvent.Failed("Import", e.message ?: e.toString())) }
                     null
-                } finally {
-                    tmp.deleteRecursively()
                 }
             }
             r.finish()
             val anims = results?.anims?.ifEmpty { null } ?: r.converted
             val pd = PairDraft(results?.pairs ?: r.pairs, results?.unpaired ?: r.unpaired)
-            draft = ReviewDraft(anims)
-            pairDraft = pd.takeIf { !it.isEmpty }
             rev++
-            phase = if (anims.isEmpty() && pd.items.isEmpty()) Phase.Pick else Phase.Review
+            when {
+                anims.isEmpty() && pd.items.isEmpty() && (wickedWhims || pd.unpaired.isEmpty()) -> phase = Phase.Pick
+                wickedWhims -> {
+                    // saved straight away under WickedWhims, partner animations found in its packages too
+                    phase = Phase.Saving
+                    saved = withContext(Dispatchers.IO) {
+                        ReviewDraft(anims, "WickedWhims").save(library.asStore()) + pd.save(library.asPairStore())
+                    }
+                    phase = Phase.Saved
+                }
+                else -> {
+                    draft = ReviewDraft(anims)
+                    pairDraft = pd.takeIf { !it.isEmpty }
+                    phase = Phase.Review
+                }
+            }
         }
     }
 
-    val pickFiles = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { start(it) }
+    val pickFiles = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        start(uris.map { uri ->
+            ImportInput(displayName(ctx, uri)) {
+                ctx.contentResolver.openInputStream(uri) ?: throw IOException("The file couldn't be opened.")
+            }
+        })
+    }
 
-    EditorFrame("Import Animations", { if (phase != Phase.Running) { if (phase == Phase.Review) phase = Phase.Pick else onBack() } },
-        // the animation library (the title keeps six buttons: it is reached from here and from the editor's Game Menu)
-        actions = { if (onLibrary != null && phase != Phase.Running) TextAction("Animations", onLibrary) }) {
-        // one step gives way to the next with a short cross-fade (none under reduced motion)
+    EditorFrame(if (wickedWhims) "Import WickedWhims" else "Import Animations", { if (!busy) { if (phase == Phase.Review) phase = Phase.Pick else onBack() } },
+        actions = { if (onLibrary != null && !busy) TextAction("Animations", onLibrary) }) {
         Crossfade(phase, animationSpec = tween(MenuMotion.duration(MenuMotion.PAGE_MS, reduceMotion())), label = "phase") { step ->
         when (step) {
-            Phase.Pick -> PickPage(
+            Phase.Pick -> if (wickedWhims) {
+                WickedWhimsPickPage(run) { start() }
+            } else PickPage(
                 hasRig, rigBones, rigMessage, rigBusy, run,
                 onRig = { pickRig.launch(arrayOf("*/*")) },
                 onFiles = { pickFiles.launch(arrayOf("*/*")) },
             )
+            Phase.Downloading -> WickedWhimsDownloadPage(download, retrySeconds, ::cancelWait)
             Phase.Running -> ProgressPage(run)
             Phase.Review -> draft?.let { d ->
                 ReviewPage(
                     d, library.categories(), run.summary(),
                     changed = { rev++ },
                     onNewCategory = { newCategory = it },
-                    onSave = { saved = d.save(library.asStore()) + (pairDraft?.save(library.asPairStore()) ?: emptyList()); phase = Phase.Saved },
-                    onCancel = { phase = Phase.Pick },
+                    onSave = {
+                        if (phase == Phase.Review) {
+                            phase = Phase.Saving
+                            val pairs = pairDraft
+                            scope.launch {
+                                saved = withContext(Dispatchers.IO) {
+                                    d.save(library.asStore()) + (pairs?.save(library.asPairStore()) ?: emptyList())
+                                }
+                                draft = null
+                                pairDraft = null
+                                phase = Phase.Saved
+                            }
+                        }
+                    },
+                    onCancel = { if (phase == Phase.Review) phase = Phase.Pick },
                     pd = pairDraft, pairCategories = library.pairCategories(), pairMessage = pairMessage, pairBusy = pairBusy,
                     onNewPairCategory = { newPairCategory = it },
                     onPair = pair@{
@@ -250,12 +332,15 @@ fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig)
                     },
                 )
             }
+            Phase.Saving -> Text("Saving animations…", style = frizStyle(16.sp))
             Phase.Saved -> Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(ReviewDraft.summary(saved) + ".", style = frizStyle(18.sp))
+                if (wickedWhims) Text(run.summary(), style = frizStyle(13.sp))
                 LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     itemsIndexed(saved, key = { i, _ -> i }, contentType = { _, o -> o::class.simpleName }) { _, o ->
                         val (txt, col) = when (o) {
                             is SaveOutcome.Added -> (o.renamedFrom?.let { "${o.name}: a name like \"$it\" was already taken" } ?: o.name) to Color.White
+                            is SaveOutcome.Updated -> "${o.name}: updated" to Color.White
                             is SaveOutcome.Duplicate -> "${o.name}: already in the library as \"${o.existing}\", skipped" to WowColors.grey
                             is SaveOutcome.Failed -> "${o.name}: failed, ${o.why}" to Color(0xFFFF6A5A)
                         }
@@ -263,7 +348,9 @@ fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig)
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    WowButton("Import more", { phase = Phase.Pick }, width = 190.dp, height = 40.dp)
+                    if (!wickedWhims || saved.any { it is SaveOutcome.Failed }) {
+                        WowButton(if (wickedWhims) "Try again" else "Import more", { phase = Phase.Pick }, width = 190.dp, height = 40.dp)
+                    }
                     WowButton("Done", onBack, width = 150.dp, height = 40.dp)
                 }
             }
@@ -293,6 +380,45 @@ fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig)
 }
 
 @Composable
+private fun WickedWhimsPickPage(last: ImportRun, onInstall: () -> Unit) {
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Download WickedWhims from the author and install compatible animations in your library.",
+            style = frizStyle(14.sp, Color.White, false))
+        RedButton(if (last.rows.isEmpty()) "Install" else "Try again", onInstall)
+        if (last.rows.isNotEmpty()) {
+            Text("Last import: ${last.summary()}", style = frizStyle(14.sp))
+            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) { rowsList(last.rows) }
+        }
+    }
+}
+
+@Composable
+private fun WickedWhimsDownloadPage(progress: WickedWhimsDownload.Progress, retrySeconds: Long?, onCancel: () -> Unit) {
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (retrySeconds != null) {
+            val minutes = retrySeconds / 60
+            val seconds = retrySeconds % 60
+            val wait = if (minutes == 0L) "$seconds s" else "$minutes min $seconds s"
+            Text("The download server is busy. Retrying in $wait…", style = frizStyle(16.sp))
+            RedButton("Cancel", onCancel)
+            return@Column
+        }
+        val total = progress.total
+        val downloaded = "%.1f MB".format(progress.bytes / 1_000_000.0)
+        if (total != null) {
+            val fraction = (progress.bytes.toFloat() / total).coerceIn(0f, 1f)
+            Text("Downloading WickedWhims… $downloaded / ${"%.1f MB".format(total / 1_000_000.0)}", style = frizStyle(16.sp))
+            LoadingBar(fraction, Modifier.fillMaxWidth().height(28.dp).semantics {
+                progressBarRangeInfo = ProgressBarRangeInfo(fraction, 0f..1f)
+            })
+        } else {
+            Text(if (progress.bytes == 0L) "Connecting to the download site…" else "Downloading WickedWhims… $downloaded",
+                style = frizStyle(16.sp))
+        }
+    }
+}
+
+@Composable
 private fun PickPage(hasRig: Boolean, bones: Int?, rigMessage: String?, rigBusy: Boolean, last: ImportRun, onRig: () -> Unit, onFiles: () -> Unit) {
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
@@ -304,13 +430,13 @@ private fun PickPage(hasRig: Boolean, bones: Int?, rigMessage: String?, rigBusy:
             Column(Modifier.weight(1f)) {
                 Text("Sims 4 skeleton", style = frizStyle(16.sp))
                 Text(RigStore.status(hasRig, bones), style = frizStyle(13.sp, if (hasRig) Color(0xFF7CFC7C) else Color(0xFFFF6A5A), false))
-                if (!hasRig) Text(AnimText.NO_RIG, style = frizStyle(12.sp, WowColors.grey, false))
+                if (!hasRig) Text("Wifecraft can also use a humanoid skeleton included in an animation package.",
+                    style = frizStyle(12.sp, WowColors.grey, false))
                 rigMessage?.let { Text(it, style = frizStyle(12.sp, Color.White, false)) }
             }
             SmallButton(if (hasRig) "Replace" else "Choose package", onRig, enabled = !rigBusy, width = 150.dp)
         }
         WowButton("Choose animation files", onFiles, Modifier.align(Alignment.CenterHorizontally), width = 280.dp, height = 44.dp)
-        if (!hasRig) Text("Without the skeleton the files can still be picked, but each is reported as failed.", style = frizStyle(12.sp, WowColors.grey, false))
         if (last.rows.isNotEmpty()) {
             Text("Last import: ${last.summary()}", style = frizStyle(14.sp))
             LazyColumn(Modifier.weight(1f), rememberLazyListState(), verticalArrangement = Arrangement.spacedBy(3.dp)) { rowsList(last.rows) }

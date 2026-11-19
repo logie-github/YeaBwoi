@@ -175,6 +175,7 @@ class ReviewItem(val anim: Anim, var name: String, var category: String, var inc
 sealed interface SaveOutcome {
     val name: String
     data class Added(override val name: String, val renamedFrom: String?) : SaveOutcome
+    data class Updated(override val name: String) : SaveOutcome
     data class Duplicate(override val name: String, val existing: String) : SaveOutcome
     data class Failed(override val name: String, val why: String) : SaveOutcome
 }
@@ -206,6 +207,7 @@ class ReviewDraft(anims: List<Anim>, defaultCategory: String? = null) {
         try {
             val r = store.add(item.anim.copy(name = name, category = AnimText.category(item.category)))
             when {
+                r.updated -> SaveOutcome.Updated(r.anim.name)
                 r.duplicate -> SaveOutcome.Duplicate(name, r.anim.name)
                 r.anim.name != name -> SaveOutcome.Added(r.anim.name, name)
                 else -> SaveOutcome.Added(r.anim.name, null)
@@ -219,10 +221,11 @@ class ReviewDraft(anims: List<Anim>, defaultCategory: String? = null) {
         /** One line for the saved results: "2 added, 1 already in the library". */
         fun summary(r: List<SaveOutcome>): String {
             val added = r.count { it is SaveOutcome.Added }
+            val updated = r.count { it is SaveOutcome.Updated }
             val dup = r.count { it is SaveOutcome.Duplicate }
             val failed = r.count { it is SaveOutcome.Failed }
             return listOfNotNull(
-                "$added added", dup.takeIf { it > 0 }?.let { "$it already in the library (skipped)" }, failed.takeIf { it > 0 }?.let { "$it failed" },
+                "$added added", updated.takeIf { it > 0 }?.let { "$it updated" }, dup.takeIf { it > 0 }?.let { "$it already in the library (skipped)" }, failed.takeIf { it > 0 }?.let { "$it failed" },
             ).joinToString(", ")
         }
     }

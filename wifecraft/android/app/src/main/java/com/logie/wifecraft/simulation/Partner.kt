@@ -1,6 +1,9 @@
 package com.logie.wifecraft.simulation
 
 import com.logie.wifecraft.anim.Anim
+import com.logie.wifecraft.anim.AnimationChoice
+import com.logie.wifecraft.anim.ClipType
+import com.logie.wifecraft.anim.PERFORMANCE_SCALE
 import com.logie.wifecraft.anim.PairAnim
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -52,6 +55,25 @@ class PartnerPair(
 
         /** The library's enabled pairs ([com.logie.wifecraft.anim.AnimLibrary.pairs]), for the live scene. */
         fun enabled(all: List<PairAnim>): List<PartnerPair> = all.filter { it.enabled }.map(::of)
+
+        /**
+         * An author's two-actor performance (the animation browser's [choice], made from the importer's
+         * ImportedPerformances) as a pair the NPCs can pick by themselves; null when it is not a playable two-role one or
+         * is a library pair's own entry (those come through [of]). Offsets are scaled as the browser's orders scale them.
+         */
+        fun of(choice: AnimationChoice): PartnerPair? {
+            if (choice.participantCount != 2 || !choice.playable || choice.id.startsWith(PairAnim.CHOICE_PREFIX)) return null
+            val a = choice.clips[0].forPlayback() ?: return null
+            val b = choice.clips[1].forPlayback() ?: return null
+            val scale = if (choice.yards) 1f else PERFORMANCE_SCALE
+            val (ra, rb) = choice.roles
+            fun slot(r: com.logie.wifecraft.anim.PerformanceRole) =
+                PartnerSlot(r.offset.x * scale, r.offset.y * scale, r.offset.z * scale, Math.toDegrees(r.facing.toDouble()).toFloat())
+            val loops = choice.clips.any { it.inspection.type == ClipType.LOOP }
+            val place = choice.setting.trim().uppercase().replace(' ', '_')
+            return PartnerPair(choice.id, choice.name, a, b, slot(ra), slot(rb), loops,
+                if (place.isEmpty()) emptySet() else setOf(place))
+        }
     }
 }
 

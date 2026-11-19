@@ -1,10 +1,12 @@
 package com.logie.wifecraft.anim
 
 import com.logie.wifecraft.sims.AnimTuning
+import com.logie.wifecraft.sims.DbpfFile
 import com.logie.wifecraft.sims.PairDefinition
-import com.logie.wifecraft.sims.SimsClip
 import com.logie.wifecraft.sims.SimsFormatException
+import com.logie.wifecraft.sims.SimsClip
 import com.logie.wifecraft.sims.SimsReader
+import com.logie.wifecraft.sims.SimsRig
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -40,8 +42,11 @@ class ImportPipeline(
     private val retarget: Retarget,
     private val tmpDir: File,
     private val limits: ArchiveLimits = ArchiveLimits(),
-    private val reader: (ByteArray) -> List<SimsClip> = { SimsReader.clips(it) },
-    /** A package's partner-animation tuning; any failure reads as none. */
+    /** Reads a package's clips from its bytes (tests); null: the package is read from disk one resource at a time. */
+    private val reader: ((ByteArray) -> List<SimsClip>)? = null,
+    /** Makes the converter for a humanoid skeleton found inside a package (null: only [retarget]). */
+    private val embeddedRetargeter: ((SimsRig) -> Retarget)? = null,
+    /** A package's partner-animation tuning, with [reader]; any failure reads as none. */
     private val tuning: (ByteArray) -> List<PairDefinition> = { AnimTuning.pairs(it) },
 ) {
     /** The single animations only (partner animations are reported as [ImportEvent.Paired]); see [runAll]. */
@@ -119,26 +124,96 @@ class ImportPipeline(
     private fun onePackage(pname: String, pfile: File, onEvent: (ImportEvent) -> Unit, out: MutableList<Anim>) {
         onEvent(ImportEvent.Found(pname))
         if (pfile.length() > MAX_PACKAGE) {
-            onEvent(ImportEvent.Failed(pname, "The package is larger than ${MAX_PACKAGE shr 20} MB, too big to read on the phone")); return
+            onEvent(ImportEvent.Failed(pname, "The package exceeds the ${MAX_PACKAGE shr 20} MB import limit")); return
         }
-        val bytes = pfile.readBytes()
-        val clips = try {
-            reader(bytes)
-        } catch (e: SimsFormatException) {
-            onEvent(ImportEvent.Failed(pname, e.message ?: "not a readable Sims 4 package")); return
+        val base = pname.substringAfterLast('/').substringBeforeLast('.')
+        val count = if (reader != null) {
+            val bytes = pfile.readBytes()
+            val clips = try {
+                reader(bytes)
+            } catch (e: SimsFormatException) {
+                onEvent(ImportEvent.Failed(pname, e.message ?: "not a readable Sims 4 package")); return
+            }
+            val defs = try { tuning(bytes) } catch (e: Exception) { emptyList() }
+            pairThenConvert(pname, base, clips, defs, { retarget }, onEvent, out)
+            clips.size
+        } else {
+            DbpfFile(pfile).use { pkg ->
+                val rigs = if (embeddedRetargeter != null) SimsReader.humanoidRigs(pkg) else emptyList()
+                val converters = HashMap<SimsRig, Retarget>()
+                fun converter(clip: SimsClip): Retarget {
+                    if (rigs.isEmpty() || embeddedRetargeter == null) return retarget
+                    val hashes = clip.tracks.mapTo(HashSet()) { it.boneHash }
+                    val rig = rigs.maxBy { it.coverage(hashes) }
+                    return converters.getOrPut(rig) { embeddedRetargeter.invoke(rig) }
+                }
+                val first = out.size
+                // A package of up to PAIRING_LIMIT clips is held whole so its partner animations can be found (Pairing);
+                // a bigger one (a large mod archive's package) is converted one clip at a time, as read.
+                val held = ArrayList<SimsClip>()
+                var streaming = false
+                val visited = SimsReader.visitClips(pkg,
+                    onClip = { clip ->
+                        if (!streaming && held.size < PAIRING_LIMIT) held += clip
+                        else {
+                            if (!streaming) {
+                                streaming = true
+                                for (c in held) convert(pname, base, c, ::converter, onEvent, out)
+                                held.clear()
+                            }
+                            convert(pname, base, clip, ::converter, onEvent, out)
+                        }
+                    },
+                    onFailure = { key, why ->
+                        val label = "$pname :: $key"
+                        onEvent(ImportEvent.Found(label))
+                        onEvent(ImportEvent.Failed(label, why))
+                    },
+                )
+                if (!streaming && held.isNotEmpty()) {
+                    // the author's performances (ImportedPerformances) already pair their clips: those are left to them
+                    val names = held.associate { it.name.lowercase() to it.sourceKey }
+                    val authored = ImportedPerformances.read(pkg, names).flatMapTo(HashSet()) { p -> p.roles.map { it.source } }
+                    val free = held.filter { it.sourceKey !in authored }
+                    val authoredNames = held.filter { it.sourceKey in authored }.mapTo(HashSet()) { it.name.lowercase() }
+                    val defs = if (free.size < 2) emptyList() else runCatching { AnimTuning.pairs(pkg) }.getOrDefault(emptyList())
+                        .filter { def -> def.actors.none { it.clipName.lowercase() in authoredNames } }
+                    pairThenConvert(pname, base, free, defs, ::converter, onEvent, out)
+                    for (clip in held) if (clip.sourceKey in authored) convert(pname, base, clip, ::converter, onEvent, out)
+                }
+                val sources = mutableMapOf<String, String>()
+                for (index in first until out.size) {
+                    val anim = out[index]
+                    sources.putIfAbsent(anim.sourceName.ifBlank { anim.name }.lowercase(), anim.source)
+                }
+                val groups = ImportedPerformances.read(pkg, sources).groupBy { it.roles.first { role -> role.source.isNotBlank() }.source }
+                for (index in first until out.size) {
+                    val clip = out[index]
+                    val performances = groups[clip.source].orEmpty()
+                    if (performances.isNotEmpty()) out[index] = clip.copy(performances = performances)
+                }
+                visited
+            }
         }
-        if (clips.isEmpty()) {
-            onEvent(ImportEvent.Skipped(pname, "No animation clips in this package (it may hold only objects, CAS parts or other mods)")); return
-        }
-        val defs = try { tuning(bytes) } catch (e: Exception) { emptyList() }
+        if (count == 0) onEvent(ImportEvent.Skipped(pname, "No animation clips in this package (it may hold only objects, CAS parts or other mods)"))
+    }
+
+    /**
+     * [clips] of one package: first its partner animations ([Pairing]: tuning [defs], names, geometry), converted together
+     * ([Retarget.convertPair]) and reported as [ImportEvent.Paired]; then every other clip alone, in the package's order,
+     * those that look like half of a pair also reported as [ImportEvent.Unpaired]; then the pairing's notes.
+     */
+    private fun pairThenConvert(
+        pname: String, base: String, clips: List<SimsClip>, defs: List<PairDefinition>,
+        retargetForClip: (SimsClip) -> Retarget, onEvent: (ImportEvent) -> Unit, out: MutableList<Anim>,
+    ) {
+        if (clips.isEmpty()) return
         val found = if (clips.size < 2) Pairing.Result(emptyList(), clips, emptyList(), emptyList()) else Pairing.find(clips, defs)
-        val base = pname.substringAfterLast('/').removeSuffix(".package").removeSuffix(".Package")
-        // the pairs first, then every other clip alone, in the package's order
         for (f in found.pairs) {
             val label = "$pname :: ${f.a.name} + ${f.b.name}"
             onEvent(ImportEvent.Found(label))
             try {
-                val p = retarget.convertPair(f.a, f.b, f.def)
+                val p = retargetForClip(f.a).convertPair(f.a, f.b, f.def)
                 onEvent(ImportEvent.Paired(p.name, p, f.mode))
             } catch (e: Exception) {
                 onEvent(ImportEvent.Failed(label, e.message ?: e.javaClass.simpleName))
@@ -149,23 +224,37 @@ class ImportPipeline(
         val half = found.candidates.toHashSet()
         for (clip in clips) {
             if (clip !in half && clip !in found.singles) continue
-            val cname = clip.name.ifBlank { base }
-            val label = "$pname :: $cname"
-            onEvent(ImportEvent.Found(label))
-            try {
-                var a = retarget.convert(clip)
-                if (a.name.isBlank()) a = a.copy(name = cname)
-                if (a.source.isBlank()) a = a.copy(source = clip.sourceKey)
-                out.add(a)
-                onEvent(ImportEvent.Done(a))
-            } catch (e: Exception) {
-                onEvent(ImportEvent.Failed(label, e.message ?: e.javaClass.simpleName))
-            }
-            if (clip in half) onEvent(ImportEvent.Unpaired(label, clip, pname))
+            convert(pname, base, clip, retargetForClip, onEvent, out)
+            if (clip in half) onEvent(ImportEvent.Unpaired("$pname :: ${clip.name.ifBlank { base }}", clip, pname))
         }
         // what the pairing could not use, after the results (a note never stands in for the package's row)
         for (n in found.notes) onEvent(ImportEvent.Skipped(pname, n))
     }
 
-    companion object { const val MAX_PACKAGE = 256L shl 20 }
+    private fun convert(
+        packageName: String,
+        base: String,
+        clip: SimsClip,
+        retargetForClip: (SimsClip) -> Retarget,
+        onEvent: (ImportEvent) -> Unit,
+        out: MutableList<Anim>,
+    ) {
+        val name = clip.name.ifBlank { base }
+        val label = "$packageName :: $name"
+        onEvent(ImportEvent.Found(label))
+        try {
+            val anim = retargetForClip(clip).convert(clip)
+            val result = anim.copy(name = anim.name.ifBlank { name }, source = anim.source.ifBlank { clip.sourceKey })
+            out.add(result)
+            onEvent(ImportEvent.Done(result))
+        } catch (e: Exception) {
+            onEvent(ImportEvent.Failed(label, e.message ?: e.javaClass.simpleName))
+        }
+    }
+
+    companion object {
+        const val MAX_PACKAGE = 256L shl 20
+        /** Packages with at most this many clips are searched for partner animations ([Pairing]). */
+        const val PAIRING_LIMIT = 64
+    }
 }

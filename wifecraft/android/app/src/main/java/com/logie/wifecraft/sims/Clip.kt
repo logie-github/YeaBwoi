@@ -69,7 +69,7 @@ data class ClipEvent(val type: Int, val timeSec: Float, val name: String = "", v
 data class SlotAssignment(val chain: Int, val slot: Int, val actor: String, val joint: String)
 
 /**
- * The Sims 4's CLIP resource (type 0x6B20C4F3), versions 1 to 14.
+ * The Sims 4's CLIP resource (type 0x6B20C4F3), versions 1 to 14 and 18.
  *
  * The resource (s4pi's ClipResource layout, checked on a sample pose pack): u32 version, u32 flags,
  * f32 duration (seconds), the initial offset (quaternion x,y,z,w and vector x,y,z), then by version:
@@ -97,7 +97,7 @@ data class SlotAssignment(val chain: Int, val slot: Int, val actor: String, val 
  *  - 17: identity quaternion, no data.
  * Types 18 and 20 are what the game's own tools and the sample pose pack write (confirmed by decoding:
  * every quaternion unit length); the others follow s4pi's layout and are not confirmed on a sample.
- * Constant types 9..16 (zero, one) and 19, 21 (10-bit quaternions) are skipped and named in [SimsClip.notes].
+ * F3 zero (11) is a constant zero translation. Other constant layouts and 10-bit quaternions are reported in [SimsClip.notes].
  */
 object ClipDecoder {
     const val TYPE = 0x6B20C4F3
@@ -111,7 +111,7 @@ object ClipDecoder {
         if (data.size < 40) r.fail("is only ${data.size} bytes; a Sims 4 clip header alone is 40")
         val version = r.u32(0)
         if (version == SIMS3_TAG) r.fail("is a Sims 3 clip; only Sims 4 clips are read")
-        if (version < 1 || version > 14) r.fail("is CLIP version $version; this reader knows versions 1 to 14 (The Sims 4 writes 14)")
+        if (version !in 1..14 && version != 18) r.fail("is CLIP version $version; supported versions are 1 to 14 and 18")
         val flags = r.u32(4)
         val duration = r.f32(8)
         val q = FloatArray(4) { r.f32(12 + it * 4) }
@@ -259,6 +259,7 @@ object ClipDecoder {
 
     /** Returns the channel's times and values, or null when its type cannot be decoded into [want] components. */
     private fun decodeChannel(c: Reader, ch: Ch, want: Int, palette: FloatArray, tick: Float, normalize: Boolean): Pair<FloatArray, FloatArray>? {
+        if (ch.type == 11 && want == 3 && ch.sub == 1) return floatArrayOf(0f) to FloatArray(3)
         if (ch.type == 17) {
             if (want != 4) return null
             return floatArrayOf(0f) to floatArrayOf(0f, 0f, 0f, 1f)

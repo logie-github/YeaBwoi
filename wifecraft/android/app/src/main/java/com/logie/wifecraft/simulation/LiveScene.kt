@@ -1,6 +1,7 @@
 package com.logie.wifecraft.simulation
 
 import com.logie.wifecraft.story.CameraPose
+import com.logie.wifecraft.story.Vec3
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.math.PI
 import kotlin.math.cos
@@ -20,8 +21,9 @@ data class SceneSnapshot(
     /** How many partner animations (the library's enabled pairs) the scene picks from (0: the Warcraft emotes). */
     val partnerPairs: Int = 0,
 ) {
-    /** [partner]: the id of the person this one is with in a partner activity, else null. */
-    data class PersonView(val id: String, val activity: Activity, val directed: Boolean, val partner: String? = null)
+    /** [partner]: the other NPC of a two-person animation, else null; [queued] orders waiting; [repeating] one repeating. */
+    data class PersonView(val id: String, val activity: Activity, val directed: Boolean,
+        val queued: Int = 0, val repeating: Boolean = false, val partner: String? = null)
 
     /** Whether [id] may use [item] now. */
     fun available(item: SceneObject, id: String): Boolean = item in usable && holders[item].let { it == null || it == id }
@@ -43,7 +45,9 @@ class LiveScene(
     private val ox: Float, private val oy: Float, private val oz: Float,
     private val rotation: Float,
     random: Random = Random.Default,
-    /** The partner activity: the library's pairs, the models' emotes, and how often (PartnerFrequency.chance). */
+    wanderOnly: Boolean = false,
+    route: ((Vec3, Vec3) -> List<Vec3>?)? = null,
+    /** The partner activity: the two-person animations an NPC picks from, the models' emotes, and how often. */
     pairs: List<PartnerPair> = emptyList(),
     emotes: ModelEmotes = ModelEmotes.STANDARD,
     partnerChance: Float = PartnerFrequency.SOMETIMES.chance,
@@ -56,12 +60,11 @@ class LiveScene(
         /** Person [index] began [activity] this frame (their animation changes now, with the placement). */
         fun activity(index: Int, activity: Activity)
         /**
-         * Person [index]'s partner animation starts this frame ([pair] with [role] 0 the initiator's clip, 1 the partner's;
-         * or the game emote [emote], held when [loop]) or stops (pair null and emote -1). Both people of a pair start in
-         * the same frame (the same simulation step), so the caller gives both one start time.
+         * Person [index]'s clip changes this frame ([clip] null: none; a new [ClipPlayback.command] starts it again). Both
+         * people of a two-person animation get theirs in the same frame (the same simulation step): one start time.
          */
-        fun partner(index: Int, pair: PartnerPair?, role: Int, emote: Int, loop: Boolean) {}
-        /** A pair's sound event [name] for person [index] is due (its time on the pair's shared clock passed). */
+        fun playback(index: Int, clip: ClipPlayback?) {}
+        /** A performance's sound event [name] for person [index] is due (its time on the performance's clock passed). */
         fun sound(index: Int, name: String) {}
     }
 
@@ -74,8 +77,8 @@ class LiveScene(
         private const val KEEP = "\u0000keep"
     }
 
-    private val simulation = SceneSimulation(ids, objects, random, durations, initiallyReady = false,
-        partnerChance = partnerChance, pairs = pairs, emotes = emotes)
+    private val simulation = SceneSimulation(ids, objects, random, durations, initiallyReady = false, wanderOnly = wanderOnly,
+        route = route, partnerChance = partnerChance, pairs = pairs, emotes = emotes)
     /** The frame's sink while [frame] runs (the simulation's sound events go to it). */
     private var frameSink: Sink? = null
     val clock = FixedStep()
@@ -106,7 +109,7 @@ class LiveScene(
     private val curX = FloatArray(n); private val curY = FloatArray(n); private val curZ = FloatArray(n)
     private val shownFacing = FloatArray(n)
     private val lastActivity = arrayOfNulls<Activity>(n)
-    private val lastPairSerial = IntArray(n)
+    private val lastPlayback = arrayOfNulls<ClipPlayback>(n)
     private var lastPairStarts = 0
     private val cosR = cos(rotation)
     private val sinR = sin(rotation)
@@ -128,7 +131,7 @@ class LiveScene(
 
     /** The menus' view now (allocates: on change only). */
     fun snapshot(): SceneSnapshot {
-        val people = simulation.people().map { SceneSnapshot.PersonView(it.id, it.activity, it.directed, it.partner) }
+        val people = simulation.people().map { SceneSnapshot.PersonView(it.id, it.activity, it.directed, it.queued, it.repeating, it.partner) }
         val holders = HashMap<SceneObject, String>()
         val usable = HashSet<SceneObject>()
         for (item in simulation.objects) {
@@ -155,6 +158,7 @@ class LiveScene(
             for (s in 0 until due) {
                 for (i in 0 until n) { prevX[i] = curX[i]; prevY[i] = curY[i]; prevZ[i] = curZ[i] }
                 simulation.tick(clock.step)
+                simulation.takeQueueNotice()?.let { notice = it; noticeChanged = true }
                 for (i in 0 until n) {
                     simulation.pose(i, pose)
                     curX[i] = pose.x; curY[i] = pose.y; curZ[i] = pose.z
@@ -168,18 +172,18 @@ class LiveScene(
         var fx = 0f; var fy = 0f; var fz = 0f
         for (i in 0 until n) {
             simulation.pose(i, pose)
-            val x = prevX[i] + (curX[i] - prevX[i]) * a
-            val y = prevY[i] + (curY[i] - prevY[i]) * a
-            val z = prevZ[i] + (curZ[i] - prevZ[i]) * a
+            val x = if (pose.playback != null) pose.x else prevX[i] + (curX[i] - prevX[i]) * a
+            val y = if (pose.playback != null) pose.y else prevY[i] + (curY[i] - prevY[i]) * a
+            val z = if (pose.playback != null) pose.z else prevZ[i] + (curZ[i] - prevZ[i]) * a
             val onFurniture = pose.furniture != null && (pose.activity == Activity.SIT || pose.activity == Activity.REST)
-            shownFacing[i] = if (onFurniture) pose.facing else turnToward(shownFacing[i], pose.facing, turn)
+            shownFacing[i] = if (onFurniture || pose.playback != null) pose.facing else turnToward(shownFacing[i], pose.facing, turn)
             if (running && lastActivity[i] != pose.activity) {
                 lastActivity[i] = pose.activity
                 sink.activity(i, pose.activity)
             }
-            if (running && lastPairSerial[i] != pose.pairSerial) {
-                lastPairSerial[i] = pose.pairSerial
-                sink.partner(i, pose.pair, pose.role, pose.emote, pose.emoteLoop)
+            if (running && lastPlayback[i] != pose.playback) {
+                lastPlayback[i] = pose.playback
+                sink.playback(i, pose.playback)
             }
             val facing = shownFacing[i] + rotation
             if (onFurniture) {

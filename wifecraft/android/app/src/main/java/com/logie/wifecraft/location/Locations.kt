@@ -18,7 +18,10 @@ data class LocationInfo(
     val packs: List<Pack>,
     /** The area (AreaTable) whose music and ambience it has (ambience.area; 0: none given). */
     val areaId: Int,
+    val interactions: List<Interaction> = emptyList(),
 ) {
+    data class ModelReference(val id: Int, val position: Vec3)
+    data class Interaction(val item: String, val entry: Vec3, val facing: Float, val models: List<ModelReference>)
     data class View(val camera: CameraPose?, val spawn: Vec3?, val facing: Float)
     data class Pack(val name: String, val files: List<Pair<Int, Long>>) {
         val bytes: Long get() = files.sumOf { it.second }
@@ -74,10 +77,23 @@ data class LocationInfo(
                     })
                 }
             }
+            val interactions = ArrayList<Interaction>()
+            e.optJSONArray("interactions")?.let { arr ->
+                for (i in 0 until arr.length()) {
+                    val row = arr.getJSONObject(i)
+                    val entry = vec(row.optJSONArray("entry")) ?: continue
+                    val models = row.getJSONArray("models")
+                    val references = List(models.length()) { j ->
+                        val model = models.getJSONObject(j)
+                        ModelReference(model.getInt("id"), requireNotNull(vec(model.optJSONArray("position"))))
+                    }
+                    interactions += Interaction(row.getString("object"), entry, row.getDouble("facing").toFloat(), references)
+                }
+            }
             val id = e.getString("id")
             return LocationInfo(
                 id, e.optString("name", id), e.optString("kind", ""), views, packs,
-                e.optJSONObject("ambience")?.optInt("area", 0) ?: 0,
+                e.optJSONObject("ambience")?.optInt("area", 0) ?: 0, interactions,
             )
         }
     }

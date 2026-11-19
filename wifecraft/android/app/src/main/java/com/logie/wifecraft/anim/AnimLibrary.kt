@@ -10,7 +10,7 @@ import java.util.UUID
 
 /** What [AnimLibrary.addResult] did: stored [anim] (maybe with a new name), or found the same source already
  *  there ([duplicate], [anim] is the existing one and nothing was written). [message] says why, for the player. */
-class AddResult(val anim: Anim, val duplicate: Boolean, val message: String)
+class AddResult(val anim: Anim, val duplicate: Boolean, val message: String, val updated: Boolean = false)
 
 /** What [AnimLibrary.addPairResult] did, as [AddResult] for a partner animation. */
 class PairAddResult(val pair: PairAnim, val duplicate: Boolean, val message: String)
@@ -82,6 +82,12 @@ class AnimLibrary(private val dir: File) {
         val map = load()
         if (a.source.isNotBlank()) {
             val same = map.values.firstOrNull { it.source == a.source }
+            if (same != null && a.conversionRevision > same.conversionRevision) {
+                val updated = a.copy(id = same.id, name = same.name, category = same.category, importedAt = same.importedAt)
+                write(updated)
+                map[same.id] = updated
+                return AddResult(updated, false, "updated ${same.name}", updated = true)
+            }
             if (same != null) return AddResult(same, true, "\"${a.name.trim()}\" is already in the library as \"${same.name}\" (same file and clip), skipped")
         }
         val id = if (ID.matches(a.id) && a.id !in map && !a.id.startsWith(PAIR_PREFIX)) a.id else newId(map)

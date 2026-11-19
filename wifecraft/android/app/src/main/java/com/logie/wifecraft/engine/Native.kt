@@ -151,6 +151,8 @@ object Native {
      */
     @JvmStatic external fun pick(scene: Long, sx: Float, sy: Float, width: Int, height: Int): FloatArray
     /** The floor under (x, y) nearest below z (a step up counts): the location's, the WMO props', the map's ground; NaN: none. */
+    @JvmStatic external fun locationObject(scene: Long, model: Int, x: Float, y: Float, z: Float): Int
+    @JvmStatic external fun walkSegment(scene: Long, x: Float, y: Float, z: Float, tx: Float, ty: Float, tz: Float): Boolean
     @JvmStatic external fun groundAt(scene: Long, x: Float, y: Float, z: Float): Float
 
     const val PICK_NONE = 0
