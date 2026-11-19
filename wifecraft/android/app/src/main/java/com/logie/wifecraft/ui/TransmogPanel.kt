@@ -1,19 +1,31 @@
 package com.logie.wifecraft.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.logie.wifecraft.creator.ClothingSlot
 import com.logie.wifecraft.creator.TransmogCatalog
+
+private val gold = Color(0xFFE7BD76)
+private val ink = Color(0xFFF1E7D6)
+
+private data class WardrobeTile(val id: Int, val name: String, val icon: Int, val selected: Boolean, val outfit: Map<Int, Int>? = null)
 
 @Composable
 fun TransmogPanel(
@@ -23,53 +35,83 @@ fun TransmogPanel(
     onRetry: () -> Unit,
     onChange: (Map<Int, Int>) -> Unit,
     onClose: () -> Unit,
+    icons: GameIcons?,
     modifier: Modifier = Modifier,
 ) {
     var slot by remember { mutableStateOf<ClothingSlot?>(null) }
     var search by remember { mutableStateOf("") }
-    val outfits = remember(catalog, search) { catalog?.outfits.orEmpty().filter { it.name.contains(search, true) } }
-    val pieces = remember(catalog, slot, search) {
-        catalog?.pieces.orEmpty().filter { it.slot == slot && it.name.contains(search, true) }
+    val tiles = remember(catalog, selected, slot, search) {
+        val current = slot
+        if (current == null) {
+            catalog?.outfits.orEmpty().filter { it.name.contains(search, true) }
+                .map { WardrobeTile(it.id, it.name, it.icon, selected == it.displays, it.displays) }
+        } else {
+            val none = WardrobeTile(0, "None", 0, current.id !in selected)
+            listOf(none) + catalog?.pieces.orEmpty().asSequence().filter { it.slot == current && it.name.contains(search, true) }
+                .map { WardrobeTile(it.display, it.name, it.icon, selected[current.id] == it.display) }.toList()
+        }
     }
-    Column(modifier.background(Color(0xFF201A19)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(modifier.background(Color(0xFF1C1815)).border(1.dp, Color(0xFF735B3B)).padding(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Transmog", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, color = Color(0xFFF4DFBD))
-            TextButton(onClose) { Text("Done") }
+            Text("Transmog", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, color = gold)
+            TextButton(onClose) { Text("Done", color = gold) }
         }
         if (catalog == null) {
-            Text(status ?: "Loading clothing catalog…", color = Color.White)
-            if (status != null) OutlinedButton(onRetry) { Text("Retry") }
+            Text(status ?: "Loading clothing catalog…", color = ink)
+            if (status != null) TextButton(onRetry) { Text("Retry", color = gold) }
             return
         }
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            FilterChip(slot == null, { slot = null; search = "" }, { Text("Outfits") })
-            for (part in ClothingSlot.entries) {
-                FilterChip(slot == part, { slot = part; search = "" }, { Text(part.label) })
-            }
-        }
-        OutlinedTextField(search, { search = it.take(80) }, Modifier.fillMaxWidth(), singleLine = true,
-            placeholder = { Text("Search ${slot?.label?.lowercase() ?: "outfits"}") },
-            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White))
-        LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
-            item {
-                TextButton({
-                    val current = slot
-                    onChange(if (current == null) emptyMap() else selected - current.id)
-                }) { Text(if (slot == null) "Clear outfit" else "None") }
-            }
-            if (slot == null) {
-                items(outfits, key = { it.id }) { set ->
-                    TextButton({ onChange(set.displays) }) {
-                        Text(if (selected == set.displays) "✓ ${set.name}" else set.name)
-                    }
+        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(Modifier.width(86.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                item { SlotRow("Outfits", slot == null) { slot = null; search = "" } }
+                items(ClothingSlot.entries.size) { index ->
+                    val part = ClothingSlot.entries[index]
+                    SlotRow(part.label, slot == part) { slot = part; search = "" }
                 }
-            } else {
-                items(pieces, key = { it.display }) { piece ->
-                    TextButton({ onChange(selected + (piece.slot.id to piece.display)) }) {
-                        Text(if (selected[piece.slot.id] == piece.display) "✓ ${piece.name}" else piece.name)
+            }
+            Column(Modifier.weight(1f)) {
+                OutlinedTextField(search, { search = it.take(80) }, Modifier.fillMaxWidth(), singleLine = true,
+                    placeholder = { Text("Search ${slot?.label?.lowercase() ?: "outfits"}") })
+                Spacer(Modifier.height(6.dp))
+                if (tiles.isEmpty()) Text("No outfits match.", color = ink)
+                key(slot) {
+                    LazyVerticalGrid(
+                        GridCells.Adaptive(64.dp), modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp), horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    ) {
+                        items(tiles, key = { it.id }) { tile ->
+                            val image = gameIcon(icons, tile.icon)
+                            Column(
+                                Modifier.fillMaxWidth().semantics { this.selected = tile.selected }
+                                    .clickable(role = Role.Button) {
+                                        val current = slot
+                                        if (current == null) tile.outfit?.let(onChange)
+                                        else onChange(if (tile.id == 0) selected - current.id else selected + (current.id to tile.id))
+                                    }.padding(2.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Box(Modifier.size(46.dp).background(Color(0xFF2D241F))
+                                    .border(1.dp, if (tile.selected) gold else Color(0xFF65503A)),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    if (image != null) Image(image, null, Modifier.fillMaxSize().padding(2.dp))
+                                    else Text(if (tile.id == 0) "—" else tile.name.take(1), color = gold)
+                                }
+                                Text(tile.name, color = if (tile.selected) gold else ink, maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun SlotRow(label: String, active: Boolean, onPick: () -> Unit) {
+    Text(label, Modifier.fillMaxWidth().semantics { selected = active }
+        .background(if (active) Color(0xFF443423) else Color.Transparent)
+        .clickable(role = Role.Tab, onClick = onPick).padding(horizontal = 5.dp, vertical = 9.dp),
+        color = if (active) gold else ink, style = MaterialTheme.typography.labelMedium)
 }

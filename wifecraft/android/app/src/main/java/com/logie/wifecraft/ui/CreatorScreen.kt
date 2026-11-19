@@ -33,6 +33,13 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import com.logie.wifecraft.engine.Thumbs
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -97,6 +104,8 @@ fun CreatorScreen(
     transmog: com.logie.wifecraft.creator.TransmogCatalog? = null,
     transmogStatus: String? = null,
     onLoadTransmog: () -> Unit = {},
+    iconSource: GameIcons? = null,
+    portraits: Thumbs? = null,
     onLook: (ResolvedLook) -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -118,7 +127,7 @@ fun CreatorScreen(
     androidx.activity.compose.BackHandler(transmogOpen) { transmogOpen = false }
 
     // the look, resolved where the table work is cheap to wait for
-    LaunchedEffect(rev, step) {
+    LaunchedEffect(rev, step, transmog) {
         val look = withContext(Dispatchers.Default) { runCatching { model.resolved(tables) }.getOrNull() }
         if (look != null) onLook(look)
     }
@@ -162,7 +171,7 @@ fun CreatorScreen(
         ui.Vignette()
 
         if (step == 1) {
-            ui.RaceStep(model, female, onChosen = { changed() }, onLeave = onBack, onCustomize = {
+            ui.RaceStep(model, female, iconSource, portraits, onChosen = { changed() }, onLeave = onBack, onCustomize = {
                 step = 2; closePopout(); scroll.scrollTo(0f)
             })
         } else {
@@ -220,10 +229,12 @@ fun CreatorScreen(
                     else Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.5f)
                 androidx.compose.material3.MaterialTheme(colorScheme = androidx.compose.material3.darkColorScheme()) {
                     TransmogPanel(
-                        transmog, model.appearance.clothing.takeIf { model.appearance.gear }.orEmpty(),
+                        transmog, transmog?.equipStarter(model.appearance)?.clothing
+                            ?.takeIf { model.appearance.gear }.orEmpty(),
                         transmogStatus, onLoadTransmog,
                         onChange = { model.setClothing(it); changed() },
                         onClose = { transmogOpen = false },
+                        icons = iconSource,
                         modifier = panelModifier,
                     )
                 }
@@ -319,15 +330,16 @@ private fun Ui.SmallButton(r: Rect, icon: String, onHeld: (Boolean) -> Unit = {}
 @Composable
 private fun Ui.RoundButton(
     r: Rect, spec: CL.Round, icon: String?, on: Boolean, off: Boolean, flip: Boolean,
-    interactive: Boolean = true, pressed: Boolean = false, ringScale: Float = 1f, onTap: () -> Unit = {},
+    interactive: Boolean = true, pressed: Boolean = false, ringScale: Float = 1f, portrait: ImageBitmap? = null, onTap: () -> Unit = {},
 ) {
     var own by remember { mutableStateOf(false) }
     val held = own || pressed
     // (a button in a scrolling column is touched by the column's own gesture: it only shows the press)
     At(r, if (interactive) press({ own = it }, { if (!off) onTap() }) else Modifier) {
+        if (portrait != null) Image(portrait, null, Modifier.fillMaxSize().clip(CircleShape), contentScale = ContentScale.Crop)
         Canvas(Modifier.fillMaxSize()) {
             val dim = if (off) CL.DIM_OFF else 1f
-            if (icon != null) art(piece("$icon.${spec.kind}"), 0f, 0f, size.width, size.height, tint = Color(dim, dim, dim), flip = flip)
+            if (icon != null) art(piece("$icon.${spec.kind}") ?: piece(icon), 0f, 0f, size.width, size.height, tint = Color(dim, dim, dim), flip = flip)
             val ringName = if (off && atlas.has(spec.ring + "-disabled")) spec.ring + "-disabled" else spec.ring
             val rw = CL.u(spec.ringW) * k * ringScale; val rh = CL.u(spec.ringH) * k * ringScale
             val rx = (size.width - rw) / 2f; val ry = (size.height - rh) / 2f
@@ -390,7 +402,7 @@ private fun Ui.Vignette() {
 // ---- the first step: races and sexes --------------------------------------------------------------------------------------------
 
 @Composable
-private fun Ui.RaceStep(model: CreatorModel, female: Boolean, onChosen: () -> Unit, onLeave: () -> Unit, onCustomize: () -> Unit) {
+private fun Ui.RaceStep(model: CreatorModel, female: Boolean, icons: GameIcons?, portraits: Thumbs?, onChosen: () -> Unit, onLeave: () -> Unit, onCustomize: () -> Unit) {
     val catalog = model.catalog
     val me = model.appearance
     // the factions' crests and names in the top corners (Lua 813-827)
@@ -406,7 +418,7 @@ private fun Ui.RaceStep(model: CreatorModel, female: Boolean, onChosen: () -> Un
     // the races down the sides: the classic ones first, the allied after them on the same row grid, as many to a column as the screen's
     // height holds, scaled down (never below 7 mm) before a column is added, nothing scrolls (RaceLayout, from the real width and height)
     val sides = listOf(true, false).map { al -> raceOrder(catalog.races.filter { isAllianceSide(it.key, it.alliance) == al }) { it.key } }
-    RaceButtons(sides[0], sides[1], model, female, onChosen)
+    RaceButtons(sides[0], sides[1], model, female, icons, portraits, onChosen)
     // the sexes at the top (Lua 1405-1413)
     for ((i, sex) in listOf(Sex.MALE, Sex.FEMALE).withIndex()) {
         val chosen = me.sex == sex
@@ -419,7 +431,7 @@ private fun Ui.RaceStep(model: CreatorModel, female: Boolean, onChosen: () -> Un
 
 /** The races of both sides (Lua 1460-1494) where [raceLayout] puts them: a round button and its name in a cell, a tap on the cell chooses the race. */
 @Composable
-private fun Ui.RaceButtons(alliance: List<Race>, horde: List<Race>, model: CreatorModel, female: Boolean, onChosen: () -> Unit) {
+private fun Ui.RaceButtons(alliance: List<Race>, horde: List<Race>, model: CreatorModel, female: Boolean, icons: GameIcons?, portraits: Thumbs?, onChosen: () -> Unit) {
     val catalog = model.catalog
     val me = model.appearance
     val dpi = density.density * 160f
@@ -443,10 +455,29 @@ private fun Ui.RaceButtons(alliance: List<Race>, horde: List<Race>, model: Creat
         for (c in layout.cells) {
             val race = raceOf(c) ?: continue
             val has = catalog.model(race.id, me.sex) != null
-            val piece = racePiece(race.key, female) { atlas.has(it) }
+            val piece = racePiece(race.key, female, race.id) { atlas.has(it) }
+            val requestedSex = if (female) Sex.FEMALE else Sex.MALE
+            val sex = requestedSex.takeIf { it in race.sexes } ?: race.sexes.firstOrNull()
+            val fallback = if (piece == null || (atlas.version > 0 && atlas.piece(piece) == null)) {
+                val iconId = when {
+                    race.id in listOf(52, 70) -> 4696175
+                    race.name.equals("Haranir", true) -> if (female) 7431080 else 7431081
+                    else -> 0
+                }
+                val official = gameIcon(icons, iconId)
+                var thumbnail by remember(race.id, sex) { mutableStateOf<ImageBitmap?>(null) }
+                LaunchedEffect(race.id, sex, portraits, official) {
+                    if (sex != null && official == null) {
+                        portraits?.requestNpc(Appearance(race.id, sex, gear = false), race.id, 112) {
+                            thumbnail = it?.asImageBitmap()
+                        }
+                    }
+                }
+                official ?: thumbnail
+            } else null
             val button = Rect(c.button.x - safe.x, c.button.y - safe.y, c.button.w, c.button.h)
             RoundButton(button, if (c.alliance) CL.RACE_ALLIANCE else CL.RACE_HORDE, piece, on = race.id == me.raceId, off = !has, flip = !c.alliance,
-                interactive = false, pressed = held == (c.alliance to c.index), ringScale = layout.scale)
+                interactive = false, pressed = held == (c.alliance to c.index), ringScale = layout.scale, portrait = fallback)
             At(Rect(c.name.x - safe.x, c.name.y - safe.y, c.name.w, c.name.h)) {
                 Label(race.name, CL.FONT_MED * max(0.75f, layout.scale), goldColour, Modifier.fillMaxSize().offset { IntOffset(px(CL.u(CL.RACE_NAME_DX)), 0) }, outline = true)
             }

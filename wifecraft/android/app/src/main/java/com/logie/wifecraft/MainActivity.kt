@@ -59,6 +59,8 @@ import com.logie.wifecraft.engine.Dresser
 import com.logie.wifecraft.engine.LocationLoader
 import com.logie.wifecraft.engine.PropLoader
 import com.logie.wifecraft.engine.SceneView
+import com.logie.wifecraft.engine.Thumbs
+import com.logie.wifecraft.ui.GameIcons
 import com.logie.wifecraft.simulation.Activity
 import com.logie.wifecraft.simulation.SceneObject
 import com.logie.wifecraft.ui.CreatorScreen
@@ -197,7 +199,7 @@ class MainActivity : ComponentActivity() {
         cachedWardrobe ?: withContext(Dispatchers.IO) {
             GameTables.fetch(files.tablesDir, names = TransmogCatalog.TABLES)
             TransmogCatalog.load(tables).also {
-                check(it.pieces.isNotEmpty()) { "No wearable items were found in the downloaded tables." }
+                check(it.starter.keys.any { slot -> slot == 4 || slot == 5 }) { "The starter clothing could not be found in the downloaded tables." }
             }
         }.also { cachedWardrobe = it }
     }
@@ -205,6 +207,7 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun App() {
         val scope = rememberCoroutineScope()
+        val icons = remember { GameIcons(files) }
         var wardrobe by remember { mutableStateOf<TransmogCatalog?>(null) }
         var wardrobeStatus by remember { mutableStateOf<String?>(null) }
         var wardrobeJob by remember { mutableStateOf<Job?>(null) }
@@ -223,6 +226,9 @@ class MainActivity : ComponentActivity() {
         }
 
         var screen by remember { mutableStateOf(Screen.TITLE) }
+        LaunchedEffect(screen) {
+            if (screen == Screen.SETUP || screen == Screen.CREATOR) loadTransmog()
+        }
         var panel by remember { mutableStateOf(Panel.NONE) }
         var art by remember { mutableStateOf<WowArt?>(null) }
         var catalog by remember { mutableStateOf<Catalog?>(null) }
@@ -326,7 +332,15 @@ class MainActivity : ComponentActivity() {
                             when (step) {
                                 SetupStep.LOCATION -> step = SetupStep.CAST
                                 SetupStep.CAST -> step = SetupStep.OBJECTS
-                                SetupStep.OBJECTS -> if (location != null && chosen.isNotEmpty()) screen = Screen.LIVE
+                                SetupStep.OBJECTS -> if (location != null && chosen.isNotEmpty()) {
+                                    if (wardrobe == null && chosen.any { it.appearance.starterClothing && it.appearance.gear }) {
+                                        val lastError = wardrobeStatus
+                                        loadTransmog()
+                                        problem = lastError ?: "Starter clothing is loading. Try Begin scene again once the clothes are ready."
+                                    } else {
+                                        screen = Screen.LIVE
+                                    }
+                                }
                             }
                         },
                     )
@@ -335,6 +349,7 @@ class MainActivity : ComponentActivity() {
                         val view = sceneView()
                         val model = remember { CreatorModel(c, checkNotNull(defaultAppearance(c))) }
                         val key = "npc-preview"
+                        val portraits = remember(view) { Thumbs(applicationContext, files, view, tables) }
                         var backdropRace by remember { mutableStateOf<Int?>(null) }
                         var backdropStatus by remember { mutableStateOf<String?>(null) }
                         var backdropRetry by remember { mutableIntStateOf(0) }
@@ -377,6 +392,7 @@ class MainActivity : ComponentActivity() {
                             view.light(Lights.of("day"))
                             onDispose {
                                 dresser.cancel(key)
+                                portraits.close()
                                 backdropRace = null
                                 view.creatorBackdrop(0)
                                 view.removeActor(key)
@@ -393,9 +409,17 @@ class MainActivity : ComponentActivity() {
                             transmog = wardrobe,
                             transmogStatus = wardrobeStatus,
                             onLoadTransmog = ::loadTransmog,
-                            onLook = { dresser.dress(view, c, key, model.appearance) },
+                            iconSource = icons,
+                            portraits = portraits,
+                            onLook = {
+                                val raw = model.appearance
+                                if (wardrobe != null || !raw.starterClothing || !raw.gear) {
+                                    dresser.dress(view, c, key, wardrobe?.equipStarter(raw) ?: raw)
+                                }
+                            },
                             onFinish = { name, appearance ->
-                                val npc = Actor(UUID.randomUUID().toString(), name.ifBlank { "New NPC" }, appearance)
+                                val dressed = wardrobe?.equipStarter(appearance) ?: appearance
+                                val npc = Actor(UUID.randomUUID().toString(), name.ifBlank { "New NPC" }, dressed)
                                 runCatching { saveNpc(npc) }.onSuccess {
                                     savedRoster = savedRoster + npc
                                     if (cast.size < 6) cast = cast + npc.id
@@ -404,6 +428,14 @@ class MainActivity : ComponentActivity() {
                             },
                             onBack = { screen = Screen.SETUP },
                         )
+                        if (wardrobe == null) {
+                            val message = wardrobeStatus ?: "Loading starter clothing…"
+                            if (wardrobeStatus == null) {
+                                Text(message, Modifier.align(Alignment.TopCenter).padding(top = 78.dp), color = Color.White)
+                            } else {
+                                TextButton(::loadTransmog, Modifier.align(Alignment.TopCenter).padding(top = 74.dp)) { Text("Retry starter clothing") }
+                            }
+                        }
                         backdropStatus?.let { message ->
                             if (message.endsWith("Tap to retry.")) {
                                 TextButton({ backdropRetry++ }, Modifier.align(Alignment.TopCenter).padding(top = 40.dp)) { Text(message) }
@@ -450,7 +482,10 @@ class MainActivity : ComponentActivity() {
                             view.showCity(false)
                             view.light(Lights.of("day"))
                             locationLoader.load(view, preset.id, "inside")
-                            for (actor in chosen) dresser.dress(view, c, actorKey(actor.id), actor.appearance)
+                            for (actor in chosen) {
+                                val dressed = wardrobe?.equipStarter(actor.appearance) ?: actor.appearance
+                                dresser.dress(view, c, actorKey(actor.id), dressed)
+                            }
                             for (item in objects) {
                                 val pos = toStage(item.position)
                                 propLoader.place(view, objectKey(item), item.model, pos.x, pos.y, pos.z, rotation)

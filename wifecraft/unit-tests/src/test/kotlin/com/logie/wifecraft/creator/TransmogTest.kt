@@ -29,6 +29,22 @@ class TransmogTest {
         assertTrue(Appearance.fromJson(Appearance(1, Sex.MALE).toJson()).clothing.isEmpty())
     }
 
+    @Test fun starterClothingFillsAnUnsetOutfitAndNoneStaysCleared() {
+        val catalog = TransmogCatalog(listOf(
+            ClothingPiece(38, 101, "Recruit's Shirt", ClothingSlot.SHIRT),
+            ClothingPiece(39, 102, "Recruit's Pants", ClothingSlot.LEGS),
+            ClothingPiece(40, 103, "Recruit's Boots", ClothingSlot.FEET),
+        ), emptyList())
+        val original = Appearance.fromJson(org.json.JSONObject("""{"race":1,"sex":"MALE"}"""))
+        assertTrue(original.starterClothing)
+        val equipped = catalog.equipStarter(original)
+        assertEquals(mapOf(4 to 101, 7 to 102, 8 to 103), equipped.clothing)
+        val removedShirt = equipped.copy(clothing = equipped.clothing - 4)
+        assertEquals(removedShirt, catalog.equipStarter(Appearance.fromJson(removedShirt.toJson())))
+        val none = equipped.copy(clothing = emptyMap())
+        assertEquals(none, catalog.equipStarter(Appearance.fromJson(none.toJson())))
+    }
+
     @Test fun clothingPaintsTheBodySectionAndIsDiscoveredForDownload() {
         val game = tables(
             "ItemDisplayInfo" to "ID,GeosetGroup_0,GeosetGroup_1\n41,2,1",

@@ -71,7 +71,12 @@ class ArtAtlas private constructor(private val dir: File, private val doc: JSONO
     /** Fetches what is missing and cuts every piece. Off the main thread (network, decoding). */
     suspend fun load(fetch: Boolean = true): Boolean = withContext(Dispatchers.IO) {
         try {
-            if (fetch) for (id in fileIds()) if (!file(id).let { it.isFile && it.length() > 0 }) download(id)
+            var missing: Exception? = null
+            if (fetch) for (id in fileIds()) if (!file(id).let { it.isFile && it.length() > 0 }) {
+                try { download(id) }
+                catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                catch (e: Exception) { if (missing == null) missing = e }
+            }
             val mask = decode(maskId)
             val heads = HashMap<String, Bitmap>()          // the Face pieces, kept for the Body picture made from them
             val bySheet = HashMap<Int, MutableList<String>>()
@@ -116,8 +121,10 @@ class ArtAtlas private constructor(private val dir: File, private val doc: JSONO
                 put("$FIGURE$state.category", ArtPiece(trim(fig, mask, m.getInt(0), m.getInt(1), m.getInt(2)).asImageBitmap(), size))
             }
             synchronized(cut) { version++ }
-            error = null
-            true
+            error = missing?.message
+            missing == null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             error = e.message ?: e.javaClass.simpleName
             false

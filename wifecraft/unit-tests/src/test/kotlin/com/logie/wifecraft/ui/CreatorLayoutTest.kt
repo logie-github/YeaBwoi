@@ -146,6 +146,7 @@ class CreatorLayoutTest {
         assertEquals("raceicon128-nightelf-female", racePiece("NightElf", true) { it in art })
         assertEquals("raceicon128-highmountain-male", racePiece("HighmountainTauren", false) { it in art })
         assertEquals("raceicon128-zandalari-female", racePiece("ZandalariTroll", true) { it in art })
+        assertEquals("raceicon128-zandalari-female", racePiece("DifferentClientToken", true, 31) { it in art })
         assertNull(racePiece("Skyborne", true) { it in art })
         assertEquals("charactercreate-gendericon-female-selected", sexPiece(true, true))
     }

@@ -149,7 +149,7 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
         val skins = bodyOverrides?.undeadSkins(next.race.id, next.sex).orEmpty()
         val undead = appearance.undead && skins.isNotEmpty()
         appearance = Appearance(next.race.id, next.sex, picks, body, appearance.gear, undead,
-            if (undead) appearance.undeadSkin.coerceIn(0, skins.size - 1) else 0, appearance.clothing)
+            if (undead) appearance.undeadSkin.coerceIn(0, skins.size - 1) else 0, appearance.clothing, appearance.starterClothing)
         normalize(null)
     }
 
@@ -262,7 +262,7 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
         normalize(null)
     }
 
-    fun setClothing(items: Map<Int, Int>) { appearance = appearance.copy(clothing = items, gear = true) }
+    fun setClothing(items: Map<Int, Int>) { appearance = appearance.copy(clothing = items, gear = true, starterClothing = false) }
 
     fun setGear(on: Boolean) { appearance = appearance.copy(gear = on) }
 

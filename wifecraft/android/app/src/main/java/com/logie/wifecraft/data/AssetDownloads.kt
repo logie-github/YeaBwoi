@@ -45,10 +45,12 @@ class AssetDownloads(private val files: GameFiles, private val tables: Tables) {
                 }
                 Pack.CLOTHING -> {
                     onStatus("Preparing the clothing catalog…")
-                    val displays = wardrobe().pieces.mapTo(HashSet()) { it.display }
+                    val pieces = wardrobe().pieces
+                    val displays = pieces.mapTo(HashSet()) { it.display }
+                    val iconIds = pieces.mapNotNullTo(HashSet()) { it.icon.takeIf { icon -> icon > 0 } }
                     val (modelIds, textureIds) = CreatureLooks.clothingFiles(tables, displays)
                     onStatus("Downloading clothes…")
-                    textureIds.chunked(32).mapBatches { fetchBatch(it) }
+                    (textureIds + iconIds).chunked(32).mapBatches { fetchBatch(it) }
                     modelIds
                 }
                 Pack.ANIMATIONS -> {

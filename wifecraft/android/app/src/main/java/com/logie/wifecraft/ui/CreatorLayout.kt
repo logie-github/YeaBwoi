@@ -635,11 +635,19 @@ fun categoryView(zoom: Float): Pair<Float, Float> = if (zoom >= 80f) 1.45f to 0.
 private val RACE_ART = mapOf("scourge" to "undead", "highmountaintauren" to "highmountain", "lightforgeddraenei" to "lightforged", "zandalaritroll" to "zandalari",
     "magharorc" to "magharorc", "darkirondwarf" to "darkirondwarf")
 
+private val RACE_ATLAS_IDS = mapOf(
+    1 to "human", 2 to "orc", 3 to "dwarf", 4 to "nightelf", 5 to "undead", 6 to "tauren",
+    7 to "gnome", 8 to "troll", 9 to "goblin", 10 to "bloodelf", 11 to "draenei", 22 to "worgen",
+    24 to "pandaren", 25 to "pandaren", 26 to "pandaren", 27 to "nightborne", 28 to "highmountain",
+    29 to "voidelf", 30 to "lightforged", 31 to "zandalari", 32 to "kultiran", 34 to "darkirondwarf",
+    35 to "vulpera", 36 to "magharorc", 37 to "mechagnome",
+)
+
 /** Lua 1488-1490: the race's piece "raceicon128-<art>-<sex>"; [has] says which pieces the art has; null where none. */
-fun racePiece(key: String, female: Boolean, has: (String) -> Boolean): String? {
+fun racePiece(key: String, female: Boolean, raceId: Int = 0, has: (String) -> Boolean): String? {
     val n = key.lowercase().filter { it in 'a'..'z' }
     val sex = if (female) "female" else "male"
-    val candidates = listOfNotNull(RACE_ART[n], n, n.removeSuffix("race"), n.removePrefix("the"))
+    val candidates = listOfNotNull(RACE_ATLAS_IDS[raceId], RACE_ART[n], n, n.removeSuffix("race"), n.removePrefix("the"))
     return candidates.map { "raceicon128-$it-$sex" }.firstOrNull(has)
 }
 

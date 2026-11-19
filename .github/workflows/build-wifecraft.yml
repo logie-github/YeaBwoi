@@ -132,6 +132,8 @@ jobs:
 
           Transmog in the character creator supports complete outfits and individual clothing slots. The creator loads Warcraft's original race-selection backdrop models from wago.tools. Options can cache scenes, clothing, and Warcraft animations for offline use.
 
+          New NPCs start clothed, each Transmog slot offers None, and the wardrobe shows Warcraft item icons. The race menu uses race IDs to find portraits, with portraits rendered from Warcraft models where needed.
+
           Download **$APK_FILE** and open it on your phone to install. Warcraft models and the Stormwind Embassy location use the app's existing wago.tools downloads."
           gh release create "$RELEASE_TAG" "dist/$APK_FILE" \
             --target "$GITHUB_SHA" \

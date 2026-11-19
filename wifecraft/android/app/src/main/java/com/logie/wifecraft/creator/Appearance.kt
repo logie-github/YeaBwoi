@@ -18,6 +18,7 @@ data class Appearance(
     val raceId: Int, val sex: Sex, val picks: Map<Int, Int> = emptyMap(), val body: Body = Body(), val gear: Boolean = true,
     val undead: Boolean = false, val undeadSkin: Int = 0,
     val clothing: Map<Int, Int> = emptyMap(),
+    val starterClothing: Boolean = clothing.isEmpty(),
 ) {
     fun toJson(): JSONObject {
         val p = JSONObject()
@@ -29,7 +30,7 @@ data class Appearance(
             .put("picks", p)
             .put("body", JSONObject().put("shape", body.shape).put("style", body.style).put("density", body.density))
             .put("gear", gear)
-            .also { if (clothing.isNotEmpty()) it.put("clothing", outfit) }
+            .also { if (!starterClothing || clothing.isNotEmpty()) it.put("clothing", outfit) }
             .also { if (undead) it.put("undead", true).put("undeadSkin", undeadSkin) }
     }
 
@@ -44,7 +45,7 @@ data class Appearance(
                 ClothingSlot.entries.mapNotNull { slot -> json.optInt(slot.id.toString()).takeIf { it > 0 }?.let { slot.id to it } }.toMap()
             }.orEmpty()
             return Appearance(o.getInt("race"), sex, picks, body, o.optBoolean("gear", true),
-                o.optBoolean("undead", false), o.optInt("undeadSkin", 0).coerceAtLeast(0), clothing)
+                o.optBoolean("undead", false), o.optInt("undeadSkin", 0).coerceAtLeast(0), clothing, starterClothing = !o.has("clothing"))
         }
     }
 }

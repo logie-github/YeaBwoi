@@ -11,7 +11,7 @@ The three inn presets use original stage layouts. The Stormwind Embassy uses the
 
 ## Transmog and offline downloads
 
-In the character creator, open **Transmog** to use a named outfit or mix individual pieces. Clothing is saved with the NPC and appears when the NPC joins a scene. The preview uses Warcraft's race-selection backdrop models from wago.tools, framed by the camera stored in each model.
+In the character creator, open **Transmog** to use a named outfit or mix individual pieces. New NPCs start with Warcraft recruit clothing. Select **None** in any slot to remove that piece. Clothing and removed slots are saved with the NPC and appear when the NPC joins a scene. The preview uses Warcraft's race-selection backdrop models from wago.tools, framed by the camera stored in each model.
 
 In **Options**, choose **Download all** or download scenes, clothes, and Warcraft character animations individually. Downloads reuse files already on the device. Sims 4 rigs and clips are imported from your own files.
 
