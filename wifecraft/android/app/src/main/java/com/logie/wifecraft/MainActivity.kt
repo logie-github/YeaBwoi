@@ -335,6 +335,41 @@ class MainActivity : ComponentActivity() {
                         val view = sceneView()
                         val model = remember { CreatorModel(c, checkNotNull(defaultAppearance(c))) }
                         val key = "npc-preview"
+                        var backdropRace by remember { mutableStateOf<Int?>(null) }
+                        var backdropStatus by remember { mutableStateOf<String?>(null) }
+                        var backdropRetry by remember { mutableIntStateOf(0) }
+                        LaunchedEffect(backdropRace, backdropRetry) {
+                            val race = backdropRace ?: return@LaunchedEffect
+                            view.creatorBackdrop(0)
+                            val fileId = RaceBackdrop.file(tables, race)
+                            if (fileId == null) {
+                                backdropStatus = "No Warcraft backdrop is listed for this race."
+                                return@LaunchedEffect
+                            }
+                            backdropStatus = "Loading Warcraft backdrop…"
+                            try {
+                                val failure = withContext(Dispatchers.IO) {
+                                    val job = kotlin.coroutines.coroutineContext[Job]
+                                    PropLoader.closure(files, fileId) { ids ->
+                                        for (id in ids) {
+                                            if (job?.isActive == false) throw CancellationException()
+                                            files.fetchNow(id)
+                                        }
+                                    }
+                                }
+                                if (failure != null) {
+                                    backdropStatus = "Warcraft backdrop unavailable. Tap to retry."
+                                } else {
+                                    val retry = backdropRetry
+                                    view.creatorBackdrop(fileId) { drawn ->
+                                        if (backdropRace == race && backdropRetry == retry) {
+                                            backdropStatus = if (drawn) null else "Warcraft backdrop could not be drawn. Tap to retry."
+                                        }
+                                    }
+                                }
+                            } catch (failure: CancellationException) { throw failure }
+                            catch (_: Exception) { backdropStatus = "Warcraft backdrop download failed. Tap to retry." }
+                        }
                         DisposableEffect(view) {
                             view.removeAll()
                             view.clearLocation()
@@ -342,11 +377,8 @@ class MainActivity : ComponentActivity() {
                             view.light(Lights.of("day"))
                             onDispose {
                                 dresser.cancel(key)
-                                for (side in listOf(-1, 1)) {
-                                    val prop = "creator-backdrop-$side"
-                                    propLoader.cancel(prop)
-                                    view.removeProp(prop)
-                                }
+                                backdropRace = null
+                                view.creatorBackdrop(0)
                                 view.removeActor(key)
                                 view.clearLocation()
                                 view.frame = null
@@ -357,16 +389,7 @@ class MainActivity : ComponentActivity() {
                         CreatorScreen(
                             model, checkNotNull(art), view, tables,
                             actorKey = key,
-                            onPreviewRace = { race ->
-                                view.loadLocation(RaceBackdrop.json(race), "creator-$race")
-                                val decoration = RaceBackdrop.sceneryModel(race)
-                                for (side in listOf(-1, 1)) {
-                                    val prop = "creator-backdrop-$side"
-                                    propLoader.cancel(prop)
-                                    view.removeProp(prop)
-                                    if (decoration != null) propLoader.place(view, prop, decoration, side * 1.65f, 2.5f, 0f, scale = 0.8f)
-                                }
-                            },
+                            onPreviewRace = { backdropRace = it },
                             transmog = wardrobe,
                             transmogStatus = wardrobeStatus,
                             onLoadTransmog = ::loadTransmog,
@@ -381,6 +404,13 @@ class MainActivity : ComponentActivity() {
                             },
                             onBack = { screen = Screen.SETUP },
                         )
+                        backdropStatus?.let { message ->
+                            if (message.endsWith("Tap to retry.")) {
+                                TextButton({ backdropRetry++ }, Modifier.align(Alignment.TopCenter).padding(top = 40.dp)) { Text(message) }
+                            } else {
+                                Text(message, Modifier.align(Alignment.TopCenter).padding(top = 42.dp), color = Color.White)
+                            }
+                        }
                     }
                     Screen.ANIMATIONS -> SceneAnimationScreen(
                         availableClips, bindings,

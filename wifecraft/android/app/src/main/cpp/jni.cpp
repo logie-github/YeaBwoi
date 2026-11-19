@@ -212,6 +212,10 @@ JNIEXPORT jstring JNICALL FN(locationError)(JNIEnv* env, jclass, jlong h) {
     return env->NewStringUTF(scene(h)->locationError().c_str());
 }
 
+JNIEXPORT jboolean JNICALL FN(creatorBackdrop)(JNIEnv*, jclass, jlong h, jint model) {
+    return scene(h)->creatorBackdrop(uint32_t(model));
+}
+
 JNIEXPORT jint JNICALL FN(addProp)(JNIEnv*, jclass, jlong h, jint model, jfloat x, jfloat y, jfloat z, jfloat yaw, jfloat scale) {
     return scene(h)->addProp(uint32_t(model), V3(x, y, z), yaw, scale);
 }

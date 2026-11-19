@@ -132,6 +132,42 @@ void M2Model::mergeParentSequences() {
     }
 }
 
+// M2 camera tracks store arrays of spline keys for each sequence. The character
+// creation screen uses the first camera at the start of its sequence.
+static size_t firstCameraKey(const Reader& r, size_t track, size_t keySize) {
+    const M2Array sequences = readArray(r, track + 12);
+    if (sequences.count == 0 || !r.has(sequences.offset, 8)) return 0;
+    const M2Array keys = readArray(r, sequences.offset);
+    return keys.count && r.has(keys.offset, keySize) ? keys.offset : 0;
+}
+
+static std::optional<M2CameraView> readPreviewCamera(const Reader& r) {
+    const M2Array cameras = readArray(r, 272);
+    if (!cameras.count) return {};
+    const size_t base = cameras.offset;
+    const bool usesFovTrack = r.u32(4) >= 272;
+    if (!r.has(base, usesFovTrack ? 116 : 100)) return {};
+    const size_t clip = base + (usesFovTrack ? 4 : 8);
+    const auto vec = [&](size_t at) { return V3(r.f32(at), r.f32(at + 4), r.f32(at + 8)); };
+    const auto point = [&](size_t track) {
+        const size_t key = firstCameraKey(r, track, 36);
+        return vec(track + 20) + (key ? vec(key) : V3());
+    };
+    M2CameraView view;
+    view.eye = point(clip + 8);
+    view.target = point(clip + 40);
+    view.farClip = r.f32(clip);
+    view.nearClip = r.f32(clip + 4);
+    const size_t fovKey = usesFovTrack ? firstCameraKey(r, clip + 92, 12) : base + 4;
+    view.diagonalFov = fovKey ? r.f32(fovKey) : 0.0f;
+    const size_t rollKey = firstCameraKey(r, clip + 72, 12);
+    view.roll = rollKey ? r.f32(rollKey) : 0.0f;
+    const float distance = (view.eye - view.target).length();
+    if (!std::isfinite(distance) || distance < 0.01f || !(view.diagonalFov > 0.02f && view.diagonalFov < 3.1f))
+        return {};
+    return view;
+}
+
 bool M2Model::load(uint32_t id, const FileLookup& files) {
     fileId = id;
     std::string path = files(id);
@@ -158,6 +194,7 @@ bool M2Model::load(uint32_t id, const FileLookup& files) {
     Reader r(file_.data() + base_, file_.size() - base_);
     if (r.u32(0) != tag("MD20")) { error = "model file " + std::to_string(id) + " isn't an M2"; return false; }
     flags = r.u32(16);
+    previewCamera = readPreviewCamera(r);
 
     M2Array a = readArray(r, 20);
     for (uint32_t i = 0; i < a.count; ++i) globalLoops.push_back(r.u32(a.offset + 4 * i));

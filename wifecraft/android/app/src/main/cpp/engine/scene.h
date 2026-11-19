@@ -79,6 +79,8 @@ public:
     // void). It stays loaded either way.
     void showCity(bool shown) { cityShown_ = shown; }
 
+    bool creatorBackdrop(uint32_t fileId);
+
     // A person. `geosetGroups` (group -> value) makes the model a character race's: its default
     // geosets, then each listed group showing only that value (0: none). Empty: every geoset.
     // Why the model couldn't be read the last time it was asked for ("" when it could, or wasn't asked for).
@@ -321,6 +323,9 @@ private:
         std::vector<WmoBatch> batches;
         bool outdoors = true;
     };
+    ModelGl* creatorBackdrop_ = nullptr;
+    void drawCreatorBackdrop(float aspect, uint32_t nowMs);
+
     struct Prop {
         ModelGl* mesh = nullptr;
         M4 world;

@@ -35,7 +35,8 @@ class AssetDownloads(private val files: GameFiles, private val tables: Tables) {
                     val manifest = locations.flatMap { it.files().map { pair -> pair.first } }.distinct()
                     onStatus("Downloading scenes…")
                     manifest.chunked(32).mapBatches { fetchBatch(it) }
-                    val objects = (SceneObject.entries.map { it.model } + SceneObject.BOOK_MODEL + RaceBackdrop.sceneryFiles).distinct()
+                    val backdrops = catalog?.races.orEmpty().mapNotNull { RaceBackdrop.file(tables, it.id) }
+                    val objects = (SceneObject.entries.map { it.model } + SceneObject.BOOK_MODEL + backdrops).distinct()
                     objects.mapBatches { id ->
                         val problem = PropLoader.closure(files, id) { fetchBatch(it) }
                         if (problem != null) failed += id

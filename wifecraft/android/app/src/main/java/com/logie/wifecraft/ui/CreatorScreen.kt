@@ -135,9 +135,8 @@ fun CreatorScreen(
                 view.update(dt)
                 if (view.zoom != lastZoom || view.focusY != lastFocus || view.facing != lastFacing) {
                     lastZoom = view.zoom; lastFocus = view.focusY; lastFacing = view.facing
-                    val camera = CreatorCamera.pose(view.zoom, view.focusY)
-                    scene.frame = camera.copy(eye = camera.eye.copy(x = 0f, y = -camera.eye.x)) to
-                        mapOf(actorKey to Placement(0f, 0f, 0f, Math.toRadians(view.facing.toDouble()).toFloat() - 1.5707964f))
+                    scene.frame = CreatorCamera.pose(view.zoom, view.focusY) to
+                        mapOf(actorKey to Placement(0f, 0f, 0f, Math.toRadians(view.facing.toDouble()).toFloat()))
                 }
                 tick++
             }

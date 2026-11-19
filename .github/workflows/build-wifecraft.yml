@@ -130,7 +130,7 @@ jobs:
 
           Choose a preset scene, select or create NPCs, and pick the interactable furniture. NPCs act on their own until you select one and give them a command. You can import Sims 4 rigs and clips and assign retargeted animations to NPC actions in scene setup.
 
-          Transmog in the character creator supports complete outfits and individual clothing slots. The creator uses race-themed backgrounds. Options can cache scenes, clothing, and Warcraft animations for offline use.
+          Transmog in the character creator supports complete outfits and individual clothing slots. The creator loads Warcraft's original race-selection backdrop models from wago.tools. Options can cache scenes, clothing, and Warcraft animations for offline use.
 
           Download **$APK_FILE** and open it on your phone to install. Warcraft models and the Stormwind Embassy location use the app's existing wago.tools downloads."
           gh release create "$RELEASE_TAG" "dist/$APK_FILE" \

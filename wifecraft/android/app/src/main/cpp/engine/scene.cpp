@@ -1243,6 +1243,42 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     drawAttached(a, w, nowMs, transparent);
 }
 
+bool Scene::creatorBackdrop(uint32_t fileId) {
+    creatorBackdrop_ = nullptr;
+    if (fileId == 0) return true;
+    auto* loaded = model(fileId);
+    if (!loaded || !loaded->model->previewCamera) return false;
+    creatorBackdrop_ = loaded;
+    return true;
+}
+
+void Scene::drawCreatorBackdrop(float aspect, uint32_t nowMs) {
+    if (!creatorBackdrop_) return;
+    auto& mesh = *creatorBackdrop_;
+    const auto& camera = *mesh.model->previewCamera;
+    const float fovY = 2.0f * std::atan(std::tan(camera.diagonalFov * 0.5f) / std::sqrt(1.0f + aspect * aspect));
+    const float nearClip = camera.nearClip > 0 ? camera.nearClip : 0.1f;
+    const float farClip = camera.farClip > nearClip ? camera.farClip : 4000.0f;
+    const V3 forward = (camera.target - camera.eye).normalized();
+    const V3 worldUp = std::abs(forward.z) < 0.999f ? V3(0, 0, 1) : V3(0, 1, 0);
+    const V3 right = forward.cross(worldUp).normalized();
+    const V3 up = right.cross(forward);
+    const float roll = std::isfinite(camera.roll) ? camera.roll : 0.0f;
+    const V3 cameraUp = up * std::cos(roll) + right * std::sin(roll);
+    const M4 viewProj = M4::perspective(fovY, aspect, nearClip, farClip) * M4::lookAt(camera.eye, camera.target, cameraUp);
+    Light light;
+    light.ambient[0] = light.ambient[1] = light.ambient[2] = 1.0f;
+    light.sunColor[0] = light.sunColor[1] = light.sunColor[2] = 0.0f;
+    light.fogStart = farClip;
+    light.fogEnd = farClip + 1.0f;
+    litUniforms(m2Prog_, light, camera.eye, viewProj);
+    const float white[] = {1, 1, 1, 1};
+    drawModel(mesh, M4(), nullptr, nullptr, mesh.boneTex, -1, 0, nowMs, white, false, kActorTex);
+    drawModel(mesh, M4(), nullptr, nullptr, mesh.boneTex, -1, 0, nowMs, white, true, kActorTex);
+    // The actor has a separate camera so zooming or turning it leaves the backdrop in place.
+    glClear(GL_DEPTH_BUFFER_BIT);
+}
+
 void Scene::render(int width, int height, uint32_t nowMs) {
     if (!glReady_) return;
     // Looks dressed since the last frame, and files a look was waiting for that have come.
@@ -1269,7 +1305,8 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     proj_ = M4::perspective(fov_ * 3.14159265f / 180.0f, height ? float(width) / float(height) : 1, 0.2f, 4000.0f);
     M4 viewProj = proj_ * view_;
 
-    drawSky();
+    if (creatorBackdrop_) drawCreatorBackdrop(height ? float(width) / float(height) : 1.0f, nowMs);
+    else drawSky();
 
     // The animations' clock: this frame's time since the last, never backwards, at most kMaxFrameStep (a slow frame), and
     // a gap longer than kPause (the app paused or the screen off) counts as one frame like the last: the animations go

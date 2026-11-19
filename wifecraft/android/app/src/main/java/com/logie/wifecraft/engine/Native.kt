@@ -133,6 +133,7 @@ object Native {
      * location's coordinates, z up) turned [yaw] radians about z, at [scale]. Its files must be downloaded (PropLoader).
      * Returns its id, 0 when it can't be read ([modelError] says why).
      */
+    @JvmStatic external fun creatorBackdrop(scene: Long, model: Int): Boolean
     @JvmStatic external fun addProp(scene: Long, model: Int, x: Float, y: Float, z: Float, yaw: Float, scale: Float): Int
     @JvmStatic external fun moveProp(scene: Long, prop: Int, x: Float, y: Float, z: Float, yaw: Float, scale: Float): Boolean
     @JvmStatic external fun removeProp(scene: Long, prop: Int)

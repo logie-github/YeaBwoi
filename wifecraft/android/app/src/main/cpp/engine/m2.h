@@ -2,6 +2,7 @@
 // chunk holding the MD20 model, with its skins (.skin), animations (.anim) and textures named by
 // file id. This side holds the data and evaluates the skeleton; m2_gl draws it.
 #pragma once
+#include <optional>
 
 #include <cstdint>
 #include <functional>
@@ -101,6 +102,12 @@ struct BonePose {
     V3 s{1, 1, 1};
 };
 
+struct M2CameraView {
+    V3 eye, target;
+    float diagonalFov = 0;
+    float nearClip = 0, farClip = 0, roll = 0;
+};
+
 class M2Model {
 public:
     bool load(uint32_t fileId, const FileLookup& files);
@@ -125,6 +132,7 @@ public:
     std::vector<M2Attachment> attachments;
     std::vector<int16_t> attachmentLookup;
     V3 boundsMin, boundsMax;     // as the file gives them (the animations' reach)
+    std::optional<M2CameraView> previewCamera;
     V3 extentMin, extentMax;     // of the vertices themselves
 
     // The sequence index playing `animId` (its first variation), or -1.

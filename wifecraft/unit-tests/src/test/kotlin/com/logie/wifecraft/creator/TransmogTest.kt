@@ -2,7 +2,6 @@ package com.logie.wifecraft.creator
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class TransmogTest {
@@ -45,10 +44,12 @@ class TransmogTest {
         assertEquals(setOf(601), CreatureLooks.clothingFiles(game, setOf(41)).second)
     }
 
-    @Test fun creatorStageUsesAValidRoomAndChangesWithRace() {
-        val human = org.json.JSONObject(RaceBackdrop.json(1))
-        val nightElf = org.json.JSONObject(RaceBackdrop.json(4))
-        assertNotNull(human.optJSONObject("room"))
-        assertTrue(human.getJSONObject("room").toString() != nightElf.getJSONObject("room").toString())
+    @Test fun creatorUsesTheOriginalRaceAssetsAndTableEntries() {
+        val game = tables("ChrRaces" to "ID,CreateScreenFileDataID\n86,7446723")
+        assertEquals(132035, RaceBackdrop.file(game, 5))
+        assertEquals(131921, RaceBackdrop.file(game, 10))
+        assertEquals(313254, RaceBackdrop.file(game, 22))
+        assertEquals(7446723, RaceBackdrop.file(game, 86))
+        kotlin.test.assertNull(RaceBackdrop.file(game, 999))
     }
 }

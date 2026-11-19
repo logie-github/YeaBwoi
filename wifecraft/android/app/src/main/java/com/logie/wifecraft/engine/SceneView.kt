@@ -294,6 +294,11 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     /** The loaded location's [view] (its light, fog and ground; the camera is the frame's). */
     fun locationView(view: String) = post { h, _ -> currentView = view; Native.locationView(h, view) }
 
+    fun creatorBackdrop(fileId: Int, onDone: (Boolean) -> Unit = {}) = post { h, _ ->
+        val loaded = Native.creatorBackdrop(h, fileId)
+        main.post { onDone(loaded) }
+    }
+
     fun clearLocation() = post { h, _ -> currentView = null; Native.clearLocation(h) }
 
     /**
