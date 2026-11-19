@@ -137,6 +137,8 @@ jobs:
 
           The original Wifecraft menu pictures are back on the title, scene and NPC setup, and first-launch download screens. The selectors use the earlier Warcraft location and NPC icons.
 
+          Select an NPC and open NPC camera to follow them. Drag to orbit, pinch or use the zoom buttons, and select Room camera to return to the room view. Resting and sitting use the furniture's measured surface for placement.
+
           Options shows a download progress bar and file counts for Warcraft assets.
 
           Download **$APK_FILE** and open it on your phone to install. Warcraft models and the Stormwind Embassy location use the app's existing wago.tools downloads."

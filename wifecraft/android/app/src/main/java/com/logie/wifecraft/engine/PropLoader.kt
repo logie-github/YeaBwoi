@@ -34,7 +34,8 @@ class PropLoader(private val files: GameFiles, private val scope: CoroutineScope
     }
 
     /** Places [model] (a file id) as the prop [key] at x, y, z turned [yaw] radians about z at [scale], once its files are here. */
-    fun place(scene: SceneView, key: String, model: Int, x: Float, y: Float, z: Float, yaw: Float = 0f, scale: Float = 1f) {
+    fun place(scene: SceneView, key: String, model: Int, x: Float, y: Float, z: Float, yaw: Float = 0f, scale: Float = 1f,
+        onReady: () -> Unit = {}) {
         jobs.remove(key)?.cancel()
         jobs[key] = scope.launch {
             val ok = withContext(Dispatchers.IO) {
@@ -46,7 +47,7 @@ class PropLoader(private val files: GameFiles, private val scope: CoroutineScope
                     fail("The prop (file $model): ${e.message ?: e}"); false
                 }
             }
-            if (ok) scene.addProp(key, model, x, y, z, yaw, scale) { why -> fail(why) }
+            if (ok) scene.addProp(key, model, x, y, z, yaw, scale, onReady) { why -> fail(why) }
         }
     }
 

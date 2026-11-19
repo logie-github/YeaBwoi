@@ -5,7 +5,7 @@ An Android scene simulation. Choose a location, pick or create NPCs, and select 
 1. Open **Choose Scene** and pick the Stormwind Embassy.
 2. Select up to six NPCs. **Create NPC** saves a character to your roster. NPCs from older projects also appear in the roster.
 3. Choose a chair, bed, table with a book, or couch. The scene places the objects automatically.
-4. Begin the scene. NPCs will walk, talk, read, sit, and rest based on what is available. Select an NPC in the room or in the cast bar, then tap an object or choose an interaction. **End scene** returns to the title.
+4. Begin the scene. NPCs will walk, talk, read, sit, and rest based on what is available. Select an NPC in the room or in the cast bar, then tap an object or choose an interaction. **NPC camera** follows the selected NPC. Drag to orbit and pinch or use the zoom buttons. **Room camera** restores the room view. **End scene** returns to the title.
 
 The Stormwind Embassy uses the existing wago.tools location pack. The title and scene setup use the original Wifecraft menu backdrop. The title emblem and first-launch download art also come from the earlier Wifecraft builds. Warcraft controls and selector icons load from wago.tools. The character, furniture, and book models load through the app's existing wago.tools pipeline.
 

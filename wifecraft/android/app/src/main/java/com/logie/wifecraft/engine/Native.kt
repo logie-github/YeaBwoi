@@ -75,7 +75,8 @@ object Native {
     const val BODY_STRIDE = 16
 
     @JvmStatic external fun removeActor(scene: Long, actor: Int)
-    @JvmStatic external fun place(scene: Long, actor: Int, x: Float, y: Float, z: Float, facing: Float)
+    @JvmStatic external fun place(scene: Long, actor: Int, x: Float, y: Float, z: Float, facing: Float,
+        furniture: Int, surfaceX: Float, surfaceY: Float, surfaceZ: Float)
     @JvmStatic external fun anim(scene: Long, actor: Int, anim: Int, loop: Boolean, nowMs: Int)
     @JvmStatic external fun idle(scene: Long, actor: Int, anim: Int)
 
@@ -140,6 +141,7 @@ object Native {
     @JvmStatic external fun clearProps(scene: Long)
     /** A prop's box in the world: min x, y, z, max x, y, z; null when there's no such prop. */
     @JvmStatic external fun propBounds(scene: Long, prop: Int): FloatArray?
+    @JvmStatic external fun propContact(scene: Long, prop: Int, furniture: Int): FloatArray?
     /** What is selected: [PICK_PROP] (drawn with an outline), [PICK_ACTOR] (remembered, not outlined) or 0 (nothing). */
     @JvmStatic external fun select(scene: Long, kind: Int, id: Int)
     /**

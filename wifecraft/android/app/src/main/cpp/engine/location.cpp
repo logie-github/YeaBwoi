@@ -906,6 +906,44 @@ bool Scene::propBounds(int id, V3& mn, V3& mx) const {
     return true;
 }
 
+// Sample the drawn mesh from above, in model space. Measuring near the middle keeps the headboard
+// and chair backs from becoming the support height.
+bool Scene::propContact(int id, int furniture, V3& point, float& facing, float& halfDepth) const {
+    auto it = editorProps_.find(id);
+    if (it == editorProps_.end() || it->second.wmo) return false;
+    const auto& inst = it->second.inst;
+    const M2Model& m = *inst.mesh->model;
+    const V3 span = m.extentMax - m.extentMin;
+    const V3 center = (m.extentMin + m.extentMax) * 0.5f;
+    const bool alongX = furniture == kSitting ? span.x <= span.y : span.x >= span.y;
+    const V3 axis = alongX ? V3(1, 0, 0) : V3(0, 1, 0);
+    const float length = alongX ? span.x : span.y;
+    const auto heightAt = [&](V3 p) {
+        p.z = m.extentMax.z + 0.1f;
+        float t = 1e30f;
+        return rayModel(m, p, V3(0, 0, -1), t) ? p.z - t : m.extentMin.z;
+    };
+
+    V3 contact = center;
+    const float low = std::max(heightAt(center - axis * (length * 0.39f)), heightAt(center - axis * (length * 0.48f)));
+    const float high = std::max(heightAt(center + axis * (length * 0.39f)), heightAt(center + axis * (length * 0.48f)));
+    const bool positive = furniture == kSitting ? high <= low : high >= low;
+    if (furniture == kSitting) contact = center + axis * ((positive ? 1 : -1) * length * 0.16f);
+    contact.z = heightAt(contact);
+    if (furniture == kLying) {
+        float heights[] = {contact.z, heightAt(center - axis * (length * 0.22f)), heightAt(center + axis * (length * 0.22f))};
+        std::sort(std::begin(heights), std::end(heights));
+        contact.z = heights[1];
+    }
+    if (contact.z < m.extentMin.z + 0.04f) return false;
+    point = inst.world.point(contact);
+    V3 dir = linear(inst.world, axis * (positive ? 1.0f : -1.0f));
+    facing = std::atan2(dir.y, dir.x);
+    const float depth = furniture == kLying ? (alongX ? span.y : span.x) : length;
+    halfDepth = depth * dir.length() * 0.5f;
+    return true;
+}
+
 // ------------------------------------------------------------------------------------------------ picking
 
 Scene::PickHit Scene::pick(float sx, float sy, int width, int height) const {
@@ -938,9 +976,16 @@ Scene::PickHit Scene::pick(float sx, float sy, int width, int height) const {
             if (rayModel(*p.inst.mesh->model, inv.point(o), linear(inv, d), t)) take(kPickProp, id, t);
         }
     }
-    // the people: their standing box, turned with them
     for (const auto& [id, a] : actors_) {
         if (!a.visible || a.ghost) continue;
+        if (a.lyingHalfLength > 0) {
+            const float halfWidth = 0.38f * a.scale;
+            M4 inv = invertAffine(M4::translation(a.surface) * M4::rotationZ(a.furnitureFacing));
+            float t;
+            if (rayBox(inv.point(o), linear(inv, d), V3(-a.lyingHalfLength, -halfWidth, 0),
+                       V3(a.lyingHalfLength, halfWidth, 0.55f * a.scale), t)) take(kPickActor, id, std::max(t, 1e-3f));
+            continue;
+        }
         V3 mn, mx;
         if (!actorBounds(id, mn, mx)) continue;
         M4 inv = invertAffine(M4::translation(a.position) * M4::rotationZ(a.facing));

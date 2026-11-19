@@ -709,12 +709,16 @@ void Scene::refreshSkin(Actor& a) {
     }
 }
 
-void Scene::placeActor(int id, V3 position, float facing) {
+void Scene::placeActor(int id, V3 position, float facing, int furniture, V3 surface) {
     auto it = actors_.find(id);
     if (it == actors_.end()) return;
     position.z = floorAt(position.x, position.y, position.z);
     it->second.position = position;
     it->second.facing = facing;
+    it->second.furniture = furniture;
+    it->second.surface = surface;
+    it->second.furnitureFacing = facing;
+    it->second.lyingHalfLength = 0;
 }
 
 void Scene::showActor(int id, bool visible) {
@@ -1061,6 +1065,48 @@ void Scene::animate(Actor& a, uint32_t now) {
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 4, GLsizei(a.mats.size()), GL_RGBA, GL_FLOAT, a.mats.data());
 }
 
+void Scene::alignWithFurniture(Actor& a) {
+    if (a.furniture == kOnFloor || a.mats.empty()) return;
+    const M2Model& model = *a.mesh->model;
+    constexpr uint16_t sleep = 100, sitChairMed = 103;
+    const uint16_t desired = a.furniture == kLying ? sleep : sitChairMed;
+    if (!a.boneAnim && (a.waitSeq >= 0 || a.seq < 0 || size_t(a.seq) >= model.sequences.size() ||
+                       model.sequences[a.seq].id != desired)) return;
+    const auto bone = [&](int& index, const char* name) {
+        if (index == -2) index = model.findWowBone(name);
+        return index >= 0 && size_t(index) < a.mats.size();
+    };
+    const auto point = [&](int index) { return a.mats[index].point(model.bones[index].pivot); };
+    if (a.pelvisBone == -2) {
+        a.pelvisBone = model.findWowBone("Pelvis");
+        if (a.pelvisBone < 0) a.pelvisBone = model.findWowBone("Root");
+    }
+    if (a.pelvisBone < 0 || size_t(a.pelvisBone) >= a.mats.size()) return;
+    const V3 pelvis = point(a.pelvisBone);
+    if (a.furniture == kSitting) {
+        // A standing or still-blending pose would put the actor's feet below the floor.
+        if (model.bones[a.pelvisBone].pivot.z - pelvis.z < 0.12f) return;
+        V3 offset = M4::rotationZ(a.furnitureFacing).point(pelvis) * a.scale;
+        a.position = a.surface - offset + V3(0, 0, a.scale * 0.12f);
+        return;
+    }
+
+    if (!bone(a.headBone, "Head")) return;
+    const V3 head = point(a.headBone);
+    const V3 chest = bone(a.chestBone, "Chest") ? point(a.chestBone) : lerp(pelvis, head, 0.55f);
+    const V3 torso = head - pelvis;
+    const float horizontal = std::hypot(torso.x, torso.y);
+    if (horizontal < 0.1f || std::fabs(torso.z) > horizontal * 0.7f) return;
+    const V3 left = bone(a.leftFootBone, "L_Foot") ? point(a.leftFootBone) : pelvis - torso;
+    const V3 right = bone(a.rightFootBone, "R_Foot") ? point(a.rightFootBone) : pelvis - torso;
+    const V3 feet = (left + right) * 0.5f;
+    V3 center = (feet + head) * 0.5f;
+    center.z = std::min({pelvis.z - 0.13f, chest.z - 0.18f, head.z - 0.14f, left.z - 0.07f, right.z - 0.07f});
+    a.lyingHalfLength = ((head - feet).length() * 0.5f + 0.25f) * a.scale;
+    a.facing = a.furnitureFacing - std::atan2(torso.y, torso.x);
+    a.position = a.surface - M4::rotationZ(a.facing).point(center) * a.scale + V3(0, 0, 0.015f);
+}
+
 void Scene::drawSky() {
     // A ray for each corner of the screen; the sky's colour follows how high each one points.
     V3 f = (target_ - eye_).normalized();
@@ -1337,6 +1383,7 @@ void Scene::render(int width, int height, uint32_t nowMs) {
             else a.loop = true;
         }
         animate(a, clock);
+        alignWithFurniture(a);
         stepSoft(a, clock);   // the pause-proof animation clock, not the wall clock
         // Skinned models move with the body's bones.
         for (Skinned& e : a.skinned) {

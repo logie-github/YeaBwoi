@@ -80,7 +80,14 @@ interface LookSource {
 }
 
 /** Where someone stands this frame. */
-data class Placement(val x: Float, val y: Float, val z: Float, val facing: Float, val visible: Boolean = true)
+enum class FurniturePose(val nativeId: Int) { FLOOR(0), SIT(1), REST(2) }
+
+data class FurnitureContact(val point: Vec3, val facing: Float, val halfDepth: Float)
+
+data class Placement(
+    val x: Float, val y: Float, val z: Float, val facing: Float, val visible: Boolean = true,
+    val furniture: FurniturePose = FurniturePose.FLOOR, val surface: Vec3? = null,
+)
 
 /** A change to the scene, run on the GL thread with the renderer's handle and its ids for people. */
 fun interface Change {
@@ -163,7 +170,9 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
                 f?.let { (_, people) ->
                     for ((key, p) in people) {
                         val id = ids[key] ?: continue
-                        Native.place(handle, id, p.x, p.y, p.z, p.facing)
+                        val surface = p.surface
+                        Native.place(handle, id, p.x, p.y, p.z, p.facing, p.furniture.nativeId,
+                            surface?.x ?: p.x, surface?.y ?: p.y, surface?.z ?: p.z)
                         Native.show(handle, id, p.visible)
                     }
                 }
@@ -202,7 +211,8 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
      * A model the renderer can't read is said to [onFail] (on the GL thread), why included. [character]: a playable race's
      * model (the creator's people, NPCs of those races), the only actors with a soft body; a creature never has one.
      */
-    fun dress(key: String, call: DressCall, body: BodyCall = BodyCall.NONE, character: Boolean = false, onFail: (String) -> Unit = {}) = post { h, ids ->
+    fun dress(key: String, call: DressCall, body: BodyCall = BodyCall.NONE, character: Boolean = false,
+        onReady: (() -> Unit)? = null, onFail: (String) -> Unit = {}) = post { h, ids ->
         var id = ids[key]
         if (id != null && bodies[key] != (call.model to call.scale)) {
             Native.removeActor(h, id); ids.remove(key); bodies.remove(key); id = null
@@ -223,6 +233,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         Native.character(h, id, character)
         Native.dress(h, id, call.geosetKeys, call.geosetValues, call.layerFiles, call.layerMeta, call.tintColours, call.extraModels)
         Native.body(h, id, body.morph, body.k, body.fold)
+        if (onReady != null) main.post { onReady() }
     }
 
     override fun removeActor(key: String) = post { h, ids -> ids.remove(key)?.let { Native.removeActor(h, it) }; bodies.remove(key); sizes.remove(key); requestedAnimations.remove(key) }
@@ -305,7 +316,8 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
      * Puts the prop [key] (a static M2 or a WMO by file id, its files downloaded: PropLoader) at x, y, z turned [yaw] radians
      * about z at [scale]; a key already there is replaced. [onFail] (main thread) says why it couldn't be drawn.
      */
-    fun addProp(key: String, model: Int, x: Float, y: Float, z: Float, yaw: Float, scale: Float, onFail: (String) -> Unit = {}) = post { h, _ ->
+    fun addProp(key: String, model: Int, x: Float, y: Float, z: Float, yaw: Float, scale: Float,
+        onReady: () -> Unit = {}, onFail: (String) -> Unit = {}) = post { h, _ ->
         propIds.remove(key)?.let { Native.removeProp(h, it) }
         val id = Native.addProp(h, model, x, y, z, yaw, scale)
         if (id <= 0) {
@@ -313,6 +325,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
             main.post { onFail(why) }
         } else {
             propIds[key] = id
+            main.post { onReady() }
         }
     }
 
@@ -359,6 +372,13 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     fun propBounds(key: String, onResult: (Bounds?) -> Unit) = post { h, _ ->
         val b = propIds[key]?.let { Native.propBounds(h, it) }
         main.post { onResult(b?.let { Bounds(it[0], it[1], it[2], it[3], it[4], it[5]) }) }
+    }
+
+    fun propContact(key: String, pose: FurniturePose, onResult: (FurnitureContact?) -> Unit) = post { h, _ ->
+        val surface = propIds[key]?.let { Native.propContact(h, it, pose.nativeId) }
+        main.post {
+            onResult(surface?.let { FurnitureContact(Vec3(it[0], it[1], it[2]), it[3], it[4]) })
+        }
     }
 
     // ---- the placement editor's gizmo, camera and ghost (cpp engine/editview.cpp)

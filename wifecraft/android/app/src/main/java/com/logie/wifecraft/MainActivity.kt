@@ -52,12 +52,14 @@ import com.logie.wifecraft.data.Settings
 import com.logie.wifecraft.editor.Actor
 import com.logie.wifecraft.editor.ProjectStore
 import com.logie.wifecraft.engine.Dresser
+import com.logie.wifecraft.engine.FurniturePose
 import com.logie.wifecraft.engine.LocationLoader
 import com.logie.wifecraft.engine.PropLoader
 import com.logie.wifecraft.engine.SceneView
 import com.logie.wifecraft.engine.Thumbs
 import com.logie.wifecraft.ui.GameIcons
 import com.logie.wifecraft.simulation.Activity
+import com.logie.wifecraft.simulation.InteractionSpot
 import com.logie.wifecraft.simulation.SceneObject
 import com.logie.wifecraft.ui.CreatorScreen
 import com.logie.wifecraft.ui.DownloadOptions
@@ -498,6 +500,10 @@ class MainActivity : ComponentActivity() {
                         val toStage: (Vec3) -> Vec3 = { point ->
                             origin + if (embassy) Vec3(point.y, -point.x, point.z) else point
                         }
+                        val toLocal: (Vec3) -> Vec3 = { point ->
+                            val delta = point - origin
+                            if (embassy) Vec3(-delta.y, delta.x, delta.z) else delta
+                        }
                         val view = sceneView()
                         val c = checkNotNull(catalog)
                         val session = remember { UUID.randomUUID().toString() }
@@ -505,26 +511,49 @@ class MainActivity : ComponentActivity() {
                         val objectKey: (SceneObject) -> String = { "$session:object:${it.name}" }
                         val bookKey = "$session:book"
                         var locationResult by remember(session) { mutableStateOf<Boolean?>(null) }
+                        var loadedActors by remember(session) { mutableIntStateOf(0) }
+                        var contactError by remember(session) { mutableStateOf<String?>(null) }
+                        var spots by remember(session) { mutableStateOf(emptyMap<SceneObject, InteractionSpot>()) }
                         DisposableEffect(session) {
+                            var active = true
                             view.removeAll()
                             view.clearProps()
                             propLoader.clearError()
                             view.showCity(false)
                             view.light(Lights.of("day"))
                             locationLoader.load(view, preset.id, "inside") { locationResult = it }
+                            val actionAnimations = objects.mapTo(mutableSetOf()) { it.action.animation }
                             for (actor in chosen) {
                                 val dressed = wardrobe?.equipStarter(actor.appearance) ?: actor.appearance
-                                dresser.dress(view, c, actorKey(actor.id), dressed)
+                                dresser.dress(view, c, actorKey(actor.id), dressed, actionAnimations) {
+                                    if (active) loadedActors++
+                                }
                             }
                             for (item in objects) {
                                 val pos = toStage(item.position)
-                                propLoader.place(view, objectKey(item), item.model, pos.x, pos.y, pos.z, rotation)
-                            }
-                            if (SceneObject.TABLE in objects) {
-                                val pos = toStage(SceneObject.TABLE.position.copy(z = 0.82f))
-                                propLoader.place(view, bookKey, SceneObject.BOOK_MODEL, pos.x, pos.y, pos.z, rotation)
+                                val pose = when (item.action) {
+                                    Activity.REST -> FurniturePose.REST
+                                    Activity.SIT -> FurniturePose.SIT
+                                    else -> FurniturePose.FLOOR
+                                }
+                                propLoader.place(view, objectKey(item), item.model, pos.x, pos.y, pos.z, rotation) onPropReady@{
+                                    if (!active) return@onPropReady
+                                    view.propContact(objectKey(item), pose) onContact@{ contact ->
+                                        if (!active) return@onContact
+                                        if (contact == null) {
+                                            contactError = "${item.label} has no usable surface."
+                                            return@onContact
+                                        }
+                                        spots = spots + (item to item.interaction(toLocal(contact.point), contact.facing - rotation, contact.halfDepth))
+                                        if (item == SceneObject.TABLE) {
+                                            val at = contact.point
+                                            propLoader.place(view, bookKey, SceneObject.BOOK_MODEL, at.x, at.y, at.z, rotation)
+                                        }
+                                    }
+                                }
                             }
                             onDispose {
+                                active = false
                                 locationLoader.cancel()
                                 for (actor in chosen) dresser.cancel(actorKey(actor.id))
                                 for (item in objects) propLoader.cancel(objectKey(item))
@@ -555,31 +584,29 @@ class MainActivity : ComponentActivity() {
                         }
                         val animations = remember(session) { mutableMapOf<String, Pair<Activity, String?>>() }
                         LiveSceneScreen(
-                            view, camera, preset.name, chosen, objects, actorKey, objectKey, bookKey, toStage, rotation,
+                            view, camera, preset.name, chosen, objects, spots, actorKey, objectKey, bookKey, toStage, rotation,
                             onAnimate = { id, activity ->
                                 val clip = clips[activity]
                                 val playback = activity to clip?.id
                                 if (animations.put(id, playback) != playback) {
                                     val key = actorKey(id)
-                                    if (clip != null) {
-                                        view.playAnim(key, clip)
-                                    } else {
-                                        view.stopAnim(key)
-                                        dresser.fetchAnim(key, activity.animation)
-                                        view.animateActor(key, activity.animation)
-                                    }
+                                    dresser.fetchAnim(key, activity.animation)
+                                    view.animateActor(key, activity.animation)
+                                    if (clip == null) view.stopAnim(key)
+                                    else view.playAnim(key, clip)
                                 }
                             },
                             durations = clips.filterValues { !it.loop }.mapValues { it.value.duration },
                             onEnd = { screen = Screen.TITLE },
-                            ready = locationResult == true,
+                            ready = locationResult == true && loadedActors == chosen.size,
                             status = when {
                                 locationResult != null && stage.id == preset.id && stage.error != null -> stage.error
                                 locationResult != true -> "Opening ${preset.name}…"
                                 fetching.total > 0 -> "Loading NPCs… ${fetching.done}/${fetching.total}"
+                                loadedActors < chosen.size -> "Preparing NPCs… $loadedActors/${chosen.size}"
                                 props.total > 0 -> "Loading objects… ${props.done}/${props.total}"
                                 fetching.error != null -> fetching.error
-                                else -> props.error
+                                else -> props.error ?: contactError
                             },
                         )
                     }

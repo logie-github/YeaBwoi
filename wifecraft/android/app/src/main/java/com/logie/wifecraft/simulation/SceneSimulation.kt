@@ -2,6 +2,8 @@ package com.logie.wifecraft.simulation
 
 import com.logie.wifecraft.story.Vec3
 import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.math.hypot
 import kotlin.random.Random
 
@@ -21,16 +23,43 @@ enum class SceneObject(val label: String, val model: Int, val position: Vec3, va
     TABLE("Table and book", 198604, Vec3(1.9f, -1.3f, 0f), Vec3(1.9f, -2.25f, 0f), Activity.READ),
     COUCH("Couch", 6390430, Vec3(-0.2f, 2.9f, 0f), Vec3(-0.2f, 2.65f, 0.08f), Activity.SIT);
 
+    fun interaction(surface: Vec3, facing: Float, halfDepth: Float): InteractionSpot {
+        if (this == TABLE) {
+            val entry = surface.copy(z = 0f) + (approach - position)
+            return InteractionSpot(entry, entry, 1.5707964f)
+        }
+        val approachFacing = if (this == BED) facing + 1.5707964f else facing
+        val direction = Vec3(cos(approachFacing), sin(approachFacing), 0f)
+        val towardCenter = direction.x * surface.x + direction.y * surface.y < 0f
+        val side = if (this == BED && !towardCenter) -1f else 1f
+        val entry = surface.copy(z = 0f) + direction * ((halfDepth + 0.35f) * side)
+        return InteractionSpot(entry, surface, facing)
+    }
+
     companion object { const val BOOK_MODEL = 198029 }
 }
+
+data class InteractionSpot(val entry: Vec3, val pose: Vec3, val facing: Float)
 
 class SceneSimulation(
     actorIds: List<String>,
     val objects: Set<SceneObject>,
     private val random: Random = Random.Default,
     private val durations: Map<Activity, Float> = emptyMap(),
+    initiallyReady: Boolean = true,
 ) {
-    data class Person(val id: String, val position: Vec3, val facing: Float, val activity: Activity, val directed: Boolean)
+    data class Person(
+        val id: String, val position: Vec3, val facing: Float, val activity: Activity, val directed: Boolean,
+        val furniture: SceneObject? = null, val entry: Vec3 = position,
+    )
+
+    private val spots = if (initiallyReady) objects.associateWith { item ->
+        InteractionSpot(item.approach.copy(z = 0f), item.approach, if (item == SceneObject.TABLE) 1.5707964f else -1.5707964f)
+    }.toMutableMap() else mutableMapOf()
+
+    fun setSpot(item: SceneObject, spot: InteractionSpot) {
+        if (item in objects) spots[item] = spot
+    }
 
     private enum class Phase { WAITING, MOVING, ACTING }
 
@@ -48,16 +77,18 @@ class SceneSimulation(
     }.associateBy { it.id }
 
     fun people(): List<Person> = actors.values.map { actor ->
-        Person(actor.id, actor.position, actor.facing, if (actor.phase == Phase.MOVING) Activity.WALK else actor.activity, actor.directed)
+        val item = actor.target.takeIf { actor.phase == Phase.ACTING }
+        Person(actor.id, actor.position, actor.facing, if (actor.phase == Phase.MOVING) Activity.WALK else actor.activity,
+            actor.directed, item, item?.let { spots[it]?.entry } ?: actor.position)
     }
 
     fun available(target: SceneObject, id: String): Boolean =
-        target in objects && actors.values.none { it.id != id && it.target == target }
+        target in spots && actors.values.none { it.id != id && it.target == target }
 
     fun use(id: String, target: SceneObject): Boolean {
         val actor = actors[id] ?: return false
         if (!available(target, id)) return false
-        begin(actor, target.action, target.approach, directed = true, target = target)
+        begin(actor, target.action, spots.getValue(target).entry, directed = true, target = target)
         return true
     }
 
@@ -103,7 +134,7 @@ class SceneSimulation(
         val people = actors.values.filter { it !== actor && it.phase == Phase.WAITING }
         val choice = random.nextInt(options.size + people.size + 1)
         when {
-            choice < options.size -> options[choice].let { begin(actor, it.action, it.approach, false, it) }
+            choice < options.size -> options[choice].let { begin(actor, it.action, spots.getValue(it).entry, false, it) }
             choice < options.size + people.size -> startChat(actor, people[choice - options.size], directed = false)
             else -> begin(actor, Activity.IDLE, Vec3(random.nextFloat() * 3 - 1.5f, random.nextFloat() * 2 - 1.4f, 0f), false)
         }
@@ -135,10 +166,10 @@ class SceneSimulation(
         actor.position = actor.destination
         actor.phase = Phase.ACTING
         actor.remaining = durations[actor.activity]?.takeIf { it.isFinite() && it > 0f } ?: actor.activity.seconds
-        actor.facing = when (actor.target) {
-            SceneObject.TABLE -> 1.57f
-            SceneObject.CHAIR, SceneObject.COUCH, SceneObject.BED -> -1.57f
-            null -> actor.facing
+        actor.target?.let { target ->
+            val spot = spots.getValue(target)
+            actor.position = spot.pose
+            actor.facing = spot.facing
         }
         actor.partner?.let { other ->
             actor.facing = atan2(other.position.y - actor.position.y, other.position.x - actor.position.x)
@@ -149,6 +180,7 @@ class SceneSimulation(
     private fun release(actor: Actor) {
         val partner = actor.partner
         actor.partner = null
+        if (actor.phase == Phase.ACTING) actor.target?.let { actor.position = spots.getValue(it).entry }
         actor.target = null
         actor.position = actor.position.copy(z = 0f)
         actor.activity = Activity.IDLE

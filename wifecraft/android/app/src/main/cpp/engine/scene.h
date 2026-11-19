@@ -102,7 +102,8 @@ public:
     // character's hair colour times the design. Kept until changed; dress() leaves it.
     void setBody(int id, const std::vector<float>& morph, float k, float fold);
     void removeActor(int id);
-    void placeActor(int id, V3 position, float facing);
+    enum FurniturePose { kOnFloor = 0, kSitting = 1, kLying = 2 };
+    void placeActor(int id, V3 position, float facing, int furniture = kOnFloor, V3 surface = {});
     void playAnim(int id, uint16_t animId, bool loop, uint32_t nowMs);
     void setIdleAnim(int id, uint16_t animId);
     // Plays an imported animation over the actor's own one (setBoneAnim): its bones, and every bone above them, follow
@@ -166,6 +167,7 @@ public:
     void clearProps();
     // A prop's box in the world.
     bool propBounds(int id, V3& min, V3& max) const;
+    bool propContact(int id, int furniture, V3& point, float& facing, float& halfDepth) const;
     // What is selected: drawn with an outline (kind 1 a prop) or nothing (0). An actor (2) is remembered, not outlined.
     void select(int kind, int id) { selKind_ = kind; selId_ = id; }
 
@@ -286,6 +288,11 @@ private:
         float scale = 1;
         V3 position;
         float facing = 0;
+        int furniture = kOnFloor;
+        V3 surface;
+        float furnitureFacing = 0;
+        float lyingHalfLength = 0;
+        int pelvisBone = -2, headBone = -2, chestBone = -2, leftFootBone = -2, rightFootBone = -2;
         bool visible = true;
         int seq = -1, prevSeq = -1;
         uint16_t animId = 0, idleAnim = 0;
@@ -468,6 +475,7 @@ private:
                    const std::map<uint32_t, unsigned>* glTextures = nullptr, unsigned vao = 0,
                    const std::vector<M2Submesh>* submeshes = nullptr);
     void animate(Actor& a, uint32_t now);
+    void alignWithFurniture(Actor& a);
     void applyBoneAnim(Actor& a, uint32_t now);
     void blendFromCurrent(Actor& a, uint32_t ms);   // the next frames blend from the pose last drawn
     void nextLoop(Actor& a);                         // a looping animation came round: again, or another variation

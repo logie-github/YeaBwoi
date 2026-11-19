@@ -57,21 +57,28 @@ class Dresser(
         bodies.remove(key)
     }
 
-    fun dress(scene: SceneView, catalog: Catalog, key: String, a: Appearance) {
+    fun dress(scene: SceneView, catalog: Catalog, key: String, a: Appearance, extraAnimations: Set<Int> = emptySet(),
+        onComplete: (() -> Unit)? = null) {
         jobs.remove(key)?.cancel()
         bodies.remove(key)
         jobs[key] = scope.launch {
             val call = withContext(Dispatchers.IO) {
                 try {
-                    prepare(key, catalog, a)
+                    prepare(key, catalog, a, extraAnimations)
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     fail(e.message ?: e.toString()); null
                 }
-            } ?: return@launch
-            // a model the renderer can't read is said on the screen, never left as an empty stage
-            scene.dress(key, call.first, call.second, character = true) { why -> fail(why) }
+            }
+            if (call == null) {
+                onComplete?.invoke()
+                return@launch
+            }
+            scene.dress(key, call.first, call.second, character = true, onReady = onComplete) { why ->
+                fail(why)
+                if (onComplete != null) scope.launch { onComplete() }
+            }
         }
     }
 
@@ -112,7 +119,7 @@ class Dresser(
         return CreatureLooks.call(tables, look)
     }
 
-    private suspend fun prepare(key: String, catalog: Catalog, a: Appearance): Pair<DressCall, BodyCall>? {
+    private suspend fun prepare(key: String, catalog: Catalog, a: Appearance, extraAnimations: Set<Int>): Pair<DressCall, BodyCall>? {
         val look = LookResolver.resolve(catalog, tables, a, overrides)
         if (look.model == 0) { fail("This race has no model in the game's tables."); return null }
         // the face's bone files aren't drawn yet (and the pinned build has some empty): not waited for
@@ -123,7 +130,7 @@ class Dresser(
         // files): the body's animations are the ones the story plays
         val read = { id: Int -> if (files.has(id)) runCatching { files.file(id).readBytes() }.getOrNull() else null }
         for (m in Dressing.models(look)) {
-            M2Files.closure(m, if (m == look.model) Emotes.all else emptySet(), read) { fetch(it) }
+            M2Files.closure(m, if (m == look.model) Emotes.all + extraAnimations else emptySet(), read) { fetch(it) }
             coroutineContext.ensureActive()
         }
         bodies[key] = look.model

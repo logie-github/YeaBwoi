@@ -3,7 +3,9 @@ package com.logie.wifecraft.ui
 import android.view.ViewGroup
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -19,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.editor.Actor
+import com.logie.wifecraft.engine.FurniturePose
 import com.logie.wifecraft.engine.Hit
 import com.logie.wifecraft.engine.LocationLoader
 import com.logie.wifecraft.engine.Thumbs
@@ -26,6 +29,7 @@ import com.logie.wifecraft.engine.Placement
 import com.logie.wifecraft.engine.SceneView
 import com.logie.wifecraft.location.LocationInfo
 import com.logie.wifecraft.simulation.Activity
+import com.logie.wifecraft.simulation.InteractionSpot
 import com.logie.wifecraft.simulation.SceneObject
 import com.logie.wifecraft.simulation.SceneSimulation
 import com.logie.wifecraft.story.CameraPose
@@ -89,6 +93,7 @@ fun LiveSceneScreen(
     locationName: String,
     cast: List<Actor>,
     objects: Set<SceneObject>,
+    spots: Map<SceneObject, InteractionSpot>,
     actorKey: (String) -> String,
     objectKey: (SceneObject) -> String,
     bookKey: String,
@@ -100,33 +105,72 @@ fun LiveSceneScreen(
     ready: Boolean,
     status: String?,
 ) {
-    val simulation = remember(durations) { SceneSimulation(cast.map { it.id }, objects, durations = durations) }
+    val simulation = remember(cast, objects, durations) {
+        SceneSimulation(cast.map { it.id }, objects, durations = durations, initiallyReady = false)
+    }
     var people by remember { mutableStateOf(simulation.people()) }
     var selected by remember { mutableStateOf<String?>(null) }
+    var orbitEnabled by remember { mutableStateOf(false) }
+    var orbit by remember(camera) { mutableStateOf(OrbitCamera.from(camera).copy(pitch = 0.32f, distance = 4.5f)) }
     var ending by remember { mutableStateOf(false) }
     var command by remember { mutableStateOf<String?>(null) }
     val names = remember(cast) { cast.associate { it.id to it.name } }
     val active = selected?.let { id -> people.firstOrNull { it.id == id } }
 
-    BackHandler { if (selected != null) selected = null else ending = true }
+    BackHandler {
+        if (orbitEnabled) orbitEnabled = false
+        else if (selected != null) selected = null
+        else ending = true
+    }
+
+    LaunchedEffect(simulation, spots) {
+        for ((item, spot) in spots) simulation.setSpot(item, spot)
+    }
+
+    fun zoom(factor: Float) {
+        val adjusted = orbit.zoom(factor)
+        orbit = adjusted.copy(distance = adjusted.distance.coerceIn(1.2f, 8f))
+    }
 
     fun use(id: String, item: SceneObject) {
         command = if (simulation.use(id, item)) null else "${item.label} is in use."
         people = simulation.people()
     }
 
-    LaunchedEffect(ready, ending) {
+    val animate by rememberUpdatedState(onAnimate)
+    LaunchedEffect(simulation, ready, ending) {
         var previous: Long? = null
         var interval = 0f
+        val lastActions = mutableMapOf<String, Activity>()
+        var currentCamera = view.frame?.first ?: camera
         while (true) withFrameMillis { now ->
-            val elapsed = previous?.let { (now - it).coerceAtMost(100L) / 1000f } ?: 0f
+            val elapsed = previous?.let { (now - it).coerceIn(0L, 100L) / 1000f } ?: 0f
             previous = now
             interval += elapsed
             if (ready && !ending) simulation.tick(elapsed)
             val current = simulation.people()
-            view.frame = camera to current.associate { p ->
-                val pos = toStage(p.position)
-                actorKey(p.id) to Placement(pos.x, pos.y, pos.z, p.facing + stageRotation)
+            if (ready) for (person in current) {
+                if (lastActions.put(person.id, person.activity) != person.activity) animate(person.id, person.activity)
+            }
+            val focused = current.firstOrNull { orbitEnabled && it.id == selected }
+            val nextCamera = if (focused == null) camera else {
+                val height = when (focused.activity) {
+                    Activity.REST -> 0.35f
+                    Activity.SIT -> 0.7f
+                    else -> 1.05f
+                }
+                orbit.lookAt(toStage(focused.position + Vec3(0f, 0f, height))).pose()
+            }
+            currentCamera = currentCamera.lerp(nextCamera, (elapsed * 15f).coerceIn(0f, 1f))
+            view.frame = currentCamera to current.associate { p ->
+                val furniture = when (p.furniture?.action) {
+                    Activity.SIT -> FurniturePose.SIT
+                    Activity.REST -> FurniturePose.REST
+                    else -> FurniturePose.FLOOR
+                }
+                val pos = toStage(if (furniture == FurniturePose.FLOOR) p.position else p.entry)
+                val surface = if (furniture == FurniturePose.FLOOR) null else toStage(p.position)
+                actorKey(p.id) to Placement(pos.x, pos.y, pos.z, p.facing + stageRotation, furniture = furniture, surface = surface)
             }
             if (interval > 0.15f) {
                 people = current
@@ -134,16 +178,17 @@ fun LiveSceneScreen(
             }
         }
     }
-    LaunchedEffect(people.map { it.activity }, durations, onAnimate) {
-        for (p in people) onAnimate(p.id, p.activity)
+    LaunchedEffect(selected) {
+        if (selected == null) orbitEnabled = false
+        view.select(selected?.let(actorKey))
+        command = null
     }
-    LaunchedEffect(selected) { view.select(selected?.let(actorKey)); command = null }
 
     val onTap by rememberUpdatedState<(Hit?) -> Unit>({ hit ->
         when (hit?.kind) {
             Hit.Kind.ACTOR -> cast.firstOrNull { actorKey(it.id) == hit.key }?.let { selected = it.id }
             Hit.Kind.PROP -> if (ready) selected?.let { id -> objects.firstOrNull { objectKey(it) == hit.key || (it == SceneObject.TABLE && hit.key == bookKey) }?.let { use(id, it) } }
-            else -> { selected = null }
+            else -> if (!orbitEnabled) { selected = null }
         }
     })
 
@@ -153,15 +198,54 @@ fun LiveSceneScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(locationName, Modifier.weight(1f), color = Color(0xFFF4DFBD), style = frizStyle(17.sp))
+            if (active != null) {
+                RedButton(if (orbitEnabled) "Room camera" else "NPC camera", { orbitEnabled = !orbitEnabled },
+                    Modifier.padding(end = 8.dp))
+            }
             RedButton("End scene", { ending = true })
         }
         Box(Modifier.fillMaxWidth().weight(1f)) {
             AndroidView(
                 { (view.parent as? ViewGroup)?.removeView(view); view },
-                Modifier.fillMaxSize().pointerInput(view) {
-                    detectTapGestures { point -> view.pick(point.x, point.y, size.width, size.height) { onTap(it) } }
+                Modifier.fillMaxSize().pointerInput(view, orbitEnabled) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        var dragging = false
+                        var multiTouch = false
+                        var last = down.position
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val finger = event.changes.firstOrNull { it.id == down.id }
+                            val pressed = event.changes.count { it.pressed }
+                            if (pressed >= 2) {
+                                multiTouch = true
+                                if (orbitEnabled) {
+                                    zoom(event.calculateZoom())
+                                    event.changes.forEach { it.consume() }
+                                }
+                            } else if (finger != null) {
+                                val delta = finger.position - last
+                                last = finger.position
+                                if ((last - down.position).getDistance() >= viewConfiguration.touchSlop) dragging = true
+                                if (orbitEnabled && dragging && !multiTouch && finger.pressed) {
+                                    orbit = orbit.orbit(delta.x, delta.y, size.height.toFloat())
+                                    finger.consume()
+                                }
+                            }
+                            if (pressed == 0) break
+                        }
+                        if (!dragging && !multiTouch) {
+                            view.pick(last.x, last.y, size.width, size.height) { onTap(it) }
+                        }
+                    }
                 },
             )
+            if (orbitEnabled) {
+                Column(Modifier.align(Alignment.CenterEnd).padding(end = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    RoundIconButton(Face(glyph = WarIcons.PLUS), { zoom(1.25f) }, size = 48.dp, description = "Zoom in")
+                    RoundIconButton(Face(glyph = WarIcons.MINUS), { zoom(0.8f) }, size = 48.dp, description = "Zoom out")
+                }
+            }
             status?.let {
                 Text(it, Modifier.align(Alignment.TopCenter).padding(8.dp).background(Color(0xDD191719)).padding(8.dp),
                     color = Color.White)
@@ -186,7 +270,7 @@ fun LiveSceneScreen(
                             SceneObject.BED -> "Rest on bed"
                             SceneObject.TABLE -> "Read a book"
                         }
-                        RedButton(action, { use(active.id, item) }, enabled = ready && simulation.available(item, active.id))
+                        RedButton(action, { use(active.id, item) }, enabled = ready && item in spots && simulation.available(item, active.id))
                     }
                     for (other in cast.filter { it.id != active.id }) {
                         RedButton("Chat with ${other.name}", {

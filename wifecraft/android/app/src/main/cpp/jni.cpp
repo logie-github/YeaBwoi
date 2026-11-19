@@ -132,8 +132,9 @@ JNIEXPORT void JNICALL FN(body)(JNIEnv* env, jclass, jlong h, jint id, jfloatArr
 
 JNIEXPORT void JNICALL FN(removeActor)(JNIEnv*, jclass, jlong h, jint id) { scene(h)->removeActor(id); }
 
-JNIEXPORT void JNICALL FN(place)(JNIEnv*, jclass, jlong h, jint id, jfloat x, jfloat y, jfloat z, jfloat facing) {
-    scene(h)->placeActor(id, V3(x, y, z), facing);
+JNIEXPORT void JNICALL FN(place)(JNIEnv*, jclass, jlong h, jint id, jfloat x, jfloat y, jfloat z, jfloat facing,
+                                  jint furniture, jfloat sx, jfloat sy, jfloat sz) {
+    scene(h)->placeActor(id, V3(x, y, z), facing, furniture, V3(sx, sy, sz));
 }
 
 JNIEXPORT void JNICALL FN(anim)(JNIEnv*, jclass, jlong h, jint id, jint anim, jboolean loop, jint now) {
@@ -234,6 +235,16 @@ JNIEXPORT jfloatArray JNICALL FN(propBounds)(JNIEnv* env, jclass, jlong h, jint 
     float v[6] = {mn.x, mn.y, mn.z, mx.x, mx.y, mx.z};
     jfloatArray arr = env->NewFloatArray(6);
     env->SetFloatArrayRegion(arr, 0, 6, v);
+    return arr;
+}
+
+JNIEXPORT jfloatArray JNICALL FN(propContact)(JNIEnv* env, jclass, jlong h, jint id, jint furniture) {
+    V3 point;
+    float facing, halfDepth;
+    if (!scene(h)->propContact(id, furniture, point, facing, halfDepth)) return nullptr;
+    const float v[] = {point.x, point.y, point.z, facing, halfDepth};
+    jfloatArray arr = env->NewFloatArray(5);
+    env->SetFloatArrayRegion(arr, 0, 5, v);
     return arr;
 }
 
