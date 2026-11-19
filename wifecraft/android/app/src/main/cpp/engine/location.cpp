@@ -970,8 +970,8 @@ bool Scene::walkSegment(V3 from, V3 to) const {
     const int steps = std::max(1, int(std::ceil(distance / 0.4f)));
     for (int step = 0; step <= steps; ++step) {
         const V3 p = from + delta * (float(step) / steps);
-        float ground;
-        if (!groundAt(p.x, p.y, previous - 0.85f, ground) || std::fabs(ground - previous) > 0.4f) return false;
+        const float ground = floorIn(locFloor_, p.x, p.y, previous - 0.85f);
+        if (ground < -1e8f || std::fabs(ground - previous) > 0.4f) return false;
         previous = ground;
     }
     if (std::fabs(previous - to.z) > 0.4f) return false;
