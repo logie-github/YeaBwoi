@@ -55,9 +55,9 @@ fun SceneSetupScreen(
 ) {
     BackHandler(onBack = onBack)
     BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-        WarcraftLoadingArt(Modifier.fillMaxSize())
+        WifecraftMenuBackdrop(Modifier.fillMaxSize())
         val layout = ChromeLayout.of(maxWidth.value, maxHeight.value)
-        WowWindow(step.title, onBack, Modifier.width(layout.optionsW.dp).height(layout.optionsH.dp)) {
+        WowWindow(step.title, onBack, Modifier.width(layout.optionsW.dp).height(layout.optionsH.dp), body = WindowBody.TRANSLUCENT) {
             val body = Modifier.weight(1f).fillMaxWidth()
             when (step) {
                 SetupStep.LOCATION -> SceneBrowser(locations, location, onLocation, checkNotNull(previewView), locationLoader, body)

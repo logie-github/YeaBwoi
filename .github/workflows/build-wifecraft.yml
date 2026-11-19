@@ -135,6 +135,8 @@ jobs:
 
           The scene selector shows a live preview of the Warcraft location. The NPC selector shows character portraits, roster search, and a cast strip where you can remove selected NPCs. Both use Warcraft menu art.
 
+          The original Wifecraft menu pictures are back on the title, scene and NPC setup, and first-launch download screens. The selectors use the earlier Warcraft location and NPC icons.
+
           Options shows a download progress bar and file counts for Warcraft assets.
 
           Download **$APK_FILE** and open it on your phone to install. Warcraft models and the Stormwind Embassy location use the app's existing wago.tools downloads."

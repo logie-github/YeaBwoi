@@ -1,5 +1,6 @@
 package com.logie.wifecraft.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,15 +14,21 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.logie.wifecraft.BuildConfig
+import com.logie.wifecraft.R
 
 @Composable
 fun TitleScreen(
@@ -36,14 +43,17 @@ fun TitleScreen(
     BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)) {
         val layout = ChromeLayout.of(maxWidth.value, maxHeight.value)
         val short = maxHeight < 520.dp
-        WarcraftLoadingArt(Modifier.fillMaxSize())
+        WifecraftMenuBackdrop(Modifier.fillMaxSize(), BiasAlignment(0.6f, -0.4f))
         Box(
             Modifier.fillMaxSize().background(
                 Brush.horizontalGradient(0f to Color(0xD0080418), 0.42f to Color(0x80080418), 0.62f to Color.Transparent),
             ),
         )
         Column(Modifier.padding(start = 40.dp, top = if (short) 20.dp else 32.dp, bottom = 16.dp, end = 16.dp).fillMaxSize()) {
-            Text("Wifecraft", style = morpheusStyle(if (short) 40.sp else 50.sp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Image(painterResource(R.drawable.wc_emblem), null, Modifier.size(if (short) 56.dp else 74.dp).clip(CircleShape))
+                Text("Wifecraft", style = morpheusStyle(if (short) 40.sp else 50.sp))
+            }
             Spacer(Modifier.height(if (short) 14.dp else 26.dp))
             val buttons = listOf(
                 (if (filesReady) "Choose Scene" else "Gather the Files") to (if (filesReady) onChooseScene else onGather),
@@ -63,6 +73,11 @@ fun TitleScreen(
     }
 }
 
+@Composable
+internal fun WifecraftMenuBackdrop(modifier: Modifier = Modifier, alignment: Alignment = Alignment.Center) {
+    Image(painterResource(R.drawable.wc_header), null, modifier, alignment = alignment, contentScale = ContentScale.Crop)
+}
+
 /** The first launch's loading screen: what's fetched, the bar, and the choices about it. */
 @Composable
 fun GatherScreen(
@@ -76,7 +91,7 @@ fun GatherScreen(
 ) {
     val art = LocalArt.current
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        WarcraftLoadingArt(Modifier.fillMaxSize())
+        Image(painterResource(R.drawable.wc_splash), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.55f to Color.Transparent, 1f to Color(0xE0000000))))
         Column(Modifier.align(Alignment.TopEnd).padding(16.dp), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (progress.running) WowButton("Pause", onPause, width = 140.dp, height = 40.dp)

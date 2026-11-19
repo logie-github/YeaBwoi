@@ -83,7 +83,7 @@ private val Edge = Color(0xFF96784A)
 private val Tip = Color(0xEB08080C)
 
 /** The window's body: the dark stone of the game's frames, or the spellbook's parchment (the Library). */
-enum class WindowBody { ROCK, PARCHMENT }
+enum class WindowBody { ROCK, PARCHMENT, TRANSLUCENT }
 
 /** The metal frame over the whole draw area: its corners [c] px, edges stretched; plain when WowArt isn't here. */
 fun DrawScope.drawMetalFrame(art: WowArt?, c: Float) {
@@ -133,18 +133,21 @@ fun WowWindow(
     val war = LocalWar.current
     Column(modifier) {
         Box(Modifier.weight(1f, fill = false).fillMaxWidth()) {
-            // the body inside the metal: dark stone, or the spellbook's parchment
             Box(Modifier.matchParentSize().padding(10.dp).shadow(10.dp, RoundedCornerShape(4.dp)).drawBehind {
-                if (body == WindowBody.PARCHMENT) {
-                    val page = war?.piece("spellbook-background-evergreen-left")
-                    if (page != null) drawNine(page, "spellbook-background-evergreen-left", 0.42f * density) else drawRect(War.parchment)
-                } else {
-                    val rock = art?.rock
-                    if (rock != null) piece(rock, 0f, 0f, size.width, size.height)
-                    drawRect(if (rock != null) Color(0xB0000000) else Color(0xEE15110C))
+                when (body) {
+                    WindowBody.PARCHMENT -> {
+                        val page = war?.piece("spellbook-background-evergreen-left")
+                        if (page != null) drawNine(page, "spellbook-background-evergreen-left", 0.42f * density) else drawRect(War.parchment)
+                    }
+                    WindowBody.ROCK -> {
+                        val rock = art?.rock
+                        if (rock != null) piece(rock, 0f, 0f, size.width, size.height)
+                        drawRect(if (rock != null) Color(0xB0000000) else Color(0xEE15110C))
+                    }
+                    WindowBody.TRANSLUCENT -> drawRect(Color(0xAE100D0B))
                 }
                 // the head: a darker band behind the title
-                drawRect(Color(if (body == WindowBody.ROCK) 0x78000000 else 0x46000000), Offset(2.dp.toPx(), 0f), Size(size.width - 4.dp.toPx(), 38.dp.toPx()))
+                drawRect(Color(if (body == WindowBody.PARCHMENT) 0x46000000 else 0x78000000), Offset(2.dp.toPx(), 0f), Size(size.width - 4.dp.toPx(), 38.dp.toPx()))
             })
             Canvas(Modifier.matchParentSize()) { drawMetalFrame(art, 36.dp.toPx()) }
             Column(Modifier.padding(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 14.dp)) {

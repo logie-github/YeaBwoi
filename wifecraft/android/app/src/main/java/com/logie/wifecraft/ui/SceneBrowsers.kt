@@ -142,7 +142,7 @@ internal fun NpcBrowser(
 ) {
     var search by remember { mutableStateOf("") }
     val shown = remember(roster, search) { roster.filter { it.name.contains(search.trim(), ignoreCase = true) } }
-    val icon = LocalWar.current?.icon("menu.cast")
+    val icon = LocalWar.current?.icon("tab.npcs")
     BoxWithConstraints(modifier) {
         // Thumbnails render off-screen on the same GL context that the creator and live scene use.
         BrowserSurface(view, Modifier.size(1.dp))
