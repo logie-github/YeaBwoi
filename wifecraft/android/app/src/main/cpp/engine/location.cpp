@@ -358,7 +358,7 @@ bool parseLocation(const std::string& json, const std::string& id, LocationDesc&
     std::string why;
     if (!Json::parse(json, root, &why)) { error = "the location's JSON can't be read: " + why; return false; }
     const Json* e = &root;
-    if (!root.has("wmo") && !root.has("room")) {
+    if (!root.has("wmo")) {
         const Json& list = root["locations"];
         e = nullptr;
         if (list.kind == Json::Array) {
@@ -376,17 +376,8 @@ bool parseLocation(const std::string& json, const std::string& id, LocationDesc&
     out.name = (*e)["name"].str(out.id);
     out.root = uint32_t(wmo.kind == Json::Object ? wmo["root"].num() : wmo.num());
     if (!out.root) {
-        const Json& room = (*e)["room"];
-        LocationDesc::Room r;
-        if (!vec3(room["size"], r.size) ||
-            r.size.x < 4 || r.size.x > 24 || r.size.y < 4 || r.size.y > 24 || r.size.z < 2 || r.size.z > 8 ||
-            !vec3(room["floorColor"], r.floorColor) ||
-            !vec3(room["wallColor"], r.wallColor) ||
-            !vec3(room["trimColor"], r.trimColor)) {
-            error = "the location \"" + out.id + "\" has no valid building or room";
-            return false;
-        }
-        out.room = r;
+        error = "the location \"" + out.id + "\" has no building";
+        return false;
     }
     const Json& groupList = wmo.has("groupIndices") ? wmo["groupIndices"] : wmo["groups"];
     for (const Json& g : groupList.a) {
@@ -683,69 +674,13 @@ void Scene::lightProp(Instance& in) const {
 
 // ------------------------------------------------------------------------------------------------ the location
 
-// Open-front sets leave space for the editor camera and use the same picking and floor geometry as WMOs.
-void Scene::buildRoom(const LocationDesc::Room& room, PlacedWmo& out) {
-    const float x = room.size.x / 2, y = room.size.y / 2, h = room.size.z;
-    out.boundsMin = V3(-x, -y, 0);
-    out.boundsMax = V3(x, y, h);
-    out.root.materials.emplace_back();
-    StaticGroup g;
-    g.boundsMin = out.boundsMin;
-    g.boundsMax = out.boundsMax;
-    auto panel = [&](V3 a, V3 b, V3 c, V3 d, V3 color) {
-        const V3 n = (b - a).cross(c - a).normalized();
-        const uint16_t first = uint16_t(g.verts.size() / 36);
-        const auto channel = [](float value) { return uint8_t(std::clamp(value, 0.0f, 1.0f) * 255); };
-        const uint8_t rgba[] = {channel(color.x), channel(color.y), channel(color.z), 0};
-        const V3 points[] = {a, b, c, d};
-        for (const V3& pt : points) {
-            const float vertex[] = {pt.x, pt.y, pt.z, n.x, n.y, n.z, 0, 0};
-            const size_t offset = g.verts.size();
-            g.verts.resize(offset + 36);
-            std::memcpy(g.verts.data() + offset, vertex, sizeof(vertex));
-            std::memcpy(g.verts.data() + offset + sizeof(vertex), rgba, sizeof(rgba));
-        }
-        for (int index : {0, 1, 2, 0, 2, 3}) {
-            g.indices.push_back(first + index);
-            const V3& pt = points[index];
-            g.tris.insert(g.tris.end(), {pt.x, pt.y, pt.z});
-        }
-    };
-
-    const int boards = int(std::ceil(room.size.y * 2));
-    for (int i = 0; i < boards; ++i) {
-        const float front = -y + room.size.y * i / boards;
-        const float back = -y + room.size.y * (i + 1) / boards;
-        const V3 shade = room.floorColor * (0.84f + 0.04f * (i % 5));
-        panel(V3(-x, front, 0), V3(x, front, 0), V3(x, back, 0), V3(-x, back, 0), shade);
-    }
-    panel(V3(-x, y, 0), V3(x, y, 0), V3(x, y, h), V3(-x, y, h), room.wallColor);
-    panel(V3(-x, -y, 0), V3(-x, y, 0), V3(-x, y, h), V3(-x, -y, h), room.wallColor * 0.8f);
-    for (float z : {0.15f, h * 0.32f, h - 0.18f}) {
-        panel(V3(-x, y - 0.01f, z - 0.08f), V3(x, y - 0.01f, z - 0.08f),
-              V3(x, y - 0.01f, z + 0.08f), V3(-x, y - 0.01f, z + 0.08f), room.trimColor);
-        panel(V3(-x + 0.01f, -y, z - 0.08f), V3(-x + 0.01f, y, z - 0.08f),
-              V3(-x + 0.01f, y, z + 0.08f), V3(-x + 0.01f, -y, z + 0.08f), room.trimColor);
-    }
-    for (float u : {-0.75f, 0.0f, 0.75f}) {
-        const float at = x * u;
-        panel(V3(at - 0.07f, y - 0.02f, 0), V3(at + 0.07f, y - 0.02f, 0),
-              V3(at + 0.07f, y - 0.02f, h), V3(at - 0.07f, y - 0.02f, h), room.trimColor);
-    }
-    g.batches.push_back({0, uint32_t(g.indices.size()), 0, uint16_t(g.verts.size() / 36 - 1)});
-    uploadStatic(g);
-    out.groups.push_back(std::move(g));
-}
-
 bool Scene::loadLocation(const std::string& json, const std::string& id, const std::string& view) {
     clearLocation();
     LocationDesc d;
     if (!parseLocation(json, id, d, locError_)) return false;
     M4 world = M4::translation(d.position) * M4::rotation(d.rotation) * M4::scaling(V3(d.scale, d.scale, d.scale));
     auto w = std::make_unique<PlacedWmo>();
-    if (d.room) {
-        buildRoom(*d.room, *w);
-    } else if (!placeWmo(d.root, world, d.scale, d.groups, d.groupFiles, d.sets, d.setNames, *w, locError_)) {
+    if (!placeWmo(d.root, world, d.scale, d.groups, d.groupFiles, d.sets, d.setNames, *w, locError_)) {
         locError_ = d.name + ": " + locError_;
         return false;
     }

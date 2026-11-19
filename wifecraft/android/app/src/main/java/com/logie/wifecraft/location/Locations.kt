@@ -39,7 +39,7 @@ data class LocationInfo(
         /** Every location in the file, in its order. */
         fun parseAll(json: String): List<LocationInfo> {
             val root = JSONObject(json)
-            val list = root.optJSONArray("locations") ?: return if (root.has("wmo") || root.has("room")) listOf(parse(root)) else emptyList()
+            val list = root.optJSONArray("locations") ?: return if (root.has("wmo")) listOf(parse(root)) else emptyList()
             return List(list.length()) { parse(list.getJSONObject(it)) }
         }
 

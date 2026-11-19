@@ -6,14 +6,9 @@ import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
@@ -42,6 +37,7 @@ import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.Catalog
 import com.logie.wifecraft.creator.CreatorModel
 import com.logie.wifecraft.creator.CsvTables
+import com.logie.wifecraft.creator.ImportKind
 import com.logie.wifecraft.creator.ImportStore
 import com.logie.wifecraft.creator.ListfileNames
 import com.logie.wifecraft.creator.Prefetch
@@ -64,6 +60,15 @@ import com.logie.wifecraft.ui.GameIcons
 import com.logie.wifecraft.simulation.Activity
 import com.logie.wifecraft.simulation.SceneObject
 import com.logie.wifecraft.ui.CreatorScreen
+import com.logie.wifecraft.ui.DownloadOptions
+import com.logie.wifecraft.ui.ImportsSection
+import com.logie.wifecraft.ui.LocalWar
+import com.logie.wifecraft.ui.WarArt
+import com.logie.wifecraft.ui.WowWindow
+import com.logie.wifecraft.ui.RedButton
+import com.logie.wifecraft.ui.frizStyle
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.unit.sp
 import com.logie.wifecraft.ui.GatherScreen
 import com.logie.wifecraft.ui.LiveSceneScreen
 import com.logie.wifecraft.ui.LocalArt
@@ -123,7 +128,7 @@ class MainActivity : ComponentActivity() {
         // the first launch fetches every file the creator can draw: the plan from the tables, once they are here
         files.planner = { Prefetch.plan(Catalog.build(tables), tables) }
         listfile = ListfileNames(File(filesDir, "cache/listfile-character.csv"))
-        imports = ImportStore(filesDir, listfile)
+        imports = ImportStore(filesDir, listfile, supportedKinds = setOf(ImportKind.RALIA, ImportKind.BODY, ImportKind.UNDEAD))
         dresser = Dresser(files, tables, imports, lifecycleScope)
         audio = runCatching { Audio(applicationContext, files) }.getOrNull()?.apply {
             musicVolume = settings.musicVolume / 100f
@@ -208,9 +213,13 @@ class MainActivity : ComponentActivity() {
     private fun App() {
         val scope = rememberCoroutineScope()
         val icons = remember { GameIcons(files) }
+        val menuArt = remember { WarArt.open(applicationContext) }
         var wardrobe by remember { mutableStateOf<TransmogCatalog?>(null) }
         var wardrobeStatus by remember { mutableStateOf<String?>(null) }
         var wardrobeJob by remember { mutableStateOf<Job?>(null) }
+        var downloadProgress by remember { mutableStateOf<AssetDownloads.Progress?>(null) }
+        var speed by remember { mutableIntStateOf(settings.downloadSpeed) }
+        var effects by remember { mutableIntStateOf(settings.soundVolume) }
         var downloadStatus by remember { mutableStateOf<String?>(null) }
         var downloadJob by remember { mutableStateOf<Job?>(null) }
 
@@ -255,7 +264,7 @@ class MainActivity : ComponentActivity() {
         val props by propLoader.loading.collectAsState()
         val fetching by dresser.fetching.collectAsState()
         val ready = files.tablesComplete && art != null && catalog != null
-        val stages = remember { locationLoader.locations.filter { (it.id.endsWith("-inn") || it.id == "embassy") && it.views["inside"]?.camera != null } }
+        val stages = remember { locationLoader.locations.filter { it.views["inside"]?.camera != null } }
         val starters = remember(catalog) {
             val race = catalog?.races?.let { races -> races.firstOrNull { it.id == 1 } ?: races.firstOrNull() }
             if (race == null) emptyList() else race.sexes.take(2).map { sex ->
@@ -285,7 +294,8 @@ class MainActivity : ComponentActivity() {
             if (panel != Panel.NONE) panel = Panel.NONE else screen = Screen.TITLE
         }
 
-        CompositionLocalProvider(LocalArt provides art, LocalSounds provides { name: String -> audio?.ui(name) }) {
+        LaunchedEffect(art != null) { if (art != null) menuArt.start() }
+        CompositionLocalProvider(LocalArt provides art, LocalWar provides menuArt, LocalSounds provides { name: String -> audio?.ui(name) }) {
             Box(Modifier.fillMaxSize()) {
                 when (screen) {
                     Screen.TITLE -> TitleScreen(
@@ -559,18 +569,31 @@ class MainActivity : ComponentActivity() {
                 }
                 when (panel) {
                     Panel.NONE -> Unit
-                    Panel.OPTIONS -> SceneOptions(
-                        downloadStatus = downloadStatus,
+                    Panel.OPTIONS -> DownloadOptions(
+                        progress = downloadProgress,
+                        status = downloadStatus,
+                        speed = speed,
+                        onSpeed = {
+                            speed = it
+                            settings.downloadSpeed = it
+                            files.setDownloadSpeed(it)
+                        },
+                        volume = effects,
+                        onVolume = {
+                            effects = it
+                            settings.soundVolume = it
+                            audio?.soundVolume = it / 100f
+                            applySceneVolumes()
+                        },
                         downloading = downloadJob?.isActive == true,
                         canDownload = catalog != null,
                         onDownload = { packs ->
                             if (downloadJob?.isActive != true) {
-                                downloadStatus = "Preparing downloads…"
+                                downloadProgress = AssetDownloads.Progress(packs.first(), 1, packs.size)
+                                downloadStatus = null
                                 downloadJob = scope.launch {
                                     try {
-                                        downloadStatus = AssetDownloads(files, tables).download(packs, stages, catalog, ::loadWardrobe) { status ->
-                                            downloadStatus = status
-                                        }
+                                        downloadStatus = AssetDownloads(files, tables).download(packs, stages, catalog, ::loadWardrobe) { value -> downloadProgress = value }
                                     } catch (failure: CancellationException) {
                                         downloadStatus = "Download paused. Cached files are ready for the next download."
                                         throw failure
@@ -582,8 +605,9 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         },
-                        onCancelDownload = { downloadJob?.cancel() },
+                        onPause = { downloadJob?.cancel() },
                         onClose = { panel = Panel.NONE },
+                        mods = { ImportsSection(imports, listfile) },
                     )
                     Panel.UPDATE -> Overlay({ panel = Panel.NONE }) {
                         LaunchedEffect(Unit) {
@@ -600,56 +624,15 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 problem?.let { message ->
-                    AlertDialog(onDismissRequest = { problem = null }, text = { Text(message) },
-                        confirmButton = { TextButton({ problem = null }) { Text("Close") } })
+                    Overlay({ problem = null }) {
+                        WowWindow("Wifecraft", { problem = null }, Modifier.widthIn(max = 500.dp)) {
+                            Text(message, style = frizStyle(14.sp, Color.White))
+                            RedButton("Close", { problem = null }, Modifier.padding(top = 10.dp))
+                        }
+                    }
                 }
             }
         }
-    }
-
-    @Composable
-    private fun SceneOptions(
-        downloadStatus: String?,
-        downloading: Boolean,
-        canDownload: Boolean,
-        onDownload: (List<AssetDownloads.Pack>) -> Unit,
-        onCancelDownload: () -> Unit,
-        onClose: () -> Unit,
-    ) {
-        var speed by remember { mutableStateOf(settings.downloadSpeed) }
-        var effects by remember { mutableStateOf(settings.soundVolume) }
-        AlertDialog(
-            onDismissRequest = onClose,
-            title = { Text("Options") },
-            text = {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                    Text("Download speed")
-                    Slider(speed.toFloat(), {
-                        speed = it.toInt()
-                        settings.downloadSpeed = speed
-                        files.setDownloadSpeed(speed)
-                    }, valueRange = 24f..96f)
-                    Text("Sound effects")
-                    Slider(effects.toFloat(), {
-                        effects = it.toInt()
-                        settings.soundVolume = effects
-                        audio?.soundVolume = effects / 100f
-                        applySceneVolumes()
-                    }, valueRange = 0f..100f)
-                    Text("Download for offline play")
-                    if (!canDownload) Text("Gather the character tables first.")
-                    if (downloading) TextButton(onCancelDownload) { Text("Pause downloads") }
-                    else {
-                        TextButton({ onDownload(AssetDownloads.Pack.entries) }, enabled = canDownload) { Text("Download all") }
-                        for (pack in AssetDownloads.Pack.entries) {
-                            TextButton({ onDownload(listOf(pack)) }, enabled = canDownload) { Text("Download ${pack.label.lowercase()}") }
-                        }
-                    }
-                    downloadStatus?.let { Text(it) }
-                }
-            },
-            confirmButton = { TextButton(onClose) { Text("Done") } },
-        )
     }
 
     private fun installUpdate(u: Updater.Update, status: (String) -> Unit) {

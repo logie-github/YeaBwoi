@@ -51,17 +51,12 @@ fun TransmogPanel(
                 .map { WardrobeTile(it.display, it.name, it.icon, selected[current.id] == it.display) }.toList()
         }
     }
-    Column(modifier.background(Color(0xFF1C1815)).border(1.dp, Color(0xFF735B3B)).padding(10.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Transmog", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, color = gold)
-            TextButton(onClose) { Text("Done", color = gold) }
-        }
+    WowWindow("Transmog", onClose, modifier) {
         if (catalog == null) {
             Text(status ?: "Loading clothing catalog…", color = ink)
-            if (status != null) TextButton(onRetry) { Text("Retry", color = gold) }
-            return
+            if (status != null) RedButton("Retry", onRetry)
         }
-        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (catalog != null) Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LazyColumn(Modifier.width(86.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 item { SlotRow("Outfits", slot == null) { slot = null; search = "" } }
                 items(ClothingSlot.entries.size) { index ->
@@ -70,8 +65,8 @@ fun TransmogPanel(
                 }
             }
             Column(Modifier.weight(1f)) {
-                OutlinedTextField(search, { search = it.take(80) }, Modifier.fillMaxWidth(), singleLine = true,
-                    placeholder = { Text("Search ${slot?.label?.lowercase() ?: "outfits"}") })
+                WowSearchBox(search, { search = it.take(80) }, "Search ${slot?.label?.lowercase() ?: "outfits"}",
+                    Modifier.fillMaxWidth())
                 Spacer(Modifier.height(6.dp))
                 if (tiles.isEmpty()) Text("No outfits match.", color = ink)
                 key(slot) {
@@ -94,7 +89,9 @@ fun TransmogPanel(
                                     .border(1.dp, if (tile.selected) gold else Color(0xFF65503A)),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    if (image != null) Image(image, null, Modifier.fillMaxSize().padding(2.dp))
+                                    val frame = LocalWar.current?.piece(if (tile.selected) "house-chest-list-item-active" else "house-chest-list-item-default")
+                                    if (frame != null) Image(frame, null, Modifier.fillMaxSize())
+                                    if (image != null) Image(image, null, Modifier.fillMaxSize().padding(4.dp))
                                     else Text(if (tile.id == 0) "—" else tile.name.take(1), color = gold)
                                 }
                                 Text(tile.name, color = if (tile.selected) gold else ink, maxLines = 2,

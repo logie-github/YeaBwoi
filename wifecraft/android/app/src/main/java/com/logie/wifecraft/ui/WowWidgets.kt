@@ -231,6 +231,18 @@ fun AchievementToast(heading: String, name: String, detail: String, count: Strin
     }
 }
 
+/** The Dalaran loading plate from the game's interface pack. */
+@Composable
+fun WarcraftLoadingArt(modifier: Modifier = Modifier) {
+    val art = LocalArt.current?.dalaranArt ?: return
+    Canvas(modifier) {
+        val scale = maxOf(size.width / art.size.width, size.height / art.size.height)
+        val width = art.size.width * scale
+        val height = art.size.height * scale
+        piece(art, (size.width - width) / 2, (size.height - height) / 2, width, height)
+    }
+}
+
 /** The loading screen's bar. */
 @Composable
 fun LoadingBar(progress: Float, modifier: Modifier = Modifier) {

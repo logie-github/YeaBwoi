@@ -91,7 +91,7 @@ fun ImportsSection(store: ImportStore, names: ListfileNames, modifier: Modifier 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
             // the body options first: they need no file list, so a texture set's 150 MB fetch never holds them up
-            for (kind in ImportKind.values().sortedBy { it.textures }) runCatching {
+            for (kind in store.supportedKinds.sortedBy { it.textures }) runCatching {
                 val found = AndroidFinder.find(kind) ?: return@runCatching
                 if (kind.textures && !names.available()) names.refresh()
                 store.lookFor(kind, found)

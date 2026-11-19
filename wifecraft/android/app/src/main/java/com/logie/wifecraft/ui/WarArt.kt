@@ -3,9 +3,6 @@ package com.logie.wifecraft.ui
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
-import android.graphics.Paint
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -102,7 +99,6 @@ class WarArt private constructor(private val dir: File, private val doc: JSONObj
     private val fetchGate = Semaphore(4)
     // a 2048 x 1024 sheet is 8 MB of pixels as it is cut: sheets are decoded one at a time
     private val decodeGate = Semaphore(1)
-    private val warm = Paint(Paint.FILTER_BITMAP_FLAG).apply { colorFilter = ColorMatrixColorFilter(ColorMatrix(WarTint.MATRIX)) }
 
     /** Fetches what is missing and cuts everything, off the main thread; at once again after a failure's wait. Idempotent. */
     fun start() {
@@ -206,7 +202,7 @@ class WarArt private constructor(private val dir: File, private val doc: JSONObj
                 val r = (b.getInt(2) * sx).toInt().coerceIn(l + 1, sheet.width); val bt = (b.getInt(3) * sy).toInt().coerceIn(t + 1, sheet.height)
                 val out = Bitmap.createBitmap(r - l, bt - t, Bitmap.Config.ARGB_8888)
                 val part = Bitmap.createBitmap(sheet, l, t, r - l, bt - t)
-                Canvas(out).drawBitmap(part, 0f, 0f, if (name in PLAIN) null else warm)
+                Canvas(out).drawBitmap(part, 0f, 0f, null)
                 if (part !== sheet) part.recycle()
                 out.prepareToDraw()
                 cut[name] = out.asImageBitmap()
@@ -250,7 +246,6 @@ class WarArt private constructor(private val dir: File, private val doc: JSONObj
 
     companion object {
         /** Pieces drawn as the game has them (masks: their alpha is all that is read). */
-        private val PLAIN = setOf("house-chest-list-item-mask", "ui-hud-actionbar-iconframe-mask")
 
         /** From assets/ui_art.json; the cache is the app's files/war-art. */
         fun open(context: Context): WarArt {

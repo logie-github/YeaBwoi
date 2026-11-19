@@ -8,13 +8,14 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.editor.Actor
@@ -47,43 +48,40 @@ fun SceneSetupScreen(
     onNext: () -> Unit,
 ) {
     BackHandler(onBack = onBack)
-    Scaffold(
-        containerColor = Color(0xFF191719),
-        bottomBar = {
-            Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
-                OutlinedButton(onBack) { Text("Back") }
-                Button(onNext, enabled = when (step) {
-                    SetupStep.LOCATION -> location != null
-                    SetupStep.CAST -> cast.isNotEmpty()
-                    SetupStep.OBJECTS -> true
-                }) { Text(if (step == SetupStep.OBJECTS) "Begin scene" else "Next") }
+    BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+        WarcraftLoadingArt(Modifier.fillMaxSize())
+        val layout = ChromeLayout.of(maxWidth.value, maxHeight.value)
+        WowWindow(step.title, onBack, Modifier.width(layout.optionsW.dp).height(layout.optionsH.dp)) {
+            Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                when (step) {
+                    SetupStep.LOCATION -> for (preset in locations) {
+                        WowListRow(preset.name, null, selected = preset.id == location, onClick = { onLocation(preset.id) })
+                    }
+                    SetupStep.CAST -> {
+                        Text("Choose up to six NPCs.", style = frizStyle(13.sp))
+                        RedButton("Create NPC", onCreate)
+                        for (actor in roster) {
+                            WowCheckRow(actor.name, actor.id in cast, { onToggleActor(actor.id) },
+                                enabled = actor.id in cast || cast.size < 6)
+                        }
+                    }
+                    SetupStep.OBJECTS -> {
+                        for (item in SceneObject.entries) {
+                            WowCheckRow(item.label, item in objects, { onToggleObject(item) })
+                        }
+                        RedButton("Sims 4 animations", onAnimations)
+                    }
+                }
             }
-        },
-    ) { padding ->
-        Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(step.title, style = MaterialTheme.typography.headlineMedium, color = Color(0xFFF4DFBD))
-            when (step) {
-                SetupStep.LOCATION -> for (preset in locations) {
-                    FilterChip(preset.id == location, { onLocation(preset.id) }, { Text(preset.name) })
-                }
-                SetupStep.CAST -> {
-                    Text("Choose up to six NPCs.", color = Color.LightGray)
-                    OutlinedButton(onCreate) { Text("Create NPC") }
-                    for (actor in roster) {
-                        FilterChip(actor.id in cast, { onToggleActor(actor.id) }, { Text(actor.name) },
-                            enabled = actor.id in cast || cast.size < 6)
-                    }
-                }
-                SetupStep.OBJECTS -> {
-                    Text("Objects are placed automatically in the scene.", color = Color.LightGray)
-                    OutlinedButton(onAnimations) { Text("Sims 4 animations") }
-                    for (item in SceneObject.entries) {
-                        FilterChip(item in objects, { onToggleObject(item) }, { Text(item.label) })
-                    }
-                }
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                RedButton("Back", onBack, Modifier.weight(1f))
+                RedButton(if (step == SetupStep.OBJECTS) "Begin scene" else "Next", onNext, Modifier.weight(1f),
+                    enabled = when (step) {
+                        SetupStep.LOCATION -> location != null
+                        SetupStep.CAST -> cast.isNotEmpty()
+                        SetupStep.OBJECTS -> true
+                    })
             }
         }
     }
@@ -159,8 +157,8 @@ fun LiveSceneScreen(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(locationName, Modifier.weight(1f), color = Color(0xFFF4DFBD), style = MaterialTheme.typography.titleLarge)
-            TextButton({ ending = true }) { Text("End scene") }
+            Text(locationName, Modifier.weight(1f), color = Color(0xFFF4DFBD), style = frizStyle(17.sp))
+            RedButton("End scene", { ending = true })
         }
         Box(Modifier.fillMaxWidth().weight(1f)) {
             AndroidView(
@@ -179,38 +177,34 @@ fun LiveSceneScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             for (person in people) {
-                FilterChip(
-                    person.id == selected,
-                    { selected = if (person.id == selected) null else person.id },
-                    { Text("${names[person.id]} · ${person.activity.description}") },
-                )
+                WowTab("${names[person.id]} · ${person.activity.description}", person.id == selected,
+                    { selected = if (person.id == selected) null else person.id })
             }
         }
         if (active != null) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     for (item in objects) {
-                        OutlinedButton({ use(active.id, item) }, enabled = ready && simulation.available(item, active.id)) {
-                            Text(when (item) {
-                                SceneObject.CHAIR -> "Sit in chair"
-                                SceneObject.COUCH -> "Sit on couch"
-                                SceneObject.BED -> "Rest on bed"
-                                SceneObject.TABLE -> "Read a book"
-                            })
+                        val action = when (item) {
+                            SceneObject.CHAIR -> "Sit in chair"
+                            SceneObject.COUCH -> "Sit on couch"
+                            SceneObject.BED -> "Rest on bed"
+                            SceneObject.TABLE -> "Read a book"
                         }
+                        RedButton(action, { use(active.id, item) }, enabled = ready && simulation.available(item, active.id))
                     }
                     for (other in cast.filter { it.id != active.id }) {
-                        OutlinedButton({
+                        RedButton("Chat with ${other.name}", {
                             simulation.chat(active.id, other.id)
                             command = null
                             people = simulation.people()
-                        }, enabled = ready) { Text("Chat with ${other.name}") }
+                        }, enabled = ready)
                     }
-                    TextButton({
+                    RedButton("Free will", {
                         simulation.freeWill(active.id)
                         command = null
                         people = simulation.people()
-                    }) { Text("Free will") }
+                    })
                 }
                 command?.let { Text(it, color = Color.LightGray) }
             }
@@ -218,12 +212,7 @@ fun LiveSceneScreen(
             Text("Select an NPC to direct them.", Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = Color.LightGray)
         }
     }
-    if (ending) AlertDialog(
-        onDismissRequest = { ending = false },
-        title = { Text("End this scene?") },
-        confirmButton = { TextButton(onEnd) { Text("End scene") } },
-        dismissButton = { TextButton({ ending = false }) { Text("Keep playing") } },
-    )
+    if (ending) ConfirmDialog("End this scene?", "End scene", { ending = false }, onEnd)
 }
 
 @Composable
@@ -236,37 +225,24 @@ fun SceneAnimationScreen(
 ) {
     var editing by remember { mutableStateOf<Activity?>(null) }
     BackHandler(onBack = onBack)
-    Column(
-        Modifier.fillMaxSize().background(Color(0xFF191719)).verticalScroll(rememberScrollState()).padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text("Sims 4 animations", color = Color(0xFFF4DFBD), style = MaterialTheme.typography.headlineMedium)
-        Text("Import an adult Sims 4 skeleton and animation clips, then assign clips to NPC actions.", color = Color.LightGray)
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(onImport) { Text("Import rig and clips") }
-            OutlinedButton(onBack) { Text("Back") }
-        }
-        if (clips.isNotEmpty()) for (activity in Activity.entries) {
-            val current = clips.firstOrNull { it.id == bindings[activity] }?.name ?: "Warcraft default"
-            OutlinedButton({ editing = activity }) { Text("${activity.label} · $current") }
+    BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+        WarcraftLoadingArt(Modifier.fillMaxSize())
+        val layout = ChromeLayout.of(maxWidth.value, maxHeight.value)
+        WowWindow("Sims 4 animations", onBack, Modifier.width(layout.optionsW.dp).height(layout.optionsH.dp)) {
+            RedButton("Import rig and clips", onImport)
+            Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())) {
+                for (activity in Activity.entries) {
+                    val current = clips.firstOrNull { it.id == bindings[activity] }?.name ?: "Warcraft default"
+                    WowListRow(activity.label, current, selected = false, onClick = { editing = activity })
+                }
+            }
         }
     }
     editing?.let { activity ->
-        AlertDialog(
-            onDismissRequest = { editing = null },
-            title = { Text(activity.label) },
-            text = {
-                androidx.compose.foundation.lazy.LazyColumn(Modifier.heightIn(max = 300.dp)) {
-                    item {
-                        TextButton({ onChange(activity, null); editing = null }) { Text("Warcraft default") }
-                    }
-                    items(clips.size) { index ->
-                        val clip = clips[index]
-                        TextButton({ onChange(activity, clip.id); editing = null }) { Text(clip.name) }
-                    }
-                }
-            },
-            confirmButton = { TextButton({ editing = null }) { Text("Cancel") } },
-        )
+        PickDialog(activity.label, listOf("" to "Warcraft default") + clips.map { it.id to it.name },
+            bindings[activity], onCancel = { editing = null }) { id ->
+            onChange(activity, id.takeIf { it.isNotEmpty() })
+            editing = null
+        }
     }
 }

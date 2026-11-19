@@ -1,6 +1,5 @@
 package com.logie.wifecraft.location
 
-import com.logie.wifecraft.ui.StageChoices
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.ByteBuffer
@@ -27,24 +26,6 @@ class LocationsTest {
         // the inside spawn faces the room's camera (down -x), the outside one out of the door (+x)
         assertEquals(3.1416f, e.views.getValue("inside").facing, 1e-3f)
         assertEquals(9171, e.areaId)
-    }
-
-    @Test fun theInnSetsHavePlayableViewsWithoutLocationDownloads() {
-        val names = mapOf(
-            "goldshire-inn" to "Goldshire Inn",
-            "brill-inn" to "Brill Inn",
-            "auberdine-inn" to "Auberdine Inn",
-        )
-        val choices = StageChoices.list(emptyList(), locations).toMap()
-        for ((id, name) in names) {
-            val inn = locations.first { it.id == id }
-            assertTrue(inn.files().isEmpty())
-            val stageId = StageChoices.loc(id, "inside")
-            assertEquals("$name: Inside", choices[stageId])
-            val stage = assertNotNull(StageChoices.locationStage(stageId, locations))
-            assertNotNull(stage.camera)
-            assertNotNull(stage.spawn)
-        }
     }
 
     @Test fun theEmbassysFilesAreThePacksWithoutRepeats() {

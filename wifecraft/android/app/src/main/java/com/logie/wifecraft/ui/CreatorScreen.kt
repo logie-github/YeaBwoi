@@ -217,10 +217,8 @@ fun CreatorScreen(
             ui.RedButton(navRect(false, width), ui.words.back, arrow = "back") { step = 1; closePopout(); view.setZoom(1f, CL.RESET_FOCUS) }
             ui.RedButton(navRect(true, width), ui.words.finish, arrow = null) { onFinish(name, model.appearance) }
             if (!transmogOpen) {
-                androidx.compose.material3.Button(
-                    onClick = { closePopout(); transmogOpen = true; onLoadTransmog() },
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp),
-                ) { Text("Transmog") }
+                RedButton("Transmog", { closePopout(); transmogOpen = true; onLoadTransmog() },
+                    Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp))
             }
             if (transmogOpen) {
                 val wide = maxWidth >= 820.dp

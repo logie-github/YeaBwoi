@@ -51,6 +51,7 @@ class ImportStore(
     private val names: ImportNames,
     private val maxEntry: Long = 512L shl 20,
     private val maxTotal: Long = 6L shl 30,
+    val supportedKinds: Set<ImportKind> = ImportKind.entries.toSet(),
 ) : Overrides {
     private val imports = File(root, "imports")
     private val game = File(root, "game")
@@ -103,7 +104,7 @@ class ImportStore(
             kind.textures && m != null && l.textureKind == kind, off(kind).exists())
     }
 
-    fun statuses(): List<ImportStatus> = ImportKind.values().map { status(it) }
+    fun statuses(): List<ImportStatus> = ImportKind.entries.filter { it in supportedKinds }.map { status(it) }
 
     /** The texture set drawn: the one picked last, or the other when that is gone. */
     val activeTextures: ImportKind? get() = loaded.textureKind
@@ -118,7 +119,7 @@ class ImportStore(
 
     private fun load(): Loaded {
         val metas = HashMap<ImportKind, JSONObject>()
-        for (k in ImportKind.values()) {
+        for (k in supportedKinds) {
             val f = File(dir(k), "meta.json")
             if (f.isFile) runCatching { JSONObject(f.readText()) }.getOrNull()?.let { metas[k] = it }
         }

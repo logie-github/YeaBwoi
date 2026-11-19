@@ -2,7 +2,6 @@ package com.logie.wifecraft.ui
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -30,13 +29,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.logie.wifecraft.R
 import com.logie.wifecraft.engine.Clock
 import com.logie.wifecraft.play.Director
 import kotlin.math.abs
@@ -161,7 +157,7 @@ fun StoryScreen(
 
         if (director.loading) {
             Box(Modifier.fillMaxSize().background(Color.Black)) {
-                Image(painterResource(R.drawable.wc_splash), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                WarcraftLoadingArt(Modifier.fillMaxSize())
                 Column(Modifier.align(Alignment.BottomCenter).padding(bottom = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Setting the stage…", style = frizStyle(16.sp))
                     Spacer(Modifier.height(6.dp))

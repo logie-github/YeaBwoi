@@ -2,18 +2,18 @@
 
 An Android scene simulation. Choose a location, pick or create NPCs, and select the objects available in the room.
 
-1. Open **Choose Scene** and pick an inn or the Stormwind Embassy.
+1. Open **Choose Scene** and pick the Stormwind Embassy.
 2. Select up to six NPCs. **Create NPC** saves a character to your roster. NPCs from older projects also appear in the roster.
 3. Choose a chair, bed, table with a book, or couch. The scene places the objects automatically.
 4. Begin the scene. NPCs will walk, talk, read, sit, and rest based on what is available. Select an NPC in the room or in the cast bar, then tap an object or choose an interaction. **End scene** returns to the title.
 
-The three inn presets use original stage layouts. The Stormwind Embassy uses the existing wago.tools location pack. The character, furniture, and book models load through the app's existing wago.tools pipeline.
+The Stormwind Embassy uses the existing wago.tools location pack. The title, setup, and loading screens use the Warcraft interface and loading art fetched from wago.tools. The character, furniture, and book models load through the app's existing wago.tools pipeline.
 
 ## Transmog and offline downloads
 
 In the character creator, open **Transmog** to use a named outfit or mix individual pieces. New NPCs start with Warcraft recruit clothing. Select **None** in any slot to remove that piece. Clothing and removed slots are saved with the NPC and appear when the NPC joins a scene. The preview uses Warcraft's race-selection backdrop models from wago.tools, framed by the camera stored in each model.
 
-In **Options**, choose **Download all** or download scenes, clothes, and Warcraft character animations individually. Downloads reuse files already on the device. Sims 4 rigs and clips are imported from your own files.
+In **Options**, choose **Download all** or download scenes, clothes, and Warcraft character animations individually. The download bar shows pack progress, bytes downloaded, and failures. Pause keeps completed files for the next attempt. Sims 4 rigs and clips are imported from your own files.
 
 ## Sims 4 animations
 

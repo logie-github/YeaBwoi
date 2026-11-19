@@ -6,72 +6,115 @@ import com.logie.wifecraft.location.LocationInfo
 import com.logie.wifecraft.simulation.SceneObject
 import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.coroutineContext
 
 class AssetDownloads(private val files: GameFiles, private val tables: Tables) {
     enum class Pack(val label: String) { SCENES("Scenes"), ANIMATIONS("Animations"), CLOTHING("Clothes") }
 
-    suspend fun download(packs: List<Pack>, locations: List<LocationInfo>, catalog: Catalog?,
-                         wardrobe: suspend () -> TransmogCatalog, onStatus: (String) -> Unit) = withContext(Dispatchers.IO) {
-        val seen = ConcurrentHashMap.newKeySet<Int>()
-        val failed = ConcurrentHashMap.newKeySet<Int>()
-        val done = AtomicInteger()
-        for (pack in packs) {
-            val job = coroutineContext.job
-            val fetchBatch: (Collection<Int>) -> Unit = { ids ->
-                for (id in ids) {
-                    job.ensureActive()
-                    if (id > 0 && !files.has(id) && seen.add(id)) {
-                        try { files.fetchNow(id) } catch (_: Exception) { failed += id }
-                        val count = done.incrementAndGet()
-                        if (count % 20 == 0) onStatus("${pack.label} · $count files checked")
-                    }
-                }
-            }
-            val read: (Int) -> ByteArray? = { id -> if (files.has(id)) files.file(id).readBytes() else null }
-            val models = when (pack) {
-                Pack.SCENES -> {
-                    val manifest = locations.flatMap { it.files().map { pair -> pair.first } }.distinct()
-                    onStatus("Downloading scenes…")
-                    manifest.chunked(32).mapBatches { fetchBatch(it) }
-                    val backdrops = catalog?.races.orEmpty().mapNotNull { RaceBackdrop.file(tables, it.id) }
-                    val objects = (SceneObject.entries.map { it.model } + SceneObject.BOOK_MODEL + backdrops).distinct()
-                    objects.mapBatches { id ->
-                        val problem = PropLoader.closure(files, id) { fetchBatch(it) }
-                        if (problem != null) failed += id
-                    }
-                    emptySet()
-                }
-                Pack.CLOTHING -> {
-                    onStatus("Preparing the clothing catalog…")
-                    val pieces = wardrobe().pieces
-                    val displays = pieces.mapTo(HashSet()) { it.display }
-                    val iconIds = pieces.mapNotNullTo(HashSet()) { it.icon.takeIf { icon -> icon > 0 } }
-                    val (modelIds, textureIds) = CreatureLooks.clothingFiles(tables, displays)
-                    onStatus("Downloading clothes…")
-                    (textureIds + iconIds).chunked(32).mapBatches { fetchBatch(it) }
-                    modelIds
-                }
-                Pack.ANIMATIONS -> {
-                    onStatus("Downloading Warcraft character animations…")
-                    checkNotNull(catalog) { "Gather the character tables first." }
-                    tables.rows("ChrModel").mapNotNullTo(LinkedHashSet()) { row ->
-                        val displayId = row.int("DisplayID")
-                        val modelId = tables.rowBy("CreatureDisplayInfo", "ID", displayId)?.int("ModelID") ?: 0
-                        tables.rowBy("CreatureModelData", "ID", modelId)?.int("FileDataID")?.takeIf { it > 0 }
-                    }
-                }
-            }
-            models.toList().mapBatches { model ->
-                fetchBatch(listOf(model))
-                M2Files.closure(model, if (pack == Pack.ANIMATIONS) null else emptySet(), read, fetchBatch)
-            }
-        }
-        if (failed.isEmpty()) "Download complete" else "${failed.size} files could not be downloaded. Retry to resume."
+    data class Progress(
+        val pack: Pack,
+        val packNumber: Int,
+        val packCount: Int,
+        val done: Int = 0,
+        val total: Int = 0,
+        val files: Int = 0,
+        val bytes: Long = 0L,
+        val failed: Int = 0,
+    ) {
+        val fraction: Float get() = ((packNumber - 1) + (if (total == 0) 0f else done.toFloat() / total)) / packCount
     }
 
-    private suspend fun <T> List<T>.mapBatches(work: suspend (T) -> Unit) {
+    private data class Work(val direct: Set<Int>, val models: Set<Int>)
+
+    suspend fun download(
+        packs: List<Pack>, locations: List<LocationInfo>, catalog: Catalog?,
+        wardrobe: suspend () -> TransmogCatalog, onProgress: (Progress) -> Unit,
+    ): String = withContext(Dispatchers.IO) {
+        val seen = ConcurrentHashMap.newKeySet<Int>()
+        val failed = ConcurrentHashMap.newKeySet<Int>()
+        val lock = Any()
+        var downloaded = 0
+        var bytes = 0L
+        val packErrors = mutableListOf<String>()
+
+        for ((index, pack) in packs.withIndex()) {
+            var state = Progress(pack, index + 1, packs.size, files = downloaded, bytes = bytes, failed = failed.size)
+            fun report(advance: Boolean = false) = synchronized(lock) {
+                state = state.copy(done = state.done + if (advance) 1 else 0, files = downloaded, bytes = bytes, failed = failed.size)
+                onProgress(state)
+            }
+            report()
+            val job = coroutineContext.job
+            fun fetch(ids: Collection<Int>, checkDependencies: Boolean) {
+                for (id in ids) {
+                    job.ensureActive()
+                    if (id <= 0 || files.has(id) || id in failed) continue
+                    val first = seen.add(id)
+                    if (!first && !checkDependencies) continue
+                    try {
+                        files.fetchNow(id)
+                        if (first) synchronized(lock) {
+                            downloaded++
+                            bytes += files.file(id).length()
+                        }
+                    } catch (e: CancellationException) { throw e }
+                    catch (_: Exception) { failed += id }
+                }
+            }
+            try {
+                val work = plan(pack, locations, catalog, wardrobe)
+                state = state.copy(total = work.direct.size + work.models.size)
+                report()
+                work.direct.toList().parallel { id ->
+                    fetch(listOf(id), checkDependencies = false)
+                    report(advance = true)
+                }
+                work.models.toList().parallel { id ->
+                    if (pack == Pack.SCENES) {
+                        if (PropLoader.closure(files, id) { fetch(it, checkDependencies = true) } != null) failed += id
+                    } else {
+                        fetch(listOf(id), checkDependencies = true)
+                        M2Files.closure(id, if (pack == Pack.ANIMATIONS) null else emptySet(),
+                            { if (files.has(it)) files.file(it).readBytes() else null },
+                            { fetch(it, checkDependencies = true) })
+                    }
+                    report(advance = true)
+                }
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { packErrors += "${pack.label}: ${e.message ?: "Download failed"}" }
+        }
+        listOfNotNull(
+            "${failed.size} files could not be downloaded. Retry to resume.".takeIf { failed.isNotEmpty() },
+            packErrors.takeIf { it.isNotEmpty() }?.joinToString("\n"),
+        ).joinToString("\n").ifEmpty { "Download complete" }
+    }
+
+    private suspend fun plan(pack: Pack, locations: List<LocationInfo>, catalog: Catalog?, wardrobe: suspend () -> TransmogCatalog): Work =
+        when (pack) {
+            Pack.SCENES -> {
+                val files = locations.flatMap { loc -> loc.files().map { it.first } }.toSet()
+                val backdrops = catalog?.races.orEmpty().mapNotNull { RaceBackdrop.file(tables, it.id) }
+                Work(files, (SceneObject.entries.map { it.model } + SceneObject.BOOK_MODEL + backdrops).toSet())
+            }
+            Pack.CLOTHING -> {
+                val pieces = wardrobe().pieces
+                val displays = pieces.mapTo(HashSet()) { it.display }
+                val icons = pieces.mapNotNull { p -> p.icon.takeIf { it > 0 } }
+                val (models, textures) = CreatureLooks.clothingFiles(tables, displays)
+                Work(textures + icons, models)
+            }
+            Pack.ANIMATIONS -> {
+                checkNotNull(catalog) { "Gather the character tables first." }
+                val models = tables.rows("ChrModel").mapNotNullTo(LinkedHashSet()) { row ->
+                    val displayId = row.int("DisplayID")
+                    val modelId = tables.rowBy("CreatureDisplayInfo", "ID", displayId)?.int("ModelID") ?: 0
+                    tables.rowBy("CreatureModelData", "ID", modelId)?.int("FileDataID")?.takeIf { it > 0 }
+                }
+                Work(emptySet(), models)
+            }
+        }
+
+    private suspend fun <T> List<T>.parallel(work: suspend (T) -> Unit) {
         for (batch in chunked(8)) coroutineScope { batch.map { item -> async { work(item) } }.awaitAll() }
     }
 }

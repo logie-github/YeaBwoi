@@ -159,7 +159,7 @@ fun WowWindow(
     }
 }
 
-/** A tab hanging under a window (the game's frame tabs): gold words, white on the chosen one, which stands a little taller. */
+/** A tab hanging under a window: gold words, white on the chosen one, which stands a little taller. */
 @Composable
 fun WowTab(label: String, chosen: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val war = LocalWar.current
