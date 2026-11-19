@@ -293,6 +293,7 @@ fun AnimImportScreen(
                     itemsIndexed(saved, key = { i, _ -> i }, contentType = { _, o -> o::class.simpleName }) { _, o ->
                         val (txt, col) = when (o) {
                             is SaveOutcome.Added -> (o.renamedFrom?.let { "${o.name}: a name like \"$it\" was already taken" } ?: o.name) to Color.White
+                            is SaveOutcome.Updated -> "${o.name}: updated" to Color.White
                             is SaveOutcome.Duplicate -> "${o.name}: already in the library as \"${o.existing}\", skipped" to WowColors.grey
                             is SaveOutcome.Failed -> "${o.name}: failed, ${o.why}" to Color(0xFFFF6A5A)
                         }

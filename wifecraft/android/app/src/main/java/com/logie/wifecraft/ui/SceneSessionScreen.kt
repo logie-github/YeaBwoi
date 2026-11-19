@@ -34,7 +34,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.logie.wifecraft.anim.Anim
+import com.logie.wifecraft.anim.CheckedAnimation
 import com.logie.wifecraft.editor.Actor
 import com.logie.wifecraft.engine.FrameDriver
 import com.logie.wifecraft.engine.FurniturePose
@@ -403,15 +403,18 @@ private fun BoxScope.SceneLoadingCover(visible: Boolean, name: String, status: S
 
 @Composable
 fun SceneAnimationScreen(
-    clips: List<Anim>,
+    clips: List<CheckedAnimation>,
     bindings: Map<Activity, String>,
+    preview: @Composable (CheckedAnimation) -> Unit,
     onChange: (Activity, String?) -> Unit,
     onImport: () -> Unit,
     onImportWickedWhims: () -> Unit,
     onBack: () -> Unit,
 ) {
+    var browsing by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Activity?>(null) }
-    BackHandler(onBack = onBack)
+    BackHandler(!browsing, onBack)
+
     BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
         WarcraftLoadingArt(Modifier.fillMaxSize())
         val layout = ChromeLayout.of(maxWidth.value, maxHeight.value)
@@ -419,20 +422,24 @@ fun SceneAnimationScreen(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 RedButton("Import WickedWhims", onImportWickedWhims, Modifier.weight(1f), textSize = 13.sp)
                 RedButton("Import rig and clips", onImport, Modifier.weight(1f), textSize = 13.sp)
+                RedButton("Browse animations", { editing = null; browsing = true }, Modifier.weight(1f), textSize = 13.sp)
             }
             Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())) {
                 for (activity in Activity.entries) {
-                    val current = clips.firstOrNull { it.id == bindings[activity] }?.name ?: "Warcraft default"
-                    WowListRow(activity.label, current, selected = false, onClick = { editing = activity })
+                    val current = clips.firstOrNull { it.clip.id == bindings[activity] }?.clip?.name ?: "Warcraft default"
+                    WowListRow(activity.label, current, selected = false, onClick = { editing = activity; browsing = true })
                 }
             }
         }
     }
-    rememberHeld(editing)?.let { activity ->
-        PickDialog(activity.label, listOf("" to "Warcraft default") + clips.map { it.id to "${it.name} · ${it.category}" },
-            bindings[activity], onCancel = { editing = null }, visible = editing != null, searchHint = "Find animations") { id ->
-            onChange(activity, id.takeIf { it.isNotEmpty() })
-            editing = null
-        }
+    if (browsing) {
+        val action = editing
+        AnimationBrowser(clips, action?.label, action?.let(bindings::get), preview,
+            onClose = { browsing = false },
+            onAssign = action?.let { activity -> { id ->
+                onChange(activity, id)
+                browsing = false
+            } },
+        )
     }
 }

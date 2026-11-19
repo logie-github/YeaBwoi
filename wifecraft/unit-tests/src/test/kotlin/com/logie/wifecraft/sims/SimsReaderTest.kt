@@ -159,6 +159,13 @@ class SimsReaderTest {
         assertContentEquals(floatArrayOf(0f, 0f, 0f, 1f), pal.values)
     }
 
+    @Test fun readsExplicitZeroTranslation() {
+        val data = clip(codec(listOf(Chan(head, 0f, 0f, 11, 1, emptyList()))))
+        val track = ClipDecoder.decode(data).tracks.single()
+        assertEquals(Channel.POSITION, track.channel)
+        assertContentEquals(floatArrayOf(0f, 0f, 0f), track.values)
+    }
+
     @Test fun readsUncompressedRefPackAndConstantIndexFields() {
         // Command 0x1B 0x02: 3 literals ("abc"), then 9 bytes copied from 3 back; 0xFD: stop after 1 literal ("X").
         val refpack = Buf().u8(0x10).u8(0xFB).u8(0).u8(0).u8(13)

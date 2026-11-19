@@ -145,6 +145,8 @@ jobs:
 
           Direct WickedWhims installs respect the download server’s retry timing and show a countdown when it limits requests.
 
+          Browse animations groups checked clips by actual motion and previews them on a Warcraft NPC. Reinstalling a pack refreshes older conversions while preserving assignments.
+
           Options shows a download progress bar and file counts for Warcraft assets.
 
           Download **$APK_FILE** and open it on your phone to install. Warcraft models and the Stormwind Embassy location use the app's existing wago.tools downloads."

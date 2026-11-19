@@ -305,11 +305,12 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
      * holds, a looping one loops, until [stopAnim]. Called before the actor is on stage, it waits for it; a re-dress
      * of the same key keeps it (a new model gets it again). Taking everyone off stage ([removeAll]) forgets it.
      */
-    fun playAnim(actorKey: String, anim: Anim) {
+    fun playAnim(actorKey: String, anim: Anim, onMapped: ((Int) -> Unit)? = null) {
         val arrays = AnimArrays.of(anim)
         post { h, ids ->
             poses[actorKey] = arrays
-            ids[actorKey]?.let { applyPose(h, it, arrays) }
+            val mapped = ids[actorKey]?.let { applyPose(h, it, arrays) }
+            if (onMapped != null) main.post { onMapped(mapped ?: 0) }
         }
     }
 
@@ -319,9 +320,8 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         ids[actorKey]?.let { Native.clearBoneAnim(h, it) }
     }
 
-    private fun applyPose(h: Long, id: Int, a: AnimArrays) {
+    private fun applyPose(h: Long, id: Int, a: AnimArrays): Int =
         Native.boneAnim(h, id, a.bones, a.channels, a.keyCounts, a.times, a.values, a.duration, a.loop, Clock.now())
-    }
 
     /** Options' Soft body (Native.SOFT_OFF .. SOFT_STRONG), for everyone on stage from the next frame. */
     fun softBody(level: Int) = post { h, _ -> Native.softBody(h, level) }

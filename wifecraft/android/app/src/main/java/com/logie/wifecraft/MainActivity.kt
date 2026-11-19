@@ -21,13 +21,14 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
-import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.anim.AnimLibrary
+import com.logie.wifecraft.anim.CheckedAnimation
 import com.logie.wifecraft.anim.Profile
 import com.logie.wifecraft.anim.Retargeter
 import com.logie.wifecraft.sims.Channel
 import com.logie.wifecraft.story.Vec3
 import com.logie.wifecraft.ui.AnimImportScreen
+import com.logie.wifecraft.ui.AnimationViewport
 import com.logie.wifecraft.ui.RigStore
 import com.logie.wifecraft.ui.SceneAnimationScreen
 import com.logie.wifecraft.audio.Audio
@@ -258,13 +259,13 @@ class MainActivity : ComponentActivity() {
         var step by remember { mutableStateOf(SetupStep.LOCATION) }
         var location by remember { mutableStateOf<String?>(null) }
         var cast by remember { mutableStateOf(emptySet<String>()) }
-        var availableClips by remember { mutableStateOf(emptyList<Anim>()) }
+        var availableClips by remember { mutableStateOf(emptyList<CheckedAnimation>()) }
         var bindings by remember {
             mutableStateOf(Activity.entries.mapNotNull { a -> animationBindings.getString(a.name, null)?.let { a to it } }.toMap())
         }
         LaunchedEffect(screen) {
             if (screen == Screen.ANIMATIONS || screen == Screen.SETUP) {
-                availableClips = withContext(Dispatchers.IO) { animationLibrary.list() }
+                availableClips = withContext(Dispatchers.IO) { animationLibrary.list().map { CheckedAnimation(it) } }
             }
         }
         var objects by remember { mutableStateOf(SceneObject.entries.toSet()) }
@@ -484,6 +485,20 @@ class MainActivity : ComponentActivity() {
                     }
                     Screen.ANIMATIONS -> SceneAnimationScreen(
                         availableClips, bindings,
+                        preview = { clip ->
+                            val actor = chosen.firstOrNull() ?: starters.firstOrNull()
+                            val animationCatalog = catalog
+                            if (actor != null && animationCatalog != null) {
+                                if (wardrobe == null && actor.appearance.starterClothing && actor.appearance.gear) {
+                                    Text(wardrobeStatus ?: "Loading starter clothing…", style = frizStyle(14.sp))
+                                } else {
+                                    val appearance = wardrobe?.equipStarter(actor.appearance) ?: actor.appearance
+                                    AnimationViewport(sceneView(), dresser, animationCatalog, appearance, actor.name, clip)
+                                }
+                            } else {
+                                Text("Choose an NPC to preview animations.", style = frizStyle(14.sp))
+                            }
+                        },
                         onChange = { activity, id ->
                             bindings = if (id == null) bindings - activity else bindings + (activity to id)
                             animationBindings.edit().putString(activity.name, id).apply()
@@ -574,9 +589,9 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                         val clips = remember(availableClips, bindings) {
-                            val byId = availableClips.associateBy { it.id }
+                            val byId = availableClips.associateBy { it.clip.id }
                             bindings.mapNotNull { (activity, id) ->
-                                val source = byId[id] ?: return@mapNotNull null
+                                val source = byId[id]?.forPlayback() ?: return@mapNotNull null
                                 val clip = if (activity == Activity.WALK) {
                                     source.copy(tracks = source.tracks.map { track ->
                                         if (track.bone == "Root" && track.channel == Channel.POSITION) {

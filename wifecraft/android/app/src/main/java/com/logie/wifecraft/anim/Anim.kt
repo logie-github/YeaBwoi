@@ -25,6 +25,8 @@ data class Anim(
     val tracks: List<BoneTrack>,
     val source: String,
     val importedAt: Long,
+    val conversionRevision: Int = 0,
+    val omittedChannels: Boolean = false,
 )
 
 /** Converts one Sims clip to a WoW-side [Anim] (implemented by the Retargeter). May throw for a clip it cannot convert. */
@@ -50,6 +52,7 @@ object AnimJson {
         return JSONObject().put("v", VERSION).put("id", a.id).put("name", a.name).put("category", a.category)
             .put("duration", a.duration.toDouble()).put("loop", a.loop).put("source", a.source)
             .put("importedAt", a.importedAt).put("tracks", tracks)
+            .put("conversionRevision", a.conversionRevision).put("omittedChannels", a.omittedChannels)
     }
 
     fun fromJson(o: JSONObject): Anim {
@@ -70,6 +73,7 @@ object AnimJson {
             id = o.getString("id"), name = o.getString("name"), category = o.optString("category", ""),
             duration = o.optDouble("duration", 0.0).toFloat(), loop = o.optBoolean("loop", false),
             tracks = tracks, source = o.optString("source", ""), importedAt = o.optLong("importedAt", 0L),
+            conversionRevision = o.optInt("conversionRevision", 0), omittedChannels = o.optBoolean("omittedChannels", false),
         )
     }
 

@@ -47,7 +47,7 @@ class SimsClip(
  *  - 17: identity quaternion, no data.
  * Types 18 and 20 are what the game's own tools and the sample pose pack write (confirmed by decoding:
  * every quaternion unit length); the others follow s4pi's layout and are not confirmed on a sample.
- * Constant types 9..16 (zero, one) and 19, 21 (10-bit quaternions) are skipped and named in [SimsClip.notes].
+ * F3 zero (11) is a constant zero translation. Other constant layouts and 10-bit quaternions are reported in [SimsClip.notes].
  */
 object ClipDecoder {
     const val TYPE = 0x6B20C4F3
@@ -123,6 +123,7 @@ object ClipDecoder {
 
     /** Returns the channel's times and values, or null when its type cannot be decoded into [want] components. */
     private fun decodeChannel(c: Reader, ch: Ch, want: Int, palette: FloatArray, tick: Float, normalize: Boolean): Pair<FloatArray, FloatArray>? {
+        if (ch.type == 11 && want == 3 && ch.sub == 1) return floatArrayOf(0f) to FloatArray(3)
         if (ch.type == 17) {
             if (want != 4) return null
             return floatArrayOf(0f) to floatArrayOf(0f, 0f, 0f, 1f)
