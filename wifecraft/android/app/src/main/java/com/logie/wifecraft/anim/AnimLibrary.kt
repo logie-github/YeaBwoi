@@ -12,13 +12,18 @@ import java.util.UUID
  *  there ([duplicate], [anim] is the existing one and nothing was written). [message] says why, for the player. */
 class AddResult(val anim: Anim, val duplicate: Boolean, val message: String)
 
+/** What [AnimLibrary.addPairResult] did, as [AddResult] for a partner animation. */
+class PairAddResult(val pair: PairAnim, val duplicate: Boolean, val message: String)
+
 /** The animation library on disk: dir/<id>.json per animation (see [AnimJson]) and dir/index.json (id, name,
- *  category) for fast listing. Every write is a temp file then a rename. Instances on the same folder share
- *  their state and a lock, so the app's threads cannot trip over each other. A damaged file is skipped. */
+ *  category) for fast listing; partner animations in dir/pair_<id>.json (see [PairJson]), with their own names,
+ *  categories and the same duplicate policy. Every write is a temp file then a rename. Instances on the same
+ *  folder share their state and a lock, so the app's threads cannot trip over each other. A damaged file is
+ *  skipped. A library written before partner animations existed loads unchanged (it has no pair files). */
 class AnimLibrary(private val dir: File) {
     class IndexEntry(val id: String, val name: String, val category: String)
 
-    private class State { val lock = Any(); var anims: LinkedHashMap<String, Anim>? = null }
+    private class State { val lock = Any(); var anims: LinkedHashMap<String, Anim>? = null; var pairs: LinkedHashMap<String, PairAnim>? = null }
 
     private val state: State = synchronized(states) { states.getOrPut(dir.absoluteFile.normalize().path) { State() } }
 
@@ -31,7 +36,7 @@ class AnimLibrary(private val dir: File) {
         dir.mkdirs()
         val map = LinkedHashMap<String, Anim>()
         val bad = ArrayList<String>()
-        val files = (dir.listFiles { f -> f.isFile && f.name.endsWith(".json") && f.name != INDEX } ?: emptyArray()).sortedBy { it.name }
+        val files = (dir.listFiles { f -> isAnimFile(f) } ?: emptyArray()).sortedBy { it.name }
         for (f in files) {
             try {
                 val a = AnimJson.parse(f.readText())
@@ -55,7 +60,7 @@ class AnimLibrary(private val dir: File) {
         val loaded = state.anims
         if (loaded == null) {
             val read = readIndex()
-            val count = dir.listFiles { f -> f.isFile && f.name.endsWith(".json") && f.name != INDEX }?.size ?: 0
+            val count = dir.listFiles { f -> isAnimFile(f) }?.size ?: 0
             if (read != null && read.size == count) return read
         }
         sorted(load().values).map { IndexEntry(it.id, it.name, it.category) }
@@ -79,7 +84,7 @@ class AnimLibrary(private val dir: File) {
             val same = map.values.firstOrNull { it.source == a.source }
             if (same != null) return AddResult(same, true, "\"${a.name.trim()}\" is already in the library as \"${same.name}\" (same file and clip), skipped")
         }
-        val id = if (ID.matches(a.id) && a.id !in map) a.id else newId(map)
+        val id = if (ID.matches(a.id) && a.id !in map && !a.id.startsWith(PAIR_PREFIX)) a.id else newId(map)
         val wanted = a.name.trim().ifEmpty { "Animation" }
         val name = uniqueName(map, wanted, null)
         val stored = a.copy(id = id, name = name, category = normCategory(map, a.category))
@@ -123,6 +128,106 @@ class AnimLibrary(private val dir: File) {
         sorted(load().values.filter { q.isEmpty() || it.name.lowercase().contains(q) || it.category.lowercase().contains(q) })
     }
 
+    // ---------------------------------------------------------------- partner animations
+
+    private fun loadPairs(): LinkedHashMap<String, PairAnim> {
+        state.pairs?.let { return it }
+        dir.mkdirs()
+        val map = LinkedHashMap<String, PairAnim>()
+        val bad = ArrayList<String>()
+        val files = (dir.listFiles { f -> f.isFile && f.name.startsWith(PAIR_PREFIX) && f.name.endsWith(".json") } ?: emptyArray()).sortedBy { it.name }
+        for (f in files) {
+            try {
+                val p = PairJson.parse(f.readText())
+                if (pairFile(p.id) == f.name) map[p.id] = p else bad.add(f.name)
+            } catch (e: Exception) { bad.add(f.name) }
+        }
+        damagedPairs = bad
+        state.pairs = map
+        return map
+    }
+
+    /** Names of partner-animation files that could not be read at the last load. */
+    @Volatile var damagedPairs: List<String> = emptyList()
+        private set
+
+    private fun sortedPairs(m: Collection<PairAnim>) =
+        m.sortedWith(compareBy<PairAnim, String>(String.CASE_INSENSITIVE_ORDER) { it.category }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }.thenBy { it.id })
+
+    fun pairs(): List<PairAnim> = synchronized(state.lock) { sortedPairs(loadPairs().values) }
+
+    fun getPair(id: String): PairAnim? = synchronized(state.lock) { loadPairs()[id] }
+
+    /** Adds [p] with the singles' policy: the same two clips already stored is skipped (the stored one returned);
+     *  a name already used by a partner animation gets " (2)", " (3)"...; an unusable or taken id is replaced. */
+    fun addPair(p: PairAnim): PairAnim = addPairResult(p).pair
+
+    fun addPairResult(p: PairAnim): PairAddResult = synchronized(state.lock) {
+        val map = loadPairs()
+        if (p.source.isNotBlank()) {
+            val same = map.values.firstOrNull { it.source == p.source }
+            if (same != null) return PairAddResult(same, true, "\"${p.name.trim()}\" is already in the library as \"${same.name}\" (the same two clips), skipped")
+        }
+        val id = if (ID.matches(p.id) && p.id !in map) p.id else newPairId(map)
+        val wanted = p.name.trim().ifEmpty { "Partner animation" }
+        val name = uniquePairName(map, wanted, null)
+        val stored = p.copy(id = id, name = name, category = normPairCategory(map, p.category))
+        writePair(stored)
+        map[id] = stored
+        val msg = if (name != wanted) "\"$wanted\" was taken, saved as \"$name\"" else "saved as \"$name\""
+        PairAddResult(stored, false, msg)
+    }
+
+    fun setPairEnabled(id: String, on: Boolean) = updatePair(id) { it.copy(enabled = on) }
+
+    fun renamePair(id: String, name: String) = synchronized(state.lock) {
+        require(name.isNotBlank()) { "A name cannot be empty" }
+        val map = loadPairs()
+        updatePair(id) { it.copy(name = uniquePairName(map, name.trim(), id)) }
+    }
+
+    fun setPairCategory(id: String, category: String) = synchronized(state.lock) {
+        val map = loadPairs()
+        updatePair(id) { it.copy(category = normPairCategory(map, category, id)) }
+    }
+
+    fun deletePair(id: String) = synchronized(state.lock) {
+        val map = loadPairs()
+        if (map.remove(id) == null) return@synchronized
+        File(dir, pairFile(id)).delete()
+    }
+
+    /** Every partner-animation category in use, alphabetical, no repeats. */
+    fun pairCategories(): List<String> = synchronized(state.lock) {
+        loadPairs().values.map { it.category }.distinctBy { it.lowercase() }.sortedWith(String.CASE_INSENSITIVE_ORDER)
+    }
+
+    private fun updatePair(id: String, change: (PairAnim) -> PairAnim) = synchronized(state.lock) {
+        val map = loadPairs()
+        val p = map[id] ?: throw NoSuchElementException("No partner animation $id")
+        val updated = change(p)
+        writePair(updated); map[id] = updated
+    }
+
+    private fun newPairId(map: Map<String, PairAnim>): String {
+        while (true) { val id = UUID.randomUUID().toString().replace("-", "").take(16); if (id !in map) return id }
+    }
+
+    private fun normPairCategory(map: Map<String, PairAnim>, category: String, except: String? = null): String {
+        val c = category.trim().ifEmpty { PairAnim.CATEGORY }
+        return map.values.firstOrNull { it.id != except && it.category.equals(c, ignoreCase = true) }?.category ?: c
+    }
+
+    private fun uniquePairName(map: Map<String, PairAnim>, wanted: String, except: String?): String {
+        val used = map.values.filter { it.id != except }.map { it.name.lowercase() }.toHashSet()
+        if (wanted.lowercase() !in used) return wanted
+        var n = 2
+        while ("$wanted ($n)".lowercase() in used) n++
+        return "$wanted ($n)"
+    }
+
+    private fun writePair(p: PairAnim) = atomic(File(dir, pairFile(p.id)), PairJson.toJson(p).toString())
+
     private fun newId(map: Map<String, Anim>): String {
         while (true) { val id = UUID.randomUUID().toString().replace("-", "").take(16); if (id !in map) return id }
     }
@@ -162,6 +267,10 @@ class AnimLibrary(private val dir: File) {
 
     companion object {
         const val INDEX = "index.json"
+        /** Partner animations' files: pair_<id>.json. */
+        const val PAIR_PREFIX = "pair_"
+        private fun pairFile(id: String) = "$PAIR_PREFIX$id.json"
+        private fun isAnimFile(f: File) = f.isFile && f.name.endsWith(".json") && f.name != INDEX && !f.name.startsWith(PAIR_PREFIX)
         const val DEFAULT_CATEGORY = "Imported"
         private val ID = Regex("[A-Za-z0-9_-]{1,64}")
         private val states = HashMap<String, State>()

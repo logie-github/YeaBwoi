@@ -33,6 +33,10 @@ import com.logie.wifecraft.ui.SceneAnimationScreen
 import com.logie.wifecraft.audio.Audio
 import com.logie.wifecraft.audio.SceneAudio
 import com.logie.wifecraft.audio.SoundVolumes
+import com.logie.wifecraft.simulation.PartnerFrequency
+import com.logie.wifecraft.simulation.PartnerPair
+import com.logie.wifecraft.simulation.PartnerSoundSink
+import com.logie.wifecraft.ui.PartnerSoundsSection
 import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.Catalog
 import com.logie.wifecraft.creator.CreatorModel
@@ -146,6 +150,7 @@ class MainActivity : ComponentActivity() {
         propLoader = PropLoader(files, lifecycleScope)
         sceneAudio = runCatching { SceneAudio(applicationContext, files, tables) }.getOrNull()
         applySceneVolumes()
+        sceneAudio?.apply { partnerOn = settings.partnerSoundsOn; partnerVolume = settings.partnerSoundVolume / 100f }
         setContent { App() }
     }
 
@@ -154,6 +159,7 @@ class MainActivity : ComponentActivity() {
         scene?.onPause()
         audio?.pause()
         sceneAudio?.pause()
+        sceneAudio?.stopAll()
     }
 
     override fun onResume() {
@@ -259,12 +265,24 @@ class MainActivity : ComponentActivity() {
         var location by remember { mutableStateOf<String?>(null) }
         var cast by remember { mutableStateOf(emptySet<String>()) }
         var availableClips by remember { mutableStateOf(emptyList<Anim>()) }
+        // the library's enabled partner animations, read again whenever the setup or the animation screens open (as the single clips are)
+        var pairs by remember { mutableStateOf(emptyList<PartnerPair>()) }
+        var partnerFrequency by remember { mutableStateOf(PartnerFrequency.of(settings.partnerFrequency)) }
+        var partnerOn by remember { mutableStateOf(settings.partnerSoundsOn) }
+        var partnerVolume by remember { mutableIntStateOf(settings.partnerSoundVolume) }
+        val partnerSink = remember {
+            object : PartnerSoundSink {
+                override fun play(name: String, actorKey: String?, loop: Boolean) { sceneAudio?.partnerSound(name, actorKey, loop, 1f) }
+                override fun stopAll() { sceneAudio?.stopAll() }
+            }
+        }
         var bindings by remember {
             mutableStateOf(Activity.entries.mapNotNull { a -> animationBindings.getString(a.name, null)?.let { a to it } }.toMap())
         }
         LaunchedEffect(screen) {
             if (screen == Screen.ANIMATIONS || screen == Screen.SETUP) {
                 availableClips = withContext(Dispatchers.IO) { animationLibrary.list() }
+                pairs = withContext(Dispatchers.IO) { runCatching { PartnerPair.enabled(animationLibrary.pairs()) }.getOrDefault(emptyList()) }
             }
         }
         var objects by remember { mutableStateOf(SceneObject.entries.toSet()) }
@@ -358,6 +376,9 @@ class MainActivity : ComponentActivity() {
                             onToggleObject = { item -> objects = if (item in objects) objects - item else objects + item },
                             onCreate = { screen = Screen.CREATOR },
                             onAnimations = { screen = Screen.ANIMATIONS },
+                            partner = partnerFrequency,
+                            onPartner = { partnerFrequency = it; settings.partnerFrequency = it.name },
+                            partnerPairs = pairs.size,
                             onBack = {
                                 when (step) {
                                     SetupStep.LOCATION -> screen = Screen.TITLE
@@ -622,6 +643,10 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             durations = durations,
+                            pairs = pairs,
+                            partner = partnerFrequency,
+                            fetchAnim = { key, anim -> dresser.fetchAnim(key, anim) },
+                            partnerSounds = partnerSink,
                             onEnd = { screen = Screen.TITLE },
                             ready = locationResult == true && loadedActors == chosen.size,
                             status = liveStatus,
@@ -676,6 +701,14 @@ class MainActivity : ComponentActivity() {
                         onPause = { downloadJob?.cancel() },
                         onClose = { panel = Panel.NONE },
                         mods = { ImportsSection(imports, listfile) },
+                        sound = {
+                            sceneAudio?.let { sa ->
+                                PartnerSoundsSection(sa.partner, partnerOn,
+                                    onOn = { partnerOn = it; settings.partnerSoundsOn = it; sa.partnerOn = it; if (!it) sa.stopAll() },
+                                    volume = partnerVolume,
+                                    onVolume = { partnerVolume = it; settings.partnerSoundVolume = it; sa.partnerVolume = it / 100f })
+                            }
+                        },
                     ) }
                 }
                 // always composed: it fades out when closed (MenuMotionUi)

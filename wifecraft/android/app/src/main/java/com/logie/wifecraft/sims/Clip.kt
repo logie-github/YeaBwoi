@@ -41,8 +41,9 @@ class SimsClip(
 
 /** The CLIP header's initial offset: a rotation (x,y,z,w) and a translation (x,y,z), in Sims axes (y up, metres). */
 class ClipOffset(val rotation: FloatArray, val translation: FloatArray) {
+    /** No offset, to float rounding (the sample's clips store w = 0.99999994). */
     val isIdentity: Boolean get() =
-        translation.all { it == 0f } && rotation[0] == 0f && rotation[1] == 0f && rotation[2] == 0f && (rotation[3] == 1f || rotation[3] == -1f)
+        translation.all { kotlin.math.abs(it) < 1e-6f } && (0 until 3).all { kotlin.math.abs(rotation[it]) < 1e-5f } && kotlin.math.abs(kotlin.math.abs(rotation[3]) - 1f) < 1e-5f
 
     override fun toString() = "ClipOffset(q=${rotation.toList()}, t=${translation.toList()})"
 

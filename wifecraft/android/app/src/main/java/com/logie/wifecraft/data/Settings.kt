@@ -36,6 +36,10 @@ class Settings(context: Context) {
     var partnerSoundVolume: Int
         get() = prefs.getInt("partnerSoundVolume", 85).coerceIn(0, 100)
         set(v) = prefs.edit().putInt("partnerSoundVolume", v.coerceIn(0, 100)).apply()
+    /** How often idle NPCs go to a partner animation: a PartnerFrequency name (read back with PartnerFrequency.of; Sometimes by default). */
+    var partnerFrequency: String
+        get() = prefs.getString("partnerFrequency", "SOMETIMES") ?: "SOMETIMES"
+        set(v) = prefs.edit().putString("partnerFrequency", v).apply()
     /** Files fetched at once by the first launch's gathering: Gentle 24, Normal 48, Fast 96 (the ceiling; it backs off by itself). */
     var downloadSpeed: Int
         get() = prefs.getInt("downloadSpeed", FAST).let { if (it in CHOICES) it else FAST }

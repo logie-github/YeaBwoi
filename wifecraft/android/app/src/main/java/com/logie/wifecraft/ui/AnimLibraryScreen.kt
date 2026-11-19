@@ -20,10 +20,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.anim.AnimLibrary
+import com.logie.wifecraft.anim.PairAnim
+import androidx.compose.foundation.layout.Row
 
 /**
- * The animation library: search, filter by category, rename, move to another category, delete. Not here: playing an
- * animation on a person (that needs a dressed actor on a stage); the scene builder's Pose beat has Preview for it.
+ * The animation library: search, filter by category, rename, move to another category, delete. Two tabs: single
+ * animations, and Partner animations (two actors together), which can also be turned off for scenes. Not here: playing
+ * an animation on a person (that needs a dressed actor on a stage); the scene builder's Pose beat has Preview for it.
  */
 @Composable
 fun AnimLibraryScreen(library: AnimLibrary, onImport: () -> Unit, onBack: () -> Unit) {
@@ -34,18 +37,30 @@ fun AnimLibraryScreen(library: AnimLibrary, onImport: () -> Unit, onBack: () -> 
     var moving by remember { mutableStateOf<Anim?>(null) }
     var newCategoryFor by remember { mutableStateOf<Anim?>(null) }
     var deleting by remember { mutableStateOf<Anim?>(null) }
+    var partner by remember { mutableStateOf(false) }
+    var renamingPair by remember { mutableStateOf<PairAnim?>(null) }
+    var movingPair by remember { mutableStateOf<PairAnim?>(null) }
+    var newPairCategoryFor by remember { mutableStateOf<PairAnim?>(null) }
+    var deletingPair by remember { mutableStateOf<PairAnim?>(null) }
     @Suppress("UNUSED_EXPRESSION") rev
 
     // read and sorted once per change of the library, not on every letter typed in the search
     val all = remember(rev) { library.list() }
+    val allPairs = remember(rev) { library.pairs() }
+    val pairCats = remember(allPairs) { PairBrowse.categories(allPairs) }
     val cats = remember(all) { AnimBrowse.categories(all) }
-    if (category != null && cats.none { it.first.equals(category, true) }) category = null
+    if (category != null && (if (partner) pairCats else cats).none { it.first.equals(category, true) }) category = null
     val shown = remember(all, query, category) { AnimBrowse.filter(all, query, category) }
+    val shownPairs = remember(allPairs, query, category) { PairBrowse.filter(allPairs, query, category) }
 
     // Back closes an open dialog first (the screen stays), and only then leaves
     BackHandler {
         when {
             deleting != null -> deleting = null
+            deletingPair != null -> deletingPair = null
+            newPairCategoryFor != null -> newPairCategoryFor = null
+            movingPair != null -> movingPair = null
+            renamingPair != null -> renamingPair = null
             newCategoryFor != null -> newCategoryFor = null
             moving != null -> moving = null
             renaming != null -> renaming = null
@@ -54,7 +69,39 @@ fun AnimLibraryScreen(library: AnimLibrary, onImport: () -> Unit, onBack: () -> 
     }
     EditorFrame("Animations", onBack, actions = { SmallButton("Import", onImport, width = 110.dp) }) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (all.isEmpty()) {
+            // the two tabs: single animations, and partner animations (shown once there is one)
+            if (allPairs.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                EditorCard(onClick = { if (partner) { partner = false; category = null } }, modifier = Modifier.weight(1f), selected = !partner) {
+                    Text("Single (${all.size})", style = frizStyle(15.sp), maxLines = 1)
+                }
+                EditorCard(onClick = { if (!partner) { partner = true; category = null } }, modifier = Modifier.weight(1f), selected = partner) {
+                    Text("${AnimText.PARTNER} (${allPairs.size})", style = frizStyle(15.sp), maxLines = 1)
+                }
+            }
+            if (partner && allPairs.isNotEmpty()) {
+                EditorField(query, { query = it.take(60) }, "Search by name, category or file")
+                PickRow(
+                    "Category", listOf("" to "All (${allPairs.size})") + pairCats.map { it.first to "${it.first} (${it.second})" },
+                    category ?: "", { category = it.ifEmpty { null } },
+                )
+                if (shownPairs.isEmpty()) Text("Nothing matches.", style = frizStyle(14.sp, WowColors.grey), modifier = Modifier.padding(8.dp))
+                LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(shownPairs, key = { "pair_" + it.id }, contentType = { "pair" }) { p ->
+                        EditorCard(onClick = null, modifier = Modifier.animateItem()) {
+                            Column(Modifier.weight(1f)) {
+                                Text(p.name, style = frizStyle(16.sp, if (p.enabled) WowColors.gold else WowColors.grey), maxLines = 1)
+                                Text(p.category + " · " + PairBrowse.describe(p), style = frizStyle(12.sp, WowColors.grey, false), maxLines = 1)
+                                WowCheckRow("Use in scenes", p.enabled, { on -> library.setPairEnabled(p.id, on); rev++ })
+                            }
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                SmallButton("Rename", { renamingPair = p }, width = 92.dp)
+                                SmallButton("Category", { movingPair = p }, width = 92.dp)
+                                SmallButton("Delete", { deletingPair = p }, width = 92.dp)
+                            }
+                        }
+                    }
+                }
+            } else if (all.isEmpty()) {
                 Text("No animations yet. Import some from the title screen (Import Animations).", style = frizStyle(15.sp, WowColors.grey), modifier = Modifier.padding(8.dp))
             } else {
                 EditorField(query, { query = it.take(60) }, "Search by name, category or file")
@@ -108,6 +155,38 @@ fun AnimLibraryScreen(library: AnimLibrary, onImport: () -> Unit, onBack: () -> 
                 library.setCategory(a.id, AnimText.category(n)); rev++
             }
         }
+    }
+    rememberHeld(renamingPair)?.let { p ->
+        key("pair" + p.id) {
+            NameDialog("Rename", p.name, "Rename", { renamingPair = null }, visible = renamingPair != null) { n ->
+                if (renamingPair == null) return@NameDialog
+                renamingPair = null
+                val name = AnimText.tidy(n, AnimText.MAX_NAME)
+                if (name.isNotEmpty()) { library.renamePair(p.id, name); rev++ }
+            }
+        }
+    }
+    rememberHeld(movingPair)?.let { p ->
+        val choices = remember(p, rev) { (library.pairCategories() + AnimText.PARTNER).distinctBy { it.lowercase() }.sortedBy { it.lowercase() }.map { it to it } + ("\u0000new" to "New category…") }
+        PickDialog("Category of ${p.name}", choices, p.category, { movingPair = null }, visible = movingPair != null) { c ->
+            if (movingPair == null) return@PickDialog
+            movingPair = null
+            if (c == "\u0000new") newPairCategoryFor = p else { library.setPairCategory(p.id, c); rev++ }
+        }
+    }
+    rememberHeld(newPairCategoryFor)?.let { p ->
+        key("pair" + p.id) {
+            NameDialog("New category", "", "Use", { newPairCategoryFor = null }, visible = newPairCategoryFor != null) { n ->
+                if (newPairCategoryFor == null) return@NameDialog
+                newPairCategoryFor = null
+                library.setPairCategory(p.id, PairDraft.pairCategory(n)); rev++
+            }
+        }
+    }
+    rememberHeld(deletingPair)?.let { p ->
+        ConfirmDialog("Delete the partner animation \"${p.name}\" for good?", "Delete", { deletingPair = null }, visible = deletingPair != null, onOk = {
+            if (deletingPair != null) { deletingPair = null; library.deletePair(p.id); rev++ }
+        })
     }
     rememberHeld(deleting)?.let { a ->
         ConfirmDialog("Delete \"${a.name}\" for good? A story that uses it will say it is missing.", "Delete", { deleting = null }, visible = deleting != null, onOk = {

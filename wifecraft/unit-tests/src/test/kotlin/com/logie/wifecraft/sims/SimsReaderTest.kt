@@ -285,6 +285,23 @@ class SimsReaderTest {
         assertTrue(worst < 1e-3f, "a quaternion is not unit length: $worst")
         val known = listOf("b__ROOT_bind__", "b__Pelvis__", "b__Spine0__", "b__Head__", "b__L_Thigh__", "b__R_Hand__")
         for (n in known) assertTrue((SimsHash.fnv32(n).toLong() and 0xFFFFFFFFL) in hashes, "$n not found in the pack")
+        // The header (W44): every pose is actor "x"; Sims 4 Studio's two default events: the sound at 1000 s is past the
+        // clip's end and left out, the lip-sync/censor event (type 19) at 0 s kept; the tuning is a pose list (no pairs),
+        // and the poses are singles, none offered for pairing.
+        for (c in clips) {
+            assertEquals("x", c.actorName, c.name)
+            assertTrue(c.initialOffset.isIdentity, c.name)
+            assertEquals(1, c.eventsPastEnd, c.name)
+            assertEquals(listOf(19), c.events.map { it.type }, c.name)
+            assertTrue(c.events.none { it.isSound }, c.name)
+            assertEquals(6, c.slots.size, c.name)
+            println("  ${c.name}: actor ${c.actorName}, events ${c.events}, ${c.eventsPastEnd} past the end, tick ${c.tickLength}")
+        }
+        assertTrue(AnimTuning.pairs(pkg).isEmpty())
+        val pairing = com.logie.wifecraft.anim.Pairing.find(clips, AnimTuning.pairs(pkg))
+        assertTrue(pairing.pairs.isEmpty())
+        assertTrue(pairing.candidates.isEmpty())
+        assertEquals(15, pairing.singles.size)
         // The poses differ: no two clips have the same rotations.
         val sigs = clips.map { c -> c.tracks.filter { it.channel == Channel.ROTATION }.sortedBy { it.boneHash }.flatMap { it.values.toList() } }
         assertEquals(clips.size, sigs.map { s -> s.map { (it * 1000).toInt() } }.toSet().size)

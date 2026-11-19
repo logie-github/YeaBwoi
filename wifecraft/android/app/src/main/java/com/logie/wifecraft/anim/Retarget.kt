@@ -1,9 +1,14 @@
 package com.logie.wifecraft.anim
 
+import com.logie.wifecraft.sims.ActorSlot
 import com.logie.wifecraft.sims.Channel
+import com.logie.wifecraft.sims.PairDefinition
 import com.logie.wifecraft.sims.SimsClip
 import com.logie.wifecraft.sims.SimsRig
 import java.util.IdentityHashMap
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
@@ -98,6 +103,115 @@ class Retargeter(private val profile: Profile, private val rig: SimsRig?) : Reta
 
     override fun convert(clip: SimsClip): Anim {
         val p = prep ?: throw IllegalStateException(NEEDS_RIG)
+        return convertWith(p, clip, p.scale)
+    }
+
+    override fun convertPair(a: SimsClip, b: SimsClip, def: PairDefinition?): PairAnim = convertPair(a, b, def, null)
+
+    /**
+     * Two clips made around one shared origin, as a [PairAnim]. Each actor's start (its root's first key: where its
+     * pelvis stands from the origin, horizontally, and which way it faces) is taken out of its Root track into its
+     * [PairOffset]; the tuning's per-actor offset and angle ([def], Sims axes and metres: an assumption) and the
+     * clip header's initial offset are added on top. Both actors' horizontal movement and offsets use ONE scale,
+     * the mean of the two skeletons' (rootHeight over the Sims root bind height), so they stay where the clips put
+     * them even when the two Sims skeletons differ ([rigB], for actor B; null: the same as A's); vertical movement
+     * keeps each skeleton's own. Clip lengths that differ by up to a frame are trimmed to the shorter; more is refused.
+     */
+    fun convertPair(a: SimsClip, b: SimsClip, def: PairDefinition?, rigB: SimsRig?): PairAnim {
+        val pa = prep ?: throw IllegalStateException(NEEDS_RIG)
+        val pb = rigB?.let { Prep(it) } ?: pa
+        val shared = (pa.scale + pb.scale) / 2
+        PairAssembly.checkLengths(a, b)
+        val slotA = def?.actors?.getOrNull(0)
+        val slotB = def?.actors?.getOrNull(1)
+        val (animA, offA) = place(pa, convertWith(pa, a, shared), a, slotA, shared)
+        val (animB, offB) = place(pb, convertWith(pb, b, shared), b, slotB, shared)
+        return PairAssembly.assemble(a, b, animA, animB, def, offA, offB)
+    }
+
+    /**
+     * Takes the actor's start out of its root's tracks: the first key's horizontal position and its turn about up
+     * (from the bind) become the offset; every key of the root is then relative to that start. Then the clip's
+     * initial offset and the tuning's [slot] offset are put in front (outermost: the tuning's).
+     */
+    private fun place(p: Prep, anim: Anim, clip: SimsClip, slot: ActorSlot?, shared: Double): Pair<Anim, PairOffset> {
+        val root = p.mapped.firstOrNull { it.rule.position && it.parent == null }
+        var start = Placement(0.0, 0.0, 0.0, 0.0)
+        var tracks = anim.tracks
+        if (root != null) {
+            val rt = anim.tracks.firstOrNull { it.bone == root.rule.wow && it.channel == Channel.ROTATION }
+            val pt = anim.tracks.firstOrNull { it.bone == root.rule.wow && it.channel == Channel.POSITION }
+            var twist = Q.ID
+            if (rt != null && rt.times.isNotEmpty() && root.rule.flip.isEmpty()) {
+                val r0 = DoubleArray(4) { rt.values[it].toDouble() }
+                val d0 = Q.mul(r0, Q.inv(root.q))   // the turn from the bind, without the rest-pose alignment
+                if (d0[2] * d0[2] + d0[3] * d0[3] > 1e-12) twist = Q.norm(doubleArrayOf(0.0, 0.0, d0[2], d0[3]))
+            }
+            val x0 = pt?.values?.getOrNull(0)?.toDouble() ?: 0.0
+            val y0 = pt?.values?.getOrNull(1)?.toDouble() ?: 0.0
+            val back = Q.inv(twist)
+            tracks = anim.tracks.map { t ->
+                when {
+                    t === rt -> {
+                        val v = t.values.copyOf()
+                        for (k in t.times.indices) {
+                            val r = Q.mul(back, DoubleArray(4) { t.values[k * 4 + it].toDouble() })
+                            for (c in 0 until 4) v[k * 4 + c] = r[c].toFloat()
+                        }
+                        BoneTrack(t.bone, t.channel, t.times, v)
+                    }
+                    t === pt -> {
+                        val v = t.values.copyOf()
+                        for (k in t.times.indices) {
+                            val d = doubleArrayOf(t.values[k * 3] - x0, t.values[k * 3 + 1] - y0, t.values[k * 3 + 2].toDouble())
+                            val r = Q.rotate(back, d)
+                            for (c in 0 until 3) v[k * 3 + c] = r[c].toFloat()
+                        }
+                        BoneTrack(t.bone, t.channel, t.times, v)
+                    }
+                    else -> t
+                }
+            }
+            start = Placement(x0, y0, 0.0, Math.toDegrees(2 * atan2(twist[2], twist[3])))
+        }
+        // the clip header's own offset (identity in every clip seen) and the tuning's, both in Sims axes and metres
+        val header = clip.initialOffset
+        val initial = if (header.isIdentity) Placement(0.0, 0.0, 0.0, 0.0) else simsPlacement(p, header.translation.map { it.toDouble() },
+            yawOf(p, header.rotation.map { it.toDouble() }.toDoubleArray()), shared)
+        val tuned = if (slot == null) Placement(0.0, 0.0, 0.0, 0.0) else simsPlacement(p, listOf(slot.x.toDouble(), slot.y.toDouble(), slot.z.toDouble()),
+            upSign(p) * slot.angle.toDouble(), shared)
+        val total = tuned.then(initial).then(start)
+        return anim.copy(tracks = tracks) to PairOffset(total.x.toFloat(), total.y.toFloat(), total.z.toFloat(), wrapDeg(total.yaw).toFloat())
+    }
+
+    /** A placement on the ground: position (WoW axes, scaled) and a turn about up in degrees. */
+    private class Placement(val x: Double, val y: Double, val z: Double, val yaw: Double) {
+        /** This placement, then [inner] inside it. */
+        fun then(inner: Placement): Placement {
+            val r = Math.toRadians(yaw)
+            return Placement(x + inner.x * cos(r) - inner.y * sin(r), y + inner.x * sin(r) + inner.y * cos(r), z + inner.z, yaw + inner.yaw)
+        }
+    }
+
+    private fun simsPlacement(p: Prep, t: List<Double>, yawDeg: Double, shared: Double): Placement {
+        val w = V.mat(p.axis, t.toDoubleArray())
+        return Placement(w[0] * shared, w[1] * shared, w[2] * p.scale, yawDeg)
+    }
+
+    /** +1 when the Sims up axis (y) is WoW's up (z), -1 when the profile turns it upside down. */
+    private fun upSign(p: Prep): Double = if (V.mat(p.axis, doubleArrayOf(0.0, 1.0, 0.0))[2] < 0) -1.0 else 1.0
+
+    /** A Sims-axes rotation's turn about up, in degrees (WoW's sense). */
+    private fun yawOf(p: Prep, q: DoubleArray): Double {
+        val n = Q.norm(q)
+        val w = V.mat(p.axis, n)
+        val t = Q.norm(doubleArrayOf(0.0, 0.0, w[2], n[3]))
+        return Math.toDegrees(2 * atan2(t[2], t[3]))
+    }
+
+    private fun wrapDeg(d: Double): Double { var a = d % 360.0; if (a > 180) a -= 360.0; if (a <= -180) a += 360.0; return a }
+
+    private fun convertWith(p: Prep, clip: SimsClip, hScale: Double): Anim {
         if (p.mapped.isEmpty()) throw IllegalStateException("This Sims skeleton has none of the bones the profile maps (is it a pet's skeleton?); pick the game's own adult skeleton")
         // tracks per rig bone
         val rot = HashMap<Int, com.logie.wifecraft.sims.SimsTrack>()
@@ -164,7 +278,9 @@ class Retargeter(private val profile: Profile, private val rig: SimsRig?) : Reta
                 val o = outRot.getValue(m)
                 for (c in 0 until 4) o[k * 4 + c] = r[c].toFloat()
                 if (m.rule.position) {
-                    val disp = V.scale(V.mat(p.axis, V.sub(w[m.index], p.bindPos[m.index])), p.scale)
+                    // horizontal by [hScale] (a pair's shared one), vertical by this skeleton's own
+                    val raw = V.mat(p.axis, V.sub(w[m.index], p.bindPos[m.index]))
+                    val disp = doubleArrayOf(raw[0] * hScale, raw[1] * hScale, raw[2] * p.scale)
                     val local = Q.rotate(Q.inv(parentE), disp)
                     val op = outPos.getValue(m)
                     for (c in 0 until 3) op[k * 3 + c] = local[c].toFloat()
