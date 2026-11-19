@@ -1,9 +1,7 @@
 name: Build Wifecraft
 
-# Builds Wifecraft (a story editor, a visual novel and scene builder: a character creator laid out as
-# Wrath++'s, its own OpenGL ES renderer for the game's models and Dalaran's stages, a story player
-# and WoW's own interface) and publishes it as its own release
-# (wifecraft-N). The game's files aren't in the build: the app fetches them from wago.tools.
+# Builds and publishes the signed Android APK (wifecraft-N).
+# Warcraft models and location files are fetched by the app from wago.tools.
 on:
   push:
     branches: ["**"]
@@ -128,9 +126,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          notes="$APP_NAME, a story editor with WoW's characters, for Android, built from commit ${GITHUB_SHA::7}.
+          notes="$APP_NAME for Android, built from commit ${GITHUB_SHA::7}.
 
-          Download **$APK_FILE** below on your phone and open it to install. On first launch it downloads WoW's interface, the game's tables (about 27 MB) and Dalaran from wago.tools, then, in the background, every file the character creator can draw (about 6 GB; Download speed and Wi-Fi only are in Options). An editor location (the Stormwind Embassy, 30.5 MB) and an emote's animation file are fetched when first used, and the 37 MB sound table streams once."
+          Choose a preset scene, select or create NPCs, and pick the interactable furniture. NPCs act on their own until you select one and give them a command. You can import Sims 4 rigs and clips and assign retargeted animations to NPC actions in scene setup.
+
+          Download **$APK_FILE** and open it on your phone to install. Warcraft models and the Stormwind Embassy location use the app's existing wago.tools downloads."
           gh release create "$RELEASE_TAG" "dist/$APK_FILE" \
             --target "$GITHUB_SHA" \
             --title "$APP_NAME $WC_VERSION_NAME" \

@@ -29,6 +29,10 @@ class PropLoader(private val files: GameFiles, private val scope: CoroutineScope
     private val jobs = HashMap<String, Job>()
     @Volatile private var lastFailure: String? = null
 
+    fun cancel(key: String) {
+        jobs.remove(key)?.cancel()
+    }
+
     /** Places [model] (a file id) as the prop [key] at x, y, z turned [yaw] radians about z at [scale], once its files are here. */
     fun place(scene: SceneView, key: String, model: Int, x: Float, y: Float, z: Float, yaw: Float = 0f, scale: Float = 1f) {
         jobs.remove(key)?.cancel()

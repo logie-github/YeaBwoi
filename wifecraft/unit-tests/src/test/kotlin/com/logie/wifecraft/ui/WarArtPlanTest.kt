@@ -35,7 +35,7 @@ class WarArtPlanTest {
 
     @Test fun everyPictureTheKitNamesIsInTheJson() {
         val src = kitSources()
-        assertTrue(src.keys.containsAll(listOf("WarWidgets.kt", "WarKit.kt", "EditorPlacement.kt", "PlaceLibrarySheet.kt", "EditorHome.kt", "WowMenus.kt", "MenuModel.kt")), "${src.keys}")
+        assertTrue(src.keys.containsAll(listOf("WarWidgets.kt", "WarKit.kt", "EditorHome.kt", "WowMenus.kt", "MenuModel.kt")), "${src.keys}")
         val missing = ArrayList<String>()
         for ((f, s) in src) {
             for (m in iconKey.findAll(s)) if (m.groupValues[1] !in icons) missing += "$f: icon ${m.groupValues[1]}"
@@ -63,7 +63,7 @@ class WarArtPlanTest {
         // not a failure: the pieces fetched with a sheet the kit needs anyway, kept for what comes next
         val text = kitSources().filterKeys { it != "WarArtPlan.kt" }.values.joinToString("\n")   // the glyph table names them all
         val unusedIcons = icons.filter { "\"$it\"" !in text && !(it.startsWith("cat.") && it in WarIcons.CATEGORIES) }.sorted()
-        assertEquals(listOf("tool.lock"), unusedIcons)
+        assertEquals(listOf("menu.cast", "menu.location", "menu.project", "menu.studio", "tool.lock"), unusedIcons)
     }
 
     @Test fun everyPictureHasAGlyph() {

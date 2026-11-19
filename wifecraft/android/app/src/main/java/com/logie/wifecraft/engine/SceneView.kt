@@ -187,6 +187,14 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
 
     override fun showCity(shown: Boolean) = post { h, _ -> Native.showCity(h, shown) }
 
+    private val requestedAnimations = HashMap<String, Int>()
+
+    fun animateActor(key: String, animation: Int) = post { h, ids ->
+        if (requestedAnimations.put(key, animation) != animation) {
+            ids[key]?.let { Native.anim(h, it, animation, true, Clock.now()) }
+        }
+    }
+
     /**
      * Puts a look on the actor [key] (creator/Dressing's call; its files fetched first, engine/Dresser): the same model is
      * dressed in place ([Native.dress]: its place, facing and animation stay), another model is a new actor. Files the
@@ -210,13 +218,14 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
             sizes[key]?.let { if (it != 1f) Native.setActorScale(h, added, call.scale * it) }
             id = added
             poses[key]?.let { applyPose(h, added, it) }
+            requestedAnimations[key]?.let { Native.anim(h, added, it, true, Clock.now()) }
         }
         Native.character(h, id, character)
         Native.dress(h, id, call.geosetKeys, call.geosetValues, call.layerFiles, call.layerMeta, call.tintColours, call.extraModels)
         Native.body(h, id, body.morph, body.k, body.fold)
     }
 
-    override fun removeActor(key: String) = post { h, ids -> ids.remove(key)?.let { Native.removeActor(h, it) }; bodies.remove(key); sizes.remove(key) }
+    override fun removeActor(key: String) = post { h, ids -> ids.remove(key)?.let { Native.removeActor(h, it) }; bodies.remove(key); sizes.remove(key); requestedAnimations.remove(key) }
 
     /**
      * Sizes the actor [key] at [factor] times its look's own scale (the placement editor's Size on a person or creature);
@@ -235,6 +244,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         bodies.clear()
         sizes.clear()
         poses.clear()
+        requestedAnimations.clear()
     }
 
     /**

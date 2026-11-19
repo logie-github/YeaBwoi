@@ -23,6 +23,7 @@
 
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -75,6 +76,10 @@ struct LocationDesc {
     Quat rotation;
     float scale = 1;
     std::vector<LocationPlacement> doodads;
+    struct Room {
+        V3 size, floorColor, wallColor, trimColor;
+    };
+    std::optional<Room> room;
     // the map's ground under it, and where the location's coordinates are in the map's
     uint32_t terrainRoot = 0, terrainTex0 = 0;
     std::vector<std::pair<int, int>> terrainChunks;   // [ix, iy] of the tile (empty: all within reach of the views)

@@ -68,6 +68,7 @@ sourceSets {
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/anim")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/location")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/catalog")
+        kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/simulation")
     }
 }
 

@@ -52,6 +52,11 @@ class Dresser(
     /** Why the last file wasn't fetched, for the failure the screen shows. */
     @Volatile private var lastFailure: String? = null
 
+    fun cancel(key: String) {
+        jobs.remove(key)?.cancel()
+        bodies.remove(key)
+    }
+
     fun dress(scene: SceneView, catalog: Catalog, key: String, a: Appearance) {
         jobs.remove(key)?.cancel()
         bodies.remove(key)

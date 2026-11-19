@@ -3,6 +3,7 @@ package com.logie.wifecraft.engine
 import android.content.Context
 import com.logie.wifecraft.data.GameFiles
 import com.logie.wifecraft.location.LocationInfo
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -44,6 +45,13 @@ class LocationLoader(context: Context, private val files: GameFiles, private val
     private val _progress = MutableStateFlow(Progress())
     val progress: StateFlow<Progress> = _progress
     private var job: Job? = null
+    private var request = 0
+
+    fun cancel() {
+        request++
+        job?.cancel()
+        job = null
+    }
 
     /** Takes the last error off [progress] (the editor's Dismiss); the rest of it stays. Main thread. */
     fun clearError() { if (_progress.value.error != null) _progress.value = _progress.value.copy(error = null) }
@@ -58,7 +66,8 @@ class LocationLoader(context: Context, private val files: GameFiles, private val
      * light and fog. [onDone] (main thread): whether it is on the stage.
      */
     fun load(scene: SceneView, id: String, view: String = "", sound: Boolean = true, onDone: (Boolean) -> Unit = {}) {
-        job?.cancel()
+        cancel()
+        val loading = request
         val loc = location(id)
         if (loc == null) {
             _progress.value = Progress(id, error = "There is no location \"$id\".")
@@ -76,6 +85,7 @@ class LocationLoader(context: Context, private val files: GameFiles, private val
                     (if (failed.size > 5) ", ..." else "") + "): ${failed.first().second}"
             _progress.value = _progress.value.copy(error = error)
             scene.loadLocation(json, id, view) { ok, why ->
+                if (loading != request) return@loadLocation
                 _progress.value = _progress.value.copy(ready = ok, error = if (ok) error else "${loc.name} couldn't be drawn: $why")
                 onDone(ok)
             }
@@ -94,6 +104,8 @@ class LocationLoader(context: Context, private val files: GameFiles, private val
                     gate.withPermit {
                         try {
                             files.fetchNow(fid)
+                        } catch (e: CancellationException) {
+                            throw e
                         } catch (e: Exception) {
                             failed += fid to (e.message ?: e.toString())
                         }

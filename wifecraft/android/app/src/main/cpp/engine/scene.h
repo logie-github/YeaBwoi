@@ -359,6 +359,7 @@ private:
         float intAmbient[3] = {0, 0, 0};
         size_t groupsMissing = 0, doodadsMissing = 0;
     };
+    void buildRoom(const LocationDesc::Room& room, PlacedWmo& out);
     struct EditorProp {
         uint32_t fileId = 0;
         V3 pos;
