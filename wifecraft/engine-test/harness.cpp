@@ -17,6 +17,7 @@
 //   bonestop N                                 takes it off (Scene::clearBoneAnim)
 //   soft off|subtle|natural|strong             Options' Soft body (Scene::setSoftBody; the scene's default: natural)
 //   render OUT.ppm|OUT.png WIDTH HEIGHT TIME_MS
+//   bonepos N MODEL BONE...                   prints where those bones' pivots are as person N was last drawn (WoW-side names)
 //   location JSONFILE [ID [VIEW]]              a location (Scene::loadLocation; ID chooses the entry, VIEW its light/fog)
 //   view NAME                                  the loaded location's view: its light and fog, and its camera
 //   prop N MODEL X Y Z YAW SCALE               an editor prop (Scene::addProp: an M2 or a WMO by file id)
@@ -84,6 +85,7 @@
 #include <iterator>
 #include <fstream>
 #include <map>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <sys/stat.h>
@@ -507,11 +509,12 @@ int main(int argc, char** argv) {
     std::fprintf(stderr, "GL: %s / %s\n", glGetString(GL_RENDERER), glGetString(GL_VERSION));
 
     std::string dir;
-    Scene scene([&](uint32_t id) {
+    FileLookup lookup = [&](uint32_t id) {
         std::string p = dir + "/" + std::to_string(id);
         struct stat st;
         return stat(p.c_str(), &st) == 0 ? p : std::string();
-    });
+    };
+    Scene scene(lookup);
     scene.initGl();
     std::map<int, int> actors, props;
     Light light;
@@ -868,6 +871,24 @@ int main(int argc, char** argv) {
             Scene::CameraInfo c = scene.cameraInfo();
             std::fprintf(stderr, "camera eye %.2f %.2f %.2f target %.2f %.2f %.2f up %.2f %.2f %.2f fov %.1f aspect %.3f\n",
                          c.eye.x, c.eye.y, c.eye.z, c.target.x, c.target.y, c.target.z, c.up.x, c.up.y, c.up.z, c.fovY, c.aspect);
+        } else if (cmd == "bonepos") {
+            // bonepos N MODEL BONE...: where each WoW-side bone's pivot is as person N was last drawn (model space)
+            int name; uint32_t model; ss >> name >> model;
+            static std::map<uint32_t, std::unique_ptr<M2Model>> models;
+            auto& mm = models[model];
+            if (!mm) { mm = std::make_unique<M2Model>(); if (!mm->load(model, lookup)) std::fprintf(stderr, "bonepos: %s\n", mm->error.c_str()); }
+            std::vector<M4> mats; int seq = -1; uint32_t at = 0;
+            std::string bone;
+            if (actors.count(name) && scene.actorPose(actors[name], mats, seq, at)) {
+                std::printf("bonepos %d seq %d t %u:", name, seq, at);
+                while (ss >> bone) {
+                    int b = mm->findWowBone(bone);
+                    if (b < 0 || size_t(b) >= mats.size()) { std::printf(" %s=?", bone.c_str()); continue; }
+                    V3 p = mats[size_t(b)].point(mm->bones[size_t(b)].pivot);
+                    std::printf(" %s=(%.3f,%.3f,%.3f)", bone.c_str(), p.x, p.y, p.z);
+                }
+                std::printf("\n");
+            }
         } else if (cmd == "render") {
             std::string out; int w, h; uint32_t t;
             ss >> out >> w >> h >> t;

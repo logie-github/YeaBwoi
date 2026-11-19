@@ -1,0 +1,136 @@
+package com.logie.wifecraft.ui
+
+import kotlin.math.ceil
+import kotlin.math.max
+import kotlin.math.min
+
+// Pure Kotlin, no android.* and no Compose (JVM-tested: unit-tests/.../ui/SceneHudTest): the live scene's HUD in the front
+// menus' look (SceneSessionScreen draws it). What the action bar offers for the controlled NPC and in which order, its
+// pages of six, the line of help, the clock, where the bars go on each of the Fold's screens, and the Play animation
+// window's category tabs.
+
+/** What an action-bar slot does. */
+enum class HudOrder { WALK, PLAY, PARTNER, SAY, CHAT, STOP_REPEAT, CLEAR_QUEUE, RELEASE, USE, FREE_WILL }
+
+/** One slot of the action bar: what it does, its words, [lit] while it is on (Walk), [target] the object it uses. */
+data class HudSlot(val order: HudOrder, val label: String, val lit: Boolean = false, val target: String? = null) {
+    /** Stable per slot (two objects' Use slots differ by their target). */
+    val key: String get() = if (target == null) order.name else "${order.name}:$target"
+}
+
+/**
+ * Where the HUD goes on a screen [w] x [h] dp: the cast as party frames down the left ([castSide]) or a strip under the top
+ * bar; the action bar's [cols] x [rows] slots, each [slotW] wide, [barH] high with its gaps (the same whether the slots are
+ * all there or not: the line above it never moves).
+ */
+data class HudLayout(
+    val castSide: Boolean,
+    val castW: Float,
+    val castH: Float,
+    val cols: Int,
+    val rows: Int,
+    val slotW: Float,
+    val barW: Float,
+    val barH: Float,
+)
+
+object SceneHud {
+    /** Slots shown at once (one page of the bar). */
+    const val SLOTS = 6
+    const val SLOT_H = 48f
+    const val GAP = 8f
+    const val MARGIN = 8f
+    /** The page arrows' column at the bar's end (kept even with one page: the bar never shifts). */
+    const val PAGER_W = 48f
+    const val TOP_H = 56f
+    /** The narrowest slot for six in a row; narrower screens get two rows of three. */
+    const val SLOT_MIN = 104f
+    const val SLOT_MAX = 140f
+
+    fun layout(w: Float, h: Float): HudLayout {
+        val castSide = w >= 600f
+        val room = max(0f, w - 2 * MARGIN - PAGER_W - GAP)
+        val cols = if (room >= SLOTS * SLOT_MIN + (SLOTS - 1) * GAP) SLOTS else SLOTS / 2
+        val rows = SLOTS / cols
+        val slotW = min(SLOT_MAX, max(0f, (room - (cols - 1) * GAP) / cols))
+        val barW = cols * slotW + (cols - 1) * GAP + GAP + PAGER_W
+        val barH = rows * SLOT_H + (rows - 1) * GAP
+        return HudLayout(castSide, if (castSide) 188f else 156f, if (castSide) 56f else 56f, cols, rows, slotW, barW, barH)
+    }
+
+    /**
+     * The controlled NPC's orders, most used first: Walk (tap the floor), Play animation, Partner animation (with a
+     * partner), Say, Chat with (with someone else in the scene), Stop repeat and Clear queue (while there is one), Release,
+     * then the scene's objects ([uses]: target to words) and Free will.
+     */
+    fun orders(
+        walking: Boolean,
+        partner: Boolean,
+        others: Int,
+        repeating: Boolean,
+        queued: Int,
+        uses: List<Pair<String, String>> = emptyList(),
+    ): List<HudSlot> = buildList {
+        add(HudSlot(HudOrder.WALK, "Walk", lit = walking))
+        add(HudSlot(HudOrder.PLAY, "Play animation"))
+        if (partner) add(HudSlot(HudOrder.PARTNER, "Partner animation"))
+        add(HudSlot(HudOrder.SAY, "Say…"))
+        if (others > 0) add(HudSlot(HudOrder.CHAT, "Chat with…"))
+        if (repeating) add(HudSlot(HudOrder.STOP_REPEAT, "Stop repeat"))
+        if (queued > 0) add(HudSlot(HudOrder.CLEAR_QUEUE, "Clear queue ($queued)"))
+        add(HudSlot(HudOrder.RELEASE, "Release"))
+        for ((target, words) in uses) add(HudSlot(HudOrder.USE, words, target = target))
+        add(HudSlot(HudOrder.FREE_WILL, "Free will"))
+    }
+
+    fun pages(slots: Int): Int = max(1, ceil(slots / SLOTS.toFloat()).toInt())
+
+    /** [page] kept within the pages there are (the bar shortened under it). */
+    fun clampPage(page: Int, slots: Int): Int = page.coerceIn(0, pages(slots) - 1)
+
+    /** The slots of [page] (at most [SLOTS]). */
+    fun page(slots: List<HudSlot>, page: Int): List<HudSlot> = slots.drop(clampPage(page, slots.size) * SLOTS).take(SLOTS)
+
+    /** The line over the bar: what a tap does now. */
+    fun hint(selected: Boolean, partner: Boolean, cast: Int, walking: Boolean): String = when {
+        !selected -> if (cast > 0) "Tap an NPC to direct them." else ""
+        walking && !partner && cast > 1 -> "Tap the floor to walk there, another NPC to make them the partner."
+        walking -> "Tap the floor to walk there."
+        !partner && cast > 1 -> "Tap another NPC to make them the partner."
+        else -> ""
+    }
+
+    /** The clock on the top bar, as the game's: "9:05 PM", or "21:05" on a 24-hour phone. */
+    fun clock(hour: Int, minute: Int, h24: Boolean): String {
+        val m = minute.coerceIn(0, 59).toString().padStart(2, '0')
+        val hr = hour.coerceIn(0, 23)
+        if (h24) return "${hr.toString().padStart(2, '0')}:$m"
+        val h12 = if (hr % 12 == 0) 12 else hr % 12
+        return "$h12:$m ${if (hr < 12) "AM" else "PM"}"
+    }
+
+    /** The two-person animations' own tab in the Play animation window. */
+    const val PARTNER_TAB = "Partner"
+    const val ALL_TAB = "All"
+
+    /**
+     * The Play animation window's tabs: All and every [groups] in order, and Partner (the two-person ones) when there are
+     * any; Partner first when the controlled NPC has a partner ([partnerFirst]), last otherwise. A group already named
+     * Partner is the Partner tab.
+     */
+    fun animationTabs(groups: List<String>, hasPairs: Boolean, partnerFirst: Boolean): List<String> {
+        val rest = groups.distinct().filterNot { it.equals(PARTNER_TAB, ignoreCase = true) || it.equals(ALL_TAB, ignoreCase = true) }
+        return when {
+            !hasPairs -> listOf(ALL_TAB) + rest
+            partnerFirst -> listOf(PARTNER_TAB, ALL_TAB) + rest
+            else -> listOf(ALL_TAB) + rest + PARTNER_TAB
+        }
+    }
+
+    /** Whether an animation of [group] for [people] NPCs belongs under [tab]. */
+    fun inTab(tab: String, group: String, people: Int): Boolean = when (tab) {
+        ALL_TAB -> true
+        PARTNER_TAB -> people == 2
+        else -> group == tab
+    }
+}

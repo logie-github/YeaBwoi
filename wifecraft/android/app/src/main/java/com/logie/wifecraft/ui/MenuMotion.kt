@@ -94,3 +94,36 @@ object ListKeys {
         }
     }
 }
+
+/**
+ * The front menus' (WifeTheme's) own motion: a press's glow and a hover's, the title's backdrop drifting slowly (a scale and a
+ * pan, as the game's login screen breathes), the motes rising over it. None of it moves under reduced motion.
+ */
+object FrontMotion {
+    const val GLOW_MS = 140
+    const val TAB_MS = MenuMotion.PAGE_MS
+    /** One slow breath of the backdrop, there and back. */
+    const val DRIFT_MS = 26_000
+    const val DRIFT_SCALE = 0.045f
+    const val DRIFT_PAN = 0.018f
+    const val MOTES = 18
+
+    /** The backdrop at [phase] 0..1 of a breath: its scale (1 to 1 + [DRIFT_SCALE]) and its pan (fractions of its size). */
+    fun drift(phase: Float, reduced: Boolean): Triple<Float, Float, Float> {
+        if (reduced) return Triple(1f, 0f, 0f)
+        val p = phase - kotlin.math.floor(phase)
+        val s = (1f - kotlin.math.cos(p * 2.0 * Math.PI).toFloat()) / 2f        // 0 -> 1 -> 0, smoothly
+        return Triple(1f + DRIFT_SCALE * s, DRIFT_PAN * (s - 0.5f) * 2f, -DRIFT_PAN * 0.5f * s)
+    }
+
+    /** Mote [i] of [MOTES] at [phase] 0..1: where it is (x, y as 0..1 of the screen) and how bright (0..1); stable per [i]. */
+    fun mote(i: Int, phase: Float): Triple<Float, Float, Float> {
+        val h = ((i * 2654435761L) and 0xFFFFFFFFL).toFloat() / 4294967296f        // 0..1, fixed per mote
+        val speed = 0.6f + h * 0.8f
+        val t = (phase * speed + h) % 1f
+        val x = ((h * 7.31f) % 1f) * 0.9f + 0.05f + 0.02f * kotlin.math.sin((t * 6.28f + i).toDouble()).toFloat()
+        val y = 1.05f - t * 1.1f
+        val a = kotlin.math.sin((t * Math.PI)).toFloat().coerceIn(0f, 1f) * (0.35f + 0.4f * h)
+        return Triple(x, y, a)
+    }
+}

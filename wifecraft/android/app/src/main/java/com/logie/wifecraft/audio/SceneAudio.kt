@@ -73,7 +73,20 @@ class SceneAudio(private val context: Context, private val files: GameFiles, pri
             override fun later(ms: Long, task: () -> Unit) { handler.postDelayed(task, ms) }
         },
         onError = { _error.value = it },
+        onVoices = { coreVoices = it; tellVoices() },
     )
+
+    /**
+     * Told on the main thread whenever the number of voices playing changes (the emotes' and the partner sounds'): the
+     * activity ducks the music under them (Audio.voices).
+     */
+    var onVoices: (Int) -> Unit = {}
+    private var coreVoices = 0
+    private var toldVoices = 0
+    private fun tellVoices() {
+        val n = coreVoices + partnerVoices.size
+        if (n != toldVoices) { toldVoices = n; onVoices(n) }
+    }
 
     /** Music, ambience, effects and voices, 0..1 each (the options' sliders; voices default to the sounds' level). */
     var volumes: SoundVolumes
@@ -126,7 +139,7 @@ class SceneAudio(private val context: Context, private val files: GameFiles, pri
         val loopKey = if (loop && actorKey != null) tag else null
         val box = arrayOfNulls<SoundVoice>(1)
         pool.execute {
-            val v = PlayerVoice.create(handler, file.path, loop, level, 0) { handler.post { partnerVoices.removeAll { it.second === box[0] } } }
+            val v = PlayerVoice.create(handler, file.path, loop, level, 0) { handler.post { partnerVoices.removeAll { it.second === box[0] }; tellVoices() } }
             box[0] = v
             handler.post {
                 when {
@@ -135,6 +148,7 @@ class SceneAudio(private val context: Context, private val files: GameFiles, pri
                     else -> {
                         if (loopKey != null) { partnerVoices.filter { it.first == loopKey }.forEach { it.second.stop(0) }; partnerVoices.removeAll { it.first == loopKey } }
                         partnerVoices.add(loopKey to v)
+                        tellVoices()
                     }
                 }
             }
@@ -147,6 +161,7 @@ class SceneAudio(private val context: Context, private val files: GameFiles, pri
         partnerGen++
         partnerVoices.forEach { it.second.stop(0) }
         partnerVoices.clear()
+        tellVoices()
     }
 
     fun release() {

@@ -30,13 +30,33 @@ AMBIENCE = {
     "night": 594369,      # sound/ambience/zoneambience/dalarancitynight.ogg
 }
 
-# The interface's sound kits (the game's SOUNDKIT constants).
+# The interface's sound kits (the game's SOUNDKIT constants: Blizzard_SharedXML/Mainline/SoundKitConstants.lua;
+# audio/Soundscape.kt's UiSounds keeps the same table). The game's buttons have no hover sound.
 UI = {
-    "click": 857,         # IG_MAINMENU_OPTION
-    "open": 850,          # IG_MAINMENU_OPEN (the game menu)
+    "open": 850,          # IG_MAINMENU_OPEN (a window)
     "close": 851,         # IG_MAINMENU_CLOSE
+    "click": 852,         # IG_MAINMENU_OPTION (857 is the checkbox-off kit)
+    "ok": 798,            # GS_TITLE_OPTION_OK
+    "check_on": 856,      # IG_MAINMENU_OPTION_CHECKBOX_ON
+    "check_off": 857,     # IG_MAINMENU_OPTION_CHECKBOX_OFF
+    "tab": 841,           # IG_CHARACTER_INFO_TAB
+    "page": 836,          # IG_ABILITY_PAGE_TURN (three files)
+    "select": 877,        # IG_QUEST_LIST_SELECT
+    "create": 813,        # GS_CHARACTER_SELECTION_CREATE_NEW
+    "begin": 809,         # GS_CHARACTER_SELECTION_ENTER_WORLD
     "gossip": 875,        # IG_QUEST_LIST_OPEN (a choice)
-    "ending": 12891,      # UI_ALERT_ACHIEVEMENT_GAINED
+    "ending": 12891,      # achievmentsound1.ogg (the achievement toast's)
+}
+
+# The title's music: MUS_110_MAIN_TITLE (The War Within's main title, mus_110_thewarwithin_maintitle.mp3).
+TITLE_KIT = 262929
+
+# The places' sound (assets/locations.json's ambience block, from the tables): the Embassy's room (WMOAreaTable 93968)
+# has ZoneMusic 1929 (Zone_735_AlliedRace_EmbassyAlliance: kit 97594), the area (9171) SoundAmbience 569: day kit
+# 17895, night kit 17896.
+PLACES = {
+    "embassy": {"area": 9171, "zoneMusic": 1929, "ambience": 569, "music_kit": 97594,
+                "day_kit": 17895, "night_kit": 17896, "silenceMs": [180000, 300000]},
 }
 
 # Each speaker's voice for the emotes that have one: (race, sex) in EmotesTextSound.
@@ -66,7 +86,13 @@ def main():
 
     out = {"music": MUSIC, "ambience": AMBIENCE, "ui": {}, "voices": {}, "effects": {}}
     for name, kit in UI.items():
-        out["ui"][name] = files(kit)[:1]
+        out["ui"][name] = files(kit)
+    out["title"] = {"kit": TITLE_KIT, "music": files(TITLE_KIT)}
+    out["places"] = {}
+    for pid, p in PLACES.items():
+        out["places"][pid] = {"area": p["area"], "zoneMusic": p["zoneMusic"], "ambience": p["ambience"],
+                              "music": files(p["music_kit"]), "ambienceDay": files(p["day_kit"]),
+                              "ambienceNight": files(p["night_kit"]), "silenceMs": p["silenceMs"]}
 
     emote_names = {int(r["ID"]): r["Name"].lower() for r in table(d, "EmotesText")}
     sounds = table(d, "EmotesTextSound")

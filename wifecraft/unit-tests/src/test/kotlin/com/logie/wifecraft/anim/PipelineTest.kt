@@ -30,7 +30,7 @@ class PipelineTest {
     private val fake = object : Retarget {
         override fun convert(clip: SimsClip): Anim {
             if (clip.name == "boom") throw IllegalStateException("no bones matched")
-            return Anim("", clip.name, "", clip.duration, false, listOf(BoneTrack("Hips", Channel.POSITION, floatArrayOf(0f), floatArrayOf(0f, 0f, 0f))), "", 0)
+            return Anim("", clip.name, "", clip.duration, false, listOf(BoneTrack("Root", Channel.POSITION, floatArrayOf(0f), floatArrayOf(0f, 0f, 0f))), "", 0)
         }
     }
 

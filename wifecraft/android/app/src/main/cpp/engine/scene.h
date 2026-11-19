@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "boneanim.h"
 #include "location.h"
 #include "m2.h"
 #include "skin.h"
@@ -37,21 +38,6 @@ struct DressModel {
 
 // The look's layer that is the body options' design (creator/LookResolver.BODY_LAYER), not a layer of the skin.
 constexpr int kBodyLayer = 100;
-
-// An imported animation on a person (anim/Anim, by WoW-side bone names): each track replaces one bone's local
-// rotation (x,y,z,w about its pivot, in its parent's frame: at rest every M2 bone's is the identity, so the model's
-// axes) or translation (model units, given for kAnimRootHeight and scaled to the model's own Root). Times in seconds.
-struct BoneAnimTrack {
-    std::string bone;
-    bool rotation = true;
-    std::vector<float> times;
-    std::vector<float> values;     // 4 per time (rotation) or 3 (position)
-};
-struct BoneAnim {
-    std::vector<BoneAnimTrack> tracks;
-    float duration = 0;            // seconds; 0 or one key: a held pose
-    bool loop = false;             // otherwise the last key holds
-};
 
 struct Light {
     float skyTop[3] = {0.25f, 0.38f, 0.66f};
@@ -316,6 +302,7 @@ private:
         // fadeMs from fadeStart.
         std::vector<BonePose> pa, pb;
         bool posed = false;            // pa holds a drawn pose (something to blend from)
+        std::vector<BonePose> pl;      // what a layer (M2Model::isLayer) is played over: the idle's pose this frame
         std::vector<M4> mats;
         // The imported animation (setBoneAnim): its tracks' bones (-1: none here), the bones held at rest under it.
         std::shared_ptr<BoneAnim> boneAnim;

@@ -430,9 +430,11 @@ V3 spline(int interpolation, V3 p0, V3 out0, V3 in1, V3 p1, float f) {
 
 // Keys by the track's interpolation: 0 none (a key holds until the next), 1 linear, 2 Hermite, 3 Bezier (the last two
 // keep the value and two tangents per key).
-V3 M2Model::evalV3(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs, V3 def, bool looping) const {
+V3 M2Model::evalV3(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs, V3 def, bool looping, bool* keyed) const {
     const uint8_t* d; size_t n; uint32_t tsOff, valOff, count, time, loop;
-    if (!keys(t, seq, timeMs, globalMs, d, n, tsOff, valOff, count, time, &loop, looping)) return def;
+    bool has = keys(t, seq, timeMs, globalMs, d, n, tsOff, valOff, count, time, &loop, looping);
+    if (keyed) *keyed = has;
+    if (!has) return def;
     Reader r(d, n);
     uint32_t a, b; float f;
     bracket(r, tsOff, count, time, a, b, f, loop);
@@ -443,9 +445,11 @@ V3 M2Model::evalV3(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs
     return lerp(at(a, 0), at(b, 0), f);
 }
 
-Quat M2Model::evalQuat(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs, bool looping) const {
+Quat M2Model::evalQuat(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs, bool looping, bool* keyed) const {
     const uint8_t* d; size_t n; uint32_t tsOff, valOff, count, time, loop;
-    if (!keys(t, seq, timeMs, globalMs, d, n, tsOff, valOff, count, time, &loop, looping)) return Quat();
+    bool has = keys(t, seq, timeMs, globalMs, d, n, tsOff, valOff, count, time, &loop, looping);
+    if (keyed) *keyed = has;
+    if (!has) return Quat();
     Reader r(d, n);
     uint32_t a, b; float f;
     bracket(r, tsOff, count, time, a, b, f, loop);
@@ -469,17 +473,58 @@ float M2Model::evalShort(const M2Track& t, int seq, uint32_t timeMs, uint32_t gl
     return t.interpolation == 0 ? va : va + (vb - va) * f;
 }
 
-void M2Model::pose(int seq, uint32_t timeMs, uint32_t globalMs, std::vector<BonePose>& out, bool looping) const {
+void M2Model::pose(int seq, uint32_t timeMs, uint32_t globalMs, std::vector<BonePose>& out, bool looping,
+                   const std::vector<BonePose>* base) const {
     out.resize(bones.size());
     // a sequence the parent skeleton plays moves the bones by the parent's tracks (the same bones, in the same order)
     int d = dataSequence(seq);
     bool fromParent = d >= 0 && size_t(d) < sequences.size() && sequences[d].src == 2 && parent_.bones.size() == bones.size();
+    // a layer over `base`: a bone the layer has no rotation keys for keeps base's whole pose (never the bind pose)
+    const std::vector<BonePose>* under = base && base != &out && base->size() == bones.size() && isLayer(seq) ? base : nullptr;
     for (size_t i = 0; i < bones.size(); ++i) {
         const M2Bone& b = fromParent ? parent_.bones[i] : bones[i];
+        bool keyed = true;
+        Quat r = evalQuat(b.rotation, seq, timeMs, globalMs, looping, under ? &keyed : nullptr);
+        if (under && !keyed) { out[i] = (*under)[i]; continue; }
+        out[i].r = r;
         out[i].t = evalV3(b.translation, seq, timeMs, globalMs, V3(0, 0, 0), looping);
-        out[i].r = evalQuat(b.rotation, seq, timeMs, globalMs, looping);
         out[i].s = evalV3(b.scale, seq, timeMs, globalMs, V3(1, 1, 1), looping);
     }
+}
+
+bool M2Model::boneKeyed(int bone, int seq) const {
+    if (bone < 0 || size_t(bone) >= bones.size()) return false;
+    int d = dataSequence(seq);
+    if (d < 0 || size_t(d) >= sequences.size()) return false;
+    bool fromParent = sequences[d].src == 2 && parent_.bones.size() == bones.size();
+    const M2Track& t = (fromParent ? parent_.bones[size_t(bone)] : bones[size_t(bone)]).rotation;
+    if (t.globalSeq != 0xFFFF) return false;   // a global loop's keys aren't the sequence's
+    const uint8_t* data; size_t n; uint32_t tsOff, valOff, count, time;
+    return keys(t, seq, 0, 0, data, n, tsOff, valOff, count, time);
+}
+
+namespace {
+// The body's main bones (WoW-side names), what isLayer measures a sequence by.
+const char* const kLayerBones[] = {"Pelvis", "Spine1", "Chest", "Neck1", "Head", "L_Clavicle", "R_Clavicle", "L_UpperArm",
+    "R_UpperArm", "L_Forearm", "R_Forearm", "L_Hand", "R_Hand", "L_Thigh", "R_Thigh", "L_Calf", "R_Calf", "L_Foot", "R_Foot"};
+}
+
+bool M2Model::isLayer(int seq) const {
+    int d = dataSequence(seq);
+    if (d < 0 || size_t(d) >= sequences.size() || !sequenceReady(d)) return false;
+    auto it = layers_.find(d);
+    if (it != layers_.end()) return it->second;
+    int found = 0, bare = 0;
+    for (const char* name : kLayerBones) {
+        int b = findWowBone(name);
+        if (b < 0) continue;
+        ++found;
+        if (!boneKeyed(b, d)) ++bare;
+    }
+    // a creature's skeleton names too few of these to tell: never a layer
+    bool layer = found >= 8 && bare * 4 >= found;
+    layers_[d] = layer;
+    return layer;
 }
 
 void M2Model::bonesToMatrices(const std::vector<BonePose>& poses, std::vector<M4>& out) const {

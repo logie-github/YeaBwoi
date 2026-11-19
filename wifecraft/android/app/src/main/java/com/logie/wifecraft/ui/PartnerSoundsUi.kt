@@ -73,22 +73,18 @@ fun PartnerSoundsSection(
         }
     }
 
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("Partner sounds", style = frizStyle(16.sp))
-        WowCheckRow("Partner sounds", on, onOn, detail = "Play the sounds of partner animations from your files")
-        WowSliderRow("Volume", volume, onVolume)
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
+        WifeSwitchRow("Partner sounds", on, onOn, detail = "Play the sounds of partner animations from your files")
+        WifeSliderRow("Volume", volume, onVolume, enabled = on)
         val status = remember(version) { sounds.status() }
-        Text(if (busy) "Adding…" else status.summary() + if (status.formats.isEmpty()) "" else " (" + status.formats.joinToString(", ") + ")", style = frizStyle(13.sp, WowColors.white))
-        Text(
-            "Put sound files here that match the sound names in your animation mods (ogg, wav, mp3). The game's own EA audio formats are not decoded yet.",
-            style = frizStyle(11.sp, WowColors.grey),
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 2.dp)) {
-            WowButton("Add sounds", {
+        Text(if (busy) "Adding…" else status.summary() + if (status.formats.isEmpty()) "" else " (" + status.formats.joinToString(", ") + ")", style = WifeTheme.bodyStyle())
+        WifeNote("Put sound files here that match the sound names in your animation mods (ogg, wav, mp3). The game's own EA audio formats are not decoded yet.")
+        Row(horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS), modifier = Modifier.fillMaxWidth().padding(top = WifeTheme.gapXs)) {
+            WifeButton("Add sounds", {
                 picker.launch(arrayOf("audio/*", "application/zip", "application/x-zip-compressed", "application/octet-stream"))
-            }, enabled = !busy, width = 150.dp, height = 36.dp)
-            WowButton("Remove all", { run { sounds.clear(); "Removed" } }, enabled = !busy && status.count > 0, width = 140.dp, height = 36.dp)
+            }, Modifier.weight(1f), enabled = !busy)
+            WifeButton("Remove all", { run { sounds.clear(); "Removed" } }, Modifier.weight(1f), enabled = !busy && status.count > 0)
         }
-        message?.let { Text(it, style = frizStyle(12.sp, Color(0xFFFF6A5A))) }
+        message?.let { Text(it, style = WifeTheme.captionStyle(WifeTheme.danger)) }
     }
 }

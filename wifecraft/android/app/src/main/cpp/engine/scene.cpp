@@ -883,6 +883,7 @@ int Scene::setBoneAnim(int id, const BoneAnim& anim, uint32_t nowMs) {
     Actor& a = it->second;
     const M2Model& m = *a.mesh->model;
     a.boneAnim = std::make_shared<BoneAnim>(anim);
+    fitBoneAnim(*a.boneAnim, m);   // converted for the reference skeleton's rest pose: turned to this model's
     a.boneAnimBones.clear();
     a.boneAnimRest.assign(m.bones.size(), 0);
     int found = 0;
@@ -926,22 +927,6 @@ void Scene::clearBoneAnim(int id) {
     it->second.boneAnimRest.clear();
 }
 
-namespace {
-
-// The key pair around `t` (seconds) and how far between them it is.
-void boneKeys(const std::vector<float>& times, float t, size_t& a, size_t& b, float& f) {
-    size_t last = times.size() - 1;
-    if (times.size() == 1 || t <= times[0]) { a = b = 0; f = 0; return; }
-    if (t >= times[last]) { a = b = last; f = 0; return; }
-    size_t lo = 0, hi = last;
-    while (hi - lo > 1) { size_t mid = (lo + hi) / 2; if (times[mid] <= t) lo = mid; else hi = mid; }
-    a = lo; b = hi;
-    float span = times[b] - times[a];
-    f = span > 0 ? (t - times[a]) / span : 0;
-}
-
-} // namespace
-
 void Scene::applyBoneAnim(Actor& a, uint32_t now) {
     if (!a.boneAnim) return;
     const BoneAnim& an = *a.boneAnim;
@@ -954,7 +939,7 @@ void Scene::applyBoneAnim(Actor& a, uint32_t now) {
         if (b < 0 || size_t(b) >= a.pa.size()) continue;
         const BoneAnimTrack& tr = an.tracks[k];
         size_t ka, kb; float f;
-        boneKeys(tr.times, t, ka, kb, f);
+        boneKeys(tr.times, t, an.loop ? an.duration : 0.0f, ka, kb, f);
         if (tr.rotation) {
             const float* qa = &tr.values[ka * 4];
             const float* qb = &tr.values[kb * 4];
@@ -1037,7 +1022,24 @@ void Scene::animate(Actor& a, uint32_t now) {
         }
         a.animTime = t;
         // a sequence without its keys would be the bind pose: the pose last drawn holds instead
-        if (m.sequenceReady(a.seq) || !a.posed || a.pa.size() != m.bones.size()) m.pose(a.seq, t, now, a.pa, a.loop);
+        if (m.sequenceReady(a.seq) && m.isLayer(a.seq)) {
+            // a layer (FacePose, HandsClosed...) keys part of the body: the rest stands as the idle does (else the pose
+            // last drawn), never in the bind pose with its arms out
+            int idle = m.findSequence(a.idleAnim);
+            if (idle < 0) idle = m.findSequence(0);
+            if (idle >= 0) m.ensureSequence(idle, files_);
+            if (idle >= 0 && idle != a.seq && m.sequenceReady(idle) && !m.isLayer(idle)) {
+                uint32_t idur = std::max<uint32_t>(1, m.sequences[size_t(idle)].duration);
+                m.pose(idle, (now - a.start) % idur, now, a.pl, true);
+            } else if (a.posed && a.pa.size() == m.bones.size()) {
+                a.pl = a.pa;
+            } else {
+                a.pl.assign(m.bones.size(), BonePose());
+            }
+            m.pose(a.seq, t, now, a.pa, a.loop, &a.pl);
+        } else if (m.sequenceReady(a.seq) || !a.posed || a.pa.size() != m.bones.size()) {
+            m.pose(a.seq, t, now, a.pa, a.loop);
+        }
     }
     applyBoneAnim(a, now);
     // a change of animation: from the pose last drawn to this one, eased in and out; turns by slerp, the rest linearly

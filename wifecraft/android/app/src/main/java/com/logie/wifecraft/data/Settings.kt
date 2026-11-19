@@ -40,6 +40,10 @@ class Settings(context: Context) {
     var partnerFrequency: String
         get() = prefs.getString("partnerFrequency", "SOMETIMES") ?: "SOMETIMES"
         set(v) = prefs.edit().putString("partnerFrequency", v).apply()
+    /** How often idle NPCs go and talk to each other (speech bubbles): a ChatterFrequency name (ChatterFrequency.of; Sometimes by default). */
+    var chatterFrequency: String
+        get() = prefs.getString("chatterFrequency", "SOMETIMES") ?: "SOMETIMES"
+        set(v) = prefs.edit().putString("chatterFrequency", v).apply()
     /** Files fetched at once by the first launch's gathering: Gentle 24, Normal 48, Fast 96 (the ceiling; it backs off by itself). */
     var downloadSpeed: Int
         get() = prefs.getInt("downloadSpeed", FAST).let { if (it in CHOICES) it else FAST }

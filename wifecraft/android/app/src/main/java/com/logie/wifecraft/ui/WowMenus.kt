@@ -241,31 +241,6 @@ fun RedButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, 
     }
 }
 
-/**
- * Buttons stacked as the Game Menu has them: one column, or [cols] side by side when the screen is short (the cover screen on
- * its side), each [width] wide.
- */
-@Composable
-fun <T> RedStack(buttons: List<StackButton<T>>, label: (T) -> String, cols: Int, width: Dp, onPick: (T) -> Unit, modifier: Modifier = Modifier) {
-    val rows = ChromeLayout.rows(buttons.size, cols)
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        for (c in 0 until cols) Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            for (b in buttons.drop(c * rows).take(rows)) RedButton(label(b.item), { onPick(b.item) }, Modifier.width(width), enabled = b.enabled)
-        }
-    }
-}
-
-/** The Game Menu: the metal frame, its title, the red buttons stacked ([Menus.game]), over the dimmed screen. */
-@Composable
-fun GameMenuPanel(buttons: List<StackButton<GameMenuItem>>, cols: Int, onPick: (GameMenuItem) -> Unit, onDismiss: () -> Unit, title: String = "Game Menu", subtitle: String? = null) {
-    Overlay(onDismiss) {
-        WowWindow(title, onClose = null, modifier = Modifier.width((cols * 240 + (cols - 1) * 10 + 48).dp)) {
-            if (subtitle != null) Text(subtitle, style = frizStyle(12.sp, WowColors.grey), maxLines = 1, modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 6.dp))
-            RedStack(buttons, { it.label }, cols, 240.dp, onPick, Modifier.align(Alignment.CenterHorizontally).padding(top = 4.dp, bottom = 4.dp))
-        }
-    }
-}
-
 // ------------------------------------------------------------------------------------------------ dropdowns and tooltips
 
 /** The game's tooltip box: near black, a thin grey edge, its corner pieces. */
@@ -319,41 +294,6 @@ fun WowCheckBox(checked: Boolean, enabled: Boolean = true, size: Dp = 26.dp) {
             val t = war?.piece("checkmark-minimal")
             if (t != null) drawWar(t, 0f, 0f, this.size.width, this.size.height, a) else drawGlyph(WarGlyph.CHECK, center.x, center.y, this.size.minDimension * 0.8f, War.gold, a)
         }
-    }
-}
-
-/**
- * A WoW dropdown list on the tooltip's dark box: an optional gold [title], then plain rows of white words with small icons
- * (or check boxes), dimmed when they can't be used, Delete in red, thin rules between the groups. Never taller than
- * [maxHeight]: its rows scroll.
- */
-@Composable
-fun WowDropdownList(title: String?, rows: List<MenuRow>, onPick: (MenuRow) -> Unit, modifier: Modifier = Modifier, maxHeight: Dp = 600.dp) {
-    WowTooltipBox(modifier) {
-        Column(Modifier.padding(vertical = 4.dp)) {
-            if (title != null) Text(title, style = frizStyle(15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 14.dp).height(EditorMenus.TITLE.dp).padding(top = 8.dp))
-            val list = rememberLazyListState()
-            LazyColumn(Modifier.heightIn(max = maxHeight).warScrollbar(list), list) {
-                itemsIndexed(rows, key = { _, r -> r.action.name }, contentType = { _, r -> if (r.checked != null) 1 else 0 }) { _, r ->
-                    Column {
-                        if (r.ruleBefore) Box(Modifier.padding(horizontal = 12.dp, vertical = 6.dp).fillMaxWidth().height(1.dp).background(Color(0xFF5A5A5F)))
-                        MenuRowView(r) { onPick(r) }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MenuRowView(r: MenuRow, onClick: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().height(EditorMenus.ROW.dp).warPress(r.enabled, onClick = onClick).padding(horizontal = 14.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        if (r.checked != null) WowCheckBox(r.checked, r.enabled, 24.dp) else MenuIcon(r.icon, r.enabled)
-        Text(r.label, style = frizStyle(15.sp, when { !r.enabled -> Dim; r.danger -> Red; else -> Ink }), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -526,101 +466,6 @@ fun WowTextField(value: String, onChange: (String) -> Unit, hint: String, modifi
     }
 }
 
-// ------------------------------------------------------------------------------------------------ the action bar
-
-/** What a slot shows: the housing editor's tool picture ([decor]), an item icon, a gold glyph, or the three dots of More. */
-data class SlotFace(val decor: String? = null, val icon: String? = null, val glyph: String? = null, val dots: Boolean = false)
-
-/** The face of each slot. */
-fun slotFace(s: ActionSlot): SlotFace = when (s) {
-    ActionSlot.SELECT -> SlotFace(decor = "decor-ability-move-default")
-    ActionSlot.ROTATE -> SlotFace(decor = "decor-ability-expert-rotate-default")
-    ActionSlot.SCALE -> SlotFace(decor = "decor-ability-expert-scale-default")
-    ActionSlot.DELETE -> SlotFace(glyph = WarIcons.DELETE)
-    ActionSlot.ADD -> SlotFace(icon = "tab.props")
-    ActionSlot.MORE -> SlotFace(dots = true)
-}
-
-/**
- * An action bar slot (the game's): the icon in the action bar's frame, a gold edge while [lit], dimmed when it can't be used,
- * its name under it. [size] square; a long press says what it does.
- */
-@Composable
-fun ActionSlotButton(face: SlotFace, label: String, onClick: () -> Unit, size: Dp, modifier: Modifier = Modifier, lit: Boolean = false, enabled: Boolean = true, onLongPress: (() -> Unit)? = null) {
-    val war = LocalWar.current
-    Column(modifier.width(size), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(size).semantics { contentDescription = label }.warPress(enabled, onLongPress = onLongPress, onClick = onClick)) {
-            Canvas(Modifier.matchParentSize()) {
-                val s = this.size.width; val ins = s * 0.1f; val inner = s - 2 * ins
-                val a = if (enabled) 1f else 0.42f
-                drawRoundRect(Color(WarPalette.SHADOW), Offset(0f, 2.dp.toPx()), this.size, CornerRadius(4.dp.toPx()))
-                drawRoundRect(Color(0xFF18120C), Offset(ins, ins), Size(inner, inner), CornerRadius(4.dp.toPx()))
-                var drawn = false
-                face.decor?.let { n ->
-                    war?.piece(n)?.let { p ->
-                        val k = (p.width * 0.17f).toInt()
-                        clipPath(roundPath(ins, ins, ins + inner, ins + inner, 4.dp.toPx())) {
-                            drawImage(p, IntOffset(k, k), IntSize(p.width - 2 * k, p.height - 2 * k), IntOffset(ins.roundToInt(), ins.roundToInt()),
-                                IntSize(inner.roundToInt(), inner.roundToInt()), alpha = a, filterQuality = FilterQuality.Medium)
-                        }
-                        drawn = true
-                    }
-                }
-                if (!drawn) face.icon?.let { k -> war?.icon(k)?.let {
-                    clipPath(roundPath(ins, ins, ins + inner, ins + inner, 4.dp.toPx())) { drawWar(it, ins, ins, inner, inner, a) }
-                    drawn = true
-                } }
-                if (!drawn) face.glyph?.let { g -> war?.piece(g)?.let { drawFitted(it, center.x, center.y, s * 0.5f, a); drawn = true } }
-                if (!drawn && face.dots) {
-                    for (i in -1..1) drawCircle(War.gold, s * 0.06f, Offset(center.x + i * s * 0.18f, center.y), alpha = a)
-                    drawn = true
-                }
-                if (!drawn) drawGlyphFor(face.glyph ?: face.icon ?: face.decor, center.x, center.y, s * 0.5f, War.gold, a)
-                val frame = war?.piece("ui-hud-actionbar-iconframe")
-                if (frame != null) drawWar(frame, 0f, 0f, s, s) else drawRoundRect(Edge, cornerRadius = CornerRadius(4.dp.toPx()), style = Stroke(2.dp.toPx()))
-                if (!enabled) drawRoundRect(Color(0x9614100A), Offset(ins, ins), Size(inner, inner), CornerRadius(4.dp.toPx()))
-                if (lit) drawRoundRect(War.gold, Offset(ins * 0.6f, ins * 0.6f), Size(s - 1.2f * ins, s - 1.2f * ins), CornerRadius(5.dp.toPx()), style = Stroke(2.5.dp.toPx()))
-            }
-        }
-        Text(label, style = frizStyle(11.sp, if (enabled) Ink else Dim), maxLines = 1, modifier = Modifier.padding(top = 2.dp))
-    }
-}
-
-/**
- * The action bar along the bottom: six framed slots ([ActionSlot]) on the housing editor's ability bar, its wooden corbels at
- * the ends. [slot] from ChromeLayout.
- */
-@Composable
-fun ActionBarView(slot: Dp, content: @Composable RowScope.() -> Unit, modifier: Modifier = Modifier) {
-    val war = LocalWar.current
-    val shape = RoundedCornerShape(14.dp)
-    Box(modifier) {
-        Box(Modifier.matchParentSize().shadow(6.dp, shape).clip(shape).background(Color(0xD718110B)).border(1.5.dp, Color(0xFF8A6A3A), shape))
-        Canvas(Modifier.matchParentSize()) {
-            val b = 46.dp.toPx()
-            war?.piece("decor-abilitybar-bookend-left")?.let { drawWar(it, -b * 0.55f, -b * 0.45f, b, b) }
-            war?.piece("decor-abilitybar-bookend-right")?.let { drawWar(it, size.width - b * 0.45f, -b * 0.45f, b, b) }
-        }
-        Row(Modifier.padding(horizontal = 18.dp).padding(top = 6.dp, bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(ChromeLayout.GAP.dp), content = content)
-    }
-}
-
-/** The Menu button (top left): the action bar's frame with a gold cog, as the game's micro menu sits in a corner. */
-@Composable
-fun MenuCogButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val war = LocalWar.current
-    Box(modifier.size(52.dp).semantics { contentDescription = "Menu" }.warPress(sound = "open", onClick = onClick)) {
-        Canvas(Modifier.matchParentSize()) {
-            val s = size.width; val ins = s * 0.1f
-            drawRoundRect(Color(WarPalette.SHADOW), Offset(0f, 2.dp.toPx()), size, CornerRadius(4.dp.toPx()))
-            drawRoundRect(Color(0xFF281C12), Offset(ins, ins), Size(s - 2 * ins, s - 2 * ins), CornerRadius(4.dp.toPx()))
-            drawGlyph(WarGlyph.COG, center.x, center.y, s * 0.52f, War.gold)
-            val frame = war?.piece("ui-hud-actionbar-iconframe")
-            if (frame != null) drawWar(frame, 0f, 0f, s, s) else drawRoundRect(Edge, cornerRadius = CornerRadius(4.dp.toPx()), style = Stroke(2.dp.toPx()))
-        }
-    }
-}
-
 // ------------------------------------------------------------------------------------------------ lists
 
 /**
@@ -670,7 +515,3 @@ fun WowListRow(
 @Composable
 fun WowNote(text: String, modifier: Modifier = Modifier, color: Color = Dim) =
     Text(text, style = frizStyle(13.sp, color), modifier = modifier)
-
-/** Space that pushes what follows to the end of a row or column. */
-@Composable
-fun RowScope.Fill() = Spacer(Modifier.weight(1f))

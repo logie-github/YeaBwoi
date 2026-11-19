@@ -33,8 +33,11 @@ import com.logie.wifecraft.ui.RigStore
 import com.logie.wifecraft.ui.SceneAnimationScreen
 import com.logie.wifecraft.audio.Audio
 import com.logie.wifecraft.audio.SceneAudio
-import com.logie.wifecraft.audio.SoundVolumes
+import com.logie.wifecraft.audio.MixLevels
+import com.logie.wifecraft.audio.MixSettings
+import com.logie.wifecraft.audio.Mixer
 import com.logie.wifecraft.simulation.PartnerFrequency
+import com.logie.wifecraft.simulation.ChatterFrequency
 import com.logie.wifecraft.anim.PairAnim
 import com.logie.wifecraft.anim.animationChoices
 import com.logie.wifecraft.simulation.PartnerPair
@@ -72,10 +75,8 @@ import com.logie.wifecraft.ui.DownloadOptions
 import com.logie.wifecraft.ui.ImportsSection
 import com.logie.wifecraft.ui.LocalWar
 import com.logie.wifecraft.ui.WarArt
-import com.logie.wifecraft.ui.WowWindow
-import com.logie.wifecraft.ui.RedButton
+import com.logie.wifecraft.ui.WifeMessage
 import com.logie.wifecraft.ui.frizStyle
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.unit.sp
 import com.logie.wifecraft.ui.GatherScreen
 import com.logie.wifecraft.ui.LiveSceneScreen
@@ -117,6 +118,9 @@ class MainActivity : ComponentActivity() {
     private var audio: Audio? = null
     private lateinit var locationLoader: LocationLoader
     private var sceneAudio: SceneAudio? = null
+    private lateinit var mixSettings: MixSettings
+    /** The Sound page's levels (Options), kept by [mixSettings]. */
+    private var mix = MixLevels()
     private val rosterFile by lazy { AtomicFile(File(filesDir, "npc-roster.json")) }
 
     private val animationDirectory by lazy { File(filesDir, "anims") }
@@ -142,14 +146,17 @@ class MainActivity : ComponentActivity() {
         listfile = ListfileNames(File(filesDir, "cache/listfile-character.csv"))
         imports = ImportStore(filesDir, listfile, supportedKinds = setOf(ImportKind.RALIA, ImportKind.BODY, ImportKind.UNDEAD))
         dresser = Dresser(files, tables, imports, lifecycleScope)
-        audio = runCatching { Audio(applicationContext, files) }.getOrNull()?.apply {
-            musicVolume = settings.musicVolume / 100f
-            soundVolume = settings.soundVolume / 100f
-        }
+        mixSettings = MixSettings(applicationContext)
+        mix = mixSettings.load()
+        audio = runCatching { Audio(applicationContext, files) }.getOrNull()
         locationLoader = LocationLoader(applicationContext, files, lifecycleScope)
         sceneAudio = runCatching { SceneAudio(applicationContext, files, tables) }.getOrNull()
-        applySceneVolumes()
-        sceneAudio?.apply { partnerOn = settings.partnerSoundsOn; partnerVolume = settings.partnerSoundVolume / 100f }
+        applyMix(mix)
+        sceneAudio?.apply {
+            partnerOn = settings.partnerSoundsOn; partnerVolume = settings.partnerSoundVolume / 100f
+            // the music and the ambience dip while an emote's voice or a partner sound plays
+            onVoices = { n -> audio?.voices(n) }
+        }
         setContent { App() }
     }
 
@@ -175,10 +182,11 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
-    /** Options' volumes on the scene's sounds: music, ambience, effects (Sounds) and voices, each its own. */
-    private fun applySceneVolumes() {
-        val s = settings.soundVolume / 100f
-        sceneAudio?.volumes = SoundVolumes(music = settings.musicVolume / 100f, ambience = settings.ambienceVolume / 100f, effects = s, voices = settings.voiceVolume / 100f)
+    /** The Sound page's levels on everything that plays: the soundscape (Audio) and the scene's sounds (SceneAudio). */
+    private fun applyMix(m: MixLevels) {
+        mix = m
+        audio?.levels = m
+        sceneAudio?.volumes = Mixer.sceneVolumes(m)
     }
 
     private fun sceneView(): SceneView = scene ?: SceneView(this, files.dir.path).also { scene = it; it.softBody(Settings(this).softBody) }
@@ -233,7 +241,7 @@ class MainActivity : ComponentActivity() {
         // set from the download's threads once per file; read only by the Options panel's host, at most 4 times a second
         val downloadProgress = remember { MutableStateFlow<AssetDownloads.Progress?>(null) }
         var speed by remember { mutableIntStateOf(settings.downloadSpeed) }
-        var effects by remember { mutableIntStateOf(settings.soundVolume) }
+        var mixShown by remember { mutableStateOf(mix) }
         var downloadStatus by remember { mutableStateOf<String?>(null) }
         var downloadJob by remember { mutableStateOf<Job?>(null) }
 
@@ -267,6 +275,7 @@ class MainActivity : ComponentActivity() {
         // the library's partner animations, read again whenever the setup, the animation or the live screens open (as the clips are)
         var pairs by remember { mutableStateOf(emptyList<PairAnim>()) }
         var partnerFrequency by remember { mutableStateOf(PartnerFrequency.of(settings.partnerFrequency)) }
+        var chatterFrequency by remember { mutableStateOf(ChatterFrequency.of(settings.chatterFrequency)) }
         var partnerOn by remember { mutableStateOf(settings.partnerSoundsOn) }
         var partnerVolume by remember { mutableIntStateOf(settings.partnerSoundVolume) }
         val partnerSink = remember {
@@ -309,6 +318,8 @@ class MainActivity : ComponentActivity() {
             if (catalog == null && GameFiles.TABLES in complete) {
                 catalog = withContext(Dispatchers.Default) { runCatching { Catalog.build(tables) }.getOrNull() }
             }
+            // the player has gathered the game's files: the music and sounds not here yet may be fetched as they are wanted
+            if ("interface" in complete || GameFiles.TABLES in complete) audio?.fetchAllowed = true
             if ("sound" in complete) audio?.filesArrived()
         }
         LaunchedEffect(Unit) {
@@ -319,6 +330,11 @@ class MainActivity : ComponentActivity() {
         }
 
         LaunchedEffect(art != null) { if (art != null) menuArt.start() }
+        // the soundscape follows the screen: the title's music on the menus, a place's music and ambience in its live scene
+        LaunchedEffect(screen, location) {
+            val a = audio ?: return@LaunchedEffect
+            if (screen == Screen.LIVE) a.place(location ?: "") else a.title()
+        }
         CompositionLocalProvider(LocalArt provides art, LocalWar provides menuArt, LocalSounds provides { name: String -> audio?.ui(name) }) {
             Box(Modifier.fillMaxSize()) {
                 when (screen) {
@@ -381,6 +397,8 @@ class MainActivity : ComponentActivity() {
                             onAnimations = { screen = Screen.ANIMATIONS },
                             partner = partnerFrequency,
                             onPartner = { partnerFrequency = it; settings.partnerFrequency = it.name },
+                            chatter = chatterFrequency,
+                            onChatter = { chatterFrequency = it; settings.chatterFrequency = it.name },
                             partnerPairs = remember(pairs, availableClips) {
                                 pairs.count { it.enabled } + animationChoices(availableClips).count { PartnerPair.of(it) != null }
                             },
@@ -624,9 +642,11 @@ class MainActivity : ComponentActivity() {
                             clips = availableClips,
                             pairs = pairs,
                             partner = partnerFrequency,
+                            chatter = chatterFrequency,
                             fetchAnim = { key, anim -> dresser.fetchAnim(key, anim) },
                             partnerSounds = partnerSink,
                             onEnd = { screen = Screen.TITLE },
+                            onSettings = { panel = Panel.OPTIONS },
                             ready = locationResult == true && loadedActors == chosen.size,
                             status = liveStatus,
                         ) }
@@ -650,12 +670,11 @@ class MainActivity : ComponentActivity() {
                             settings.downloadSpeed = it
                             files.setDownloadSpeed(it)
                         },
-                        volume = effects,
-                        onVolume = {
-                            effects = it
-                            settings.soundVolume = it
-                            audio?.soundVolume = it / 100f
-                            applySceneVolumes()
+                        mix = mixShown,
+                        onMix = {
+                            mixShown = it
+                            applyMix(it)
+                            mixSettings.save(it)
                         },
                         downloading = downloadJob?.isActive == true,
                         canDownload = catalog != null,
@@ -705,10 +724,7 @@ class MainActivity : ComponentActivity() {
                             onBack = { panel = Panel.NONE })
                 }
                 OverlayFor(problem, { problem = null }) { message ->
-                    WowWindow("Wifecraft", { problem = null }, Modifier.widthIn(max = 500.dp)) {
-                        Text(message, style = frizStyle(14.sp, Color.White))
-                        RedButton("Close", { problem = null }, Modifier.padding(top = 10.dp))
-                    }
+                    WifeMessage("Wifecraft", message) { problem = null }
                 }
             }
         }

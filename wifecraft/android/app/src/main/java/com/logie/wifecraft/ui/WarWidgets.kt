@@ -306,66 +306,6 @@ fun Badge(text: String, modifier: Modifier = Modifier) {
     ) { Text(text, style = warText(10.sp, War.brown), maxLines = 1) }
 }
 
-/**
- * A category tab of the catalogue bar: a round item icon in the talent tree's ring (grey; gold and raised, a little larger
- * and glowing when [chosen]), its name under it, its count on the rim.
- */
-@Composable
-fun CategoryTab(tab: CatalogueTab, chosen: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, showCount: Boolean = true) {
-    val war = LocalWar.current
-    val rise by animateFloatAsState(if (chosen) WarSize.TAB_RAISE else 0f, tween(160), label = "rise")
-    val grow by animateFloatAsState(if (chosen) WarSize.TAB_CHOSEN_SCALE else 1f, tween(160), label = "grow")
-    Column(modifier.width(72.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            Modifier.padding(top = WarSize.TAB_RAISE.dp).offset(y = (-rise).dp).size(WarSize.TAB.dp)
-                .graphicsLayer { scaleX = grow; scaleY = grow }
-                .semantics { contentDescription = tab.label }
-                .warPress(onClick = onClick),
-        ) {
-            Canvas(Modifier.matchParentSize()) {
-                val r = size.minDimension / 2; val c = center
-                if (chosen) war?.piece("housing-layout-room-orb-ring-active")?.let { g -> val gr = r * 1.45f; drawWar(g, c.x - gr, c.y - gr + 3.dp.toPx(), 2 * gr, 2 * gr, 0.9f) }
-                drawCircle(Color(WarPalette.SHADOW), r, c + Offset(0f, (if (chosen) 5 else 2).dp.toPx()))
-                val disc = war?.piece("common-radiobutton-circle")
-                if (disc != null) drawWar(disc, c.x - r, c.y - r, 2 * r, 2 * r) else drawCircle(War.woodDark, r, c)
-                val img = war?.icon(tab.icon)
-                if (img != null) drawCircled(img, c.x, c.y, 2 * r * 0.74f) else drawGlyphFor(tab.icon, c.x, c.y, 2 * r * 0.52f)
-                val ring = war?.piece(if (chosen) "talents-node-circle-yellow" else "talents-node-circle-gray")
-                val rr = r * 1.12f
-                if (ring != null) drawWar(ring, c.x - rr, c.y - rr, 2 * rr, 2 * rr)
-                else drawCircle(if (chosen) War.gold else War.muted, r, c, style = Stroke(2.5.dp.toPx()))
-            }
-            if (showCount && tab.count > 0) Badge(compactCount(tab.count), Modifier.align(Alignment.TopEnd).offset(x = 8.dp, y = (-4).dp))
-        }
-        Text(tab.label, style = warText(11.sp, if (chosen) War.gold else War.ink, true), maxLines = 1, overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 4.dp))
-    }
-}
-
-/** 48,212 -> "48k"; under 10,000 as it is. */
-fun compactCount(n: Int): String = if (n >= 10_000) "${n / 1000}k" else "%,d".format(n)
-
-/** A chip of the category row: a cream pill (deep parchment with a gold edge when [on]), its icon, its name and count. */
-@Composable
-fun Chip(label: String, count: Int?, on: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, icon: String? = null) {
-    val war = LocalWar.current
-    val shape = RoundedCornerShape(50)
-    Row(
-        modifier.height(WarSize.CHIP_H.dp).padding(vertical = 4.dp).shadow(2.dp, shape).clip(shape)
-            .background(if (on) War.parchmentDeep else War.cream).border(if (on) 2.dp else 1.dp, if (on) War.gold else War.edge, shape)
-            .warPress(onClick = onClick).padding(start = if (icon != null) 6.dp else 14.dp, end = 14.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        if (icon != null) Canvas(Modifier.size(28.dp)) {
-            val img = war?.icon(icon)
-            if (img != null) drawCircled(img, center.x, center.y, size.minDimension)
-            else { drawCircle(War.woodDark, size.minDimension / 2); drawGlyphFor(icon, center.x, center.y, size.minDimension * 0.62f) }
-        }
-        Text(label, style = warText(13.sp), maxLines = 1)
-        if (count != null) Text("%,d".format(count), style = warText(11.sp, War.brownSoft), maxLines = 1)
-    }
-}
-
 /** A big friendly button: a rounded wood pill with gold words (red-brown for [danger]), an optional glyph before them. */
 @Composable
 fun PillButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, danger: Boolean = false, glyph: String? = null, height: Dp = 48.dp) {
@@ -387,62 +327,6 @@ fun PillButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier,
             Spacer(Modifier.width(8.dp))
         }
         Text(text, style = warText(14.sp, if (!enabled) War.muted else if (danger) War.cream else War.gold, true), maxLines = 1, textAlign = TextAlign.Center)
-    }
-}
-
-/** An on/off switch: an amber track with the radio button's gold dot (a grey disc when off), its label after it. */
-@Composable
-fun WarToggle(label: String, on: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, dark: Boolean = false) {
-    val war = LocalWar.current
-    val at by animateFloatAsState(if (on) 1f else 0f, tween(140), label = "toggle")
-    Row(
-        modifier.heightIn(min = 48.dp).warPress(enabled) { onChange(!on) },
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Canvas(Modifier.width(56.dp).height(32.dp)) {
-            val h = size.height
-            drawRoundRect(if (on) War.amber else Color(0xFFBFA06A), cornerRadius = CornerRadius(h / 2), alpha = if (enabled) 1f else 0.5f)
-            drawRoundRect(War.woodDark, cornerRadius = CornerRadius(h / 2), style = Stroke(1.2.dp.toPx()))
-            val k = 28.dp.toPx(); val x = k / 2 + 2.dp.toPx() + (size.width - k - 4.dp.toPx()) * at
-            val knob = war?.piece(if (on) "common-radiobutton-dot" else "common-radiobutton-circle")
-            if (knob != null) drawWar(knob, x - k / 2, h / 2 - k / 2, k, k) else drawCircle(if (on) War.gold else War.muted, k / 2, Offset(x, h / 2))
-        }
-        Text(label, style = warText(14.sp, if (dark) War.ink else War.brown, dark), maxLines = 2)
-    }
-}
-
-/**
- * A slider on parchment: an amber filled track, the radio button's gold dot as its knob. [value] in [range]; drags report
- * [onChange], letting go [onFinished]. 48 dp high to touch.
- */
-@Composable
-fun WarSlider(value: Float, onChange: (Float) -> Unit, range: ClosedFloatingPointRange<Float>, modifier: Modifier = Modifier, enabled: Boolean = true, onFinished: () -> Unit = {}) {
-    val war = LocalWar.current
-    val change by rememberUpdatedState(onChange)
-    val finish by rememberUpdatedState(onFinished)
-    val on by rememberUpdatedState(enabled)
-    val span = (range.endInclusive - range.start).takeIf { it > 0f } ?: 1f
-    val frac = ((value - range.start) / span).coerceIn(0f, 1f)
-    fun at(x: Float, w: Float, knob: Float) = range.start + ((x - knob / 2) / (w - knob)).coerceIn(0f, 1f) * span
-    Canvas(
-        modifier.fillMaxWidth().height(48.dp)
-            .pointerInput(range) {
-                detectTapGestures { o -> if (on) { change(at(o.x, size.width.toFloat(), 26.dp.toPx())); finish() } }
-            }
-            .pointerInput(range) {
-                detectHorizontalDragGestures(onDragEnd = { if (on) finish() }, onDragCancel = { if (on) finish() }) { ch, _ ->
-                    if (on) { ch.consume(); change(at(ch.position.x, size.width.toFloat(), 26.dp.toPx())) }
-                }
-            },
-    ) {
-        val k = 26.dp.toPx(); val th = 8.dp.toPx(); val y = size.height / 2
-        val x0 = k / 2; val w = size.width - k
-        drawRoundRect(Color(0xFFBFA06A), Offset(x0, y - th / 2), Size(w, th), CornerRadius(th / 2))
-        drawRoundRect(War.amber, Offset(x0, y - th / 2), Size(w * frac, th), CornerRadius(th / 2), alpha = if (enabled) 1f else 0.5f)
-        val kx = x0 + w * frac
-        drawCircle(Color(WarPalette.SHADOW), k / 2, Offset(kx, y + 2.dp.toPx()))
-        val dot = war?.piece("common-radiobutton-dot")
-        if (dot != null) drawWar(dot, kx - k / 2, y - k / 2, k, k, if (enabled) 1f else 0.5f) else drawCircle(War.gold, k / 2, Offset(kx, y))
     }
 }
 
@@ -479,105 +363,6 @@ fun WarField(
     }
 }
 
-/** A number typed on parchment: used when it reads as one and Done is pressed or the field is left. */
-@Composable
-fun WarNumberField(label: String, value: Float, modifier: Modifier = Modifier, decimals: Int = 2, enabled: Boolean = true, onValue: (Float) -> Unit) {
-    var text by remember(value) { mutableStateOf(showNumber(value, decimals)) }
-    fun use() { readNumber(text)?.let { if (it != value) onValue(it) } ?: run { text = showNumber(value, decimals) } }
-    WarField(
-        text, { text = it.take(12) }, "", modifier, label = label, enabled = enabled,
-        keyboard = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
-        actions = KeyboardActions(onDone = { use() }),
-        onFocus = { f -> if (!f) use() },
-    )
-}
-
-/** The search box: the magnifying glass, the words, Clear. On the dark bar: cream on warm glass. */
-@Composable
-fun WarSearch(value: String, onChange: (String) -> Unit, hint: String, onClear: () -> Unit, modifier: Modifier = Modifier) {
-    val war = LocalWar.current
-    val shape = RoundedCornerShape(50)
-    Row(
-        modifier.height(48.dp).clip(shape).background(War.cream).border(1.5.dp, War.goldSoft, shape).padding(start = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Canvas(Modifier.size(22.dp)) {
-            val img = war?.piece(WarIcons.SEARCH)
-            if (img != null) drawFitted(img, center.x, center.y, size.minDimension) else drawGlyph(WarGlyph.SEARCH, center.x, center.y, size.minDimension, War.brown)
-        }
-        Box(Modifier.weight(1f).padding(horizontal = 8.dp)) {
-            if (value.isEmpty()) Text(hint, style = warText(14.sp, War.muted), maxLines = 1)
-            BasicTextField(value, onChange, singleLine = true, textStyle = warText(15.sp), cursorBrush = SolidColor(War.brown), modifier = Modifier.fillMaxWidth())
-        }
-        if (value.isNotEmpty()) RoundIconButton(Face(glyph = WarIcons.CLOSE), onClear, size = 48.dp, description = "Clear")
-    }
-}
-
-// ------------------------------------------------------------------------------------------------ cards
-
-/**
- * A picture card (the Sims' catalogue card): the decor chest's frame (gold when [armed]), the picture rounded inside it
- * (or the name, or an initial, until it is drawn), the star for favourites at its corner (48 dp to touch), the name under it.
- */
-@Composable
-fun ItemCard(
-    name: AnnotatedString,
-    picture: ImageBitmap?,
-    size: Dp,
-    armed: Boolean,
-    favourite: Boolean,
-    onClick: () -> Unit,
-    onFavourite: (() -> Unit)?,
-    modifier: Modifier = Modifier,
-    placeholder: String = name.text.take(1).uppercase(),
-    badge: String? = null,
-    /** On parchment (the Library window): the name in deep brown instead of cream. */
-    onLight: Boolean = false,
-    enabled: Boolean = true,
-    selection: Boolean? = null,
-) {
-    val war = LocalWar.current
-    Column(modifier.width(size), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(size).semantics {
-            contentDescription = name.text
-            if (selection != null) selected = selection
-            if (enabled) onClick { onClick(); true } else disabled()
-        }.warPress(enabled, onClick = onClick)) {
-            Canvas(Modifier.matchParentSize()) {
-                val s = this.size.width
-                drawRoundRect(Color(WarPalette.SHADOW), Offset(0f, 3.dp.toPx()), this.size, CornerRadius(16.dp.toPx()))
-                val frame = war?.piece(if (armed) "house-chest-list-item-active" else "house-chest-list-item-default")
-                if (frame != null) drawWar(frame, 0f, 0f, s, s)
-                else drawRoundRect(War.woodDark, cornerRadius = CornerRadius(16.dp.toPx()))
-                val inset = s * 0.085f; val r = 11.dp.toPx()
-                if (picture != null) {
-                    val p = roundPath(inset, inset, s - inset, s - inset, r)
-                    clipPath(p) {
-                        drawRect(Color(0xFF2C1E14), Offset(inset, inset), Size(s - 2 * inset, s - 2 * inset))
-                        // the picture at its own aspect, centred
-                        val k = minOf((s - 2 * inset) / picture.width, (s - 2 * inset) / picture.height)
-                        drawWar(picture, (s - picture.width * k) / 2, (s - picture.height * k) / 2, picture.width * k, picture.height * k)
-                    }
-                }
-                drawRoundRect(if (armed) War.gold else Color(0xC8785A32), Offset(inset, inset), Size(s - 2 * inset, s - 2 * inset), CornerRadius(r),
-                    style = Stroke((if (armed) 2 else 1).dp.toPx()))
-            }
-            if (picture == null) Text(placeholder, style = warText(if (placeholder.length > 2) 11.sp else 28.sp, War.muted, true), textAlign = TextAlign.Center, maxLines = 4,
-                modifier = Modifier.align(Alignment.Center).padding(10.dp))
-            if (onFavourite != null) Box(Modifier.align(Alignment.TopEnd).size(48.dp).warPress(onClick = onFavourite), contentAlignment = Alignment.TopEnd) {
-                Canvas(Modifier.padding(7.dp).size(22.dp)) {
-                    val star = war?.piece(if (favourite) WarIcons.STAR else WarIcons.STAR_OFF)
-                    if (star != null) drawFitted(star, center.x, center.y, this.size.minDimension)
-                    else drawGlyph(WarGlyph.STAR, center.x, center.y, this.size.minDimension, if (favourite) War.gold else War.muted)
-                }
-            }
-            if (badge != null) Badge(badge, Modifier.align(Alignment.BottomEnd).padding(6.dp))
-        }
-        Text(name, style = if (onLight) warText(12.sp, if (armed) War.wood else War.brown) else warText(11.5.sp, if (armed) War.gold else War.ink, true), maxLines = 2, overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
-    }
-}
-
 // ------------------------------------------------------------------------------------------------ panels
 
 /**
@@ -602,40 +387,6 @@ fun BookPage(modifier: Modifier = Modifier, ribbon: Boolean = true, content: @Co
         }.padding(start = 28.dp, end = 28.dp, top = 26.dp, bottom = 22.dp),
         content = content,
     )
-}
-
-/** A page's header: a small grey line over a name in Morpheus, an optional line under it, a thin rule. */
-@Composable
-fun BookHeader(over: String?, title: String, under: String? = null, actions: @Composable RowScope.() -> Unit = {}) {
-    Column(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                if (over != null) Text(over, style = warText(12.sp, War.brownSoft), maxLines = 1)
-                Text(title, style = warTitle(22.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (under != null) Text(under, style = warText(12.sp, War.brownSoft), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            actions()
-        }
-        Box(Modifier.padding(vertical = 8.dp).fillMaxWidth().height(2.dp).background(Color(0xA0966E3C), RoundedCornerShape(1.dp)))
-    }
-}
-
-/** The spellbook's side tab with an item icon in it (a page folded to its tab), lit gold when its page is open. */
-@Composable
-fun SideTab(icon: String, label: String, on: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val war = LocalWar.current
-    Box(modifier.width(52.dp).height(60.dp).semantics { contentDescription = label }.warPress(sound = if (on) "close" else "open", onClick = onClick)) {
-        Canvas(Modifier.matchParentSize()) {
-            drawRoundRect(Color(WarPalette.SHADOW), Offset(0f, 2.dp.toPx()), size, CornerRadius(8.dp.toPx()))
-            val t = war?.piece("spellbook-skilllinetab")
-            if (t != null) drawWar(t, 0f, 0f, size.width, size.height) else drawRoundRect(War.woodDark, cornerRadius = CornerRadius(8.dp.toPx()))
-            val img = war?.icon(icon)
-            val x = 9.dp.toPx(); val y = 12.dp.toPx(); val s = 32.dp.toPx()
-            if (img != null) clipPath(roundPath(x, y, x + s, y + s, 6.dp.toPx())) { drawWar(img, x, y, s, s) }
-            else drawGlyphFor(icon, x + s / 2, y + s / 2, s * 0.8f)
-            if (on) drawRoundRect(War.gold, Offset(5.dp.toPx(), 8.dp.toPx()), Size(40.dp.toPx(), 40.dp.toPx()), CornerRadius(8.dp.toPx()), style = Stroke(2.5.dp.toPx()))
-        }
-    }
 }
 
 /** A dark rounded strip over the scene (the tooltip, the placing bar, the loading line): warm glass with a soft gold edge. */
@@ -677,35 +428,6 @@ fun GlassPanel(modifier: Modifier = Modifier, corbel: Boolean = true, content: @
     }
 }
 
-/**
- * The catalogue bar's ground: the housing panel's stone warmed and darkened, rounded at the top, the wooden header along its
- * top edge and the housing editor's corbels with leaves at its two top corners.
- */
-@Composable
-fun WoodBar(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    val war = LocalWar.current
-    val shape = RoundedCornerShape(topStart = WarSize.R_PANEL.dp, topEnd = WarSize.R_PANEL.dp)
-    Box(modifier) {
-        Box(Modifier.matchParentSize().shadow(10.dp, shape).clip(shape).drawBehind {
-            val stone = war?.piece("housing-basic-panel--stone-background")
-            if (stone != null) drawWar(stone, 0f, 0f, size.width, size.height)
-            drawRect(if (stone != null) Color(0xAA22170E) else War.woodDark)
-        })
-        Canvas(Modifier.matchParentSize()) {
-            val head = war?.piece("housing-basic-container-woodheader")
-            val hh = 18.dp.toPx()
-            if (head != null) {
-                // only the header's own strip, over the bar's top edge
-                drawImage(head, IntOffset.Zero, IntSize(head.width, head.height), IntOffset(0, (-6).dp.toPx().roundToInt()), IntSize(size.width.roundToInt(), hh.roundToInt()), filterQuality = FilterQuality.Medium)
-            } else drawRect(War.wood, Offset(0f, -4.dp.toPx()), Size(size.width, 8.dp.toPx()))
-            val b = 58.dp.toPx()
-            war?.piece("decor-abilitybar-bookend-left")?.let { drawWar(it, 2.dp.toPx(), -b + 14.dp.toPx(), b, b) }
-            war?.piece("decor-abilitybar-bookend-right")?.let { drawWar(it, size.width - b - 2.dp.toPx(), -b + 14.dp.toPx(), b, b) }
-        }
-        Column(Modifier.fillMaxWidth().padding(horizontal = WarSize.GUTTER.dp, vertical = WarSize.GUTTER.dp), content = content)
-    }
-}
-
 /** The scene's name on the parchment ribbon (the game's neutral frame ribbon), in Morpheus. */
 @Composable
 fun NameRibbon(text: String, modifier: Modifier = Modifier) {
@@ -719,6 +441,7 @@ fun NameRibbon(text: String, modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center,
     ) { Text(text, style = warTitle(19.sp), maxLines = 1, overflow = TextOverflow.Ellipsis) }
 }
+
 
 /**
  * The slim top bar over the scene: a soft dark fade from the top, Back on the left, the name on its ribbon, then [actions]
@@ -759,50 +482,3 @@ fun Modifier.warScrollbar(state: LazyListState): Modifier = drawWithContent {
     drawRoundRect(Color(0x40785A32), Offset(x, 0f), Size(w, size.height), CornerRadius(w / 2))
     drawRoundRect(War.amber, Offset(x, ((size.height - h) * (top / (1f - len).coerceAtLeast(0.0001f))).coerceIn(0f, size.height - h)), Size(w, h), CornerRadius(w / 2))
 }
-
-/** A row of a list on parchment: a warm cream card (deeper and gold-edged when [selected]), an icon at its start. */
-@Composable
-fun WarRow(onClick: () -> Unit, modifier: Modifier = Modifier, selected: Boolean = false, icon: String? = null, onLongPress: (() -> Unit)? = null, content: @Composable RowScope.() -> Unit) {
-    val war = LocalWar.current
-    val shape = RoundedCornerShape(WarSize.R_CARD.dp)
-    Row(
-        modifier.fillMaxWidth().heightIn(min = 56.dp).shadow(2.dp, shape).clip(shape)
-            .background(if (selected) War.parchmentDeep else Color(0xF0F6EBCF)).border(if (selected) 2.dp else 1.dp, if (selected) War.gold else War.edge, shape)
-            .warPress(onLongPress = onLongPress, onClick = onClick).padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        if (icon != null) Canvas(Modifier.size(40.dp)) {
-            val img = war?.icon(icon)
-            if (img != null) clipPath(roundPath(0f, 0f, size.width, size.height, 10.dp.toPx())) { drawWar(img, 0f, 0f, size.width, size.height) }
-            else { drawRoundRect(War.woodDark, cornerRadius = CornerRadius(10.dp.toPx())); drawGlyphFor(icon, center.x, center.y, size.minDimension * 0.6f) }
-        }
-        content()
-    }
-}
-
-/**
- * A screen of the editor's menus in the build-mode look (the projects, the cast, the scenes): the top bar's Back and
- * name ribbon with [actions], the content on a spellbook page over the warm dark ground, never taller than the screen.
- */
-@Composable
-fun WarScreen(title: String, onBack: () -> Unit, actions: @Composable RowScope.() -> Unit = {}, content: @Composable BoxScope.() -> Unit) {
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF2A1C12), Color(0xFF140D08))))) {
-        Column(Modifier.fillMaxSize()) {
-            TopBar(title, onBack, actions = actions)
-            BookPage(Modifier.weight(1f).fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp), content = content)
-        }
-    }
-}
-
-/** A dialog on a parchment page in the middle of the screen (a name to type, a question): never wider than the screen. */
-@Composable
-fun WarDialog(onDismiss: () -> Unit, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Overlay(onDismiss) {
-        BookPage(modifier.widthIn(max = 520.dp).padding(16.dp), ribbon = false) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
-        }
-    }
-}
-
-/** The plain round shape, for callers that clip to it. */
-val WarCircle = CircleShape

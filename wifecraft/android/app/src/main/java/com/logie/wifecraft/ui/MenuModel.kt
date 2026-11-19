@@ -414,3 +414,47 @@ data class ChromeLayout(
         fun rows(n: Int, cols: Int): Int = ceil(n / cols.toFloat()).toInt()
     }
 }
+
+// ------------------------------------------------------------------------------------------------ the front menus (WifeTheme)
+
+/**
+ * The title's layout on a screen [wDp] x [hDp] (the Fold's inner screen about 832 x 750, its cover 411 x 960 standing or
+ * 960 x 411 on its side): the menu down the left over the backdrop on a wide screen, centred on a narrow one; a smaller
+ * crest and title on a short one. [buttonW] fits inside the screen's margins; nothing is wider than the screen.
+ */
+data class TitleLayout(
+    val centered: Boolean,
+    val compact: Boolean,
+    val crestDp: Float,
+    val titleSp: Float,
+    val buttonW: Float,
+    val padH: Float,
+    val padTop: Float,
+)
+
+object FrontLayout {
+    /** The screen's side margin and the most a front-menu button is wide. */
+    const val MARGIN = 16f
+    const val BUTTON_MAX = 300f
+
+    fun title(wDp: Float, hDp: Float): TitleLayout {
+        val centered = wDp < 600f
+        val compact = hDp < 520f
+        val padH = if (centered) MARGIN else 48f
+        return TitleLayout(
+            centered = centered,
+            compact = compact,
+            crestDp = if (compact) 52f else 76f,
+            titleSp = if (compact) 38f else if (wDp < 380f) 42f else 52f,
+            buttonW = min(BUTTON_MAX, max(0f, wDp - 2 * padH)),
+            padH = padH,
+            padTop = if (compact) 16f else 40f,
+        )
+    }
+
+    /** A slider row puts its label above the slider when the row is narrower than this (the cover screen standing). */
+    fun sliderStacked(rowWDp: Float): Boolean = rowWDp < 340f
+
+    /** The Options window's tabs as a scrolling strip rather than equal parts when each part would be narrower than a touch. */
+    fun tabsScroll(rowWDp: Float, tabs: Int): Boolean = tabs > 0 && rowWDp / tabs < 96f
+}

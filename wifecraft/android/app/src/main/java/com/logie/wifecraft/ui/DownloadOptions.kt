@@ -14,6 +14,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.logie.wifecraft.data.AssetDownloads
+import com.logie.wifecraft.audio.MixLevels
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -57,8 +61,12 @@ fun <T> StateFlow<T>.collectThrottled(urgent: (T?, T) -> Boolean = { _, _ -> fal
     return throttled.collectAsStateWithLifecycle(value)
 }
 
-private enum class Page(val label: String) { DOWNLOADS("Downloads"), SOUND("Sound"), MODS("Mods") }
+private enum class Page(val label: String) { SOUND("Sound"), DOWNLOADS("Downloads"), MODS("Mods") }
 
+/**
+ * Options, in the front menus' look (WifeWindow): Sound (the game's own Sound page: Enable Sound, Master, Music, Ambience, Sound
+ * effects, Dialog; then the partner sounds), Downloads (the speed, the packs, the bar) and Mods. Every change applies at once.
+ */
 @Composable
 fun DownloadOptions(
     progress: AssetDownloads.Progress?,
@@ -67,68 +75,88 @@ fun DownloadOptions(
     canDownload: Boolean,
     speed: Int,
     onSpeed: (Int) -> Unit,
-    volume: Int,
-    onVolume: (Int) -> Unit,
+    /** The Sound page's levels and their change (applied at once, kept by the caller). */
+    mix: MixLevels,
+    onMix: (MixLevels) -> Unit,
     onDownload: (List<AssetDownloads.Pack>) -> Unit,
     onPause: () -> Unit,
     onClose: () -> Unit,
     mods: @Composable () -> Unit,
-    /** Extra blocks under the Sound page's slider (the partner sounds). */
+    /** Extra blocks under the Sound page's sliders (the partner sounds). */
     sound: @Composable () -> Unit = {},
 ) {
-    var page by remember { mutableStateOf(Page.DOWNLOADS) }
+    var page by remember { mutableStateOf(Page.SOUND) }
+    val reduced = reduceMotion()
     Overlay(onClose) {
         BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             val layout = ChromeLayout.of(maxWidth.value, maxHeight.value)
-            WowWindow("Options", onClose, Modifier.width(layout.optionsW.dp).height(layout.optionsH.dp),
-                tabs = { Page.entries.forEach { entry -> WowTab(entry.label, entry == page, { page = entry }) } }) {
-                Column(
-                    Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    when (page) {
-                        Page.DOWNLOADS -> {
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Text("Download speed", Modifier.weight(1f), style = frizStyle(14.sp))
-                                WowDropdown(OptionsModel.DOWNLOAD.firstOrNull { it.first == speed }?.second ?: "$speed at once",
-                                    OptionsModel.DOWNLOAD, onSpeed, Modifier.weight(1.1f))
+            WifeWindow(
+                "Options", onClose, Modifier.width(layout.optionsW.dp).height(layout.optionsH.dp),
+                tabs = Page.entries.map { it.label }, tab = page.ordinal, onTab = { page = Page.entries[it] },
+                footer = {
+                    if (page != Page.DOWNLOADS && downloading) Text(
+                        "Downloading ${progress?.pack?.label?.lowercase() ?: "game files"}…",
+                        style = WifeTheme.captionStyle(), maxLines = 1, modifier = Modifier.weight(1f),
+                    )
+                    WifeButton("Okay", onClose, Modifier.widthIn(min = 132.dp), kind = WifeButtonKind.PRIMARY, sound = "ok")
+                },
+            ) {
+                // one page gives way to the next (a short cross-fade), each with its own scroll from its top
+                Crossfade(page, Modifier.fillMaxWidth().weight(1f), animationSpec = tween(MenuMotion.duration(MenuMotion.PAGE_MS, reduced)), label = "page") { shown ->
+                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
+                        when (shown) {
+                            Page.SOUND -> {
+                                WifeSwitchRow("Enable Sound", mix.enabled, { onMix(mix.copy(enabled = it)) }, detail = "Silent whenever Wifecraft is in the background")
+                                WifeSectionHeader("Volume")
+                                val on = mix.enabled
+                                WifeSliderRow("Master", mix.master, { onMix(mix.copy(master = it)) }, enabled = on)
+                                WifeSliderRow("Music", mix.music, { onMix(mix.copy(music = it)) }, enabled = on)
+                                WifeSliderRow("Ambience", mix.ambience, { onMix(mix.copy(ambience = it)) }, enabled = on)
+                                WifeSliderRow("Sound effects", mix.effects, { onMix(mix.copy(effects = it)) }, enabled = on)
+                                WifeSliderRow("Dialog", mix.dialog, { onMix(mix.copy(dialog = it)) }, enabled = on)
+                                WifeNote("The music dips while someone speaks. The game's music and sounds are fetched from wago.tools as they are first played.")
+                                WifeSectionHeader("Partner sounds")
+                                sound()
                             }
-                            // The block is always here, the same height (its texts keep their lines): starting a download
-                            // never pushes the buttons down under the finger, and Pause takes Download all's place.
-                            val current = progress
-                            val fraction = current?.fraction?.coerceIn(0f, 1f) ?: 0f
-                            Text(current?.let { "${it.pack.label} (${it.packNumber} of ${it.packCount})" } ?: "Nothing downloading",
-                                style = frizStyle(15.sp), maxLines = 1)
-                            LoadingBar(fraction, Modifier.fillMaxWidth().height(32.dp).semantics {
-                                progressBarRangeInfo = if (current != null && current.total == 0 && downloading) ProgressBarRangeInfo.Indeterminate
-                                    else ProgressBarRangeInfo(fraction, 0f..1f)
-                            })
-                            val line = current?.let {
-                                val mb = "%.1f MB".format(it.bytes / 1_000_000.0)
-                                val checked = if (it.total > 0) " · ${it.done} of ${it.total} entries checked" else " · Finding files…"
-                                val failed = if (it.failed > 0) " · ${it.failed} failed" else ""
-                                "${it.files} files downloaded ($mb)$checked$failed"
-                            } ?: "Pick what to download; files already here are skipped."
-                            Text(line, style = frizStyle(12.sp, Color.White), minLines = 2, maxLines = 2)
-                            Text(status ?: "", style = frizStyle(12.sp, Color.White), minLines = 2, maxLines = 3)
-                            if (downloading) {
-                                RedButton("Pause", onPause, Modifier.fillMaxWidth())
-                            } else {
-                                RedButton("Download all", { onDownload(AssetDownloads.Pack.entries) }, Modifier.fillMaxWidth(), enabled = canDownload)
+                            Page.DOWNLOADS -> {
+                                Row(Modifier.fillMaxWidth().heightIn(min = WifeTheme.touch), verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapM)) {
+                                    Text("Download speed", Modifier.weight(1f), style = WifeTheme.labelStyle(), maxLines = 2)
+                                    WowDropdown(OptionsModel.DOWNLOAD.firstOrNull { it.first == speed }?.second ?: "$speed at once",
+                                        OptionsModel.DOWNLOAD, onSpeed, Modifier.weight(1.1f))
+                                }
+                                // The block is always here, the same height (its texts keep their lines): starting a download
+                                // never pushes the buttons down under the finger, and Pause takes Download all's place.
+                                val current = progress
+                                val fraction = current?.fraction?.coerceIn(0f, 1f) ?: 0f
+                                WifeSectionHeader("Game files")
+                                Text(current?.let { "${it.pack.label} (${it.packNumber} of ${it.packCount})" } ?: "Nothing downloading",
+                                    style = WifeTheme.labelStyle(WifeTheme.gold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                WifeProgress(fraction, Modifier.padding(vertical = WifeTheme.gapXs).semantics {
+                                    progressBarRangeInfo = if (current != null && current.total == 0 && downloading) ProgressBarRangeInfo.Indeterminate
+                                        else ProgressBarRangeInfo(fraction, 0f..1f)
+                                })
+                                val line = current?.let {
+                                    val mb = "%.1f MB".format(it.bytes / 1_000_000.0)
+                                    val checked = if (it.total > 0) " · ${it.done} of ${it.total} entries checked" else " · Finding files…"
+                                    val failed = if (it.failed > 0) " · ${it.failed} failed" else ""
+                                    "${it.files} files downloaded ($mb)$checked$failed"
+                                } ?: "Pick what to download; files already here are skipped."
+                                Text(line, style = WifeTheme.captionStyle(WifeTheme.text), minLines = 2, maxLines = 2)
+                                Text(status ?: "", style = WifeTheme.captionStyle(WifeTheme.text), minLines = 2, maxLines = 3)
+                                if (downloading) {
+                                    WifeButton("Pause", onPause, Modifier.fillMaxWidth(), kind = WifeButtonKind.PRIMARY)
+                                } else {
+                                    WifeButton("Download all", { onDownload(AssetDownloads.Pack.entries) }, Modifier.fillMaxWidth(), enabled = canDownload, kind = WifeButtonKind.PRIMARY)
+                                }
+                                for (pack in AssetDownloads.Pack.entries) {
+                                    WifeButton(pack.label, { onDownload(listOf(pack)) }, Modifier.fillMaxWidth(), enabled = canDownload && !downloading)
+                                }
+                                if (!canDownload) WifeNote("Gather the character tables first.")
                             }
-                            for (pack in AssetDownloads.Pack.entries) {
-                                RedButton(pack.label, { onDownload(listOf(pack)) }, Modifier.fillMaxWidth(), enabled = canDownload && !downloading)
-                            }
-                            if (!canDownload) Text("Gather the character tables first.", style = frizStyle(12.sp, Color.White))
+                            Page.MODS -> mods()
                         }
-                        Page.SOUND -> { WowSliderRow("Sound effects", volume, onVolume); sound() }
-                        Page.MODS -> mods()
                     }
-                }
-                if (page != Page.DOWNLOADS && downloading) {
-                    Text("Downloading ${progress?.pack?.label?.lowercase() ?: "game files"}…",
-                        style = frizStyle(12.sp), modifier = Modifier.padding(vertical = 6.dp))
                 }
             }
         }
