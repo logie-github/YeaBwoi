@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.logie.wifecraft.anim.Anim
@@ -108,7 +109,14 @@ private enum class Phase { Pick, Running, Review, Saving, Saved }
  * assets/sims_profile.json); [library] receives what the review saves.
  */
 @Composable
-fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig) -> Retarget, onBack: () -> Unit, onLibrary: (() -> Unit)? = null) {
+fun AnimImportScreen(
+    library: AnimLibrary,
+    rigs: RigStore,
+    retargeter: (SimsRig) -> Retarget,
+    onBack: () -> Unit,
+    onLibrary: (() -> Unit)? = null,
+    wickedWhims: Boolean = false,
+) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val main = remember { Handler(Looper.getMainLooper()) }
@@ -159,7 +167,7 @@ fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig)
     }
 
     fun start(uris: List<Uri>) {
-        if (uris.isEmpty()) return
+        if (phase != Phase.Pick || uris.isEmpty()) return
         val inputs = uris.map { u ->
             ImportInput(displayName(ctx, u)) { ctx.contentResolver.openInputStream(u) ?: throw IOException("The file couldn't be opened.") }
         }
@@ -172,7 +180,7 @@ fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig)
                     val rig = RigImport.load(rigs)
                     val pipeline = ImportPipeline(
                         if (rig == null) NoRigRetarget() else retargeter(rig), tmp,
-                        embeddedRetargeter = retargeter.takeIf { rig == null },
+                        embeddedRetargeter = retargeter.takeIf { wickedWhims || rig == null },
                     )
                     pipeline.run(inputs) { e -> main.post { r.apply(e); rev++ } }
                 } catch (e: Exception) {
@@ -184,20 +192,25 @@ fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig)
             }
             r.finish()
             val anims = results.ifEmpty { r.converted }
-            draft = if (anims.isEmpty()) null else ReviewDraft(anims)
+            draft = if (anims.isEmpty()) null else ReviewDraft(anims, defaultCategory = "WickedWhims".takeIf { wickedWhims })
             rev++
             phase = if (anims.isEmpty()) Phase.Pick else Phase.Review
         }
     }
 
     val pickFiles = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { start(it) }
+    val pickWickedWhims = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) start(listOf(uri))
+    }
 
     val busy = phase == Phase.Running || phase == Phase.Saving
-    EditorFrame("Import Animations", { if (!busy) { if (phase == Phase.Review) phase = Phase.Pick else onBack() } },
+    EditorFrame(if (wickedWhims) "Import WickedWhims" else "Import Animations", { if (!busy) { if (phase == Phase.Review) phase = Phase.Pick else onBack() } },
         actions = { if (onLibrary != null && !busy) TextAction("Animations", onLibrary) }) {
         Crossfade(phase, animationSpec = tween(MenuMotion.duration(MenuMotion.PAGE_MS, reduceMotion())), label = "phase") { step ->
         when (step) {
-            Phase.Pick -> PickPage(
+            Phase.Pick -> if (wickedWhims) {
+                WickedWhimsPickPage(run) { pickWickedWhims.launch(arrayOf("*/*")) }
+            } else PickPage(
                 hasRig, rigBones, rigMessage, rigBusy, run,
                 onRig = { pickRig.launch(arrayOf("*/*")) },
                 onFiles = { pickFiles.launch(arrayOf("*/*")) },
@@ -218,7 +231,7 @@ fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig)
                             }
                         }
                     },
-                    onCancel = { phase = Phase.Pick },
+                    onCancel = { if (phase == Phase.Review) phase = Phase.Pick },
                 )
             }
             Phase.Saving -> Text("Saving animations…", style = frizStyle(16.sp))
@@ -253,6 +266,35 @@ fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig)
             rev++
         }
     } }
+}
+
+@Composable
+private fun WickedWhimsPickPage(last: ImportRun, onChoose: () -> Unit) {
+    val uriHandler = LocalUriHandler.current
+    var downloadError by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Choose the WickedWhims ZIP or its Tuning.package. Compatible animations will appear for review before you save them.",
+            style = frizStyle(14.sp, Color.White, false))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            RedButton("Download from author", {
+                try {
+                    uriHandler.openUri("https://turbodriver.itch.io/wickedwhims")
+                    downloadError = false
+                } catch (_: IllegalArgumentException) {
+                    downloadError = true
+                }
+            }, Modifier.weight(1f), textSize = 13.sp)
+            RedButton("Choose downloaded file", onChoose, Modifier.weight(1f), textSize = 13.sp)
+        }
+        if (downloadError) {
+            Text("The download page couldn't open. Open turbodriver.itch.io/wickedwhims in your browser.",
+                style = frizStyle(13.sp, WowColors.grey, false))
+        }
+        if (last.rows.isNotEmpty()) {
+            Text("Last import: ${last.summary()}", style = frizStyle(14.sp))
+            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) { rowsList(last.rows) }
+        }
+    }
 }
 
 @Composable

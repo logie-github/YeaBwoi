@@ -120,7 +120,7 @@ class MainActivity : ComponentActivity() {
     private val animationBindings by lazy { getSharedPreferences("scene_animations", MODE_PRIVATE) }
     private val simsProfile by lazy { Profile.load(assets.open("sims_profile.json").bufferedReader().use { it.readText() }) }
 
-    private enum class Screen { TITLE, GATHER, SETUP, CREATOR, ANIMATIONS, IMPORT, LIVE }
+    private enum class Screen { TITLE, GATHER, SETUP, CREATOR, ANIMATIONS, IMPORT, IMPORT_WICKED_WHIMS, LIVE }
     private enum class Panel { NONE, OPTIONS, UPDATE }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -489,12 +489,14 @@ class MainActivity : ComponentActivity() {
                             animationBindings.edit().putString(activity.name, id).apply()
                         },
                         onImport = { screen = Screen.IMPORT },
+                        onImportWickedWhims = { screen = Screen.IMPORT_WICKED_WHIMS },
                         onBack = { screen = Screen.SETUP },
                     )
-                    Screen.IMPORT -> AnimImportScreen(
+                    Screen.IMPORT, Screen.IMPORT_WICKED_WHIMS -> AnimImportScreen(
                         animationLibrary, simsRigs,
                         retargeter = { rig -> Retargeter(simsProfile, rig) },
                         onBack = { screen = Screen.ANIMATIONS },
+                        wickedWhims = screen == Screen.IMPORT_WICKED_WHIMS,
                     )
                     Screen.LIVE -> {
                         val preset = stages.first { it.id == location }

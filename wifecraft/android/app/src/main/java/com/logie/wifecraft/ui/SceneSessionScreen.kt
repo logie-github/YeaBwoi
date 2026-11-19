@@ -407,6 +407,7 @@ fun SceneAnimationScreen(
     bindings: Map<Activity, String>,
     onChange: (Activity, String?) -> Unit,
     onImport: () -> Unit,
+    onImportWickedWhims: () -> Unit,
     onBack: () -> Unit,
 ) {
     var editing by remember { mutableStateOf<Activity?>(null) }
@@ -415,7 +416,10 @@ fun SceneAnimationScreen(
         WarcraftLoadingArt(Modifier.fillMaxSize())
         val layout = ChromeLayout.of(maxWidth.value, maxHeight.value)
         WowWindow("Sims 4 animations", onBack, Modifier.width(layout.optionsW.dp).height(layout.optionsH.dp)) {
-            RedButton("Import rig and clips", onImport)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                RedButton("Import WickedWhims", onImportWickedWhims, Modifier.weight(1f), textSize = 13.sp)
+                RedButton("Import rig and clips", onImport, Modifier.weight(1f), textSize = 13.sp)
+            }
             Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())) {
                 for (activity in Activity.entries) {
                     val current = clips.firstOrNull { it.id == bindings[activity] }?.name ?: "Warcraft default"
@@ -425,7 +429,7 @@ fun SceneAnimationScreen(
         }
     }
     rememberHeld(editing)?.let { activity ->
-        PickDialog(activity.label, listOf("" to "Warcraft default") + clips.map { it.id to it.name },
+        PickDialog(activity.label, listOf("" to "Warcraft default") + clips.map { it.id to "${it.name} · ${it.category}" },
             bindings[activity], onCancel = { editing = null }, visible = editing != null, searchHint = "Find animations") { id ->
             onChange(activity, id.takeIf { it.isNotEmpty() })
             editing = null

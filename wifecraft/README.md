@@ -17,6 +17,8 @@ In **Options**, choose **Download all** or download scenes, clothes, and Warcraf
 
 ## Sims 4 animations
 
+For WickedWhims, open **Choose objects → Sims 4 animations → Import WickedWhims**. Use **Download from author** to get the original archive, then **Choose downloaded file** to import it. The app can use the archive’s skeletons and groups saved clips under **WickedWhims**.
+
 From **Choose objects**, open **Sims 4 animations** and select **Import rig and clips**. Choose a Sims 4 animation package or its ZIP or 7z archive. The importer can use a humanoid skeleton included in the package. For packs without one, choose an adult Sims 4 skeleton from your game installation. The importer reports which clips it can retarget and lets you review them before saving. Assign saved clips to NPC actions, including walking, sitting, resting, reading, and talking. Assignments apply to autonomous actions and player commands and are saved for the next scene.
 
 The imported Sims rig supplies the source bone hierarchy, bind transforms, and animation curves. The retargeter converts mapped tracks to Warcraft's coordinates and bind pose so Warcraft mesh skinning stays intact. Source clip timing is retained. Scene movement supplies horizontal travel for the walk action, so the bound walk clip contributes the vertical root motion and mapped pose. Unassigned actions use Warcraft animations.
