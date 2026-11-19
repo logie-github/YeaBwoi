@@ -40,6 +40,7 @@ class LiveScene(
     private val ox: Float, private val oy: Float, private val oz: Float,
     private val rotation: Float,
     random: Random = Random.Default,
+    wanderOnly: Boolean = false,
 ) {
     /** Where the frame goes (the 3D view, or a test's recorder). GL thread. */
     interface Sink {
@@ -48,6 +49,7 @@ class LiveScene(
         fun place(index: Int, x: Float, y: Float, z: Float, facing: Float, furniture: SceneObject?, sx: Float, sy: Float, sz: Float)
         /** Person [index] began [activity] this frame (their animation changes now, with the placement). */
         fun activity(index: Int, activity: Activity)
+        fun playback(index: Int, clip: ClipPlayback?) {}
     }
 
     companion object {
@@ -59,7 +61,7 @@ class LiveScene(
         private const val KEEP = "\u0000keep"
     }
 
-    private val simulation = SceneSimulation(ids, objects, random, durations, initiallyReady = false)
+    private val simulation = SceneSimulation(ids, objects, random, durations, initiallyReady = false, wanderOnly = wanderOnly)
     val clock = FixedStep()
     val camera = SceneCamera(room)
 
@@ -88,6 +90,7 @@ class LiveScene(
     private val curX = FloatArray(n); private val curY = FloatArray(n); private val curZ = FloatArray(n)
     private val shownFacing = FloatArray(n)
     private val lastActivity = arrayOfNulls<Activity>(n)
+    private val lastPlayback = arrayOfNulls<ClipPlayback>(n)
     private val cosR = cos(rotation)
     private val sinR = sin(rotation)
 
@@ -146,14 +149,18 @@ class LiveScene(
         var fx = 0f; var fy = 0f; var fz = 0f
         for (i in 0 until n) {
             simulation.pose(i, pose)
-            val x = prevX[i] + (curX[i] - prevX[i]) * a
-            val y = prevY[i] + (curY[i] - prevY[i]) * a
-            val z = prevZ[i] + (curZ[i] - prevZ[i]) * a
+            val x = if (pose.playback != null) pose.x else prevX[i] + (curX[i] - prevX[i]) * a
+            val y = if (pose.playback != null) pose.y else prevY[i] + (curY[i] - prevY[i]) * a
+            val z = if (pose.playback != null) pose.z else prevZ[i] + (curZ[i] - prevZ[i]) * a
             val onFurniture = pose.furniture != null && (pose.activity == Activity.SIT || pose.activity == Activity.REST)
-            shownFacing[i] = if (onFurniture) pose.facing else turnToward(shownFacing[i], pose.facing, turn)
+            shownFacing[i] = if (onFurniture || pose.playback != null) pose.facing else turnToward(shownFacing[i], pose.facing, turn)
             if (running && lastActivity[i] != pose.activity) {
                 lastActivity[i] = pose.activity
                 sink.activity(i, pose.activity)
+            }
+            if (running && lastPlayback[i] != pose.playback) {
+                lastPlayback[i] = pose.playback
+                sink.playback(i, pose.playback)
             }
             val facing = shownFacing[i] + rotation
             if (onFurniture) {

@@ -107,14 +107,27 @@ class ImportPipeline(
                     val rig = rigs.maxBy { it.coverage(hashes) }
                     return converters.getOrPut(rig) { embeddedRetargeter.invoke(rig) }
                 }
-                SimsReader.visitClips(pkg,
-                    onClip = { clip -> convert(pname, base, clip, ::converter, onEvent, out) },
+                val first = out.size
+                val sources = mutableMapOf<String, String>()
+                val visited = SimsReader.visitClips(pkg,
+                    onClip = { clip ->
+                        val oldSize = out.size
+                        convert(pname, base, clip, ::converter, onEvent, out)
+                        if (out.size > oldSize) sources.putIfAbsent(clip.name.lowercase(), out.last().source)
+                    },
                     onFailure = { key, why ->
                         val label = "$pname :: $key"
                         onEvent(ImportEvent.Found(label))
                         onEvent(ImportEvent.Failed(label, why))
                     },
                 )
+                val groups = ImportedPerformances.read(pkg, sources).groupBy { it.roles.first { role -> role.source.isNotBlank() }.source }
+                for (index in first until out.size) {
+                    val clip = out[index]
+                    val performances = groups[clip.source].orEmpty()
+                    if (performances.isNotEmpty()) out[index] = clip.copy(performances = performances)
+                }
+                visited
             }
         }
         if (count == 0) onEvent(ImportEvent.Skipped(pname, "No animation clips in this package (it may hold only objects, CAS parts or other mods)"))

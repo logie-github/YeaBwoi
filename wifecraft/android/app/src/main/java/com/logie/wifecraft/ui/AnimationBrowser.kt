@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.logie.wifecraft.anim.CheckedAnimation
-import com.logie.wifecraft.anim.ClipType
+import com.logie.wifecraft.anim.AnimationChoice
 import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.Catalog
 import com.logie.wifecraft.data.Lights
@@ -30,22 +30,20 @@ import kotlin.math.PI
 
 @Composable
 internal fun AnimationBrowser(
-    clips: List<CheckedAnimation>,
-    action: String?,
-    current: String?,
-    preview: @Composable (CheckedAnimation) -> Unit,
+    choices: List<AnimationChoice>,
+    preview: (@Composable (CheckedAnimation) -> Unit)?,
     onClose: () -> Unit,
-    onAssign: ((String?) -> Unit)?,
+    onPlay: ((AnimationChoice) -> Unit)? = null,
 ) {
     var query by remember { mutableStateOf("") }
-    var selectedId by remember { mutableStateOf(current) }
-    val selected = clips.firstOrNull { it.clip.id == selectedId }
-    val grouped = remember(clips, query) {
-        clips.filter {
-            val search = query.trim()
-            it.clip.name.contains(search, ignoreCase = true) ||
-                it.clip.category.contains(search, ignoreCase = true)
-        }.groupBy { it.inspection.type }
+    var selection by remember { mutableStateOf<String?>(null) }
+    val selected = choices.firstOrNull { it.id == selection }
+    val grouped = remember(choices, query) {
+        val search = query.trim()
+        choices.filter {
+            it.name.contains(search, ignoreCase = true) || it.group.contains(search, ignoreCase = true) ||
+                it.preview.clip.category.contains(search, ignoreCase = true) || it.setting.contains(search, ignoreCase = true)
+        }.groupBy { it.group }
     }
     val list = rememberLazyListState()
     LaunchedEffect(query) { list.scrollToItem(0) }
@@ -53,45 +51,42 @@ internal fun AnimationBrowser(
         BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             val width = (maxWidth - 24.dp).coerceAtMost(1000.dp)
             val height = (maxHeight - 24.dp).coerceAtMost(700.dp)
-            WowWindow(action ?: "Browse animations", onClose, Modifier.width(width).height(height)) {
+            WowWindow(if (onPlay == null) "Browse animations" else "Play animation", onClose, Modifier.width(width).height(height)) {
                 Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         WowSearchBox(query, { query = it }, "Find animations", Modifier.fillMaxWidth())
                         LazyColumn(Modifier.weight(1f).fillMaxWidth().warScrollbar(list), list,
                             verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             if (grouped.isEmpty()) item {
-                                Text(if (clips.isEmpty()) "Import an animation pack to see its clips." else "No matching animations.",
+                                Text(if (choices.isEmpty()) "Import an animation pack to see its clips." else "No matching animations.",
                                     Modifier.padding(8.dp), style = frizStyle(13.sp))
                             }
-                            for (type in ClipType.entries) {
-                                val entries = grouped[type].orEmpty()
-                                if (entries.isEmpty()) continue
-                                item(key = type.name) {
-                                    Text("${type.label} (${entries.size})", Modifier.padding(top = 5.dp), style = frizStyle(14.sp))
+                            for ((group, entries) in grouped) {
+                                item(key = "group:$group") {
+                                    Text("$group (${entries.size})", Modifier.padding(top = 5.dp), style = frizStyle(14.sp))
                                 }
-                                items(entries, key = { it.clip.id }) { entry ->
-                                    val clip = entry.clip
-                                    val detail = if (entry.inspection.type == ClipType.POSE) clip.category else
-                                        "${"%.1f s".format(clip.duration)} · ${clip.category}"
-                                    WowListRow(clip.name, detail, selected = clip.id == selectedId, onClick = { selectedId = clip.id })
+                                items(entries, key = { it.id }) { choice ->
+                                    val count = "${choice.participantCount} NPC${if (choice.participantCount == 1) "" else "s"}"
+                                    val detail = listOfNotNull(count, choice.setting.takeIf(String::isNotBlank),
+                                        "Missing track".takeUnless { choice.playable }).joinToString(" · ")
+                                    WowListRow(choice.name, detail, selected = choice.id == selection, onClick = {
+                                        if (onPlay != null && choice.playable) onPlay(choice) else selection = choice.id
+                                    })
                                 }
                             }
                         }
                     }
-                    Column(Modifier.weight(1.25f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            val reason = selected?.inspection?.reason
-                            when {
-                                reason != null -> Text(reason, Modifier.padding(8.dp), style = frizStyle(14.sp))
-                                selected != null -> preview(selected)
-                                else -> Text("Choose a clip to preview.", style = frizStyle(14.sp))
-                            }
-                        }
-                        if (onAssign != null) {
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                RedButton("Warcraft default", { onAssign(null) }, Modifier.weight(1f), textSize = 12.sp)
-                                RedButton("Assign", { selected?.let { onAssign(it.clip.id) } }, Modifier.weight(1f),
-                                    enabled = selected != null && selected.inspection.type != ClipType.INVALID, textSize = 12.sp)
+                    Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (selected == null) {
+                            Text(if (onPlay == null) "Choose an animation to preview." else "Choose an animation. Partner clips ask for a second NPC.",
+                                style = frizStyle(14.sp))
+                        } else {
+                            Text(selected.name, style = frizStyle(15.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            if (selected.setting.isNotEmpty()) Text("Source setting · ${selected.setting}", style = frizStyle(12.sp))
+                            if (selected.participantCount == 2) Text("Requires two NPCs", style = frizStyle(13.sp))
+                            if (!selected.playable) Text(selected.preview.inspection.reason ?: "A required actor track is missing.", style = frizStyle(13.sp))
+                            if (preview != null && selected.preview.inspection.reason == null) {
+                                Box(Modifier.weight(1f).fillMaxWidth()) { preview(selected.preview) }
                             }
                         }
                     }

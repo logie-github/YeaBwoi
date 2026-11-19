@@ -15,6 +15,7 @@ enum class Activity(val label: String, val description: String, val animation: I
     READ("Read a book", "Reading", 520, 9f),
     CHAT("Chat", "Chatting", 60, 7f),
     LISTEN("Listen", "Listening", 0, 7f),
+    PERFORM("Play animation", "Performing", 0, 0f),
 }
 
 enum class SceneObject(val label: String, val model: Int, val position: Vec3, val approach: Vec3, val action: Activity) {
@@ -39,6 +40,9 @@ enum class SceneObject(val label: String, val model: Int, val position: Vec3, va
     companion object { const val BOOK_MODEL = 198029 }
 }
 
+data class PlaybackRole(val clip: String, val offset: Vec3, val facing: Float)
+data class ClipPlayback(val clip: String, val command: Long)
+
 data class InteractionSpot(val entry: Vec3, val pose: Vec3, val facing: Float)
 
 /**
@@ -50,6 +54,7 @@ class Pose {
     var facing = 0f
     var activity = Activity.IDLE
     var furniture: SceneObject? = null
+    var playback: ClipPlayback? = null
     var ex = 0f; var ey = 0f; var ez = 0f
 }
 
@@ -59,6 +64,7 @@ class SceneSimulation(
     private val random: Random = Random.Default,
     private val durations: Map<Activity, Float> = emptyMap(),
     initiallyReady: Boolean = true,
+    private val wanderOnly: Boolean = false,
 ) {
     data class Person(
         val id: String, val position: Vec3, val facing: Float, val activity: Activity, val directed: Boolean,
@@ -80,6 +86,13 @@ class SceneSimulation(
     var version = 0L
         private set
 
+    private class Performance(
+        val lead: Actor, val other: Actor?, val roles: List<PlaybackRole>, val seconds: Float,
+        val anchor: Vec3, val heading: Float, val command: Long,
+    ) {
+        var started = false
+    }
+
     private enum class Phase { WAITING, MOVING, ACTING }
 
     private class Actor(val id: String, start: Vec3, var facing: Float, var remaining: Float) {
@@ -95,6 +108,8 @@ class SceneSimulation(
         var activity = Activity.IDLE
         var target: SceneObject? = null
         var partner: Actor? = null
+        var performance: Performance? = null
+        var playback: ClipPlayback? = null
         var directed = false
     }
 
@@ -117,6 +132,7 @@ class SceneSimulation(
         val a = order[index]
         out.x = a.x; out.y = a.y; out.z = a.z
         out.facing = a.facing
+        out.playback = a.playback
         out.activity = if (a.phase == Phase.MOVING) Activity.WALK else a.activity
         val item = a.target.takeIf { a.phase == Phase.ACTING }
         out.furniture = item
@@ -154,6 +170,51 @@ class SceneSimulation(
         return true
     }
 
+    fun perform(id: String, otherId: String?, roles: List<PlaybackRole>, seconds: Float): Boolean {
+        val lead = actors[id] ?: return false
+        val other = otherId?.let { actors[it] ?: return false }
+        if (other === lead || roles.size != if (other == null) 1 else 2) return false
+        release(lead)
+        if (other != null) release(other)
+        val performance = Performance(lead, other, roles, seconds.coerceIn(0.25f, 600f), lead.position, lead.facing, ++version)
+        if (other == null) play(performance)
+        else {
+            val entry = rolePosition(performance, roles[1])
+            begin(other, Activity.PERFORM, entry.copy(z = 0f), directed = true)
+            lead.partner = other
+            other.partner = lead
+            lead.performance = performance
+            other.performance = performance
+            lead.phase = Phase.ACTING
+            lead.directed = true
+        }
+        return true
+    }
+
+    private fun rolePosition(performance: Performance, role: PlaybackRole): Vec3 {
+        val x = role.offset.x
+        val y = role.offset.y
+        val c = cos(performance.heading)
+        val s = sin(performance.heading)
+        return performance.anchor + Vec3(x * c - y * s, x * s + y * c, 0f)
+    }
+
+    private fun play(performance: Performance) {
+        performance.started = true
+        for ((index, actor) in listOfNotNull(performance.lead, performance.other).withIndex()) {
+            val role = performance.roles[index]
+            actor.position = rolePosition(performance, role)
+            actor.facing = performance.heading + role.facing
+            actor.performance = performance
+            actor.playback = ClipPlayback(role.clip, performance.command)
+            actor.activity = Activity.PERFORM
+            actor.phase = Phase.ACTING
+            actor.remaining = performance.seconds
+            actor.directed = true
+        }
+        version++
+    }
+
     fun freeWill(id: String) {
         actors[id]?.let { release(it) }
     }
@@ -175,7 +236,9 @@ class SceneSimulation(
                     else { actor.x += dx * (step / distance); actor.y += dy * (step / distance) }
                 }
                 Phase.ACTING -> {
-                    if (actor.activity == Activity.LISTEN) continue
+                    val performance = actor.performance
+                    if (actor.activity == Activity.LISTEN ||
+                        (performance != null && (!performance.started || performance.lead !== actor))) continue
                     actor.remaining -= dt
                     if (actor.remaining <= 0f) release(actor)
                 }
@@ -183,14 +246,22 @@ class SceneSimulation(
         }
     }
 
+    private fun wander(actor: Actor) {
+        begin(actor, Activity.IDLE, Vec3(random.nextFloat() * 3 - 1.5f, random.nextFloat() * 2 - 1.4f, 0f), false)
+    }
+
     private fun choose(actor: Actor) {
+        if (wanderOnly) {
+            wander(actor)
+            return
+        }
         val options = optionScratch.apply { clear(); for (o in objects) if (available(o, actor.id)) add(o) }
         val people = peopleScratch.apply { clear(); for (o in order) if (o !== actor && o.phase == Phase.WAITING) add(o) }
         val choice = random.nextInt(options.size + people.size + 1)
         when {
             choice < options.size -> options[choice].let { begin(actor, it.action, spots.getValue(it).entry, false, it) }
             choice < options.size + people.size -> startChat(actor, people[choice - options.size], directed = false)
-            else -> begin(actor, Activity.IDLE, Vec3(random.nextFloat() * 3 - 1.5f, random.nextFloat() * 2 - 1.4f, 0f), false)
+            else -> wander(actor)
         }
     }
 
@@ -219,6 +290,10 @@ class SceneSimulation(
     }
 
     private fun arrive(actor: Actor) {
+        actor.performance?.let {
+            play(it)
+            return
+        }
         version++
         actor.position = actor.destination
         actor.phase = Phase.ACTING
@@ -238,6 +313,8 @@ class SceneSimulation(
         version++
         val partner = actor.partner
         actor.partner = null
+        actor.performance = null
+        actor.playback = null
         if (actor.phase == Phase.ACTING) actor.target?.let { actor.position = spots.getValue(it).entry }
         actor.target = null
         actor.z = 0f

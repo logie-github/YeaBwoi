@@ -5,7 +5,7 @@ An Android scene simulation. Choose a location, pick or create NPCs, and select 
 1. Open **Choose Scene** and pick the Stormwind Embassy.
 2. Select up to six NPCs. **Create NPC** saves a character to your roster. NPCs from older projects also appear in the roster.
 3. Choose a chair, bed, table with a book, or couch. The scene places the objects automatically.
-4. Begin the scene. NPCs will walk, talk, read, sit, and rest based on what is available. Select an NPC in the room or in the cast bar, then tap an object or choose an interaction. **NPC camera** follows the selected NPC. Drag to orbit and pinch or use the zoom buttons. **Room camera** restores the room view. **End scene** returns to the title.
+4. Begin the scene. NPCs wander until you give them an order. Select an NPC in the room or in the cast bar, then tap an object or choose an interaction. **NPC camera** follows the selected NPC. Drag to orbit and pinch or use the zoom buttons. **Room camera** restores the room view. **End scene** returns to the title.
 
 The Stormwind Embassy uses the existing wago.tools location pack. The title and scene setup use the original Wifecraft menu backdrop. The title emblem and first-launch download art also come from the earlier Wifecraft builds. Warcraft controls and selector icons load from wago.tools. The character, furniture, and book models load through the app's existing wago.tools pipeline.
 
@@ -17,13 +17,13 @@ In **Options**, choose **Download all** or download scenes, clothes, and Warcraf
 
 ## Sims 4 animations
 
-For WickedWhims, open **Choose objects → Sims 4 animations → Import WickedWhims**. Tap **Install** to download the original archive from the author’s itch.io page and add its compatible clips to the **WickedWhims** category.
+For WickedWhims, open **Choose objects → Animation library → Import WickedWhims**. Tap **Install** to download the original archive from the author’s itch.io page and add its compatible clips to the **WickedWhims** category.
 
-From **Choose objects**, open **Sims 4 animations** and select **Import rig and clips**. Choose a Sims 4 animation package or its ZIP or 7z archive. The importer can use a humanoid skeleton included in the package. For packs without one, choose an adult Sims 4 skeleton from your game installation. The importer reports which clips it can retarget and lets you review them before saving. Assign saved clips to NPC actions, including walking, sitting, resting, reading, and talking. Assignments apply to autonomous actions and player commands and are saved for the next scene.
+From **Choose objects**, open **Animation library** and select **Import rig and clips**. Choose a Sims 4 animation package or its ZIP or 7z archive. The importer can use a humanoid skeleton included in the package. For packs without one, choose an adult Sims 4 skeleton from your game installation. The importer reports which clips it can retarget and lets you review them before saving.
 
-Use **Browse animations** or select an NPC action to find clips grouped as poses, loops, and one-shot animations. Choose a clip to play it on the first NPC in your cast, then rotate or replay the preview. The preview reports tracks that could not map to that model. Reinstalling an animation pack refreshes older conversions in place and preserves clip assignments.
+Use **Animation library → Browse animations** to preview imported clips before a scene. Once the scene starts, NPCs wander. Select an NPC, choose **Play animation**, and pick a solo clip or a partner animation. For a partner animation, pick another NPC and the app starts the two roles together after they meet. Reinstall WickedWhims to read its authored role groups and refresh earlier conversions.
 
-The imported Sims rig supplies the source bone hierarchy, bind transforms, and animation curves. The retargeter converts mapped tracks to Warcraft's coordinates and bind pose so Warcraft mesh skinning stays intact. Source clip timing is retained. Scene movement supplies horizontal travel for the walk action, so the bound walk clip contributes the vertical root motion and mapped pose. Unassigned actions use Warcraft animations.
+The imported Sims rig supplies the source bone hierarchy, bind transforms, and animation curves. The retargeter converts mapped tracks to Warcraft's coordinates and bind pose so Warcraft mesh skinning stays intact. Source clip timing is retained. Ordinary wandering and furniture commands use Warcraft animations.
 
 ## Building
 

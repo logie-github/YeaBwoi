@@ -35,6 +35,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.logie.wifecraft.anim.CheckedAnimation
+import com.logie.wifecraft.anim.Anim
+import com.logie.wifecraft.anim.AnimationChoice
+import com.logie.wifecraft.anim.BoneTrack
+import com.logie.wifecraft.anim.animationChoices
+import com.logie.wifecraft.sims.Channel
+import com.logie.wifecraft.simulation.ClipPlayback
+import com.logie.wifecraft.simulation.PlaybackRole
+import java.util.concurrent.ConcurrentHashMap
 import com.logie.wifecraft.editor.Actor
 import com.logie.wifecraft.engine.FrameDriver
 import com.logie.wifecraft.engine.FurniturePose
@@ -90,7 +98,7 @@ fun SceneSetupScreen(
                     for (item in SceneObject.entries) {
                         WowCheckRow(item.label, item in objects, { onToggleObject(item) })
                     }
-                    RedButton("Sims 4 animations", onAnimations)
+                    RedButton("Animation library", onAnimations)
                 }
             }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -127,29 +135,59 @@ fun LiveSceneScreen(
     toStage: (Vec3) -> Vec3,
     stageRotation: Float,
     onAnimate: (String, Activity) -> Unit,
-    durations: Map<Activity, Float>,
+    clips: List<CheckedAnimation>,
     onEnd: () -> Unit,
     ready: Boolean,
     status: String?,
     /** How far the scene has loaded (0..1), when the caller knows: the loading bar fills; null: it sweeps. */
     progress: Float? = null,
 ) {
-    val live = remember(cast, objects, durations) {
+    val live = remember(cast, objects) {
         val origin = toStage(Vec3(0f, 0f, 0f))
-        LiveScene(cast.map { it.id }, objects, durations, camera, origin.x, origin.y, origin.z, stageRotation)
+        LiveScene(cast.map { it.id }, objects, emptyMap(), camera, origin.x, origin.y, origin.z, stageRotation, wanderOnly = true)
     }
     SideEffect { live.camera.room = camera }
     var snapshot by remember(live) { mutableStateOf(live.snapshot()) }
     var selected by remember { mutableStateOf<String?>(null) }
     var npcCamera by remember { mutableStateOf(false) }
     var ending by remember { mutableStateOf(false) }
+    var choosingAnimation by remember { mutableStateOf<String?>(null) }
+    var choosingPartner by remember { mutableStateOf<Pair<String, AnimationChoice>?>(null) }
+    val choices = remember(clips) { animationChoices(clips) }
+    val playback = remember(live) { ConcurrentHashMap<String, Anim>() }
     val names = remember(cast) { cast.associate { it.id to it.name } }
     val active = selected?.let { id -> snapshot.people.firstOrNull { it.id == id } }
 
     BackHandler {
-        if (npcCamera) npcCamera = false
+        if (choosingPartner != null) choosingPartner = null
+        else if (choosingAnimation != null) choosingAnimation = null
+        else if (npcCamera) npcCamera = false
         else if (selected != null) selected = null
         else ending = true
+    }
+
+    fun play(owner: String, other: String?, choice: AnimationChoice) {
+        val roles = choice.roles.mapIndexed { index, role ->
+            val animation = checkNotNull(choice.clips[index].forPlayback())
+            val key = "${choice.id}:$index"
+            val scale = 1.2f
+            val lift = role.offset.z * scale
+            playback[key] = if (lift == 0f) animation else animation.copy(tracks = animation.tracks.map { track ->
+                if (track.bone == "Root" && track.channel == Channel.POSITION) {
+                    BoneTrack(track.bone, track.channel, track.times, track.values.copyOf().also { values ->
+                        for (i in 2 until values.size step 3) values[i] += lift
+                    })
+                } else track
+            })
+            PlaybackRole(key, role.offset * scale, role.facing)
+        }
+        val duration = choice.clips.maxOf {
+            val animation = checkNotNull(it.forPlayback())
+            if (animation.loop || animation.duration == 0f) 12f else animation.duration
+        }
+        live.order { sim ->
+            if (sim.perform(owner, other, roles, duration)) null else "This animation requires ${choice.participantCount} NPCs."
+        }
     }
 
     // the GL thread drives every frame; the menus hear of changes only
@@ -169,6 +207,10 @@ fun LiveSceneScreen(
                     else -> FurniturePose.FLOOR
                 }
                 view.glPlace(keys[index], x, y, z, facing, pose, sx, sy, sz)
+            }
+
+            override fun playback(index: Int, clip: ClipPlayback?) {
+                view.glPlayAnimation(keys[index], clip?.let { playback[it.clip] })
             }
 
             override fun activity(index: Int, activity: Activity) {
@@ -317,6 +359,7 @@ fun LiveSceneScreen(
             } else {
                 Row(Modifier.fillMaxSize().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically) {
+                    RedButton("Play animation", { choosingAnimation = id }, enabled = ready)
                     for (item in objects) key(item) {
                         val action = when (item) {
                             SceneObject.CHAIR -> "Sit in chair"
@@ -335,6 +378,25 @@ fun LiveSceneScreen(
         }
         Text(snapshot.notice.orEmpty(), Modifier.fillMaxWidth().height(22.dp).padding(horizontal = 12.dp), color = Color.LightGray,
             maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+    choosingAnimation?.let { owner ->
+        AnimationBrowser(choices, preview = null, onClose = { choosingAnimation = null }, onPlay = { choice ->
+            choosingAnimation = null
+            if (choice.participantCount == 2) choosingPartner = owner to choice
+            else play(owner, null, choice)
+        })
+    }
+    choosingPartner?.let { (owner, choice) ->
+        val candidates = cast.filter { it.id != owner }.map { it.id to it.name }
+        if (candidates.isEmpty()) {
+            ConfirmDialog("Add a second NPC to the scene to play this animation.", "OK",
+                { choosingPartner = null }, { choosingPartner = null })
+        } else {
+            PickDialog("Choose a partner", candidates, null, { choosingPartner = null }) { partner ->
+                choosingPartner = null
+                play(owner, partner, choice)
+            }
+        }
     }
     ConfirmDialog("End this scene?", "End scene", { ending = false }, onEnd, visible = ending)
 }
@@ -404,42 +466,23 @@ private fun BoxScope.SceneLoadingCover(visible: Boolean, name: String, status: S
 @Composable
 fun SceneAnimationScreen(
     clips: List<CheckedAnimation>,
-    bindings: Map<Activity, String>,
     preview: @Composable (CheckedAnimation) -> Unit,
-    onChange: (Activity, String?) -> Unit,
     onImport: () -> Unit,
     onImportWickedWhims: () -> Unit,
     onBack: () -> Unit,
 ) {
     var browsing by remember { mutableStateOf(false) }
-    var editing by remember { mutableStateOf<Activity?>(null) }
     BackHandler(!browsing, onBack)
-
     BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
         WarcraftLoadingArt(Modifier.fillMaxSize())
         val layout = ChromeLayout.of(maxWidth.value, maxHeight.value)
-        WowWindow("Sims 4 animations", onBack, Modifier.width(layout.optionsW.dp).height(layout.optionsH.dp)) {
+        WowWindow("Animation library", onBack, Modifier.width(layout.optionsW.dp).height(layout.optionsH.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 RedButton("Import WickedWhims", onImportWickedWhims, Modifier.weight(1f), textSize = 13.sp)
                 RedButton("Import rig and clips", onImport, Modifier.weight(1f), textSize = 13.sp)
-                RedButton("Browse animations", { editing = null; browsing = true }, Modifier.weight(1f), textSize = 13.sp)
-            }
-            Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())) {
-                for (activity in Activity.entries) {
-                    val current = clips.firstOrNull { it.clip.id == bindings[activity] }?.clip?.name ?: "Warcraft default"
-                    WowListRow(activity.label, current, selected = false, onClick = { editing = activity; browsing = true })
-                }
+                RedButton("Browse animations", { browsing = true }, Modifier.weight(1f), textSize = 13.sp)
             }
         }
     }
-    if (browsing) {
-        val action = editing
-        AnimationBrowser(clips, action?.label, action?.let(bindings::get), preview,
-            onClose = { browsing = false },
-            onAssign = action?.let { activity -> { id ->
-                onChange(activity, id)
-                browsing = false
-            } },
-        )
-    }
+    if (browsing) AnimationBrowser(remember(clips) { animationChoices(clips) }, preview, onClose = { browsing = false })
 }

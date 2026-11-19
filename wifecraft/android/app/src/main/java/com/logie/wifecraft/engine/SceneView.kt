@@ -224,6 +224,13 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         if (requestedAnimations.put(key, animation) != animation) ids[key]?.let { Native.anim(handle, it, animation, true, Clock.now()) }
     }
 
+    /** GL thread: start both roles on the same render clock. */
+    fun glPlayAnimation(key: String, animation: Anim?) {
+        val id = ids[key] ?: return
+        if (animation == null) Native.clearBoneAnim(handle, id)
+        else applyPose(handle, id, AnimArrays.of(animation))
+    }
+
     fun post(change: Change) {
         changes.add(change)
     }

@@ -25,7 +25,6 @@ import com.logie.wifecraft.anim.AnimLibrary
 import com.logie.wifecraft.anim.CheckedAnimation
 import com.logie.wifecraft.anim.Profile
 import com.logie.wifecraft.anim.Retargeter
-import com.logie.wifecraft.sims.Channel
 import com.logie.wifecraft.story.Vec3
 import com.logie.wifecraft.ui.AnimImportScreen
 import com.logie.wifecraft.ui.AnimationViewport
@@ -118,7 +117,6 @@ class MainActivity : ComponentActivity() {
     private val animationDirectory by lazy { File(filesDir, "anims") }
     private val animationLibrary by lazy { AnimLibrary(animationDirectory) }
     private val simsRigs by lazy { RigStore(animationDirectory) }
-    private val animationBindings by lazy { getSharedPreferences("scene_animations", MODE_PRIVATE) }
     private val simsProfile by lazy { Profile.load(assets.open("sims_profile.json").bufferedReader().use { it.readText() }) }
 
     private enum class Screen { TITLE, GATHER, SETUP, CREATOR, ANIMATIONS, IMPORT, IMPORT_WICKED_WHIMS, LIVE }
@@ -260,11 +258,8 @@ class MainActivity : ComponentActivity() {
         var location by remember { mutableStateOf<String?>(null) }
         var cast by remember { mutableStateOf(emptySet<String>()) }
         var availableClips by remember { mutableStateOf(emptyList<CheckedAnimation>()) }
-        var bindings by remember {
-            mutableStateOf(Activity.entries.mapNotNull { a -> animationBindings.getString(a.name, null)?.let { a to it } }.toMap())
-        }
         LaunchedEffect(screen) {
-            if (screen == Screen.ANIMATIONS || screen == Screen.SETUP) {
+            if (screen == Screen.ANIMATIONS || screen == Screen.LIVE) {
                 availableClips = withContext(Dispatchers.IO) { animationLibrary.list().map { CheckedAnimation(it) } }
             }
         }
@@ -484,7 +479,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     Screen.ANIMATIONS -> SceneAnimationScreen(
-                        availableClips, bindings,
+                        availableClips,
                         preview = { clip ->
                             val actor = chosen.firstOrNull() ?: starters.firstOrNull()
                             val animationCatalog = catalog
@@ -498,10 +493,6 @@ class MainActivity : ComponentActivity() {
                             } else {
                                 Text("Choose an NPC to preview animations.", style = frizStyle(14.sp))
                             }
-                        },
-                        onChange = { activity, id ->
-                            bindings = if (id == null) bindings - activity else bindings + (activity to id)
-                            animationBindings.edit().putString(activity.name, id).apply()
                         },
                         onImport = { screen = Screen.IMPORT },
                         onImportWickedWhims = { screen = Screen.IMPORT_WICKED_WHIMS },
@@ -588,25 +579,6 @@ class MainActivity : ComponentActivity() {
                                 view.clearLocation()
                             }
                         }
-                        val clips = remember(availableClips, bindings) {
-                            val byId = availableClips.associateBy { it.clip.id }
-                            bindings.mapNotNull { (activity, id) ->
-                                val source = byId[id]?.forPlayback() ?: return@mapNotNull null
-                                val clip = if (activity == Activity.WALK) {
-                                    source.copy(tracks = source.tracks.map { track ->
-                                        if (track.bone == "Root" && track.channel == Channel.POSITION) {
-                                            com.logie.wifecraft.anim.BoneTrack(track.bone, track.channel, track.times,
-                                                track.values.copyOf().also { values ->
-                                                    for (i in values.indices step 3) { values[i] = 0f; values[i + 1] = 0f }
-                                                })
-                                        } else track
-                                    })
-                                } else source
-                                activity to clip
-                            }.toMap()
-                        }
-                        val animations = remember(session) { mutableMapOf<String, Pair<Activity, String?>>() }
-                        val durations = remember(clips) { clips.filterValues { !it.loop }.mapValues { it.value.duration } }
                         // The loaders' ticks (each file) are read only here, through the derived status: it changes a few
                         // times a second at most, and only the live screen's host is redrawn for it.
                         val stage = locationLoader.progress.collectThrottled { old, new -> old?.id != new.id || new.error != old?.error }
@@ -627,18 +599,8 @@ class MainActivity : ComponentActivity() {
                         }
                         Collected(status) { liveStatus -> LiveSceneScreen(
                             view, camera, preset.name, chosen, objects, spots, actorKey, objectKey, bookKey, toStage, rotation,
-                            onAnimate = { id, activity ->
-                                val clip = clips[activity]
-                                val playback = activity to clip?.id
-                                if (animations.put(id, playback) != playback) {
-                                    val key = actorKey(id)
-                                    dresser.fetchAnim(key, activity.animation)
-                                    view.animateActor(key, activity.animation)
-                                    if (clip == null) view.stopAnim(key)
-                                    else view.playAnim(key, clip)
-                                }
-                            },
-                            durations = durations,
+                            onAnimate = { id, activity -> dresser.fetchAnim(actorKey(id), activity.animation) },
+                            clips = availableClips,
                             onEnd = { screen = Screen.TITLE },
                             ready = locationResult == true && loadedActors == chosen.size,
                             status = liveStatus,

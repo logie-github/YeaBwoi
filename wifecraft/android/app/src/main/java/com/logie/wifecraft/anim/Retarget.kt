@@ -189,7 +189,7 @@ class Retargeter(private val profile: Profile, private val rig: SimsRig?) : Reta
             tracks = tracks,
             source = clip.sourceKey,
             importedAt = System.currentTimeMillis(),
-            conversionRevision = 1,
+            conversionRevision = 2,
             omittedChannels = clip.notes.isNotEmpty() || foreign > 0,
         )
     }
