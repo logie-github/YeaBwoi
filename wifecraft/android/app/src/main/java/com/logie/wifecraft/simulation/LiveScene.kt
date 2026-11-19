@@ -18,9 +18,12 @@ data class SceneSnapshot(
     val usable: Set<SceneObject>,
     /** The last command's refusal ("Chair is in use."), or null. */
     val notice: String?,
+    /** How many partner animations (the library's enabled pairs) the scene picks from (0: the Warcraft emotes). */
+    val partnerPairs: Int = 0,
 ) {
+    /** [partner]: the other NPC of a two-person animation, else null; [queued] orders waiting; [repeating] one repeating. */
     data class PersonView(val id: String, val activity: Activity, val directed: Boolean,
-        val queued: Int = 0, val repeating: Boolean = false)
+        val queued: Int = 0, val repeating: Boolean = false, val partner: String? = null)
 
     /** Whether [id] may use [item] now. */
     fun available(item: SceneObject, id: String): Boolean = item in usable && holders[item].let { it == null || it == id }
@@ -44,6 +47,10 @@ class LiveScene(
     random: Random = Random.Default,
     wanderOnly: Boolean = false,
     route: ((Vec3, Vec3) -> List<Vec3>?)? = null,
+    /** The partner activity: the two-person animations an NPC picks from, the models' emotes, and how often. */
+    pairs: List<PartnerPair> = emptyList(),
+    emotes: ModelEmotes = ModelEmotes.STANDARD,
+    partnerChance: Float = PartnerFrequency.SOMETIMES.chance,
 ) {
     /** Where the frame goes (the 3D view, or a test's recorder). GL thread. */
     interface Sink {
@@ -52,7 +59,13 @@ class LiveScene(
         fun place(index: Int, x: Float, y: Float, z: Float, facing: Float, furniture: SceneObject?, sx: Float, sy: Float, sz: Float)
         /** Person [index] began [activity] this frame (their animation changes now, with the placement). */
         fun activity(index: Int, activity: Activity)
+        /**
+         * Person [index]'s clip changes this frame ([clip] null: none; a new [ClipPlayback.command] starts it again). Both
+         * people of a two-person animation get theirs in the same frame (the same simulation step): one start time.
+         */
         fun playback(index: Int, clip: ClipPlayback?) {}
+        /** A performance's sound event [name] for person [index] is due (its time on the performance's clock passed). */
+        fun sound(index: Int, name: String) {}
     }
 
     companion object {
@@ -64,7 +77,10 @@ class LiveScene(
         private const val KEEP = "\u0000keep"
     }
 
-    private val simulation = SceneSimulation(ids, objects, random, durations, initiallyReady = false, wanderOnly = wanderOnly, route = route)
+    private val simulation = SceneSimulation(ids, objects, random, durations, initiallyReady = false, wanderOnly = wanderOnly,
+        route = route, partnerChance = partnerChance, pairs = pairs, emotes = emotes)
+    /** The frame's sink while [frame] runs (the simulation's sound events go to it). */
+    private var frameSink: Sink? = null
     val clock = FixedStep()
     val camera = SceneCamera(room)
 
@@ -94,6 +110,7 @@ class LiveScene(
     private val shownFacing = FloatArray(n)
     private val lastActivity = arrayOfNulls<Activity>(n)
     private val lastPlayback = arrayOfNulls<ClipPlayback>(n)
+    private var lastPairStarts = 0
     private val cosR = cos(rotation)
     private val sinR = sin(rotation)
 
@@ -103,6 +120,7 @@ class LiveScene(
     private var lastEmitNanos = Long.MIN_VALUE
 
     init {
+        simulation.sounds = { index, name -> frameSink?.sound(index, name) }
         for (i in 0 until n) {
             simulation.pose(i, pose)
             curX[i] = pose.x; curY[i] = pose.y; curZ[i] = pose.z
@@ -113,14 +131,14 @@ class LiveScene(
 
     /** The menus' view now (allocates: on change only). */
     fun snapshot(): SceneSnapshot {
-        val people = simulation.people().map { SceneSnapshot.PersonView(it.id, it.activity, it.directed, it.queued, it.repeating) }
+        val people = simulation.people().map { SceneSnapshot.PersonView(it.id, it.activity, it.directed, it.queued, it.repeating, it.partner) }
         val holders = HashMap<SceneObject, String>()
         val usable = HashSet<SceneObject>()
         for (item in simulation.objects) {
             simulation.holder(item)?.let { holders[item] = it }
             if (simulation.measured(item)) usable += item
         }
-        return SceneSnapshot(people, holders, usable, notice)
+        return SceneSnapshot(people, holders, usable, notice, simulation.pairs.size)
     }
 
     /**
@@ -135,6 +153,7 @@ class LiveScene(
         }
         val due = clock.begin(nowNanos)
         val dt = clock.frameSeconds
+        frameSink = sink
         if (running) {
             for (s in 0 until due) {
                 for (i in 0 until n) { prevX[i] = curX[i]; prevY[i] = curY[i]; prevZ[i] = curZ[i] }
@@ -183,6 +202,12 @@ class LiveScene(
                 }
                 fx = stageX(x, y); fy = stageY(x, y); fz = oz + z + height
             }
+        }
+        frameSink = null
+        val starts = simulation.pairStarts
+        if (starts != lastPairStarts) {
+            lastPairStarts = starts
+            simulation.lastPairName?.let { name -> notice = "Partner animation: $name"; noticeChanged = true }
         }
         camera.update(dt, hasFocus, fx, fy, fz)
         sink.camera(camera.eyeX, camera.eyeY, camera.eyeZ, camera.atX, camera.atY, camera.atZ, camera.fov)

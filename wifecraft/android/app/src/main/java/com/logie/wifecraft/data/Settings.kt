@@ -29,6 +29,17 @@ class Settings(context: Context) {
     var ambienceVolume: Int
         get() = prefs.getInt("ambienceVolume", soundVolume)
         set(v) = prefs.edit().putInt("ambienceVolume", v).apply()
+    /** Partner animations' sounds (the user's own sound files, PartnerSounds): on or off, and their loudness 0 to 100. */
+    var partnerSoundsOn: Boolean
+        get() = prefs.getBoolean("partnerSoundsOn", true)
+        set(v) = prefs.edit().putBoolean("partnerSoundsOn", v).apply()
+    var partnerSoundVolume: Int
+        get() = prefs.getInt("partnerSoundVolume", 85).coerceIn(0, 100)
+        set(v) = prefs.edit().putInt("partnerSoundVolume", v.coerceIn(0, 100)).apply()
+    /** How often idle NPCs go to a partner animation: a PartnerFrequency name (read back with PartnerFrequency.of; Sometimes by default). */
+    var partnerFrequency: String
+        get() = prefs.getString("partnerFrequency", "SOMETIMES") ?: "SOMETIMES"
+        set(v) = prefs.edit().putString("partnerFrequency", v).apply()
     /** Files fetched at once by the first launch's gathering: Gentle 24, Normal 48, Fast 96 (the ceiling; it backs off by itself). */
     var downloadSpeed: Int
         get() = prefs.getInt("downloadSpeed", FAST).let { if (it in CHOICES) it else FAST }

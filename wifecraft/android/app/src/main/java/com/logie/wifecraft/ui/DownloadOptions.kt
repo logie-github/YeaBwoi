@@ -73,6 +73,8 @@ fun DownloadOptions(
     onPause: () -> Unit,
     onClose: () -> Unit,
     mods: @Composable () -> Unit,
+    /** Extra blocks under the Sound page's slider (the partner sounds). */
+    sound: @Composable () -> Unit = {},
 ) {
     var page by remember { mutableStateOf(Page.DOWNLOADS) }
     Overlay(onClose) {
@@ -120,7 +122,7 @@ fun DownloadOptions(
                             }
                             if (!canDownload) Text("Gather the character tables first.", style = frizStyle(12.sp, Color.White))
                         }
-                        Page.SOUND -> WowSliderRow("Sound effects", volume, onVolume)
+                        Page.SOUND -> { WowSliderRow("Sound effects", volume, onVolume); sound() }
                         Page.MODS -> mods()
                     }
                 }

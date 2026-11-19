@@ -27,12 +27,19 @@ import com.logie.wifecraft.anim.Profile
 import com.logie.wifecraft.anim.Retargeter
 import com.logie.wifecraft.story.Vec3
 import com.logie.wifecraft.ui.AnimImportScreen
+import com.logie.wifecraft.ui.AnimLibraryScreen
 import com.logie.wifecraft.ui.AnimationViewport
 import com.logie.wifecraft.ui.RigStore
 import com.logie.wifecraft.ui.SceneAnimationScreen
 import com.logie.wifecraft.audio.Audio
 import com.logie.wifecraft.audio.SceneAudio
 import com.logie.wifecraft.audio.SoundVolumes
+import com.logie.wifecraft.simulation.PartnerFrequency
+import com.logie.wifecraft.anim.PairAnim
+import com.logie.wifecraft.anim.animationChoices
+import com.logie.wifecraft.simulation.PartnerPair
+import com.logie.wifecraft.simulation.PartnerSoundSink
+import com.logie.wifecraft.ui.PartnerSoundsSection
 import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.Catalog
 import com.logie.wifecraft.creator.CreatorModel
@@ -117,7 +124,7 @@ class MainActivity : ComponentActivity() {
     private val simsRigs by lazy { RigStore(animationDirectory) }
     private val simsProfile by lazy { Profile.load(assets.open("sims_profile.json").bufferedReader().use { it.readText() }) }
 
-    private enum class Screen { TITLE, GATHER, SETUP, CREATOR, ANIMATIONS, IMPORT, IMPORT_WICKED_WHIMS, LIVE }
+    private enum class Screen { TITLE, GATHER, SETUP, CREATOR, ANIMATIONS, IMPORT, IMPORT_WICKED_WHIMS, LIBRARY, LIVE }
     private enum class Panel { NONE, OPTIONS, UPDATE }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -142,6 +149,7 @@ class MainActivity : ComponentActivity() {
         locationLoader = LocationLoader(applicationContext, files, lifecycleScope)
         sceneAudio = runCatching { SceneAudio(applicationContext, files, tables) }.getOrNull()
         applySceneVolumes()
+        sceneAudio?.apply { partnerOn = settings.partnerSoundsOn; partnerVolume = settings.partnerSoundVolume / 100f }
         setContent { App() }
     }
 
@@ -150,6 +158,7 @@ class MainActivity : ComponentActivity() {
         scene?.onPause()
         audio?.pause()
         sceneAudio?.pause()
+        sceneAudio?.stopAll()
     }
 
     override fun onResume() {
@@ -255,9 +264,21 @@ class MainActivity : ComponentActivity() {
         var location by remember { mutableStateOf<String?>(null) }
         var cast by remember { mutableStateOf(emptySet<String>()) }
         var availableClips by remember { mutableStateOf(emptyList<CheckedAnimation>()) }
+        // the library's partner animations, read again whenever the setup, the animation or the live screens open (as the clips are)
+        var pairs by remember { mutableStateOf(emptyList<PairAnim>()) }
+        var partnerFrequency by remember { mutableStateOf(PartnerFrequency.of(settings.partnerFrequency)) }
+        var partnerOn by remember { mutableStateOf(settings.partnerSoundsOn) }
+        var partnerVolume by remember { mutableIntStateOf(settings.partnerSoundVolume) }
+        val partnerSink = remember {
+            object : PartnerSoundSink {
+                override fun play(name: String, actorKey: String?, loop: Boolean) { sceneAudio?.partnerSound(name, actorKey, loop, 1f) }
+                override fun stopAll() { sceneAudio?.stopAll() }
+            }
+        }
         LaunchedEffect(screen) {
-            if (screen == Screen.ANIMATIONS || screen == Screen.LIVE) {
+            if (screen == Screen.ANIMATIONS || screen == Screen.LIVE || screen == Screen.SETUP) {
                 availableClips = withContext(Dispatchers.IO) { animationLibrary.list().map { CheckedAnimation(it) } }
+                pairs = withContext(Dispatchers.IO) { runCatching { animationLibrary.pairs() }.getOrDefault(emptyList()) }
             }
         }
         var objects by remember { mutableStateOf(emptySet<SceneObject>()) }
@@ -358,6 +379,11 @@ class MainActivity : ComponentActivity() {
                             onToggleObject = { item -> objects = if (item in objects) objects - item else objects + item },
                             onCreate = { screen = Screen.CREATOR },
                             onAnimations = { screen = Screen.ANIMATIONS },
+                            partner = partnerFrequency,
+                            onPartner = { partnerFrequency = it; settings.partnerFrequency = it.name },
+                            partnerPairs = remember(pairs, availableClips) {
+                                pairs.count { it.enabled } + animationChoices(availableClips).count { PartnerPair.of(it) != null }
+                            },
                             onBack = {
                                 when (step) {
                                     SetupStep.LOCATION -> screen = Screen.TITLE
@@ -501,11 +527,15 @@ class MainActivity : ComponentActivity() {
                         onImport = { screen = Screen.IMPORT },
                         onImportWickedWhims = { screen = Screen.IMPORT_WICKED_WHIMS },
                         onBack = { screen = Screen.SETUP },
+                        pairs = pairs,
+                        onManage = { screen = Screen.LIBRARY },
                     )
+                    Screen.LIBRARY -> AnimLibraryScreen(animationLibrary, onImport = { screen = Screen.IMPORT }, onBack = { screen = Screen.ANIMATIONS })
                     Screen.IMPORT, Screen.IMPORT_WICKED_WHIMS -> AnimImportScreen(
                         animationLibrary, simsRigs,
                         retargeter = { rig -> Retargeter(simsProfile, rig) },
                         onBack = { screen = Screen.ANIMATIONS },
+                        onLibrary = { screen = Screen.LIBRARY },
                         wickedWhims = screen == Screen.IMPORT_WICKED_WHIMS,
                     )
                     Screen.LIVE -> {
@@ -592,6 +622,10 @@ class MainActivity : ComponentActivity() {
                             view, camera, preset.name, chosen, objects, spots, actorKey, objectHits, toStage, toLocal, rotation,
                             onAnimate = { id, activity -> dresser.fetchAnim(actorKey(id), activity.animation) },
                             clips = availableClips,
+                            pairs = pairs,
+                            partner = partnerFrequency,
+                            fetchAnim = { key, anim -> dresser.fetchAnim(key, anim) },
+                            partnerSounds = partnerSink,
                             onEnd = { screen = Screen.TITLE },
                             ready = locationResult == true && loadedActors == chosen.size,
                             status = liveStatus,
@@ -646,6 +680,14 @@ class MainActivity : ComponentActivity() {
                         onPause = { downloadJob?.cancel() },
                         onClose = { panel = Panel.NONE },
                         mods = { ImportsSection(imports, listfile) },
+                        sound = {
+                            sceneAudio?.let { sa ->
+                                PartnerSoundsSection(sa.partner, partnerOn,
+                                    onOn = { partnerOn = it; settings.partnerSoundsOn = it; sa.partnerOn = it; if (!it) sa.stopAll() },
+                                    volume = partnerVolume,
+                                    onVolume = { partnerVolume = it; settings.partnerSoundVolume = it; sa.partnerVolume = it / 100f })
+                            }
+                        },
                     ) }
                 }
                 // always composed: it fades out when closed (MenuMotionUi)

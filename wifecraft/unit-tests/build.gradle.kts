@@ -56,6 +56,9 @@ val purePlay = tasks.register<Copy>("purePlay") {
 val pureAudio = tasks.register<Copy>("pureAudio") {
     from("../android/app/src/main/java/com/logie/wifecraft/audio/SceneAudioCore.kt")
     from("../android/app/src/main/java/com/logie/wifecraft/audio/SoundIndex.kt")
+    // the partner animations' sounds folder (resolution, names, hashes, zip import)
+    from("../android/app/src/main/java/com/logie/wifecraft/audio/SoundNames.kt")
+    from("../android/app/src/main/java/com/logie/wifecraft/audio/PartnerSounds.kt")
     into(layout.buildDirectory.dir("gen/pureAudio"))
 }
 

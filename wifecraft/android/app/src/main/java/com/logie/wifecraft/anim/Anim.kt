@@ -1,6 +1,7 @@
 package com.logie.wifecraft.anim
 
 import com.logie.wifecraft.sims.Channel
+import com.logie.wifecraft.sims.PairDefinition
 import com.logie.wifecraft.sims.SimsClip
 import org.json.JSONArray
 import org.json.JSONObject
@@ -34,6 +35,14 @@ data class Anim(
 /** Converts one Sims clip to a WoW-side [Anim] (implemented by the Retargeter). May throw for a clip it cannot convert. */
 interface Retarget {
     fun convert(clip: SimsClip): Anim
+
+    /**
+     * Converts two clips made to play together into a [PairAnim] ([a] is actor 0). This default converts each
+     * alone and stands both at the origin; the [Retargeter] keeps each actor's start from the shared origin and
+     * one horizontal scale for both. Throws when the clips' lengths differ by more than a frame.
+     */
+    fun convertPair(a: SimsClip, b: SimsClip, def: PairDefinition?): PairAnim =
+        PairAssembly.assemble(a, b, convert(a), convert(b), def, PairOffset.ZERO, PairOffset.ZERO)
 }
 
 /** The Anim file format, version [VERSION]: {"v":1,"id","name","category","duration","loop","source","importedAt","tracks":[{"bone","ch","times":[],"values":[]}]}.

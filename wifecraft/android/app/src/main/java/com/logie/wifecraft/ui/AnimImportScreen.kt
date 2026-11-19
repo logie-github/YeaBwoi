@@ -44,6 +44,7 @@ import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.anim.AnimLibrary
 import com.logie.wifecraft.anim.ImportInput
 import com.logie.wifecraft.anim.ImportPipeline
+import com.logie.wifecraft.anim.PairAnim
 import com.logie.wifecraft.anim.Retarget
 import com.logie.wifecraft.anim.WickedWhimsDownload
 import com.logie.wifecraft.sims.DbpfFile
@@ -72,6 +73,15 @@ fun AnimLibrary.asStore(): AnimStore {
     return object : AnimStore {
         override fun add(a: Anim) = lib.addResult(a)
         override fun categories() = lib.categories()
+    }
+}
+
+/** [AnimLibrary]'s partner animations as the review's save sees them. */
+fun AnimLibrary.asPairStore(): PairStore {
+    val lib = this
+    return object : PairStore {
+        override fun addPair(p: PairAnim) = lib.addPairResult(p)
+        override fun pairCategories() = lib.pairCategories()
     }
 }
 
@@ -132,6 +142,12 @@ fun AnimImportScreen(
     var rev by remember { mutableIntStateOf(0) }
     var run by remember { mutableStateOf(ImportRun()) }
     var draft by remember { mutableStateOf<ReviewDraft?>(null) }
+    var pairDraft by remember { mutableStateOf<PairDraft?>(null) }
+    // pairs two clips by hand with the same converter the import used (set when an import ends)
+    var pairer by remember { mutableStateOf<((SimsClip, SimsClip) -> PairAnim)?>(null) }
+    var pairMessage by remember { mutableStateOf<String?>(null) }
+    var pairBusy by remember { mutableStateOf(false) }
+    var newPairCategory by remember { mutableStateOf<Int?>(null) }
     var saved by remember { mutableStateOf<List<SaveOutcome>>(emptyList()) }
     var download by remember { mutableStateOf(WickedWhimsDownload.Progress()) }
     var retrySeconds by remember { mutableStateOf<Long?>(null) }
@@ -149,8 +165,9 @@ fun AnimImportScreen(
     }
     BackHandler {
         when {
-            newCategory != null -> newCategory = null
-            busy -> Unit
+            newCategory != null -> newCategory = null   // the open dialog first
+            newPairCategory != null -> newPairCategory = null
+            busy -> Unit   // the download, import or save finishes first (it never leaves files behind)
             phase == Phase.Review -> phase = Phase.Pick
             else -> onBack()
         }
@@ -189,6 +206,7 @@ fun AnimImportScreen(
         if (phase != Phase.Pick || (!wickedWhims && inputs.isEmpty())) return
         val r = ImportRun()
         run = r
+        pairMessage = null
         download = WickedWhimsDownload.Progress()
         retrySeconds = null
         phase = if (wickedWhims) Phase.Downloading else Phase.Running
@@ -201,10 +219,10 @@ fun AnimImportScreen(
                         if (rig == null) NoRigRetarget() else retargeter(rig), tmp,
                         embeddedRetargeter = retargeter.takeIf { wickedWhims || rig == null },
                     )
-                    fun convert(files: List<ImportInput>) = pipeline.run(files) { event ->
+                    fun convert(files: List<ImportInput>) = pipeline.runAll(files) { event ->
                         main.post { r.apply(event); rev++ }
                     }
-                    if (wickedWhims) {
+                    val res = if (wickedWhims) {
                         val archive = WickedWhimsDownload.openWithRetry(
                             wait = { waitMillis ->
                                 val start = SystemClock.elapsedRealtime()
@@ -221,25 +239,32 @@ fun AnimImportScreen(
                         )
                         archive.use { convert(listOf(ImportInput("WickedWhims.zip") { it })) }
                     } else convert(inputs)
+                    main.post { pairer = { a, b -> pipeline.pairByHand(a, b) } }
+                    res
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (e: Exception) {
                     main.post { r.apply(com.logie.wifecraft.anim.ImportEvent.Failed("Import", e.message ?: e.toString())) }
-                    emptyList()
+                    null
                 }
             }
             r.finish()
-            val anims = results.ifEmpty { r.converted }
+            val anims = results?.anims?.ifEmpty { null } ?: r.converted
+            val pd = PairDraft(results?.pairs ?: r.pairs, results?.unpaired ?: r.unpaired)
             rev++
             when {
-                anims.isEmpty() -> phase = Phase.Pick
+                anims.isEmpty() && pd.items.isEmpty() && (wickedWhims || pd.unpaired.isEmpty()) -> phase = Phase.Pick
                 wickedWhims -> {
+                    // saved straight away under WickedWhims, partner animations found in its packages too
                     phase = Phase.Saving
-                    saved = withContext(Dispatchers.IO) { ReviewDraft(anims, "WickedWhims").save(library.asStore()) }
+                    saved = withContext(Dispatchers.IO) {
+                        ReviewDraft(anims, "WickedWhims").save(library.asStore()) + pd.save(library.asPairStore())
+                    }
                     phase = Phase.Saved
                 }
                 else -> {
                     draft = ReviewDraft(anims)
+                    pairDraft = pd.takeIf { !it.isEmpty }
                     phase = Phase.Review
                 }
             }
@@ -275,14 +300,36 @@ fun AnimImportScreen(
                     onSave = {
                         if (phase == Phase.Review) {
                             phase = Phase.Saving
+                            val pairs = pairDraft
                             scope.launch {
-                                saved = withContext(Dispatchers.IO) { d.save(library.asStore()) }
+                                saved = withContext(Dispatchers.IO) {
+                                    d.save(library.asStore()) + (pairs?.save(library.asPairStore()) ?: emptyList())
+                                }
                                 draft = null
+                                pairDraft = null
                                 phase = Phase.Saved
                             }
                         }
                     },
                     onCancel = { if (phase == Phase.Review) phase = Phase.Pick },
+                    pd = pairDraft, pairCategories = library.pairCategories(), pairMessage = pairMessage, pairBusy = pairBusy,
+                    onNewPairCategory = { newPairCategory = it },
+                    onPair = pair@{
+                        val pd = pairDraft ?: return@pair
+                        val convert = pairer
+                        if (convert == null) { pairMessage = "Import again to pair these clips."; return@pair }
+                        val ia = pd.pickA; val ib = pd.pickB
+                        if (ia == null || ib == null) return@pair
+                        val sources = listOfNotNull(pd.unpaired.getOrNull(ia)?.clip?.sourceKey, pd.unpaired.getOrNull(ib)?.clip?.sourceKey)
+                        pairBusy = true; pairMessage = "Converting the pair…"
+                        scope.launch {
+                            // the conversion off the main thread; the draft is changed back on it
+                            val made = withContext(Dispatchers.IO) { runCatching { convert(pd.unpaired[ia].clip, pd.unpaired[ib].clip) } }
+                            val why = if (pd.pickA != ia || pd.pickB != ib) "The picks changed; pair them again." else pd.confirm { _, _ -> made.getOrThrow() }
+                            if (why == null) { d.exclude(sources); pairMessage = "Paired. The two clips are no longer saved alone." } else pairMessage = why
+                            pairBusy = false; rev++
+                        }
+                    },
                 )
             }
             Phase.Saving -> Text("Saving animations…", style = frizStyle(16.sp))
@@ -310,6 +357,15 @@ fun AnimImportScreen(
         }
         }
     }
+
+    rememberHeld(newPairCategory)?.let { target -> key("pair$target") {
+        NameDialog("New category", "", "Use", { newPairCategory = null }, visible = newPairCategory != null) { name ->
+            if (newPairCategory == null) return@NameDialog
+            newPairCategory = null
+            pairDraft?.setCategory(target, PairDraft.pairCategory(name))
+            rev++
+        }
+    } }
 
     // fades out still showing itself; a new one never inherits the last one's typing (key)
     rememberHeld(newCategory)?.let { target -> key(target) {
@@ -423,7 +479,11 @@ private fun ProgressPage(run: ImportRun) {
 private fun ReviewPage(
     d: ReviewDraft, existing: List<String>, summary: String,
     changed: () -> Unit, onNewCategory: (Int) -> Unit, onSave: () -> Unit, onCancel: () -> Unit,
+    pd: PairDraft? = null, pairCategories: List<String> = emptyList(), pairMessage: String? = null, pairBusy: Boolean = false,
+    onNewPairCategory: (Int) -> Unit = {}, onPair: () -> Unit = {},
 ) {
+    val pairChoices = pd?.categoryChoices(pairCategories)?.map { it to it }.orEmpty()
+    val total = d.chosen + (pd?.chosen ?: 0)
     val choices = d.categoryChoices(existing).map { it to it }
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Review: $summary. Name and sort them, then save.", style = frizStyle(14.sp, Color.White, false))
@@ -451,11 +511,74 @@ private fun ReviewPage(
                     Text(AnimBrowse.describe(it.anim) + " · from " + it.anim.source, style = frizStyle(12.sp, WowColors.grey, false), maxLines = 1)
                 }
             }
+            if (pd != null) pairItems(pd, pairChoices, pairMessage, pairBusy, changed, onNewPairCategory, onPair)
         }
         Row(Modifier.align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             WowButton("Discard", onCancel, width = 150.dp, height = 40.dp)
-            WowButton("Save ${d.chosen}", onSave, enabled = d.chosen > 0, width = 190.dp, height = 40.dp)
+            WowButton("Save $total", onSave, enabled = total > 0, width = 190.dp, height = 40.dp)
         }
+    }
+}
+
+/**
+ * The review's partner animations: each pair found (name, category, the two clips, Use in scenes, Keep/Skip), then the
+ * clips that look like half of a pair, tapped to pick actor A and actor B, and "Pair these two" to convert them together.
+ */
+private fun androidx.compose.foundation.lazy.LazyListScope.pairItems(
+    pd: PairDraft, choices: List<Pair<String, String>>, message: String?, busy: Boolean,
+    changed: () -> Unit, onNewCategory: (Int) -> Unit, onPair: () -> Unit,
+) {
+    item(key = "pairs-head", contentType = "head") {
+        Text("${AnimText.PARTNER} animations (two actors together)", style = frizStyle(16.sp), modifier = Modifier.padding(top = 8.dp))
+    }
+    // pairs are only ever added at the end (a hand-made one): the place is the key
+    itemsIndexed(pd.items, key = { i, _ -> "pair$i" }, contentType = { _, _ -> "pair" }) { i, it ->
+        Column(Modifier.fillMaxWidth().padding(bottom = 2.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box1(Modifier.weight(1f)) { EditorField(it.name, { v -> pd.setName(i, v.take(AnimText.MAX_NAME)); changed() }, "Name") }
+                SmallButton(if (it.include) "Keep" else "Skip", { pd.toggle(i); changed() }, width = 80.dp)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box1(Modifier.weight(1f)) { PickRow("Category", choices, PairDraft.pairCategory(it.category), { c -> pd.setCategory(i, c); changed() }) }
+                SmallButton("New", { onNewCategory(i) }, width = 70.dp)
+            }
+            WowCheckRow("Use in scenes", it.enabled, { on -> pd.setEnabled(i, on); changed() })
+            Text(
+                "A: " + it.pair.a.name + " · B: " + it.pair.b.name + " · " + PairBrowse.describe(it.pair) + if (it.byHand) " · paired by hand" else "",
+                style = frizStyle(12.sp, WowColors.grey, false), maxLines = 2,
+            )
+        }
+    }
+    if (pd.unpaired.isNotEmpty()) {
+        item(key = "halves-head", contentType = "head") {
+            Column(Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Clips without a partner", style = frizStyle(15.sp))
+                Text("These look like one actor of a pair. Tap one for actor A and another for actor B, then pair them.",
+                    style = frizStyle(12.sp, WowColors.grey, false))
+            }
+        }
+        itemsIndexed(pd.unpaired, key = { _, u -> "half" + System.identityHashCode(u.clip) }, contentType = { _, _ -> "half" }) { i, u ->
+            val role = when (i) { pd.pickA -> "A"; pd.pickB -> "B"; else -> null }
+            EditorCard(onClick = if (busy) null else ({ pd.pick(i); changed() }), selected = role != null) {
+                Column(Modifier.weight(1f)) {
+                    Text((role?.let { "$it: " } ?: "") + u.clip.name.substringAfterLast(':'), style = frizStyle(15.sp), maxLines = 1)
+                    Text("%.2f s".format(java.util.Locale.ROOT, u.clip.duration) + (u.clip.actorName.takeIf { it.isNotBlank() }?.let { " · actor $it" } ?: "") +
+                        " · " + u.packageName.substringAfterLast('/'), style = frizStyle(12.sp, WowColors.grey, false), maxLines = 1)
+                }
+            }
+        }
+        item(key = "halves-pair", contentType = "pairrow") {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(pd.pickLabel(), style = frizStyle(13.sp, Color.White, false), maxLines = 1)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SmallButton("Swap", { pd.swap(); changed() }, enabled = pd.canPair && !busy, width = 90.dp)
+                    WowButton("Pair these two", onPair, enabled = pd.canPair && !busy, width = 200.dp, height = 40.dp)
+                }
+                message?.let { Text(it, style = frizStyle(12.sp, WowColors.grey, false)) }
+            }
+        }
+    } else message?.let { m ->
+        item(key = "pair-msg", contentType = "msg") { Text(m, style = frizStyle(12.sp, WowColors.grey, false)) }
     }
 }
 

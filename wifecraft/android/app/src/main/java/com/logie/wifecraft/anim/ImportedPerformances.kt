@@ -95,10 +95,19 @@ internal object ImportedPerformances {
     private fun Element?.number(name: String): Float = this?.field(name)?.toFloatOrNull()?.takeIf { it.isFinite() } ?: 0f
 }
 
+/** How far apart an author's performance roles stand in the scene: their tuning offsets times this (yards). */
+const val PERFORMANCE_SCALE = 1.2f
+
+/**
+ * One entry of the animation browser: an author's performance, a single clip, or a partner animation of the library
+ * ([PairAnim.choice]: [yards] its offsets are already in yards, as [Retarget.convertPair] made them, so they are not
+ * scaled; [sounds] its sound events, [SoundEvent.actor] the role).
+ */
 data class AnimationChoice(
     val id: String, val name: String, val group: String, val preview: CheckedAnimation,
     val clips: List<CheckedAnimation>, val roles: List<PerformanceRole>, val setting: String = "",
     val stage: String = "", val nextStages: List<String> = emptyList(), val repetitions: Int = 1,
+    val yards: Boolean = false, val sounds: List<SoundEvent> = emptyList(),
 ) {
     val participantCount: Int get() = roles.size
     val playable: Boolean get() = clips.size == roles.size && clips.all { it.inspection.type != ClipType.INVALID }

@@ -38,11 +38,16 @@ import com.logie.wifecraft.anim.CheckedAnimation
 import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.anim.AnimationChoice
 import com.logie.wifecraft.anim.BoneTrack
+import com.logie.wifecraft.anim.PERFORMANCE_SCALE
+import com.logie.wifecraft.anim.PairAnim
 import com.logie.wifecraft.anim.animationChoices
 import com.logie.wifecraft.anim.animationSequence
+import com.logie.wifecraft.engine.Clock
+import com.logie.wifecraft.simulation.PartnerSound
 import com.logie.wifecraft.simulation.PerformanceOrder
 import com.logie.wifecraft.sims.Channel
 import com.logie.wifecraft.simulation.ClipPlayback
+import com.logie.wifecraft.simulation.PlaybackKeys
 import com.logie.wifecraft.simulation.PlaybackRole
 import java.util.concurrent.ConcurrentHashMap
 import com.logie.wifecraft.editor.Actor
@@ -56,6 +61,10 @@ import com.logie.wifecraft.location.LocationInfo
 import com.logie.wifecraft.simulation.Activity
 import com.logie.wifecraft.simulation.InteractionSpot
 import com.logie.wifecraft.simulation.LiveScene
+import com.logie.wifecraft.simulation.ModelEmotes
+import com.logie.wifecraft.simulation.PartnerFrequency
+import com.logie.wifecraft.simulation.PartnerPair
+import com.logie.wifecraft.simulation.PartnerSoundSink
 import com.logie.wifecraft.simulation.SceneSnapshot
 import com.logie.wifecraft.simulation.TouchGesture
 import com.logie.wifecraft.simulation.TwoFingers
@@ -64,6 +73,7 @@ import com.logie.wifecraft.story.CameraPose
 import com.logie.wifecraft.story.Vec3
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
+import kotlin.random.Random
 
 enum class SetupStep(val title: String) { LOCATION("Choose Scene"), CAST("Choose NPCs"), OBJECTS("Choose objects") }
 
@@ -86,6 +96,11 @@ fun SceneSetupScreen(
     onAnimations: () -> Unit,
     onBack: () -> Unit,
     onNext: () -> Unit,
+    /** How often idle NPCs start a partner animation with each other (kept with the scene setup). */
+    partner: PartnerFrequency = PartnerFrequency.SOMETIMES,
+    onPartner: (PartnerFrequency) -> Unit = {},
+    /** How many enabled partner animations the library has (0: the Warcraft emotes are used). */
+    partnerPairs: Int = 0,
 ) {
     BackHandler(onBack = onBack)
     BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
@@ -102,6 +117,14 @@ fun SceneSetupScreen(
                         WowCheckRow(item.label, item in objects, { onToggleObject(item) })
                     }
                     RedButton("Animation library", onAnimations)
+                    Text("Partner", color = Color(0xFFF4DFBD), style = frizStyle(15.sp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        for (f in PartnerFrequency.entries) key(f) {
+                            WowTab(f.label, f == partner, { onPartner(f) }, Modifier.weight(1f))
+                        }
+                    }
+                    WowNote(if (partnerPairs > 0) "$partnerPairs partner animation${if (partnerPairs == 1) "" else "s"} imported"
+                        else "Partner: none imported: using Warcraft emotes")
                 }
             }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -146,11 +169,35 @@ fun LiveSceneScreen(
     status: String?,
     /** How far the scene has loaded (0..1), when the caller knows: the loading bar fills; null: it sweeps. */
     progress: Float? = null,
+    /** The library's partner animations (AnimLibrary.pairs; the enabled ones are offered), how often NPCs start one
+     *  by themselves, and the models' emotes (the fallback). */
+    pairs: List<PairAnim> = emptyList(),
+    partner: PartnerFrequency = PartnerFrequency.SOMETIMES,
+    emotes: ModelEmotes = ModelEmotes.STANDARD,
+    /** Plays the pairs' sound events (W46's PartnerSounds); none by default. */
+    partnerSounds: PartnerSoundSink = PartnerSoundSink.NONE,
+    /** Fetches a game animation's files for an actor key (Dresser.fetchAnim): the fallback's emotes. */
+    fetchAnim: (String, Int) -> Unit = { _, _ -> },
 ) {
+    // the scene's seed: one per scene, so a scene replays the same way from it (the tests use it so)
+    val seed = remember(cast, objects) { Random.nextLong() }
+    val choices = remember(clips, pairs) { animationChoices(clips) + pairs.filter { it.enabled }.map { it.choice() } }
+    // what NPCs pick from by themselves: the library's enabled pairs and the authors' two-actor performances
+    val partnerPairs = remember(pairs, choices) { PartnerPair.enabled(pairs) + choices.mapNotNull { PartnerPair.of(it) } }
     val live = remember(cast, objects) {
         val origin = toStage(Vec3(0f, 0f, 0f))
-        LiveScene(cast.map { it.id }, objects, emptyMap(), camera, origin.x, origin.y, origin.z, stageRotation, wanderOnly = true,
-            route = { from, to -> view.glWalkRoute(toStage(from), toStage(to))?.map(toLocal) })
+        LiveScene(cast.map { it.id }, objects, emptyMap(), camera, origin.x, origin.y, origin.z, stageRotation, Random(seed),
+            wanderOnly = true, route = { from, to -> view.glWalkRoute(toStage(from), toStage(to))?.map(toLocal) },
+            pairs = partnerPairs, emotes = emotes, partnerChance = partner.chance)
+    }
+    // the clips every playback key names (GL thread reads it): the orders' (request) and the partner pairs' roles
+    val playback = remember(live) { ConcurrentHashMap<String, Anim>() }
+    LaunchedEffect(live, partnerPairs, partner, emotes) {
+        for (p in partnerPairs) {
+            playback[PlaybackKeys.pair(p.id, 0)] = lifted(p.a.copy(loop = false), p.slotA.z)
+            playback[PlaybackKeys.pair(p.id, 1)] = lifted(p.b.copy(loop = false), p.slotB.z)
+        }
+        live.command { sim -> sim.pairs = partnerPairs; sim.partnerChance = partner.chance; sim.emotes = emotes }
     }
     SideEffect { live.camera.room = camera }
     var snapshot by remember(live) { mutableStateOf(live.snapshot()) }
@@ -159,8 +206,8 @@ fun LiveSceneScreen(
     var ending by remember { mutableStateOf(false) }
     var choosingAnimation by remember { mutableStateOf<String?>(null) }
     var choosingPartner by remember { mutableStateOf<PendingAnimation?>(null) }
-    val choices = remember(clips) { animationChoices(clips) }
-    val playback = remember(live) { ConcurrentHashMap<String, Anim>() }
+    // "Send to partner": the selected NPC waits for the player to tap the one it goes to
+    var sending by remember { mutableStateOf(false) }
     val names = remember(cast) { cast.associate { it.id to it.name } }
     val active = selected?.let { id -> snapshot.people.firstOrNull { it.id == id } }
 
@@ -177,19 +224,13 @@ fun LiveSceneScreen(
         val roles = choice.roles.mapIndexed { index, role ->
             val animation = animations[index].copy(loop = false)
             val key = "${choice.id}:$index"
-            val scale = 1.2f
-            val lift = role.offset.z * scale
-            playback[key] = if (lift == 0f) animation else animation.copy(tracks = animation.tracks.map { track ->
-                if (track.bone == "Root" && track.channel == Channel.POSITION) {
-                    BoneTrack(track.bone, track.channel, track.times, track.values.copyOf().also { values ->
-                        for (i in 2 until values.size step 3) values[i] += lift
-                    })
-                } else track
-            })
+            val scale = if (choice.yards) 1f else PERFORMANCE_SCALE
+            playback[key] = lifted(animation, role.offset.z * scale)
             PlaybackRole(key, role.offset * scale, role.facing)
         }
         val cycle = animations.maxOf { it.duration }.takeIf { it > 0f } ?: 12f
-        return PerformanceOrder(other, roles, cycle, repeat, choice.repetitions)
+        return PerformanceOrder(other, roles, cycle, repeat, choice.repetitions, choice.name,
+            choice.sounds.map { PartnerSound(it.timeSec, it.name, it.actor) })
     }
 
     fun schedule(order: PendingAnimation, partner: String?) {
@@ -212,10 +253,15 @@ fun LiveSceneScreen(
 
     // the GL thread drives every frame; the menus hear of changes only
     val animate by rememberUpdatedState(onAnimate)
+    val sounds by rememberUpdatedState(partnerSounds)
+    val fetch by rememberUpdatedState(fetchAnim)
     DisposableEffect(live, view) {
         val main = Handler(Looper.getMainLooper())
         val ids = Array(live.count) { live.id(it) }
         val keys = Array(live.count) { actorKey(ids[it]) }
+        // GL thread: the frame's time on the engine's clock; both of a pair start their clips from this one value
+        var frameMs = 0
+        val emoting = BooleanArray(live.count)
         val sink = object : LiveScene.Sink {
             override fun camera(eyeX: Float, eyeY: Float, eyeZ: Float, atX: Float, atY: Float, atZ: Float, fov: Float) =
                 view.glCamera(eyeX, eyeY, eyeZ, atX, atY, atZ, fov)
@@ -230,7 +276,19 @@ fun LiveSceneScreen(
             }
 
             override fun playback(index: Int, clip: ClipPlayback?) {
-                view.glPlayAnimation(keys[index], clip?.let { playback[it.clip] })
+                val key = keys[index]
+                val emote = clip?.let { PlaybackKeys.emoteOf(it.clip) }
+                val wasEmote = emoting[index]
+                emoting[index] = emote != null
+                if (emote != null) {
+                    // a Warcraft emote both play (no imported pair fits): its files, then the game animation from this frame
+                    val start = frameMs
+                    view.glPlayAnimation(key, null)
+                    main.post { fetch(key, emote); view.anim(key, emote, true, start) }
+                } else {
+                    view.glPlayAnimation(key, clip?.let { playback[it.clip] })
+                    if (wasEmote) { val start = frameMs; main.post { view.anim(key, 0, true, start) } }   // back to standing
+                }
             }
 
             override fun activity(index: Int, activity: Activity) {
@@ -238,12 +296,18 @@ fun LiveSceneScreen(
                 val id = ids[index]
                 main.post { animate(id, activity) }                // the imported clips and the files (main thread)
             }
+
+            override fun sound(index: Int, name: String) {
+                val key = keys[index]
+                main.post { sounds.play(name, key) }
+            }
         }
         val emit: (SceneSnapshot) -> Unit = { next -> main.post { snapshot = next } }
-        view.driver = FrameDriver { now -> live.frame(now, sink, emit) }
+        view.driver = FrameDriver { now -> frameMs = Clock.now(); live.frame(now, sink, emit) }
         onDispose {
             view.driver = null
             main.removeCallbacksAndMessages(null)
+            sounds.stopAll()
         }
     }
     LaunchedEffect(live, spots) {
@@ -269,10 +333,18 @@ fun LiveSceneScreen(
             else -> "There’s no clear path to ${item.label.lowercase()}."
         }
     }
+    fun sendToPartner(id: String, otherId: String) = live.order { sim ->
+        if (sim.partner(id, otherId)) null else "${names[otherId]} can't join ${names[id]} now."
+    }
+    LaunchedEffect(selected) { if (selected == null) sending = false }
 
     val onTap by rememberUpdatedState<(Hit?) -> Unit>({ hit ->
         when (hit?.kind) {
-            Hit.Kind.ACTOR -> cast.firstOrNull { actorKey(it.id) == hit.key }?.let { selected = it.id }
+            Hit.Kind.ACTOR -> cast.firstOrNull { actorKey(it.id) == hit.key }?.let { other ->
+                val from = selected
+                if (sending && from != null && other.id != from) { sending = false; sendToPartner(from, other.id) }
+                else selected = other.id
+            }
             Hit.Kind.LOCATION, Hit.Kind.PROP -> if (ready) {
                 val item = hit.key?.let(objectHits::get)
                 val id = selected
@@ -384,7 +456,8 @@ fun LiveSceneScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             for (person in snapshot.people) key(person.id) {
-                WowTab("${names[person.id]} · ${person.activity.description}", person.id == selected,
+                val doing = person.partner?.let { "With ${names[it]}" } ?: person.activity.description
+                WowTab("${names[person.id]} · $doing", person.id == selected,
                     { selected = if (person.id == selected) null else person.id }, Modifier.width(CAST_TAB_WIDTH))
             }
         }
@@ -415,6 +488,8 @@ fun LiveSceneScreen(
                     for (other in cast) if (other.id != id) key(other.id) {
                         RedButton("Chat with ${other.name}", { live.order { sim -> if (sim.chat(id, other.id)) null else "There’s no clear path to ${other.name}." } }, enabled = ready)
                     }
+                    RedButton(if (sending) "Tap an NPC…" else "Send to partner", { sending = !sending },
+                        enabled = ready && cast.size > 1)
                     RedButton("Free will", { live.order { sim -> sim.freeWill(id); null } })
                 }
             }
@@ -446,7 +521,11 @@ fun LiveSceneScreen(
             }
         }
     }
-    ConfirmDialog("End this scene?", "End scene", { ending = false }, onEnd, visible = ending)
+    ConfirmDialog("End this scene?", "End scene", { ending = false }, {
+        live.command { it.endPartners() }
+        partnerSounds.stopAll()
+        onEnd()
+    }, visible = ending)
 }
 
 /** The NPC camera's zoom buttons, faded in and out with it (the springs ease each step). */
@@ -518,6 +597,10 @@ fun SceneAnimationScreen(
     onImport: () -> Unit,
     onImportWickedWhims: () -> Unit,
     onBack: () -> Unit,
+    /** The library's partner animations (the enabled ones are browsed with the clips). */
+    pairs: List<PairAnim> = emptyList(),
+    /** Opens the library's list (rename, recategorize, turn partner animations off for scenes, delete). */
+    onManage: (() -> Unit)? = null,
 ) {
     var browsing by remember { mutableStateOf(false) }
     BackHandler(!browsing, onBack)
@@ -530,7 +613,18 @@ fun SceneAnimationScreen(
                 RedButton("Import rig and clips", onImport, Modifier.weight(1f), textSize = 13.sp)
                 RedButton("Browse animations", { browsing = true }, Modifier.weight(1f), textSize = 13.sp)
             }
+            if (onManage != null) RedButton("Manage library", onManage, textSize = 13.sp)
         }
     }
-    if (browsing) AnimationBrowser(remember(clips) { animationChoices(clips) }, preview, onClose = { browsing = false })
+    if (browsing) AnimationBrowser(remember(clips, pairs) { animationChoices(clips) + pairs.filter { it.enabled }.map { it.choice() } },
+        preview, onClose = { browsing = false })
 }
+
+/** [animation] with its Root track raised by [lift] yards (a role that stands above its anchor: on a bed, a lap). */
+internal fun lifted(animation: Anim, lift: Float): Anim = if (lift == 0f) animation else animation.copy(tracks = animation.tracks.map { track ->
+    if (track.bone == "Root" && track.channel == Channel.POSITION) {
+        BoneTrack(track.bone, track.channel, track.times, track.values.copyOf().also { values ->
+            for (i in 2 until values.size step 3) values[i] += lift
+        })
+    } else track
+})
