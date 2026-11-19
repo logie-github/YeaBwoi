@@ -108,14 +108,14 @@ object War {
 @Composable
 fun warText(size: TextUnit, color: Color = War.brown, dark: Boolean = false): TextStyle {
     val art = LocalArt.current
-    return TextStyle(fontFamily = art?.friz ?: FontFamily.Serif, fontSize = size, color = color, shadow = if (dark) WowColors.shadow else null)
+    return TextStyle(fontFamily = art?.friz ?: FontFamily.Serif, fontSize = size, color = color, shadow = if (dark) WowColors.shadow else null).steadyLines()
 }
 
 /** Morpheus for names and titles. */
 @Composable
 fun warTitle(size: TextUnit, color: Color = War.brown, dark: Boolean = false): TextStyle {
     val art = LocalArt.current
-    return TextStyle(fontFamily = art?.morpheus ?: FontFamily.Serif, fontSize = size, color = color, shadow = if (dark) WowColors.shadow else null)
+    return TextStyle(fontFamily = art?.morpheus ?: FontFamily.Serif, fontSize = size, color = color, shadow = if (dark) WowColors.shadow else null).steadyLines()
 }
 
 // ------------------------------------------------------------------------------------------------ drawing the pieces
@@ -127,11 +127,26 @@ fun DrawScope.drawWar(img: ImageBitmap?, x: Float, y: Float, w: Float, h: Float,
         IntSize(w.roundToInt().coerceAtLeast(1), h.roundToInt().coerceAtLeast(1)), alpha = alpha, filterQuality = FilterQuality.Medium)
 }
 
+/**
+ * One path for every clip the kit draws (an oval, a rounded square, the dropdown's arrow), filled again for each: no Path is
+ * allocated on every draw. Compose draws on the main thread only, and the canvas copies a clip's path as it is given, so the
+ * next fill can't change one already used.
+ */
+private val scratch = Path()
+
+internal fun ovalPath(l: Float, t: Float, r: Float, b: Float): Path = scratch.apply { reset(); addOval(androidx.compose.ui.geometry.Rect(l, t, r, b)) }
+
+internal fun roundPath(l: Float, t: Float, r: Float, b: Float, radius: Float): Path =
+    scratch.apply { reset(); addRoundRect(androidx.compose.ui.geometry.RoundRect(l, t, r, b, CornerRadius(radius))) }
+
+/** A triangle pointing down (the dropdown's arrow, the talking head's More). */
+internal fun downArrowPath(l: Float, t: Float, r: Float, b: Float): Path =
+    scratch.apply { reset(); moveTo(l, t); lineTo(r, t); lineTo((l + r) / 2, b); close() }
+
 /** [img] in a circle of [d] px at [cx], [cy] (an icon in a round button). */
 fun DrawScope.drawCircled(img: ImageBitmap?, cx: Float, cy: Float, d: Float, alpha: Float = 1f) {
     img ?: return
-    val p = Path().apply { addOval(androidx.compose.ui.geometry.Rect(cx - d / 2, cy - d / 2, cx + d / 2, cy + d / 2)) }
-    clipPath(p) { drawWar(img, cx - d / 2, cy - d / 2, d, d, alpha) }
+    clipPath(ovalPath(cx - d / 2, cy - d / 2, cx + d / 2, cy + d / 2)) { drawWar(img, cx - d / 2, cy - d / 2, d, d, alpha) }
 }
 
 /** [img] centred at its own aspect, fitting [d] px (a glyph). */
@@ -163,20 +178,26 @@ fun DrawScope.drawNine(img: ImageBitmap?, name: String, pxPerPiecePx: Float, alp
 // ------------------------------------------------------------------------------------------------ pressing
 
 /**
- * Taps and long presses with the press's sink ([WarSize.PRESS_SCALE]) and the interface's click. [onLongPress] null: a
- * long press is a tap.
+ * Taps and long presses with the press's sink ([MenuMotion.PRESS_SCALE], none under reduced motion) and the interface's click.
+ * [onLongPress] null: a long press is a tap. A second tap within [MenuMotion.DEBOUNCE_MS] of the last does nothing (a window
+ * is never opened twice, Back never goes back twice) unless [repeatable] (Zoom, Undo: pressed again and again on purpose).
  */
 @Composable
-fun Modifier.warPress(enabled: Boolean = true, sound: String = "click", onLongPress: (() -> Unit)? = null, onClick: () -> Unit): Modifier {
+fun Modifier.warPress(enabled: Boolean = true, sound: String = "click", onLongPress: (() -> Unit)? = null, repeatable: Boolean = false, onClick: () -> Unit): Modifier {
     val click = LocalSounds.current
+    val reduced = reduceMotion()
     var down by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (down) WarSize.PRESS_SCALE else 1f, tween(WarSize.PRESS_MS), label = "press")
+    val scale by animateFloatAsState(MenuMotion.pressScale(down, reduced), tween(MenuMotion.duration(MenuMotion.PRESS_MS, reduced)), label = "press")
+    val gate = rememberClickGate(if (repeatable) 0L else MenuMotion.DEBOUNCE_MS)
     val tap by rememberUpdatedState(onClick)
     val long by rememberUpdatedState(onLongPress)
     val on by rememberUpdatedState(enabled)
     return this
         .graphicsLayer { scaleX = scale; scaleY = scale }
-        .semantics { role = Role.Button }
+        .semantics {
+            role = Role.Button
+            if (enabled) onClick { if (gate.pass()) tap(); true } else disabled()
+        }
         .pointerInput(Unit) {
             detectTapGestures(
                 onPress = {
@@ -184,8 +205,8 @@ fun Modifier.warPress(enabled: Boolean = true, sound: String = "click", onLongPr
                     tryAwaitRelease()
                     down = false
                 },
-                onLongPress = { long?.let { l -> click(sound); l() } ?: run { if (on) { click(sound); tap() } } },
-                onTap = { if (on) { click(sound); tap() } },
+                onLongPress = { if (on && gate.pass()) { click(sound); (long ?: tap)() } },
+                onTap = { if (on && gate.pass()) { click(sound); tap() } },
             )
         }
 }
@@ -215,12 +236,14 @@ fun RoundIconButton(
     onLongPress: (() -> Unit)? = null,
     /** On parchment: the label in deep brown (on the dark ground it is cream with a shadow). */
     onLight: Boolean = false,
+    /** Pressed again and again on purpose (zoom, undo): every tap counts; other buttons ignore a second tap at once. */
+    repeatable: Boolean = face.glyph in RepeatGlyphs,
 ) {
     val war = LocalWar.current
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier.size(size).semantics { description?.let { contentDescription = it } }
-                .warPress(enabled, onLongPress = onLongPress, onClick = onClick),
+                .warPress(enabled, onLongPress = onLongPress, repeatable = repeatable, onClick = onClick),
         ) {
             Canvas(Modifier.matchParentSize()) {
                 val r = this.size.minDimension / 2; val c = center
@@ -242,7 +265,7 @@ fun RoundIconButton(
                         drawn = true
                         // the housing button's picture without its square frame: its middle, round
                         val k = (p.width * 0.17f).toInt()
-                        val path = Path().apply { addOval(androidx.compose.ui.geometry.Rect(c.x - r * 0.74f, c.y - r * 0.74f, c.x + r * 0.74f, c.y + r * 0.74f)) }
+                        val path = ovalPath(c.x - r * 0.74f, c.y - r * 0.74f, c.x + r * 0.74f, c.y + r * 0.74f)
                         clipPath(path) {
                             drawImage(p, IntOffset(k, k), IntSize(p.width - 2 * k, p.height - 2 * k),
                                 IntOffset((c.x - r * 0.74f).roundToInt(), (c.y - r * 0.74f).roundToInt()), IntSize((r * 1.48f).roundToInt(), (r * 1.48f).roundToInt()),
@@ -269,6 +292,9 @@ fun RoundIconButton(
         if (label != null) Text(label, style = if (onLight) warText(11.sp, War.brown) else warText(11.sp, War.ink, true), maxLines = 1, modifier = Modifier.padding(top = 3.dp))
     }
 }
+
+/** The round buttons pressed again and again on purpose. */
+private val RepeatGlyphs = setOf(WarIcons.PLUS, WarIcons.MINUS, WarIcons.UNDO, WarIcons.REDO)
 
 /** A count on a rim: an amber pill with brown figures. */
 @Composable
@@ -525,7 +551,7 @@ fun ItemCard(
                 else drawRoundRect(War.woodDark, cornerRadius = CornerRadius(16.dp.toPx()))
                 val inset = s * 0.085f; val r = 11.dp.toPx()
                 if (picture != null) {
-                    val p = Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(inset, inset, s - inset, s - inset, CornerRadius(r))) }
+                    val p = roundPath(inset, inset, s - inset, s - inset, r)
                     clipPath(p) {
                         drawRect(Color(0xFF2C1E14), Offset(inset, inset), Size(s - 2 * inset, s - 2 * inset))
                         // the picture at its own aspect, centred
@@ -605,7 +631,7 @@ fun SideTab(icon: String, label: String, on: Boolean, onClick: () -> Unit, modif
             if (t != null) drawWar(t, 0f, 0f, size.width, size.height) else drawRoundRect(War.woodDark, cornerRadius = CornerRadius(8.dp.toPx()))
             val img = war?.icon(icon)
             val x = 9.dp.toPx(); val y = 12.dp.toPx(); val s = 32.dp.toPx()
-            if (img != null) clipPath(Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(x, y, x + s, y + s, CornerRadius(6.dp.toPx()))) }) { drawWar(img, x, y, s, s) }
+            if (img != null) clipPath(roundPath(x, y, x + s, y + s, 6.dp.toPx())) { drawWar(img, x, y, s, s) }
             else drawGlyphFor(icon, x + s / 2, y + s / 2, s * 0.8f)
             if (on) drawRoundRect(War.gold, Offset(5.dp.toPx(), 8.dp.toPx()), Size(40.dp.toPx(), 40.dp.toPx()), CornerRadius(8.dp.toPx()), style = Stroke(2.5.dp.toPx()))
         }
@@ -713,18 +739,25 @@ fun TopBar(title: String, onBack: () -> Unit, modifier: Modifier = Modifier, act
     }
 }
 
-/** A thin warm scroll thumb at a list's right edge (the game's minimal scroll bar), drawn while it can scroll. */
+/**
+ * A thin warm scroll thumb at a list's right edge (the game's minimal scroll bar), drawn while it can scroll. Drawn over the
+ * list (it never takes room), and it glides with the scroll (ScrollThumb counts the first row's part scrolled off) instead
+ * of stepping a row at a time.
+ */
 fun Modifier.warScrollbar(state: LazyListState): Modifier = drawWithContent {
     drawContent()
     val info = state.layoutInfo
-    val total = info.totalItemsCount
-    val visible = info.visibleItemsInfo.size
-    if (total == 0 || visible >= total) return@drawWithContent
-    val frac = visible.toFloat() / total
-    val top = state.firstVisibleItemIndex.toFloat() / total
+    val first = info.visibleItemsInfo.firstOrNull() ?: return@drawWithContent
+    // rows fully or partly shown, by their part of the viewport (a half-shown last row counts half)
+    val viewport = (info.viewportEndOffset - info.viewportStartOffset).coerceAtLeast(1)
+    val shownRows = info.visibleItemsInfo.sumOf { (minOf(it.offset + it.size, info.viewportEndOffset) - maxOf(it.offset, info.viewportStartOffset)).coerceAtLeast(0).toDouble() / it.size.coerceAtLeast(1) }
+    val visible = if (info.visibleItemsInfo.size >= info.totalItemsCount && shownRows >= info.totalItemsCount - 0.01) info.totalItemsCount else shownRows.toInt().coerceAtLeast(1)
+    val (top, len) = ScrollThumb.of(first.index, (info.viewportStartOffset - first.offset).coerceAtLeast(0), first.size, visible, info.totalItemsCount) ?: return@drawWithContent
+    if (viewport <= 0) return@drawWithContent
     val w = 6.dp.toPx(); val x = size.width - w - 1.dp.toPx()
+    val h = (size.height * len).coerceAtLeast(24.dp.toPx()).coerceAtMost(size.height)
     drawRoundRect(Color(0x40785A32), Offset(x, 0f), Size(w, size.height), CornerRadius(w / 2))
-    drawRoundRect(War.amber, Offset(x, size.height * top), Size(w, (size.height * frac).coerceAtLeast(24.dp.toPx())), CornerRadius(w / 2))
+    drawRoundRect(War.amber, Offset(x, ((size.height - h) * (top / (1f - len).coerceAtLeast(0.0001f))).coerceIn(0f, size.height - h)), Size(w, h), CornerRadius(w / 2))
 }
 
 /** A row of a list on parchment: a warm cream card (deeper and gold-edged when [selected]), an icon at its start. */
@@ -740,7 +773,7 @@ fun WarRow(onClick: () -> Unit, modifier: Modifier = Modifier, selected: Boolean
     ) {
         if (icon != null) Canvas(Modifier.size(40.dp)) {
             val img = war?.icon(icon)
-            if (img != null) clipPath(Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(0f, 0f, size.width, size.height, CornerRadius(10.dp.toPx()))) }) { drawWar(img, 0f, 0f, size.width, size.height) }
+            if (img != null) clipPath(roundPath(0f, 0f, size.width, size.height, 10.dp.toPx())) { drawWar(img, 0f, 0f, size.width, size.height) }
             else { drawRoundRect(War.woodDark, cornerRadius = CornerRadius(10.dp.toPx())); drawGlyphFor(icon, center.x, center.y, size.minDimension * 0.6f) }
         }
         content()

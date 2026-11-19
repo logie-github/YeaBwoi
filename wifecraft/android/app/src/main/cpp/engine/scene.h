@@ -282,6 +282,8 @@ private:
         std::map<uint32_t, uint32_t> drawTextures;  // textures, with the layers' single files over them
         std::set<uint32_t> missing;                 // files the look waits for (not downloaded yet)
         bool skinDirty = false;
+        /** Its skin not composed yet since it was added (Scene::render composes a skin or so a frame): not drawn till then. */
+        bool firstSkin = true;
         std::vector<DressModel> models, pendingModels;
         std::vector<Attached> hung;
         std::vector<Skinned> skinned;

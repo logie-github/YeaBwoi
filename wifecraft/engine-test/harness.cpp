@@ -31,6 +31,9 @@
 //   ghostmove X Y Z YAW | ghostclear
 //   thumb prop FILE_ID|look LOOKFILE SIZE OUT.png   a library thumbnail (Scene::thumbnail), drawn between frames
 //   camerainfo                                 prints the camera as last drawn (Scene::cameraInfo)
+//   timing on|off                              prints how long each later command took (what the GL thread would stall)
+//   bench N W H STEP_MS [walk X Y Z]      draws N frames STEP_MS apart into one target, each timed to glFinish:
+//                                              p50/p95/max and the slowest frames (walk: everyone circles as they walk)
 //
 // An anim file (anim/AnimArrays as text; one key per line, # comments; keys of a bone and channel in time order):
 //   duration SECONDS
@@ -72,6 +75,9 @@
 #include <EGL/eglext.h>
 #include <GLES3/gl3.h>
 
+#include <algorithm>
+#include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -422,6 +428,46 @@ static std::vector<uint8_t> grab(Scene& scene, int w, int h, uint32_t t) {
     return px;
 }
 
+// Frame pacing on the desktop (llvmpipe: the absolute times mean little, the spikes do): N frames into one target.
+static void bench(Scene& scene, const std::map<int, int>& actors, int n, int w, int h, uint32_t stepMs, bool walk, V3 origin) {
+    unsigned fbo, color, depth;
+    glGenFramebuffers(1, &fbo); glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glGenRenderbuffers(1, &color); glBindRenderbuffer(GL_RENDERBUFFER, color);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, w, h);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, color);
+    glGenRenderbuffers(1, &depth); glBindRenderbuffer(GL_RENDERBUFFER, depth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, w, h);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth);
+    std::vector<double> ms;
+    std::map<int, V3> home;
+    for (const auto& [name, id] : actors)
+        home[name] = origin + V3(float(name % 3) - 1.0f, float(name / 3) * 1.2f - 0.6f, 0.0f);
+    static uint32_t clock = 100000;
+    for (int i = 0; i < n; ++i) {
+        clock += stepMs;
+        auto t0 = std::chrono::steady_clock::now();
+        if (walk) for (const auto& [name, id] : actors) {
+            float a = float(clock) * 0.0008f + float(name);
+            scene.placeActor(id, home[name] + V3(std::cos(a) * 0.8f, std::sin(a) * 0.8f, 0), a + 1.5708f);
+        }
+        scene.render(w, h, clock);
+        glFinish();
+        ms.push_back(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
+    }
+    std::vector<double> sorted = ms;
+    std::sort(sorted.begin(), sorted.end());
+    auto at = [&](double q) { return sorted[std::min(sorted.size() - 1, size_t(q * double(sorted.size())))]; };
+    std::fprintf(stderr, "bench %d frames %dx%d: p50 %.2f ms  p95 %.2f ms  max %.2f ms (first %.2f ms)\n", n, w, h, at(0.5), at(0.95),
+                 sorted.back(), ms.front());
+    std::vector<size_t> order(ms.size());
+    for (size_t i = 0; i < order.size(); ++i) order[i] = i;
+    std::sort(order.begin(), order.end(), [&](size_t a, size_t b) { return ms[a] > ms[b]; });
+    for (size_t k = 0; k < std::min<size_t>(5, order.size()); ++k)
+        if (ms[order[k]] > at(0.5) * 2.0) std::fprintf(stderr, "  spike: frame %zu %.2f ms (%.1fx p50)\n", order[k], ms[order[k]], ms[order[k]] / at(0.5));
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDeleteFramebuffers(1, &fbo); glDeleteRenderbuffers(1, &color); glDeleteRenderbuffers(1, &depth);
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) {
         std::fprintf(stderr, "usage: harness COMMANDS | harness --look LOOKFILE --files DIR --out OUT.png [--size WxH] [--shot body|torso|face] [--facing RADIANS] [--time MS]\n");
@@ -615,12 +661,31 @@ int main(int argc, char** argv) {
 
     std::ifstream in(argv[1]);
     std::string line;
+    bool timing = false;
+    std::string timed;
+    auto started = std::chrono::steady_clock::now();
+    auto report = [&]() {
+        if (timing && !timed.empty())
+            std::fprintf(stderr, "  [%.1f ms] %s\n", std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count(), timed.c_str());
+        timed.clear();
+    };
     while (std::getline(in, line)) {
+        report();
         std::istringstream ss(line);
         std::string cmd;
         ss >> cmd;
         if (cmd.empty() || cmd[0] == '#') continue;
+        glFinish();
+        started = std::chrono::steady_clock::now();
+        timed = line.substr(0, 60);
         if (cmd == "files") ss >> dir;
+        else if (cmd == "timing") { std::string v; ss >> v; timing = v == "on"; }
+        else if (cmd == "bench") {
+            int n = 120, w = 1024, h = 640; uint32_t step = 16; std::string walk; float ox = 0, oy = 0, oz = 0;
+            ss >> n >> w >> h >> step >> walk >> ox >> oy >> oz;
+            bench(scene, actors, n, w, h, step, walk == "walk", V3(ox, oy, oz));
+            timed.clear();
+        }
         else if (cmd == "city") {
             uint32_t root; std::string gs; float x, y, z, r;
             ss >> root >> gs >> x >> y >> z >> r;
@@ -808,6 +873,8 @@ int main(int argc, char** argv) {
             ss >> out >> w >> h >> t;
             renderTo(scene, out, w, h, t);
         }
+        glFinish();
     }
+    report();
     return 0;
 }

@@ -276,6 +276,7 @@ bool Scene::initGl() {
         a.boneTex = 0;
         a.composed.clear();
         a.skinDirty = !a.layers.empty();
+        a.firstSkin = a.skinDirty;   // (drawn again once its skin is)
         for (Skinned& e : a.skinned) e.boneTex = 0;
         forgetBodyGl(a.body);
         a.soft.forget();
@@ -1327,11 +1328,17 @@ void Scene::drawCreatorBackdrop(float aspect, uint32_t nowMs) {
 
 void Scene::render(int width, int height, uint32_t nowMs) {
     if (!glReady_) return;
-    // Looks dressed since the last frame, and files a look was waiting for that have come.
+    // Looks dressed since the last frame, and files a look was waiting for that have come. Composing a skin is the
+    // frame's heaviest work (its layers drawn and mipmapped: tens of ms on a slow GPU), so at most kSkinsPerFrame are
+    // composed a frame: six NPCs dressed at once are spread over six frames, not one long hitch. An actor whose skin was
+    // never composed waits unseen (Actor::firstSkin) rather than being drawn bare for those frames.
+    constexpr int kSkinsPerFrame = 1;
+    int skinsLeft = kSkinsPerFrame;
     for (auto& [id, a] : actors_) {
         if (!a.skinDirty && !a.missing.empty())
             for (uint32_t f : a.missing) if (!files_(f).empty()) { a.skinDirty = true; break; }
-        if (a.skinDirty) refreshSkin(a);
+        if (a.skinDirty && skinsLeft > 0) { refreshSkin(a); --skinsLeft; }
+        if (!a.skinDirty) a.firstSkin = false;
         if (!a.body.dirty && !a.body.missing.empty())
             for (uint32_t f : a.body.missing) if (!files_(f).empty()) { a.body.dirty = true; break; }
         if (a.body.dirty) refreshBody(a);
@@ -1409,7 +1416,7 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     Frustum frustum(viewProj);
     for (Prop& pr : props_) pr.seen = cityShown_ && frustum.sphere(pr.centre, pr.radius) && (pr.centre - eye_).length() - pr.radius < light_.fogEnd;
     for (Prop& pr : props_) if (pr.seen) drawModel(*pr.mesh, pr.world, nullptr, nullptr, pr.mesh->boneTex, -1, 0, nowMs, one, false, kPropTex);
-    for (auto& [id, a] : actors_) if (a.visible && !a.ghost) { lightActor(a.position, false); drawActor(a, nowMs, false); }
+    for (auto& [id, a] : actors_) if (a.visible && !a.ghost && !a.firstSkin) { lightActor(a.position, false); drawActor(a, nowMs, false); }
     lightActor(V3(), true);
     drawStatic(false, viewProj);    // the location, its doodads and the editor's props (location.cpp)
     drawGround(viewProj);
@@ -1419,7 +1426,7 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     litUniforms(m2Prog_, light_, eye_, viewProj);
     for (Prop& pr : props_) if (pr.seen) drawModel(*pr.mesh, pr.world, nullptr, nullptr, pr.mesh->boneTex, -1, 0, nowMs, one, true, kPropTex);
     drawStatic(true, viewProj);
-    for (auto& [id, a] : actors_) if (a.visible && !a.ghost) { lightActor(a.position, false); drawActor(a, nowMs, true); }
+    for (auto& [id, a] : actors_) if (a.visible && !a.ghost && !a.firstSkin) { lightActor(a.position, false); drawActor(a, nowMs, true); }
     lightActor(V3(), true);
     // the placement editor's ghost and gizmo (editview.cpp), over the scene
     litUniforms(m2Prog_, light_, eye_, viewProj);

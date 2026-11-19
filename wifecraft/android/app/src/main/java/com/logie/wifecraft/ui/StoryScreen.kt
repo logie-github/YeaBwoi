@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -120,15 +121,19 @@ fun StoryScreen(
         }
 
         director.choice?.let { c ->
-            // Low, where the talking head sits: the faces stay in sight above it.
+            // Low, where the talking head sits: the faces stay in sight above it. Each choice fades up into place.
+            key(c) {
+            val enter = rememberEnter()
             MetalPanel(
-                Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp).widthIn(max = 820.dp).fillMaxWidth(0.88f),
+                Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp).widthIn(max = 820.dp).fillMaxWidth(0.88f)
+                    .graphicsLayer { alpha = enter.value; translationY = (1f - enter.value) * 10.dp.toPx() },
                 parchment = true,
             ) {
                 Column {
                     Text(c.prompt, style = morpheusStyle(19.sp, WowColors.ink).copy(shadow = null), modifier = Modifier.padding(bottom = 2.dp))
                     c.options.forEachIndexed { i, text -> GossipOption(text, { director.choose(i) }) }
                 }
+            }
             }
         }
 
@@ -178,7 +183,8 @@ fun PauseMenu(
     onOptions: () -> Unit,
     onLeave: () -> Unit,
 ) {
-    Box(Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.Center) {
+    // the game's Game Menu over the dimmed story, fading in as the Overlay does; a tap beside it is Resume (as Escape is)
+    Overlay(onResume) {
         // the game's Game Menu: the metal frame, its red buttons stacked
         WowWindow("Game Menu", onClose = null, modifier = Modifier.width(288.dp)) {
             if (chapter.isNotEmpty()) Text(chapter, style = frizStyle(11.sp, WowColors.grey), modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 4.dp))

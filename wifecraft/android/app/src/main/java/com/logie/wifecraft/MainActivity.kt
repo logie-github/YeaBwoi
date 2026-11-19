@@ -76,12 +76,18 @@ import com.logie.wifecraft.ui.LiveSceneScreen
 import com.logie.wifecraft.ui.LocalArt
 import com.logie.wifecraft.ui.LocalSounds
 import com.logie.wifecraft.ui.Overlay
+import com.logie.wifecraft.ui.OverlayFor
 import com.logie.wifecraft.ui.SceneSetupScreen
 import com.logie.wifecraft.ui.SetupStep
 import com.logie.wifecraft.ui.TitleScreen
 import com.logie.wifecraft.ui.UpdatePanel
 import com.logie.wifecraft.ui.WowArt
 import com.logie.wifecraft.ui.defaultAppearance
+import com.logie.wifecraft.ui.collectThrottled
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -219,7 +225,8 @@ class MainActivity : ComponentActivity() {
         var wardrobe by remember { mutableStateOf<TransmogCatalog?>(null) }
         var wardrobeStatus by remember { mutableStateOf<String?>(null) }
         var wardrobeJob by remember { mutableStateOf<Job?>(null) }
-        var downloadProgress by remember { mutableStateOf<AssetDownloads.Progress?>(null) }
+        // set from the download's threads once per file; read only by the Options panel's host, at most 4 times a second
+        val downloadProgress = remember { MutableStateFlow<AssetDownloads.Progress?>(null) }
         var speed by remember { mutableIntStateOf(settings.downloadSpeed) }
         var effects by remember { mutableIntStateOf(settings.soundVolume) }
         var downloadStatus by remember { mutableStateOf<String?>(null) }
@@ -261,11 +268,14 @@ class MainActivity : ComponentActivity() {
             }
         }
         var objects by remember { mutableStateOf(SceneObject.entries.toSet()) }
-        val progress by files.progress.collectAsState()
-        val stage by locationLoader.progress.collectAsState()
-        val props by propLoader.loading.collectAsState()
-        val fetching by dresser.fetching.collectAsState()
-        val ready = files.tablesComplete && art != null && catalog != null
+        // The root reads only which packs are complete (a few changes in all), never the download's ticks: those are read
+        // by the small composables that show them (GatherHost, the live scene's status, the Options panel), so a tick
+        // redraws them and not the whole app. Nothing here touches the disk while composing.
+        val complete by remember { files.progress.map { it.complete }.distinctUntilChanged() }
+            .collectAsStateWithLifecycle(files.progress.value.complete)
+        val fetchingState = dresser.fetching.collectThrottled { old, new -> (old?.total == 0) != (new.total == 0) || new.error != old?.error }
+        val npcLoading by remember { derivedStateOf { fetchingState.value.total > 0 } }
+        val ready = GameFiles.TABLES in complete && art != null && catalog != null
         val stages = remember { locationLoader.locations.filter { it.views["inside"]?.camera != null } }
         val starters = remember(catalog) {
             val race = catalog?.races?.let { races -> races.firstOrNull { it.id == 1 } ?: races.firstOrNull() }
@@ -273,27 +283,23 @@ class MainActivity : ComponentActivity() {
                 Actor("starter:${sex.name}", if (sex == Sex.FEMALE) "Mira" else "Rowan", Appearance(race.id, sex))
             }
         }
-        val roster = savedRoster + starters
-        val chosen = roster.filter { it.id in cast }
+        val roster = remember(savedRoster, starters) { savedRoster + starters }
+        val chosen = remember(roster, cast) { roster.filter { it.id in cast } }
 
-        LaunchedEffect(progress.complete) {
-            if (art == null && files.packComplete("interface")) {
+        LaunchedEffect(complete) {
+            if (art == null && "interface" in complete) {
                 art = withContext(Dispatchers.IO) { runCatching { WowArt.load(files) }.getOrNull() }
             }
-            if (catalog == null && files.tablesComplete) {
+            if (catalog == null && GameFiles.TABLES in complete) {
                 catalog = withContext(Dispatchers.Default) { runCatching { Catalog.build(tables) }.getOrNull() }
             }
-            if (files.packComplete("sound")) audio?.filesArrived()
+            if ("sound" in complete) audio?.filesArrived()
         }
         LaunchedEffect(Unit) {
             runCatching { withContext(Dispatchers.IO) { readRoster() } }
                 .onSuccess { savedRoster = it }
                 .onFailure { problem = "Saved NPCs could not be loaded." }
             if (Updater.isConfigured) update = withContext(Dispatchers.IO) { runCatching { Updater.findUpdate() }.getOrNull() }
-        }
-
-        BackHandler(panel != Panel.NONE || screen == Screen.GATHER) {
-            if (panel != Panel.NONE) panel = Panel.NONE else screen = Screen.TITLE
         }
 
         LaunchedEffect(art != null) { if (art != null) menuArt.start() }
@@ -315,8 +321,8 @@ class MainActivity : ComponentActivity() {
                         onOptions = { panel = Panel.OPTIONS },
                         onUpdates = { updateStatus = ""; panel = Panel.UPDATE },
                     )
-                    Screen.GATHER -> GatherScreen(
-                        progress, listOf(
+                    Screen.GATHER -> GatherHost(
+                        listOf(
                             "interface" to "Interface", GameFiles.TABLES to "Character tables",
                             GameFiles.LOOKS to "Character models", "sound" to "Music and sounds",
                         ),
@@ -583,7 +589,26 @@ class MainActivity : ComponentActivity() {
                             }.toMap()
                         }
                         val animations = remember(session) { mutableMapOf<String, Pair<Activity, String?>>() }
-                        LiveSceneScreen(
+                        val durations = remember(clips) { clips.filterValues { !it.loop }.mapValues { it.value.duration } }
+                        // The loaders' ticks (each file) are read only here, through the derived status: it changes a few
+                        // times a second at most, and only the live screen's host is redrawn for it.
+                        val stage = locationLoader.progress.collectThrottled { old, new -> old?.id != new.id || new.error != old?.error }
+                        val props = propLoader.loading.collectThrottled { old, new -> (old?.total == 0) != (new.total == 0) || new.error != old?.error }
+                        val status = remember(session, preset.id, chosen.size) {
+                            derivedStateOf {
+                                val st = stage.value; val fe = fetchingState.value; val pr = props.value
+                                when {
+                                    locationResult != null && st.id == preset.id && st.error != null -> st.error
+                                    locationResult != true -> "Opening ${preset.name}…"
+                                    fe.total > 0 -> "Loading NPCs… ${fe.done}/${fe.total}"
+                                    loadedActors < chosen.size -> "Preparing NPCs… $loadedActors/${chosen.size}"
+                                    pr.total > 0 -> "Loading objects… ${pr.done}/${pr.total}"
+                                    fe.error != null -> fe.error
+                                    else -> pr.error ?: contactError
+                                }
+                            }
+                        }
+                        Collected(status) { liveStatus -> LiveSceneScreen(
                             view, camera, preset.name, chosen, objects, spots, actorKey, objectKey, bookKey, toStage, rotation,
                             onAnimate = { id, activity ->
                                 val clip = clips[activity]
@@ -596,28 +621,24 @@ class MainActivity : ComponentActivity() {
                                     else view.playAnim(key, clip)
                                 }
                             },
-                            durations = clips.filterValues { !it.loop }.mapValues { it.value.duration },
+                            durations = durations,
                             onEnd = { screen = Screen.TITLE },
                             ready = locationResult == true && loadedActors == chosen.size,
-                            status = when {
-                                locationResult != null && stage.id == preset.id && stage.error != null -> stage.error
-                                locationResult != true -> "Opening ${preset.name}…"
-                                fetching.total > 0 -> "Loading NPCs… ${fetching.done}/${fetching.total}"
-                                loadedActors < chosen.size -> "Preparing NPCs… $loadedActors/${chosen.size}"
-                                props.total > 0 -> "Loading objects… ${props.done}/${props.total}"
-                                fetching.error != null -> fetching.error
-                                else -> props.error ?: contactError
-                            },
-                        )
+                            status = liveStatus,
+                        ) }
                     }
                 }
-                if (screen == Screen.CREATOR && fetching.total > 0) {
+                if (screen == Screen.CREATOR && npcLoading) {
                     Text("Loading NPC preview…", Modifier.align(Alignment.TopCenter).padding(12.dp), color = Color.White)
                 }
+                // composed after the screens' own (the creator's): the last composed wins, so Back closes a panel first
+                BackHandler(panel != Panel.NONE || screen == Screen.GATHER) {
+                    if (panel != Panel.NONE) panel = Panel.NONE else screen = Screen.TITLE
+                }
                 when (panel) {
-                    Panel.NONE -> Unit
-                    Panel.OPTIONS -> DownloadOptions(
-                        progress = downloadProgress,
+                    Panel.NONE, Panel.UPDATE -> Unit
+                    Panel.OPTIONS -> Collected(downloadProgress.collectThrottled { old, new -> old?.pack != new?.pack }) { shownProgress -> DownloadOptions(
+                        progress = shownProgress,
                         status = downloadStatus,
                         speed = speed,
                         onSpeed = {
@@ -636,11 +657,11 @@ class MainActivity : ComponentActivity() {
                         canDownload = catalog != null,
                         onDownload = { packs ->
                             if (downloadJob?.isActive != true) {
-                                downloadProgress = AssetDownloads.Progress(packs.first(), 1, packs.size)
+                                downloadProgress.value = AssetDownloads.Progress(packs.first(), 1, packs.size)
                                 downloadStatus = null
                                 downloadJob = scope.launch {
                                     try {
-                                        downloadStatus = AssetDownloads(files, tables).download(packs, stages, catalog, ::loadWardrobe) { value -> downloadProgress = value }
+                                        downloadStatus = AssetDownloads(files, tables).download(packs, stages, catalog, ::loadWardrobe) { value -> downloadProgress.value = value }
                                     } catch (failure: CancellationException) {
                                         downloadStatus = "Download paused. Cached files are ready for the next download."
                                         throw failure
@@ -655,8 +676,10 @@ class MainActivity : ComponentActivity() {
                         onPause = { downloadJob?.cancel() },
                         onClose = { panel = Panel.NONE },
                         mods = { ImportsSection(imports, listfile) },
-                    )
-                    Panel.UPDATE -> Overlay({ panel = Panel.NONE }) {
+                    ) }
+                }
+                // always composed: it fades out when closed (MenuMotionUi)
+                Overlay({ panel = Panel.NONE }, visible = panel == Panel.UPDATE) {
                         LaunchedEffect(Unit) {
                             if (!Updater.isConfigured) {
                                 updateStatus = "This build doesn't check for updates."
@@ -668,18 +691,25 @@ class MainActivity : ComponentActivity() {
                         }
                         UpdatePanel(updateStatus, update != null, onInstall = { update?.let { installUpdate(it) { status -> updateStatus = status } } },
                             onBack = { panel = Panel.NONE })
-                    }
                 }
-                problem?.let { message ->
-                    Overlay({ problem = null }) {
-                        WowWindow("Wifecraft", { problem = null }, Modifier.widthIn(max = 500.dp)) {
-                            Text(message, style = frizStyle(14.sp, Color.White))
-                            RedButton("Close", { problem = null }, Modifier.padding(top = 10.dp))
-                        }
+                OverlayFor(problem, { problem = null }) { message ->
+                    WowWindow("Wifecraft", { problem = null }, Modifier.widthIn(max = 500.dp)) {
+                        Text(message, style = frizStyle(14.sp, Color.White))
+                        RedButton("Close", { problem = null }, Modifier.padding(top = 10.dp))
                     }
                 }
             }
         }
+    }
+
+    /** The first launch's gathering screen: the only reader of the download's ticks (4 a second at most: GameFiles). */
+    @Composable
+    private fun GatherHost(
+        packLabels: List<Pair<String, String>>, wifiOnly: Boolean, onWifiOnly: (Boolean) -> Unit,
+        onStart: () -> Unit, onPause: () -> Unit, onBack: () -> Unit,
+    ) {
+        val progress by files.progress.collectAsStateWithLifecycle()
+        GatherScreen(progress, packLabels, wifiOnly, onWifiOnly = onWifiOnly, onStart = onStart, onPause = onPause, onBack = onBack)
     }
 
     private fun installUpdate(u: Updater.Update, status: (String) -> Unit) {
@@ -694,8 +724,14 @@ class MainActivity : ComponentActivity() {
         status("Downloading ${u.title}…")
         Thread {
             try {
+                // one post per percent, not per chunk read (thousands, each redrawing the panel)
+                var shown = -1L
                 val apk = Updater.download(this, u, { done, total ->
-                    if (total > 0) runOnUiThread { status("Downloading ${u.title}… ${done * 100 / total}%") }
+                    val percent = if (total > 0) done * 100 / total else -1L
+                    if (percent >= 0 && percent != shown) {
+                        shown = percent
+                        runOnUiThread { status("Downloading ${u.title}… $percent%") }
+                    }
                 }, { false })
                 runOnUiThread {
                     status("Opening the installer…")
@@ -706,5 +742,10 @@ class MainActivity : ComponentActivity() {
             }
         }.start()
     }
+}
 
+/** Shows [state]'s value in [content], its own restart scope: a change redraws [content], not the composable that holds it. */
+@Composable
+private fun <T> Collected(state: State<T>, content: @Composable (T) -> Unit) {
+    content(state.value)
 }

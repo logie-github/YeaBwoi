@@ -53,7 +53,7 @@ internal fun SceneBrowser(
                     modifier = area,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    items(locations, key = { it.id }) { entry ->
+                    items(locations, key = { it.id }, contentType = { 0 }) { entry ->
                         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
                             ItemCard(
                                 AnnotatedString(entry.name), icon, 76.dp, entry.id == location,
@@ -84,8 +84,6 @@ private fun LocationPreview(preset: LocationInfo, view: SceneView, loader: Locat
     var retry by remember(preset.id) { mutableIntStateOf(0) }
     var completed by remember(preset.id, retry) { mutableStateOf<Boolean?>(null) }
     val art = LocalArt.current
-    val progress by loader.progress.collectAsState()
-    val loading = progress.takeIf { it.id == preset.id }
     DisposableEffect(view, preset.id, retry) {
         view.showCity(false)
         view.frame = checkNotNull(preset.views["inside"]?.camera) to emptyMap()
@@ -112,13 +110,7 @@ private fun LocationPreview(preset: LocationInfo, view: SceneView, loader: Locat
                         Text("Scene preview unavailable", style = frizStyle(13.sp), textAlign = TextAlign.Center)
                         RedButton("Retry preview", { retry++ })
                     } else {
-                        val total = loading?.total ?: 0
-                        val done = loading?.done ?: 0
-                        Text(if (total > 0 && done < total) "Downloading scene  $done / $total" else "Loading scene…",
-                            style = frizStyle(13.sp), textAlign = TextAlign.Center)
-                        if (total > 0 && done < total) {
-                            LoadingBar(done.toFloat() / total, Modifier.fillMaxWidth().height(12.dp))
-                        }
+                        PreviewProgress(loader, preset.id)
                     }
                 }
             }
@@ -126,6 +118,25 @@ private fun LocationPreview(preset: LocationInfo, view: SceneView, loader: Locat
                 drawMetalFrame(art, minOf(14.dp.toPx(), size.minDimension / 2f))
             }
         }
+    }
+}
+
+/**
+ * The preview's download count and bar: its own composable, so the loader's ticks (one per file, at most 4 a second here)
+ * redraw only these, not the preview, its frame and the cards.
+ */
+@Composable
+private fun PreviewProgress(loader: LocationLoader, id: String) {
+    val progress = loader.progress.collectThrottled { old, new -> old?.id != new.id || new.error != null || new.ready }
+    val counts by remember(id) {
+        derivedStateOf { progress.value.takeIf { it.id == id }?.let { it.done to it.total } ?: (0 to 0) }
+    }
+    val (done, total) = counts
+    val downloading = total > 0 && done < total
+    Text(if (downloading) "Downloading scene  $done / $total" else "Loading scene…", style = frizStyle(13.sp), textAlign = TextAlign.Center)
+    // the bar's room is kept while there is nothing to count: the text doesn't jump up and down as it comes and goes
+    Box(Modifier.fillMaxWidth().height(12.dp)) {
+        if (downloading) LoadingBar(done.toFloat() / total, Modifier.fillMaxSize())
     }
 }
 
@@ -163,17 +174,23 @@ internal fun NpcBrowser(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    items(shown, key = { it.id }) { actor ->
-                        val preview = portraitActor(actor)
-                        var picture by remember(preview, portraits) { mutableStateOf<ImageBitmap?>(null) }
+                    items(shown, key = { it.id }, contentType = { 0 }) { actor ->
+                        // dressing a look (the starter clothes) once per actor, not on every redraw of the grid
+                        val preview = remember(actor, portraitActor) { portraitActor(actor) }
+                        // a portrait already made shows at once (no placeholder frame when scrolled back)
+                        var picture by remember(preview, portraits) {
+                            mutableStateOf<ImageBitmap?>(
+                                preview?.let { portraits?.cachedNpc(it.appearance, actor.id.hashCode(), 192)?.asImageBitmap() })
+                        }
                         DisposableEffect(preview, portraits) {
                             var active = true
-                            if (preview != null) {
+                            // a request is cancelled when its cell leaves the screen
+                            val ticket = if (preview != null && picture == null) {
                                 portraits?.requestNpc(preview.appearance, actor.id.hashCode(), 192) {
                                     if (active) picture = it?.asImageBitmap()
                                 }
-                            }
-                            onDispose { active = false }
+                            } else null
+                            onDispose { active = false; ticket?.cancel() }
                         }
                         val inCast = actor.id in cast
                         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {

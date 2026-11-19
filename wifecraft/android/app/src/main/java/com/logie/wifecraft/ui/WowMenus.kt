@@ -1,6 +1,18 @@
 package com.logie.wifecraft.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -81,6 +93,7 @@ private val Dim = Color(0xFF9D9D9D)
 private val Red = Color(0xFFFF5A46)
 private val Edge = Color(0xFF96784A)
 private val Tip = Color(0xEB08080C)
+private val ClearW = 64.dp
 
 /** The window's body: the dark stone of the game's frames, or the spellbook's parchment (the Library). */
 enum class WindowBody { ROCK, PARCHMENT, TRANSLUCENT }
@@ -131,7 +144,9 @@ fun WowWindow(
 ) {
     val art = LocalArt.current
     val war = LocalWar.current
-    Column(modifier) {
+    // fades and grows in as it is first shown (an Overlay around it does that for it, and its way out too)
+    val enter = if (LocalInMovingOverlay.current) null else rememberEnter()
+    Column(if (enter != null) modifier.windowMotion { enter.value } else modifier) {
         Box(Modifier.weight(1f, fill = false).fillMaxWidth()) {
             Box(Modifier.matchParentSize().padding(10.dp).shadow(10.dp, RoundedCornerShape(4.dp)).drawBehind {
                 when (body) {
@@ -184,7 +199,7 @@ fun WowTab(label: String, chosen: Boolean, onClick: () -> Unit, modifier: Modifi
                 drawRoundRect(if (chosen) War.gold else Edge, cornerRadius = CornerRadius(6.dp.toPx()), style = Stroke(1.5.dp.toPx()))
             }
         }
-        Text(label, style = frizStyle(14.sp, if (chosen) Ink else WowColors.gold), maxLines = 1,
+        Text(label, style = frizStyle(14.sp, if (chosen) Ink else WowColors.gold), maxLines = 1, overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 18.dp).padding(top = if (chosen) 12.dp else 9.dp))
     }
 }
@@ -197,8 +212,13 @@ fun RedButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, 
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val pieces = when { !enabled -> art?.redDisabled; pressed -> art?.redPressed; else -> art?.red }
+    // the game's pressed piece and the kit's sink (MenuMotion), and a second tap within the quiet time does nothing
+    val reduced = reduceMotion()
+    val sink by animateFloatAsState(MenuMotion.pressScale(pressed && enabled, reduced), tween(MenuMotion.duration(MenuMotion.PRESS_MS, reduced)), label = "press")
+    val gate = rememberClickGate()
     Box(
-        modifier.heightIn(min = 48.dp).clickable(source, null, enabled = enabled, role = Role.Button, onClick = { click("click"); onClick() })
+        modifier.heightIn(min = 48.dp).graphicsLayer { scaleX = sink; scaleY = sink }
+            .clickable(source, null, enabled = enabled, role = Role.Button, onClick = { if (gate.pass()) { click("click"); onClick() } })
             .drawBehind {
                 if (pieces?.left == null || pieces.center == null || pieces.right == null) {
                     drawRoundRect(if (enabled) Color(0xFF7A0E0A) else Color(0xFF3A3A3A), cornerRadius = CornerRadius(4.dp.toPx()))
@@ -271,17 +291,19 @@ private fun Modifier.drawBehindCorners(war: WarArt?): Modifier = this.then(Modif
 @Composable
 fun MenuIcon(key: String?, enabled: Boolean = true, size: Dp = 26.dp) {
     val war = LocalWar.current
-    Canvas(Modifier.size(size)) {
-        key ?: return@Canvas
-        val a = if (enabled) 1f else 0.4f
-        val icon = war?.icon(key)
-        if (icon != null) clipPath(Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(0f, 0f, this@Canvas.size.width, this@Canvas.size.height, CornerRadius(4.dp.toPx()))) }) {
-            drawWar(icon, 0f, 0f, this@Canvas.size.width, this@Canvas.size.height, a)
-        } else {
-            val p = war?.piece(key)
-            if (p != null) drawFitted(p, center.x, center.y, this.size.minDimension, a) else drawGlyphFor(key, center.x, center.y, this.size.minDimension * 0.8f, War.gold, a)
+    Spacer(Modifier.size(size).drawWithCache {
+        val round = Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(0f, 0f, this@drawWithCache.size.width, this@drawWithCache.size.height, CornerRadius(4.dp.toPx()))) }
+        onDrawBehind {
+            key ?: return@onDrawBehind
+            val a = if (enabled) 1f else 0.4f
+            val icon = war?.icon(key)
+            if (icon != null) clipPath(round) { drawWar(icon, 0f, 0f, this.size.width, this.size.height, a) }
+            else {
+                val p = war?.piece(key)
+                if (p != null) drawFitted(p, center.x, center.y, this.size.minDimension, a) else drawGlyphFor(key, center.x, center.y, this.size.minDimension * 0.8f, War.gold, a)
+            }
         }
-    }
+    })
 }
 
 /** The settings' check box (the game's minimal one) with its gold tick. */
@@ -313,7 +335,7 @@ fun WowDropdownList(title: String?, rows: List<MenuRow>, onPick: (MenuRow) -> Un
                 modifier = Modifier.padding(horizontal = 14.dp).height(EditorMenus.TITLE.dp).padding(top = 8.dp))
             val list = rememberLazyListState()
             LazyColumn(Modifier.heightIn(max = maxHeight).warScrollbar(list), list) {
-                itemsIndexed(rows, key = { _, r -> r.action.name }) { _, r ->
+                itemsIndexed(rows, key = { _, r -> r.action.name }, contentType = { _, r -> if (r.checked != null) 1 else 0 }) { _, r ->
                     Column {
                         if (r.ruleBefore) Box(Modifier.padding(horizontal = 12.dp, vertical = 6.dp).fillMaxWidth().height(1.dp).background(Color(0xFF5A5A5F)))
                         MenuRowView(r) { onPick(r) }
@@ -339,7 +361,7 @@ private fun MenuRowView(r: MenuRow, onClick: () -> Unit) {
 @Composable
 fun TextAction(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, danger: Boolean = false) {
     Box(modifier.heightIn(min = 48.dp).widthIn(min = 48.dp).warPress(enabled, onClick = onClick).padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
-        Text(text, style = frizStyle(15.sp, when { !enabled -> Dim; danger -> Red; else -> WowColors.gold }), maxLines = 1)
+        Text(text, style = frizStyle(15.sp, when { !enabled -> Dim; danger -> Red; else -> WowColors.gold }), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -409,8 +431,7 @@ fun WowDropdownButton(label: String, onClick: () -> Unit, modifier: Modifier = M
             val a = war?.piece(if (open) "common-dropdown-a-button-open" else "common-dropdown-a-button")
             if (a != null) drawWar(a, 0f, 0f, size.width, size.height)
             else {
-                val p = Path().apply { moveTo(size.width * 0.3f, size.height * 0.4f); lineTo(size.width * 0.7f, size.height * 0.4f); lineTo(size.width * 0.5f, size.height * 0.64f); close() }
-                drawPath(p, War.gold)
+                drawPath(downArrowPath(size.width * 0.3f, size.height * 0.4f, size.width * 0.7f, size.height * 0.64f), War.gold)
             }
         }
     }
@@ -423,16 +444,41 @@ fun WowDropdownButton(label: String, onClick: () -> Unit, modifier: Modifier = M
 @Composable
 fun <T> WowDropdown(current: String, options: List<Pair<T, String>>, onPick: (T) -> Unit, modifier: Modifier = Modifier, headers: Set<Int> = emptySet(), maxHeight: Dp = 360.dp) {
     var open by remember { mutableStateOf(false) }
+    val reduced = reduceMotion()
+    val pop = MenuMotion.duration(MenuMotion.POP_MS, reduced)
+    // kept on screen until it has faded out; nothing on it is picked twice meanwhile
+    val shown = remember { MutableTransitionState(false) }
+    shown.targetState = open
+    // a tap outside closes it; the same tap landing on its own button must not open it again
+    val closedAt = remember { longArrayOf(Long.MIN_VALUE / 2) }
+    var button by remember { mutableStateOf(IntSize.Zero) }
+    val density = LocalDensity.current
     Box(modifier) {
-        WowDropdownButton(current, { open = !open }, Modifier.fillMaxWidth(), open)
-        if (open) Popup(alignment = Alignment.TopStart, offset = IntOffset(0, 0), onDismissRequest = { open = false }, properties = PopupProperties(focusable = true)) {
-            WowTooltipBox(Modifier.widthIn(min = 220.dp, max = 420.dp).padding(top = 50.dp)) {
-                val list = rememberLazyListState()
-                LazyColumn(Modifier.heightIn(max = maxHeight).padding(vertical = 4.dp).warScrollbar(list), list) {
-                    itemsIndexed(options) { i, (value, label) ->
-                        if (i in headers) Text(label, style = frizStyle(13.sp, WowColors.gold), modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp))
-                        else Box(Modifier.fillMaxWidth().height(48.dp).warPress { open = false; onPick(value) }.padding(horizontal = 14.dp), contentAlignment = Alignment.CenterStart) {
-                            Text(label, style = frizStyle(15.sp, if (label == current) WowColors.gold else Ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        WowDropdownButton(current, {
+            val now = System.nanoTime() / 1_000_000L
+            if (open) open = false else if (now - closedAt[0] > MenuMotion.REOPEN_MS) open = true
+        }, Modifier.fillMaxWidth().onSizeChanged { button = it }, open)
+        if (shown.currentState || shown.targetState) Popup(
+            alignment = Alignment.TopStart,
+            // under its button (the button stays tappable: tapping it again closes the list)
+            offset = IntOffset(0, button.height + with(density) { 2.dp.roundToPx() }),
+            onDismissRequest = { if (open) { open = false; closedAt[0] = System.nanoTime() / 1_000_000L } },
+            properties = PopupProperties(focusable = true),
+        ) {
+            val slide = with(density) { PopSlide.roundToPx() }
+            AnimatedVisibility(shown, enter = fadeIn(tween(pop)) + slideInVertically(tween(pop)) { -slide }, exit = fadeOut(tween(pop))) {
+                val minW = with(density) { button.width.toDp() }.coerceAtLeast(220.dp)
+                WowTooltipBox(Modifier.widthIn(min = minW, max = maxOf(minW, 420.dp))) {
+                    // opens on the chosen row (a row above it showing), not at the top of a long list
+                    val at = options.indexOfFirst { it.second == current }.let { if (it > 0) it - 1 else 0 }
+                    val list = rememberLazyListState(initialFirstVisibleItemIndex = at)
+                    LazyColumn(Modifier.heightIn(max = maxHeight).padding(vertical = 4.dp).warScrollbar(list), list) {
+                        itemsIndexed(options, key = { i, _ -> i }, contentType = { i, _ -> if (i in headers) 0 else 1 }) { i, (value, label) ->
+                            if (i in headers) Text(label, style = frizStyle(13.sp, WowColors.gold), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp))
+                            else Box(Modifier.fillMaxWidth().height(48.dp).warPress { if (open) { open = false; onPick(value) } }.padding(horizontal = 14.dp), contentAlignment = Alignment.CenterStart) {
+                                Text(label, style = frizStyle(15.sp, if (label == current) WowColors.gold else Ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
                         }
                     }
                 }
@@ -458,7 +504,10 @@ fun WowSearchBox(value: String, onChange: (String) -> Unit, hint: String, modifi
             if (value.isEmpty()) Text(hint, style = frizStyle(14.sp, Dim, false), maxLines = 1, overflow = TextOverflow.Ellipsis)
             BasicTextField(value, onChange, singleLine = true, textStyle = frizStyle(15.sp, Ink, false), cursorBrush = SolidColor(War.gold), modifier = Modifier.fillMaxWidth())
         }
-        if (value.isNotEmpty()) TextAction("Clear", { onChange("") })
+        // Clear keeps its room while the box is empty (hidden, untappable), so typing the first letter moves nothing
+        Box(Modifier.width(ClearW).graphicsLayer { alpha = if (value.isEmpty()) 0f else 1f }) {
+            TextAction("Clear", { if (value.isNotEmpty()) onChange("") }, Modifier.fillMaxWidth(), enabled = value.isNotEmpty())
+        }
     }
 }
 
@@ -471,7 +520,7 @@ fun WowTextField(value: String, onChange: (String) -> Unit, hint: String, modifi
         modifier.heightIn(min = 48.dp).clip(shape).background(Color.Black).border(if (focused) 1.5.dp else 1.dp, if (focused) War.gold else Color(0xFF6E6E6E), shape)
             .padding(horizontal = 12.dp, vertical = 13.dp),
     ) {
-        if (value.isEmpty()) Text(hint, style = frizStyle(15.sp, Dim, false), maxLines = 1)
+        if (value.isEmpty()) Text(hint, style = frizStyle(15.sp, Dim, false), maxLines = 1, overflow = TextOverflow.Ellipsis)
         BasicTextField(value, onChange, singleLine = singleLine, textStyle = frizStyle(15.sp, Ink, false), cursorBrush = SolidColor(War.gold),
             modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused })
     }
@@ -510,7 +559,7 @@ fun ActionSlotButton(face: SlotFace, label: String, onClick: () -> Unit, size: D
                 face.decor?.let { n ->
                     war?.piece(n)?.let { p ->
                         val k = (p.width * 0.17f).toInt()
-                        clipPath(Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(ins, ins, ins + inner, ins + inner, CornerRadius(4.dp.toPx()))) }) {
+                        clipPath(roundPath(ins, ins, ins + inner, ins + inner, 4.dp.toPx())) {
                             drawImage(p, IntOffset(k, k), IntSize(p.width - 2 * k, p.height - 2 * k), IntOffset(ins.roundToInt(), ins.roundToInt()),
                                 IntSize(inner.roundToInt(), inner.roundToInt()), alpha = a, filterQuality = FilterQuality.Medium)
                         }
@@ -518,7 +567,7 @@ fun ActionSlotButton(face: SlotFace, label: String, onClick: () -> Unit, size: D
                     }
                 }
                 if (!drawn) face.icon?.let { k -> war?.icon(k)?.let {
-                    clipPath(Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(ins, ins, ins + inner, ins + inner, CornerRadius(4.dp.toPx()))) }) { drawWar(it, ins, ins, inner, inner, a) }
+                    clipPath(roundPath(ins, ins, ins + inner, ins + inner, 4.dp.toPx())) { drawWar(it, ins, ins, inner, inner, a) }
                     drawn = true
                 } }
                 if (!drawn) face.glyph?.let { g -> war?.piece(g)?.let { drawFitted(it, center.x, center.y, s * 0.5f, a); drawn = true } }
@@ -592,9 +641,12 @@ fun WowListRow(
     context: (@Composable RowScope.() -> Unit)? = null,
 ) {
     val shape = RoundedCornerShape(3.dp)
+    val reduced = reduceMotion()
     Column(
         modifier.fillMaxWidth().clip(shape).background(if (selected) Color(0x24FFD100) else Color(0x0AFFFFFF))
-            .border(1.dp, if (selected) Color(0x96FFD100) else Color(0xFF50463A), shape),
+            .border(1.dp, if (selected) Color(0x96FFD100) else Color(0xFF50463A), shape)
+            // the chosen row's actions unfold under it rather than pushing the rows below down in one frame
+            .then(if (context != null && !reduced) Modifier.animateContentSize(tween(MenuMotion.PAGE_MS)) else Modifier),
     ) {
         Row(
             Modifier.fillMaxWidth().heightIn(min = 60.dp).warPress(onLongPress = onLongPress, onClick = onClick).padding(horizontal = 10.dp, vertical = 6.dp),
