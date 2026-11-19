@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.OpenableColumns
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -48,7 +49,10 @@ import com.logie.wifecraft.anim.WickedWhimsDownload
 import com.logie.wifecraft.sims.DbpfFile
 import com.logie.wifecraft.sims.SimsClip
 import com.logie.wifecraft.sims.SimsRig
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -130,6 +134,8 @@ fun AnimImportScreen(
     var draft by remember { mutableStateOf<ReviewDraft?>(null) }
     var saved by remember { mutableStateOf<List<SaveOutcome>>(emptyList()) }
     var download by remember { mutableStateOf(WickedWhimsDownload.Progress()) }
+    var retrySeconds by remember { mutableStateOf<Long?>(null) }
+    var importJob by remember { mutableStateOf<Job?>(null) }
     val busy = phase == Phase.Downloading || phase == Phase.Running || phase == Phase.Saving
     var rigBones by remember { mutableStateOf<Int?>(null) }
     var hasRig by remember { mutableStateOf(rigs.has()) }
@@ -172,13 +178,21 @@ fun AnimImportScreen(
         }
     }
 
-    fun start(inputs: List<ImportInput>) {
-        if (phase != Phase.Pick || inputs.isEmpty()) return
+    fun cancelWait() {
+        if (retrySeconds == null) return
+        importJob?.cancel()
+        retrySeconds = null
+        phase = Phase.Pick
+    }
+
+    fun start(inputs: List<ImportInput> = emptyList()) {
+        if (phase != Phase.Pick || (!wickedWhims && inputs.isEmpty())) return
         val r = ImportRun()
         run = r
         download = WickedWhimsDownload.Progress()
+        retrySeconds = null
         phase = if (wickedWhims) Phase.Downloading else Phase.Running
-        scope.launch {
+        importJob = scope.launch {
             val tmp = File(ctx.cacheDir, "anim-import")
             val results = withContext(Dispatchers.IO) {
                 try {
@@ -187,12 +201,31 @@ fun AnimImportScreen(
                         if (rig == null) NoRigRetarget() else retargeter(rig), tmp,
                         embeddedRetargeter = retargeter.takeIf { wickedWhims || rig == null },
                     )
-                    pipeline.run(inputs) { e -> main.post { r.apply(e); rev++ } }
+                    fun convert(files: List<ImportInput>) = pipeline.run(files) { event ->
+                        main.post { r.apply(event); rev++ }
+                    }
+                    if (wickedWhims) {
+                        val archive = WickedWhimsDownload.openWithRetry(
+                            wait = { waitMillis ->
+                                val start = SystemClock.elapsedRealtime()
+                                while (true) {
+                                    val remaining = waitMillis - (SystemClock.elapsedRealtime() - start)
+                                    if (remaining <= 0) break
+                                    withContext(Dispatchers.Main) { retrySeconds = (remaining - 1) / 1000 + 1 }
+                                    delay(minOf(remaining, 1000L))
+                                }
+                                withContext(Dispatchers.Main) { retrySeconds = null }
+                            },
+                            onProgress = { progress -> main.post { download = progress } },
+                            onDownloaded = { main.post { if (phase == Phase.Downloading) phase = Phase.Running } },
+                        )
+                        archive.use { convert(listOf(ImportInput("WickedWhims.zip") { it })) }
+                    } else convert(inputs)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
                 } catch (e: Exception) {
                     main.post { r.apply(com.logie.wifecraft.anim.ImportEvent.Failed("Import", e.message ?: e.toString())) }
                     emptyList()
-                } finally {
-                    tmp.deleteRecursively()
                 }
             }
             r.finish()
@@ -226,20 +259,13 @@ fun AnimImportScreen(
         Crossfade(phase, animationSpec = tween(MenuMotion.duration(MenuMotion.PAGE_MS, reduceMotion())), label = "phase") { step ->
         when (step) {
             Phase.Pick -> if (wickedWhims) {
-                WickedWhimsPickPage(run) {
-                    start(listOf(ImportInput("WickedWhims.zip") {
-                        WickedWhimsDownload.open(
-                            onProgress = { progress -> main.post { download = progress } },
-                            onDownloaded = { main.post { if (phase == Phase.Downloading) phase = Phase.Running } },
-                        )
-                    }))
-                }
+                WickedWhimsPickPage(run) { start() }
             } else PickPage(
                 hasRig, rigBones, rigMessage, rigBusy, run,
                 onRig = { pickRig.launch(arrayOf("*/*")) },
                 onFiles = { pickFiles.launch(arrayOf("*/*")) },
             )
-            Phase.Downloading -> WickedWhimsDownloadPage(download)
+            Phase.Downloading -> WickedWhimsDownloadPage(download, retrySeconds, ::cancelWait)
             Phase.Running -> ProgressPage(run)
             Phase.Review -> draft?.let { d ->
                 ReviewPage(
@@ -310,8 +336,16 @@ private fun WickedWhimsPickPage(last: ImportRun, onInstall: () -> Unit) {
 }
 
 @Composable
-private fun WickedWhimsDownloadPage(progress: WickedWhimsDownload.Progress) {
+private fun WickedWhimsDownloadPage(progress: WickedWhimsDownload.Progress, retrySeconds: Long?, onCancel: () -> Unit) {
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (retrySeconds != null) {
+            val minutes = retrySeconds / 60
+            val seconds = retrySeconds % 60
+            val wait = if (minutes == 0L) "$seconds s" else "$minutes min $seconds s"
+            Text("The download server is busy. Retrying in $wait…", style = frizStyle(16.sp))
+            RedButton("Cancel", onCancel)
+            return@Column
+        }
         val total = progress.total
         val downloaded = "%.1f MB".format(progress.bytes / 1_000_000.0)
         if (total != null) {

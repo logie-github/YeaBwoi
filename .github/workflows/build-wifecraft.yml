@@ -143,6 +143,8 @@ jobs:
 
           Tap Install in Import WickedWhims to download directly from the author’s itch.io site, see download progress, and save compatible clips under WickedWhims.
 
+          Direct WickedWhims installs respect the download server’s retry timing and show a countdown when it limits requests.
+
           Options shows a download progress bar and file counts for Warcraft assets.
 
           Download **$APK_FILE** and open it on your phone to install. Warcraft models and the Stormwind Embassy location use the app's existing wago.tools downloads."
