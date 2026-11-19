@@ -21,6 +21,10 @@ From **Choose objects**, open **Sims 4 animations** and select **Import rig and 
 
 The imported Sims rig supplies the source bone hierarchy, bind transforms, and animation curves. The retargeter converts mapped tracks to Warcraft's coordinates and bind pose so Warcraft mesh skinning stays intact. Source clip timing is retained. Scene movement supplies horizontal travel for the walk action, so the bound walk clip contributes the vertical root motion and mapped pose. Unassigned actions use Warcraft animations.
 
+## Partner sounds
+
+Options > Game > Partner sounds plays sounds with partner animations from the user's own files. A clip's sound event carries a sound name; put audio files (ogg, wav, mp3, m4a, aac, flac), single or in a zip, through Add sounds, named after those names (the exact name, the name without a `vo_` or `sfx_` prefix, numbered variants `name_01`, `name_02` of which one is picked at random, a file named by the name's 32- or 64-bit FNV-1a hash in hex, or a file called `default` for the rest). A sound with no file is simply silent. The files are kept in `files/partner-sounds`; there is an On box, a volume and Remove all. The game's own EA audio (SNR/SNS) is not decoded yet. The folder (`audio/PartnerSounds`, `SoundNames`) is unit-tested; the playback (`SceneAudio.partnerSound`) and the Options rows are compiled by CI only and have not run on a phone.
+
 ## Building
 
 Run `cd android && bash gradlew :app:assembleDebug` with Android SDK 35, NDK 29.0.14206865, and CMake installed. Run the platform-independent tests with `bash android/gradlew -p unit-tests test` from this directory.

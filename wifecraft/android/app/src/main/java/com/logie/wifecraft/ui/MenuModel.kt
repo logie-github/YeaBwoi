@@ -319,7 +319,7 @@ enum class OptionsPage(val label: String) {
 
 /** Every option the app has, as one row each. */
 enum class OptionKey(val label: String) {
-    IMPORTS("Imports"), INTERFACE_ART("Interface art"),
+    IMPORTS("Imports"), INTERFACE_ART("Interface art"), PARTNER_SOUNDS("Partner sounds"),
     MUSIC("Music"), AMBIENCE("Ambience"), EFFECTS("Effects"), VOICES("Voices"),
     SOFT_BODY("Soft body"), DOWNLOAD_SPEED("Download speed"),
     TEXT_SPEED("Text speed"), PARCHMENT("Parchment talking head"),
@@ -330,7 +330,7 @@ enum class OptionKey(val label: String) {
 object OptionsModel {
     /** The rows of [p], top to bottom. */
     fun rows(p: OptionsPage): List<OptionKey> = when (p) {
-        OptionsPage.GAME -> listOf(OptionKey.IMPORTS, OptionKey.INTERFACE_ART)
+        OptionsPage.GAME -> listOf(OptionKey.IMPORTS, OptionKey.INTERFACE_ART, OptionKey.PARTNER_SOUNDS)
         OptionsPage.SOUND -> listOf(OptionKey.MUSIC, OptionKey.AMBIENCE, OptionKey.EFFECTS, OptionKey.VOICES)
         OptionsPage.GRAPHICS -> listOf(OptionKey.SOFT_BODY, OptionKey.DOWNLOAD_SPEED)
         OptionsPage.INTERFACE -> listOf(OptionKey.TEXT_SPEED, OptionKey.PARCHMENT)

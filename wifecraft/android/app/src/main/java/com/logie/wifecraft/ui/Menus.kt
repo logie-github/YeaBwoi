@@ -109,6 +109,8 @@ fun OptionsWindow(
     /** The game's files: what is missing, and Gather (the first launch's screen). */
     gameFiles: String? = null,
     onGather: (() -> Unit)? = null,
+    /** The partner animations' sounds: the On box, the volume, the status and the folder's buttons (PartnerSoundsSection). */
+    partnerSounds: (@Composable () -> Unit)? = null,
 ) {
     var page by rememberSaveable { mutableStateOf(OptionsPage.SOUND) }
     val reduced = reduceMotion()
@@ -165,6 +167,7 @@ fun OptionsWindow(
                             Text("›", style = frizStyle(22.sp), modifier = Modifier.padding(horizontal = 10.dp))
                         }
                         OptionKey.INTERFACE_ART -> interfaceArt?.invoke()
+                        OptionKey.PARTNER_SOUNDS -> partnerSounds?.invoke()
                         OptionKey.RALIA, OptionKey.ALTERNATE_FEMALE, OptionKey.BODY, OptionKey.UNDEAD -> if (!importsShown) {
                             importsShown = true
                             if (imports != null) imports() else Text("The imports are set from the title's or the editor's Options.", style = frizStyle(13.sp, Color.White))

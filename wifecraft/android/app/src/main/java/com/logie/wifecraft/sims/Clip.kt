@@ -14,6 +14,12 @@ class SimsTrack(val boneHash: Int, val channel: Channel, val times: FloatArray, 
  * One Sims 4 animation clip. [name] is the clip's own name (e.g. "creator:PosePack_..._set_1");
  * [sourceAsset] the file it was made from, when the clip says (e.g. "pose 1.blend"); [sourceKey]
  * the resource it came from (type:group:instance). [notes] lists channels the reader skipped and why.
+ *
+ * From the header: [actorName] is the clip's rig namespace, the actor it animates ("x", "y"... in the game's
+ * own and in exported two-actor clips); [initialOffset] the header's initial offset; [events] the clip's
+ * events that fall inside its duration (see [ClipEvent]); [tickLength] the codec's seconds per frame;
+ * [explicitNamespaces] and [slots] the namespaces and IK slot assignments the clip names (another actor's
+ * namespace there is a sign of a partner clip). Every header field has a default, so a clip built in code needs none.
  */
 class SimsClip(
     val name: String,
@@ -22,15 +28,58 @@ class SimsClip(
     val sourceKey: String,
     val sourceAsset: String = "",
     val notes: List<String> = emptyList(),
+    val actorName: String = "",
+    val initialOffset: ClipOffset = ClipOffset.IDENTITY,
+    val events: List<ClipEvent> = emptyList(),
+    val tickLength: Float = 1f / 30f,
+    val flags: Int = 0,
+    val explicitNamespaces: List<String> = emptyList(),
+    val slots: List<SlotAssignment> = emptyList(),
+    /** How many of the header's events lay past the clip's end and were left out of [events]. */
+    val eventsPastEnd: Int = 0,
 )
+
+/** The CLIP header's initial offset: a rotation (x,y,z,w) and a translation (x,y,z), in Sims axes (y up, metres). */
+class ClipOffset(val rotation: FloatArray, val translation: FloatArray) {
+    val isIdentity: Boolean get() =
+        translation.all { it == 0f } && rotation[0] == 0f && rotation[1] == 0f && rotation[2] == 0f && (rotation[3] == 1f || rotation[3] == -1f)
+
+    override fun toString() = "ClipOffset(q=${rotation.toList()}, t=${translation.toList()})"
+
+    companion object { val IDENTITY = ClipOffset(floatArrayOf(0f, 0f, 0f, 1f), floatArrayOf(0f, 0f, 0f)) }
+}
+
+/**
+ * One clip event: its [type] (s4pi's numbering: 1 parent, 2 unparent, 3 sound, 5 effect, 12 snap,
+ * 14 double-modifier sound...; the tools disagree from 17 up, so those are kept by number only),
+ * [timeSec] from the clip's start, [name] the sound's name for sound events (3 and 14, a fixed
+ * 128-byte string) and "" for the others, [actorHash] the actor-name hash a type-14 event carries (else 0).
+ */
+data class ClipEvent(val type: Int, val timeSec: Float, val name: String = "", val actorHash: Int = 0) {
+    val isSound: Boolean get() = type == SOUND || type == DOUBLE_MODIFIER_SOUND
+
+    companion object {
+        const val SOUND = 3
+        const val DOUBLE_MODIFIER_SOUND = 14
+    }
+}
+
+/** An IK slot assignment of the clip header: chain and slot numbers, the target actor's namespace and joint name. */
+data class SlotAssignment(val chain: Int, val slot: Int, val actor: String, val joint: String)
 
 /**
  * The Sims 4's CLIP resource (type 0x6B20C4F3), versions 1 to 14.
  *
- * The resource: u32 version, u32 flags, f32 duration (seconds), the initial offset (quaternion x,y,z,w
- * and vector x,y,z), then by version: (5+) a namespace hash, (10+) two surface hashes, (11+) a surface
- * child hash, (7+) the clip name and the rig namespace as u32-length strings; then explicit namespaces,
- * the IK slot assignments and the clip events (not read here), then a u32 length and the codec data.
+ * The resource (s4pi's ClipResource layout, checked on a sample pose pack): u32 version, u32 flags,
+ * f32 duration (seconds), the initial offset (quaternion x,y,z,w and vector x,y,z), then by version:
+ * (5+) a reference namespace hash, (10+) two surface hashes, (11+) a surface child hash, (7+) the clip
+ * name, the rig namespace (the actor) as u32-length strings; (4+) the explicit namespaces (u32 count,
+ * strings); the IK slot assignments (u32 count; each u16 chain, u16 slot, the actor's and the joint's
+ * u32-length names); the events (u32 count; each u32 type, u32 size, then that many bytes: u32, u32,
+ * f32 time, the type's data; types this reader does not know are skipped by their size); then a u32
+ * length and the codec data. Events past the clip's duration are dropped (Sims 4 Studio's default sound
+ * event sits at 1000 s in every clip it writes and never plays). A header whose middle part does not
+ * read (damaged counts) falls back to finding the codec by its tag, with a note, and no events.
  *
  * The codec ("_pilC3S_", The Sims 3's S3Clip): u32 version, u32 flags, f32 tick length, u16 tick count,
  * u16 padding, u32 channel count, u32 F1 palette size, then offsets (from the codec's start) of the
@@ -53,6 +102,8 @@ object ClipDecoder {
     const val TYPE = 0x6B20C4F3
     private const val SIMS3_TAG = 0x6B20C4F3
     private val MAGIC = "_pilC3S_".toByteArray(Charsets.US_ASCII)
+    private const val MAX_LIST = 4096
+    private const val FIXED = 128
 
     fun decode(data: ByteArray, sourceKey: String = "", normalize: Boolean = true): SimsClip {
         val r = Reader(data, "clip $sourceKey")
@@ -60,19 +111,103 @@ object ClipDecoder {
         val version = r.u32(0)
         if (version == SIMS3_TAG) r.fail("is a Sims 3 clip; only Sims 4 clips are read")
         if (version < 1 || version > 14) r.fail("is CLIP version $version; this reader knows versions 1 to 14 (The Sims 4 writes 14)")
+        val flags = r.u32(4)
         val duration = r.f32(8)
+        val q = FloatArray(4) { r.f32(12 + it * 4) }
+        val t = FloatArray(3) { r.f32(28 + it * 4) }
+        val offset = if ((q + t).all { it.isFinite() }) ClipOffset(q, t) else ClipOffset.IDENTITY
         var p = 40
         if (version >= 5) p += 4
         if (version >= 10) p += 8
         if (version >= 11) p += 4
         var clipName = ""
         if (version >= 7) { val (s, n) = r.string32(p); clipName = s; p = n }
-        p = r.string32(p).second // rig namespace
-        val codec = findCodec(data, p) ?: r.fail("has no animation data (no _pilC3S_ codec block after its header)")
+        val (actor, afterActor) = r.string32(p)
+        p = afterActor
+        val notes = ArrayList<String>()
+        var tail: Tail? = try { readTail(r, version, p) } catch (e: SimsFormatException) {
+            notes += "header after the actor name not read (${e.message}); found the animation data by its tag, without events"
+            null
+        }
+        val codec: Int
+        if (tail != null && tail.codecAt + 8 <= data.size && matches(data, tail.codecAt)) {
+            codec = tail.codecAt
+        } else {
+            if (tail != null && tail.codecLen > 0) {
+                notes += "the header's animation data is not where it says; found by its tag, without events"
+                tail = null
+            }
+            codec = findCodec(data, p) ?: r.fail("has no animation data (no _pilC3S_ codec block after its header)")
+        }
         val codecLen = r.u32(codec - 4).toLong() and 0xFFFFFFFFL
         if (codecLen < 56 || codec + codecLen > data.size) r.fail("is cut short: its animation data says $codecLen bytes, ${data.size - codec} are there")
         val c = Reader(data.copyOfRange(codec, codec + codecLen.toInt()), "clip $sourceKey")
-        return decodeCodec(c, clipName, duration, sourceKey, normalize)
+        val decoded = decodeCodec(c, clipName, duration, sourceKey, normalize)
+        val end = decoded.duration
+        // an event at the very end still plays; one past it (by more than a frame's rounding) never does
+        val events = tail?.events.orEmpty().filter { it.timeSec >= 0f && it.timeSec <= end + 1e-4f }
+        val dropped = (tail?.events?.size ?: 0) - events.size
+        return SimsClip(
+            decoded.name, decoded.duration, decoded.tracks, decoded.sourceKey, decoded.sourceAsset, decoded.notes + notes,
+            actorName = actor, initialOffset = offset, events = events, tickLength = decoded.tickLength, flags = flags,
+            explicitNamespaces = tail?.namespaces.orEmpty(), slots = tail?.slots.orEmpty(), eventsPastEnd = dropped,
+        )
+    }
+
+    private class Tail(val namespaces: List<String>, val slots: List<SlotAssignment>, val events: List<ClipEvent>, val codecLen: Long, val codecAt: Int)
+
+    /** The header from the explicit namespaces to the codec length; [p] is just past the rig namespace. */
+    private fun readTail(r: Reader, version: Int, start: Int): Tail {
+        var p = start
+        val namespaces = ArrayList<String>()
+        if (version >= 4) {
+            val n = r.u32(p); p += 4
+            if (n < 0 || n > MAX_LIST) r.fail("lists $n explicit namespaces; the header is damaged")
+            repeat(n) { val (s, q) = r.string32(p); namespaces += s; p = q }
+        }
+        val slots = ArrayList<SlotAssignment>()
+        val ns = r.u32(p); p += 4
+        if (ns < 0 || ns > MAX_LIST) r.fail("lists $ns slot assignments; the header is damaged")
+        repeat(ns) {
+            val chain = r.u16(p); val slot = r.u16(p + 2); p += 4
+            val (actor, a) = r.string32(p); p = a
+            val (joint, j) = r.string32(p); p = j
+            slots += SlotAssignment(chain, slot, actor, joint)
+        }
+        val events = ArrayList<ClipEvent>()
+        val ne = r.u32(p); p += 4
+        if (ne < 0 || ne > MAX_LIST) r.fail("lists $ne events; the header is damaged")
+        repeat(ne) {
+            val type = r.u32(p)
+            val size = r.u32(p + 4)
+            p += 8
+            if (size < 12 || p.toLong() + size > r.size) r.fail("has an event of $size bytes at $p; the header is damaged")
+            val time = r.f32(p + 8)
+            val data = p + 12
+            val dataLen = size - 12
+            val ev = when (type) {
+                ClipEvent.SOUND -> if (dataLen >= FIXED) ClipEvent(type, time, fixed(r, data)) else null
+                ClipEvent.DOUBLE_MODIFIER_SOUND -> if (dataLen >= FIXED + 4) ClipEvent(type, time, fixed(r, data), r.u32(data + FIXED)) else null
+                else -> ClipEvent(type, time)
+            }
+            if (ev != null && time.isFinite()) events += ev
+            p += size
+        }
+        val len = r.u32(p).toLong() and 0xFFFFFFFFL
+        return Tail(namespaces, slots, events, len, p + 4)
+    }
+
+    /** A fixed-length (128-byte) name: the bytes up to the first zero, as ASCII. */
+    private fun fixed(r: Reader, p: Int): String {
+        val sb = StringBuilder()
+        for (i in 0 until FIXED) { val b = r.u8(p + i); if (b == 0) break; sb.append(b.toChar()) }
+        return sb.toString()
+    }
+
+    private fun matches(d: ByteArray, at: Int): Boolean {
+        if (at < 4 || at + MAGIC.size > d.size) return false
+        for (j in MAGIC.indices) if (d[at + j] != MAGIC[j]) return false
+        return true
     }
 
     private fun findCodec(d: ByteArray, from: Int): Int? {
@@ -118,7 +253,7 @@ object ClipDecoder {
         for ((what, k) in skipped) notes += "skipped $k channel(s) of $what"
         if (tracks.isEmpty()) c.fail("has no bone rotations or positions this reader can decode" + if (notes.isEmpty()) "" else " (${notes.joinToString("; ")})")
         val duration = if (outerDuration > 0f && outerDuration.isFinite()) outerDuration else tick * ticks
-        return SimsClip(clipName.ifEmpty { codecName }.ifEmpty { source.ifEmpty { key } }, duration, tracks, key, source, notes)
+        return SimsClip(clipName.ifEmpty { codecName }.ifEmpty { source.ifEmpty { key } }, duration, tracks, key, source, notes, tickLength = tick)
     }
 
     /** Returns the channel's times and values, or null when its type cannot be decoded into [want] components. */

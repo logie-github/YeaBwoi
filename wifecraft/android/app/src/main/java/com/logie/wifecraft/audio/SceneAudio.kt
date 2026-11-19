@@ -24,7 +24,7 @@ import java.util.concurrent.Executors
  * `files/cache/sound-index.bin` ([SoundIndex]: made once from SoundKitEntry, 37 MB streamed, kept at about 1 MB).
  * Call every method on the main thread.
  */
-class SceneAudio(private val context: Context, private val files: GameFiles, private val tables: Tables) {
+class SceneAudio(private val context: Context, private val files: GameFiles, private val tables: Tables) : PartnerSoundPlayer {
     private val handler = Handler(Looper.getMainLooper())
     private val pool = Executors.newFixedThreadPool(3) { r -> Thread(r, "scene-audio").apply { isDaemon = true } }
     private val _error = MutableStateFlow<String?>(null)
@@ -90,12 +90,67 @@ class SceneAudio(private val context: Context, private val files: GameFiles, pri
     fun setEnabled(placementId: String, on: Boolean) = core.setEnabled(placementId, on)
     fun isEnabled(placementId: String) = core.isEnabled(placementId)
     fun stopPlacement(placementId: String) = core.stopPlacement(placementId)
-    fun pause() = core.pause()
-    fun resume() = core.resume()
+    fun pause() { core.pause(); partnerVoices.forEach { it.second.pause() } }
+    fun resume() { core.resume(); partnerVoices.forEach { it.second.resume() } }
     fun stop() = core.stop()
     fun clearError() { _error.value = null }
 
+    // ---- partner sounds: the user's own files, matched to the sound names of partner animations (PartnerSounds). Main thread.
+
+    /** The user's sounds folder (files/partner-sounds). */
+    val partner = PartnerSounds(File(context.filesDir, "partner-sounds"))
+    init { pool.execute { runCatching { partner.warm() } } }
+
+    /** Settings.partnerSoundsOn and partnerSoundVolume (0..1): set by the activity. */
+    @Volatile var partnerOn = true
+    @Volatile var partnerVolume = 0.85f
+
+    private val partnerVoices = ArrayList<Pair<String?, SoundVoice>>()
+    private val partnerPlays = HashMap<String, Int>()
+    private var partnerGen = 0
+
+    /**
+     * Plays the user's file for the sound [name] (one of its numbered variants, picked by a seed that is stable per call) as a
+     * voice; the file is opened off the main thread. False, and nothing played, when the sounds are off or no file matches (not
+     * an error: the caller carries on). A looping sound with an [actorKey] replaces that actor's earlier loop of the same name.
+     */
+    override fun partnerSound(name: String, actorKey: String?, loop: Boolean, volume: Float): Boolean {
+        if (!partnerOn) return false
+        val found = try { partner.resolve(name) } catch (e: Exception) { emptyList() }
+        val tag = SoundNames.normalise(name) + "|" + (actorKey ?: "")
+        val n = (partnerPlays[tag] ?: 0) + 1
+        partnerPlays[tag] = n
+        val file = SoundNames.choose(found, SoundNames.seed(name, actorKey, n)) { it.name } ?: return false
+        val level = (volume * partnerVolume * volumes.voices).coerceIn(0f, 1f)
+        val gen = partnerGen
+        val loopKey = if (loop && actorKey != null) tag else null
+        val box = arrayOfNulls<SoundVoice>(1)
+        pool.execute {
+            val v = PlayerVoice.create(handler, file.path, loop, level, 0) { handler.post { partnerVoices.removeAll { it.second === box[0] } } }
+            box[0] = v
+            handler.post {
+                when {
+                    v == null -> {}
+                    gen != partnerGen || !partnerOn -> v.stop(0)
+                    else -> {
+                        if (loopKey != null) { partnerVoices.filter { it.first == loopKey }.forEach { it.second.stop(0) }; partnerVoices.removeAll { it.first == loopKey } }
+                        partnerVoices.add(loopKey to v)
+                    }
+                }
+            }
+        }
+        return true
+    }
+
+    /** Stops every partner sound (and any still opening). */
+    override fun stopAll() {
+        partnerGen++
+        partnerVoices.forEach { it.second.stop(0) }
+        partnerVoices.clear()
+    }
+
     fun release() {
+        stopAll()
         core.stop()
         handler.removeCallbacksAndMessages(null)
         pool.shutdown()
