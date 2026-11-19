@@ -249,7 +249,7 @@ fun LiveSceneScreen(
             chatter = words, chatterChance = chatter.chance)
     }
     // the speech bubbles: the GL thread lays them out each frame, the overlay draws them; each person's line now
-    val spots = remember(live) { SpeechSpots(live.count) }
+    val speechSpots = remember(live) { SpeechSpots(live.count) }
     val lines = remember(live) { mutableStateListOf<String?>().apply { repeat(live.count) { add(null) } } }
     val heads = remember(cast) { FloatArray(cast.size) { Races.headHeight(cast[it].appearance.raceId) } }
     // the clips every playback key names (GL thread reads it): the orders' (request) and the partner pairs' roles
@@ -338,7 +338,7 @@ fun LiveSceneScreen(
         val sink = object : LiveScene.Sink {
             override fun camera(eyeX: Float, eyeY: Float, eyeZ: Float, atX: Float, atY: Float, atZ: Float, fov: Float) {
                 view.glCamera(eyeX, eyeY, eyeZ, atX, atY, atZ, fov)
-                spots.layout(eyeX, eyeY, eyeZ, atX, atY, atZ, fov)   // the bubbles follow the heads with this camera
+                speechSpots.layout(eyeX, eyeY, eyeZ, atX, atY, atZ, fov)   // the bubbles follow the heads with this camera
             }
 
             override fun place(index: Int, x: Float, y: Float, z: Float, facing: Float, furniture: SceneObject?, sx: Float, sy: Float, sz: Float) {
@@ -349,11 +349,11 @@ fun LiveSceneScreen(
                 }
                 view.glPlace(keys[index], x, y, z, facing, pose, sx, sy, sz)
                 val standing = heads.getOrElse(index) { 2.05f }
-                spots.headAt(index, sx, sy, sz + SpeechLayout.head(standing, pose == FurniturePose.SIT, pose == FurniturePose.REST))
+                speechSpots.headAt(index, sx, sy, sz + SpeechLayout.head(standing, pose == FurniturePose.SIT, pose == FurniturePose.REST))
             }
 
             override fun speech(index: Int, text: String?, id: Long) {
-                if (index in spots.speaking.indices) spots.speaking[index] = text != null
+                if (index in speechSpots.speaking.indices) speechSpots.speaking[index] = text != null
                 main.post { if (index in lines.indices) lines[index] = text }
             }
 
@@ -496,7 +496,7 @@ fun LiveSceneScreen(
     Box(Modifier.fillMaxSize().background(SceneGround)) {
         AndroidView(
             { (view.parent as? ViewGroup)?.removeView(view); view },
-            Modifier.fillMaxSize().onSizeChanged { spots.width = it.width.toFloat(); spots.height = it.height.toFloat() }.pointerInput(view, live) {
+            Modifier.fillMaxSize().onSizeChanged { speechSpots.width = it.width.toFloat(); speechSpots.height = it.height.toFloat() }.pointerInput(view, live) {
                 val slop = 8.dp.toPx()
                 val velocity = FloatArray(2)
                 awaitEachGesture {
@@ -554,7 +554,7 @@ fun LiveSceneScreen(
                 }
             },
         )
-        SpeechBubbles(spots, remember(cast) { cast.map { it.name } }, lines,
+        SpeechBubbles(speechSpots, remember(cast) { cast.map { it.name } }, lines,
             partnerId?.let { id -> cast.indexOfFirst { it.id == id } } ?: -1)
         SceneLoadingCover(!revealed, locationName, status, progress)
 

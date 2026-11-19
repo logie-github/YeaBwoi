@@ -204,11 +204,13 @@ fun GatherScreen(
     onBack: () -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)) {
+        val screenW = maxWidth
+        val screenH = maxHeight
         MenuPicture(R.drawable.wc_splash, Modifier.fillMaxSize(), ContentScale.Crop)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color(0xE6000000))))
-        val panelW = minOf(600.dp, maxWidth - 32.dp).coerceAtLeast(0.dp)
+        val panelW = minOf(600.dp, screenW - 32.dp).coerceAtLeast(0.dp)
         Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), contentAlignment = Alignment.BottomCenter) {
-            Box(Modifier.heightIn(min = (maxHeight - 32.dp).coerceAtLeast(0.dp)), contentAlignment = Alignment.BottomCenter) {
+            Box(Modifier.heightIn(min = (screenH - 32.dp).coerceAtLeast(0.dp)), contentAlignment = Alignment.BottomCenter) {
                 WifePanel(Modifier.width(panelW)) {
                     val mb = { b: Long -> if (b >= 1_000_000_000L) "%.1f GB".format(b / 1e9) else "%.0f MB".format(b / 1e6) }
                     // the total is an estimate until the creator's files are all here (wago.tools gives no sizes ahead)
