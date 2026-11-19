@@ -133,7 +133,10 @@ class Dresser(
         } catch (e: Exception) {
             fail("The body options: ${e.message ?: e}"); BodyCall.NONE
         }
-        return Dressing.call(tables, Dressing.layout(catalog, tables, a), look) to body
+        val layout = Dressing.layout(catalog, tables, a)
+        val call = if (a.gear && a.clothing.isNotEmpty()) CreatureLooks.call(tables, look, layout)
+            else Dressing.call(tables, layout, look)
+        return call to body
     }
 
     /**

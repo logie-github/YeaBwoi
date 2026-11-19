@@ -32,15 +32,13 @@ fun Tables.rowBy(name: String, column: String, value: Int): Map<String, String>?
  * [rowsBy] indexes a column on its first use (its rows sorted by the field's hash: 4 bytes a row).
  */
 class CsvTables(private val dir: File) : Tables {
-    private val tables = HashMap<String, MappedTable?>()
+    private val tables = HashMap<String, MappedTable>()
 
     @Synchronized
     private fun table(name: String): MappedTable? {
-        if (tables.containsKey(name)) return tables[name]
-        val f = File(dir, "$name.csv")
-        val t = if (f.isFile) MappedTable.open(f) else null
-        tables[name] = t
-        return t
+        tables[name]?.let { return it }
+        val file = File(dir, "$name.csv")
+        return if (file.isFile) MappedTable.open(file)?.also { tables[name] = it } else null
     }
 
     override fun rows(name: String): List<Map<String, String>> = table(name)?.rows ?: emptyList()

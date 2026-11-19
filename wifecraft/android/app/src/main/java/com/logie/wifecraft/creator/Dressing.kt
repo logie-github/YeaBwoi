@@ -141,9 +141,9 @@ object M2Files {
     /**
      * Everything [model] needs, through its skeleton and the skeleton's parent: [fetch] is called with each round's files
      * ([deps] of the model, then of each skeleton) and fetches what of them isn't here; [read] then gives a file's bytes
-     * (null when it isn't here: what it would need is left out). Returns every file named (not [model]).
+     * (null when it isn't here: what it would need is left out). Null [anims] includes every animation variation.
      */
-    fun closure(model: Int, anims: Set<Int>, read: (Int) -> ByteArray?, fetch: (Collection<Int>) -> Unit): Set<Int> {
+    fun closure(model: Int, anims: Set<Int>?, read: (Int) -> ByteArray?, fetch: (Collection<Int>) -> Unit): Set<Int> {
         val out = LinkedHashSet<Int>()
         val todo = ArrayDeque(listOf(model))
         val seen = HashSet<Int>()
@@ -243,7 +243,7 @@ object M2Files {
         }
     }
 
-    fun deps(bytes: ByteArray, anims: Set<Int>): List<Int> {
+    fun deps(bytes: ByteArray, anims: Set<Int>?): List<Int> {
         val out = LinkedHashSet<Int>()
         var o = 0
         fun u32(at: Int): Int = (bytes[at].toInt() and 0xFF) or ((bytes[at + 1].toInt() and 0xFF) shl 8) or
@@ -262,7 +262,7 @@ object M2Files {
                 "TXID" -> for (i in 0 until size / 4) u32(at + 4 * i).takeIf { it != 0 }?.let { out += it }
                 "AFID" -> for (i in 0 until size / 8) {
                     val anim = u16(at + 8 * i); val variation = u16(at + 8 * i + 2); val file = u32(at + 8 * i + 4)
-                    if (file != 0 && variation == 0 && anim in anims) out += file
+                    if (file != 0 && (anims == null || (variation == 0 && anim in anims))) out += file
                 }
             }
             o = at + size

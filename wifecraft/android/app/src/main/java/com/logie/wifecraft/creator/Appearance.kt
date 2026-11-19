@@ -17,16 +17,19 @@ data class Body(val shape: Int = 0, val style: Int = 0, val density: Int = 0)
 data class Appearance(
     val raceId: Int, val sex: Sex, val picks: Map<Int, Int> = emptyMap(), val body: Body = Body(), val gear: Boolean = true,
     val undead: Boolean = false, val undeadSkin: Int = 0,
+    val clothing: Map<Int, Int> = emptyMap(),
 ) {
     fun toJson(): JSONObject {
         val p = JSONObject()
         for ((k, v) in picks.toSortedMap()) p.put(k.toString(), v)
+        val outfit = JSONObject().also { json -> clothing.toSortedMap().forEach { (slot, id) -> json.put(slot.toString(), id) } }
         return JSONObject()
             .put("race", raceId)
             .put("sex", sex.name)
             .put("picks", p)
             .put("body", JSONObject().put("shape", body.shape).put("style", body.style).put("density", body.density))
             .put("gear", gear)
+            .also { if (clothing.isNotEmpty()) it.put("clothing", outfit) }
             .also { if (undead) it.put("undead", true).put("undeadSkin", undeadSkin) }
     }
 
@@ -37,8 +40,11 @@ data class Appearance(
             val b = o.optJSONObject("body")
             val body = if (b == null) Body() else Body(b.optInt("shape"), b.optInt("style"), b.optInt("density"))
             val sex = runCatching { Sex.valueOf(o.optString("sex", "FEMALE")) }.getOrDefault(Sex.FEMALE)
+            val clothing = o.optJSONObject("clothing")?.let { json ->
+                ClothingSlot.entries.mapNotNull { slot -> json.optInt(slot.id.toString()).takeIf { it > 0 }?.let { slot.id to it } }.toMap()
+            }.orEmpty()
             return Appearance(o.getInt("race"), sex, picks, body, o.optBoolean("gear", true),
-                o.optBoolean("undead", false), o.optInt("undeadSkin", 0).coerceAtLeast(0))
+                o.optBoolean("undead", false), o.optInt("undeadSkin", 0).coerceAtLeast(0), clothing)
         }
     }
 }

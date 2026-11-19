@@ -1,5 +1,8 @@
 package com.logie.wifecraft.ui
 
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -7,9 +10,11 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,6 +48,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.TextUnit
@@ -87,12 +93,17 @@ fun CreatorScreen(
     initialName: String = "",
     actorKey: String = "creator",
     randomName: (() -> String)? = null,
+    onPreviewRace: (Int) -> Unit = {},
+    transmog: com.logie.wifecraft.creator.TransmogCatalog? = null,
+    transmogStatus: String? = null,
+    onLoadTransmog: () -> Unit = {},
     onLook: (ResolvedLook) -> Unit = {},
 ) {
     val context = LocalContext.current
     val art2 = atlas ?: remember { ArtAtlas.open(context) }
     LaunchedEffect(art2) { art2.load() }
 
+    var transmogOpen by remember { mutableStateOf(false) }
     var step by remember { mutableIntStateOf(1) }
     var rev by remember { mutableIntStateOf(0) }                 // bumped after every change to the model (it is not observable)
     var category by remember { mutableIntStateOf(-1) }
@@ -101,6 +112,10 @@ fun CreatorScreen(
     var tick by remember { mutableIntStateOf(0) }                 // read by what moves every frame
     val scroll = remember { ListScroll(CL.OPT_H, CL.OPT_H) }
     val view = remember { ViewState() }
+
+    val previewRace = remember(rev) { model.appearance.raceId }
+    LaunchedEffect(previewRace) { onPreviewRace(previewRace) }
+    androidx.activity.compose.BackHandler(transmogOpen) { transmogOpen = false }
 
     // the look, resolved where the table work is cheap to wait for
     LaunchedEffect(rev, step) {
@@ -120,8 +135,9 @@ fun CreatorScreen(
                 view.update(dt)
                 if (view.zoom != lastZoom || view.focusY != lastFocus || view.facing != lastFacing) {
                     lastZoom = view.zoom; lastFocus = view.focusY; lastFacing = view.facing
-                    scene.frame = CreatorCamera.pose(view.zoom, view.focusY) to
-                        mapOf(actorKey to Placement(0f, 0f, 0f, Math.toRadians(view.facing.toDouble()).toFloat()))
+                    val camera = CreatorCamera.pose(view.zoom, view.focusY)
+                    scene.frame = camera.copy(eye = camera.eye.copy(x = 0f, y = -camera.eye.x)) to
+                        mapOf(actorKey to Placement(0f, 0f, 0f, Math.toRadians(view.facing.toDouble()).toFloat() - 1.5707964f))
                 }
                 tick++
             }
@@ -192,6 +208,27 @@ fun CreatorScreen(
         if (step == 2) {
             ui.RedButton(navRect(false, width), ui.words.back, arrow = "back") { step = 1; closePopout(); view.setZoom(1f, CL.RESET_FOCUS) }
             ui.RedButton(navRect(true, width), ui.words.finish, arrow = null) { onFinish(name, model.appearance) }
+            if (!transmogOpen) {
+                androidx.compose.material3.Button(
+                    onClick = { closePopout(); transmogOpen = true; onLoadTransmog() },
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp),
+                ) { Text("Transmog") }
+            }
+            if (transmogOpen) {
+                val wide = maxWidth >= 820.dp
+                Box(Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { transmogOpen = false } })
+                val panelModifier = if (wide) Modifier.align(Alignment.CenterEnd).width(350.dp).fillMaxHeight(0.92f)
+                    else Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.5f)
+                androidx.compose.material3.MaterialTheme(colorScheme = androidx.compose.material3.darkColorScheme()) {
+                    TransmogPanel(
+                        transmog, model.appearance.clothing.takeIf { model.appearance.gear }.orEmpty(),
+                        transmogStatus, onLoadTransmog,
+                        onChange = { model.setClothing(it); changed() },
+                        onClose = { transmogOpen = false },
+                        modifier = panelModifier,
+                    )
+                }
+            }
         }
     }
 }

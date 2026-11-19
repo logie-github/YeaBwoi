@@ -105,10 +105,11 @@ object GameTables {
         open: (String) -> InputStream = ::download,
         stop: () -> Boolean = { false },
         pause: (Long) -> Unit = { Thread.sleep(it) },
+        names: List<String> = NAMES,
         onTable: (name: String, done: Int, of: Int) -> Unit = { _, _, _ -> },
     ) {
         dir.mkdirs()
-        val todo = missing(dir)
+        val todo = names.filterNot { has(dir, it) }
         todo.forEachIndexed { i, name ->
             if (stop()) return
             var last: Exception? = null

@@ -51,6 +51,7 @@ object CreatureLooks {
         8 to listOf(0 to 5, 1 to 20),
         10 to listOf(0 to 4, 1 to 23),
         15 to listOf(0 to 15),
+        19 to listOf(0 to 12),
     )
 
     /** Where several slots set one group, the first listed here that does wins (else the lowest slot). */
@@ -140,14 +141,77 @@ object CreatureLooks {
         } else diagnostics += if (bake == 0) "no baked skin: the worn clothes' textures aren't drawn" else "baked skin $bake not in TextureFileData"
         for (l in layers) textures.putIfAbsent(l.textureType, l.fileId)
 
-        // the worn gear
         val extra = ArrayList(base?.extraModels.orEmpty())
+        applyEquipment(ix, ix.slots(extendedId).mapNotNull { (npcSlot, item) -> NPC_SLOT[npcSlot]?.let { it to item } }.toMap(),
+            race, sex, groups, textures, extra, mutableListOf(), diagnostics, paintMaterials = false)
+
+        val needs = LinkedHashSet<Int>()
+        needs += model
+        needs += textures.values
+        layers.forEach { needs += it.fileId }
+        extra.forEach { needs += it.model; if (it.texture != 0) needs += it.texture }
+        needs.remove(0)
+        return Result(ResolvedLook(model, scale, groups, textures, layers, extra.distinct(), needs, emptyList(), diagnostics), null)
+    }
+
+    private fun clothingLayer(slot: Int): Int = 120 + when (slot) {
+        4 -> 0
+        7 -> 1
+        5 -> 2
+        19 -> 3
+        9 -> 4
+        8 -> 5
+        10 -> 6
+        6 -> 7
+        else -> 8
+    }
+
+    fun transmog(tables: Tables, appearance: Appearance, base: ResolvedLook): ResolvedLook {
+        if (!appearance.gear || appearance.clothing.isEmpty()) return base
+        val groups = base.geosetGroups.toMutableMap()
+        val textures = base.textures.toMutableMap()
+        val extra = base.extraModels.toMutableList()
+        val layers = base.layers.toMutableList()
+        val diagnostics = base.diagnostics.toMutableList()
+        val ix = index(tables)
+        applyEquipment(ix, appearance.clothing, appearance.raceId, appearance.sex, groups, textures, extra, layers, diagnostics, paintMaterials = true)
+        val needs = base.needsFiles + textures.values + layers.map { it.fileId } +
+            extra.flatMap { listOf(it.model, it.texture).filter { file -> file != 0 } }
+        return base.copy(geosetGroups = groups, textures = textures, layers = layers.sortedBy { it.layer },
+            extraModels = extra.distinct(), needsFiles = needs, diagnostics = diagnostics)
+    }
+
+    fun clothingFiles(tables: Tables, displays: Set<Int>): Pair<Set<Int>, Set<Int>> {
+        val ix = index(tables)
+        val models = LinkedHashSet<Int>()
+        val textures = LinkedHashSet<Int>()
+        for (id in displays) {
+            val row = ix.item(id) ?: continue
+            for (k in 0..1) {
+                val model = row.int("ModelResourcesID_$k")
+                if (model > 0) models += ix.modelFiles(model)
+                val texture = row.int("ModelMaterialResourcesID_$k")
+                if (texture > 0) textures += ix.textureFiles(texture).map { it.second }
+            }
+            for (material in ix.materials(id)) {
+                val resource = material.int("MaterialResourcesID")
+                if (resource > 0) textures += ix.textureFiles(resource).map { it.second }
+            }
+        }
+        return models to textures
+    }
+
+    private fun applyEquipment(
+        ix: Index, items: Map<Int, Int>, race: Int, sex: Sex,
+        groups: MutableMap<Int, Int>, textures: MutableMap<Int, Int>, extra: MutableList<ExtraModel>,
+        clothingLayers: MutableList<TextureLayer>, diagnostics: MutableList<String>, paintMaterials: Boolean,
+    ) {
         val perGroup = LinkedHashMap<Int, MutableList<Pair<Int, Int>>>()   // geoset group -> (slot, value)
         val hidden = LinkedHashSet<Int>()
-        for ((npcSlot, item) in ix.slots(extendedId).toSortedMap()) {
-            val slot = NPC_SLOT[npcSlot] ?: continue
+        for ((slot, item) in items.toSortedMap()) {
             val row = ix.item(item) ?: continue
             for ((gi, group) in SLOT_GEOSETS[slot].orEmpty()) {
+                if (slot == 19 && !paintMaterials) continue
                 val v = row.int("GeosetGroup_$gi")
                 perGroup.getOrPut(group) { ArrayList() } += slot to if (group == 20) (if (v == 0) 2 else v) else 1 + v
             }
@@ -170,6 +234,15 @@ object CreatureLooks {
                 if (own.isEmpty()) extra += ExtraModel(-1, m, tex)
                 else own.forEach { extra += ExtraModel(-1, m, tex, it) }
             }
+            if (paintMaterials) {
+                val layer = clothingLayer(slot)
+                for (material in ix.materials(item)) {
+                    val section = material["ComponentSection"]?.toIntOrNull() ?: -1
+                    if (section !in 0..8) continue
+                    val file = ix.texture(material.int("MaterialResourcesID"), race, sex)
+                    if (file != 0) clothingLayers += TextureLayer(file, 1 shl section, 15, layer, null, null)
+                }
+            }
             if (slot == 15) ix.texture(row.int("ModelMaterialResourcesID_0"), race, sex).takeIf { it != 0 }?.let { textures[2] = it }
             if (slot == 1) {
                 val vis = row.int(if (sex == Sex.FEMALE) "HelmetGeosetVis_1" else "HelmetGeosetVis_0")
@@ -184,13 +257,6 @@ object CreatureLooks {
         if (groups[13] == 2 && (groups[5] ?: 1) > 1) groups[5] = 1
         for (g in hidden) groups[g] = 0
 
-        val needs = LinkedHashSet<Int>()
-        needs += model
-        needs += textures.values
-        layers.forEach { needs += it.fileId }
-        extra.forEach { needs += it.model; if (it.texture != 0) needs += it.texture }
-        needs.remove(0)
-        return Result(ResolvedLook(model, scale, groups, textures, layers, extra.distinct(), needs, emptyList(), diagnostics), null)
     }
 
     /**
@@ -251,9 +317,7 @@ object CreatureLooks {
      * skin, a cape). A look with no geoset group (most creatures) gets group 0 at 0, which changes nothing but makes the
      * renderer show each group's default geoset rather than every geoset at once.
      */
-    fun call(tables: Tables, look: ResolvedLook): DressCall {
-        val ix = index(tables)
-        val layout = ix.layoutOfModel[look.model] ?: 0
+    fun call(tables: Tables, look: ResolvedLook, layout: Int = index(tables).layoutOfModel[look.model] ?: 0): DressCall {
         val base = Dressing.call(tables, layout, look)
         val composed = HashSet<Int>()
         for (i in 0 until base.layerFiles.size) composed += base.layerMeta[i * Dressing.META]
@@ -300,14 +364,15 @@ object CreatureLooks {
             for (r in t.rowsBy("NPCModelItemSlotDisplayInfo", "NpcModelID", extra)) out[r.int("ItemSlot")] = r.int("ItemDisplayInfoID")
             return out
         }
+        fun materials(id: Int) = t.rowsBy("ItemDisplayInfoMaterialRes", "ItemDisplayInfoID", id)
         fun item(id: Int) = t.rowBy("ItemDisplayInfo", "ID", id)
         /** ModelResourcesID -> its files (a resource has one per race and sex, or one per shoulder). */
-        private fun modelFiles(res: Int) = t.rowsBy("ModelFileData", "ModelResourcesID", res).map { it.int("FileDataID") }
+        fun modelFiles(res: Int) = t.rowsBy("ModelFileData", "ModelResourcesID", res).map { it.int("FileDataID") }
         /** A model file -> (gender 0 male 1 female 2 any, race 0 any, position -1 none / 0 left / 1 right). */
         private fun componentModel(file: Int) =
             t.rowBy("ComponentModelFileData", "ID", file)?.let { Triple(it.int("GenderIndex"), it.int("RaceID"), it.int("PositionIndex")) }
         /** MaterialResourcesID -> its files (UsageType, file). */
-        private fun textureFiles(res: Int) =
+        fun textureFiles(res: Int) =
             t.rowsBy("TextureFileData", "MaterialResourcesID", res).map { it.int("UsageType") to it.int("FileDataID") }
         /** A texture file -> (gender, race). */
         private fun componentTexture(file: Int) = t.rowBy("ComponentTextureFileData", "ID", file)?.let { it.int("GenderIndex") to it.int("RaceID") }

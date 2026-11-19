@@ -6,6 +6,8 @@ import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -44,6 +46,10 @@ import com.logie.wifecraft.creator.ImportStore
 import com.logie.wifecraft.creator.ListfileNames
 import com.logie.wifecraft.creator.Prefetch
 import com.logie.wifecraft.creator.Sex
+import com.logie.wifecraft.creator.GameTables
+import com.logie.wifecraft.creator.RaceBackdrop
+import com.logie.wifecraft.creator.TransmogCatalog
+import com.logie.wifecraft.data.AssetDownloads
 import com.logie.wifecraft.data.GameFiles
 import com.logie.wifecraft.data.Lights
 import com.logie.wifecraft.data.Settings
@@ -67,7 +73,12 @@ import com.logie.wifecraft.ui.TitleScreen
 import com.logie.wifecraft.ui.UpdatePanel
 import com.logie.wifecraft.ui.WowArt
 import com.logie.wifecraft.ui.defaultAppearance
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -179,8 +190,38 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val wardrobeLock = Mutex()
+    private var cachedWardrobe: TransmogCatalog? = null
+
+    private suspend fun loadWardrobe(): TransmogCatalog = wardrobeLock.withLock {
+        cachedWardrobe ?: withContext(Dispatchers.IO) {
+            GameTables.fetch(files.tablesDir, names = TransmogCatalog.TABLES)
+            TransmogCatalog.load(tables).also {
+                check(it.pieces.isNotEmpty()) { "No wearable items were found in the downloaded tables." }
+            }
+        }.also { cachedWardrobe = it }
+    }
+
     @Composable
     private fun App() {
+        val scope = rememberCoroutineScope()
+        var wardrobe by remember { mutableStateOf<TransmogCatalog?>(null) }
+        var wardrobeStatus by remember { mutableStateOf<String?>(null) }
+        var wardrobeJob by remember { mutableStateOf<Job?>(null) }
+        var downloadStatus by remember { mutableStateOf<String?>(null) }
+        var downloadJob by remember { mutableStateOf<Job?>(null) }
+
+        fun loadTransmog() {
+            if (wardrobe != null || wardrobeJob?.isActive == true) return
+            wardrobeStatus = null
+            wardrobeJob = scope.launch {
+                try {
+                    wardrobe = loadWardrobe()
+                } catch (failure: CancellationException) { throw failure }
+                catch (failure: Exception) { wardrobeStatus = failure.message ?: "The clothing catalog could not be loaded." }
+            }
+        }
+
         var screen by remember { mutableStateOf(Screen.TITLE) }
         var panel by remember { mutableStateOf(Panel.NONE) }
         var art by remember { mutableStateOf<WowArt?>(null) }
@@ -301,7 +342,13 @@ class MainActivity : ComponentActivity() {
                             view.light(Lights.of("day"))
                             onDispose {
                                 dresser.cancel(key)
+                                for (side in listOf(-1, 1)) {
+                                    val prop = "creator-backdrop-$side"
+                                    propLoader.cancel(prop)
+                                    view.removeProp(prop)
+                                }
                                 view.removeActor(key)
+                                view.clearLocation()
                                 view.frame = null
                             }
                         }
@@ -310,6 +357,19 @@ class MainActivity : ComponentActivity() {
                         CreatorScreen(
                             model, checkNotNull(art), view, tables,
                             actorKey = key,
+                            onPreviewRace = { race ->
+                                view.loadLocation(RaceBackdrop.json(race), "creator-$race")
+                                val decoration = RaceBackdrop.sceneryModel(race)
+                                for (side in listOf(-1, 1)) {
+                                    val prop = "creator-backdrop-$side"
+                                    propLoader.cancel(prop)
+                                    view.removeProp(prop)
+                                    if (decoration != null) propLoader.place(view, prop, decoration, side * 1.65f, 2.5f, 0f, scale = 0.8f)
+                                }
+                            },
+                            transmog = wardrobe,
+                            transmogStatus = wardrobeStatus,
+                            onLoadTransmog = ::loadTransmog,
                             onLook = { dresser.dress(view, c, key, model.appearance) },
                             onFinish = { name, appearance ->
                                 val npc = Actor(UUID.randomUUID().toString(), name.ifBlank { "New NPC" }, appearance)
@@ -356,6 +416,7 @@ class MainActivity : ComponentActivity() {
                         DisposableEffect(session) {
                             view.removeAll()
                             view.clearProps()
+                            propLoader.clearError()
                             view.showCity(false)
                             view.light(Lights.of("day"))
                             locationLoader.load(view, preset.id, "inside")
@@ -366,7 +427,7 @@ class MainActivity : ComponentActivity() {
                             }
                             if (SceneObject.TABLE in objects) {
                                 val pos = toStage(SceneObject.TABLE.position.copy(z = 0.82f))
-                                propLoader.place(view, bookKey, 198029, pos.x, pos.y, pos.z, rotation)
+                                propLoader.place(view, bookKey, SceneObject.BOOK_MODEL, pos.x, pos.y, pos.z, rotation)
                             }
                             onDispose {
                                 locationLoader.cancel()
@@ -433,7 +494,32 @@ class MainActivity : ComponentActivity() {
                 }
                 when (panel) {
                     Panel.NONE -> Unit
-                    Panel.OPTIONS -> SceneOptions { panel = Panel.NONE }
+                    Panel.OPTIONS -> SceneOptions(
+                        downloadStatus = downloadStatus,
+                        downloading = downloadJob?.isActive == true,
+                        canDownload = catalog != null,
+                        onDownload = { packs ->
+                            if (downloadJob?.isActive != true) {
+                                downloadStatus = "Preparing downloads…"
+                                downloadJob = scope.launch {
+                                    try {
+                                        downloadStatus = AssetDownloads(files, tables).download(packs, stages, catalog, ::loadWardrobe) { status ->
+                                            downloadStatus = status
+                                        }
+                                    } catch (failure: CancellationException) {
+                                        downloadStatus = "Download paused. Cached files are ready for the next download."
+                                        throw failure
+                                    } catch (failure: Exception) {
+                                        downloadStatus = failure.message ?: "The download failed."
+                                    } finally {
+                                        downloadJob = null
+                                    }
+                                }
+                            }
+                        },
+                        onCancelDownload = { downloadJob?.cancel() },
+                        onClose = { panel = Panel.NONE },
+                    )
                     Panel.UPDATE -> Overlay({ panel = Panel.NONE }) {
                         LaunchedEffect(Unit) {
                             if (!Updater.isConfigured) {
@@ -457,14 +543,21 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun SceneOptions(onClose: () -> Unit) {
+    private fun SceneOptions(
+        downloadStatus: String?,
+        downloading: Boolean,
+        canDownload: Boolean,
+        onDownload: (List<AssetDownloads.Pack>) -> Unit,
+        onCancelDownload: () -> Unit,
+        onClose: () -> Unit,
+    ) {
         var speed by remember { mutableStateOf(settings.downloadSpeed) }
         var effects by remember { mutableStateOf(settings.soundVolume) }
         AlertDialog(
             onDismissRequest = onClose,
             title = { Text("Options") },
             text = {
-                Column {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
                     Text("Download speed")
                     Slider(speed.toFloat(), {
                         speed = it.toInt()
@@ -478,6 +571,16 @@ class MainActivity : ComponentActivity() {
                         audio?.soundVolume = effects / 100f
                         applySceneVolumes()
                     }, valueRange = 0f..100f)
+                    Text("Download for offline play")
+                    if (!canDownload) Text("Gather the character tables first.")
+                    if (downloading) TextButton(onCancelDownload) { Text("Pause downloads") }
+                    else {
+                        TextButton({ onDownload(AssetDownloads.Pack.entries) }, enabled = canDownload) { Text("Download all") }
+                        for (pack in AssetDownloads.Pack.entries) {
+                            TextButton({ onDownload(listOf(pack)) }, enabled = canDownload) { Text("Download ${pack.label.lowercase()}") }
+                        }
+                    }
+                    downloadStatus?.let { Text(it) }
                 }
             },
             confirmButton = { TextButton(onClose) { Text("Done") } },

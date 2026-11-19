@@ -41,8 +41,7 @@ data class ResolvedLook(
  * TextureFileData), skinned models, face bones and another model (ChrCustomizationCondModel: Upright). A row hanging on a
  * picked choice wins over a row of the same choice that hangs on none.
  *
- * The starting outfit ([Appearance.gear]) isn't drawn yet: either way the equipment's geoset groups (gloves 4, boots 5,
- * sleeves 8, shirt 10, robe 13, tabard 22, wristbands 23, chest 28) show their bare variant (1) unless a choice sets them.
+ * Equipment groups start at their bare variants. Transmog then applies the selected display IDs and clothing layers.
  */
 object LookResolver {
     private val EQUIPMENT_GROUPS = intArrayOf(4, 5, 8, 10, 13, 22, 23, 28)
@@ -198,7 +197,8 @@ object LookResolver {
         layers.forEach { needs += it.fileId }
         extra.forEach { needs += it.model; if (it.texture != 0) needs += it.texture }
         needs += bones
-        return ResolvedLook(model, scale, groups.toSortedMap(), textures.toSortedMap(), layers, extra, needs, bones.toList(), diagnostics)
+        val look = ResolvedLook(model, scale, groups.toSortedMap(), textures.toSortedMap(), layers, extra, needs, bones.toList(), diagnostics)
+        return CreatureLooks.transmog(t, a, look)
     }
 
     // --- the tables, indexed once each ----------------------------------------------------------------------------
