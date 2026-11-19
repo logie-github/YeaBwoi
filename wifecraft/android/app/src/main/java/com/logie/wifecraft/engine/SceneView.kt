@@ -24,7 +24,7 @@ object Clock {
 
 /**
  * What a screen point hits (SceneView.pick): a prop or an actor by the key it was added with, the ground (a location's floor
- * or the map's ground: [key] null), or the location's walls and doodads ([key] "location"); x, y, z where it was hit.
+ * or the map's ground: [key] null), or the location’s walls and doodads ([key] carries the location pick ID); x, y, z where it was hit.
  */
 data class Hit(val kind: Kind, val key: String?, val x: Float, val y: Float, val z: Float) {
     enum class Kind { PROP, ACTOR, GROUND, LOCATION }
@@ -405,10 +405,38 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
             Native.PICK_PROP -> propIds.entries.firstOrNull { it.value == id }?.let { Hit(Hit.Kind.PROP, it.key, r[2], r[3], r[4]) }
             Native.PICK_ACTOR -> ids.entries.firstOrNull { it.value == id }?.let { Hit(Hit.Kind.ACTOR, it.key, r[2], r[3], r[4]) }
             Native.PICK_GROUND -> Hit(Hit.Kind.GROUND, null, r[2], r[3], r[4])
-            Native.PICK_LOCATION -> Hit(Hit.Kind.LOCATION, "location", r[2], r[3], r[4])
+            Native.PICK_LOCATION -> Hit(Hit.Kind.LOCATION, "location:$id", r[2], r[3], r[4])
             else -> null
         }
         main.post { onHit(hit) }
+    }
+
+    fun findLocationObjects(references: List<com.logie.wifecraft.location.LocationInfo.ModelReference>, onFound: (Set<String>) -> Unit) =
+        post { h, _ ->
+            val keys = references.mapNotNullTo(HashSet()) { reference ->
+                val p = reference.position
+                Native.locationObject(h, reference.id, p.x, p.y, p.z).takeIf { it >= 0 }?.let { "location:$it" }
+            }
+            main.post { onFound(keys) }
+        }
+
+    /** GL thread: a direct segment, or a short detour checked against the scene mesh. */
+    fun glWalkRoute(from: Vec3, to: Vec3): List<Vec3>? {
+        fun clear(a: Vec3, b: Vec3) = Native.walkSegment(handle, a.x, a.y, a.z, b.x, b.y, b.z)
+        if (clear(from, to)) return listOf(to)
+        val delta = to - from
+        val length = kotlin.math.hypot(delta.x, delta.y)
+        if (length < 0.1f || length > 55f) return null
+        val side = Vec3(-delta.y / length, delta.x / length, 0f)
+        val middle = from.lerp(to, 0.5f)
+        for (offset in listOf(1f, -1f, 2f, -2f, 3.5f, -3.5f)) {
+            val point = middle + side * offset
+            val z = Native.groundAt(handle, point.x, point.y, point.z - 0.85f)
+            if (z.isNaN()) continue
+            val waypoint = point.copy(z = z)
+            if (clear(from, waypoint) && clear(waypoint, to)) return listOf(waypoint, to)
+        }
+        return null
     }
 
     /** The floor under (x, y) nearest below [z] (a step up counts), to [onResult] on the main thread (null: none). */

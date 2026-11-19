@@ -632,6 +632,7 @@ bool Scene::placeWmo(uint32_t fileId, const M4& world, float scale, const std::v
             ModelGl* m = files_(d.modelFileId).empty() ? nullptr : model(d.modelFileId);
             if (!m) { ++out.doodadsMissing; continue; }
             Instance in;
+            in.modelFileId = d.modelFileId;
             in.mesh = m;
             in.world = world * M4::translation(d.position) * M4::rotation(d.rotation) * M4::scaling(V3(d.scale, d.scale, d.scale));
             in.centre = in.world.point((m->model->extentMin + m->model->extentMax) * 0.5f);
@@ -690,6 +691,7 @@ bool Scene::loadLocation(const std::string& json, const std::string& id, const s
         ModelGl* m = files_(p.model).empty() ? nullptr : model(p.model);
         if (!m) { ++locExtrasMissing_; continue; }
         Instance in;
+        in.modelFileId = p.model;
         in.mesh = m;
         in.world = M4::translation(p.position) * M4::rotation(p.rotation) * M4::scaling(V3(p.scale, p.scale, p.scale));
         in.centre = in.world.point((m->model->extentMin + m->model->extentMax) * 0.5f);
@@ -942,6 +944,65 @@ bool Scene::propContact(int id, int furniture, V3& point, float& facing, float& 
     const float depth = furniture == kLying ? (alongX ? span.y : span.x) : length;
     halfDepth = depth * dir.length() * 0.5f;
     return true;
+}
+
+int Scene::locationObject(uint32_t model, V3 origin) const {
+    if (!location_) return -1;
+    const auto find = [&](const std::vector<Instance>& instances, int base) {
+        for (size_t i = 0; i < instances.size(); ++i) {
+            const auto& instance = instances[i];
+            if (instance.modelFileId == model && (instance.world.point(V3()) - origin).length() < 0.12f)
+                return base + int(i);
+        }
+        return -1;
+    };
+    const int native = find(location_->doodads, 0);
+    return native >= 0 ? native : find(locExtras_, 1000000);
+}
+
+bool Scene::walkSegment(V3 from, V3 to) const {
+    if (!location_) return false;
+    const V3 delta = to - from;
+    const float distance = std::hypot(delta.x, delta.y);
+    if (!std::isfinite(distance) || distance > 55) return false;
+    float previous = from.z;
+    // Stay on the floor the actor is already on, including gentle stairs.
+    const int steps = std::max(1, int(std::ceil(distance / 0.4f)));
+    for (int step = 0; step <= steps; ++step) {
+        const V3 p = from + delta * (float(step) / steps);
+        float ground;
+        if (!groundAt(p.x, p.y, previous - 0.85f, ground) || std::fabs(ground - previous) > 0.4f) return false;
+        previous = ground;
+    }
+    if (std::fabs(previous - to.z) > 0.4f) return false;
+    if (distance < 0.025f) return true;
+
+    const V3 eye = from + V3(0, 0, 0.65f);
+    for (const StaticGroup& group : location_->groups) {
+        float boundsDistance;
+        if (!rayBox(eye, delta, group.boundsMin, group.boundsMax, boundsDistance) || boundsDistance > 1) continue;
+        for (size_t i = 0; i + 8 < group.tris.size(); i += 9) {
+            const V3 a(group.tris[i], group.tris[i+1], group.tris[i+2]);
+            const V3 b(group.tris[i+3], group.tris[i+4], group.tris[i+5]);
+            const V3 c(group.tris[i+6], group.tris[i+7], group.tris[i+8]);
+            const V3 normal = (b - a).cross(c - a);
+            if (std::fabs(normal.z) >= normal.length() * 0.5f) continue;
+            float hit;
+            if (rayTri(eye, delta, a, b, c, hit) && hit < 1) return false;
+        }
+    }
+    const auto blocked = [&](const std::vector<Instance>& instances) {
+        for (const Instance& in : instances) {
+            const V3 rel = in.centre - eye;
+            const float at = std::max(0.0f, std::min(1.0f, rel.dot(delta) / delta.dot(delta)));
+            if ((rel - delta * at).length() > in.radius) continue;
+            const M4 inverse = invertAffine(in.world);
+            float hit = 1.0f;
+            if (rayModel(*in.mesh->model, inverse.point(eye), linear(inverse, delta), hit)) return true;
+        }
+        return false;
+    };
+    return !blocked(location_->doodads) && !blocked(locExtras_);
 }
 
 // ------------------------------------------------------------------------------------------------ picking

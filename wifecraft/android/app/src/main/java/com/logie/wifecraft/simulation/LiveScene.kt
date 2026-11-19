@@ -1,6 +1,7 @@
 package com.logie.wifecraft.simulation
 
 import com.logie.wifecraft.story.CameraPose
+import com.logie.wifecraft.story.Vec3
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.math.PI
 import kotlin.math.cos
@@ -41,6 +42,7 @@ class LiveScene(
     private val rotation: Float,
     random: Random = Random.Default,
     wanderOnly: Boolean = false,
+    route: ((Vec3, Vec3) -> List<Vec3>?)? = null,
 ) {
     /** Where the frame goes (the 3D view, or a test's recorder). GL thread. */
     interface Sink {
@@ -61,7 +63,7 @@ class LiveScene(
         private const val KEEP = "\u0000keep"
     }
 
-    private val simulation = SceneSimulation(ids, objects, random, durations, initiallyReady = false, wanderOnly = wanderOnly)
+    private val simulation = SceneSimulation(ids, objects, random, durations, initiallyReady = false, wanderOnly = wanderOnly, route = route)
     val clock = FixedStep()
     val camera = SceneCamera(room)
 

@@ -15,6 +15,22 @@ class LocationsTest {
     private val json = File(System.getProperty("wifecraft.assets"), "locations.json").readText()
     private val locations = LocationInfo.parseAll(json)
 
+    @Test fun theEmbassyInteractionReferencesItsExistingDoodads() {
+        val embassy = locations.single { it.id == "embassy" }
+        val table = embassy.interactions.single()
+        assertEquals("TABLE", table.item)
+        assertEquals(listOf(936473, 936380, 936382), table.models.map { it.id })
+        val doodads = org.json.JSONObject(json).getJSONArray("locations").getJSONObject(0).getJSONArray("doodads")
+        for (reference in table.models) {
+            assertTrue((0 until doodads.length()).any { index ->
+                val doodad = doodads.getJSONObject(index)
+                val position = doodad.getJSONArray("pos")
+                doodad.getInt("model") == reference.id && position.getDouble(0).toFloat() == reference.position.x &&
+                    position.getDouble(1).toFloat() == reference.position.y && position.getDouble(2).toFloat() == reference.position.z
+            }, "missing doodad ${reference.id} at ${reference.position}")
+        }
+    }
+
     @Test fun theEmbassyHasBothViewsWithACameraAndASpawn() {
         val e = locations.first { it.id == "embassy" }
         assertEquals("Stormwind Embassy", e.name)

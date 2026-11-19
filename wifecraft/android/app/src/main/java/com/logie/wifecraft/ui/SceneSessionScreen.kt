@@ -95,7 +95,8 @@ fun SceneSetupScreen(
                 SetupStep.LOCATION -> SceneBrowser(locations, location, onLocation, checkNotNull(previewView), locationLoader, body)
                 SetupStep.CAST -> NpcBrowser(roster, cast, onToggleActor, onCreate, checkNotNull(previewView), portraits, portraitActor, body)
                 SetupStep.OBJECTS -> Column(body.verticalScroll(key(step) { rememberScrollState() }), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    for (item in SceneObject.entries) {
+                    val available = locations.firstOrNull { it.id == location }?.interactions.orEmpty()
+                    for (item in SceneObject.entries) if (available.any { it.item == item.name }) {
                         WowCheckRow(item.label, item in objects, { onToggleObject(item) })
                     }
                     RedButton("Animation library", onAnimations)
@@ -130,9 +131,9 @@ fun LiveSceneScreen(
     objects: Set<SceneObject>,
     spots: Map<SceneObject, InteractionSpot>,
     actorKey: (String) -> String,
-    objectKey: (SceneObject) -> String,
-    bookKey: String,
+    objectHits: Map<String, SceneObject>,
     toStage: (Vec3) -> Vec3,
+    toLocal: (Vec3) -> Vec3,
     stageRotation: Float,
     onAnimate: (String, Activity) -> Unit,
     clips: List<CheckedAnimation>,
@@ -144,7 +145,8 @@ fun LiveSceneScreen(
 ) {
     val live = remember(cast, objects) {
         val origin = toStage(Vec3(0f, 0f, 0f))
-        LiveScene(cast.map { it.id }, objects, emptyMap(), camera, origin.x, origin.y, origin.z, stageRotation, wanderOnly = true)
+        LiveScene(cast.map { it.id }, objects, emptyMap(), camera, origin.x, origin.y, origin.z, stageRotation, wanderOnly = true,
+            route = { from, to -> view.glWalkRoute(toStage(from), toStage(to))?.map(toLocal) })
     }
     SideEffect { live.camera.room = camera }
     var snapshot by remember(live) { mutableStateOf(live.snapshot()) }
@@ -186,7 +188,7 @@ fun LiveSceneScreen(
             if (animation.loop || animation.duration == 0f) 12f else animation.duration
         }
         live.order { sim ->
-            if (sim.perform(owner, other, roles, duration)) null else "This animation requires ${choice.participantCount} NPCs."
+            if (sim.perform(owner, other, roles, duration)) null else "The NPCs couldn’t reach their starting positions."
         }
     }
 
@@ -242,13 +244,30 @@ fun LiveSceneScreen(
         live.order { null }
     }
 
-    fun use(id: String, item: SceneObject) = live.order { sim -> if (sim.use(id, item)) null else "${item.label} is in use." }
+    fun use(id: String, item: SceneObject) = live.order { sim ->
+        when {
+            !sim.available(item, id) -> "${item.label} is unavailable."
+            sim.use(id, item) -> null
+            else -> "There’s no clear path to ${item.label.lowercase()}."
+        }
+    }
 
     val onTap by rememberUpdatedState<(Hit?) -> Unit>({ hit ->
         when (hit?.kind) {
             Hit.Kind.ACTOR -> cast.firstOrNull { actorKey(it.id) == hit.key }?.let { selected = it.id }
-            Hit.Kind.PROP -> if (ready) selected?.let { id -> objects.firstOrNull { objectKey(it) == hit.key || (it == SceneObject.TABLE && hit.key == bookKey) }?.let { use(id, it) } }
-            else -> if (!npcCamera) selected = null
+            Hit.Kind.LOCATION, Hit.Kind.PROP -> if (ready) {
+                val item = hit.key?.let(objectHits::get)
+                val id = selected
+                if (item != null && id != null) use(id, item)
+            }
+            Hit.Kind.GROUND -> {
+                val id = selected
+                if (ready && npcCamera && id != null) {
+                    val destination = toLocal(Vec3(hit.x, hit.y, hit.z))
+                    live.order { sim -> if (sim.walk(id, destination)) null else "There’s no clear path to that spot." }
+                } else if (!npcCamera) selected = null
+            }
+            null -> if (!npcCamera) selected = null
         }
     })
     val orbiting by rememberUpdatedState(npcCamera)
@@ -370,13 +389,14 @@ fun LiveSceneScreen(
                         RedButton(action, { use(id, item) }, enabled = ready && snapshot.available(item, id))
                     }
                     for (other in cast) if (other.id != id) key(other.id) {
-                        RedButton("Chat with ${other.name}", { live.order { sim -> sim.chat(id, other.id); null } }, enabled = ready)
+                        RedButton("Chat with ${other.name}", { live.order { sim -> if (sim.chat(id, other.id)) null else "There’s no clear path to ${other.name}." } }, enabled = ready)
                     }
                     RedButton("Free will", { live.order { sim -> sim.freeWill(id); null } })
                 }
             }
         }
-        Text(snapshot.notice.orEmpty(), Modifier.fillMaxWidth().height(22.dp).padding(horizontal = 12.dp), color = Color.LightGray,
+        val hint = if (npcCamera && selected != null) "Tap the floor to move." else ""
+        Text(snapshot.notice ?: hint, Modifier.fillMaxWidth().height(22.dp).padding(horizontal = 12.dp), color = Color.LightGray,
             maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
     choosingAnimation?.let { owner ->

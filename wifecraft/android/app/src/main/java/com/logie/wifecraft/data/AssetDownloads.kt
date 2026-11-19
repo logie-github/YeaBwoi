@@ -3,7 +3,6 @@ package com.logie.wifecraft.data
 import com.logie.wifecraft.creator.*
 import com.logie.wifecraft.engine.PropLoader
 import com.logie.wifecraft.location.LocationInfo
-import com.logie.wifecraft.simulation.SceneObject
 import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.coroutineContext
@@ -94,7 +93,7 @@ class AssetDownloads(private val files: GameFiles, private val tables: Tables) {
             Pack.SCENES -> {
                 val files = locations.flatMap { loc -> loc.files().map { it.first } }.toSet()
                 val backdrops = catalog?.races.orEmpty().mapNotNull { RaceBackdrop.file(tables, it.id) }
-                Work(files, (SceneObject.entries.map { it.model } + SceneObject.BOOK_MODEL + backdrops).toSet())
+                Work(files, backdrops.toSet())
             }
             Pack.CLOTHING -> {
                 val pieces = wardrobe().pieces

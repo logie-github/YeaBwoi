@@ -149,6 +149,8 @@ jobs:
 
           NPCs wander until directed. Select an NPC and choose Play animation during the scene. Authored partner animations ask for a second NPC and synchronize both tracks. Reinstall WickedWhims to load its role groups.
 
+          In NPC camera mode, tap the floor to move the selected NPC. Stormwind Embassy’s study table and books can now be used where the Warcraft scene places them.
+
           Options shows a download progress bar and file counts for Warcraft assets.
 
           Download **$APK_FILE** and open it on your phone to install. Warcraft models and the Stormwind Embassy location use the app's existing wago.tools downloads."

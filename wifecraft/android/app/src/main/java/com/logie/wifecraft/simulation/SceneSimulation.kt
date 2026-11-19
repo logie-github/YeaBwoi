@@ -65,6 +65,7 @@ class SceneSimulation(
     private val durations: Map<Activity, Float> = emptyMap(),
     initiallyReady: Boolean = true,
     private val wanderOnly: Boolean = false,
+    private val route: ((Vec3, Vec3) -> List<Vec3>?)? = null,
 ) {
     data class Person(
         val id: String, val position: Vec3, val facing: Float, val activity: Activity, val directed: Boolean,
@@ -105,6 +106,9 @@ class SceneSimulation(
             set(v) { x = v.x; y = v.y; z = v.z }
         var phase = Phase.WAITING
         var destination = position
+        var waypoints = emptyList<Vec3>()
+        var waypoint = 0
+        var wanderCenter = start
         var activity = Activity.IDLE
         var target: SceneObject? = null
         var partner: Actor? = null
@@ -158,16 +162,20 @@ class SceneSimulation(
     fun use(id: String, target: SceneObject): Boolean {
         val actor = actors[id] ?: return false
         if (!available(target, id)) return false
-        begin(actor, target.action, spots.getValue(target).entry, directed = true, target = target)
-        return true
+        return begin(actor, target.action, spots.getValue(target).entry, directed = true, target = target)
+    }
+
+    fun walk(id: String, destination: Vec3): Boolean {
+        val actor = actors[id] ?: return false
+        if (!destination.x.isFinite() || !destination.y.isFinite() || !destination.z.isFinite()) return false
+        return begin(actor, Activity.IDLE, destination, directed = true)
     }
 
     fun chat(id: String, otherId: String): Boolean {
         val actor = actors[id] ?: return false
         val other = actors[otherId] ?: return false
         if (actor === other) return false
-        startChat(actor, other, directed = true)
-        return true
+        return startChat(actor, other, directed = true)
     }
 
     fun perform(id: String, otherId: String?, roles: List<PlaybackRole>, seconds: Float): Boolean {
@@ -180,7 +188,7 @@ class SceneSimulation(
         if (other == null) play(performance)
         else {
             val entry = rolePosition(performance, roles[1])
-            begin(other, Activity.PERFORM, entry.copy(z = 0f), directed = true)
+            if (!begin(other, Activity.PERFORM, entry, directed = true)) return false
             lead.partner = other
             other.partner = lead
             lead.performance = performance
@@ -232,8 +240,18 @@ class SceneSimulation(
                     val dy = actor.destination.y - actor.y
                     val step = dt * WALK_SPEED
                     val distance = hypot(dx, dy)
-                    if (distance <= step) arrive(actor)
-                    else { actor.x += dx * (step / distance); actor.y += dy * (step / distance) }
+                    if (distance <= step) {
+                        if (actor.waypoint + 1 == actor.waypoints.size) arrive(actor)
+                        else {
+                            actor.position = actor.destination
+                            nextWaypoint(actor)
+                        }
+                    } else {
+                        val fraction = step / distance
+                        actor.x += dx * fraction
+                        actor.y += dy * fraction
+                        actor.z += (actor.destination.z - actor.z) * fraction
+                    }
                 }
                 Phase.ACTING -> {
                     val performance = actor.performance
@@ -247,7 +265,9 @@ class SceneSimulation(
     }
 
     private fun wander(actor: Actor) {
-        begin(actor, Activity.IDLE, Vec3(random.nextFloat() * 3 - 1.5f, random.nextFloat() * 2 - 1.4f, 0f), false)
+        val center = actor.wanderCenter
+        val target = center + Vec3(random.nextFloat() * 3 - 1.5f, random.nextFloat() * 2 - 1f, 0f)
+        if (!begin(actor, Activity.IDLE, target, false)) actor.remaining = 0.8f
     }
 
     private fun choose(actor: Actor) {
@@ -265,28 +285,42 @@ class SceneSimulation(
         }
     }
 
-    private fun startChat(actor: Actor, other: Actor, directed: Boolean) {
+    private fun startChat(actor: Actor, other: Actor, directed: Boolean): Boolean {
         release(actor)
         release(other)
         val side = if (other.position.x > 0f) -1f else 1f
-        begin(actor, Activity.CHAT, Vec3(other.position.x + side * 0.85f, other.position.y, 0f), directed)
+        if (!begin(actor, Activity.CHAT, Vec3(other.x + side * 0.85f, other.y, other.z), directed)) {
+            actor.remaining = 0.8f
+            return false
+        }
         actor.partner = other
         other.partner = actor
         other.activity = Activity.LISTEN
         other.phase = Phase.ACTING
         version++
+        return true
     }
 
-    private fun begin(actor: Actor, activity: Activity, destination: Vec3, directed: Boolean, target: SceneObject? = null) {
+    private fun begin(actor: Actor, activity: Activity, destination: Vec3, directed: Boolean, target: SceneObject? = null): Boolean {
+        val from = spots[actor.target]?.entry?.takeIf { actor.phase == Phase.ACTING } ?: actor.position
+        val path = if (route == null) listOf(destination) else route.invoke(from, destination).orEmpty()
+        if (path.isEmpty()) return false
         release(actor)
         version++
         actor.activity = activity
         actor.target = target
         actor.directed = directed
-        actor.destination = destination
-        val delta = destination - actor.position
-        if (delta.x * delta.x + delta.y * delta.y > 0.001f) actor.facing = atan2(delta.y, delta.x)
+        actor.waypoints = path
+        actor.waypoint = -1
+        nextWaypoint(actor)
         actor.phase = Phase.MOVING
+        return true
+    }
+
+    private fun nextWaypoint(actor: Actor) {
+        actor.destination = actor.waypoints[++actor.waypoint]
+        val delta = actor.destination - actor.position
+        if (delta.x * delta.x + delta.y * delta.y > 0.001f) actor.facing = atan2(delta.y, delta.x)
     }
 
     private fun arrive(actor: Actor) {
@@ -296,6 +330,7 @@ class SceneSimulation(
         }
         version++
         actor.position = actor.destination
+        if (actor.activity == Activity.IDLE && actor.directed) actor.wanderCenter = actor.position
         actor.phase = Phase.ACTING
         actor.remaining = durations[actor.activity]?.takeIf { it.isFinite() && it > 0f } ?: actor.activity.seconds
         actor.target?.let { target ->
@@ -317,7 +352,7 @@ class SceneSimulation(
         actor.playback = null
         if (actor.phase == Phase.ACTING) actor.target?.let { actor.position = spots.getValue(it).entry }
         actor.target = null
-        actor.z = 0f
+        actor.waypoints = emptyList()
         actor.activity = Activity.IDLE
         actor.phase = Phase.WAITING
         actor.remaining = 1.25f + random.nextFloat() * 2f

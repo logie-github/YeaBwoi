@@ -6,6 +6,18 @@
    "id": "embassy",
    "name": "Stormwind Embassy",
    "kind": "interior+exterior",
+   "interactions": [
+    {
+     "object": "TABLE",
+     "entry": [-3.45, 0.33, 1.72],
+     "facing": 3.14159265,
+     "models": [
+      {"id": 936473, "position": [-5.057, -0.22, 1.72]},
+      {"id": 936380, "position": [-5.262, -1.53, 2.811]},
+      {"id": 936382, "position": [-5.068, 0.333, 2.812]}
+     ]
+    }
+   ],
    "frame": {
     "comment": "the building's own frame; world (map 0) = origin + Rz(yawDeg) * local",
     "map": 0,

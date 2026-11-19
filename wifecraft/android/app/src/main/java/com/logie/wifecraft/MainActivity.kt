@@ -52,7 +52,6 @@ import com.logie.wifecraft.data.Settings
 import com.logie.wifecraft.editor.Actor
 import com.logie.wifecraft.editor.ProjectStore
 import com.logie.wifecraft.engine.Dresser
-import com.logie.wifecraft.engine.FurniturePose
 import com.logie.wifecraft.engine.LocationLoader
 import com.logie.wifecraft.engine.PropLoader
 import com.logie.wifecraft.engine.SceneView
@@ -110,7 +109,6 @@ class MainActivity : ComponentActivity() {
     private var scene: SceneView? = null
     private var audio: Audio? = null
     private lateinit var locationLoader: LocationLoader
-    private lateinit var propLoader: PropLoader
     private var sceneAudio: SceneAudio? = null
     private val rosterFile by lazy { AtomicFile(File(filesDir, "npc-roster.json")) }
 
@@ -142,7 +140,6 @@ class MainActivity : ComponentActivity() {
             soundVolume = settings.soundVolume / 100f
         }
         locationLoader = LocationLoader(applicationContext, files, lifecycleScope)
-        propLoader = PropLoader(files, lifecycleScope)
         sceneAudio = runCatching { SceneAudio(applicationContext, files, tables) }.getOrNull()
         applySceneVolumes()
         setContent { App() }
@@ -263,7 +260,7 @@ class MainActivity : ComponentActivity() {
                 availableClips = withContext(Dispatchers.IO) { animationLibrary.list().map { CheckedAnimation(it) } }
             }
         }
-        var objects by remember { mutableStateOf(SceneObject.entries.toSet()) }
+        var objects by remember { mutableStateOf(emptySet<SceneObject>()) }
         // The root reads only which packs are complete (a few changes in all), never the download's ticks: those are read
         // by the small composables that show them (GatherHost, the live scene's status, the Options panel), so a tick
         // redraws them and not the whole app. Nothing here touches the disk while composing.
@@ -273,6 +270,8 @@ class MainActivity : ComponentActivity() {
         val npcLoading by remember { derivedStateOf { fetchingState.value.total > 0 } }
         val ready = GameFiles.TABLES in complete && art != null && catalog != null
         val stages = remember { locationLoader.locations.filter { it.views["inside"]?.camera != null } }
+        fun sceneObjects(id: String?) = stages.firstOrNull { it.id == id }?.interactions.orEmpty()
+            .mapNotNull { interaction -> SceneObject.entries.firstOrNull { it.name == interaction.item } }.toSet()
         val starters = remember(catalog) {
             val race = catalog?.races?.let { races -> races.firstOrNull { it.id == 1 } ?: races.firstOrNull() }
             if (race == null) emptyList() else race.sexes.take(2).map { sex ->
@@ -310,7 +309,7 @@ class MainActivity : ComponentActivity() {
                             step = SetupStep.LOCATION
                             location = stages.firstOrNull()?.id
                             cast = emptySet()
-                            objects = SceneObject.entries.toSet()
+                            objects = sceneObjects(location)
                             screen = Screen.SETUP
                         },
                         onGather = { screen = Screen.GATHER },
@@ -336,7 +335,12 @@ class MainActivity : ComponentActivity() {
                             }
                         } else null
                         SceneSetupScreen(
-                            step, stages, location, { location = it }, roster, cast,
+                            step, stages, location, { id ->
+                                if (location != id) {
+                                    location = id
+                                    objects = sceneObjects(id)
+                                }
+                            }, roster, cast,
                             onToggleActor = { id ->
                                 if (id in cast) cast = cast - id
                                 else if (cast.size < 6) cast = cast + id
@@ -522,8 +526,7 @@ class MainActivity : ComponentActivity() {
                         val c = checkNotNull(catalog)
                         val session = remember { UUID.randomUUID().toString() }
                         val actorKey: (String) -> String = { "$session:npc:$it" }
-                        val objectKey: (SceneObject) -> String = { "$session:object:${it.name}" }
-                        val bookKey = "$session:book"
+                        var objectHits by remember(session) { mutableStateOf(emptyMap<String, SceneObject>()) }
                         var locationResult by remember(session) { mutableStateOf<Boolean?>(null) }
                         var loadedActors by remember(session) { mutableIntStateOf(0) }
                         var contactError by remember(session) { mutableStateOf<String?>(null) }
@@ -532,10 +535,25 @@ class MainActivity : ComponentActivity() {
                             var active = true
                             view.removeAll()
                             view.clearProps()
-                            propLoader.clearError()
                             view.showCity(false)
                             view.light(Lights.of("day"))
-                            locationLoader.load(view, preset.id, "inside") { locationResult = it }
+                            locationLoader.load(view, preset.id, "inside") { loaded ->
+                                if (!active) return@load
+                                locationResult = loaded
+                                if (loaded) for (interaction in preset.interactions) {
+                                    val item = objects.firstOrNull { it.name == interaction.item } ?: continue
+                                    view.findLocationObjects(interaction.models) onFound@{ keys ->
+                                        if (!active) return@onFound
+                                        if (keys.isEmpty()) {
+                                            contactError = "${item.label} couldn't be found in the scene."
+                                            return@onFound
+                                        }
+                                        val entry = toLocal(interaction.entry)
+                                        spots = spots + (item to InteractionSpot(entry, entry, interaction.facing - rotation))
+                                        objectHits = objectHits + keys.associateWith { item }
+                                    }
+                                }
+                            }
                             val actionAnimations = objects.mapTo(mutableSetOf()) { it.action.animation }
                             for (actor in chosen) {
                                 val dressed = wardrobe?.equipStarter(actor.appearance) ?: actor.appearance
@@ -543,35 +561,10 @@ class MainActivity : ComponentActivity() {
                                     if (active) loadedActors++
                                 }
                             }
-                            for (item in objects) {
-                                val pos = toStage(item.position)
-                                val pose = when (item.action) {
-                                    Activity.REST -> FurniturePose.REST
-                                    Activity.SIT -> FurniturePose.SIT
-                                    else -> FurniturePose.FLOOR
-                                }
-                                propLoader.place(view, objectKey(item), item.model, pos.x, pos.y, pos.z, rotation) onPropReady@{
-                                    if (!active) return@onPropReady
-                                    view.propContact(objectKey(item), pose) onContact@{ contact ->
-                                        if (!active) return@onContact
-                                        if (contact == null) {
-                                            contactError = "${item.label} has no usable surface."
-                                            return@onContact
-                                        }
-                                        spots = spots + (item to item.interaction(toLocal(contact.point), contact.facing - rotation, contact.halfDepth))
-                                        if (item == SceneObject.TABLE) {
-                                            val at = contact.point
-                                            propLoader.place(view, bookKey, SceneObject.BOOK_MODEL, at.x, at.y, at.z, rotation)
-                                        }
-                                    }
-                                }
-                            }
                             onDispose {
                                 active = false
                                 locationLoader.cancel()
                                 for (actor in chosen) dresser.cancel(actorKey(actor.id))
-                                for (item in objects) propLoader.cancel(objectKey(item))
-                                propLoader.cancel(bookKey)
                                 view.select(null)
                                 view.frame = null
                                 view.removeAll()
@@ -582,23 +575,21 @@ class MainActivity : ComponentActivity() {
                         // The loaders' ticks (each file) are read only here, through the derived status: it changes a few
                         // times a second at most, and only the live screen's host is redrawn for it.
                         val stage = locationLoader.progress.collectThrottled { old, new -> old?.id != new.id || new.error != old?.error }
-                        val props = propLoader.loading.collectThrottled { old, new -> (old?.total == 0) != (new.total == 0) || new.error != old?.error }
                         val status = remember(session, preset.id, chosen.size) {
                             derivedStateOf {
-                                val st = stage.value; val fe = fetchingState.value; val pr = props.value
+                                val st = stage.value; val fe = fetchingState.value
                                 when {
                                     locationResult != null && st.id == preset.id && st.error != null -> st.error
                                     locationResult != true -> "Opening ${preset.name}…"
                                     fe.total > 0 -> "Loading NPCs… ${fe.done}/${fe.total}"
                                     loadedActors < chosen.size -> "Preparing NPCs… $loadedActors/${chosen.size}"
-                                    pr.total > 0 -> "Loading objects… ${pr.done}/${pr.total}"
                                     fe.error != null -> fe.error
-                                    else -> pr.error ?: contactError
+                                    else -> contactError
                                 }
                             }
                         }
                         Collected(status) { liveStatus -> LiveSceneScreen(
-                            view, camera, preset.name, chosen, objects, spots, actorKey, objectKey, bookKey, toStage, rotation,
+                            view, camera, preset.name, chosen, objects, spots, actorKey, objectHits, toStage, toLocal, rotation,
                             onAnimate = { id, activity -> dresser.fetchAnim(actorKey(id), activity.animation) },
                             clips = availableClips,
                             onEnd = { screen = Screen.TITLE },
