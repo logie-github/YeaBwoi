@@ -32,6 +32,11 @@ val pureUi = tasks.register<Copy>("pureUi") {
     from("../android/app/src/main/java/com/logie/wifecraft/ui/MenuModel.kt")
     // the art's loading (its state machine, the answer's check) and the glyphs drawn when a picture is missing (WarArtPlan)
     from("../android/app/src/main/java/com/logie/wifecraft/ui/WarArtPlan.kt")
+    // the progress throttle (Sampler, Throttle) and the off-main-thread image cache (ImageCache): the menus' smoothness
+    from("../android/app/src/main/java/com/logie/wifecraft/ui/Throttle.kt")
+    from("../android/app/src/main/java/com/logie/wifecraft/ui/ImageCache.kt")
+    // the menus' motion: durations, the reduce-motion switch, the double-tap gate, touch boxes, scroll thumb, list keys (MenuMotion)
+    from("../android/app/src/main/java/com/logie/wifecraft/ui/MenuMotion.kt")
     into(layout.buildDirectory.dir("gen/pureUi"))
 }
 

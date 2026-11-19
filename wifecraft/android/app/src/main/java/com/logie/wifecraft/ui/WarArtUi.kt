@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -80,9 +83,23 @@ fun WarArtRow(war: WarArt?) {
 private fun ArtFailures(s: ArtStatus, dark: Boolean = false) {
     if (s.failures.isEmpty()) return
     val color = if (dark) Color(0xFFFF9A7A) else War.danger
+    // the seconds left, counted down once a second while a retry is pending (and not at all when none is)
+    val at = s.nextRetryAt
+    val secondsLeft by produceState<Long?>(at?.let { secondsUntil(it) }, at) {
+        if (at == null) { value = null; return@produceState }
+        while (true) {
+            value = secondsUntil(at)
+            if (System.currentTimeMillis() >= at) break
+            // to the next whole second left (where the count changes)
+            val left = at - System.currentTimeMillis()
+            delay((left % 1000L).let { if (it <= 0L) 1000L else it })
+        }
+    }
     Text(
         "Failed: " + s.failures.take(4).joinToString("; ") + (if (s.failures.size > 4) "; and ${s.failures.size - 4} more" else "") +
-            (s.nextRetryAt?.let { at -> " (tried again in ${((at - System.currentTimeMillis()) / 1000).coerceAtLeast(1)} s)" } ?: ""),
+            (secondsLeft?.let { " (tried again in $it s)" } ?: ""),
         style = if (dark) frizStyle(12.sp, color) else warText(12.sp, color), maxLines = 6,
     )
 }
+
+private fun secondsUntil(at: Long): Long = ((at - System.currentTimeMillis() + 999) / 1000).coerceAtLeast(1)

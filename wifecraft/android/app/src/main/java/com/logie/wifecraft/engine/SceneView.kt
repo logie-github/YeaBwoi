@@ -89,6 +89,16 @@ data class Placement(
     val furniture: FurniturePose = FurniturePose.FLOOR, val surface: Vec3? = null,
 )
 
+/**
+ * Drives the view frame by frame on the GL thread (the live scene: simulation/LiveScene): called at the start of every frame
+ * with its time, after the posted changes, it writes the camera and placements straight to the view ([SceneView.glCamera],
+ * [SceneView.glPlace], [SceneView.glAnimate]) instead of [Stage.frame]: the frame's motion is computed at the rate the
+ * screen draws, in step with it, with no state and nothing allocated on the main thread every frame.
+ */
+fun interface FrameDriver {
+    fun drive(nowNanos: Long)
+}
+
 /** A change to the scene, run on the GL thread with the renderer's handle and its ids for people. */
 fun interface Change {
     fun apply(scene: Long, ids: MutableMap<String, Int>)
@@ -124,6 +134,11 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     }
 
     @Volatile override var frame: Pair<CameraPose, Map<String, Placement>>? = null
+    /** While set, it drives each frame in place of [frame] (FrameDriver). Any thread. */
+    @Volatile var driver: FrameDriver? = null
+    /** Frames drawn so far (a screen waits on it to know its first frame is up). */
+    @Volatile var framesDrawn = 0L
+        private set
     @Volatile var ready = false
         private set
 
@@ -164,6 +179,14 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
                     val c = changes.poll() ?: break
                     c.apply(handle, ids)
                 }
+                val d = driver
+                if (d != null) {
+                    d.drive(System.nanoTime())
+                    applyGizmo()
+                    Native.render(handle, width, height, Clock.now())
+                    framesDrawn++
+                    return
+                }
                 val f = frame
                 steer(f?.first)?.let { cam -> Native.camera(handle, cam.eye.x, cam.eye.y, cam.eye.z, cam.at.x, cam.at.y, cam.at.z, cam.fov) }
                 applyGizmo()
@@ -177,9 +200,28 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
                     }
                 }
                 Native.render(handle, width, height, Clock.now())
+                framesDrawn++
             }
         })
         renderMode = RENDERMODE_CONTINUOUSLY
+    }
+
+    /** GL thread, a [FrameDriver] only: the camera this frame. */
+    fun glCamera(ex: Float, ey: Float, ez: Float, ax: Float, ay: Float, az: Float, fov: Float) {
+        lastCam = null
+        Native.camera(handle, ex, ey, ez, ax, ay, az, fov)
+    }
+
+    /** GL thread, a [FrameDriver] only: where the actor [key] stands this frame (an actor not on stage yet: nothing). */
+    fun glPlace(key: String, x: Float, y: Float, z: Float, facing: Float, furniture: FurniturePose, sx: Float, sy: Float, sz: Float) {
+        val id = ids[key] ?: return
+        Native.place(handle, id, x, y, z, facing, furniture.nativeId, sx, sy, sz)
+        Native.show(handle, id, true)
+    }
+
+    /** GL thread, a [FrameDriver] only: the actor [key]'s game animation from this very frame (as [animateActor]). */
+    fun glAnimate(key: String, animation: Int) {
+        if (requestedAnimations.put(key, animation) != animation) ids[key]?.let { Native.anim(handle, it, animation, true, Clock.now()) }
     }
 
     fun post(change: Change) {

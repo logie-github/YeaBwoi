@@ -34,6 +34,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,14 +53,7 @@ import com.logie.wifecraft.story.LogEntry
 import java.text.DateFormat
 import java.util.Date
 
-/** A dimmed backdrop with one panel in the middle; tapping outside closes it. */
-@Composable
-fun Overlay(onDismiss: () -> Unit, content: @Composable () -> Unit) {
-    Box(Modifier.fillMaxSize().background(Color(0xAA000000)).clickable(onClick = onDismiss), contentAlignment = Alignment.Center) {
-        // Taps on the panel stay on the panel.
-        Box(Modifier.pointerInput(Unit) { detectTapGestures { } }) { content() }
-    }
-}
+// Overlay (the dimmed backdrop with one panel, moving in and out) is in MenuMotionUi.kt.
 
 /** What was said, newest at the bottom. */
 @Composable
@@ -65,10 +61,11 @@ fun LogPanel(entries: List<LogEntry>, nameOf: (String) -> String, onBack: () -> 
     MetalPanel(Modifier.width(720.dp).heightIn(max = 360.dp)) {
         Column {
             Text("What Was Said", style = frizStyle(16.sp), modifier = Modifier.align(Alignment.CenterHorizontally))
-            val state = rememberLazyListState()
-            LaunchedEffect(entries.size) { if (entries.isNotEmpty()) state.scrollToItem(entries.size - 1) }
+            // opens already at the newest line (no jump from the top after the first frame); new lines glide into view
+            val state = rememberLazyListState(initialFirstVisibleItemIndex = (entries.size - 1).coerceAtLeast(0))
+            LaunchedEffect(entries.size) { if (entries.isNotEmpty() && state.firstVisibleItemIndex < entries.size - 1) state.animateScrollToItem(entries.size - 1) }
             LazyColumn(Modifier.weight(1f, fill = false).heightIn(max = 260.dp), state = state) {
-                items(entries) { e ->
+                items(entries.size, key = { it }, contentType = { "line" }) { i -> val e = entries[i]
                     Column(Modifier.padding(vertical = 4.dp)) {
                         val name = nameOf(e.who)
                         if (name.isNotEmpty()) Text(name, style = frizStyle(12.sp))
@@ -113,7 +110,8 @@ fun OptionsWindow(
     gameFiles: String? = null,
     onGather: (() -> Unit)? = null,
 ) {
-    var page by remember { mutableStateOf(OptionsPage.SOUND) }
+    var page by rememberSaveable { mutableStateOf(OptionsPage.SOUND) }
+    val reduced = reduceMotion()
     BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         val layout = ChromeLayout.of(maxWidth.value, maxHeight.value)
         val side = OptionsModel.sideList(layout.optionsW)
@@ -124,20 +122,22 @@ fun OptionsWindow(
                         val on = c == page || page.parent == c
                         Box(
                             Modifier.fillMaxWidth().height(48.dp).background(if (on) Color(0x28FFD100) else Color.Transparent)
-                                .border(1.dp, if (on) Color(0x8CFFD100) else Color.Transparent).clickable { page = c }.padding(horizontal = 14.dp),
+                                .border(1.dp, if (on) Color(0x8CFFD100) else Color.Transparent).warPress { page = c }.padding(horizontal = 14.dp),
                             contentAlignment = Alignment.CenterStart,
                         ) { Text(c.label, style = frizStyle(15.sp, if (on) Color.White else WowColors.gold)) }
                     }
                 }
                 if (side) Box(Modifier.padding(horizontal = 12.dp).width(1.5.dp).fillMaxHeight().background(Color(0xFF64583F)))
-                Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (!side) WowDropdown(page.label, OptionsPage.CATEGORIES.map { it to it.label }, { page = it }, Modifier.fillMaxWidth())
+                // one page gives way to the next (a short cross-fade), each page with its own scroll from its top
+                Crossfade(page, Modifier.weight(1f).fillMaxHeight(), animationSpec = tween(MenuMotion.duration(MenuMotion.PAGE_MS, reduced)), label = "page") { shown ->
+                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (!side) WowDropdown(shown.label, OptionsPage.CATEGORIES.map { it to it.label }, { page = it }, Modifier.fillMaxWidth())
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (page.parent != null) TextAction("‹ ${page.parent!!.label}", { page = page.parent!! })
-                        Text(page.label, style = frizStyle(18.sp), modifier = Modifier.padding(vertical = 8.dp))
+                        if (shown.parent != null) TextAction("‹ ${shown.parent!!.label}", { page = shown.parent!! })
+                        Text(shown.label, style = frizStyle(18.sp), modifier = Modifier.padding(vertical = 8.dp))
                     }
                     var importsShown = false
-                    for (k in OptionsModel.rows(page)) when (k) {
+                    for (k in OptionsModel.rows(shown)) when (k) {
                         OptionKey.MUSIC -> WowSliderRow(k.label, musicVolume, onMusicVolume)
                         OptionKey.AMBIENCE -> WowSliderRow(k.label, ambienceVolume, onAmbienceVolume)
                         OptionKey.EFFECTS -> WowSliderRow(k.label, soundVolume, onSoundVolume)
@@ -155,7 +155,7 @@ fun OptionsWindow(
                             if (onGather != null) RedButton("Gather", onGather, Modifier.fillMaxWidth())
                         }
                         OptionKey.IMPORTS -> Row(
-                            Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { page = OptionsPage.IMPORTS },
+                            Modifier.fillMaxWidth().heightIn(min = 48.dp).warPress { page = OptionsPage.IMPORTS },
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(Modifier.weight(1f)) {
@@ -173,6 +173,7 @@ fun OptionsWindow(
                             if (onImportAnims != null) RedButton("Import Animations", onImportAnims, Modifier.fillMaxWidth(), textSize = 13.sp)
                         }
                     }
+                }
                 }
             }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {

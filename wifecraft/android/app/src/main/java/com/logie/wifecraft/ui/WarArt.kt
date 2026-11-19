@@ -8,6 +8,8 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import com.logie.wifecraft.engine.Native
@@ -20,6 +22,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -31,6 +34,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /** How far the art is: [loaded] of [total] pieces and icons, the files that failed (and why), and whether it is still at work. */
+@Immutable
 data class ArtStatus(
     val loaded: Int = 0,
     val total: Int = 0,
@@ -62,6 +66,12 @@ class WarArt private constructor(private val dir: File, private val doc: JSONObj
     private val iconDefs = doc.getJSONObject("icons")
     private val pieces = mutableStateMapOf<String, ImageBitmap>()
     private val icons = mutableStateMapOf<String, ImageBitmap>()
+    // Every reader of a state map is redrawn when anything in it changes: the pictures cut are put in together, at most
+    // four times a second (not once per file: ~70 times over the first load, each redrawing every widget on screen).
+    private val pendingPieces = HashMap<String, ImageBitmap>()
+    private val pendingIcons = HashMap<String, ImageBitmap>()
+    private val commits = Throttle(PROGRESS_INTERVAL_MS) { System.nanoTime() / 1_000_000 }
+    private val trailing = java.util.concurrent.atomic.AtomicBoolean(false)
 
     private val iconsByFile: Map<Int, List<String>> = iconDefs.keys().asSequence().toList()
         .groupBy { iconDefs.getJSONObject(it).getInt("f") }
@@ -137,9 +147,10 @@ class WarArt private constructor(private val dir: File, private val doc: JSONObj
                 }
                 if (again) continue else break
             }
+            publish(commitAll = true)
             withTimeoutOrNull((next - System.currentTimeMillis()).coerceAtLeast(250L)) { wake.receive() }
         }
-        publish()
+        publish(commitAll = true)
     }
 
     private suspend fun one(id: Int) {
@@ -160,11 +171,35 @@ class WarArt private constructor(private val dir: File, private val doc: JSONObj
         publish()
     }
 
-    private fun publish() {
+    /** Puts the pictures cut since the last time into the observable maps, in one change ([all]: whatever the interval). */
+    private fun commit(all: Boolean) {
+        val p: Map<String, ImageBitmap>
+        val i: Map<String, ImageBitmap>
+        synchronized(pendingPieces) {
+            if (pendingPieces.isEmpty() && pendingIcons.isEmpty()) return
+            if (!commits.offer(urgent = all)) return
+            p = HashMap(pendingPieces); i = HashMap(pendingIcons)
+            pendingPieces.clear(); pendingIcons.clear()
+        }
+        Snapshot.withMutableSnapshot {
+            if (p.isNotEmpty()) pieces.putAll(p)
+            if (i.isNotEmpty()) icons.putAll(i)
+        }
+    }
+
+    private fun publish(commitAll: Boolean = false) {
+        commit(commitAll)
+        val pending = synchronized(pendingPieces) { pendingPieces.size + pendingIcons.size }
+        // held: put in when the interval is up, even if no other file finishes before then
+        if (pending > 0 && trailing.compareAndSet(false, true)) scope.launch {
+            delay(commits.dueIn() ?: 0L)
+            trailing.set(false)
+            publish(commitAll = true)
+        }
         val s = synchronized(book) {
             val now = System.currentTimeMillis()
             ArtStatus(
-                loaded = pieces.size + icons.size, total = total,
+                loaded = pieces.size + icons.size + pending, total = total,
                 failures = book.failures().map { (id, why) -> describe(id) + ": " + why },
                 busy = book.busy, settled = book.settled, nextRetryAt = book.nextRetryAt()?.takeIf { it > now },
             )
@@ -185,7 +220,7 @@ class WarArt private constructor(private val dir: File, private val doc: JSONObj
         val cut = Bitmap.createBitmap(bmp, k, k, bmp.width - 2 * k, bmp.height - 2 * k)
         cut.prepareToDraw()
         val img = cut.asImageBitmap()
-        synchronized(icons) { for (key in iconsByFile[id].orEmpty()) icons[key] = img }
+        synchronized(pendingPieces) { for (key in iconsByFile[id].orEmpty()) pendingIcons[key] = img }
         return true
     }
 
@@ -207,7 +242,7 @@ class WarArt private constructor(private val dir: File, private val doc: JSONObj
                 out.prepareToDraw()
                 cut[name] = out.asImageBitmap()
             }
-            synchronized(pieces) { pieces.putAll(cut) }
+            synchronized(pendingPieces) { pendingPieces.putAll(cut) }
             return true
         } finally {
             sheet.recycle()   // only the sheet: the cut pieces are copies, never recycled while drawn

@@ -9,6 +9,9 @@ import com.logie.wifecraft.creator.M2Files
 import com.logie.wifecraft.creator.Prefetch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
+import com.logie.wifecraft.ui.PROGRESS_INTERVAL_MS
+import com.logie.wifecraft.ui.Throttle
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
@@ -17,6 +20,7 @@ import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
@@ -83,12 +87,15 @@ class GameFiles(private val context: Context) {
     // speed) and backs off when wago.tools, a free community service, asks for less.
     private val pool = Executors.newFixedThreadPool(MAX_PARALLEL)
     private val limiter = FetchLimiter(Settings(context).downloadSpeed).also { l ->
-        l.onChange = { _progress.value = _progress.value.copy(parallel = l.limit, parallelCeiling = l.ceiling) }
+        l.onChange = { _progress.update { it.copy(parallel = l.limit, parallelCeiling = l.ceiling) } }
     }
 
     /** Download speed (Settings.CHOICES), in force on the running download at once. */
     fun setDownloadSpeed(n: Int) = limiter.setCeiling(n.coerceIn(1, MAX_PARALLEL))
     private val cancelled = AtomicBoolean(false)
+    private val ticks = Throttle(PROGRESS_INTERVAL_MS) { System.nanoTime() / 1_000_000 }
+    private val tickTimer = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "game-files-progress").apply { isDaemon = true } }
+    private val tickScheduled = AtomicBoolean(false)
     private var job: Thread? = null
 
     /**
@@ -128,7 +135,7 @@ class GameFiles(private val context: Context) {
             })
         }
         looksMarker()?.takeIf { it.first == tablesKey() }?.let { (_, bytes, count) -> looks = Looks(count, bytes, count, true, true, 0) }
-        _progress.value = _progress.value.copy(parallel = limiter.limit, parallelCeiling = limiter.ceiling)
+        _progress.update { it.copy(parallel = limiter.limit, parallelCeiling = limiter.ceiling) }
         refresh()
         // the creator's files left half way: counted off the main thread (thousands of files)
         if (!looks.complete) Thread { countLooks(); refresh() }.apply { name = "game-files-count" }.start()
@@ -165,10 +172,12 @@ class GameFiles(private val context: Context) {
         val all = packs.all { it.name in complete } && TABLES in complete && LOOKS in complete
         // (the tables' size is an estimate: all here is all done)
         if (all) done = totalBytes
-        _progress.value = _progress.value.copy(
-            done = done.coerceAtMost(totalBytes), total = totalBytes, estimated = !l.complete,
-            files = files, filesTotal = filesTotal(), filesExact = l.exact, complete = complete, allDone = all,
-        )
+        _progress.update {
+            it.copy(
+                done = done.coerceAtMost(totalBytes), total = totalBytes, estimated = !l.complete,
+                files = files, filesTotal = filesTotal(), filesExact = l.exact, complete = complete, allDone = all,
+            )
+        }
     }
 
     private fun filesTotal(): Int = packs.sumOf { it.files.size } + GameTables.NAMES.size + looks.count
@@ -184,19 +193,29 @@ class GameFiles(private val context: Context) {
         if (job?.isAlive == true) return
         cancelled.set(false)
         if (wifiOnly && !onWifi()) {
-            _progress.value = _progress.value.copy(running = false, waitingForWifi = true, error = null)
+            _progress.update { it.copy(running = false, waitingForWifi = true, error = null) }
             return
         }
-        _progress.value = _progress.value.copy(running = true, waitingForWifi = false, error = null, failed = emptyList())
+        _progress.update { it.copy(running = true, waitingForWifi = false, error = null, failed = emptyList()) }
         job = Thread {
             val failed = ConcurrentHashMap.newKeySet<Int>()
             var error: String? = null
             try {
                 val done = AtomicLong(packs.sumOf { p -> p.files.filter { has(it.first) }.sumOf { it.second } } + tableBytes() + looks.haveBytes)
                 val count = AtomicInteger(_progress.value.files)
-                fun post() = _progress.value.let { p ->
-                    _progress.value = p.copy(done = done.get().coerceAtMost(totalBytes), total = totalBytes, files = count.get(),
+                fun emit() = _progress.update { p ->
+                    p.copy(done = done.get().coerceAtMost(totalBytes), total = totalBytes, files = count.get(),
                         filesTotal = filesTotal(), filesExact = looks.exact, estimated = !looks.complete, failed = failed.sortedBy { it })
+                }
+                // a tick per file, up to 96 at once: to the screen at most 4 a second (a failure at once), the last never lost
+                fun post(urgent: Boolean = false) {
+                    if (ticks.offer(urgent)) emit()
+                    else if (tickScheduled.compareAndSet(false, true)) {
+                        tickTimer.schedule(Runnable {
+                            tickScheduled.set(false)
+                            if (ticks.flush()) emit()
+                        }, ticks.dueIn() ?: 0L, TimeUnit.MILLISECONDS)
+                    }
                 }
                 /** Fetches [ids] that aren't here, four at a time; each one's bytes from [size] (null: its length on the phone). */
                 fun fetchAll(ids: Collection<Int>, size: (Int) -> Long?, got: (Int, Long) -> Unit = { _, _ -> }): Int {
@@ -205,10 +224,11 @@ class GameFiles(private val context: Context) {
                         if (has(id)) continue
                         tasks += pool.submit {
                             if (cancelled.get()) return@submit
+                            var lost = false
                             try {
                                 fetch(id)
                             } catch (e: Exception) {
-                                if (!cancelled.get()) failed += id
+                                if (!cancelled.get()) { failed += id; lost = true }
                             }
                             if (has(id)) {
                                 val bytes = size(id) ?: file(id).length()
@@ -217,7 +237,7 @@ class GameFiles(private val context: Context) {
                                 count.incrementAndGet()
                                 failed -= id
                             }
-                            post()
+                            post(urgent = lost)
                         }
                     }
                     for (t in tasks) t.get()
@@ -225,17 +245,17 @@ class GameFiles(private val context: Context) {
                 }
                 fun tables() {
                     if (cancelled.get() || tablesComplete) return
-                    _progress.value = _progress.value.copy(current = TABLES)
+                    _progress.update { it.copy(current = TABLES) }
                     GameTables.fetch(tablesDir, stop = { cancelled.get() }) { name, _, _ ->
                         done.addAndGet(File(tablesDir, "$name.csv").length())
                         count.incrementAndGet()
                         post()
                     }
-                    if (tablesComplete) _progress.value = _progress.value.copy(complete = _progress.value.complete + TABLES)
+                    if (tablesComplete) _progress.update { it.copy(complete = it.complete + TABLES) }
                 }
                 fun looks() {
                     if (cancelled.get() || !tablesComplete || looksComplete) return
-                    _progress.value = _progress.value.copy(current = LOOKS)
+                    _progress.update { it.copy(current = LOOKS) }
                     val plan = try {
                         plan() ?: return
                     } catch (e: Exception) {
@@ -270,7 +290,7 @@ class GameFiles(private val context: Context) {
                         val bytes = order.sumOf { file(it).length() }
                         writeAtomic(looksDoneFile, "${tablesKey()} $bytes ${order.size}\n")
                         looks = Looks(order.size, bytes, order.size, true, true, 0)
-                        _progress.value = _progress.value.copy(complete = _progress.value.complete + LOOKS)
+                        _progress.update { it.copy(complete = it.complete + LOOKS) }
                     } else countLooks(plan)
                 }
                 for (p in packs) {
@@ -278,28 +298,30 @@ class GameFiles(private val context: Context) {
                     // the creator's files before the music: the music is the one thing a story goes without
                     if (p.name == "sound") looks()
                     if (cancelled.get()) break
-                    _progress.value = _progress.value.copy(current = p.name)
+                    _progress.update { it.copy(current = p.name) }
                     val sizes = p.files.toMap()
                     fetchAll(sizes.keys, { sizes[it] })
-                    if (!cancelled.get() && p.files.all { has(it.first) }) _progress.value = _progress.value.copy(complete = _progress.value.complete + p.name)
+                    if (!cancelled.get() && p.files.all { has(it.first) }) _progress.update { it.copy(complete = it.complete + p.name) }
                     // the creator's tables right after the interface: the editor needs them, the city can follow
                     if (p.name == "interface") tables()
                 }
                 tables()
                 looks()
+                ticks.flush()   // a held tick is older than what follows: dropped
                 refresh()
-                _progress.value = _progress.value.copy(running = false, current = "", failed = failed.sortedBy { it }, error = error)
+                _progress.update { p -> p.copy(running = false, current = "", failed = failed.sortedBy { it }, error = error) }
             } catch (e: Exception) {
                 val cause = (e.cause ?: e)
+                ticks.flush()
                 refresh()
-                _progress.value = _progress.value.copy(running = false, current = "", failed = failed.sortedBy { it }, error = cause.message ?: cause.toString())
+                _progress.update { p -> p.copy(running = false, current = "", failed = failed.sortedBy { it }, error = cause.message ?: cause.toString()) }
             }
         }.apply { name = "game-files"; start() }
     }
 
     fun pause() {
         cancelled.set(true)
-        _progress.value = _progress.value.copy(running = false)
+        _progress.update { it.copy(running = false) }
     }
 
     /**

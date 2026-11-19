@@ -20,6 +20,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -124,9 +128,10 @@ fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig)
         rigBones = if (hasRig) withContext(Dispatchers.IO) { RigImport.load(rigs)?.bones?.size } else null
     }
     BackHandler {
-        when (phase) {
-            Phase.Running -> Unit   // the import finishes first (it never leaves files behind)
-            Phase.Review -> phase = Phase.Pick
+        when {
+            newCategory != null -> newCategory = null   // the open dialog first
+            phase == Phase.Running -> Unit   // the import finishes first (it never leaves files behind)
+            phase == Phase.Review -> phase = Phase.Pick
             else -> onBack()
         }
     }
@@ -187,7 +192,9 @@ fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig)
     EditorFrame("Import Animations", { if (phase != Phase.Running) { if (phase == Phase.Review) phase = Phase.Pick else onBack() } },
         // the animation library (the title keeps six buttons: it is reached from here and from the editor's Game Menu)
         actions = { if (onLibrary != null && phase != Phase.Running) TextAction("Animations", onLibrary) }) {
-        when (phase) {
+        // one step gives way to the next with a short cross-fade (none under reduced motion)
+        Crossfade(phase, animationSpec = tween(MenuMotion.duration(MenuMotion.PAGE_MS, reduceMotion())), label = "phase") { step ->
+        when (step) {
             Phase.Pick -> PickPage(
                 hasRig, rigBones, rigMessage, rigBusy, run,
                 onRig = { pickRig.launch(arrayOf("*/*")) },
@@ -206,7 +213,7 @@ fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig)
             Phase.Saved -> Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(ReviewDraft.summary(saved) + ".", style = frizStyle(18.sp))
                 LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    itemsIndexed(saved) { _, o ->
+                    itemsIndexed(saved, key = { i, _ -> i }, contentType = { _, o -> o::class.simpleName }) { _, o ->
                         val (txt, col) = when (o) {
                             is SaveOutcome.Added -> (o.renamedFrom?.let { "${o.name}: a name like \"$it\" was already taken" } ?: o.name) to Color.White
                             is SaveOutcome.Duplicate -> "${o.name}: already in the library as \"${o.existing}\", skipped" to WowColors.grey
@@ -221,16 +228,19 @@ fun AnimImportScreen(library: AnimLibrary, rigs: RigStore, retargeter: (SimsRig)
                 }
             }
         }
+        }
     }
 
-    newCategory?.let { target ->
-        NameDialog("New category", "", "Use", { newCategory = null }) { name ->
+    // fades out still showing itself; a new one never inherits the last one's typing (key)
+    rememberHeld(newCategory)?.let { target -> key(target) {
+        NameDialog("New category", "", "Use", { newCategory = null }, visible = newCategory != null) { name ->
+            if (newCategory == null) return@NameDialog
             newCategory = null
             val c = AnimText.category(name)
             draft?.let { d -> if (target < 0) d.setAllCategories(c) else d.setCategory(target, c) }
             rev++
         }
-    }
+    } }
 }
 
 @Composable
@@ -254,13 +264,14 @@ private fun PickPage(hasRig: Boolean, bones: Int?, rigMessage: String?, rigBusy:
         if (!hasRig) Text("Without the skeleton the files can still be picked, but each is reported as failed.", style = frizStyle(12.sp, WowColors.grey, false))
         if (last.rows.isNotEmpty()) {
             Text("Last import: ${last.summary()}", style = frizStyle(14.sp))
-            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) { rowsList(last.rows) }
+            LazyColumn(Modifier.weight(1f), rememberLazyListState(), verticalArrangement = Arrangement.spacedBy(3.dp)) { rowsList(last.rows) }
         }
     }
 }
 
 private fun androidx.compose.foundation.lazy.LazyListScope.rowsList(rows: List<ImportRow>) {
-    itemsIndexed(rows) { _, r ->
+    // rows are only ever added at the end: the place is the key
+    itemsIndexed(rows, key = { i, _ -> i }, contentType = { _, r -> if (r.note.isEmpty()) 0 else 1 }) { _, r ->
         val col = when (r.status) {
             ItemStatus.DONE -> Color(0xFF7CFC7C)
             ItemStatus.FAILED -> Color(0xFFFF6A5A)
@@ -277,8 +288,15 @@ private fun androidx.compose.foundation.lazy.LazyListScope.rowsList(rows: List<I
 @Composable
 private fun ProgressPage(run: ImportRun) {
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Converting… ${run.summary()}", style = frizStyle(16.sp))
-        LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) { rowsList(run.rows) }
+        Text("Converting… ${run.summary()}", style = frizStyle(16.sp), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        // follows the newest file while it is at the bottom (scrolled up to read, it stays where it was put)
+        val list = rememberLazyListState()
+        val n = run.rows.size
+        LaunchedEffect(n) {
+            val last = list.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+            if (n > 0 && last >= n - 3) list.animateScrollToItem(n - 1)
+        }
+        LazyColumn(Modifier.weight(1f).warScrollbar(list), list, verticalArrangement = Arrangement.spacedBy(3.dp)) { rowsList(run.rows) }
     }
 }
 
@@ -297,7 +315,8 @@ private fun ReviewPage(
             }
         }
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            itemsIndexed(d.items) { i, it ->
+            // the items never move or go (Skip keeps them): the place is the key
+            itemsIndexed(d.items, key = { i, _ -> i }, contentType = { _, _ -> "item" }) { i, it ->
                 Column(
                     Modifier.fillMaxWidth().padding(bottom = 2.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),

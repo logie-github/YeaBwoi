@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -59,15 +60,18 @@ fun EditorFrame(
     }
 }
 
-/** A row on a list over the dark glass: warm, rounded, gold-edged, lit when [selected]. */
+/**
+ * A row on a list over the dark glass: warm, rounded, gold-edged, lit when [selected]. [onClick] null: the row itself does
+ * nothing (its own buttons do), so it neither sinks nor clicks when touched.
+ */
 @Composable
-fun EditorCard(onClick: () -> Unit, selected: Boolean = false, content: @Composable RowScope.() -> Unit) {
+fun EditorCard(onClick: (() -> Unit)?, modifier: Modifier = Modifier, selected: Boolean = false, content: @Composable RowScope.() -> Unit) {
     val shape = androidx.compose.foundation.shape.RoundedCornerShape(WarSize.R_CARD.dp)
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp)
+        modifier.fillMaxWidth().heightIn(min = 56.dp)
             .background(if (selected) Color(0x66E3A33B) else Color(0x803A2414), shape)
             .border(if (selected) 2.dp else 1.dp, if (selected) War.gold else Color(0x88B08850), shape)
-            .warPress(onClick = onClick)
+            .then(if (onClick != null) Modifier.warPress(onClick = onClick) else Modifier)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -84,11 +88,11 @@ fun SmallButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
 fun EditorField(value: String, onChange: (String) -> Unit, hint: String, modifier: Modifier = Modifier, singleLine: Boolean = true) =
     WarField(value, onChange, hint, modifier.fillMaxWidth(), singleLine = singleLine)
 
-/** A name to type, in a small WoW window over the screen. */
+/** A name to type, in a small WoW window over the screen. [visible] false: it fades out (shown with it, it fades in and out). */
 @Composable
-fun NameDialog(title: String, initial: String, ok: String, onCancel: () -> Unit, onOk: (String) -> Unit) {
+fun NameDialog(title: String, initial: String, ok: String, onCancel: () -> Unit, visible: Boolean = true, onOk: (String) -> Unit) {
     var text by remember { mutableStateOf(initial) }
-    Overlay(onCancel) {
+    Overlay(onCancel, visible) {
         WowWindow(title, onCancel, Modifier.widthIn(max = 480.dp).padding(16.dp)) {
             WowTextField(text, { text = it.take(60) }, "Name", Modifier.fillMaxWidth())
             Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -101,8 +105,8 @@ fun NameDialog(title: String, initial: String, ok: String, onCancel: () -> Unit,
 
 /** A question in a small WoW window: Cancel and [ok]. */
 @Composable
-fun ConfirmDialog(question: String, ok: String, onCancel: () -> Unit, onOk: () -> Unit) {
-    Overlay(onCancel) {
+fun ConfirmDialog(question: String, ok: String, onCancel: () -> Unit, onOk: () -> Unit, visible: Boolean = true) {
+    Overlay(onCancel, visible) {
         WowWindow(if (ok == "Delete") "Delete" else ok, onCancel, Modifier.widthIn(max = 480.dp).padding(16.dp)) {
             Text(question, style = frizStyle(15.sp, Color.White), modifier = Modifier.padding(vertical = 6.dp))
             Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -115,11 +119,14 @@ fun ConfirmDialog(question: String, ok: String, onCancel: () -> Unit, onOk: () -
 
 /** A list of (id, label) to pick one from, in a WoW list window over the screen. */
 @Composable
-fun PickDialog(title: String, items: List<Pair<String, String>>, current: String?, onCancel: () -> Unit, onPick: (String) -> Unit) {
-    Overlay(onCancel) {
+fun PickDialog(title: String, items: List<Pair<String, String>>, current: String?, onCancel: () -> Unit, visible: Boolean = true, onPick: (String) -> Unit) {
+    Overlay(onCancel, visible) {
         WowWindow(title, onCancel, Modifier.widthIn(max = 520.dp).heightIn(max = 520.dp).padding(16.dp)) {
-            LazyColumn(Modifier.weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                items(items, key = { it.first }) { (id, label) ->
+            // opens on the chosen one, not at the top of a long list; keys stay unique even if two ids repeat
+            val keys = remember(items) { ListKeys.unique(items.map { it.first }) }
+            val list = rememberLazyListState(initialFirstVisibleItemIndex = items.indexOfFirst { it.first == current }.let { if (it > 0) it - 1 else 0 })
+            LazyColumn(Modifier.weight(1f, fill = false).warScrollbar(list), list, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                items(items.size, key = { keys[it] }, contentType = { "row" }) { i -> val (id, label) = items[i]
                     WowListRow(label, null, selected = id == current, onClick = { onPick(id) })
                 }
             }
@@ -137,8 +144,10 @@ fun PickRow(label: String, items: List<Pair<String, String>>, current: String?, 
         Box(
             Modifier.weight(1f).heightIn(min = 48.dp).background(War.cream, shape).border(1.dp, War.edge, shape).warPress { open = true }.padding(12.dp),
         ) {
-            Text((items.firstOrNull { it.first == current }?.second ?: current ?: "").ifEmpty { "Choose" }, style = warText(15.sp), maxLines = 1)
+            Text((items.firstOrNull { it.first == current }?.second ?: current ?: "").ifEmpty { "Choose" }, style = warText(15.sp), maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
     }
-    if (open) PickDialog(label, items, current, { open = false }) { open = false; onPick(it) }
+    // kept composed so it can fade out (it draws nothing once it has gone); a pick or Cancel during the fade does nothing more
+    PickDialog(label, items, current, { open = false }, visible = open) { if (open) { open = false; onPick(it) } }
 }

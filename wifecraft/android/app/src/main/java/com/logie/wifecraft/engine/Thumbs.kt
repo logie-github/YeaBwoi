@@ -71,20 +71,32 @@ class Thumbs(context: Context, private val files: GameFiles, private val scene: 
     fun cached(kind: PlaceKind, asset: Int, size: Int): Bitmap? = memory.get(keyOf(kind, asset, size))
 
     /**
+     * An NPC's picture if it is in memory now, else null: the grid's first frame shows it at once (a card scrolled back
+     * into sight never flashes its placeholder while [requestNpc]'s answer is on its way).
+     */
+    fun cachedNpc(appearance: Appearance, asset: Int, size: Int = 160): Bitmap? = memory.get(keyOf(PlaceKind.NPC, asset, size, appearance))
+
+    /** A request's handle: [cancel] drops its answer (a card scrolled out of sight); a picture nobody waits for any more is not made. */
+    fun interface Ticket { fun cancel() }
+
+    /**
      * Asks for the picture of [asset] ([PlaceKind.PROP]: a model or WMO file id; [PlaceKind.CREATURE]: a creature display;
      * an NPC needs its look: [requestNpc]) at [size] pixels square; [onReady] on the main thread (null: it couldn't be made,
-     * [errors] says why). The newest asked comes first.
+     * [errors] says why), unless the returned ticket was cancelled first. The newest asked comes first.
      */
-    fun request(kind: PlaceKind, asset: Int, size: Int = 160, onReady: (Bitmap?) -> Unit) = ask(kind, asset, size, null, onReady)
+    fun request(kind: PlaceKind, asset: Int, size: Int = 160, onReady: (Bitmap?) -> Unit): Ticket = ask(kind, asset, size, null, onReady)
 
     /** An NPC's picture in its [appearance] ([asset] any number of the caller's: it only names the picture). */
-    fun requestNpc(appearance: Appearance, asset: Int, size: Int = 160, onReady: (Bitmap?) -> Unit) = ask(PlaceKind.NPC, asset, size, appearance, onReady)
+    fun requestNpc(appearance: Appearance, asset: Int, size: Int = 160, onReady: (Bitmap?) -> Unit): Ticket =
+        ask(PlaceKind.NPC, asset, size, appearance, onReady)
 
-    private fun ask(kind: PlaceKind, asset: Int, size: Int, appearance: Appearance?, onReady: (Bitmap?) -> Unit) {
+    private val done = Ticket { }
+
+    private fun ask(kind: PlaceKind, asset: Int, size: Int, appearance: Appearance?, onReady: (Bitmap?) -> Unit): Ticket {
         val key = keyOf(kind, asset, size, appearance)
-        memory.get(key)?.let { onReady(it); return }
-        if (kind == PlaceKind.NPC && appearance == null) { onReady(null); return }
-        running[key]?.let { it.waiting += onReady; return }
+        memory.get(key)?.let { onReady(it); return done }
+        if (kind == PlaceKind.NPC && appearance == null) { onReady(null); return done }
+        running[key]?.let { job -> job.waiting += onReady; return ticketOf(job, onReady) }
         val old = queue.firstOrNull { it.key == key }
         val job = old ?: Job(key, kind, asset, size, appearance)
         if (old != null) queue.remove(old)
@@ -92,6 +104,13 @@ class Thumbs(context: Context, private val files: GameFiles, private val scene: 
         queue.addLast(job)
         while (queue.size > QUEUE) queue.removeFirst()   // the oldest asked: scrolled out of sight
         next()
+        return ticketOf(job, onReady)
+    }
+
+    /** Main thread: takes [onReady] off [job]; a job still queued that nobody waits for leaves the queue. */
+    private fun ticketOf(job: Job, onReady: (Bitmap?) -> Unit) = Ticket {
+        job.waiting.remove(onReady)
+        if (job.waiting.isEmpty()) queue.remove(job)
     }
 
     /** Forgets every picture still waiting (one being made finishes and is kept). */

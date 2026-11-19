@@ -41,6 +41,18 @@ enum class SceneObject(val label: String, val model: Int, val position: Vec3, va
 
 data class InteractionSpot(val entry: Vec3, val pose: Vec3, val facing: Float)
 
+/**
+ * One person as the renderer wants them this frame ([SceneSimulation.pose] fills it; reused, never one a frame): where they
+ * are and face, what they do, the furniture they are on (null: the floor) and the floor spot beside it ([ex], [ey], [ez]).
+ */
+class Pose {
+    var x = 0f; var y = 0f; var z = 0f
+    var facing = 0f
+    var activity = Activity.IDLE
+    var furniture: SceneObject? = null
+    var ex = 0f; var ey = 0f; var ez = 0f
+}
+
 class SceneSimulation(
     actorIds: List<String>,
     val objects: Set<SceneObject>,
@@ -58,12 +70,26 @@ class SceneSimulation(
     }.toMutableMap() else mutableMapOf()
 
     fun setSpot(item: SceneObject, spot: InteractionSpot) {
-        if (item in objects) spots[item] = spot
+        if (item in objects) { spots[item] = spot; version++ }
     }
+
+    /**
+     * Goes up whenever what a menu shows changes (someone's activity, whether they were directed, who holds which object,
+     * the spots measured); positions alone never move it. The live screen redraws its menus only when this moved.
+     */
+    var version = 0L
+        private set
 
     private enum class Phase { WAITING, MOVING, ACTING }
 
-    private class Actor(val id: String, var position: Vec3, var facing: Float, var remaining: Float) {
+    private class Actor(val id: String, start: Vec3, var facing: Float, var remaining: Float) {
+        // the position as plain numbers: walking moves them every tick without making a Vec3
+        var x = start.x
+        var y = start.y
+        var z = start.z
+        var position: Vec3
+            get() = Vec3(x, y, z)
+            set(v) { x = v.x; y = v.y; z = v.z }
         var phase = Phase.WAITING
         var destination = position
         var activity = Activity.IDLE
@@ -75,6 +101,34 @@ class SceneSimulation(
     private val actors = actorIds.distinct().mapIndexed { i, id ->
         Actor(id, Vec3((i % 3 - 1) * 1.2f, -0.6f + (i / 3) * 1.45f, 0f), -1.4f, 0.6f + i * 0.45f)
     }.associateBy { it.id }
+    /** The actors in the cast's order, for the per-frame reads ([count], [pose]) that index them. */
+    private val order = actors.values.toList()
+    // reused by [choose] (a decision makes no new lists)
+    private val optionScratch = ArrayList<SceneObject>(objects.size)
+    private val peopleScratch = ArrayList<Actor>(order.size)
+
+    /** How many people are on stage (the indices [pose] takes, in the cast's order). */
+    val count: Int get() = order.size
+
+    fun id(index: Int): String = order[index].id
+
+    /** What the renderer needs of person [index] this tick, written into [out] (nothing allocated: once a frame). */
+    fun pose(index: Int, out: Pose) {
+        val a = order[index]
+        out.x = a.x; out.y = a.y; out.z = a.z
+        out.facing = a.facing
+        out.activity = if (a.phase == Phase.MOVING) Activity.WALK else a.activity
+        val item = a.target.takeIf { a.phase == Phase.ACTING }
+        out.furniture = item
+        val entry = item?.let { spots[it]?.entry }
+        if (entry != null) { out.ex = entry.x; out.ey = entry.y; out.ez = entry.z } else { out.ex = a.x; out.ey = a.y; out.ez = a.z }
+    }
+
+    /** Whether [item]'s spot has been measured (it can be used). */
+    fun measured(item: SceneObject): Boolean = item in spots
+
+    /** Who holds [item] (walking to it or using it), or null. */
+    fun holder(item: SceneObject): String? = order.firstOrNull { it.target == item }?.id
 
     fun people(): List<Person> = actors.values.map { actor ->
         val item = actor.target.takeIf { actor.phase == Phase.ACTING }
@@ -105,20 +159,20 @@ class SceneSimulation(
     }
 
     fun tick(seconds: Float) {
-        val dt = seconds.coerceIn(0f, 0.1f)
-        for (actor in actors.values) {
+        val dt = if (seconds.isNaN()) 0f else seconds.coerceIn(0f, 0.1f)
+        for (actor in order) {
             when (actor.phase) {
                 Phase.WAITING -> {
                     actor.remaining -= dt
                     if (actor.remaining <= 0f) choose(actor)
                 }
                 Phase.MOVING -> {
-                    val delta = actor.destination - actor.position
-                    val flat = Vec3(delta.x, delta.y, 0f)
-                    val step = dt * 1.25f
-                    val distance = hypot(flat.x, flat.y)
+                    val dx = actor.destination.x - actor.x
+                    val dy = actor.destination.y - actor.y
+                    val step = dt * WALK_SPEED
+                    val distance = hypot(dx, dy)
                     if (distance <= step) arrive(actor)
-                    else actor.position += flat * (step / distance)
+                    else { actor.x += dx * (step / distance); actor.y += dy * (step / distance) }
                 }
                 Phase.ACTING -> {
                     if (actor.activity == Activity.LISTEN) continue
@@ -130,8 +184,8 @@ class SceneSimulation(
     }
 
     private fun choose(actor: Actor) {
-        val options = objects.filter { available(it, actor.id) }
-        val people = actors.values.filter { it !== actor && it.phase == Phase.WAITING }
+        val options = optionScratch.apply { clear(); for (o in objects) if (available(o, actor.id)) add(o) }
+        val people = peopleScratch.apply { clear(); for (o in order) if (o !== actor && o.phase == Phase.WAITING) add(o) }
         val choice = random.nextInt(options.size + people.size + 1)
         when {
             choice < options.size -> options[choice].let { begin(actor, it.action, spots.getValue(it).entry, false, it) }
@@ -149,10 +203,12 @@ class SceneSimulation(
         other.partner = actor
         other.activity = Activity.LISTEN
         other.phase = Phase.ACTING
+        version++
     }
 
     private fun begin(actor: Actor, activity: Activity, destination: Vec3, directed: Boolean, target: SceneObject? = null) {
         release(actor)
+        version++
         actor.activity = activity
         actor.target = target
         actor.directed = directed
@@ -163,6 +219,7 @@ class SceneSimulation(
     }
 
     private fun arrive(actor: Actor) {
+        version++
         actor.position = actor.destination
         actor.phase = Phase.ACTING
         actor.remaining = durations[actor.activity]?.takeIf { it.isFinite() && it > 0f } ?: actor.activity.seconds
@@ -178,11 +235,12 @@ class SceneSimulation(
     }
 
     private fun release(actor: Actor) {
+        version++
         val partner = actor.partner
         actor.partner = null
         if (actor.phase == Phase.ACTING) actor.target?.let { actor.position = spots.getValue(it).entry }
         actor.target = null
-        actor.position = actor.position.copy(z = 0f)
+        actor.z = 0f
         actor.activity = Activity.IDLE
         actor.phase = Phase.WAITING
         actor.remaining = 1.25f + random.nextFloat() * 2f
@@ -191,5 +249,10 @@ class SceneSimulation(
             partner.partner = null
             release(partner)
         }
+    }
+
+    companion object {
+        /** Yards a second a person walks. */
+        const val WALK_SPEED = 1.25f
     }
 }

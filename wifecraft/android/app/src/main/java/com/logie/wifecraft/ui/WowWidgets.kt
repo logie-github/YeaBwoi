@@ -10,6 +10,12 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.unit.em
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
@@ -60,13 +66,22 @@ fun frizStyle(size: TextUnit, color: Color = WowColors.gold, shadow: Boolean = t
     return TextStyle(
         fontFamily = art?.friz ?: FontFamily.Serif, fontSize = size, color = color,
         shadow = if (shadow) WowColors.shadow else null,
-    )
+    ).steadyLines()
 }
+
+/**
+ * A line as tall as the words' size says, whatever font draws them: the stand-in serif until the game's Friz and Morpheus
+ * arrive, then those. Without it every label, row and window grows or shrinks a little the moment the fonts load.
+ */
+fun TextStyle.steadyLines(): TextStyle = copy(
+    lineHeight = 1.25.em,
+    lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None),
+)
 
 @Composable
 fun morpheusStyle(size: TextUnit, color: Color = WowColors.gold): TextStyle {
     val art = LocalArt.current
-    return TextStyle(fontFamily = art?.morpheus ?: FontFamily.Serif, fontSize = size, color = color, shadow = WowColors.shadow)
+    return TextStyle(fontFamily = art?.morpheus ?: FontFamily.Serif, fontSize = size, color = color, shadow = WowColors.shadow).steadyLines()
 }
 
 fun DrawScope.piece(p: Piece?, x: Float, y: Float, w: Float, h: Float, alpha: Float = 1f) {
@@ -98,11 +113,15 @@ fun WowButton(
         pressed -> art?.redPressed
         else -> art?.red
     }
+    val reduced = reduceMotion()
+    val sink by animateFloatAsState(MenuMotion.pressScale(pressed && enabled, reduced), tween(MenuMotion.duration(MenuMotion.PRESS_MS, reduced)), label = "press")
+    val gate = rememberClickGate()
     Box(
         modifier
             .width(width)
             .height(height)
-            .clickable(source, null, enabled = enabled, role = Role.Button, onClick = { click("click"); onClick() })
+            .graphicsLayer { scaleX = sink; scaleY = sink }
+            .clickable(source, null, enabled = enabled, role = Role.Button, onClick = { if (gate.pass()) { click("click"); onClick() } })
             .drawBehind {
                 if (pieces?.left == null || pieces.center == null || pieces.right == null) {
                     drawRect(if (enabled) Color(0xFF7A0E0A) else Color(0xFF3A3A3A))
@@ -123,7 +142,8 @@ fun WowButton(
             },
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, style = frizStyle(15.sp, if (enabled) WowColors.gold else WowColors.grey), textAlign = TextAlign.Center)
+        Text(text, style = frizStyle(15.sp, if (enabled) WowColors.gold else WowColors.grey), textAlign = TextAlign.Center, maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
     }
 }
 
@@ -196,10 +216,7 @@ fun TalkingHead(name: String, text: String, revealed: Int, parchment: Boolean, m
         }
         if (more) {
             Canvas(Modifier.align(Alignment.BottomEnd).padding(4.dp).width(14.dp).height(10.dp)) {
-                val path = androidx.compose.ui.graphics.Path().apply {
-                    moveTo(0f, 0f); lineTo(size.width, 0f); lineTo(size.width / 2, size.height); close()
-                }
-                drawPath(path, WowColors.gold)
+drawPath(downArrowPath(0f, 0f, size.width, size.height), WowColors.gold)
             }
         }
     }
@@ -264,7 +281,7 @@ fun LoadingBar(progress: Float, modifier: Modifier = Modifier) {
 fun GossipOption(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val art = LocalArt.current
     androidx.compose.foundation.layout.Row(
-        modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).padding(vertical = 6.dp, horizontal = 6.dp),
+        modifier.fillMaxWidth().heightIn(min = 48.dp).warPress(onClick = onClick).padding(vertical = 6.dp, horizontal = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Canvas(Modifier.width(22.dp).height(22.dp)) {

@@ -2,6 +2,8 @@ package com.logie.wifecraft.ui
 
 import android.graphics.Bitmap
 import android.graphics.Typeface
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontFamily
@@ -11,16 +13,20 @@ import com.logie.wifecraft.data.GameFiles
 import com.logie.wifecraft.engine.Native
 
 /** A piece of a texture: the image and where in it (UiTextureAtlasMember's left, right, top, bottom). */
+@Immutable
 data class Piece(val image: ImageBitmap, val offset: IntOffset, val size: IntSize)
 
 /**
  * WoW's own interface, from the game's files once they're downloaded: Legion's talking-head box,
  * the red panel buttons, the metal window frame, the gossip parchment, reputation bars, the
  * achievement toast, the loading bar, Dalaran's loading art, and the game's fonts. Null pieces
- * (before the download) fall back to plain drawing.
+ * (before the download) fall back to plain drawing. Every texture is decoded as it is built (WowArt.load, off the main
+ * thread), never as a widget reads it: the composition only reads what is here.
  */
+@Stable
 class WowArt private constructor(private val files: GameFiles, private val decode: (Int, Int) -> Bitmap?) {
-    private val images = mutableMapOf<Int, ImageBitmap?>()
+    // only read while the constructor runs (on WowArt.load's thread): every piece below is cut then
+    private val images = HashMap<Int, ImageBitmap?>()
 
     private fun image(id: Int, maxSize: Int = 4096): ImageBitmap? = images.getOrPut(id) {
         if (!files.has(id)) return@getOrPut null
@@ -89,6 +95,7 @@ class WowArt private constructor(private val files: GameFiles, private val decod
 
     val ready: Boolean get() = talkDark != null && red.left != null && cornerTL != null
 
+    @Immutable
     data class ButtonPieces(val left: Piece?, val center: Piece?, val right: Piece?)
 
     companion object {
