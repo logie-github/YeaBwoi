@@ -340,6 +340,7 @@ class MainActivity : ComponentActivity() {
         // Options' Time page: the life simulation's switch and the world clock's settings
         var lifeOn by remember { mutableStateOf(settings.lifeSimulation) }
         var clockSettings by remember { mutableStateOf(settings.clock) }
+        var cinematicSettings by remember { mutableStateOf(settings.cinematic) }
         var partnerOn by remember { mutableStateOf(settings.partnerSoundsOn) }
         var partnerVolume by remember { mutableIntStateOf(settings.partnerSoundVolume) }
         val partnerSink = remember {
@@ -777,6 +778,8 @@ class MainActivity : ComponentActivity() {
                             worldClock = worldClock,
                             clockSettings = clockSettings,
                             onTimeOfDay = { hours, perHour -> audio?.timeOfDay(hours, perHour) },
+                            cinematicSettings = cinematicSettings,
+                            onCinematic = { on -> audio?.cinematic(on) },
                             onLifeSave = { life, clock -> lifecycleScope.launch(Dispatchers.IO) { saveLife(lifeStore, life, clock) } },
                             icons = icons,
                         ) } }
@@ -832,6 +835,8 @@ class MainActivity : ComponentActivity() {
                         onClock = { clockSettings = it; settings.clock = it },
                         lifeSimulation = lifeOn,
                         onLifeSimulation = { lifeOn = it; settings.lifeSimulation = it },
+                        cinematic = cinematicSettings,
+                        onCinematic = { cinematicSettings = it; settings.cinematic = it },
                         mods = {
                             Column {
                                 ImportsSection(imports, listfile)

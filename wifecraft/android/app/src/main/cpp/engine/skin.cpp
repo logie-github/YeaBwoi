@@ -111,7 +111,8 @@ void SkinCompositor::releaseGl() {
     ready_ = false;
 }
 
-unsigned SkinCompositor::compose(const std::vector<SkinLayer>& input, const std::function<unsigned(uint32_t)>& texture, int maxSize) {
+unsigned SkinCompositor::compose(const std::vector<SkinLayer>& input, const std::function<unsigned(uint32_t)>& texture, int maxSize,
+                                 const int* window) {
     if (!ready_ || input.empty()) return 0;
     std::vector<SkinLayer> layers = input;
     std::stable_sort(layers.begin(), layers.end(), [](const SkinLayer& a, const SkinLayer& b) { return a.layer < b.layer; });
@@ -119,7 +120,14 @@ unsigned SkinCompositor::compose(const std::vector<SkinLayer>& input, const std:
     for (const SkinLayer& l : layers) { mw = std::max(mw, l.materialW); mh = std::max(mh, l.materialH); }
     if (mw <= 0 || mh <= 0) return 0;
     float scale = std::min(1.0f, float(maxSize) / float(std::max(mw, mh)));
-    int tw = std::max(1, int(std::lround(mw * scale))), th = std::max(1, int(std::lround(mh * scale)));
+    // the rectangle of the material the texture holds (material pixels): all of it, or the window
+    float wx = 0, wy = 0, ww = float(mw), wh = float(mh);
+    if (window && window[2] > 0 && window[3] > 0) {
+        wx = float(std::clamp(window[0], 0, mw)); wy = float(std::clamp(window[1], 0, mh));
+        ww = std::min(float(window[2]), float(mw) - wx); wh = std::min(float(window[3]), float(mh) - wy);
+        if (ww <= 0 || wh <= 0) return 0;
+    }
+    int tw = std::max(1, int(std::lround(ww * scale))), th = std::max(1, int(std::lround(wh * scale)));
 
     GLint prevFbo = 0, prevVp[4];
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo);
@@ -175,8 +183,20 @@ unsigned SkinCompositor::compose(const std::vector<SkinLayer>& input, const std:
             float sy = l.materialH > 0 ? float(mh) / float(l.materialH) : 1.0f;
             x0 = l.x * sx; y0 = l.y * sy; x1 = (l.x + l.w) * sx; y1 = (l.y + l.h) * sy;
         }
+        // (in the window's own pixels)
+        x0 -= wx; x1 -= wx; y0 -= wy; y1 -= wy;
         int px0 = std::max(0, int(std::floor(x0 * scale))), py0 = std::max(0, int(std::floor(y0 * scale)));
         int px1 = std::min(tw, int(std::ceil(x1 * scale))), py1 = std::min(th, int(std::ceil(y1 * scale)));
+        // a mask: only its pixels are painted
+        const bool masked = l.maskW > 0 && l.maskH > 0;
+        if (masked) {
+            float sx = l.materialW > 0 ? float(mw) / float(l.materialW) : 1.0f;
+            float sy = l.materialH > 0 ? float(mh) / float(l.materialH) : 1.0f;
+            px0 = std::max(px0, int(std::floor((float(l.maskX) * sx - wx) * scale)));
+            py0 = std::max(py0, int(std::floor((float(l.maskY) * sy - wy) * scale)));
+            px1 = std::min(px1, int(std::ceil((float(l.maskX + l.maskW) * sx - wx) * scale)));
+            py1 = std::min(py1, int(std::ceil((float(l.maskY + l.maskH) * sy - wy) * scale)));
+        }
         if (px1 <= px0 || py1 <= py0) continue;
         // What lies under the section now, for the blend to read.
         glActiveTexture(GL_TEXTURE1);
@@ -196,7 +216,9 @@ unsigned SkinCompositor::compose(const std::vector<SkinLayer>& input, const std:
         colour(l.tint2, t2);
         glUniform4fv(uTint1, 1, t1);
         glUniform4fv(uTint2, 1, t2);
+        if (masked) { glEnable(GL_SCISSOR_TEST); glScissor(px0, py0, px1 - px0, py1 - py0); }
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        if (masked) glDisable(GL_SCISSOR_TEST);
     }
     glBindSampler(0, 0);
     glBindVertexArray(0);

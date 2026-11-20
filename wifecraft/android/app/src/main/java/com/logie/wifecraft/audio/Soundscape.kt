@@ -92,6 +92,30 @@ class Ducker(val depth: Float = 0.45f, val attackMs: Int = 180, val releaseMs: I
 }
 
 /**
+ * Cinematic mode's music: it eases down to [MUSIC] of its level over [FADE_MS] while the mode runs and back up after (the
+ * ambience stays as it is). [on] sets where it goes; [step] moves [level] on, linear in time; true while it moved.
+ */
+class CinematicMusic {
+    companion object {
+        const val MUSIC = 0.7f
+        const val FADE_MS = 1500
+    }
+
+    var on = false
+    var level = 1f
+        private set
+    val moving: Boolean get() = level != (if (on) MUSIC else 1f)
+
+    fun step(dtMs: Long): Boolean {
+        val t = if (on) MUSIC else 1f
+        if (level == t) return false
+        val delta = (1f - MUSIC) * dtMs / FADE_MS
+        level = if (t < level) max(t, level - delta) else min(t, level + delta)
+        return true
+    }
+}
+
+/**
  * Two (or more, briefly) decks that fade into one another: [play] fades every deck out and a new one in; [step] moves the
  * levels on and gives back the decks that have faded out (to release); [end] drops a deck that finished by itself. The
  * player's volume is a deck's [Deck.level] times its bus's gain. Pure: the decks hold an [item] (a file id) and an id.

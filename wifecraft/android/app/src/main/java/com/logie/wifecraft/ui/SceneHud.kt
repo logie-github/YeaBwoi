@@ -11,7 +11,7 @@ import kotlin.math.min
 // Play animation window's category tabs.
 
 /** What an action-bar slot does. */
-enum class HudOrder { WALK, PLAY, PARTNER, SAY, CHAT, STOP_REPEAT, CLEAR_QUEUE, RELEASE, USE, FREE_WILL, LIFE }
+enum class HudOrder { WALK, PLAY, PARTNER, SAY, CHAT, STOP_REPEAT, CLEAR_QUEUE, RELEASE, USE, FREE_WILL, LIFE, STOP, SKIP }
 
 /** One slot of the action bar: what it does, its words, [lit] while it is on (Walk), [target] the object it uses. */
 data class HudSlot(val order: HudOrder, val label: String, val lit: Boolean = false, val target: String? = null) {
@@ -64,7 +64,8 @@ object SceneHud {
 
     /**
      * The controlled NPC's orders, most used first: Walk (tap the floor), Play animation, Partner animation (with a
-     * partner), Say, Chat with (with someone else in the scene), Stop repeat and Clear queue (while there is one), Release,
+     * partner), Say, Chat with (with someone else in the scene), Stop (while an animation plays: its end, then they stand,
+     * the queue cleared), Stop repeat, Skip (the end, then the queue's next) and Clear queue (while there is one), Release,
      * then the scene's objects ([uses]: target to words) and Free will. With the life simulation on ([life]), Actions (its
      * radial menu: Rest, Eat, Chat, Hug...) comes second, after Walk.
      */
@@ -76,6 +77,7 @@ object SceneHud {
         queued: Int,
         uses: List<Pair<String, String>> = emptyList(),
         life: Boolean = false,
+        performing: Boolean = false,
     ): List<HudSlot> = buildList {
         add(HudSlot(HudOrder.WALK, "Walk", lit = walking))
         if (life) add(HudSlot(HudOrder.LIFE, "Actions"))
@@ -83,7 +85,9 @@ object SceneHud {
         if (partner) add(HudSlot(HudOrder.PARTNER, "Partner animation"))
         add(HudSlot(HudOrder.SAY, "Say…"))
         if (others > 0) add(HudSlot(HudOrder.CHAT, "Chat with…"))
+        if (performing) add(HudSlot(HudOrder.STOP, "Stop"))
         if (repeating) add(HudSlot(HudOrder.STOP_REPEAT, "Stop repeat"))
+        if (performing && queued > 0) add(HudSlot(HudOrder.SKIP, "Skip"))
         if (queued > 0) add(HudSlot(HudOrder.CLEAR_QUEUE, "Clear queue ($queued)"))
         add(HudSlot(HudOrder.RELEASE, "Release"))
         for ((target, words) in uses) add(HudSlot(HudOrder.USE, words, target = target))

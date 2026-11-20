@@ -193,6 +193,7 @@ class Audio(context: Context, private val files: GameFiles) : Sounds {
     private var clockNight = false
     private var clockHour = Double.NaN
     private var nightMusic = 1f
+    private val cineMusic = CinematicMusic()
     private var placeId: String? = null
     private var placeSounds: PlaceTimeSounds? = null
     private var placeToken = 0                               // a new place (or none) makes the old one's flavour and bells stop
@@ -260,6 +261,13 @@ class Audio(context: Context, private val files: GameFiles) : Sounds {
 
     // ---- the mixer and its clock ------------------------------------------------------------------------------------
 
+    /** Cinematic mode on or off: the music eases down to 70% while it runs (CinematicMusic), the ambience stays. Main thread. */
+    fun cinematic(on: Boolean) {
+        if (cineMusic.on == on) return
+        cineMusic.on = on
+        tick()
+    }
+
     /** How many voices are speaking now (SceneAudio.onVoices): the beds dip under them. */
     fun voices(n: Int) {
         ducker.setVoices(n)
@@ -281,14 +289,15 @@ class Audio(context: Context, private val files: GameFiles) : Sounds {
                 for (d in music.step(dt)) players.remove(deckKey(false, d.id))?.let { runCatching { it.release() } }
                 for (d in ambience.step(dt)) players.remove(deckKey(true, d.id))?.let { runCatching { it.release() } }
                 ducker.step(dt)
+                cineMusic.step(dt)
                 applyVolumes()
-                if (music.busy || ambience.busy || ducker.moving) handler.postDelayed(this, TICK_MS) else ticking = false
+                if (music.busy || ambience.busy || ducker.moving || cineMusic.moving) handler.postDelayed(this, TICK_MS) else ticking = false
             }
         })
     }
 
     private fun applyVolumes() {
-        val m = Mixer.gain(levels, Bus.MUSIC, ducker.level) * nightMusic
+        val m = Mixer.gain(levels, Bus.MUSIC, ducker.level) * nightMusic * cineMusic.level
         val a = Mixer.gain(levels, Bus.AMBIENCE, ducker.ambienceLevel)
         for (d in music.decks) players[deckKey(false, d.id)]?.let { p -> val v = d.level * m; runCatching { p.setVolume(v, v) } }
         for (d in ambience.decks) players[deckKey(true, d.id)]?.let { p -> val v = d.level * a; runCatching { p.setVolume(v, v) } }

@@ -49,9 +49,29 @@ class ImportPipeline(
     private val embeddedRetargeter: ((SimsRig) -> Retarget)? = null,
     /** A package's partner-animation tuning, with [reader]; any failure reads as none. */
     private val tuning: (ByteArray) -> List<PairDefinition> = { AnimTuning.pairs(it) },
+    /**
+     * Where each converted clip is written as it comes (anim/ClipStore): the results are then light animations whose tracks
+     * stay on disk until played, so a pack of thousands of clips never sits in memory. Null: kept in memory (tests, the
+     * pairing by hand). When the phone runs out of room the import stops there and keeps what it converted.
+     */
+    private val staging: ImportStaging? = null,
 ) {
+    /** The free space ran out ([staging]): the clips after it are not converted, and counted. */
+    private var full: StorageFullException? = null
+    private var leftForSpace = 0
+
     /** Each converted clip's skeleton scale ([Retargeter.unitsPerMetre]) by its source, for its performances' offsets (one package's). */
     private val unitsBySource = HashMap<String, Float>()
+
+    /** The humanoid skeletons found inside the packages, each with its RIG bytes and how many clips were converted with it. */
+    private val embeddedUse = HashMap<SimsRig, Int>()
+    private val embeddedBytes = HashMap<SimsRig, ByteArray>()
+
+    /**
+     * The RIG bytes of the embedded humanoid skeleton most clips of this import were converted with (null: none was used).
+     * A pack that carries the Sims skeleton (WickedWhims' own) can leave it for the packs that do not carry one.
+     */
+    fun mostUsedEmbeddedRig(): ByteArray? = embeddedUse.maxByOrNull { it.value }?.key?.let { embeddedBytes[it] }
 
     /** The single animations only (partner animations are reported as [ImportEvent.Paired]); see [runAll]. */
     fun run(inputs: List<ImportInput>, onEvent: (ImportEvent) -> Unit): List<Anim> = runAll(inputs, onEvent).anims
@@ -71,6 +91,7 @@ class ImportPipeline(
             }
             onEvent(e)
         }
+        full = null; leftForSpace = 0
         tmpDir.mkdirs()
         val work = Files.createTempDirectory(tmpDir.toPath(), "import").toFile()
         try {
@@ -83,6 +104,10 @@ class ImportPipeline(
             }
         } finally {
             ArchiveImport.deleteTree(work)
+        }
+        full?.let { e ->
+            emit(ImportEvent.Skipped("Import", "Stopped early: ${e.message} ${out.size} animations were kept" +
+                (if (leftForSpace > 0) "; $leftForSpace more clips were not converted" else "") + ". Free some space and import the pack again for the rest."))
         }
         return ImportResult(out, pairs, unpaired)
     }
@@ -143,14 +168,20 @@ class ImportPipeline(
             clips.size
         } else {
             DbpfFile(pfile).use { pkg ->
-                val rigs = if (embeddedRetargeter != null) SimsReader.humanoidRigs(pkg) else emptyList()
+                val found = if (embeddedRetargeter != null) SimsReader.humanoidRigResources(pkg) else emptyList()
+                val rigs = found.map { it.first }
+                for ((rig, bytes) in found) embeddedBytes[rig] = bytes
                 val converters = HashMap<SimsRig, Retarget>()
                 fun converter(clip: SimsClip): Retarget {
                     if (rigs.isEmpty() || embeddedRetargeter == null) return retarget
                     val hashes = clip.tracks.mapTo(HashSet()) { it.boneHash }
                     val rig = rigs.maxBy { it.coverage(hashes) }
+                    embeddedUse.merge(rig, 1, Int::plus)
                     return converters.getOrPut(rig) { embeddedRetargeter.invoke(rig) }
                 }
+                // the furniture's or a prop's own clips (the tuning plays them on an object) and the parts of animations
+                // for three or more people (a scene plays one or two): not converted, said why (ImportedPerformances.clipUse)
+                val leftOut = runCatching { ImportedPerformances.clipUse(pkg).leftOut() }.getOrDefault(emptyMap())
                 val first = out.size
                 unitsBySource.clear()
                 // A package of up to PAIRING_LIMIT clips is held whole so its partner animations can be found (Pairing);
@@ -159,7 +190,12 @@ class ImportPipeline(
                 var streaming = false
                 val visited = SimsReader.visitClips(pkg,
                     onClip = { clip ->
-                        if (!streaming && held.size < PAIRING_LIMIT) held += clip
+                        val why = leftOut[clip.name.lowercase()]
+                        if (why != null) {
+                            val label = "$pname :: ${clip.name}"
+                            onEvent(ImportEvent.Found(label))
+                            onEvent(ImportEvent.Skipped(label, why))
+                        } else if (!streaming && held.size < PAIRING_LIMIT) held += clip
                         else {
                             if (!streaming) {
                                 streaming = true
@@ -215,6 +251,7 @@ class ImportPipeline(
         retargetForClip: (SimsClip) -> Retarget, onEvent: (ImportEvent) -> Unit, out: MutableList<Anim>,
     ) {
         if (clips.isEmpty()) return
+        if (full != null) { leftForSpace += clips.size; return }
         val found = if (clips.size < 2) Pairing.Result(emptyList(), clips, emptyList(), emptyList()) else Pairing.find(clips, defs)
         for (f in found.pairs) {
             val label = "$pname :: ${f.a.name} + ${f.b.name}"
@@ -227,7 +264,10 @@ class ImportPipeline(
                 else {
                     // what it needs (a bed, a seat...) read with the Sims clips' own names and slot targets, for the library
                     seed { RequirementStore.seed(RequirementStore.keyOf(p), RequirementClassifier.classify(p, RequirementStore.hints(p, f.a, f.b))) }
-                    onEvent(ImportEvent.Paired(p.name, p, f.mode))
+                    val kept = try { staging?.putPair(p) ?: p } catch (e: StorageFullException) {
+                        full = e; onEvent(ImportEvent.Skipped(label, e.message ?: "The phone is full")); continue
+                    }
+                    onEvent(ImportEvent.Paired(kept.name, kept, f.mode))
                 }
             } catch (e: Exception) {
                 onEvent(ImportEvent.Failed(label, e.message ?: e.javaClass.simpleName))
@@ -253,6 +293,7 @@ class ImportPipeline(
         onEvent: (ImportEvent) -> Unit,
         out: MutableList<Anim>,
     ) {
+        if (full != null) { leftForSpace++; return }
         val name = clip.name.ifBlank { base }
         val label = "$packageName :: $name"
         onEvent(ImportEvent.Found(label))
@@ -265,8 +306,12 @@ class ImportPipeline(
             val broken = ClipValidation.problem(result)
             if (broken != null) { onEvent(ImportEvent.Skipped(label, broken)); return }
             seed { RequirementStore.seed(RequirementStore.keyOf(result), RequirementClassifier.classify(result, RequirementStore.hints(result, clip))) }
-            out.add(result)
-            onEvent(ImportEvent.Done(result))
+            // written to the staging folder now: from here on only its light form (no tracks in memory) is kept
+            val kept = try { staging?.put(result) ?: result } catch (e: StorageFullException) {
+                full = e; leftForSpace++; onEvent(ImportEvent.Skipped(label, e.message ?: "The phone is full")); return
+            }
+            out.add(kept)
+            onEvent(ImportEvent.Done(kept))
         } catch (e: Exception) {
             onEvent(ImportEvent.Failed(label, e.message ?: e.javaClass.simpleName))
         }
@@ -278,7 +323,8 @@ class ImportPipeline(
     }
 
     companion object {
-        const val MAX_PACKAGE = 256L shl 20
+        /** A package is read from disk one resource at a time, so its size only has to fit the archive limit (a 290 MB pack exists). */
+        const val MAX_PACKAGE = 512L shl 20
         /** Packages with at most this many clips are searched for partner animations ([Pairing]). */
         const val PAIRING_LIMIT = 64
     }

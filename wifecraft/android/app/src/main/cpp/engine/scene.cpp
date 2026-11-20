@@ -10,6 +10,7 @@
 
 #include "blp.h"
 #include "bodyshape.h"
+#include "daylight.h"
 #include "flesh.h"
 #include "glutil.h"
 #include "humanscale.h"
@@ -114,6 +115,8 @@ uniform vec3 uFogColor;
 uniform vec2 uFog;
 uniform vec3 uEye;
 uniform vec4 uGhost;   // the placement editor's ghost: its colour mixed toward rgb by a (a 0: none)
+uniform vec3 uRimColor;   // cinematic mode's rim light on a person (0: none) and the way toward it
+uniform vec3 uRimDir;
 out vec4 fragColor;
 void main() {
     vec4 c = texture(uTex, vUv) * uColor;
@@ -123,6 +126,10 @@ void main() {
         vec3 n = normalize(vNormal);
         float d = max(dot(n, -uSunDir), 0.0);
         rgb *= uAmbient + uSunColor * d;
+        if (dot(uRimColor, uRimColor) > 0.0) {
+            float edge = 1.0 - clamp(dot(n, normalize(uEye - vWorld)), 0.0, 1.0);
+            rgb += c.rgb * uRimColor * (edge * edge) * (0.35 + 0.65 * max(dot(n, uRimDir), 0.0));
+        }
     }
     float f = clamp((distance(vWorld, uEye) - uFog.x) / max(uFog.y - uFog.x, 1.0), 0.0, 1.0);
     rgb = mix(rgb, uFogColor, f);
@@ -272,6 +279,7 @@ bool Scene::initGl() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     compositor_.initGl();
+    grade_.forget();
     glReady_ = true;
     // A context that was lost takes everything with it: build again what the scene holds.
     for (auto& [id, m] : models_) if (m->ok) uploadModel(*m);
@@ -283,6 +291,7 @@ bool Scene::initGl() {
         for (Skinned& e : a.skinned) e.boneTex = 0;
         forgetBodyGl(a.body);
         a.soft.forget();
+        a.cloth.vao = a.cloth.vbo = a.cloth.ibo = a.cloth.tex = 0;   // (its texture is composed again with the skin)
         for (PartSlot& s : a.parts.slots) s.tex = 0;   // (uploaded again from its kept pixels when next drawn)
     }
     for (auto& [id, p] : parts_) { p->vao = p->vbo = p->ibo = 0; uploadPart(*p); }
@@ -295,6 +304,7 @@ bool Scene::initGl() {
 void Scene::releaseGl() {
     glReady_ = false;
     compositor_.releaseGl();
+    grade_.forget();
     textures_.clear();
     for (auto& [id, m] : models_) { m->vao = m->vbo = m->ibo = m->boneTex = 0; }
     for (auto& [id, a] : actors_) {
@@ -304,6 +314,7 @@ void Scene::releaseGl() {
         for (Skinned& e : a.skinned) e.boneTex = 0;
         forgetBodyGl(a.body);
         a.soft.forget();
+        a.cloth.vao = a.cloth.vbo = a.cloth.ibo = a.cloth.tex = 0;   // (its texture is composed again with the skin)
         for (PartSlot& s : a.parts.slots) s.tex = 0;
     }
     for (auto& [id, p] : parts_) p->vao = p->vbo = p->ibo = 0;
@@ -606,10 +617,12 @@ void Scene::removeActor(int id) {
     dropBodyGl(it->second);
     dropPartGl(it->second.parts);
     it->second.soft.release(glReady_);
+    dropClothGl(it->second, true);
     actors_.erase(it);
 }
 
 void Scene::dropDressGl(Actor& a) {
+    dropClothGl(a, true);
     if (glReady_) {
         for (auto& [type, tex] : a.composed) glDeleteTextures(1, &tex);
         for (Skinned& e : a.skinned) if (e.boneTex) glDeleteTextures(1, &e.boneTex);
@@ -640,6 +653,7 @@ void Scene::dress(int id, const std::map<int, int>& geosetGroups, const std::vec
     a.body.dirty = true;     // (the geosets the layer lies on may have changed too)
     a.parts.placed = false;  // (and the lower body the parts are fitted to)
     a.soft.dirty = true;     // (and the skin the soft body finds its regions on)
+    a.cloth.dirty = true;    // (and whether a flap hangs, and its shape)
     a.skinDirty = true;
     a.missing.clear();
     dropDressGl(a);
@@ -702,20 +716,46 @@ void Scene::refreshSkin(Actor& a) {
     a.composed.clear();
     a.drawTextures = a.textures;
     a.missing.clear();
+    if (glReady_ && a.cloth.tex) glDeleteTextures(1, &a.cloth.tex);
+    a.cloth.tex = 0;
     std::map<int, std::vector<SkinLayer>> byType;
-    for (const SkinLayer& l : a.layers) if (l.fileId) byType[l.textureType].push_back(l);
+    std::vector<SkinLayer> clothLayers;   // a hanging cloth's own (skin.h isClothLayer): not on the body's skin
+    for (const SkinLayer& l : a.layers) {
+        if (!l.fileId) continue;
+        if (isClothLayer(l)) clothLayers.push_back(l);
+        else byType[l.textureType].push_back(l);
+    }
+    auto layerTexture = [&](uint32_t fid) -> unsigned {
+        if (files_(fid).empty()) { a.missing.insert(fid); return 0; }
+        GlTexture t = texture(fid, kActorTex);
+        return t.id == white_ ? 0 : t.id;
+    };
     for (auto& [type, layers] : byType) {
         if (directLayer(layers)) {
             if (files_(layers[0].fileId).empty()) a.missing.insert(layers[0].fileId);
             else a.drawTextures[uint32_t(type)] = layers[0].fileId;
             continue;
         }
-        unsigned tex = compositor_.compose(layers, [&](uint32_t fid) -> unsigned {
-            if (files_(fid).empty()) { a.missing.insert(fid); return 0; }
-            GlTexture t = texture(fid, kActorTex);
-            return t.id == white_ ? 0 : t.id;
-        }, kSkinTex);
+        unsigned tex = compositor_.compose(layers, layerTexture, kSkinTex);
         if (tex) a.composed[uint32_t(type)] = tex;
+    }
+    // The cloth's own texture: the skin with the cloth's layers over it, each masked to the rectangle the shown flap's
+    // texture coordinates cover (a few pixels' margin), composed for that rectangle alone. Nothing of the cloth's layers
+    // is painted on the body: the chest and the belly the flap's strip shares with it stay bare.
+    if (!clothLayers.empty()) {
+        int mw = 0, mh = 0;
+        for (const SkinLayer& l : clothLayers) { mw = std::max(mw, l.materialW); mh = std::max(mh, l.materialH); }
+        int rect[4];
+        if (mw > 0 && mh > 0 && clothUvRect(*a.mesh->model, a.geosets, mw, mh, 4, rect)) {
+            std::vector<SkinLayer> layers = byType[1];
+            for (SkinLayer l : clothLayers) {
+                l.maskX = rect[0]; l.maskY = rect[1]; l.maskW = rect[2]; l.maskH = rect[3];
+                layers.push_back(l);
+            }
+            a.cloth.tex = compositor_.compose(layers, layerTexture, kSkinTex, rect);
+            a.cloth.uvBox[0] = float(rect[0]) / float(mw); a.cloth.uvBox[1] = float(rect[1]) / float(mh);
+            a.cloth.uvBox[2] = float(rect[2]) / float(mw); a.cloth.uvBox[3] = float(rect[3]) / float(mh);
+        }
     }
 }
 
@@ -731,6 +771,7 @@ void Scene::placeActor(int id, V3 position, float facing, int furniture, V3 surf
     it->second.surface = surface;
     it->second.furnitureFacing = facing;
     it->second.lyingHalfLength = 0;
+    it->second.cloth.sim.reset();   // put there, not moved there: the cloth hangs again from the pose
 }
 
 void Scene::showActor(int id, bool visible) {
@@ -1360,8 +1401,11 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     bool soft = a.soft.active();
     if (soft) { glUseProgram(m2Prog_); a.soft.uniforms(m2Prog_, a.soft.bodyGate()); }
     softBodyDraw_ = soft;
-    drawModel(*a.mesh, w, &a.drawTextures, &a.geosets, a.boneTex, a.seq, a.animTime % dur, nowMs, bodyTint,
+    // (a flap hung as cloth is drawn from its simulated points instead of skinned: drawCloth)
+    const bool cloth = a.cloth.active();
+    drawModel(*a.mesh, w, &a.drawTextures, cloth ? &a.cloth.bodyGeosets : &a.geosets, a.boneTex, a.seq, a.animTime % dur, nowMs, bodyTint,
               transparent, kActorTex, &a.composed, a.body.vao, a.body.vao ? &a.body.submeshes : nullptr);
+    if (cloth && !transparent) drawCloth(a, w, bodyTint);
     softBodyDraw_ = false;
     if (soft) SoftDraw::setGain(m2Prog_, 1.0f);
     if (transparent) drawBodyLayer(a, w);
@@ -1436,6 +1480,13 @@ void Scene::render(int width, int height, uint32_t nowMs) {
         if (arrived) dressModels(a);
     }
     viewW_ = std::max(1, width); viewH_ = std::max(1, height);
+    // cinematic mode (setCinematic): the mood's slow flicker on the warm light, and the frame drawn offscreen for the grade
+    if (cineMood_ > 0) {
+        float f = moodFlicker(float(nowMs % 3600000u) / 1000.0f);
+        if (std::fabs(f - cineFlicker_) > 0.002f) { cineFlicker_ = f; applyTimeOfDay(); }
+    }
+    cineGrade_.seconds = float(nowMs % 1000000u) / 1000.0f;
+    const bool graded = cineGrade_.active() && grade_.begin(width, height);
     glViewport(0, 0, width, height);
     glClearColor(light_.skyHorizon[0], light_.skyHorizon[1], light_.skyHorizon[2], 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1481,6 +1532,7 @@ void Scene::render(int width, int height, uint32_t nowMs) {
         animate(a, clock);
         alignWithFurniture(a);
         stepSoft(a, clock);   // the pause-proof animation clock, not the wall clock
+        stepCloth(a, clock);
         // Skinned models move with the body's bones.
         for (Skinned& e : a.skinned) {
             e.mats.resize(std::max<size_t>(1, e.boneMap.size()));
@@ -1521,9 +1573,124 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     litUniforms(m2Prog_, light_, eye_, viewProj);
     drawGhost(viewProj, nowMs);
     drawGizmo();
+    if (graded) grade_.end(width, height, cineGrade_);
+}
+
+void Scene::setCinematic(float mood, float vignette, float grain, float bars) {
+    auto unit = [](float v) { return std::isfinite(v) ? std::clamp(v, 0.0f, 1.0f) : 0.0f; };
+    float m = unit(mood);
+    cineGrade_.mood = m;
+    cineGrade_.vignette = unit(vignette);
+    cineGrade_.grain = unit(grain);
+    cineGrade_.bars = std::isfinite(bars) ? std::clamp(bars, 0.0f, 0.5f) : 0.0f;
+    if (m != cineMood_) {
+        cineMood_ = m;
+        if (m <= 0) cineFlicker_ = 0;
+        applyTimeOfDay();
+    }
 }
 
 void Scene::litSetup(unsigned prog, const M4& viewProj) { litUniforms(prog, light_, eye_, viewProj); }
+
+// ---------------------------------------------------------------------------------------------- the flap as cloth
+
+void Scene::dropClothGl(Actor& a, bool tex) {
+    ClothGl& c = a.cloth;
+    if (glReady_) {
+        if (c.vao) glDeleteVertexArrays(1, &c.vao);
+        if (c.vbo) glDeleteBuffers(1, &c.vbo);
+        if (c.ibo) glDeleteBuffers(1, &c.ibo);
+        if (tex && c.tex) glDeleteTextures(1, &c.tex);
+    }
+    c.vao = c.vbo = c.ibo = 0;
+    if (tex) c.tex = 0;
+}
+
+// The rig for the look as dressed and shaped: the shown flap's geosets (none: no cloth, the flap is drawn skinned as
+// before, if at all), the body's geosets without them, and the sim on it from the pose.
+void Scene::refreshCloth(Actor& a) {
+    ClothGl& c = a.cloth;
+    c.dirty = false;
+    c.sim.setRig(nullptr);
+    c.rig.reset();
+    c.bodyGeosets.clear();
+    const M2Model& m = *a.mesh->model;
+    bool flap = false;
+    for (uint16_t g : a.geosets) if (g >= 100 && g / 100 == kClothGroup) flap = true;
+    if (!flap) return;
+    const BodyGl& b = a.body;
+    const bool own = !b.shaped.empty() && !b.indices.empty() && !b.submeshes.empty();
+    auto rig = std::make_unique<ClothRig>(clothRig(m, b.shaped.empty() ? m.vertices : b.shaped, own ? b.indices : m.indices,
+                                                    own ? b.submeshes : m.submeshes, a.geosets));
+    if (!rig->ok) return;
+    for (uint16_t g : a.geosets) if (std::find(rig->geosets.begin(), rig->geosets.end(), g) == rig->geosets.end()) c.bodyGeosets.push_back(g);
+    if (c.bodyGeosets.empty()) c.bodyGeosets.push_back(0xFFFF);
+    c.rig = std::move(rig);
+    c.sim.setRig(c.rig.get());
+}
+
+// This frame's step: the flap's posed top edge and the body (its segments' flesh and its skin near the flap) from the
+// bones as drawn, the floor under the actor; the rig made again first when the look or the shape changed.
+void Scene::stepCloth(Actor& a, uint32_t now) {
+    ClothGl& c = a.cloth;
+    if (c.dirty && !a.body.dirty && !a.body.shapeDirty) refreshCloth(a);
+    if (!c.active() || a.mats.empty()) return;
+    const M2Model& m = *a.mesh->model;
+    const std::vector<M2Vertex>& verts = a.body.shaped.empty() ? m.vertices : a.body.shaped;
+    M4 w = M4::translation(a.position) * M4::rotationZ(a.facing) * M4::scaling(V3(a.scale, a.scale, a.scale));
+    clothPosed(*c.rig, verts, a.mats, w, c.posed);
+    clothCapsules(m, *c.rig, a.mats, w, c.caps);
+    clothSurface(*c.rig, verts, a.mats, w, c.skin);
+    // the floor under her; seated, the back flap lies on the seat she sits on
+    c.sim.setFloor(a.position.z, a.furniture == kSitting ? a.surface.z : a.position.z);
+    c.sim.step(c.posed, c.caps, &c.skin, a.scale, now);
+}
+
+// The simulated flap: its points as vertices without skinning (model space, the actor's world), both faces, with the
+// cloth's own texture (its rectangle's coordinates) or the body's skin; opaque, as the game's flap is.
+void Scene::drawCloth(Actor& a, const M4& world, const float tint[4]) {
+    ClothGl& c = a.cloth;
+    if (!c.sim.started()) stepCloth(a, animClock_);   // (a thumbnail's actor: hung from its pose)
+    if (!c.active() || !c.sim.started()) return;
+    clothVertices(*c.rig, c.sim.positions(), world, c.tex ? c.uvBox : nullptr, c.verts, c.indices);
+    if (c.indices.empty()) return;
+    unsigned tex = c.tex;
+    if (!tex) {
+        auto comp = a.composed.find(1);
+        if (comp != a.composed.end()) tex = comp->second;
+        else { auto d = a.drawTextures.find(1); if (d != a.drawTextures.end()) tex = texture(d->second, kActorTex).id; }
+    }
+    if (!tex) return;
+    if (!c.vao) {
+        glGenVertexArrays(1, &c.vao);
+        glGenBuffers(1, &c.vbo);
+        glGenBuffers(1, &c.ibo);
+        glBindVertexArray(c.vao);
+        glBindBuffer(GL_ARRAY_BUFFER, c.vbo);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, c.ibo);
+        m2VertexLayout();
+    }
+    glBindVertexArray(c.vao);
+    glBindBuffer(GL_ARRAY_BUFFER, c.vbo);
+    glBufferData(GL_ARRAY_BUFFER, GLsizeiptr(c.verts.size() * sizeof(M2Vertex)), c.verts.data(), GL_STREAM_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, c.ibo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, GLsizeiptr(c.indices.size() * 2), c.indices.data(), GL_STREAM_DRAW);
+    unsigned p = m2Prog_;
+    glUseProgram(p);
+    glUniformMatrix4fv(loc(p, "uWorld"), 1, GL_FALSE, world.m);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glUniform4fv(loc(p, "uColor"), 1, tint);
+    glUniform1f(loc(p, "uAlphaRef"), -1.0f);
+    glUniform1i(loc(p, "uOpaque"), 1);
+    glUniform1i(loc(p, "uUnlit"), 0);
+    // each face drawn from its own side (the grid twice, wound both ways, normals both ways)
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glDrawElements(GL_TRIANGLES, GLsizei(c.indices.size()), GL_UNSIGNED_SHORT, nullptr);
+    glDisable(GL_CULL_FACE);
+    glBindVertexArray(0);
+}
 
 // ------------------------------------------------------------------------------------------------ Wrath++'s body options
 
@@ -1536,6 +1703,7 @@ void Scene::setBody(int id, const std::vector<float>& morph, float k, float fold
     b.fold = fold;
     b.dirty = true;
     it->second.soft.dirty = true;
+    it->second.cloth.dirty = true;
 }
 
 bool Scene::bodyStats(int id, size_t& moved, size_t& layerTriangles) const {

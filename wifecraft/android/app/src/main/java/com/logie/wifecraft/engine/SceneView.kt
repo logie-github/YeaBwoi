@@ -308,6 +308,26 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         if (h != drawnHour) { drawnHour = h; Native.timeOfDay(handle, h) }
     }
 
+    // cinematic mode's look as last sent to the engine (mood, vignette, grain, bars)
+    private val cineSent = FloatArray(4)
+
+    /**
+     * GL thread, a [FrameDriver] only: cinematic mode's look this frame (simulation/CinematicLook: [mood], [vignette] and
+     * [grain] 0..1, [letterbox] 0..1 how far the bars are in, sized here for the view), sent to the engine only when it changed.
+     */
+    fun glCinematic(mood: Float, vignette: Float, grain: Float, letterbox: Float) {
+        val bars = com.logie.wifecraft.simulation.CinematicLook.bars(width, height, letterbox)
+        if (mood == cineSent[0] && vignette == cineSent[1] && grain == cineSent[2] && bars == cineSent[3]) return
+        cineSent[0] = mood; cineSent[1] = vignette; cineSent[2] = grain; cineSent[3] = bars
+        Native.cinematic(handle, mood, vignette, grain, bars)
+    }
+
+    /** Cinematic mode's look off at once (a scene ending: the next screen is drawn as before). Any thread. */
+    fun clearCinematic() = post { h, _ ->
+        cineSent.fill(0f)
+        Native.cinematic(h, 0f, 0f, 0f, 0f)
+    }
+
     override fun showCity(shown: Boolean) = post { h, _ -> Native.showCity(h, shown) }
 
     private val requestedAnimations = HashMap<String, Int>()

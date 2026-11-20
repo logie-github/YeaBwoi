@@ -3,6 +3,8 @@
 //
 //   files DIR                                  the downloaded files, each named by its id
 //   time HOURS                                 the hour (0..24) on the location's light (daylight.h; negative: off)
+//   cinematic MOOD VIGNETTE GRAIN LETTERBOX    cinematic mode's look (Scene::setCinematic), each 0..1; LETTERBOX 1: the
+//                                              2.39:1 bars of the next render's size (grade.h letterboxBars)
 //   city ROOT GROUP,GROUP,...  X Y Z RADIUS [X Y Z ...]   Dalaran's groups and the props near the points
 //   actor N MODEL SCALE X Y Z FACING [tex T=F,T=F] [geo GROUP=VALUE,...]
 //   attach N ATTACHMENT MODEL T=F,...
@@ -694,6 +696,7 @@ int main(int argc, char** argv) {
     std::map<int, std::vector<std::pair<int, std::string>>> modelParts;   // each person's model parts: handle, region
     std::map<int, std::string> skinColours;   // each person's last model set's skinColour
     bool timing = false;
+    float cine[4] = {0, 0, 0, 0};   // cinematic MOOD VIGNETTE GRAIN LETTERBOX
     std::string timed;
     auto started = std::chrono::steady_clock::now();
     auto report = [&]() {
@@ -778,6 +781,8 @@ int main(int argc, char** argv) {
             modelParts.clear();
         } else if (cmd == "time") {
             float hours; ss >> hours; scene.setTimeOfDay(hours);   // the world clock's hour on the location (negative: off)
+        } else if (cmd == "cinematic") {
+            ss >> cine[0] >> cine[1] >> cine[2] >> cine[3];
         } else if (cmd == "fog") {
             ss >> light.fogStart >> light.fogEnd; scene.setLight(light);
         } else if (cmd == "look") {
@@ -1095,6 +1100,7 @@ int main(int argc, char** argv) {
         } else if (cmd == "render") {
             std::string out; int w, h; uint32_t t;
             ss >> out >> w >> h >> t;
+            scene.setCinematic(cine[0], cine[1], cine[2], cine[3] * letterboxBars(w, h));
             renderTo(scene, out, w, h, t);
         }
         glFinish();

@@ -78,7 +78,9 @@ data class SceneSnapshot(
     data class PersonView(val id: String, val activity: Activity, val directed: Boolean,
         val queued: Int = 0, val repeating: Boolean = false, val partner: String? = null,
         /** The other NPC of a conversation, else null. */
-        val talkingWith: String? = null)
+        val talkingWith: String? = null,
+        /** Playing an animation (Stop plays its end), and the HUD's line for it ([StageLine]: part and loop counter). */
+        val performing: Boolean = false, val playing: String? = null)
 
     /** Whether [id] may use [item] now. */
     fun available(item: SceneObject, id: String): Boolean = item in usable && holders[item].let { it == null || it == id }
@@ -183,6 +185,18 @@ class LiveScene(
     @Volatile var clearance: CameraClearance? = null
     /** Whether the room's view is brought in to the cast when it stands far from them ([CastFraming]). Any thread. */
     @Volatile var frameCast = true
+    /**
+     * Cinematic mode's camera director ([CinematicDirector]; null: none) and whether it runs ([directing]): the camera eases
+     * to its shots and, when it stops, back to the player's own camera ([SceneCamera.setDirecting]). [aspect]: the picture's
+     * width over its height (the framing). Any thread.
+     */
+    @Volatile var director: CinematicDirector? = null
+    @Volatile var directing = false
+    @Volatile var aspect = 16f / 9f
+    // the director's view of the stage (GL thread): filled each frame; its furniture and obstacles made again on a change
+    private var cineStage: CinematicStage? = null
+    private var cineVersion = -1L
+    private var cineWas = false
     // the cast framing: the room view it was made for, where it is going, what is shown, when it is looked at again
     private var framedFor: CameraPose? = null
     private var framedGoal: CameraPose? = null
@@ -244,7 +258,8 @@ class LiveScene(
 
     /** The menus' view now (allocates: on change only). */
     fun snapshot(): SceneSnapshot {
-        val people = simulation.people().map { SceneSnapshot.PersonView(it.id, it.activity, it.directed, it.queued, it.repeating, it.partner, it.talkingWith) }
+        val people = simulation.people().map { SceneSnapshot.PersonView(it.id, it.activity, it.directed, it.queued, it.repeating, it.partner, it.talkingWith,
+            it.performing, it.playing) }
         val holders = HashMap<SceneObject, String>()
         val usable = HashSet<SceneObject>()
         for (item in simulation.objects) {
@@ -300,6 +315,69 @@ class LiveScene(
     }
 
     private fun stage(p: Vec3) = Vec3(stageX(p.x, p.y), stageY(p.x, p.y), oz + p.z)
+
+    /** A piece of furniture's box (its [Furniture.bounds]) on the stage: the box round its four corners turned there. */
+    private fun stageBox(f: Furniture): Pair<Vec3, Vec3> {
+        val (lo, hi) = f.bounds()
+        val corners = listOf(stage(Vec3(lo.x, lo.y, lo.z)), stage(Vec3(lo.x, hi.y, lo.z)), stage(Vec3(hi.x, lo.y, lo.z)), stage(Vec3(hi.x, hi.y, hi.z)))
+        return Vec3(corners.minOf { it.x }, corners.minOf { it.y }, oz + lo.z) to Vec3(corners.maxOf { it.x }, corners.maxOf { it.y }, oz + hi.z)
+    }
+
+    /**
+     * Cinematic mode, before the camera's frame (GL thread): the stage as the director sees it (everyone's hips and heads,
+     * the furniture in use and its views, the furniture's boxes, the floor, the walls' test, the camera as last drawn), the
+     * director's shot for this frame laid over the camera. A start (from nothing shown) starts the director afresh from the
+     * camera where it is; while it fades out the director keeps going, so the way back is as smooth as the way in.
+     */
+    private fun directFrame(dt: Float) {
+        val dir = director
+        val on = directing && dir != null
+        camera.setDirecting(on)
+        if (dir == null || (!on && camera.directAmount <= 0f)) { cineWas = false; return }
+        if (on && !cineWas && camera.directAmount <= 0f) dir.restart()
+        cineWas = on
+        val st = cineStage ?: CinematicStage(n).also { cineStage = it }
+        st.count = n
+        for (i in 0 until n) {
+            simulation.pose(i, pose)
+            val sx = stageX(curX[i], curY[i]); val sy = stageY(curX[i], curY[i]); val z = oz + curZ[i]
+            val (hip, head) = when {
+                pose.activity == Activity.REST -> 0.35f to 0.5f
+                pose.activity == Activity.SIT -> 0.5f to 1.15f
+                pose.playback != null -> 0.6f to 1.25f
+                else -> 1.0f to 1.65f
+            }
+            st.person(i, sx, sy, z + hip, sx, sy, z + head)
+        }
+        val version = simulation.version
+        if (version != cineVersion) {
+            cineVersion = version
+            // the furniture in use: the piece the most people are on (its views as the furniture views make them)
+            var best: Pair<Furniture, List<Vec3>>? = null
+            var bestId: String? = null
+            for (i in 0 until n) {
+                val id = simulation.id(i)
+                val use = simulation.onFurniture(id) ?: continue
+                if (best == null || use.second.size > best.second.size) { best = use; bestId = id }
+            }
+            st.furniture = if (best == null || bestId == null) null else {
+                val (f, pts) = best
+                val views = presets(bestId, clearance).map { p ->
+                    p.copy(eye = stage(p.eye), at = stage(p.at), yaw = p.yaw + rotation)
+                }
+                val c = if (pts.isNotEmpty()) stage(Vec3(pts.map { it.x }.average().toFloat(), pts.map { it.y }.average().toFloat(),
+                    pts.map { it.z }.average().toFloat())) else stage(f.toWorld(0f, 0f, f.spec.surface))
+                FurnitureFocus(f.id, c, views, hypot(f.spec.halfX, f.spec.halfY), stageBox(f))
+            }
+            st.obstacles = simulation.objects.mapNotNull { item -> simulation.furniture(item)?.let(::stageBox) }
+        }
+        st.floorZ = camera.floorZ
+        st.ceilingZ = Float.NaN
+        st.clearance = clearance
+        st.aspect = aspect
+        st.camera(camera.eyeX, camera.eyeY, camera.eyeZ, camera.atX, camera.atY, camera.atZ, camera.fov)
+        if (dir.update(dt, st)) camera.directPose(dir.eyeX, dir.eyeY, dir.eyeZ, dir.atX, dir.atY, dir.atZ, dir.fov)
+    }
 
     /** The room's view this frame: [roomView], or brought in to the cast ([CastFraming]: looked at once a second, glided). */
     private fun castRoom(nowNanos: Long, dt: Float): CameraPose {
@@ -432,6 +510,7 @@ class LiveScene(
         }
         val wantRoom = cameraRoom(sel, castRoom(nowNanos, dt))
         if (camera.room !== wantRoom) camera.room = wantRoom
+        directFrame(dt)
         camera.update(dt, hasFocus, fx, fy, fz)
         sink.camera(camera.eyeX, camera.eyeY, camera.eyeZ, camera.atX, camera.atY, camera.atZ, camera.fov)
 

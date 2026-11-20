@@ -12,7 +12,9 @@ add_library(wcengine SHARED
     engine/bodypart.cpp
     engine/bodyshape.cpp
     engine/bytes.cpp
+    engine/cloth.cpp
     engine/daylight.cpp
+    engine/grade.cpp
     engine/editview.cpp
     engine/json.cpp
     engine/location.cpp

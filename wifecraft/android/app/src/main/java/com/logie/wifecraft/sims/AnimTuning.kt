@@ -32,8 +32,9 @@ data class PairDefinition(
  * The snippet tuning (resource type 0x7DF2169C, XML) of an animation package, read for entries that list
  * their actors (`animation_actors_list`, as WickedWhims-style animation packs write them: element names
  * from a public modding guide, the class and root names unknown, so an entry is found by that list alone).
- * Only the neutral fields are read: per actor `actor_id`, `animation_clip_name`, `animation_x_offset`,
- * `animation_y_offset`, `animation_z_offset`, `animation_angle_offset`; per entry `animation_loops`,
+ * Only the neutral fields are read: per actor `actor_id`, `animation_clip_name` (or the older `animation_name`),
+ * `animation_x_offset`, `animation_y_offset`, `animation_z_offset`, `animation_angle_offset` (or the older
+ * `animation_facing_offset`); per entry `animation_loops`,
  * `animation_locations`, `animation_stage_name`, `animation_next_stages` and a name. Tuning without
  * actors (a pose pack's pose list) gives nothing. Damaged XML, or XML with a DOCTYPE, is skipped.
  */
@@ -108,13 +109,14 @@ object AnimTuning {
         val actors = ArrayList<ActorSlot>()
         for ((k, a) in children(list).withIndex()) {
             val f = fields(a)
-            val clip = f["animation_clip_name"]?.let { text(it) }.orEmpty()
+            // the older generation of the format names the clip animation_name and the turn animation_facing_offset
+            val clip = (f["animation_clip_name"] ?: f["animation_name"])?.let { text(it) }.orEmpty()
             if (clip.isEmpty()) continue
             actors += ActorSlot(
                 actorId = f["actor_id"]?.let { text(it).toIntOrNull() } ?: k,
                 clipName = clip,
                 x = num(f["animation_x_offset"]), y = num(f["animation_y_offset"]), z = num(f["animation_z_offset"]),
-                angle = num(f["animation_angle_offset"]),
+                angle = num(f["animation_angle_offset"] ?: f["animation_facing_offset"]),
             )
         }
         if (actors.isEmpty()) return null

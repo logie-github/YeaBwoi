@@ -214,6 +214,42 @@ object LookResolver {
         return CreatureLooks.transmog(t, a, look)
     }
 
+    /** The tabard's equipment slot (ClothingSlot.TABARD), and the slots that cover the torso and legs under it (shirt, chest, legs). */
+    const val TABARD_SLOT = 19
+    val COVERING_SLOTS = setOf(4, 5, 7)
+
+    /**
+     * A hanging cloth's own layers (engine/skin.h kClothLayer): a type 1 layer at [CLOTH_LAYER] + n isn't composed into the
+     * body's skin but into the tabard flap's own texture, masked to the flap's rectangle of the material (the renderer
+     * measures it on the model: the flap's texture coordinates), and the flap is drawn as cloth (engine/cloth.h).
+     */
+    const val CLOTH_LAYER = 200
+
+    /**
+     * A tabard worn over no shirt, chest or legs ([COVERING_SLOTS]): its texture layers (the tabard item's material files on
+     * the skin, texture type 1) go to [CLOTH_LAYER] plus their place among the clothing layers, so nothing of it is painted on
+     * the chest or the belly (the game paints a tabard's whole front on the torso, its flap drawing from a strip of it the
+     * belly shares) and the flap keeps its pattern. Any other look, and a look with gear off, comes back as it is. Applied to
+     * the named characters' tabard-only looks (ImportedLooks.ofBody, a bare body wearing a tabard); a created NPC or a
+     * Transmog card wearing a tabard keeps it painted on the torso as the game does. The user's imports
+     * (ImportedLooks.apply) change only the files, never the layer, so an imported look keeps it.
+     */
+    fun hangingCloth(t: Tables, a: Appearance, look: ResolvedLook): ResolvedLook {
+        if (!a.gear) return look
+        val tabard = a.clothing[TABARD_SLOT] ?: return look
+        if (a.clothing.keys.any { it in COVERING_SLOTS }) return look
+        val files = CreatureLooks.clothingFiles(t, setOf(tabard)).second
+        if (files.isEmpty()) return look
+        var moved = false
+        val layers = look.layers.map { l ->
+            if (l.textureType == 1 && l.fileId in files && l.layer in BODY_LAYER + 1 until CLOTH_LAYER) {
+                moved = true
+                l.copy(layer = CLOTH_LAYER + l.layer % 100)
+            } else l
+        }
+        return if (moved) look.copy(layers = layers) else look
+    }
+
     // --- the tables, indexed once each ----------------------------------------------------------------------------
 
     private val indexes = WeakHashMap<Tables, Index>()

@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
+import com.logie.wifecraft.simulation.CinematicSettings
 import com.logie.wifecraft.simulation.ClockSettings
 import com.logie.wifecraft.simulation.ClockSpeed
 import com.logie.wifecraft.simulation.WorldClock
@@ -64,7 +65,7 @@ fun <T> StateFlow<T>.collectThrottled(urgent: (T?, T) -> Boolean = { _, _ -> fal
     return throttled.collectAsStateWithLifecycle(value)
 }
 
-private enum class Page(val label: String) { SOUND("Sound"), TIME("Time"), DOWNLOADS("Downloads"), MODS("Mods") }
+private enum class Page(val label: String) { SOUND("Sound"), TIME("Time"), CINEMATIC("Cinematic"), DOWNLOADS("Downloads"), MODS("Mods") }
 
 /**
  * Options, in the front menus' look (WifeWindow): Sound (the game's own Sound page: Enable Sound, Master, Music, Ambience, Sound
@@ -93,9 +94,14 @@ fun DownloadOptions(
     /** The Time page's Life simulation switch. */
     lifeSimulation: Boolean = true,
     onLifeSimulation: (Boolean) -> Unit = {},
+    /** The Cinematic page's settings and their change (null: no Cinematic page). */
+    cinematic: CinematicSettings? = null,
+    onCinematic: (CinematicSettings) -> Unit = {},
 ) {
     var page by remember { mutableStateOf(Page.SOUND) }
-    val pages = remember(clock != null) { Page.entries.filter { it != Page.TIME || clock != null } }
+    val pages = remember(clock != null, cinematic != null) {
+        Page.entries.filter { (it != Page.TIME || clock != null) && (it != Page.CINEMATIC || cinematic != null) }
+    }
     val reduced = reduceMotion()
     Overlay(onClose) {
         BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -165,6 +171,7 @@ fun DownloadOptions(
                                 if (!canDownload) WifeNote("Gather the character tables first.")
                             }
                             Page.TIME -> if (clock != null) TimePage(clock, onClock, lifeSimulation, onLifeSimulation)
+                            Page.CINEMATIC -> if (cinematic != null) CinematicPage(cinematic, onCinematic)
                             Page.MODS -> mods()
                         }
                     }

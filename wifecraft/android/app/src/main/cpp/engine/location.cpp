@@ -756,7 +756,15 @@ void Scene::setTimeOfDay(float hours) {
 // sun's direction is the hour's; a room's own light is tinted (roomTint_), the baked vertex light kept as it is.
 void Scene::applyTimeOfDay() {
     roomTint_[0] = roomTint_[1] = roomTint_[2] = 1.0f;
-    if (timeOfDay_ < 0 || !location_) { light_ = baseLight_; return; }
+    // cinematic mode's mood over whatever light there is (daylight.h: moodScene; strength 0 changes nothing)
+    auto mood = [this] {
+        if (cineMood_ > 0) moodScene(cineMood_, cineFlicker_, light_.ambient, light_.sunColor, light_.skyTop, light_.fogColor, roomTint_);
+        if (cineMood_ > 0) for (int i = 0; i < 3; ++i) {
+            light_.skyHorizon[i] = std::min(light_.skyHorizon[i], light_.skyHorizon[i] * (1.0f - 0.2f * cineMood_));
+            light_.skyBelow[i] = std::min(light_.skyBelow[i], light_.skyBelow[i] * (1.0f - 0.2f * cineMood_));
+        }
+    };
+    if (timeOfDay_ < 0 || !location_) { light_ = baseLight_; mood(); return; }
     const DayCycle& c = locDesc_.dayCycle.empty() ? defaultDayCycle() : locDesc_.dayCycle;
     DaySample now = sampleDay(c, timeOfDay_, locDesc_.frameYawDeg);
     DayKey noon;
@@ -774,6 +782,7 @@ void Scene::applyTimeOfDay() {
     l.sunDir[0] = now.lightDir.x; l.sunDir[1] = now.lightDir.y; l.sunDir[2] = now.lightDir.z;
     std::copy(now.interior, now.interior + 3, roomTint_);
     light_ = l;
+    mood();
 }
 
 void Scene::clearLocation() {
@@ -1361,18 +1370,42 @@ void Scene::lightActor(const V3& feet, bool restore) {
             float vol = e.x * e.y * e.z;
             if (vol < bestVol) { bestVol = vol; room = &g; }
         }
+    V3 sun = V3(light_.sunDir[0], light_.sunDir[1], light_.sunDir[2]).normalized();
+    float amb[3], dir[3];
     if (!room) {
-        glUniform3fv(loc(p, "uAmbient"), 1, light_.ambient);
-        glUniform3fv(loc(p, "uSunColor"), 1, light_.sunColor);
+        std::copy(light_.ambient, light_.ambient + 3, amb);
+        std::copy(light_.sunColor, light_.sunColor + 3, dir);
+    } else {
+        // the room's ambient and its mean baked light, a little of it from the sun's side so the body keeps its shape
+        const float* ia = location_->intAmbient;
+        const float* t = roomTint_;
+        for (int i = 0; i < 3; ++i) {
+            float mean = i == 0 ? room->meanLight.x : i == 1 ? room->meanLight.y : room->meanLight.z;
+            amb[i] = (ia[i] + mean * 0.8f) * t[i];
+            dir[i] = mean * 0.5f * t[i];
+        }
+    }
+    static const float kNone[3] = {0, 0, 0};
+    float sdv[3] = {sun.x, sun.y, sun.z};
+    if (cineMood_ > 0 && !restore) {
+        // cinematic mode: less ambient, a warm key from the camera's side, low, and a soft rim from behind (daylight.h)
+        MoodActorLight m = moodActor(cineMood_, cineFlicker_, room != nullptr, amb, dir);
+        V3 key, rim;
+        moodDirections(eye_, target_, key, rim);
+        V3 d = sun * (1.0f - cineMood_) + key * cineMood_;
+        d = d.length() > 1e-3f ? d.normalized() : key;
+        float dv[3] = {d.x, d.y, d.z}, rv[3] = {rim.x, rim.y, rim.z};
+        glUniform3fv(loc(p, "uAmbient"), 1, m.ambient);
+        glUniform3fv(loc(p, "uSunColor"), 1, m.key);
+        glUniform3fv(loc(p, "uSunDir"), 1, dv);
+        glUniform3fv(loc(p, "uRimColor"), 1, m.rim);
+        glUniform3fv(loc(p, "uRimDir"), 1, rv);
         return;
     }
-    // the room's ambient and its mean baked light, a little of it from the sun's side so the body keeps its shape
-    const float* ia = location_->intAmbient;
-    const float* t = roomTint_;
-    float amb[3] = {(ia[0] + room->meanLight.x * 0.8f) * t[0], (ia[1] + room->meanLight.y * 0.8f) * t[1], (ia[2] + room->meanLight.z * 0.8f) * t[2]};
-    float dir[3] = {room->meanLight.x * 0.5f * t[0], room->meanLight.y * 0.5f * t[1], room->meanLight.z * 0.5f * t[2]};
     glUniform3fv(loc(p, "uAmbient"), 1, amb);
     glUniform3fv(loc(p, "uSunColor"), 1, dir);
+    glUniform3fv(loc(p, "uSunDir"), 1, sdv);
+    glUniform3fv(loc(p, "uRimColor"), 1, kNone);
 }
 
 void Scene::drawSelection(const M4& viewProj) {

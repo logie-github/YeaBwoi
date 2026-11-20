@@ -14,6 +14,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -22,6 +23,9 @@ import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.anim.AnimLibrary
 import com.logie.wifecraft.anim.PairAnim
 import androidx.compose.foundation.layout.Row
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * The animation library: search, filter by category, rename, move to another category, delete. Two tabs: single
@@ -42,12 +46,16 @@ fun AnimLibraryScreen(library: AnimLibrary, onImport: () -> Unit, onBack: () -> 
     var movingPair by remember { mutableStateOf<PairAnim?>(null) }
     var newPairCategoryFor by remember { mutableStateOf<PairAnim?>(null) }
     var deletingPair by remember { mutableStateOf<PairAnim?>(null) }
+    // Compact library: animations still in the old, larger files converted to clip files (anim/ClipStore), with a progress line
+    var compacting by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
     @Suppress("UNUSED_EXPRESSION") rev
 
     // read and sorted once per change of the library, not on every letter typed in the search
     val all = remember(rev) { library.list() }
     val allPairs = remember(rev) { library.pairs() }
     val staleNotice = remember(rev) { AnimBrowse.staleNotice(library.stale()) }
+    val legacy = remember(rev) { library.legacyCount() }
     val pairCats = remember(allPairs) { PairBrowse.categories(allPairs) }
     val cats = remember(all) { AnimBrowse.categories(all) }
     if (category != null && (if (partner) pairCats else cats).none { it.first.equals(category, true) }) category = null
@@ -72,6 +80,24 @@ fun AnimLibraryScreen(library: AnimLibrary, onImport: () -> Unit, onBack: () -> 
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             // clips an older conversion made: said plainly, with how to update them
             staleNotice?.let { Text(it, style = frizStyle(13.sp, WowColors.gold, false), modifier = Modifier.padding(horizontal = 4.dp)) }
+            if (legacy > 0 || compacting != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(compacting ?: "$legacy animation${if (legacy == 1) " is" else "s are"} in the old, larger format.",
+                    style = frizStyle(13.sp, WowColors.grey, false), modifier = Modifier.weight(1f).padding(horizontal = 4.dp))
+                SmallButton("Compact library", {
+                    if (compacting == null) {
+                        compacting = "Compacting…"
+                        scope.launch {
+                            val over = java.util.concurrent.atomic.AtomicBoolean(false)
+                            withContext(Dispatchers.IO) {
+                                library.compact { done, total -> scope.launch { if (!over.get()) compacting = "Compacting $done of $total…" } }
+                            }
+                            over.set(true)
+                            compacting = null
+                            rev++
+                        }
+                    }
+                }, enabled = compacting == null, width = 170.dp)
+            }
             // the two tabs: single animations, and partner animations (shown once there is one)
             if (allPairs.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 EditorCard(onClick = { if (partner) { partner = false; category = null } }, modifier = Modifier.weight(1f), selected = !partner) {

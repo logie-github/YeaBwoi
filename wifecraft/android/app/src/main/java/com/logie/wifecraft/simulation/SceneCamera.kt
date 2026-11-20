@@ -143,6 +143,10 @@ class SceneCamera(room: CameraPose) {
         const val EYE_ABOVE_FLOOR = 0.2f
         /** One press (or repeat) of the up and down buttons, yards. */
         const val LIFT_STEP = 0.15f
+        /** Into a directed pose (cinematic mode) and back to the player's camera, seconds: at least this, longer when the two
+         *  are far apart (on average no faster than [DIRECT_SPEED] yards a second). */
+        const val DIRECT_S = 1.2f
+        const val DIRECT_SPEED = 2.5f
     }
 
     @Volatile var room: CameraPose = room
@@ -201,6 +205,27 @@ class SceneCamera(room: CameraPose) {
     var atY = room.at.y; private set
     var atZ = room.at.z; private set
     var fov = room.fov; private set
+
+    // ---- cinematic mode: a pose from outside (CinematicDirector) laid over the camera's own, eased in and out over DIRECT_S;
+    // the player's camera goes on underneath untouched (its mode, orbit and springs), so leaving glides back to it exactly
+    @Volatile private var directWanted = false
+    private var directBlend = 0f
+    private var directHas = false
+    private var dEyeX = 0f; private var dEyeY = 0f; private var dEyeZ = 0f
+    private var dAtX = 0f; private var dAtY = 0f; private var dAtZ = 0f
+    private var dFov = 50f
+
+    /** Cinematic mode on (the directed pose eases in) or off (it eases back to the player's camera). Any thread. */
+    fun setDirecting(on: Boolean) { directWanted = on }
+    val directing: Boolean get() = directWanted
+    /** 0..1: how far the view is the directed pose (linear in time; eased when applied). GL thread. */
+    val directAmount: Float get() = directBlend
+
+    /** This frame's directed pose (GL thread, before [update]); nothing given: the player's camera stays. */
+    fun directPose(ex: Float, ey: Float, ez: Float, ax: Float, ay: Float, az: Float, f: Float) {
+        dEyeX = ex; dEyeY = ey; dEyeZ = ez; dAtX = ax; dAtY = ay; dAtZ = az; dFov = f
+        directHas = true
+    }
 
     /** Whether anything is still moving (a transition, a spring, a flick): false once the camera rests. */
     var moving = false; private set
@@ -383,7 +408,20 @@ class SceneCamera(room: CameraPose) {
         atY = r.at.y + (ay - r.at.y) * e
         atZ = r.at.z + (az - r.at.z) * e
         fov = r.fov
-        moving = blendTime < TRANSITION_S || spinYaw != 0f || spinPitch != 0f || holding ||
+        // cinematic mode's pose over it (eased in and out; the player's camera above is the one it leaves and returns to)
+        val dGoal = if (directWanted && directHas) 1f else 0f
+        if (dGoal != directBlend) {
+            val apart = sqrt((dEyeX - eyeX) * (dEyeX - eyeX) + (dEyeY - eyeY) * (dEyeY - eyeY) + (dEyeZ - eyeZ) * (dEyeZ - eyeZ))
+            val rate = step / max(DIRECT_S, if (directHas) apart / DIRECT_SPEED else 0f)
+            directBlend = if (dGoal > directBlend) (directBlend + rate).coerceAtMost(1f) else (directBlend - rate).coerceAtLeast(0f)
+        }
+        if (directBlend > 0f && directHas) {
+            val k = easeInOut(directBlend)
+            eyeX += (dEyeX - eyeX) * k; eyeY += (dEyeY - eyeY) * k; eyeZ += (dEyeZ - eyeZ) * k
+            atX += (dAtX - atX) * k; atY += (dAtY - atY) * k; atZ += (dAtZ - atZ) * k
+            fov += (dFov - fov) * k
+        } else if (!directWanted) directHas = false
+        moving = directBlend > 0f || blendTime < TRANSITION_S || spinYaw != 0f || spinPitch != 0f || holding ||
             (blend > 0f && (abs(yaw.velocity) + abs(pitch.velocity) + abs(distance.velocity) +
                 abs(tx.velocity) + abs(ty.velocity) + abs(tz.velocity) +
                 abs(px.velocity) + abs(py.velocity) + abs(pz.velocity) > 1e-3f))

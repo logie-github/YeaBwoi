@@ -1,6 +1,7 @@
 package com.logie.wifecraft.data
 
 import android.content.Context
+import com.logie.wifecraft.simulation.CinematicSettings
 import com.logie.wifecraft.simulation.ClockSettings
 
 /** The reader's settings, kept between runs. */
@@ -53,6 +54,10 @@ class Settings(context: Context) {
     var clock: ClockSettings
         get() = ClockSettings.parse(prefs.getString("clock", null))
         set(v) = prefs.edit().putString("clock", v.toJson().toString()).apply()
+    /** Cinematic mode's settings (Options' Cinematic page: lighting, camera style and speed, shot lengths, letterbox, grain, words), as JSON. */
+    var cinematic: CinematicSettings
+        get() = CinematicSettings.parse(prefs.getString("cinematic", null))
+        set(v) = prefs.edit().putString("cinematic", v.toJson().toString()).apply()
     /** Files fetched at once by the first launch's gathering: Gentle 24, Normal 48, Fast 96 (the ceiling; it backs off by itself). */
     var downloadSpeed: Int
         get() = prefs.getInt("downloadSpeed", FAST).let { if (it in CHOICES) it else FAST }
