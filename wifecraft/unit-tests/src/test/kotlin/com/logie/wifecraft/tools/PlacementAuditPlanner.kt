@@ -42,7 +42,7 @@ import kotlin.test.Test
  * AUDIT_OUT the output folder; AUDIT_POSES the converted poses (pose1.anim .. pose15.anim, the harness's anim text);
  * AUDIT_LOOKS the look files (human_m.look ...); AUDIT_FILES the game files; AUDIT_COUCH the couch's seat as the engine
  * measures it ("x z": engine-test/audit's `contact`), else the standard spec's; AUDIT_ROOMS which rooms (default all);
- * AUDIT_RAW=1 people placed at the simulation's height (Pose.z, with its lift), not stood on the floor by the engine.
+ * AUDIT_SNAP=1 everyone stood on the floor under them (the engine before Scene::kRaised: a raised clip's lift lost).
  */
 class PlacementAuditPlanner {
     private val locale = Locale.ROOT
@@ -135,9 +135,9 @@ class PlacementAuditPlanner {
         val looks = File(System.getenv("AUDIT_LOOKS") ?: return)
         val files = System.getenv("AUDIT_FILES") ?: return
         val wanted = System.getenv("AUDIT_ROOMS")?.split(',')?.map { it.trim() }?.toSet()
-        // AUDIT_RAW=1: each person at the height the simulation means (Pose.z = floor + lift), not stood on the floor as the
-        // engine's placeActor stands them today (the raised clips' lift is lost there): the app once the lift is carried
-        val raw = System.getenv("AUDIT_RAW") == "1"
+        // as the app's sink: a clip raised over its floor (Pose.lift) is placed raised (Scene::kRaised, `place ... raw`);
+        // AUDIT_SNAP=1: everyone stood on the floor under them, as the engine did before kRaised (the lift lost)
+        val snap = System.getenv("AUDIT_SNAP") == "1"
         val couch = System.getenv("AUDIT_COUCH")?.trim()?.split(Regex("\\s+"))?.map { it.toFloat() }
         val assets = File(System.getProperty("wifecraft.assets") ?: "../android/app/src/main/assets")
         val locationsPath = File(assets, "locations.json")
@@ -268,7 +268,8 @@ class PlacementAuditPlanner {
                     val body = bodies.getValue(b)
                     s.pose(i, p)
                     lines.append("actor $i ${File(looks, body.look + ".look").absolutePath} ${body.target} ${f(body.xy)}\n")
-                    lines.append("place $i ${f(at[i].x)} ${f(at[i].y)} ${f(at[i].z)} ${f(p.facing)}${if (raw) " raw" else ""}\n")
+                    val raised = !snap && p.playback != null && p.lift > 0.01f
+                    lines.append("place $i ${f(at[i].x)} ${f(at[i].y)} ${f(at[i].z)} ${f(p.facing)}${if (raised) " raw" else ""}\n")
                     lines.append(roles[i].first.replace("SLOT", "$i")).append('\n')
                 }
                 if (cast.size < 2) lines.append("hide 1\n")

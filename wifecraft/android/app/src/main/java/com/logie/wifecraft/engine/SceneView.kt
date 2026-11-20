@@ -85,8 +85,11 @@ interface LookSource {
     fun prepareLook(kind: PlaceKind, asset: Int, appearance: Appearance?, onDone: (Prepared) -> Unit)
 }
 
-/** Where someone stands this frame. */
-enum class FurniturePose(val nativeId: Int) { FLOOR(0), SIT(1), REST(2) }
+/**
+ * Where someone stands this frame. RAISED: the floor pose at the given height, not stood on the floor under it (a clip
+ * lifted onto a bed or seat: Scene::kRaised).
+ */
+enum class FurniturePose(val nativeId: Int) { FLOOR(0), SIT(1), REST(2), RAISED(3) }
 
 data class FurnitureContact(val point: Vec3, val facing: Float, val halfDepth: Float)
 

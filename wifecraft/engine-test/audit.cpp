@@ -17,7 +17,7 @@
 //   clearsolids | clearprops
 //   actor SLOT LOOK TARGET|own XY          person SLOT (0, 1) dressed in LOOK, at human scale (TARGET the sex's height) and
 //                                          the clips' root motion across the floor XY (Scene::setHumanRootMotion)
-//   place SLOT X Y Z FACING [raw]          where the app put them (the engine's floor pose; raw: not stood on the floor)
+//   place SLOT X Y Z FACING [raw]          where the app put them (the engine's floor pose; raw: Scene::kRaised, not stood on the floor)
 //   clip SLOT PATH | emote SLOT ANIM LOOP | still SLOT     what they play (from the case's clock 0)
 //   hide SLOT
 //   case ID key=value...                   starts a case: its keys go into every CSV row (rest0=, rest1=: sit|lie|kneel|floor|stand)
@@ -556,8 +556,17 @@ int main(int argc, char** argv) {
             std::string mid;
             if (const auto* v = s.at(s.x0 + s.nx * s.cell * 0.5f, s.y0 + s.ny * s.cell * 0.5f))
                 for (auto& sp : *v) { char b[64]; std::snprintf(b, sizeof b, " [%.3f %.3f]", sp.first - floorZ, sp.second - floorZ); mid += b; }
-            std::printf("solid %s: %zu triangles, %d x %d cells (%zu covered), at its middle over the floor:%s\n", name.c_str(), tris.size() / 3,
-                        s.nx, s.ny, cells, mid.c_str());
+            // the surface at its middle's height (the mattress, the seat): its extent in the world (x and y)
+            float topMid = NAN;
+            if (const auto* v = s.at(s.x0 + s.nx * s.cell * 0.5f, s.y0 + s.ny * s.cell * 0.5f)) topMid = v->front().second;
+            float lx = 1e9f, hx = -1e9f, ly = 1e9f, hy = -1e9f;
+            for (int j = 0; j < s.ny; ++j) for (int i = 0; i < s.nx; ++i) for (auto& sp : s.spans[size_t(j) * s.nx + i])
+                if (std::fabs(sp.second - topMid) < 0.06f) {
+                    float x = s.x0 + (i + 0.5f) * s.cell, y = s.y0 + (j + 0.5f) * s.cell;
+                    lx = std::min(lx, x); hx = std::max(hx, x); ly = std::min(ly, y); hy = std::max(hy, y);
+                }
+            std::printf("solid %s: %zu triangles, %d x %d cells (%zu covered), at its middle over the floor:%s; that surface spans x %.3f..%.3f, y %.3f..%.3f\n",
+                        name.c_str(), tris.size() / 3, s.nx, s.ny, cells, mid.c_str(), lx, hx, ly, hy);
             std::fflush(stdout);
         } else if (cmd == "clearsolids") solids.clear();
         else if (cmd == "clearprops") { scene.clearProps(); props.clear(); }
@@ -585,13 +594,12 @@ int main(int argc, char** argv) {
             int slot; ss >> slot;
             if (slotKey.count(slot)) { Person& p = cache[slotKey[slot]]; scene.showActor(p.id, false); p.shown = false; }
         } else if (cmd == "place") {
-            // `raw` at the end: at Z as given (the engine's placeActor stands an actor on the floor under it, dropping a
-            // clip's lift onto furniture: a raw place is where the app means them to be)
+            // `raw` at the end: at Z as given (Scene::kRaised, as the app's sink places a clip raised onto furniture);
+            // otherwise stood on the floor under them
             int slot; float x, y, z, f; std::string raw; ss >> slot >> x >> y >> z >> f >> raw;
             if (slotKey.count(slot)) {
                 int id = cache[slotKey[slot]].id;
-                scene.placeActor(id, V3(x, y, z), f);
-                if (raw == "raw") scene.actors_.at(id).position.z = z;
+                scene.placeActor(id, V3(x, y, z), f, raw == "raw" ? Scene::kRaised : Scene::kOnFloor);
             }
         } else if (cmd == "clip" || cmd == "emote" || cmd == "still") {
             int slot; ss >> slot;

@@ -50,8 +50,9 @@ def cameras(k):
     for name, turn, dist, up in (("front", 0.0, 3.4, 0.9), ("3q", math.pi / 4, 3.4, 1.0), ("side", math.pi / 2, 3.2, 0.7)):
         a = yaw + turn
         ex, ey = cx + math.cos(a) * dist, cy + math.sin(a) * dist
-        if lying and name == "front":
-            up, dist = 2.6, 1.2
+        if lying:
+            # lying: from higher up (over the bed's posts and the other body)
+            up, dist = {"front": (2.3, 2.3), "3q": (1.8, 2.9), "side": (1.2, 3.0)}[name]
             ex, ey = cx + math.cos(a) * dist, cy + math.sin(a) * dist
         out.append((name, f"camera {ex:.3f} {ey:.3f} {cz + up:.3f} {cx:.3f} {cy:.3f} {cz + 0.55:.3f} 48"))
     return out

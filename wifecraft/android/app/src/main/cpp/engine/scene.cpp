@@ -721,7 +721,9 @@ void Scene::refreshSkin(Actor& a) {
 void Scene::placeActor(int id, V3 position, float facing, int furniture, V3 surface) {
     auto it = actors_.find(id);
     if (it == actors_.end()) return;
-    position.z = floorAt(position.x, position.y, position.z);
+    // a raised actor keeps its height (the clip is lifted onto furniture); everyone else stands on the floor under them
+    if (furniture == kRaised) furniture = kOnFloor;
+    else position.z = floorAt(position.x, position.y, position.z);
     it->second.position = position;
     it->second.facing = facing;
     it->second.furniture = furniture;

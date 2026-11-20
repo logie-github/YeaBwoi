@@ -538,14 +538,17 @@ fun LiveSceneScreen(
             }
 
             override fun place(index: Int, x: Float, y: Float, z: Float, facing: Float, furniture: SceneObject?, sx: Float, sy: Float, sz: Float) {
-                val pose = when (furniture?.action) {
-                    Activity.SIT -> FurniturePose.SIT
-                    Activity.REST -> FurniturePose.REST
+                val pose = when {
+                    furniture?.action == Activity.SIT -> FurniturePose.SIT
+                    furniture?.action == Activity.REST -> FurniturePose.REST
+                    // a clip raised over its floor (onto a bed or seat): drawn at its height, not stood on the floor
+                    furniture == null && z > sz + 0.01f -> FurniturePose.RAISED
                     else -> FurniturePose.FLOOR
                 }
                 view.glPlace(keys[index], x, y, z, facing, pose, sx, sy, sz)
                 val standing = heads.getOrElse(index) { 2.05f }
-                speechSpots.headAt(index, sx, sy, sz + SpeechLayout.head(standing, pose == FurniturePose.SIT, pose == FurniturePose.REST))
+                val base = if (pose == FurniturePose.RAISED) z else sz
+                speechSpots.headAt(index, sx, sy, base + SpeechLayout.head(standing, pose == FurniturePose.SIT, pose == FurniturePose.REST))
             }
 
             override fun speech(index: Int, text: String?, id: Long) {
