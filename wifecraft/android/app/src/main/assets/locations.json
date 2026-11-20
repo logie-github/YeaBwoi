@@ -5615,7 +5615,7 @@
    ],
    "furniture": [
     {"object": "BED", "kind": "BED_DOUBLE", "position": [8.567, 1.606, 7.294], "yaw": -1.5708, "surface": 0.765},
-    {"object": "CHAIR", "kind": "CHAIR", "position": [2.528, -6.608, 7.294], "yaw": -1.5097, "surface": 0.514},
+    {"object": "CHAIR", "kind": "CHAIR", "position": [2.528, -6.608, 7.294], "yaw": -1.5097, "surface": 0.479},
     {"object": "TABLE", "kind": "TABLE", "position": [2.527, -7.546, 7.294], "yaw": 0.0, "surface": 1.093}
    ],
    "props": [

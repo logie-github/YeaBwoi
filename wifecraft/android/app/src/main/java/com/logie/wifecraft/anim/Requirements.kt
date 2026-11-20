@@ -36,7 +36,9 @@ enum class Surface { FLOOR, BED, COUCH, CHAIR, TABLE_OR_COUNTER, ANY_SEAT, NONE,
  * seat under a sitter, the bed under a lying body, the floor (0) under a kneeling one, the surface the hands rest on for
  * LEAN. [x], [y] where the support is in the clip's frame (body units: the pelvis; for LEAN the hands), [yaw] degrees:
  * pelvis-to-head for a lying body, the facing otherwise; [headX]..[feetY] the head and feet over the ground; [feetOnFloor]
- * the feet stay on the floor (the support may not be lifted).
+ * the feet stay on the floor (the support may not be lifted); [liftUnits] how far (body units) the clip must be raised for
+ * no joint it rests on to come nearer its support (the floor, the seat, the bed) than the flesh around it ([RequirementClassifier.groundLift]: a floor sit whose hips
+ * the clip puts 6 cm up, made for a thinner body, is raised; 0 when nothing reaches under).
  */
 data class ActorRequirement(
     val posture: Posture,
@@ -48,7 +50,11 @@ data class ActorRequirement(
     val feetOnFloor: Boolean,
     val confidence: Float,
     val reason: String,
-)
+    val liftUnits: Float = 0f,
+) {
+    /** Where the clip's support must be put for its flesh to rest on the surface (body units): [heightUnits] less [liftUnits]. */
+    val restUnits: Float get() = heightUnits - liftUnits
+}
 
 /**
  * What an animation needs: [surface] the furniture it is played on (the actor's that is not on the floor, else FLOOR or
@@ -67,8 +73,8 @@ data class Requirement(
     val primary: Int get() = actors.indexOfFirst { it.surface !in FLOOR_LEVEL }.takeIf { it >= 0 } ?: 0
 
     companion object {
-        /** Raised when the classifier changes so stored results are made again. */
-        const val VERSION = 1
+        /** Raised when the classifier changes so stored results are made again (2: [ActorRequirement.liftUnits]). */
+        const val VERSION = 2
         val FLOOR_LEVEL = setOf(Surface.FLOOR, Surface.NONE)
     }
 }
@@ -102,6 +108,12 @@ object RequirementClassifier {
     const val PELVIS_METRES = 0.95f
     /** Below this support height (metres) a body is on the floor. */
     const val FLOOR_MAX = 0.25f
+    /**
+     * Below this a sitting body sits on the floor; above it, it needs a (low) seat: hips held 0.2 m up with the feet on the
+     * floor are a sit on a stool or step, and on the bare floor they hang in the air (the audit: the pose pack's 4, 11, 12
+     * and 14 looked like chair sits with no chair).
+     */
+    const val FLOOR_SIT_MAX = 0.12f
     /** Above this a seat is a table or counter top. */
     const val SEAT_MAX = 0.75f
     /** Above this a lying or kneeling body is on a table or counter rather than a bed. */
@@ -272,7 +284,40 @@ object RequirementClassifier {
             median(held.map { it.hx }).toFloat(), median(held.map { it.hy }).toFloat(),
             median(held.map { it.fx }).toFloat(), median(held.map { it.fy }).toFloat(),
             feetOnFloor, conf.coerceIn(0.05, 0.99).toFloat(), why.toString(),
+            // standing, leaning, crouching: the feet carry them, on the floor; a seat bears the hips; the rest lie or kneel on it
+            (if (final in setOf(Posture.STAND, Posture.LEAN, Posture.CROUCH)) groundLift(frames)
+            else groundLift(frames, support, if (final.seated && metres >= FLOOR_SIT_MAX) HIPS else FLESH.keys)).toFloat(),
         )
+    }
+
+    /**
+     * Each joint's flesh below it, body units (the reference body's: its ankle joint stands 0.075 over the floor, its toe
+     * joint 0.02; a lying back's spine about 0.1; a floor sit's hip joints about 0.1 over the seat): no joint may come
+     * nearer the floor than this, or the skin under it is in the floor.
+     */
+    val FLESH = mapOf(
+        "Root" to 0.1, "Pelvis" to 0.1, "Spine1" to 0.09, "Spine2" to 0.09, "Chest" to 0.09, "Neck1" to 0.06, "Head" to 0.08,
+        "L_Clavicle" to 0.05, "R_Clavicle" to 0.05, "L_UpperArm" to 0.05, "R_UpperArm" to 0.05, "L_Forearm" to 0.04, "R_Forearm" to 0.04,
+        "L_Hand" to 0.02, "R_Hand" to 0.02, "L_Thigh" to 0.1, "R_Thigh" to 0.1, "L_Calf" to 0.05, "R_Calf" to 0.05,
+        "L_Foot" to 0.06, "R_Foot" to 0.06, "L_Toe" to 0.015, "R_Toe" to 0.015,
+    )
+
+    /** What a seat bears: the hips and thighs (the shins and feet hang in front of it). */
+    val HIPS = setOf("Root", "Pelvis", "L_Thigh", "R_Thigh")
+
+    /**
+     * How far (body units) [frames] must be raised for none of [joints] to come nearer the support at [support] (body units
+     * over the floor; 0: the floor) than its flesh ([FLESH]): a lying body's face or knee in the mattress, a floor sit's hips
+     * in the floor. 0 when nothing reaches under.
+     */
+    fun groundLift(frames: List<BodyFrame>, support: Double = 0.0, joints: Collection<String> = FLESH.keys): Double {
+        var lift = 0.0
+        for (f in frames) for (j in joints) {
+            val pad = FLESH[j] ?: continue
+            val p = f[j] ?: continue
+            if (pad - (p[2] - support) > lift) lift = pad - (p[2] - support)
+        }
+        return lift
     }
 
     /** No readable body: the hints alone, with a low confidence; nothing at all: UNKNOWN. */
@@ -311,7 +356,7 @@ object RequirementClassifier {
             Posture.LEAN -> if (metres < 0.65f) Surface.BED else Surface.TABLE_OR_COUNTER
             Posture.KNEEL, Posture.ALL_FOURS, Posture.CROUCH, Posture.LIE_BACK, Posture.LIE_FRONT, Posture.LIE_SIDE ->
                 if (metres < FLOOR_MAX) Surface.FLOOR else if (metres < BED_MAX) Surface.BED else Surface.TABLE_OR_COUNTER
-            Posture.SIT -> if (metres < FLOOR_MAX) Surface.FLOOR else if (metres <= SEAT_MAX || feetDown) Surface.ANY_SEAT else Surface.TABLE_OR_COUNTER
+            Posture.SIT -> if (metres < FLOOR_SIT_MAX) Surface.FLOOR else if (metres <= SEAT_MAX || feetDown) Surface.ANY_SEAT else Surface.TABLE_OR_COUNTER
             Posture.SIT_ON_SURFACE -> Surface.TABLE_OR_COUNTER
             Posture.UNKNOWN -> Surface.UNKNOWN
         }
@@ -443,7 +488,8 @@ object RequirementJson {
                 .put("h", a.height.toDouble()).put("hu", a.heightUnits.toDouble())
                 .put("x", a.x.toDouble()).put("y", a.y.toDouble()).put("yaw", a.yaw.toDouble())
                 .put("hx", a.headX.toDouble()).put("hy", a.headY.toDouble()).put("fx", a.feetX.toDouble()).put("fy", a.feetY.toDouble())
-                .put("feet", a.feetOnFloor).put("confidence", a.confidence.toDouble()).put("reason", a.reason))
+                .put("feet", a.feetOnFloor).put("confidence", a.confidence.toDouble()).put("reason", a.reason)
+                .put("lift", a.liftUnits.toDouble()))
         })
 
     /** The requirement in [o], or null when it is missing, from another classifier version, or damaged (never throws). */
@@ -455,7 +501,7 @@ object RequirementJson {
                 fun f(k: String) = a.optDouble(k, 0.0).toFloat().also { require(it.isFinite()) }
                 ActorRequirement(Posture.valueOf(a.getString("posture")), Surface.valueOf(a.getString("surface")),
                     f("h"), f("hu"), f("x"), f("y"), f("yaw"), f("hx"), f("hy"), f("fx"), f("fy"),
-                    a.optBoolean("feet", false), f("confidence"), a.optString("reason"))
+                    a.optBoolean("feet", false), f("confidence"), a.optString("reason"), f("lift"))
             }
             if (actors.isEmpty()) null
             else Requirement(Surface.valueOf(o.getString("surface")), actors, o.optDouble("confidence", 0.0).toFloat(),
