@@ -111,6 +111,53 @@ object Native {
     /** The actor's size (added with [addActor]'s scale): [scale] replaces it, so a placed person is the look's scale times the placement's. */
     @JvmStatic external fun setActorScale(scene: Long, actor: Int, scale: Float)
     @JvmStatic external fun height(scene: Long, actor: Int): Float
+    /** Human scale (anim/HumanScale): the actor's standing height in model units (cpp humanscale.h), 0 when it can't be measured. */
+    @JvmStatic external fun standHeight(scene: Long, actor: Int): Float
+    /** Human scale: its imported animations' root motion across the floor in the pair's shared yards per unit ([xy] 0: off). */
+    @JvmStatic external fun humanRootMotion(scene: Long, actor: Int, xy: Float)
+
+    // ---- body parts (cpp engine/bodypart.h; bodyparts/ makes the files)
+    /** A part file (files/bodyparts/<set>/<id>.wcbp) read and kept: its handle, the same again for the same path; 0: [partError]. */
+    @JvmStatic external fun loadPart(scene: Long, path: String): Int
+    @JvmStatic external fun partError(scene: Long): String
+    /**
+     * Part [part] on [actor] in the slot its file's state names (DEFAULT, ON), drawn with [rgba] ([width] x [height], top row
+     * first: its texture tinted to the actor's skin, bodyparts/PartSkin). Rigid on the actor's Pelvis. False: no such actor
+     * or part, or the size doesn't match the bytes.
+     */
+    @JvmStatic external fun attachPart(scene: Long, actor: Int, part: Int, rgba: ByteArray, width: Int, height: Int): Boolean
+    /** Which slot is drawn (bodyparts/PartDraw: 0 none, 1 the default part, 2 the on part); kept across [dress]. */
+    @JvmStatic external fun partState(scene: Long, actor: Int, state: Int)
+    /** The race's fit (bodyparts/PartFits): forward and up in pelvis heights, a factor on the size. */
+    @JvmStatic external fun partFit(scene: Long, actor: Int, dx: Float, dz: Float, scale: Float)
+    @JvmStatic external fun detachParts(scene: Long, actor: Int)
+    /** Where to sample the actor's skin for the parts' tint: skin texture (u, v) pairs, v 0 at the top (empty: can't say). */
+    @JvmStatic external fun partSkinUvs(scene: Long, actor: Int): FloatArray
+
+    // ---- model parts (cpp engine/modelpart.h; bodyparts/ModelParts: the manifest and set.json)
+    /**
+     * A model part (a version 2 part file, [loadPart]) on [actor], rigid on the bone its file names, fitted to the actor's
+     * skeleton and moved by ([dx], [dy], [dz]) of its scale bones' length and sized by [scale]; drawn with its own texture
+     * file and blend. Its handle on the actor (> 0), 0: no such actor or part, or not a model part.
+     */
+    @JvmStatic external fun attachBonePart(scene: Long, actor: Int, part: Int, dx: Float, dy: Float, dz: Float, scale: Float): Int
+    /** Shows or hides one model part of [actor] by [handle], or every one (0). */
+    @JvmStatic external fun bonePartVisible(scene: Long, actor: Int, handle: Int, visible: Boolean)
+    /** Refits one ([handle]) or every (0) model part of [actor]. */
+    @JvmStatic external fun bonePartFit(scene: Long, actor: Int, handle: Int, dx: Float, dy: Float, dz: Float, scale: Float)
+    @JvmStatic external fun detachBoneParts(scene: Long, actor: Int)
+    /** The stand-in's cut: [actor]'s triangles under these bones (WoW-side names: "Head") not drawn; empty: none. Kept across [dress]. */
+    @JvmStatic external fun bodyCut(scene: Long, actor: Int, bones: Array<String>)
+    /** The stand-in's body (and its skinned models) drawn times ([r], [g], [b]): its skin matched to the pieces' ([ModelParts.tint]). */
+    @JvmStatic external fun bodyTint(scene: Long, actor: Int, r: Float, g: Float, b: Float)
+    /** Where to sample [actor]'s own skin for that match: its face's skin texture (u, v) pairs, v 0 at the top (empty: can't say). */
+    @JvmStatic external fun faceSkinUvs(scene: Long, actor: Int): FloatArray
+    /**
+     * Cuts the manifest's ([manifestJson]: assets/model_parts.json) set [set] ("" every set) from the downloaded files in
+     * [filesDir] into [outDir]/<set>/ (set.json and its parts). Any thread (no scene); slow for a big model (a second or
+     * so). Its first line "ok" or "failed", then what was written or why not (a model not downloaded).
+     */
+    @JvmStatic external fun buildModelParts(manifestJson: String, filesDir: String, outDir: String, set: String): String
     @JvmStatic external fun camera(scene: Long, ex: Float, ey: Float, ez: Float, tx: Float, ty: Float, tz: Float, fov: Float)
     @JvmStatic external fun light(scene: Long, values: FloatArray)
 

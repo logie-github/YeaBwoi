@@ -1,5 +1,6 @@
 package com.logie.wifecraft.simulation
 
+import com.logie.wifecraft.anim.HumanScale
 import kotlin.math.sqrt
 import kotlin.math.tan
 
@@ -73,4 +74,14 @@ object SpeechLayout {
         sitting -> standing * 0.7f
         else -> standing
     }
+
+    /**
+     * [head] for the live scene's people drawn at human scale (anim/HumanScale): the same for every such race, a human
+     * man's or woman's crown ([HumanScale.head]), whatever their race's own size.
+     */
+    fun humanHead(female: Boolean, sitting: Boolean, lying: Boolean): Float = head(HumanScale.head(female), sitting, lying)
+
+    /** [head] for a live scene's person of race [raceId]: a human's crown, but a dwarf's or a gnome's own (their own size). */
+    fun humanHead(raceId: Int, female: Boolean, sitting: Boolean, lying: Boolean): Float =
+        head(HumanScale.head(raceId, female), sitting, lying)
 }

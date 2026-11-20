@@ -262,6 +262,21 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
         normalize(null)
     }
 
+    /**
+     * A named character's choices ([LookPreset], the Transmog panel's presets) put on, when the character is of the
+     * preset's race and sex: each pick of an option the creator shows, with a choice of that option's; the others stay.
+     * The choices are then kept right with each other as after the dice. False (nothing changed) for another race or sex.
+     */
+    fun applyLook(look: LookPreset): Boolean {
+        if (look.raceId != model.race.id || look.sex != model.sex) return false
+        val shown = model.options.associateBy { it.id }
+        val picks = look.picks.filter { (o, c) -> shown[o]?.choices?.any { it.id == c } == true }
+        if (picks.isEmpty()) return false
+        appearance = appearance.copy(picks = current() + picks)
+        normalize(null)
+        return true
+    }
+
     fun setClothing(items: Map<Int, Int>) { appearance = appearance.copy(clothing = items, gear = true, starterClothing = false) }
 
     fun setGear(on: Boolean) { appearance = appearance.copy(gear = on) }

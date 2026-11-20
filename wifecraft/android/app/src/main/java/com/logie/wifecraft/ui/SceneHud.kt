@@ -1,13 +1,14 @@
 package com.logie.wifecraft.ui
 
+import com.logie.wifecraft.simulation.CameraMode
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 
 // Pure Kotlin, no android.* and no Compose (JVM-tested: unit-tests/.../ui/SceneHudTest): the live scene's HUD in the front
 // menus' look (SceneSessionScreen draws it). What the action bar offers for the controlled NPC and in which order, its
-// pages of six, the line of help, the clock, where the bars go on each of the Fold's screens, and the Play animation
-// window's category tabs.
+// pages of six, the line of help, the clock, where the bars go on each of the Fold's screens, the camera's controls, and the
+// Play animation window's category tabs.
 
 /** What an action-bar slot does. */
 enum class HudOrder { WALK, PLAY, PARTNER, SAY, CHAT, STOP_REPEAT, CLEAR_QUEUE, RELEASE, USE, FREE_WILL }
@@ -108,6 +109,37 @@ object SceneHud {
         val h12 = if (hr % 12 == 0) 12 else hr % 12
         return "$h12:$m ${if (hr < 12) "AM" else "PM"}"
     }
+
+    /** The camera controls' gap and width: the camera button over two columns of 48 dp buttons (up and down, zoom). */
+    const val CAMERA_GAP = 4f
+    const val CAMERA_W = 2 * SLOT_H + CAMERA_GAP
+
+    /** The camera button's words for [mode]. */
+    fun cameraLabel(mode: CameraMode): String = when (mode) {
+        CameraMode.ROOM -> "Room view"
+        CameraMode.ORBIT -> "Orbit"
+        CameraMode.FOLLOW -> "Follow"
+    }
+
+    /** What the camera button says it does: its mode and the next one a tap gives. */
+    fun cameraDescription(mode: CameraMode, canFollow: Boolean): String =
+        "Camera: ${cameraLabel(mode)}. Tap for ${cameraLabel(mode.next(canFollow))}."
+
+    /** Where the camera controls start from the top, dp: under the top bar, and under the cast's strip when it has one. */
+    fun cameraTop(layout: HudLayout): Float = if (layout.castSide) TOP_H + 4f else TOP_H + layout.castH + GAP
+
+    /**
+     * The mode a drag or pinch on the view gives: the room's view becomes the orbit (it starts exactly on the room's view,
+     * so nothing jumps); an orbit or Follow stays as it is.
+     */
+    fun cameraForTouch(mode: CameraMode): CameraMode = if (mode == CameraMode.ROOM) CameraMode.ORBIT else mode
+
+    /**
+     * The mode once the controlled NPC is let go ([selected] false): Follow becomes the orbit where it is (the view holds);
+     * otherwise it stays.
+     */
+    fun cameraAfterRelease(mode: CameraMode, selected: Boolean): CameraMode =
+        if (!selected && mode == CameraMode.FOLLOW) CameraMode.ORBIT else mode
 
     /** The two-person animations' own tab in the Play animation window. */
     const val PARTNER_TAB = "Partner"

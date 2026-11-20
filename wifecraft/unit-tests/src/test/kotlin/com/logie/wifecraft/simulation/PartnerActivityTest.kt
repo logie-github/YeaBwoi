@@ -293,6 +293,32 @@ class PartnerActivityTest {
         assertTrue("Partner animation: Pair hug" in notices, "$notices")
     }
 
+    @Test fun aGnomeStandsNearerItsPartnerByItsSize() {
+        // the slots +-0.4 yards: two humans play 0.8 apart; a gnome (its own size, about half a human's) comes in to
+        // 0.4 + 0.4 x its size from the human, who stays where it stood
+        val g = com.logie.wifecraft.anim.HumanScale.pairScale(7, female = false)
+        fun play(sizes: Map<String, Float>): Float {
+            val s = sim(listOf("a", "b", "c"), pairs = listOf(pair("hug")))
+            s.sizes = sizes
+            val before = s.position("c")!!
+            assertTrue(s.partner("a", "c"))
+            until(s) { activity(s, 0) == Activity.PERFORM && activity(s, 2) == Activity.PERFORM }
+            val a = s.position("a")!!; val c = s.position("c")!!
+            assertEquals(0f, hypot(c.x - before.x, c.y - before.y), 1e-4f)     // the one gone to stays on its spot
+            return hypot(a.x - c.x, a.y - c.y)
+        }
+        assertEquals(0.8f, play(emptyMap()), 1e-3f)
+        assertEquals(0.4f + 0.4f * g, play(mapOf("a" to g)), 1e-3f)
+        assertEquals(0.8f, play(mapOf("a" to 1f, "c" to 1f)), 1e-3f)          // a dwarf or anyone else: as two humans
+        // talking: a gnome stands nearer too
+        val s = sim(listOf("a", "b"))
+        s.sizes = mapOf("b" to g)
+        assertTrue(s.chat("a", "b"))
+        until(s) { activity(s, 0) != Activity.WALK }
+        val a = s.position("a")!!; val b = s.position("b")!!
+        assertEquals(SceneSimulation.CHAT_GAP * 0.5f * (1f + g), hypot(a.x - b.x, a.y - b.y), 1e-3f)
+    }
+
     @Test fun theFrequencySettingReadsBack() {
         assertEquals(PartnerFrequency.OFTEN, PartnerFrequency.of("OFTEN"))
         assertEquals(PartnerFrequency.SOMETIMES, PartnerFrequency.of(null))
@@ -310,8 +336,10 @@ class PartnerPairAdapterTest {
         val taken = PartnerPair.enabled(listOf(pair("on", true), pair("off", false)))
         assertEquals(listOf("on"), taken.map { it.id })
         val p = taken.single()
-        assertEquals(PartnerSlot(0.4f, 0.1f, 0f, 0f), p.slotA)
-        assertEquals(PartnerSlot(-0.4f, 0f, 0f, 180f), p.slotB)
+        // at human scale: across the floor by HumanScale.PAIR, as the engine takes the clips' root motion
+        val k = com.logie.wifecraft.anim.HumanScale.PAIR
+        assertEquals(PartnerSlot(0.4f * k, 0.1f * k, 0f, 0f), p.slotA)
+        assertEquals(PartnerSlot(-0.4f * k, 0f, 0f, 180f), p.slotB)
         assertEquals(listOf(PartnerSound(0.5f, "kiss", 1)), p.sounds)
         assertEquals(2f, p.duration)
         assertEquals(SceneObject.COUCH, PartnerPlaces.furniture(p.locations.single()))

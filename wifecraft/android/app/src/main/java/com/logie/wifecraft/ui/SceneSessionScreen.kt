@@ -21,6 +21,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -49,6 +50,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -57,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.logie.wifecraft.anim.CheckedAnimation
+import com.logie.wifecraft.anim.HumanScale
 import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.anim.AnimationChoice
 import com.logie.wifecraft.anim.BoneTrack
@@ -82,6 +87,7 @@ import com.logie.wifecraft.engine.Thumbs
 import com.logie.wifecraft.engine.SceneView
 import com.logie.wifecraft.location.LocationInfo
 import com.logie.wifecraft.simulation.Activity
+import com.logie.wifecraft.simulation.CameraMode
 import com.logie.wifecraft.simulation.InteractionSpot
 import com.logie.wifecraft.simulation.LiveScene
 import com.logie.wifecraft.simulation.ModelEmotes
@@ -93,6 +99,7 @@ import com.logie.wifecraft.simulation.SceneSnapshot
 import com.logie.wifecraft.simulation.TouchGesture
 import com.logie.wifecraft.simulation.TwoFingers
 import com.logie.wifecraft.simulation.SceneObject
+import com.logie.wifecraft.simulation.SceneCamera
 import com.logie.wifecraft.simulation.Chatter
 import com.logie.wifecraft.simulation.ChatterFrequency
 import com.logie.wifecraft.simulation.Races
@@ -103,9 +110,12 @@ import com.logie.wifecraft.creator.Sex
 import androidx.compose.ui.layout.onSizeChanged
 import com.logie.wifecraft.story.CameraPose
 import com.logie.wifecraft.story.Vec3
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
+import kotlin.math.hypot
 import kotlin.random.Random
 
 enum class SetupStep(val title: String) { LOCATION("Choose Scene"), CAST("Choose NPCs"), OBJECTS("Choose objects") }
@@ -251,7 +261,14 @@ fun LiveSceneScreen(
     // the speech bubbles: the GL thread lays them out each frame, the overlay draws them; each person's line now
     val speechSpots = remember(live) { SpeechSpots(live.count) }
     val lines = remember(live) { mutableStateListOf<String?>().apply { repeat(live.count) { add(null) } } }
-    val heads = remember(cast) { FloatArray(cast.size) { Races.headHeight(cast[it].appearance.raceId) } }
+    // each one's head: a human's of their sex at human scale, a dwarf's or gnome's own (anim/HumanScale)
+    val heads = remember(cast) {
+        FloatArray(cast.size) { HumanScale.head(cast[it].appearance.raceId, cast[it].appearance.sex == Sex.FEMALE) }
+    }
+    // each one's size for the pairs' positioning: a gnome's own, everyone else 1 (HumanScale.pairScale, simulation/PairFit)
+    val pairSizes = remember(cast) {
+        cast.associate { it.id to HumanScale.pairScale(it.appearance.raceId, it.appearance.sex == Sex.FEMALE) }
+    }
     // the clips every playback key names (GL thread reads it): the orders' (request) and the partner pairs' roles
     val playback = remember(live) { ConcurrentHashMap<String, Anim>() }
     LaunchedEffect(live, partnerPairs, partner, emotes, chatter) {
@@ -259,15 +276,23 @@ fun LiveSceneScreen(
             playback[PlaybackKeys.pair(p.id, 0)] = lifted(p.a.copy(loop = false), p.slotA.z)
             playback[PlaybackKeys.pair(p.id, 1)] = lifted(p.b.copy(loop = false), p.slotB.z)
         }
-        live.command { sim -> sim.pairs = partnerPairs; sim.partnerChance = partner.chance; sim.emotes = emotes; sim.chatterChance = chatter.chance }
+        live.command { sim ->
+            sim.pairs = partnerPairs; sim.partnerChance = partner.chance; sim.emotes = emotes; sim.chatterChance = chatter.chance
+            sim.sizes = pairSizes
+        }
     }
-    SideEffect { live.camera.room = camera }
+    SideEffect {
+        live.camera.room = camera
+        live.camera.floorZ = toStage(Vec3(0f, 0f, 0f)).z   // the stage's floor: the camera's lift stays in the room
+    }
     var snapshot by remember(live) { mutableStateOf(live.snapshot()) }
     // who the player controls and that NPC's partner (SceneControl: a tap on another NPC makes it the partner)
     var control by remember { mutableStateOf(SceneControl()) }
     val selected = control.selected
     val partnerId = control.partner
-    var npcCamera by remember { mutableStateOf(false) }
+    // Walk on: a tap on the floor sends the controlled NPC there. The camera: the room's view, the orbit, or Follow
+    var walking by remember { mutableStateOf(false) }
+    var cameraMode by remember(live) { mutableStateOf(CameraMode.ROOM) }
     var ending by remember { mutableStateOf(false) }
     var choosingAnimation by remember { mutableStateOf<String?>(null) }
     var choosingPartner by remember { mutableStateOf<PendingAnimation?>(null) }
@@ -284,7 +309,8 @@ fun LiveSceneScreen(
         else if (choosingPartner != null) choosingPartner = null
         else if (choosingAnimation != null) choosingAnimation = null
         else if (menu) menu = false
-        else if (npcCamera) npcCamera = false
+        else if (walking) walking = false
+        else if (cameraMode != CameraMode.ROOM) cameraMode = CameraMode.ROOM
         else if (partnerId != null) control = control.clearPartner()
         else if (selected != null) control = control.release()
         else ending = true
@@ -297,7 +323,7 @@ fun LiveSceneScreen(
             val key = "${choice.id}:$index"
             val scale = if (choice.yards) 1f else PERFORMANCE_SCALE
             playback[key] = lifted(animation, role.offset.z * scale)
-            PlaybackRole(key, role.offset * scale, role.facing)
+            PlaybackRole(key, Vec3(role.offset.x * scale * HumanScale.PAIR, role.offset.y * scale * HumanScale.PAIR, role.offset.z * scale), role.facing)
         }
         val cycle = animations.maxOf { it.duration }.takeIf { it > 0f } ?: 12f
         return PerformanceOrder(other, roles, cycle, repeat, choice.repetitions, choice.name,
@@ -407,10 +433,11 @@ fun LiveSceneScreen(
         live.running = ready && !ending
         live.selected = selected?.let { id -> cast.indexOfFirst { it.id == id } } ?: -1
     }
-    LaunchedEffect(npcCamera, selected) {
-        if (selected == null) npcCamera = false
-        live.camera.setNpc(npcCamera && selected != null)
+    LaunchedEffect(selected) {
+        if (selected == null) walking = false
+        cameraMode = SceneHud.cameraAfterRelease(cameraMode, selected != null)
     }
+    LaunchedEffect(live, cameraMode) { live.camera.setMode(cameraMode) }
     LaunchedEffect(selected) {
         view.select(selected?.let(actorKey))
         live.order { null }
@@ -443,15 +470,14 @@ fun LiveSceneScreen(
             }
             Hit.Kind.GROUND -> {
                 val id = selected
-                if (ready && npcCamera && id != null) {
+                if (ready && walking && id != null) {
                     val destination = toLocal(Vec3(hit.x, hit.y, hit.z))
                     live.order { sim -> if (sim.walk(id, destination)) null else "There’s no clear path to that spot." }
-                } else if (!npcCamera) control = control.release()
+                } else if (!walking) control = control.release()
             }
-            null -> if (!npcCamera) control = control.release()
+            null -> if (!walking) control = control.release()
         }
     })
-    val orbiting by rememberUpdatedState(npcCamera)
 
     // when the scene is in and a few frames of it are drawn (the NPCs' skins are composed a frame or so each), the cover fades
     var revealed by remember(live) { mutableStateOf(false) }
@@ -466,12 +492,16 @@ fun LiveSceneScreen(
     val uses = remember(objects) { SceneObject.entries.filter { it in objects }.map { it.name to useLabel(it) } }
     val mate = partnerId?.takeIf { it != active?.id }
     val slots = if (active == null) emptyList()
-        else SceneHud.orders(npcCamera, mate != null, cast.size - 1, active.repeating, active.queued, uses)
+        else SceneHud.orders(walking, mate != null, cast.size - 1, active.repeating, active.queued, uses)
     var page by remember { mutableIntStateOf(0) }
     LaunchedEffect(selected) { page = 0 }
     fun act(id: String, slot: HudSlot) {
         when (slot.order) {
-            HudOrder.WALK -> npcCamera = !npcCamera
+            HudOrder.WALK -> {
+                walking = !walking
+                // as before: walking from the room's view follows the NPC (the camera button changes it any time)
+                if (walking && cameraMode == CameraMode.ROOM) cameraMode = CameraMode.FOLLOW
+            }
             HudOrder.PLAY -> choosingAnimation = id
             HudOrder.PARTNER -> partnerId?.let { sendToPartner(id, it) }
             HudOrder.SAY -> saying = id
@@ -499,6 +529,11 @@ fun LiveSceneScreen(
             Modifier.fillMaxSize().onSizeChanged { speechSpots.width = it.width.toFloat(); speechSpots.height = it.height.toFloat() }.pointerInput(view, live) {
                 val slop = 8.dp.toPx()
                 val velocity = FloatArray(2)
+                // a drag or pinch on the room's view starts the orbit there (it begins exactly on the room's view)
+                fun beginOrbit() {
+                    val next = SceneHud.cameraForTouch(cameraMode)
+                    if (next != cameraMode) { cameraMode = next; live.camera.setMode(next) }
+                }
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     val gesture = TouchGesture(slop)
@@ -509,6 +544,10 @@ fun LiveSceneScreen(
                     var span = 0f
                     var angle = 0f
                     var twist = 0f
+                    // the two fingers' midpoint, and how far it has gone (a pan starts past the slop: a pinch's drift never pans)
+                    var midX = 0f
+                    var midY = 0f
+                    var travel = 0f
                     while (true) {
                         val event = awaitPointerEvent()
                         val pressed = event.changes.filter { it.pressed }
@@ -519,24 +558,35 @@ fun LiveSceneScreen(
                             val b = pressed[1].position
                             val nowSpan = TwoFingers.span(a.x, a.y, b.x, b.y)
                             val nowAngle = TwoFingers.angle(a.x, a.y, b.x, b.y)
+                            val nowMidX = (a.x + b.x) / 2f
+                            val nowMidY = (a.y + b.y) / 2f
                             if (!twoFingers || span <= 0f) {
                                 twoFingers = true
                                 gesture.multi()
-                            } else if (orbiting) {
+                            } else {
+                                beginOrbit()
+                                // pinch zooms; a twist turns the orbit once it is plainly a twist (a pinch's wobble never does);
+                                // the two moving together pan along the ground (sideways) and raise or lower the view (up and down)
                                 live.camera.pinch(nowSpan / span)
-                                // a twist turns the orbit once it is plainly a twist (a pinch's wobble never does)
                                 twist += TwoFingers.turn(angle, nowAngle)
                                 if (abs(twist) > TWIST_DEADZONE) live.camera.twist(TwoFingers.turn(angle, nowAngle))
+                                val moveX = nowMidX - midX
+                                val moveY = nowMidY - midY
+                                travel += hypot(moveX, moveY)
+                                if (travel > slop * PAN_SLOPS) live.camera.pan(moveX, moveY, size.height.toFloat())
                                 pressed.forEach { it.consume() }
                             }
                             span = nowSpan
                             angle = nowAngle
+                            midX = nowMidX
+                            midY = nowMidY
                         } else {
                             span = 0f   // one finger of a pinch lifted: the next two-finger move starts afresh
                             if (!twoFingers) {
                                 val finger = pressed.firstOrNull { it.id == down.id } ?: pressed[0]
                                 last = finger.position
-                                if (gesture.move(last.x, last.y, finger.uptimeMillis) && orbiting) {
+                                if (gesture.move(last.x, last.y, finger.uptimeMillis)) {
+                                    beginOrbit()
                                     live.camera.dragBy(gesture.dx, gesture.dy, size.height.toFloat())
                                     finger.consume()
                                 }
@@ -545,7 +595,7 @@ fun LiveSceneScreen(
                     }
                     when {
                         gesture.up(lastTime) -> view.pick(last.x, last.y, size.width, size.height) { onTap(it) }
-                        gesture.kind == TouchGesture.Kind.DRAG && orbiting -> {
+                        gesture.kind == TouchGesture.Kind.DRAG -> {
                             gesture.velocity(lastTime, velocity)
                             live.camera.release(velocity[0], velocity[1], size.height.toFloat())
                         }
@@ -590,7 +640,9 @@ fun LiveSceneScreen(
                         }
                     }
                 }
-                ZoomButtons(npcCamera, live, Modifier.align(Alignment.CenterEnd).padding(end = SceneHud.MARGIN.dp))
+                CameraControls(cameraMode, selected != null, { cameraMode = it }, live,
+                    Modifier.align(Alignment.TopEnd).graphicsLayer { alpha = shown }
+                        .padding(end = SceneHud.MARGIN.dp, top = SceneHud.cameraTop(hud).dp))
                 // the line of help (or the last refusal) with the partner chip, and the action bar: a fixed height, so
                 // choosing someone or a longer line never moves anything
                 Column(
@@ -598,7 +650,7 @@ fun LiveSceneScreen(
                         .width(hud.barW.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    val hint = SceneHud.hint(active != null, mate != null, cast.size, npcCamera)
+                    val hint = SceneHud.hint(active != null, mate != null, cast.size, walking)
                     Row(Modifier.fillMaxWidth().height(WifeTheme.touch), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
                         AnimatedVisibility(mate != null && active != null, enter = fadeIn(tween(MenuMotion.duration(FrontMotion.GLOW_MS, reduced))),
@@ -889,14 +941,22 @@ private fun PageButton(page: Int, pages: Int, onNext: () -> Unit) {
     }
 }
 
-private enum class HudGlyph { GEAR, PLUS, MINUS }
+private enum class HudGlyph { GEAR, PLUS, MINUS, UP, DOWN }
 
 /** A round slate button with a gold glyph: 40 dp drawn, 48 dp to touch. */
 @Composable
-private fun HudIconButton(glyph: HudGlyph, onClick: () -> Unit, description: String, repeatable: Boolean = false) {
+private fun HudIconButton(
+    glyph: HudGlyph,
+    onClick: () -> Unit,
+    description: String,
+    repeatable: Boolean = false,
+    enabled: Boolean = true,
+    /** Held down, it repeats (the camera's up, down and zoom): a step at once, then every [HOLD_REPEAT_MS]. */
+    hold: Boolean = false,
+) {
     Box(
         Modifier.size(WifeTheme.touch).semantics { contentDescription = description }
-            .warPress(repeatable = repeatable, onClick = onClick),
+            .then(if (hold) Modifier.holdRepeat(enabled, onClick) else Modifier.warPress(enabled = enabled, repeatable = repeatable, onClick = onClick)),
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.size(40.dp)) {
@@ -911,6 +971,14 @@ private fun HudIconButton(glyph: HudGlyph, onClick: () -> Unit, description: Str
                     drawLine(WifeTheme.gold, Offset(center.x, center.y - k), Offset(center.x, center.y + k), w)
                 }
                 HudGlyph.MINUS -> drawLine(WifeTheme.gold, Offset(center.x - k, center.y), Offset(center.x + k, center.y), w)
+                HudGlyph.UP -> {
+                    drawLine(WifeTheme.gold, Offset(center.x - k, center.y + k / 2), Offset(center.x, center.y - k / 2), w)
+                    drawLine(WifeTheme.gold, Offset(center.x, center.y - k / 2), Offset(center.x + k, center.y + k / 2), w)
+                }
+                HudGlyph.DOWN -> {
+                    drawLine(WifeTheme.gold, Offset(center.x - k, center.y - k / 2), Offset(center.x, center.y + k / 2), w)
+                    drawLine(WifeTheme.gold, Offset(center.x, center.y + k / 2), Offset(center.x + k, center.y - k / 2), w)
+                }
                 HudGlyph.GEAR -> {
                     // eight teeth round a ring, a hole in the middle
                     val tooth = r * 0.16f
@@ -924,16 +992,80 @@ private fun HudIconButton(glyph: HudGlyph, onClick: () -> Unit, description: Str
     }
 }
 
-/** The NPC camera's zoom buttons, faded in and out with it (the springs ease each step). */
+/**
+ * A press that repeats while held: [step] at once (with the interface's click), then after [HOLD_DELAY_MS] every
+ * [HOLD_REPEAT_MS] until the finger lifts or slides off. Disabled: it takes no touches at all.
+ */
 @Composable
-private fun ZoomButtons(shown: Boolean, live: LiveScene, modifier: Modifier) {
-    val reduced = reduceMotion()
-    AnimatedVisibility(shown, modifier, enter = fadeIn(tween(MenuMotion.duration(MenuMotion.WINDOW_IN_MS, reduced))),
-        exit = fadeOut(tween(MenuMotion.duration(MenuMotion.WINDOW_OUT_MS, reduced)))) {
-        Column(verticalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
-            HudIconButton(HudGlyph.PLUS, { live.camera.zoomBy(1.25f) }, "Zoom in", repeatable = true)
-            HudIconButton(HudGlyph.MINUS, { live.camera.zoomBy(0.8f) }, "Zoom out", repeatable = true)
+private fun Modifier.holdRepeat(enabled: Boolean, step: () -> Unit): Modifier {
+    val play = LocalSounds.current
+    val current by rememberUpdatedState(step)
+    return this
+        .semantics {
+            role = Role.Button
+            if (enabled) onClick { current(); true } else disabled()
         }
+        .then(if (!enabled) Modifier else Modifier.pointerInput(Unit) {
+            coroutineScope {
+                awaitEachGesture {
+                    awaitFirstDown().consume()
+                    play("click")
+                    current()
+                    val repeating = launch {
+                        delay(HOLD_DELAY_MS)
+                        while (true) { current(); delay(HOLD_REPEAT_MS) }
+                    }
+                    try { waitForUpOrCancellation()?.consume() } finally { repeating.cancel() }
+                }
+            }
+        })
+}
+
+/**
+ * The camera's controls at the screen's right: the camera button (Room view, Orbit, Follow: a tap gives the next), and under
+ * it, while an orbit is shown, the up and down buttons (the view rises and lowers along the room's height) beside zoom in and
+ * out, all held to repeat and eased by the camera's springs. Their place is kept while they are hidden: nothing moves.
+ */
+@Composable
+private fun CameraControls(mode: CameraMode, canFollow: Boolean, onMode: (CameraMode) -> Unit, live: LiveScene, modifier: Modifier) {
+    val reduced = reduceMotion()
+    val orbit = mode != CameraMode.ROOM
+    val controlsAlpha by animateFloatAsState(if (orbit) 1f else 0f,
+        tween(MenuMotion.duration(if (orbit) MenuMotion.WINDOW_IN_MS else MenuMotion.WINDOW_OUT_MS, reduced)), label = "cameraControls")
+    Column(modifier.width(SceneHud.CAMERA_W.dp), verticalArrangement = Arrangement.spacedBy(SceneHud.CAMERA_GAP.dp)) {
+        CameraModeButton(mode, canFollow) { onMode(mode.next(canFollow)) }
+        // hidden: an empty space of the same size (touches go through to the room); shown or fading: the buttons
+        if (!orbit && controlsAlpha <= 0f) {
+            Spacer(Modifier.width(SceneHud.CAMERA_W.dp).height((2 * SceneHud.SLOT_H + SceneHud.CAMERA_GAP).dp))
+        } else Row(Modifier.graphicsLayer { alpha = controlsAlpha }, horizontalArrangement = Arrangement.spacedBy(SceneHud.CAMERA_GAP.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(SceneHud.CAMERA_GAP.dp)) {
+                HudIconButton(HudGlyph.UP, { live.camera.liftBy(SceneCamera.LIFT_STEP) }, "Camera up", enabled = orbit, hold = true)
+                HudIconButton(HudGlyph.DOWN, { live.camera.liftBy(-SceneCamera.LIFT_STEP) }, "Camera down", enabled = orbit, hold = true)
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(SceneHud.CAMERA_GAP.dp)) {
+                HudIconButton(HudGlyph.PLUS, { live.camera.zoomBy(1.25f) }, "Zoom in", enabled = orbit, hold = true)
+                HudIconButton(HudGlyph.MINUS, { live.camera.zoomBy(0.8f) }, "Zoom out", enabled = orbit, hold = true)
+            }
+        }
+    }
+}
+
+/** The camera button: the mode's name on a slate pill with the gold trim, 48 dp to touch, a fixed width (no shift). */
+@Composable
+private fun CameraModeButton(mode: CameraMode, canFollow: Boolean, onClick: () -> Unit) {
+    val pill = RoundedCornerShape(50)
+    val lit = mode != CameraMode.ROOM
+    Box(
+        Modifier.width(SceneHud.CAMERA_W.dp).height(WifeTheme.touch)
+            .semantics { contentDescription = SceneHud.cameraDescription(mode, canFollow) }
+            .warPress(sound = "tab", onClick = onClick)
+            .padding(vertical = 4.dp)
+            .clip(pill).background(Brush.verticalGradient(listOf(WifeTheme.secondaryTop, WifeTheme.secondaryBottom)))
+            .border(if (lit) 2.dp else WifeTheme.trimWidth, if (lit) WifeTheme.gold else WifeTheme.trim, pill),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(SceneHud.cameraLabel(mode), style = frizStyle(13.sp, if (lit) Color.White else WifeTheme.gold), maxLines = 1,
+            overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
     }
 }
 
@@ -1009,6 +1141,11 @@ private val PartnerRose = Color(0xFFE88AA8)
 private const val REVEAL_FRAMES = 8L
 /** Radians two fingers must turn before a pinch turns the orbit too. */
 private const val TWIST_DEADZONE = 0.15f
+/** A held camera button: the wait before it repeats, and the time between repeats, ms. */
+private const val HOLD_DELAY_MS = 350L
+private const val HOLD_REPEAT_MS = 90L
+/** Touch slops two fingers' midpoint must travel before they pan (a pinch's drift never does). */
+private const val PAN_SLOPS = 2f
 
 /**
  * Over the 3D view while the scene loads: the scene's name, what is loading (a fixed-width line: changing numbers never

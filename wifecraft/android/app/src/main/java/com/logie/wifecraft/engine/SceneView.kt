@@ -5,9 +5,15 @@ import android.opengl.GLSurfaceView
 import android.os.SystemClock
 import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.anim.AnimArrays
+import com.logie.wifecraft.anim.HumanScale
+import com.logie.wifecraft.bodyparts.ModelParts
+import com.logie.wifecraft.bodyparts.PartDraw
+import com.logie.wifecraft.bodyparts.PartFits
+import com.logie.wifecraft.bodyparts.PartState
 import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.BodyCall
 import com.logie.wifecraft.creator.DressCall
+import com.logie.wifecraft.creator.Sex
 import com.logie.wifecraft.data.City
 import com.logie.wifecraft.editor.PlaceKind
 import com.logie.wifecraft.story.CameraPose
@@ -151,6 +157,10 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     private val bodies = mutableMapOf<String, Pair<Int, Float>>()
     /** GL thread: the placement editor's size of each actor key, a factor on the look's own scale (absent: 1). */
     private val sizes = mutableMapOf<String, Float>()
+    /** GL thread: an actor drawn at human scale (anim/HumanScale): the scale that stands in for its look's own. */
+    private val humanScales = mutableMapOf<String, Float>()
+    /** Each live person's size over a human's of their sex ([HumanScale.bodyScale]: 1 at human scale, a dwarf's or gnome's own). */
+    private val bodyRatios = java.util.concurrent.ConcurrentHashMap<String, Float>()
     /** GL thread: each key's imported animation ([playAnim]), put on its actor whenever that actor is (re)made. */
     private val poses = mutableMapOf<String, AnimArrays>()
     /** GL thread: the editor's props, by key. */
@@ -259,9 +269,13 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
      * look's layers or extra models still wait for join when they arrive. [body] (Wrath++'s body options) follows the dress.
      * A model the renderer can't read is said to [onFail] (on the GL thread), why included. [character]: a playable race's
      * model (the creator's people, NPCs of those races), the only actors with a soft body; a creature never has one.
+     * [sex]: a person's; with it, an actor [HumanScale.applies] to (the live scene's NPCs, the editor's ghost) stands as tall
+     * as a human of that sex instead of its look's own scale, its imported animations' root motion in the pairs' yards; but a
+     * dwarf or gnome ([raceId]: [HumanScale.keepsOwnSize]) keeps its look's own scale, its root motion across the floor taken
+     * by [HumanScale.pairScale] (a gnome's steps and pair slots its size's, simulation/PairFit).
      */
     fun dress(key: String, call: DressCall, body: BodyCall = BodyCall.NONE, character: Boolean = false,
-        onReady: (() -> Unit)? = null, onFail: (String) -> Unit = {}) = post { h, ids ->
+        onReady: (() -> Unit)? = null, sex: Sex? = null, raceId: Int = 0, onFail: (String) -> Unit = {}) = post { h, ids ->
         var id = ids[key]
         if (id != null && bodies[key] != (call.model to call.scale)) {
             Native.removeActor(h, id); ids.remove(key); bodies.remove(key); id = null
@@ -274,10 +288,26 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
                 return@post
             }
             ids[key] = added; bodies[key] = call.model to call.scale
-            sizes[key]?.let { if (it != 1f) Native.setActorScale(h, added, call.scale * it) }
+            humanScales.remove(key)
+            if (sex != null && HumanScale.applies(key)) bodyRatios[key] = HumanScale.bodyScale(raceId, sex == Sex.FEMALE)
+            else bodyRatios.remove(key)
+            if (sex != null && HumanScale.applies(key) && HumanScale.keepsOwnSize(raceId)) {
+                sizes[key]?.let { if (it != 1f) Native.setActorScale(h, added, call.scale * it) }
+                Native.humanRootMotion(h, added, HumanScale.PAIR * HumanScale.pairScale(raceId, sex == Sex.FEMALE))
+            } else if (sex != null && HumanScale.applies(key)) {
+                val human = HumanScale.scale(Native.standHeight(h, added), sex == Sex.FEMALE)
+                humanScales[key] = human
+                Native.setActorScale(h, added, human * (sizes[key] ?: 1f))
+                Native.humanRootMotion(h, added, HumanScale.PAIR)
+            } else {
+                sizes[key]?.let { if (it != 1f) Native.setActorScale(h, added, call.scale * it) }
+            }
             id = added
             poses[key]?.let { applyPose(h, added, it) }
             requestedAnimations[key]?.let { Native.anim(h, added, it, true, Clock.now()) }
+            partRaces[key] = raceId
+            applyParts(h, key, added)
+            applyModelSet(h, key, added)
         }
         Native.character(h, id, character)
         Native.dress(h, id, call.geosetKeys, call.geosetValues, call.layerFiles, call.layerMeta, call.tintColours, call.extraModels)
@@ -285,7 +315,14 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         if (onReady != null) main.post { onReady() }
     }
 
-    override fun removeActor(key: String) = post { h, ids -> ids.remove(key)?.let { Native.removeActor(h, it) }; bodies.remove(key); sizes.remove(key); requestedAnimations.remove(key) }
+    override fun removeActor(key: String) = post { h, ids -> ids.remove(key)?.let { Native.removeActor(h, it) }; bodies.remove(key); sizes.remove(key); humanScales.remove(key); bodyRatios.remove(key); requestedAnimations.remove(key); actorParts.remove(key); partRaces.remove(key); modelSets.remove(key) }
+
+    /**
+     * The actor [key]'s size over a human's of its sex as the live scene draws it (1 at human scale, a dwarf's or gnome's own:
+     * [HumanScale.bodyScale]), for what is sized to the body (furniture's seat and bed heights); 1 for one not drawn so.
+     * Any thread.
+     */
+    fun bodyScale(key: String): Float = bodyRatios[key] ?: 1f
 
     /**
      * Sizes the actor [key] at [factor] times its look's own scale (the placement editor's Size on a person or creature);
@@ -294,7 +331,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     fun setActorScale(key: String, factor: Float) = post { h, ids ->
         sizes[key] = factor
         val id = ids[key]
-        val look = bodies[key]?.second
+        val look = humanScales[key] ?: bodies[key]?.second
         if (id != null && look != null) Native.setActorScale(h, id, look * factor)
     }
 
@@ -303,8 +340,182 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         ids.clear()
         bodies.clear()
         sizes.clear()
+        humanScales.clear()
+        bodyRatios.clear()
         poses.clear()
         requestedAnimations.clear()
+        actorParts.clear()
+        partRaces.clear()
+        modelSets.clear()
+    }
+
+    // ---- body parts (cpp engine/bodypart.h; bodyparts/: the files, PartFits, PartSkin, PartDraw)
+
+    /** GL thread: a part's texture as given to [attachPart]. */
+    private class PartTexture(val part: String, val rgba: ByteArray, val width: Int, val height: Int)
+    /** GL thread: what each key's actor wears ([attachPart], by slot: its file's state) and shows ([setPartState]), put on again when the actor is made anew. */
+    private class ActorParts(val textures: MutableMap<String, PartTexture> = mutableMapOf(), var state: Int = PartDraw.NONE)
+    private val actorParts = mutableMapOf<String, ActorParts>()
+    /** GL thread: each key's race as last dressed (its parts' fit, [PartFits]). */
+    private val partRaces = mutableMapOf<String, Int>()
+    /** GL thread: loaded part files by "set/id" (their engine handles). */
+    private val partHandles = mutableMapOf<String, Int>()
+
+    /** GL thread: the part "set/id" (files/bodyparts/<set>/<id>.wcbp) loaded, its handle; 0 when it can't be read (logged). */
+    private fun partHandle(h: Long, part: String): Int {
+        partHandles[part]?.let { return it }
+        val file = java.io.File(java.io.File(context.filesDir, "bodyparts"), "$part.wcbp")
+        val got = Native.loadPart(h, file.path)
+        if (got == 0) android.util.Log.w("Wifecraft", "part $part: ${Native.partError(h)}")
+        else partHandles[part] = got
+        return got
+    }
+
+    /** GL thread: the key's parts, fit and state on its actor [id] (a new actor, or after a change). */
+    private fun applyParts(h: Long, key: String, id: Int) {
+        val ap = actorParts[key] ?: return
+        val fit = PartFits.forRace(partRaces[key] ?: 0)
+        Native.partFit(h, id, fit.dx, fit.dz, fit.scale)
+        for (t in ap.textures.values) {
+            val handle = partHandle(h, t.part)
+            if (handle != 0) Native.attachPart(h, id, handle, t.rgba, t.width, t.height)
+        }
+        Native.partState(h, id, ap.state)
+    }
+
+    /** Reads the part [set]/[id] (files/bodyparts/<set>/<id>.wcbp) ahead of its use; [onDone] (main thread) says whether it could. */
+    fun loadPart(set: String, id: String, onDone: (Boolean) -> Unit = {}) = post { h, _ ->
+        val ok = partHandle(h, "$set/$id") != 0
+        main.post { onDone(ok) }
+    }
+
+    /**
+     * Puts the part [part] ("set/id") on the actor [actorKey], drawn with [rgba] ([width] x [height], top row first: its
+     * <id>.png tinted to the actor's skin, [PartSkin.tinted] with [partSkinUvs]). It takes the slot its file's state names
+     * (DEFAULT or ON; one each, a new one replaces it). Nothing shows until [setPartState] picks a slot. Set before the
+     * actor is on stage it waits for it; a new model for the key keeps it.
+     */
+    fun attachPart(actorKey: String, part: String, rgba: ByteArray, width: Int, height: Int) = post { h, ids ->
+        val handle = partHandle(h, part)
+        if (handle == 0) return@post
+        // one texture per slot: the file's state, from the set's manifest (DEFAULT unless ON); the engine slots it the same way
+        val ap = actorParts.getOrPut(actorKey) { ActorParts() }
+        ap.textures[slotOf(part)] = PartTexture(part, rgba, width, height)
+        ids[actorKey]?.let { applyParts(h, actorKey, it) }
+    }
+
+    /** Which part the actor [actorKey] shows: [PartDraw.NONE], [PartDraw.DEFAULT] or [PartDraw.ON] ([PartDraw.visible]: none unless bare). */
+    fun setPartState(actorKey: String, state: Int) = post { h, ids ->
+        val ap = actorParts.getOrPut(actorKey) { ActorParts() }
+        ap.state = state
+        ids[actorKey]?.let { Native.partState(h, it, state) }
+    }
+
+    /** Takes every part off the actor [actorKey]. */
+    fun detachParts(actorKey: String) = post { h, ids ->
+        actorParts.remove(actorKey)
+        ids[actorKey]?.let { Native.detachParts(h, it) }
+    }
+
+    /** Where to sample the actor [actorKey]'s skin for its parts' tint ([PartSkin.sampleAt]); empty when it isn't on stage. [onResult] on the main thread. */
+    fun partSkinUvs(actorKey: String, onResult: (FloatArray) -> Unit) = post { h, ids ->
+        val uvs = ids[actorKey]?.let { Native.partSkinUvs(h, it) } ?: FloatArray(0)
+        main.post { onResult(uvs) }
+    }
+
+    // ---- model parts (cpp engine/modelpart.h; bodyparts/ModelParts: the manifest, set.json, the skin tint)
+
+    /** GL thread: a key's model set as put on ([putModelSet]): its regions (null: all), hidden regions, tint, and its parts' handles on the actor. */
+    private class ActorModelSet(
+        val set: String,
+        val regions: Set<String>?,
+        var tint: FloatArray = floatArrayOf(1f, 1f, 1f),
+        val hidden: MutableSet<String> = mutableSetOf(),
+        val handles: MutableList<Pair<Int, String>> = mutableListOf(),
+    )
+    private val modelSets = mutableMapOf<String, ActorModelSet>()
+
+    /** GL thread: the key's model set on its actor [id] (a new actor, or after a change): its cut, its parts, its tint. False: nothing put on. */
+    private fun applyModelSet(h: Long, key: String, id: Int): Boolean {
+        val ms = modelSets[key] ?: return false
+        Native.detachBoneParts(h, id)
+        ms.handles.clear()
+        val attachedBones = mutableSetOf<String>()
+        val dir = java.io.File(java.io.File(context.filesDir, "bodyparts"), ms.set)
+        val index = runCatching { ModelParts.parseIndex(java.io.File(dir, "set.json").readText()) }.getOrElse {
+            android.util.Log.w("Wifecraft", "model set ${ms.set}: ${it.message}")
+            return false
+        }
+        for (p in index.parts) {
+            if ((ms.regions != null && p.region !in ms.regions) || p.region in ms.hidden) continue
+            val part = partHandle(h, "${ms.set}/${p.file.removeSuffix(".wcbp")}")
+            if (part == 0) continue
+            val handle = Native.attachBonePart(h, id, part, p.dx, p.dy, p.dz, p.scale)
+            if (handle == 0) continue
+            ms.handles += handle to p.region
+            attachedBones += p.bone
+        }
+        // the stand-in's own head cut away only under a piece on that bone (never a headless stand-in)
+        val cut = index.cut.filter { bone -> bone in attachedBones }
+        Native.bodyCut(h, id, cut.toTypedArray())
+        Native.bodyTint(h, id, ms.tint[0], ms.tint[1], ms.tint[2])
+        return ms.handles.isNotEmpty()
+    }
+
+    /**
+     * Puts the cut model set [set] (files/bodyparts/<set>/: Native.buildModelParts made it) on the actor [actorKey], its
+     * stand-in: its own head cut away as set.json says, the pieces of [regions] (null: all) on its bones. Set before the
+     * actor is on stage, it waits for it; a new model gets it again. [onDone] (main thread): whether any part went on.
+     * The skin match is the caller's: [faceSkinUvs], its composed skin sampled there, [ModelParts.tint] with set.json's
+     * skinColour, [setModelSetTint].
+     */
+    fun putModelSet(actorKey: String, set: String, regions: Set<String>? = null, onDone: (Boolean) -> Unit = {}) = post { h, ids ->
+        val old = modelSets[actorKey]
+        modelSets[actorKey] = ActorModelSet(set, regions, old?.tint ?: floatArrayOf(1f, 1f, 1f))
+        val ok = ids[actorKey]?.let { applyModelSet(h, actorKey, it) } ?: false
+        main.post { onDone(ok) }
+    }
+
+    /** The stand-in [actorKey]'s skin tint (ModelParts.tint); kept with its model set. */
+    fun setModelSetTint(actorKey: String, r: Float, g: Float, b: Float) = post { h, ids ->
+        modelSets[actorKey]?.tint = floatArrayOf(r, g, b)
+        ids[actorKey]?.let { Native.bodyTint(h, it, r, g, b) }
+    }
+
+    /** Shows or hides the [region]'s pieces of the actor [actorKey]'s model set (hiding the head gives the stand-in its own back). */
+    fun showModelRegion(actorKey: String, region: String, shown: Boolean) = post { h, ids ->
+        val ms = modelSets[actorKey] ?: return@post
+        if (shown) ms.hidden -= region else ms.hidden += region
+        ids[actorKey]?.let { applyModelSet(h, actorKey, it) }
+    }
+
+    /** Takes the model set off the actor [actorKey]: no pieces, no cut, no tint. */
+    fun clearModelSet(actorKey: String) = post { h, ids ->
+        modelSets.remove(actorKey)
+        ids[actorKey]?.let {
+            Native.detachBoneParts(h, it)
+            Native.bodyCut(h, it, emptyArray())
+            Native.bodyTint(h, it, 1f, 1f, 1f)
+        }
+    }
+
+    /** Where to sample the stand-in [actorKey]'s own skin for the match (its face); empty when it isn't on stage. [onResult] on the main thread. */
+    fun faceSkinUvs(actorKey: String, onResult: (FloatArray) -> Unit) = post { h, ids ->
+        val uvs = ids[actorKey]?.let { Native.faceSkinUvs(h, it) } ?: FloatArray(0)
+        main.post { onResult(uvs) }
+    }
+
+    /** The slot a part file goes in, from the set's manifest line (parts.jsonl: its "state"); DEFAULT when it can't be read. */
+    private fun slotOf(part: String): String {
+        val slash = part.lastIndexOf('/')
+        if (slash < 0) return PartState.DEFAULT.name
+        val manifest = java.io.File(java.io.File(java.io.File(context.filesDir, "bodyparts"), part.substring(0, slash)), "parts.jsonl")
+        val id = part.substring(slash + 1)
+        return runCatching {
+            manifest.useLines { lines ->
+                lines.map { org.json.JSONObject(it) }.firstOrNull { it.optString("id") == id }?.optString("state")
+            }
+        }.getOrNull()?.takeIf { it == PartState.ON.name } ?: PartState.DEFAULT.name
     }
 
     /**
@@ -612,7 +823,9 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
             if (ghostGen.get() != gen) return@prepareLook
             if (call == null) { done(false, p.error ?: "No look."); return@prepareLook }
             post { _, _ -> ghostWanted = gen; sizes[GHOST_KEY] = scale }
-            dress(GHOST_KEY, call, p.body, p.character) { why -> done(false, why) }
+            // an NPC's ghost stands as the live scene draws it: at human scale, a dwarf or gnome at its own (a creature at its own)
+            val sex = if (kind == PlaceKind.NPC) appearance?.sex else null
+            dress(GHOST_KEY, call, p.body, p.character, sex = sex, raceId = appearance?.raceId ?: 0) { why -> done(false, why) }
             post { h, ids ->
                 val id = ids[GHOST_KEY] ?: return@post
                 if (ghostGen.get() != gen) { ids.remove(GHOST_KEY); Native.removeActor(h, id); return@post }

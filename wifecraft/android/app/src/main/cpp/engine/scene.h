@@ -11,9 +11,11 @@
 #include <unordered_map>
 #include <vector>
 
+#include "bodypart.h"
 #include "boneanim.h"
 #include "location.h"
 #include "m2.h"
+#include "modelpart.h"
 #include "skin.h"
 #include "softbody.h"
 #include "wmath.h"
@@ -110,6 +112,12 @@ public:
     void showActor(int id, bool visible);
     // Replaces an actor's scale (addActor's): the placement editor sizes a placed person.
     void setActorScale(int id, float scale);
+    // Human scale (anim/HumanScale.kt): the actor's standing height in model units (humanscale.h: the Head joint, the mean
+    // of the model's own stance and the clips' straightened one; 0 when the model can't be measured: no humanoid skeleton).
+    float actorStandHeight(int id) const;
+    // Human scale's root motion for the actor's imported animations: `xy` world yards per reference unit horizontally
+    // (0: off, every axis by the model's own Root height as before); vertically its own pelvis, feet on its floor.
+    void setHumanRootMotion(int id, float xy);
     bool actorReady(int id) const;
     // How tall an actor stands (for the camera's framing).
     float actorHeight(int id) const;
@@ -117,6 +125,54 @@ public:
     bool actorBounds(int id, V3& min, V3& max) const;
     // What the body options made of an actor (the desktop check): vertices the shape moved, the layer's triangles.
     bool bodyStats(int id, size_t& moved, size_t& layerTriangles) const;
+
+    // ---------------------------------------------------------------- body parts (bodypart.h)
+    // A part file (.wcbp) read and kept: its handle (> 0), the same one again for a path already loaded; 0 and partError()
+    // when it can't be read. Parts stay loaded for the scene's life (a set is 36 small meshes).
+    int loadPart(const std::string& path);
+    const std::string& partError() const { return partError_; }
+    // Part `part` on actor `id`, in the slot its state names (DEFAULT: 1, ON: 2; one part per slot, a new one replaces it),
+    // drawn with `rgba` (w x h, top row first: the part's diffuse already tinted to the actor's skin by the caller). Rigid on
+    // the actor's Pelvis bone (bodypart.h); not drawn until setPartState picks its slot. False: no such actor or part, or
+    // the texture's size doesn't match its bytes.
+    bool attachPart(int id, int part, const uint8_t* rgba, int w, int h);
+    // Which slot is drawn: 0 none, 1 the default part, 2 the "on" part (switching is instant). Kept across dress().
+    void setPartState(int id, int state);
+    int partState(int id) const;
+    // The race's fit (bodyparts/PartFit.kt): offsets in pelvis heights forward and up, a factor on the size.
+    void setPartFit(int id, const PartFit& fit);
+    // Takes every part off the actor (their textures freed).
+    void detachParts(int id);
+    // Where to sample the actor's skin colour for its parts' tint: the skin texture coordinates (u, v pairs, v 0 at the top)
+    // of its shown lower body around the parts' root (bodySkinUvs: within 0.12 pelvis heights, at most 256). Empty: no actor,
+    // or a model without a Pelvis.
+    std::vector<float> partSkinUvs(int id);
+    // The desktop check: the matrix a slot's part was last drawn with (model space, before the actor's world), and its
+    // placement. False: nothing in that slot, or not drawn yet.
+    bool partPose(int id, int slot, M4& matrix, PartPlacement& placement) const;
+
+    // ---------------------------------------------------------------- model parts (modelpart.h)
+    // A model part (a version 2 part file, loadPart) on actor `id`, rigid on the bone its file names (Head, L_Clavicle...),
+    // fitted to the actor's skeleton (placeBonePart) and drawn with its own texture file and blend; any number per actor,
+    // shown at once. Returns its handle on the actor (> 0); 0: no such actor or part, or the part isn't a model part.
+    int attachBonePart(int id, int part, const BonePartFit& fit);
+    // Shows or hides one (`handle`) or every (0) model part of the actor; changes one's fit (0: every one's).
+    void setBonePartVisible(int id, int handle, bool visible);
+    void setBonePartFit(int id, int handle, const BonePartFit& fit);
+    // Takes every model part off the actor.
+    void detachBoneParts(int id);
+    // The stand-in's cut: the actor's triangles whose corners all belong to these bones' subtrees (WoW-side names, "#N"
+    // a key bone id; empty: none) aren't drawn (its own head and hair under a model part's). Kept across dress().
+    void setBodyCut(int id, const std::vector<std::string>& bones);
+    // The stand-in's skin matched to the pieces' (set.json's skinColour): its body and skinned models drawn times `rgb`
+    // (1, 1, 1: as they are). Not its attached items or parts.
+    void setBodyTint(int id, float r, float g, float b);
+    // Where to sample the stand-in's own skin for that match: the skin texture coordinates (u, v pairs, v 0 at the top) of
+    // its shown skin (texture type 1) on its face (modelpart.h faceVertices: cut away, but its colour is the body's own).
+    // Empty: can't say.
+    std::vector<float> faceSkinUvs(int id) const;
+    // The desktop check: the matrix a model part was last drawn with and its placement. False: none, or not drawn yet.
+    bool bonePartPose(int id, int handle, M4& matrix, BonePartPlacement& placement) const;
     // The floor under (x, y) nearest below z (a little above counts: a step up), or z itself when
     // the city has no floor there.
     float floorAt(float x, float y, float z) const;
@@ -257,9 +313,45 @@ private:
         size_t layerIndices = 0;
         size_t moved = 0, layerTriangles = 0;
     };
+    // A loaded part file: its data and, once a context has it, its buffers (M2Vertex, no bone weights: rigid, the positions
+    // in the Sims body's frame, partSimsPoint).
+    struct PartGl {
+        PartData data;
+        std::string path;
+        unsigned vao = 0, vbo = 0, ibo = 0;
+    };
+    // One slot of an actor's parts: the part and its tinted texture (kept in memory to upload again after a lost context).
+    struct PartSlot {
+        int part = 0;
+        std::vector<uint8_t> rgba;
+        int w = 0, h = 0;
+        unsigned tex = 0;
+        M4 drawn;                // the matrix last drawn with (model space)
+        bool wasDrawn = false;
+    };
+    // A model part on an actor (attachBonePart): fitted to its skeleton once, drawn rigid on its bone.
+    struct BonePart {
+        int handle = 0, part = 0;
+        BonePartFit fit;
+        BonePartPlacement place;
+        bool placed = false, visible = true, wasDrawn = false;
+        M4 drawn;
+    };
+    struct ActorParts {
+        std::vector<BonePart> bone;
+        int nextBone = 1;
+        std::vector<std::string> cut;    // setBodyCut's subtrees
+        float tint[4] = {1, 1, 1, 1};    // setBodyTint
+        PartSlot slots[2];
+        int state = 0;           // 0 none, 1 slot 0, 2 slot 1
+        PartFit fit;
+        PartPlacement place;
+        bool placed = false;     // place measured for the actor's model and fit
+    };
     struct Actor {
         ModelGl* mesh = nullptr;
         BodyGl body;
+        ActorParts parts;
         std::vector<Attached> attached;
         std::map<uint32_t, uint32_t> textures;
         std::map<int, int> groups;
@@ -310,6 +402,13 @@ private:
         std::vector<uint8_t> boneAnimRest;
         uint32_t boneAnimStart = 0;
         float boneAnimScale = 1;
+        // Human scale (setHumanRootMotion; 0: off, as the creator's and the previews' actors): a clip's horizontal root
+        // motion in world yards per reference unit, the same for everyone (the pair offsets' scale), so it is divided by
+        // the actor's scale; its vertical motion by the body's own pelvis in the clips' stance (boneAnimScaleZ) and the
+        // body lifted by boneAnimLift (model units) where straightened legs reach under its floor (humanscale.h).
+        float humanRootXY = 0;
+        float boneAnimScaleZ = 1, boneAnimLift = 0;
+        int boneAnimRoot = -1;
         std::vector<std::pair<int, float>> breath;   // a held imported pose breathes: these bones, by these shares
         SoftDraw soft;                 // the soft body (softbody.h)
         bool character = false;        // setCharacter: the soft body applies (a creature's never does)
@@ -482,6 +581,15 @@ private:
     void refreshBody(Actor& a);
     void drawBodyLayer(Actor& a, const M4& world);
     void stepSoft(Actor& a, uint32_t now);
+    // body parts (scene.cpp)
+    std::map<int, std::unique_ptr<PartGl>> parts_;
+    std::map<std::string, int> partPaths_;
+    int nextPart_ = 1;
+    std::string partError_;
+    void uploadPart(PartGl& p);
+    void dropPartGl(ActorParts& ap);
+    void drawParts(Actor& a, const M4& world, bool transparent);
+    void drawBoneParts(Actor& a, const M4& world, bool transparent);
 
     // ---- the placement editor's view (editview.cpp)
     struct Ghost {

@@ -107,7 +107,11 @@ class SceneMotionTest {
         cam.update(dt, true, 6f, 1f, 1f)
         assertTrue(dist(mid, eye(cam)) < total / 5f)
         repeat(60) { cam.update(dt, true, 6f, 1f, 1f) }
-        // deselecting (no focus) takes it back to the room's view
+        // deselecting (no focus) keeps looking where the NPC was; the room's view is asked for
+        val held = eye(cam)
+        repeat(60) { cam.update(dt, false, 0f, 0f, 0f) }
+        assertEquals(0f, dist(held, eye(cam)), 1e-3f)
+        cam.setMode(CameraMode.ROOM)
         repeat(60) { cam.update(dt, false, 0f, 0f, 0f) }
         assertEquals(0f, dist(room.eye, eye(cam)), 1e-4f)
     }

@@ -35,6 +35,8 @@ class Catalog internal constructor(
     internal val elements: Map<Int, List<El>>,
     internal val relatedTo: Map<Int, List<Int>>,
     private val masters: Map<Int, Int>,
+    /** Wifecraft's own choices ([CustomChoices]) in these options, by id. */
+    internal val customs: Map<Int, CustomChoice> = emptyMap(),
 ) {
     private val choicesOf: Map<Int, List<Int>> = optionOfChoice.entries.groupBy({ it.value }, { it.key })
     private val contextuals: Set<Int> = allByModel.values.flatten().filter { o ->
@@ -74,7 +76,7 @@ class Catalog internal constructor(
     internal fun contextual(optionId: Int): Boolean = optionId in contextuals
 
     internal fun relevant(optionId: Int, chosen: Set<Int>): Boolean =
-        !contextual(optionId) || choicesOf[optionId].orEmpty().any { c -> relatedTo[c].orEmpty().any { it in chosen } }
+        !contextual(optionId) || withBases(chosen).let { on -> choicesOf[optionId].orEmpty().any { c -> relatedTo[c].orEmpty().any { it in on } } }
 
     /**
      * Whether any choice of an option draws with the other choices on: an option whose every choice hangs on choices
@@ -88,12 +90,20 @@ class Catalog internal constructor(
         return mine.any { isNone(it) && mine.size == 1 || draws(it, others + it) }
     }
 
+    /** [chosen] with the game's choice each of Wifecraft's own in it draws as ([CustomChoice.base]). */
+    internal fun withBases(chosen: Set<Int>): Set<Int> =
+        if (customs.isEmpty() || chosen.none { it in customs }) chosen else chosen + chosen.mapNotNull { customs[it]?.base }
+
+    /** The custom choice's tints (0xRRGGBB, light end then dark end), null for a choice of the game's. */
+    internal fun tintOf(choiceId: Int): Pair<Int, Int>? = customs[choiceId]?.let { it.tint1 to it.tint2 }
+
     /** A choice that draws nothing and that nothing hangs on: a "None". */
     internal fun isNone(choiceId: Int): Boolean = elements[choiceId].isNullOrEmpty() && relatedTo[choiceId].isNullOrEmpty()
 
     /** Whether a choice draws something with the other choices [chosen] (its own rows that apply, or rows hanging on it). */
     internal fun draws(choiceId: Int, chosen: Set<Int>): Boolean {
-        if (elements[choiceId].orEmpty().any { it.draws && (it.related == 0 || it.related in chosen) }) return true
+        val on = withBases(chosen)
+        if (elements[choiceId].orEmpty().any { it.draws && (it.related == 0 || it.related in on) }) return true
         return relatedTo[choiceId].orEmpty().any { it in chosen }
     }
 
@@ -122,7 +132,7 @@ class Catalog internal constructor(
         private const val TRANSMOG_REQ = 4
         private val OTHER_KINDS = listOf("ChrCustomizationDisplayInfoID", "ChrCustomizationVoiceID", "AnimKitID", "ParticleColorID", "ChrCustGeoComponentLinkID")
 
-        fun build(t: Tables): Catalog {
+        fun build(t: Tables, custom: List<CustomChoice> = CustomChoices.ALL): Catalog {
             val chrModels = t.rows("ChrModel").associateBy { it.int("ID") }
             val raceRows = t.rows("ChrRaces").associateBy { it.int("ID") }
             val modelsOfRace = HashMap<Int, MutableMap<Sex, Int>>()
@@ -168,6 +178,10 @@ class Catalog internal constructor(
             val optionOfChoice = HashMap<Int, Int>()
             val choiceOrder = HashMap<Int, Int>()
             val modelOptions = HashMap<Int, Pair<List<Option>, List<Category>>>()
+            // Wifecraft's own choices, by the model and option they are added to
+            val customsOf = HashMap<Pair<Int, String>, MutableList<CustomChoice>>()
+            for (cc in custom) modelsOfRace[cc.raceId]?.get(cc.sex)?.let { customsOf.getOrPut(it to cc.optionName) { ArrayList() } += cc }
+            val customs = HashMap<Int, CustomChoice>()
             // every choice of these models (the Transmog ones too) to its model, for the rows that hang on a choice
             val modelOfChoice = HashMap<Int, Int>()
             for ((m, os) in optionsOf) for (o in os) for (c in choicesOf[o.int("ID")].orEmpty()) modelOfChoice[c.int("ID")] = m
@@ -180,12 +194,16 @@ class Catalog internal constructor(
                     if (cat.int("SpellShapeshiftFormID") != 0) continue
                     val rows = choicesOf[o.int("ID")].orEmpty().filter { reqTypes[it.int("ChrCustomizationReqID")] != TRANSMOG_REQ }
                     if (rows.isEmpty()) continue
-                    val choices = rows.sortedWith(compareBy({ it.int("UiOrderIndex") }, { it.int("OrderIndex") }, { it.int("ID") })).map {
+                    val game = rows.sortedWith(compareBy({ it.int("UiOrderIndex") }, { it.int("OrderIndex") }, { it.int("ID") })).map {
                         Choice(it.int("ID"), it["Name_lang"].orEmpty(), swatch(it.int("SwatchColor_0")), swatch(it.int("SwatchColor_1")))
                     }
+                    // after the game's, each of Wifecraft's own whose base is one of this option's
+                    val own = customsOf[chrModel to o["Name_lang"].orEmpty()].orEmpty().filter { cc -> game.any { it.id == cc.base } }
+                    val choices = game + own.map { Choice(it.id, it.name, it.swatch and 0xFFFFFF, null) }
                     val option = Option(o.int("ID"), o["Name_lang"].orEmpty(), cat.int("ID"), o.int("OptionType") == 1, choices)
                     all += option
                     for (c in rows) { optionOfChoice[c.int("ID")] = option.id; choiceOrder[c.int("ID")] = c.int("OrderIndex") }
+                    for (cc in own) { optionOfChoice[cc.id] = option.id; choiceOrder[cc.id] = Int.MAX_VALUE; customs[cc.id] = cc }
                     defaults[option.id] = rows.minWith(compareBy({ it.int("OrderIndex") }, { it.int("ID") })).int("ID")
                     if (option.name.isNotBlank() && choices.size >= 2) {
                         shown += option
@@ -224,6 +242,11 @@ class Catalog internal constructor(
                 elements.getOrPut(choice) { ArrayList() } += el
                 if (el.related != 0 && el.draws) relatedTo.getOrPut(el.related) { ArrayList() }.let { if (choice !in it) it += choice }
             }
+            // Wifecraft's own choices draw as their bases: the same rows, and what hangs on the base hangs on them
+            for (cc in customs.values) {
+                elements[cc.base]?.let { elements[cc.id] = ArrayList(it) }
+                relatedTo[cc.base]?.let { relatedTo[cc.id] = ArrayList(it) }
+            }
             // the colours that paint a pattern: every row of theirs that hangs on a choice hangs on one option's, whose
             // choices draw nothing themselves
             val masters = HashMap<Int, Int>()
@@ -238,7 +261,7 @@ class Catalog internal constructor(
                     if (m.id != o.id && m.choices.all { elements[it.id].isNullOrEmpty() }) masters[o.id] = m.id
                 }
             }
-            return Catalog(races, entries, allByModel, defaults, optionOfChoice, choiceOrder, elements, relatedTo, masters)
+            return Catalog(races, entries, allByModel, defaults, optionOfChoice, choiceOrder, elements, relatedTo, masters, customs)
         }
 
         private fun swatch(v: Int): Int? = if (v == 0) null else v and 0xFFFFFF

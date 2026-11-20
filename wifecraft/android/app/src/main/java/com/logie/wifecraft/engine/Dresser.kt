@@ -75,7 +75,9 @@ class Dresser(
                 onComplete?.invoke()
                 return@launch
             }
-            scene.dress(key, call.first, call.second, character = true, onReady = onComplete) { why ->
+            // the look's sex and race: the live scene's NPCs stand at human scale, the dwarves and gnomes at their own
+            // (SceneView.dress, anim/HumanScale); the creator's and the previews' keys keep each race's own size
+            scene.dress(key, call.first, call.second, character = true, onReady = onComplete, sex = a.sex, raceId = a.raceId) { why ->
                 fail(why)
                 if (onComplete != null) scope.launch { onComplete() }
             }
