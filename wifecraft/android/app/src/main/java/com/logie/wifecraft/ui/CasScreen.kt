@@ -221,6 +221,7 @@ fun CasScreen(
     val density = LocalDensity.current
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wPx = constraints.maxWidth.toFloat(); val hPx = constraints.maxHeight.toFloat()
+        val screenW = maxWidth
         val landscape = maxWidth >= maxHeight
         val layout = CasLayout.of(maxWidth.value, maxHeight.value, tab == CasTab.OUTFIT)
         // where she stands: the middle of the space the panels leave (the Outfit tab: the Transmog window's character column)
@@ -390,7 +391,7 @@ fun CasScreen(
                 name = name, onName = { name = it }, randomName = randomName?.let { r -> { name = r() } },
                 canUndo = rev.let { history.canUndo }, canRedo = rev.let { history.canRedo },
                 onUndo = { restore(history.undo()) }, onRedo = { restore(history.redo()) },
-                locked = locks.size, compact = !landscape || maxWidth < 760.dp,
+                locked = locks.size, compact = !landscape || screenW < 760.dp,
                 onRandom = {
                     val traits = Trait.entries.map { it.name }
                     CasRandomizer.randomize(model, locks, Random(System.nanoTime()), sculptable = eveBody, traits = traits,
