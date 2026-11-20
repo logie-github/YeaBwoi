@@ -74,16 +74,39 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     -lEGL -lGLESv2 -lz -o "$here/build/mood_test"
 echo "$here/build/mood_test"
 # The tabard flap as cloth (engine/cloth.h: a pinned strip hangs at its length, the body's capsules push it out and keep a
-# front piece in front, the same frames give the same cloth, a teleport hangs it again; the real flap's rig and texture
-# rectangle when given the files): build/cloth_test [FILES_DIR], exit 0 when all pass. No GL.
+# front piece in front, a lap keeps it on top, the strain limit, the twist cone, the tabard's panel, the same frames give
+# the same cloth, a teleport hangs it again; the real flap's rig and texture rectangle when given the files):
+# build/cloth_test [FILES_DIR], exit 0 when all pass. No GL.
 g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/cloth_test.cpp" "$engine/cloth.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" \
     -o "$here/build/cloth_test"
 echo "$here/build/cloth_test"
 # The cloth on a real look over an animation (build/cloth_check FILES_DIR LOOKFILE ANIM_ID FRAMES [STEP_MS]): per frame the
-# free cloth points inside the skinned body, the stretch, the swing and the cost; exit 0 when none is inside and the
-# stretch stays under 5%. No GL.
+# free cloth points inside the skinned body, the stretch, the narrowest row's width, the swing and the cost; exit 0 when
+# none is inside, the stretch stays at or under 10% and no row narrows below 60%; CLOTH_DUMP=FILE writes the last frame's
+# body, cloth and capsules. No GL.
 g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/cloth_check.cpp" "$engine/cloth.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" \
     -o "$here/build/cloth_check"
 echo "$here/build/cloth_check"
+# The body's additive motion and the atmosphere's motes (engine/motionlayer.h: breathing by intensity, the look-at's limits,
+# the clip's weight on the head; engine/particles.h: seeded, bounded): build/motionlayer_test [FILES_DIR], exit 0 when all
+# pass; with the game's files, measured on the human woman and man standing (cm moved, look-at angles). No GL.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -DWC_NO_GL -I"$engine" \
+    "$here/motionlayer_test.cpp" "$engine/motionlayer.cpp" "$engine/particles.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" \
+    -o "$here/build/motionlayer_test"
+echo "$here/build/motionlayer_test"
+# The creator's sculpt sliders and tap-to-edit body pick (engine/sculpt.h, engine/bodypick.h) on a made-up symmetric body:
+# bounded, symmetric, no triangle turned over, the neck and ankle rings kept, each slider doing what it says; the bone
+# regions and the ray pick. build/sculpt_test, exit 0 when all pass. No GL, no game files.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/sculpt_test.cpp" "$engine/sculpt.cpp" "$engine/bodypick.cpp" \
+    -o "$here/build/sculpt_test"
+echo "$here/build/sculpt_test"
+# The Eve body without GL (engine/evebody.cpp: the .weve file, PNG, the colour maths, the texture, the fit on a synthetic
+# skeleton: the cut, the cut edge, the rings snapped with its weights): build/eve_test [SET_DIR FILES_DIR MODEL...], exit 0
+# when all pass (a converted set and the game's models fitted and timed when given).
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/eve_test.cpp" "$engine/evebody.cpp" "$engine/softbody.cpp" "$engine/modelpart.cpp" "$engine/bodypart.cpp" "$engine/blp.cpp" \
+    "$engine/json.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" -lGLESv2 -lz -o "$here/build/eve_test"
+echo "$here/build/eve_test"

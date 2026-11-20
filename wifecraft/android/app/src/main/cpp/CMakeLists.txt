@@ -10,21 +10,28 @@ add_library(wcengine SHARED
     jni.cpp
     engine/blp.cpp
     engine/bodypart.cpp
+    engine/bodypick.cpp
+    engine/bodyrig.cpp
     engine/bodyshape.cpp
     engine/bytes.cpp
     engine/cloth.cpp
     engine/daylight.cpp
     engine/grade.cpp
     engine/editview.cpp
+    engine/evebody.cpp
+    engine/evescene.cpp
     engine/json.cpp
     engine/location.cpp
     engine/m2.cpp
     engine/modelpart.cpp
+    engine/motionlayer.cpp
+    engine/particles.cpp
     engine/scene.cpp
+    engine/sculpt.cpp
     engine/skin.cpp
     engine/softbody.cpp
     engine/terrain.cpp
     engine/wmo.cpp)
 
 target_compile_options(wcengine PRIVATE -O2 -Wall -Wno-unused-parameter)
-target_link_libraries(wcengine GLESv3 log)
+target_link_libraries(wcengine GLESv3 log z)   # z: the Eve body's PNG files (engine/evebody.cpp)

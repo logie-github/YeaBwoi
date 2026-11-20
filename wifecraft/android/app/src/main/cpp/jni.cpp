@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <limits>
 #include <map>
 #include <string>
@@ -213,6 +214,33 @@ JNIEXPORT jfloatArray JNICALL FN(partSkinUvs)(JNIEnv* env, jclass, jlong h, jint
     return out;
 }
 
+// The Eve body (engine/evebody.h): the converted set in a folder with the fit table's text ("" or why not), one actor's
+// options (bodyparts/EveOptions: on, bottom, tone, overlay slot, shade, opacity), taken off, and what became of it.
+JNIEXPORT jstring JNICALL FN(loadEveSet)(JNIEnv* env, jclass, jlong h, jstring dir, jstring fitJson) {
+    std::string err;
+    bool ok = scene(h)->loadEveSet(str(env, dir), str(env, fitJson), err);
+    return env->NewStringUTF(ok ? "" : err.c_str());
+}
+
+JNIEXPORT void JNICALL FN(setEveBody)(JNIEnv* env, jclass, jlong h, jint id, jboolean on, jstring bottom, jint tone, jint slot, jint shade, jfloat opacity) {
+    wc::EveOptions o;
+    o.on = on;
+    o.bottom = str(env, bottom);
+    if (o.bottom.empty()) o.bottom = "plain";
+    o.tone = tone; o.overlaySlot = slot; o.overlayShade = shade; o.opacity = opacity;
+    scene(h)->setEveBody(id, o);
+}
+
+JNIEXPORT void JNICALL FN(clearEveBody)(JNIEnv*, jclass, jlong h, jint id) { scene(h)->clearEveBody(id); }
+
+JNIEXPORT jstring JNICALL FN(eveStatus)(JNIEnv* env, jclass, jlong h, jint id) {
+    wc::Scene::EveStatus st;
+    if (!scene(h)->eveStatus(id, st)) return env->NewStringUTF("no such actor");
+    char buf[256];
+    std::snprintf(buf, sizeof buf, "%s|%06X|%06X|%d|%.1f", st.active ? "on" : "off", st.neck, st.ankle, st.shade, st.stats.ms + st.composeMs);
+    return env->NewStringUTF((std::string(buf) + "|" + st.status).c_str());
+}
+
 // Model parts (engine/modelpart.h): a version 2 part on an actor's named bone with its fit (its handle on the actor, 0: not
 // one), shown or hidden and refitted by handle (0: all), taken off; the stand-in's cut (bone names), its skin tint and where
 // to sample its face's skin; and a manifest's set cut from the downloaded files into files/bodyparts/<set>/ (any thread).
@@ -295,6 +323,21 @@ JNIEXPORT void JNICALL FN(cinematic)(JNIEnv*, jclass, jlong h, jfloat mood, jflo
     scene(h)->setCinematic(mood, vignette, grain, bars);
 }
 
+// The body's additive motion (engine/motionlayer.h): Options' shares for everyone, and one actor's intensity and look target.
+JNIEXPORT void JNICALL FN(motionParams)(JNIEnv*, jclass, jlong h, jfloat breathing, jfloat idle, jboolean lookAt) {
+    wc::MotionParams p;
+    p.breathing = breathing; p.idle = idle; p.lookAt = lookAt;
+    scene(h)->setMotionParams(p);
+}
+JNIEXPORT void JNICALL FN(motion)(JNIEnv*, jclass, jlong h, jint id, jfloat intensity, jint target) {
+    scene(h)->setMotion(id, intensity, target);
+}
+JNIEXPORT void JNICALL FN(clearMotion)(JNIEnv*, jclass, jlong h, jint id) { scene(h)->clearMotion(id); }
+// The atmosphere's glowing motes (engine/particles.h): how many (0: none) and how bright.
+JNIEXPORT void JNICALL FN(particles)(JNIEnv*, jclass, jlong h, jint count, jfloat strength) {
+    scene(h)->setParticles(count, strength);
+}
+
 // ---- locations and the editor's props (Native.kt documents them)
 
 JNIEXPORT jboolean JNICALL FN(loadLocation)(JNIEnv* env, jclass, jlong h, jstring json, jstring id, jstring view) {
@@ -366,6 +409,21 @@ JNIEXPORT jfloatArray JNICALL FN(pick)(JNIEnv* env, jclass, jlong h, jfloat sx, 
     return arr;
 }
 
+// the creator's tap-to-edit and sculpt (engine/bodypick.h, engine/sculpt.h; Native.kt documents them)
+JNIEXPORT jint JNICALL FN(pickBodyRegion)(JNIEnv*, jclass, jlong h, jint actor, jfloat sx, jfloat sy, jint w, jint ht) {
+    return scene(h)->pickBodyRegion(actor, sx, sy, w, ht);
+}
+
+JNIEXPORT void JNICALL FN(setSculpt)(JNIEnv* env, jclass, jlong h, jint actor, jfloatArray values) {
+    std::vector<float> v;
+    if (values) {
+        jsize n = env->GetArrayLength(values);
+        v.resize(size_t(n));
+        if (n > 0) env->GetFloatArrayRegion(values, 0, n, v.data());
+    }
+    scene(h)->setSculpt(actor, v.data(), v.size());
+}
+
 JNIEXPORT jfloat JNICALL FN(groundAt)(JNIEnv*, jclass, jlong h, jfloat x, jfloat y, jfloat z) {
     float out = 0;
     return scene(h)->groundAt(x, y, z, out) ? out : std::numeric_limits<float>::quiet_NaN();
@@ -411,6 +469,8 @@ jfloatArray boxArray(JNIEnv* env, const V3& mn, const V3& mx) {
     return arr;
 }
 std::string gThumbError;
+// The Eve body for the next look picture (thumbEve, then thumbLook or thumbCard on the same GL thread): taken once.
+EveOptions gThumbEve;
 } // namespace
 
 // An actor's box in the world (its standing box, turned and placed as it stands); null: no such actor.
@@ -504,6 +564,8 @@ Scene::ThumbLook thumbLookOf(JNIEnv* env, jint model, jfloat scale, jintArray ge
     for (size_t i = 0; i + kExtra <= ex.size(); i += kExtra) look.extras.push_back({ex[i], uint32_t(ex[i + 1]), uint32_t(ex[i + 2]), ex[i + 3]});
     look.morph = floats(env, morph);
     look.bodyK = k; look.bodyFold = fold;
+    look.eve = gThumbEve;
+    gThumbEve = EveOptions();
     return look;
 }
 } // namespace
@@ -539,6 +601,16 @@ JNIEXPORT jintArray JNICALL FN(thumbCard)(JNIEnv* env, jclass, jlong h, jint mod
 }
 
 JNIEXPORT jstring JNICALL FN(thumbError)(JNIEnv* env, jclass, jlong) { return env->NewStringUTF(gThumbError.c_str()); }
+
+// The Eve body (bodyparts/EveOptions) on the next look picture only (thumbLook or thumbCard right after, on this thread).
+JNIEXPORT void JNICALL FN(thumbEve)(JNIEnv* env, jclass, jlong, jboolean on, jstring bottom, jint tone, jint slot, jint shade, jfloat opacity) {
+    EveOptions o;
+    o.on = on == JNI_TRUE;
+    o.bottom = str(env, bottom);
+    if (o.bottom.empty()) o.bottom = "plain";
+    o.tone = tone; o.overlaySlot = slot; o.overlayShade = shade; o.opacity = opacity;
+    gThumbEve = o;
+}
 
 // [width, height, ARGB pixels...] or null: for the interface's textures, decoded off the GL thread.
 JNIEXPORT jintArray JNICALL FN(decodeBlp)(JNIEnv* env, jclass, jstring path, jint maxSize) {

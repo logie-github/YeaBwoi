@@ -25,6 +25,8 @@ class SimsMesh(
     val references: List<ResourceKey>,
     /** Vertex elements this reader skipped (usage code and size), and anything else worth knowing; empty when all read. */
     val notes: List<String>,
+    /** The second UV set's u,v per vertex (null: the mesh has one set). Only the Eve body keeps it (EveConvert). */
+    val uvs2: FloatArray? = null,
 ) {
     val triangleCount: Int get() = indices.size / 3
 
@@ -135,6 +137,7 @@ object Geom {
         val nrm = if ((0 until fc).any { usage[it] == 2 && size[it] == 12 }) FloatArray(n * 3) else null
         val uv = if (uvSets > 0) FloatArray(n * 2) else null
         val uv1 = uvSets > 1
+        val uvb = if (uv1) FloatArray(n * 2) else null
         val tan = if ((0 until fc).any { usage[it] == 6 && size[it] == 12 }) FloatArray(n * 3) else null
         val bones = if ((0 until fc).any { usage[it] == 4 && size[it] == 4 }) ByteArray(n * 4) else null
         val wts = if ((0 until fc).any { usage[it] == 5 && (size[it] == 4 || size[it] == 16) }) FloatArray(n * 4) else null
@@ -158,7 +161,8 @@ object Geom {
                     usage[e] == 1 && s == 12 -> { for (a in 0..2) pos[v * 3 + a] = r.f32(); hasPos = true }
                     usage[e] == 2 && s == 12 && nrm != null -> for (a in 0..2) nrm[v * 3 + a] = r.f32()
                     usage[e] == 3 && s == 8 -> {
-                        if (uvSeen == 0 && uv != null) { uv[v * 2] = r.f32(); uv[v * 2 + 1] = r.f32() } else r.skip(8)
+                        if (uvSeen == 0 && uv != null) { uv[v * 2] = r.f32(); uv[v * 2 + 1] = r.f32() }
+                        else if (uvSeen == 1 && uvb != null) { uvb[v * 2] = r.f32(); uvb[v * 2 + 1] = r.f32() } else r.skip(8)
                         uvSeen++
                     }
                     usage[e] == 4 && s == 4 && bones != null -> for (a in 0..3) bones[v * 4 + a] = r.u8().toByte()
@@ -213,6 +217,6 @@ object Geom {
             if (bi >= bc && (wts == null || wts[v * 4 + k] > 0f)) r.fail("gives vertex $v bone $bi of $bc")
         }
         for (f in pos) if (!f.isFinite()) r.fail("has a non-number position")
-        return SimsMesh(version, shader, n, pos, nrm, uv, uvSets, tan, bones, wts, ids, idx, hashes, states, refs, notes)
+        return SimsMesh(version, shader, n, pos, nrm, uv, uvSets, tan, bones, wts, ids, idx, hashes, states, refs, notes, uvb)
     }
 }

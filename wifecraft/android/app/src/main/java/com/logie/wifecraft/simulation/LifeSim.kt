@@ -7,8 +7,12 @@ import kotlin.math.ceil
 import kotlin.math.hypot
 import kotlin.random.Random
 
-/** Who an NPC is to the life simulation: their name, race (ChrRaces id; 0 unknown) and sex (null unknown). */
-data class LifeProfile(val name: String, val race: Int = 0, val female: Boolean? = null) {
+/**
+ * Who an NPC is to the life simulation: their name, race (ChrRaces id; 0 unknown) and sex (null unknown), and what the
+ * creator's Personality tab chose ([personality]: traits instead of the ones their id gives, the boundaries LifeSim honours).
+ */
+data class LifeProfile(val name: String, val race: Int = 0, val female: Boolean? = null,
+                       val personality: com.logie.wifecraft.creator.CasPersonality? = null) {
     val first: String get() = name.trim().substringBefore(' ').ifEmpty { "friend" }
 }
 
@@ -83,7 +87,10 @@ class LifeSim(
     private val random = Random(seed)
     private val indexOf = HashMap<String, Int>().apply { this@LifeSim.ids.forEachIndexed { i, id -> put(id, i) } }
     private val people = Array(size) { profiles[this.ids[it]] ?: LifeProfile(this.ids[it]) }
-    private val minds = Array(size) { i -> Mind(Traits.assign(this.ids[i], people[i].race, people[i].female)) }
+    private val minds = Array(size) { i ->
+        Mind(LifePreferences.traits(people[i].personality).ifEmpty { Traits.assign(this.ids[i], people[i].race, people[i].female) })
+    }
+    private val prefs = Array(size) { people[it].personality?.preferences ?: com.logie.wifecraft.creator.Preferences() }
     private val rels = arrayOfNulls<Relationship>(size * size)
     private val events = ArrayDeque<LifeEvent>()
 
@@ -214,7 +221,12 @@ class LifeSim(
     }
 
     /** The most intimate two-person animation [a] and [b] pick by themselves. */
-    fun allowed(a: Int, b: Int): Intimacy = relationship(a, b).allows
+    fun allowed(a: Int, b: Int): Intimacy {
+        val r = relationship(a, b).allows
+        // what the two allow (the Personality tab's stages): the least of their standing's and their own
+        val own = minOf(LifePreferences.cap(prefs[a]), LifePreferences.cap(prefs[b]))
+        return if (own < r) own else r
+    }
 
     // ---- what is happening: the scene's report each step, and time
 
@@ -591,8 +603,11 @@ class LifeSim(
                 for (id in AUTONOMOUS_SOCIAL) {
                     if (!permitted(id, world)) continue
                     if (!RelationshipRules.needs(id, r) || !wants(i, j, id, r)) continue
-                    val s = (value(m, id) + social(i, j, id, r)) * likes(m, id) * distance(d) * novelty(m, id, j) * noise()
-                    if (s > bestScore) { bestScore = s; best = socialPlan(i, j, id, world) }
+                    // the Personality tab's boundaries: a stage neither starts unless both allow it and the other takes being started
+                    if (!LifePreferences.wouldStart(prefs[i], id) || !LifePreferences.mayStart(prefs[j], id)) continue
+                    val s = (value(m, id) + social(i, j, id, r)) * likes(m, id) * LifePreferences.paceFactor(prefs[i], id) *
+                        distance(d) * novelty(m, id, j) * noise()
+                    if (s > bestScore) { bestScore = s; best = socialPlan(i, j, id, world, byNpc = true) }
                 }
             }
         }
@@ -793,8 +808,13 @@ class LifeSim(
 
     private fun compatibility(i: Int, j: Int) = Traits.compatibility(minds[i].traits, minds[j].traits)
 
-    /** The chance [j] says yes to [i]'s [id]. */
-    fun acceptance(j: Int, i: Int, id: InteractionId): Float {
+    /** The chance [j] says yes to [i]'s [id]; [byNpc]: [i] started it by themselves (j's Personality tab boundaries apply). */
+    fun acceptance(j: Int, i: Int, id: InteractionId, byNpc: Boolean = false): Float {
+        if (byNpc && LifePreferences.acceptanceFactor(prefs[j], id) == 0f) return 0f
+        return acceptanceOf(j, i, id) * (if (byNpc) LifePreferences.acceptanceFactor(prefs[j], id) else 1f)
+    }
+
+    private fun acceptanceOf(j: Int, i: Int, id: InteractionId): Float {
         val r = relationship(i, j)
         val mj = minds[j]
         val compat = compatibility(i, j)
@@ -821,8 +841,8 @@ class LifeSim(
         return p.coerceIn(0.03f, 0.98f)
     }
 
-    private fun socialPlan(i: Int, j: Int, id: InteractionId, world: LifeWorld): LifePlan {
-        val accepted = random.nextFloat() < acceptance(j, i, id)
+    private fun socialPlan(i: Int, j: Int, id: InteractionId, world: LifeWorld, byNpc: Boolean = false): LifePlan {
+        val accepted = random.nextFloat() < acceptance(j, i, id, byNpc)
         val (ask, answer) = LifeLines.exchange(id, accepted, random)
         return LifePlan(id, LifeProvider.PERSON, other = j, accepted = accepted,
             ask = LifeLines.fill(ask, people[i].first, people[j].first), answer = LifeLines.fill(answer, people[j].first, people[i].first),

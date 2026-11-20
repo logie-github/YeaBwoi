@@ -7,6 +7,7 @@ import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.anim.AnimArrays
 import com.logie.wifecraft.anim.FleshProfile
 import com.logie.wifecraft.anim.HumanScale
+import com.logie.wifecraft.bodyparts.EveOptions
 import com.logie.wifecraft.bodyparts.ModelParts
 import com.logie.wifecraft.bodyparts.PartDraw
 import com.logie.wifecraft.bodyparts.PartFits
@@ -79,7 +80,9 @@ class CameraInfo(
  * or NPC's look resolved and its files fetched. [onDone] on the main thread.
  */
 interface LookSource {
-    class Prepared(val call: DressCall? = null, val body: BodyCall = BodyCall.NONE, val character: Boolean = false, val error: String? = null)
+    class Prepared(val call: DressCall? = null, val body: BodyCall = BodyCall.NONE, val character: Boolean = false, val error: String? = null,
+        /** The Eve body on the look (bodyparts/EveDress); null: her own body. */
+        val eve: EveOptions? = null)
     /** A prop's files ([model]); null when they are here, else why not. */
     fun prepareProp(model: Int, onDone: (String?) -> Unit)
     /** A creature's ([PlaceKind.CREATURE], [asset] its display) or an NPC's ([PlaceKind.NPC], its [appearance]) look. */
@@ -328,6 +331,42 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         Native.cinematic(h, 0f, 0f, 0f, 0f)
     }
 
+    // the body language's shares and the motes as last sent to the engine (GL thread)
+    private val motionSent = floatArrayOf(-1f, -1f, -1f)
+    private var motesSent = -1
+    private var motesStrength = -1f
+
+    /** GL thread, a [FrameDriver] only: Options' body language for everyone (cpp engine/motionlayer.h), sent when it changed. */
+    fun glMotionParams(breathing: Float, idle: Float, lookAt: Boolean) {
+        val l = if (lookAt) 1f else 0f
+        if (breathing == motionSent[0] && idle == motionSent[1] && l == motionSent[2]) return
+        motionSent[0] = breathing; motionSent[1] = idle; motionSent[2] = l
+        Native.motionParams(handle, breathing, idle, lookAt)
+    }
+
+    /**
+     * GL thread, a [FrameDriver] only: actor [key]'s body language this frame: its [intensity] 0..1 and who it looks at
+     * ([lookAt] another actor's key; null nobody). An actor not on stage yet: nothing.
+     */
+    fun glMotion(key: String, intensity: Float, lookAt: String?) {
+        val id = ids[key] ?: return
+        Native.motion(handle, id, intensity, lookAt?.let { ids[it] } ?: 0)
+    }
+
+    /** GL thread, a [FrameDriver] only: the atmosphere's motes ([count] 0: none; [strength] 0..1), sent when changed. */
+    fun glParticles(count: Int, strength: Float) {
+        if (count == motesSent && strength == motesStrength) return
+        motesSent = count; motesStrength = strength
+        Native.particles(handle, count, strength)
+    }
+
+    /** The body language and the motes off (a scene ending). Any thread. */
+    fun clearAtmosphere() = post { h, ids ->
+        motesSent = 0; motesStrength = 0f
+        Native.particles(h, 0, 0f)
+        for (id in ids.values) Native.clearMotion(h, id)
+    }
+
     override fun showCity(shown: Boolean) = post { h, _ -> Native.showCity(h, shown) }
 
     private val requestedAnimations = HashMap<String, Int>()
@@ -383,6 +422,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
             partRaces[key] = raceId
             applyParts(h, key, added)
             applyModelSet(h, key, added)
+            applyEve(h, key, added)
         }
         Native.character(h, id, character)
         Native.dress(h, id, call.geosetKeys, call.geosetValues, call.layerFiles, call.layerMeta, call.tintColours, call.extraModels)
@@ -391,7 +431,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         if (onReady != null) main.post { onReady() }
     }
 
-    override fun removeActor(key: String) = post { h, ids -> ids.remove(key)?.let { Native.removeActor(h, it) }; bodies.remove(key); fleshWanted.remove(key); if (fleshes.remove(key) != null) fleshVersion++; sizes.remove(key); humanScales.remove(key); bodyRatios.remove(key); requestedAnimations.remove(key); actorParts.remove(key); partRaces.remove(key); modelSets.remove(key) }
+    override fun removeActor(key: String) = post { h, ids -> ids.remove(key)?.let { Native.removeActor(h, it) }; bodies.remove(key); fleshWanted.remove(key); if (fleshes.remove(key) != null) fleshVersion++; sizes.remove(key); humanScales.remove(key); bodyRatios.remove(key); requestedAnimations.remove(key); actorParts.remove(key); partRaces.remove(key); modelSets.remove(key); eveOptions.remove(key) }
 
     /**
      * The actor [key]'s size over a human's of its sex as the live scene draws it (1 at human scale, a dwarf's or gnome's own:
@@ -425,6 +465,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         actorParts.clear()
         partRaces.clear()
         modelSets.clear()
+        eveOptions.clear()
     }
 
     // ---- body parts (cpp engine/bodypart.h; bodyparts/: the files, PartFits, PartSkin, PartDraw)
@@ -499,6 +540,66 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     fun partSkinUvs(actorKey: String, onResult: (FloatArray) -> Unit) = post { h, ids ->
         val uvs = ids[actorKey]?.let { Native.partSkinUvs(h, it) } ?: FloatArray(0)
         main.post { onResult(uvs) }
+    }
+
+    // ---- the Eve body (cpp engine/evebody.h; bodyparts/EveConvert, EveOptions, EveRule)
+
+    /** GL thread: each key's Eve options ([setEveBody]), put on again when the actor is made anew. */
+    private val eveOptions = mutableMapOf<String, EveOptions>()
+    /** GL thread: the Eve set given ([loadEveSet]) and the scene it was loaded into (a new scene loads it again). */
+    private var eveSet: Pair<String, String>? = null
+    private var eveLoadedInto = 0L
+
+    /** GL thread: the set loaded into [h] if it isn't yet; "" when it is, else why not. */
+    private fun ensureEveSet(h: Long): String {
+        val set = eveSet ?: return "no Eve set"
+        if (eveLoadedInto == h) return ""
+        val why = Native.loadEveSet(h, set.first, set.second)
+        if (why.isEmpty()) eveLoadedInto = h else android.util.Log.w("Wifecraft", "Eve set: $why")
+        return why
+    }
+
+    /** GL thread: the key's Eve options on its actor [id] (a new actor, or after a change). */
+    private fun applyEve(h: Long, key: String, id: Int) {
+        val o = eveOptions[key] ?: return
+        if (o.on && ensureEveSet(h).isNotEmpty()) return
+        Native.setEveBody(h, id, o.on, o.bottom, o.tone, o.overlaySlot, o.overlayShade, o.opacity)
+    }
+
+    /**
+     * The converted Eve set in [dir] (files/bodyparts/eve, bodyparts/EveConvert) with the fit table's text [fitJson]
+     * (assets/eve_fit.json), for every actor from now on; [onResult] (main thread) gets "" or why it can't be read.
+     */
+    fun loadEveSet(dir: String, fitJson: String, onResult: (String) -> Unit = {}) = post { h, ids ->
+        eveSet = dir to fitJson
+        eveLoadedInto = 0L
+        val why = ensureEveSet(h)
+        if (why.isEmpty()) for ((key, id) in ids) applyEve(h, key, id)
+        main.post { onResult(why) }
+    }
+
+    /**
+     * The actor [actorKey]'s Eve body ([options]; its `on` false: its own body). The caller decides when the look allows it
+     * (bodyparts/EveRule.applies: a woman, unclothed); the engine also says no for a race its fit table excludes. Set before
+     * the actor is on stage it waits for it; kept for a new model of the key; the swap follows every change of look.
+     */
+    fun setEveBody(actorKey: String, options: EveOptions) = post { h, ids ->
+        eveOptions[actorKey] = options
+        ids[actorKey]?.let { applyEve(h, actorKey, it) }
+        if (actorKey != GHOST_KEY) fleshWanted[actorKey] = 0   // (her flesh is measured again on the body she shows)
+    }
+
+    /** The actor [actorKey] back in her own body. */
+    fun clearEveBody(actorKey: String) = post { h, ids ->
+        eveOptions.remove(actorKey)
+        ids[actorKey]?.let { Native.clearEveBody(h, it) }
+        if (actorKey != GHOST_KEY) fleshWanted[actorKey] = 0
+    }
+
+    /** What became of the actor's Eve body (Native.eveStatus's "on|NECK|ANKLE|SHADE|MS|why"); [onResult] on the main thread. */
+    fun eveStatus(actorKey: String, onResult: (String) -> Unit) = post { h, ids ->
+        val st = ids[actorKey]?.let { Native.eveStatus(h, it) } ?: "no such actor"
+        main.post { onResult(st) }
     }
 
     // ---- model parts (cpp engine/modelpart.h; bodyparts/ModelParts: the manifest, set.json, the skin tint)
@@ -683,6 +784,24 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
             actor != null -> Native.select(h, Native.PICK_ACTOR, actor)
             else -> Native.select(h, Native.PICK_NONE, 0)
         }
+    }
+
+    /**
+     * The part of actor [key]'s body the screen point lands on (the creator's tap-to-edit): [onRegion] on the main thread with
+     * Native.pickBodyRegion's code, 0 when the point misses her or she isn't here.
+     */
+    fun pickBodyRegion(key: String, sx: Float, sy: Float, w: Int, h: Int, onRegion: (Int) -> Unit) = post { handle, ids ->
+        val id = ids[key]
+        val region = if (id == null) 0 else Native.pickBodyRegion(handle, id, sx, sy, w, h)
+        main.post { onRegion(region) }
+    }
+
+    /** [setSculpt] by the Eve body's name for it: the sculpt is drawn on the fitted Eve mesh (engine/sculpt.h, evescene.cpp). */
+    fun setEveSculpt(key: String, values: FloatArray) = setSculpt(key, values)
+
+    /** The creator's sculpt sliders on actor [key] (creator/BodySculpt.toArray): the Eve body takes them as it is fitted. */
+    fun setSculpt(key: String, values: FloatArray) = post { handle, ids ->
+        ids[key]?.let { Native.setSculpt(handle, it, values) }
     }
 
     /** What the screen point ([sx], [sy] in pixels of a [w] x [h] view) hits, to [onHit] on the main thread (null: nothing). */
@@ -889,6 +1008,8 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
             post { _, _ -> ghostWanted = gen; sizes[GHOST_KEY] = scale }
             // an NPC's ghost stands as the live scene draws it: at human scale, a dwarf or gnome at its own (a creature at its own)
             val sex = if (kind == PlaceKind.NPC) appearance?.sex else null
+            // the Eve body as the scene would draw her (set before the dress: fitted once)
+            p.eve.let { e -> if (e != null) setEveBody(GHOST_KEY, e) else clearEveBody(GHOST_KEY) }
             dress(GHOST_KEY, call, p.body, p.character, sex = sex, raceId = appearance?.raceId ?: 0) { why -> done(false, why) }
             post { h, ids ->
                 val id = ids[GHOST_KEY] ?: return@post

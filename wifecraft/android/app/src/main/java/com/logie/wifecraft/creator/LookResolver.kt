@@ -220,8 +220,9 @@ object LookResolver {
 
     /**
      * A hanging cloth's own layers (engine/skin.h kClothLayer): a type 1 layer at [CLOTH_LAYER] + n isn't composed into the
-     * body's skin but into the tabard flap's own texture, masked to the flap's rectangle of the material (the renderer
-     * measures it on the model: the flap's texture coordinates), and the flap is drawn as cloth (engine/cloth.h).
+     * body's skin but into the tabard flap's own texture, masked to the tabard's panel (engine/cloth.h clothPanelRect: these
+     * layers' torso sections from 0.39 of their height down; the flap is cut from the panel's front and back middles), and
+     * the flap is drawn as cloth (engine/cloth.h).
      */
     const val CLOTH_LAYER = 200
 

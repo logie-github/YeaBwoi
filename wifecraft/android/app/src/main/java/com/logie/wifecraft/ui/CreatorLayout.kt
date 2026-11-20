@@ -751,6 +751,62 @@ object CreatorCamera {
     }
 }
 
+/**
+ * The Create-a-Character shell's camera (ui/CasScreen.kt): [CreatorCamera]'s, moved sideways so that the character stands at
+ * [centreX] (a share of the view's width from its left: the middle of the space between the tab rail and the panel) of a view
+ * [aspect] wide over high. The engine's camera looks along -x with +y to the screen's right, so the camera moves the other way.
+ */
+object CasCameraLayout {
+    fun pose(zoom: Float, focusY: Float, centreX: Float, aspect: Float, height: Float = 1f): CameraPose {
+        val p = CreatorCamera.pose(zoom, focusY, height)
+        val d = p.eye.x - p.at.x
+        val visibleW = 2f * d * tan(Math.toRadians(p.fov / 2.0)).toFloat() * max(aspect, 0.1f)
+        val shift = -(centreX.coerceIn(0f, 1f) - 0.5f) * visibleW
+        return CameraPose(Vec3(p.eye.x, shift, p.eye.z), Vec3(p.at.x, shift, p.at.z), p.fov)
+    }
+
+    /** Where on the screen (a share of its width) an object at the camera's look-at height and y = 0 is drawn by [p]. */
+    fun screenX(p: CameraPose, aspect: Float): Float {
+        val d = p.eye.x - p.at.x
+        val visibleW = 2f * d * tan(Math.toRadians(p.fov / 2.0)).toFloat() * max(aspect, 0.1f)
+        return 0.5f + (0f - p.eye.y) / visibleW
+    }
+}
+
+/**
+ * Where the shell's parts go on a [w] x [h] dp screen (landscape: the rail down the left, the panel on the right, the stage
+ * between; portrait: the stage on top, the rail across under it, the panel below). [outfit]: the Transmog window takes the
+ * stage and the panel's place. Pure (no layout jumps: every box is fixed by the screen's size alone).
+ */
+data class CasBox(val x: Float, val y: Float, val w: Float, val h: Float)
+
+data class CasLayout(val top: CasBox, val rail: CasBox, val stage: CasBox, val panel: CasBox, val cameras: CasBox) {
+    companion object {
+        const val TOP = 52f
+        const val RAIL_W = 76f
+        const val RAIL_H = 66f
+        const val GAP = 6f
+
+        fun of(w: Float, h: Float, outfit: Boolean): CasLayout = if (w >= h) {
+            val panelW = (w * 0.36f).coerceIn(300f, 460f)
+            val rail = CasBox(GAP, GAP, RAIL_W, h - 2 * GAP)
+            val top = CasBox(RAIL_W + 2 * GAP, GAP, w - RAIL_W - 3 * GAP, TOP)
+            val panel = CasBox(w - panelW - GAP, TOP + 2 * GAP, panelW, h - TOP - 3 * GAP)
+            val stageRight = if (outfit) w - GAP else panel.x - GAP
+            val stage = CasBox(RAIL_W + 2 * GAP, TOP + 2 * GAP, stageRight - RAIL_W - 2 * GAP, h - TOP - 3 * GAP)
+            val camW = min(6 * 56f, stage.w)
+            CasLayout(top, rail, stage, panel, CasBox(stage.x + (stage.w - camW) / 2f, h - 64f - GAP, camW, 64f))
+        } else {
+            val top = CasBox(GAP, GAP, w - 2 * GAP, TOP)
+            val stageH = ((h - TOP) * 0.46f).coerceAtLeast(260f)
+            val stage = CasBox(GAP, TOP + 2 * GAP, w - 2 * GAP, if (outfit) h - TOP - RAIL_H - 4 * GAP else stageH)
+            val rail = CasBox(GAP, stage.y + stage.h + GAP, w - 2 * GAP, RAIL_H)
+            val panel = CasBox(GAP, rail.y + RAIL_H + GAP, w - 2 * GAP, h - rail.y - RAIL_H - 2 * GAP)
+            CasLayout(top, rail, stage, panel, CasBox(w - 58f - GAP, stage.y + 8f, 58f, min(6 * 62f, stage.h - 16f)))
+        }
+    }
+}
+
 // ---- Words ----------------------------------------------------------------------------------------------------------------------------------
 
 /**

@@ -295,3 +295,102 @@ private fun copyPackages(context: android.content.Context, tree: Uri, out: File)
     }
     walk(android.provider.DocumentsContract.getTreeDocumentId(tree), out, 0)
 }
+
+/**
+ * Options' "Eve body" rows: the user's own Eve body (the Sims 4 body replacer, never part of the app) picked on the phone, its
+ * TOP and BOTTOM packages, a skin package and an overlay package (files, .zip archives of them, or a folder), converted by
+ * [runner] (bodyparts/EveImportRunner, its own thread: leaving Options doesn't stop it) into files/bodyparts/eve; the host
+ * loads the set into the 3D view when it is done ([runner]'s listener in MainActivity). The status line is the set's
+ * ([store]'s summary); Remove deletes it. [defaultOn]: "Use the Eve body for new women". [raliaOn]: a Ralia or Alternate
+ * Female Options set is on (the rows say what Eve does to it). NOT run on a phone; the runner and the store are unit-tested.
+ */
+@Composable
+fun EveImportSection(
+    runner: com.logie.wifecraft.bodyparts.EveImportRunner,
+    store: com.logie.wifecraft.bodyparts.EveStore,
+    defaultOn: Boolean,
+    onDefault: (Boolean) -> Unit,
+    raliaOn: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    var state by remember { mutableStateOf(runner.state) }
+    androidx.compose.runtime.DisposableEffect(runner) {
+        val main = android.os.Handler(android.os.Looper.getMainLooper())
+        val stop = runner.listen { s -> main.post { state = s } }
+        onDispose { stop() }
+    }
+    val busy = state is com.logie.wifecraft.bodyparts.EveImportRunner.State.Running
+    // the set's line, read again after every import or Remove
+    var summary by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(state) { summary = withContext(Dispatchers.IO) { store.summary() } }
+    val work = remember { File(context.cacheDir, "eve-import") }
+
+    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) runner.start(work, { dir ->
+            uris.mapIndexed { i, uri ->
+                val name = displayName(context, uri)
+                val ext = name.substringAfterLast('.', "package").lowercase().take(8)
+                val out = File(dir, "%02d_".format(i) + com.logie.wifecraft.bodyparts.PartPackage.safeName(name.substringBeforeLast('.')) + "." + ext)
+                val input = context.contentResolver.openInputStream(uri) ?: throw java.io.IOException("$name can't be opened.")
+                input.use { s -> out.outputStream().use { s.copyTo(it) } }
+                out
+            }
+        })
+    }
+    val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree: Uri? ->
+        if (tree != null) runner.start(work, { dir -> listOf(File(dir, "folder").also { copyPackages(context, tree, it) }) })
+    }
+
+    Column(modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("Eve body", style = frizStyle(16.sp))
+        val s = state
+        Text(
+            when (s) {
+                is com.logie.wifecraft.bodyparts.EveImportRunner.State.Running -> s.line
+                else -> summary ?: "…"
+            },
+            style = frizStyle(12.sp, WowColors.white),
+        )
+        Text("Your own Eve body for the women: pick Eve's TOP and BOTTOM packages, a skin package and, if you like, an overlay package " +
+            "(.package files or .zip archives of them, several at once), or a folder of them. Download the Eve zips and a skin package " +
+            "from the creator's page in a browser first: this app cannot fetch them. Converting takes about a minute.",
+            style = frizStyle(11.sp, WowColors.grey))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 2.dp)) {
+            WowButton("Choose files", { filePicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream", "*/*")) },
+                enabled = !busy, width = 140.dp, height = 36.dp)
+            WowButton("Choose folder", { folderPicker.launch(null) }, enabled = !busy, width = 150.dp, height = 36.dp)
+            WowButton("Remove", { Thread { runner.remove() }.start() }, enabled = !busy && store.installed(), width = 110.dp, height = 36.dp)
+        }
+        WowCheckRow("Use the Eve body for new women", defaultOn, onDefault, enabled = store.installed() || defaultOn,
+            detail = "Also every woman without an Eve choice of her own: the named characters, the starters and NPCs made before. " +
+                "Each NPC's own switch is on the creator's Body tab. Drawn only while she wears nothing over her body; never on gnome, " +
+                "goblin, dwarf, tauren and other races the fit leaves out.")
+        if (raliaOn) Text(com.logie.wifecraft.bodyparts.EveDress.RALIA_NOTE, style = frizStyle(11.sp, WowColors.grey))
+        when (s) {
+            is com.logie.wifecraft.bodyparts.EveImportRunner.State.Failed ->
+                Text(s.message, style = frizStyle(12.sp, androidx.compose.ui.graphics.Color(0xFFFF6A5A)))
+            is com.logie.wifecraft.bodyparts.EveImportRunner.State.Done ->
+                Text(s.message + if (s.problems.isEmpty()) "" else " ${s.problems.size} notes: " + s.problems.take(2).joinToString("; "),
+                    style = frizStyle(12.sp, WowColors.white))
+            else -> {}
+        }
+    }
+}
+
+/**
+ * The creator's Body tab binding (ui/CasPanels.kt CasEveBinding) for a converted set: the look's options read with Options'
+ * default ([defaultOn]), written made valid for the set, the set's lists ([editor]: lower bodies, tones, overlay slots) and
+ * why a race is greyed. Null when no set is imported.
+ */
+fun casEveBinding(editor: com.logie.wifecraft.bodyparts.EveOptionsEditor?, defaultOn: Boolean): CasEveBinding? {
+    val e = editor ?: return null
+    return CasEveBinding(
+        read = { a -> e.read(a, defaultOn) },
+        write = { a, o -> e.write(a, o) },
+        bottoms = e.bottoms,
+        tones = e.tones.map { it.label },
+        overlays = e.slots.map { it.label },
+        unavailable = { a -> e.unavailable(a.raceId, a.sex) },
+    )
+}

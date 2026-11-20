@@ -3,6 +3,7 @@ package com.logie.wifecraft.characters
 import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.Catalog
 import com.logie.wifecraft.creator.CsvTables
+import com.logie.wifecraft.creator.DressCall
 import com.logie.wifecraft.creator.Dressing
 import com.logie.wifecraft.creator.LookResolver
 import com.logie.wifecraft.creator.Overrides
@@ -89,6 +90,28 @@ class HangingClothTest {
         assertEquals(listOf(1, 125, 15, 512, 896, 512, 128, 2048, 1024), metas[152713])
     }
 
+    /**
+     * The window the renderer composes the cloth's texture for (engine/cloth.cpp clothPanelRect, kClothPanelTop 0.39): the
+     * cloth layers' sections' union from 0.39 of its height down, from the renderer's arrays (x, y, w, h at 3..6 of a layer).
+     */
+    private fun clothPanel(call: DressCall): IntArray? {
+        var x0 = Int.MAX_VALUE; var y0 = Int.MAX_VALUE; var x1 = Int.MIN_VALUE; var y1 = Int.MIN_VALUE
+        for (i in 0 until call.layerFiles.size) {
+            val m = call.layerMeta.copyOfRange(i * Dressing.META, (i + 1) * Dressing.META)
+            if (m[1] < LookResolver.CLOTH_LAYER || m[5] <= 0 || m[6] <= 0) continue
+            x0 = minOf(x0, m[3]); y0 = minOf(y0, m[4]); x1 = maxOf(x1, m[3] + m[5]); y1 = maxOf(y1, m[4] + m[6])
+        }
+        if (x1 - x0 < 8 || y1 - y0 < 8) return null
+        val top = y0 + Math.round((y1 - y0) * 0.39f)
+        return intArrayOf(x0, top, x1 - x0, y1 - top)
+    }
+
+    @Test fun theClothsTextureIsTheTabardsPanelFromItsTorsoSections() {
+        val call = Dressing.call(tables, 1, LookResolver.hangingCloth(tables, wearing(19 to 692029), look))
+        // the torso's upper (512, 0, 512, 256) and lower (512, 256, 512, 128) sections: the panel from y 150 to their bottom
+        assertEquals(listOf(512, 150, 512, 234), clothPanel(call)?.toList())
+    }
+
     @Test fun theImportsKeepTheClothLayer() {
         val out = LookResolver.hangingCloth(tables, wearing(19 to 692029), look)
         val ralia = object : Overrides {
@@ -122,6 +145,7 @@ class HangingClothTest {
             val call = CharacterLooks.call(c, t, v, look)
             val clothMetas = (0 until call.layerFiles.size).map { call.layerMeta[it * Dressing.META + 1] }.filter { it >= LookResolver.CLOTH_LAYER }
             assertEquals(type1.size, clothMetas.size, "$key: the renderer's arrays carry them")
+            assertEquals(listOf(512, 150, 512, 234), clothPanel(call)?.toList(), "$key: the cloth's panel window")
         }
         // her full Scarlet outfit (shirt, chest and legs on) keeps its tabard on the torso
         val outfit = assertNotNull(CharacterLooks.resolve(c, t, assertNotNull(w.variant("scarlet"))))

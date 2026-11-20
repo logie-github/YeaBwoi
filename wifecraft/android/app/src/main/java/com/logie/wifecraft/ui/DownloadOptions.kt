@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
 import com.logie.wifecraft.simulation.CinematicSettings
 import com.logie.wifecraft.simulation.ClockSettings
+import com.logie.wifecraft.simulation.ImmersiveSettings
 import com.logie.wifecraft.simulation.ClockSpeed
 import com.logie.wifecraft.simulation.WorldClock
 
@@ -65,7 +66,7 @@ fun <T> StateFlow<T>.collectThrottled(urgent: (T?, T) -> Boolean = { _, _ -> fal
     return throttled.collectAsStateWithLifecycle(value)
 }
 
-private enum class Page(val label: String) { SOUND("Sound"), TIME("Time"), CINEMATIC("Cinematic"), DOWNLOADS("Downloads"), MODS("Mods") }
+private enum class Page(val label: String) { SOUND("Sound"), IMMERSION("Immersion"), TIME("Time"), CINEMATIC("Cinematic"), DOWNLOADS("Downloads"), MODS("Mods") }
 
 /**
  * Options, in the front menus' look (WifeWindow): Sound (the game's own Sound page: Enable Sound, Master, Music, Ambience, Sound
@@ -97,10 +98,16 @@ fun DownloadOptions(
     /** The Cinematic page's settings and their change (null: no Cinematic page). */
     cinematic: CinematicSettings? = null,
     onCinematic: (CinematicSettings) -> Unit = {},
+    /** The Immersion page's settings and their change (null: no Immersion page), and what every NPC keeps on. */
+    immersive: ImmersiveSettings? = null,
+    onImmersive: (ImmersiveSettings) -> Unit = {},
+    keepOn: Set<Int> = emptySet(),
+    onKeepOn: (Set<Int>) -> Unit = {},
 ) {
     var page by remember { mutableStateOf(Page.SOUND) }
-    val pages = remember(clock != null, cinematic != null) {
-        Page.entries.filter { (it != Page.TIME || clock != null) && (it != Page.CINEMATIC || cinematic != null) }
+    val pages = remember(clock != null, cinematic != null, immersive != null) {
+        Page.entries.filter { (it != Page.TIME || clock != null) && (it != Page.CINEMATIC || cinematic != null) &&
+            (it != Page.IMMERSION || immersive != null) }
     }
     val reduced = reduceMotion()
     Overlay(onClose) {
@@ -172,6 +179,7 @@ fun DownloadOptions(
                             }
                             Page.TIME -> if (clock != null) TimePage(clock, onClock, lifeSimulation, onLifeSimulation)
                             Page.CINEMATIC -> if (cinematic != null) CinematicPage(cinematic, onCinematic)
+                            Page.IMMERSION -> if (immersive != null) ImmersionPage(immersive, onImmersive, keepOn, onKeepOn)
                             Page.MODS -> mods()
                         }
                     }

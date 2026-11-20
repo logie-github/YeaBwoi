@@ -221,6 +221,12 @@ class LiveScene(
     /** A player's order: run as [command], its answer becomes the notice (null: none, a done order clears an old refusal). */
     fun order(change: (SceneSimulation) -> String?) { commands.add(change) }
 
+    /** Person [index]'s moment for the intensity ([SceneSimulation.momentOf]). GL thread (inside [frame] or a [command]). */
+    fun moment(index: Int): MomentProgress = simulation.momentOf(simulation.id(index))
+
+    /** Whom person [index] is with now (their partner or the one they talk to; [SceneSimulation.companionOf]), or null. GL thread. */
+    fun companion(index: Int): String? = simulation.companionOf(simulation.id(index))
+
     /** The cast's id of person [index] (the order of [Sink]'s indices). */
     fun id(index: Int): String = simulation.id(index)
 

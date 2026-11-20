@@ -55,6 +55,34 @@ object SimsTexture {
         else -> throw BodyPartFormatException("The texture $key is $k, not an RLE2, RLES, LRLE or DDS image.")
     }
 
+    /** Receives an image's 4x4 tiles as they are decoded ([tx], [ty]: tile column and row; [rgba]: 16 pixels, row by row). */
+    fun interface TileSink { fun tile(tx: Int, ty: Int, rgba: ByteArray) }
+
+    /**
+     * Decodes [bytes]' first mip as a stream of 4x4 tiles, left to right, top to bottom, without holding the whole image
+     * (a 2048 x 4096 skin is 32 MB as pixels): [size] is told the image's width and height first. RLE2, RLES and LRLE are
+     * streamed; a DDS is decoded whole, then handed over tile by tile.
+     */
+    fun decodeTiles(bytes: ByteArray, key: String, size: (Int, Int) -> Unit, sink: TileSink) {
+        when (val k = kind(bytes)) {
+            "RLE2", "RLES" -> decodeRle(bytes, key, k == "RLES", size, sink)
+            "LRLE" -> decodeLrle(bytes, key, size, sink)
+            "DDS" -> {
+                val img = decodeDds(bytes, key)
+                size(img.width, img.height)
+                val tile = ByteArray(64)
+                for (ty in 0 until (img.height + 3) / 4) for (tx in 0 until (img.width + 3) / 4) {
+                    for (i in 0 until 16) {
+                        val x = minOf(img.width - 1, tx * 4 + i % 4); val y = minOf(img.height - 1, ty * 4 + i / 4)
+                        System.arraycopy(img.rgba, (y * img.width + x) * 4, tile, i * 4, 4)
+                    }
+                    sink.tile(tx, ty, tile)
+                }
+            }
+            else -> throw BodyPartFormatException("The texture $key is $k, not an RLE2, RLES, LRLE or DDS image.")
+        }
+    }
+
     private fun tag(b: ByteArray, at: Int) = if (at + 4 <= b.size) String(b, at, 4, Charsets.ISO_8859_1) else ""
 
     private fun checkSide(r: Bin, w: Int, h: Int) {
@@ -64,6 +92,12 @@ object SimsTexture {
     // ---------------------------------------------------------------- RLE2 / RLES
 
     private fun decodeRle(b: ByteArray, key: String, rles: Boolean): RgbaImage {
+        var out = ByteArray(0); var w = 0; var h = 0
+        decodeRle(b, key, rles, { ww, hh -> w = ww; h = hh; out = ByteArray(ww * hh * 4) }) { tx, ty, tile -> putTile(out, w, h, tx, ty, tile) }
+        return RgbaImage(w, h, out)
+    }
+
+    private fun decodeRle(b: ByteArray, key: String, rles: Boolean, size: (Int, Int) -> Unit, sink: TileSink) {
         val r = Bin(b, "texture $key")
         r.skip(8)
         val w = r.u16(); val h = r.u16(); val mips = r.u16(); r.u16()
@@ -78,7 +112,7 @@ object SimsTexture {
         val total = bw * bh
         val block = ByteArray(16)
         val tile = ByteArray(64)
-        val out = ByteArray(w * h * 4)
+        size(w, h)
         var bi = 0
         var c = hdr[0][0]
         if (c < 0 || cmdEnd > b.size || c > cmdEnd) r.fail("has its commands outside the data")
@@ -117,12 +151,11 @@ object SimsTexture {
                     else -> r.fail("has unknown command $op")
                 }
                 decodeDxt5Block(block, 0, tile)
-                putTile(out, w, h, bi % bw, bi / bw, tile)
+                sink.tile(bi % bw, bi / bw, tile)
                 bi++
             }
         }
         if (bi != total) r.fail("fills $bi of the $total blocks of a ${w}x$h image")
-        return RgbaImage(w, h, out)
     }
 
     // ---------------------------------------------------------------- DXT blocks (BC1 / BC3)
@@ -197,6 +230,14 @@ object SimsTexture {
     // ---------------------------------------------------------------- LRLE
 
     private fun decodeLrle(b: ByteArray, key: String): RgbaImage {
+        var out = ByteArray(0); var w = 0; var h = 0
+        decodeLrle(b, key, { ww, hh -> w = ww; h = hh; out = ByteArray(ww * hh * 4) }) { tx, ty, tile -> putTile(out, w, h, tx, ty, tile) }
+        return RgbaImage(w, h, out)
+    }
+
+    // Pixels come in 4x4 tiles (16 pixels, tiles left to right, top to bottom); bytes are B, G, R, A (as TS4SimRipper hands
+    // them to a 32-bit ARGB bitmap): each tile is handed to [sink] as RGBA once its 16 pixels are in.
+    private fun decodeLrle(b: ByteArray, key: String, size: (Int, Int) -> Unit, sink: TileSink) {
         val r = Bin(b, "texture $key")
         r.skip(4)
         val ver = r.i32()
@@ -211,11 +252,23 @@ object SimsTexture {
         val base = r.p
         val end = if (mips > 1) base + offs[1] - offs[0] else b.size
         if (end > b.size || end < base) r.fail("has its first mip outside the data")
-        val px = ByteArray(w * h * 4)
+        size(w, h)
+        val total = w * h * 4
+        val tilesX = (w + 3) / 4
+        val tile = ByteArray(64)
+        val rgba = ByteArray(64)
         var o = 0
         var p = base + offs[0]
         fun at(i: Int): Int { if (i >= end) r.fail("has a command cut short"); return b[i].toInt() and 0xFF }
-        fun put(src: ByteArray, sOff: Int) { if (o + 4 > px.size) r.fail("has more pixels than a ${w}x$h image"); System.arraycopy(src, sOff, px, o, 4); o += 4 }
+        fun advance() {
+            o += 4
+            if (o % 64 == 0) {
+                for (i in 0 until 16) { rgba[i * 4] = tile[i * 4 + 2]; rgba[i * 4 + 1] = tile[i * 4 + 1]; rgba[i * 4 + 2] = tile[i * 4]; rgba[i * 4 + 3] = tile[i * 4 + 3] }
+                val t = o / 64 - 1
+                sink.tile(t % tilesX, t / tilesX, rgba)
+            }
+        }
+        fun put(src: ByteArray, sOff: Int) { if (o + 4 > total) r.fail("has more pixels than a ${w}x$h image"); System.arraycopy(src, sOff, tile, o % 64, 4); advance() }
         fun color(i: Int): ByteArray = table.getOrNull(i) ?: r.fail("uses colour $i of ${table.size}")
         fun varint(firstShift: Int, firstBits: Int): Int {
             var v = (at(p) and 0x7F) shr firstShift
@@ -224,7 +277,7 @@ object SimsTexture {
             return v
         }
         if (v2) {
-            while (p < end && o < px.size) {
+            while (p < end && o < total) {
                 val c = at(p)
                 when {
                     c and 3 == 3 -> { val n = varint(2, 5); p++; repeat(n) { if (p + 4 > end) r.fail("is cut short"); put(b, p); p += 4 } }
@@ -243,12 +296,12 @@ object SimsTexture {
                 }
             }
         } else {
-            while (p < end && o < px.size) {
+            while (p < end && o < total) {
                 val c = at(p)
                 when (c and 3) {
                     1 -> { val n = c shr 2; p++; repeat(n) { if (p + 4 > end) r.fail("is cut short"); put(b, p); p += 4 } }
                     2 -> { val n = varint(2, 5); p++; if (p + 4 > end) r.fail("is cut short"); repeat(n) { put(b, p) }; p += 4 }
-                    0 -> { val n = varint(2, 5); p++; repeat(n) { if (o + 4 > px.size) r.fail("has too many pixels"); o += 4 } }
+                    0 -> { val n = varint(2, 5); p++; repeat(n) { if (o + 4 > total) r.fail("has too many pixels"); java.util.Arrays.fill(tile, o % 64, o % 64 + 4, 0); advance() } }
                     else -> {
                         val n = c shr 2; p++
                         val planes = ByteArray(n * 4)
@@ -281,28 +334,15 @@ object SimsTexture {
                             }
                         }
                         for (i in 0 until n) {
-                            if (o + 4 > px.size) r.fail("has too many pixels")
-                            for (k in 0..3) px[o + k] = planes[i + k * n]
-                            o += 4
+                            if (o + 4 > total) r.fail("has too many pixels")
+                            for (k in 0..3) tile[o % 64 + k] = planes[i + k * n]
+                            advance()
                         }
                     }
                 }
             }
         }
-        if (o != px.size) r.fail("fills ${o / 4} of the ${w * h} pixels of a ${w}x$h image")
-        // pixels come in 4x4 tiles; bytes are B, G, R, A (as TS4SimRipper hands them to a 32-bit ARGB bitmap)
-        val out = ByteArray(px.size)
-        val tilesX = (w + 3) / 4
-        for (t in 0 until (w * h) / 16) {
-            val tx = t % tilesX; val ty = t / tilesX
-            for (i in 0 until 16) {
-                val x = tx * 4 + i % 4; val y = ty * 4 + i / 4
-                if (x >= w || y >= h) continue
-                val s = (t * 16 + i) * 4; val d = (y * w + x) * 4
-                out[d] = px[s + 2]; out[d + 1] = px[s + 1]; out[d + 2] = px[s]; out[d + 3] = px[s + 3]
-            }
-        }
-        return RgbaImage(w, h, out)
+        if (o != total) r.fail("fills ${o / 4} of the ${w * h} pixels of a ${w}x$h image")
     }
 
     // ---------------------------------------------------------------- DDS / DST

@@ -293,6 +293,7 @@ bool Scene::initGl() {
         a.soft.forget();
         a.cloth.vao = a.cloth.vbo = a.cloth.ibo = a.cloth.tex = 0;   // (its texture is composed again with the skin)
         for (PartSlot& s : a.parts.slots) s.tex = 0;   // (uploaded again from its kept pixels when next drawn)
+        a.eve.forgetGl();                              // (and the Eve body's, from its kept vertices and pixels)
     }
     for (auto& [id, p] : parts_) { p->vao = p->vbo = p->ibo = 0; uploadPart(*p); }
     if (cityLoaded_) { uploadCityGl(); warmCity(); }
@@ -305,6 +306,7 @@ void Scene::releaseGl() {
     glReady_ = false;
     compositor_.releaseGl();
     grade_.forget();
+    particleDraw_.release();
     textures_.clear();
     for (auto& [id, m] : models_) { m->vao = m->vbo = m->ibo = m->boneTex = 0; }
     for (auto& [id, a] : actors_) {
@@ -316,6 +318,7 @@ void Scene::releaseGl() {
         a.soft.forget();
         a.cloth.vao = a.cloth.vbo = a.cloth.ibo = a.cloth.tex = 0;   // (its texture is composed again with the skin)
         for (PartSlot& s : a.parts.slots) s.tex = 0;
+        a.eve.forgetGl();
     }
     for (auto& [id, p] : parts_) p->vao = p->vbo = p->ibo = 0;
     groups_.clear();
@@ -618,6 +621,7 @@ void Scene::removeActor(int id) {
     dropPartGl(it->second.parts);
     it->second.soft.release(glReady_);
     dropClothGl(it->second, true);
+    dropEveGl(it->second);
     actors_.erase(it);
 }
 
@@ -739,20 +743,36 @@ void Scene::refreshSkin(Actor& a) {
         unsigned tex = compositor_.compose(layers, layerTexture, kSkinTex);
         if (tex) a.composed[uint32_t(type)] = tex;
     }
-    // The cloth's own texture: the skin with the cloth's layers over it, each masked to the rectangle the shown flap's
-    // texture coordinates cover (a few pixels' margin), composed for that rectangle alone. Nothing of the cloth's layers
-    // is painted on the body: the chest and the belly the flap's strip shares with it stay bare.
+    // The cloth's own texture: the skin with the cloth's layers over it, composed for the tabard's panel alone (cloth.h
+    // clothPanelRect: the rest of its front and back, cut from its torso sections the right way up; or, without sections,
+    // the rectangle the shown flap's own texture coordinates cover), each layer masked to that window. Nothing of the
+    // cloth's layers is painted on the body: the chest and the belly stay bare. Clamped at its edges: the flap's middle
+    // sits on the window's edge.
+    a.cloth.panel = false;
     if (!clothLayers.empty()) {
         int mw = 0, mh = 0;
-        for (const SkinLayer& l : clothLayers) { mw = std::max(mw, l.materialW); mh = std::max(mh, l.materialH); }
+        std::vector<int> sections;
+        for (const SkinLayer& l : clothLayers) {
+            mw = std::max(mw, l.materialW); mh = std::max(mh, l.materialH);
+            sections.insert(sections.end(), {l.x, l.y, l.w, l.h});
+        }
         int rect[4];
-        if (mw > 0 && mh > 0 && clothUvRect(*a.mesh->model, a.geosets, mw, mh, 4, rect)) {
+        const bool panel = mw > 0 && mh > 0 && clothPanelRect(sections, mw, mh, rect);
+        if (panel || (mw > 0 && mh > 0 && clothUvRect(*a.mesh->model, a.geosets, mw, mh, 4, rect))) {
             std::vector<SkinLayer> layers = byType[1];
             for (SkinLayer l : clothLayers) {
                 l.maskX = rect[0]; l.maskY = rect[1]; l.maskW = rect[2]; l.maskH = rect[3];
                 layers.push_back(l);
             }
             a.cloth.tex = compositor_.compose(layers, layerTexture, kSkinTex, rect);
+            if (a.cloth.tex) {
+                glBindTexture(GL_TEXTURE_2D, a.cloth.tex);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                glBindTexture(GL_TEXTURE_2D, 0);
+            }
+            a.cloth.panel = panel;
+            a.cloth.panelPx[0] = rect[2]; a.cloth.panelPx[1] = rect[3];
             a.cloth.uvBox[0] = float(rect[0]) / float(mw); a.cloth.uvBox[1] = float(rect[1]) / float(mh);
             a.cloth.uvBox[2] = float(rect[2]) / float(mw); a.cloth.uvBox[3] = float(rect[3]) / float(mh);
         }
@@ -803,10 +823,13 @@ bool Scene::actorFlesh(int id, std::vector<float>& out) {
     mix(shaped ? a.body.moved : 0);
     mix(shaped ? a.body.indices.size() : 0);
     for (size_t i = 0; i < a.body.morph.size(); i += 97) { uint32_t bits; std::memcpy(&bits, &a.body.morph[i], 4); mix(bits); }
+    mix(a.eve.active ? a.eve.key : 0);   // (the Eve body: measured on its own skin)
     if (key == 0) key = 1;
     if (a.fleshKey != key) {
-        FleshMeasure f = measureFlesh(m, shaped ? a.body.shaped : m.vertices, shaped ? a.body.indices : m.indices,
-                                      shaped && !a.body.submeshes.empty() ? a.body.submeshes : m.submeshes, a.geosets);
+        const bool eve = a.eve.active && a.eve.measure.host >= 0;
+        FleshMeasure f = eve ? measureFlesh(m, a.eve.measure.verts, a.eve.measure.indices, a.eve.measure.subs, a.geosets)
+                             : measureFlesh(m, shaped ? a.body.shaped : m.vertices, shaped ? a.body.indices : m.indices,
+                                            shaped && !a.body.submeshes.empty() ? a.body.submeshes : m.submeshes, a.geosets);
         a.flesh = f.ok ? f.pack() : std::vector<float>();
         a.fleshKey = key;
     }
@@ -1023,6 +1046,19 @@ int Scene::setBoneAnim(int id, const BoneAnim& anim, uint32_t nowMs) {
             if (b >= 0) a.breath.push_back({b, p.second});
         }
     }
+    // how strongly the clip drives the head (its Head and Neck turns): eye contact gives way to it (motionlayer.h)
+    float headTurn = 0;
+    for (const BoneAnimTrack& t : a.boneAnim->tracks) {
+        if (!t.rotation || (t.bone != "Head" && t.bone != "Neck1" && t.bone != "Neck2")) continue;
+        size_t n = std::min(t.times.size(), t.values.size() / 4);
+        if (n < 2) continue;
+        Quat first(t.values[0], t.values[1], t.values[2], t.values[3]);
+        for (size_t k = 1; k < n; ++k)
+            headTurn = std::max(headTurn, motion::angleBetween(first.normalized(),
+                Quat(t.values[k * 4], t.values[k * 4 + 1], t.values[k * 4 + 2], t.values[k * 4 + 3]).normalized()));
+    }
+    a.motion.clipWeight = motion::clipHeadWeight(headTurn);
+    a.motion.idleWeight = 0.35f;
     return found;
 }
 
@@ -1031,6 +1067,8 @@ void Scene::clearBoneAnim(int id) {
     if (it == actors_.end()) return;
     blendFromCurrent(it->second, 250);
     it->second.breath.clear();
+    it->second.motion.clipWeight = 1;
+    it->second.motion.idleWeight = 1;
     it->second.boneAnim.reset();
     it->second.boneAnimBones.clear();
     it->second.boneAnimRest.clear();
@@ -1068,7 +1106,7 @@ void Scene::applyBoneAnim(Actor& a, uint32_t now) {
         }
     }
     // breathing: about 14 breaths a minute, the chest turning by about a degree about the body's side-to-side axis
-    if (!a.breath.empty()) {
+    if (!a.breath.empty() && !a.motion.on) {   // (the motion layer breathes for it when it is on)
         float s = float(now - a.boneAnimStart) / 1000.0f;
         float angle = 0.018f * std::sin(s * 6.2831853f / 4.3f);
         for (const auto& [b, share] : a.breath) {
@@ -1105,8 +1143,15 @@ void Scene::stepSoft(Actor& a, uint32_t now) {
     if (a.soft.dirty && !a.body.dirty && !a.body.shapeDirty) {
         const BodyGl& b = a.body;
         bool own = !b.shaped.empty() && !b.indices.empty() && !b.submeshes.empty();
-        a.soft.rebuild(m, b.shaped.empty() ? m.vertices : b.shaped, own ? b.indices : m.indices,
-                       own ? b.submeshes : m.submeshes, a.geosets, glReady_);
+        if (a.eve.active && a.eve.measure.host >= 0) {
+            // the Eve body's skin is what moves: its regions found on it, the breasts measured on its own vertices
+            a.soft.rebuild(m, a.eve.measure.verts, a.eve.measure.indices, a.eve.measure.subs, a.geosets, glReady_);
+            std::vector<SoftRegion> rg = a.soft.sim.regions();
+            if (eveBreastRegions(m, a.eve.body, rg)) a.soft.sim.setRegions(rg);
+        } else {
+            a.soft.rebuild(m, b.shaped.empty() ? m.vertices : b.shaped, own ? b.indices : m.indices,
+                           own ? b.submeshes : m.submeshes, a.geosets, glReady_);
+        }
     }
     M4 w = M4::translation(a.position) * M4::rotationZ(a.facing) * M4::scaling(V3(a.scale, a.scale, a.scale));
     a.soft.sim.step(a.mats, w, now);
@@ -1174,6 +1219,7 @@ void Scene::animate(Actor& a, uint32_t now) {
     a.posed = true;
     m.bonesToMatrices(a.pa, a.mats);
     if (a.mats.empty()) a.mats.push_back(M4());
+    layMotion(a, now);
     if (!a.boneTex) {
         glGenTextures(1, &a.boneTex);
         glBindTexture(GL_TEXTURE_2D, a.boneTex);
@@ -1406,6 +1452,7 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     drawModel(*a.mesh, w, &a.drawTextures, cloth ? &a.cloth.bodyGeosets : &a.geosets, a.boneTex, a.seq, a.animTime % dur, nowMs, bodyTint,
               transparent, kActorTex, &a.composed, a.body.vao, a.body.vao ? &a.body.submeshes : nullptr);
     if (cloth && !transparent) drawCloth(a, w, bodyTint);
+    if (!transparent && a.eve.active) drawEve(a, w, bodyTint);   // (with the soft body's uniforms still set)
     softBodyDraw_ = false;
     if (soft) SoftDraw::setGain(m2Prog_, 1.0f);
     if (transparent) drawBodyLayer(a, w);
@@ -1474,6 +1521,7 @@ void Scene::render(int width, int height, uint32_t nowMs) {
         if (!a.skinDirty) a.firstSkin = false;
         if (!a.body.dirty && !a.body.missing.empty())
             for (uint32_t f : a.body.missing) if (!files_(f).empty()) { a.body.dirty = true; break; }
+        eveCheck(a);   // (the Eve body's look or options changed: the body is cut and fitted again)
         if (a.body.dirty) refreshBody(a);
         bool arrived = false;
         for (const DressModel& d : a.pendingModels) if (!files_(d.model).empty()) { arrived = true; break; }
@@ -1569,11 +1617,71 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     drawStatic(true, viewProj);
     for (auto& [id, a] : actors_) if (a.visible && !a.ghost && !a.firstSkin) { lightActor(a.position, false); drawActor(a, nowMs, true); }
     lightActor(V3(), true);
+    // the atmosphere's motes (particles.h): stepped on the animations' clock round what the camera looks at, drawn soft and
+    // additive under the grade
+    if (particleStrength_ > 0 && !particles_.motes().empty()) {
+        particles_.setBox(target_ + V3(0, 0, 0.4f), V3(2.2f, 2.2f, 1.1f));
+        particles_.step(float(clock - particleClock_) / 1000.0f);
+        float pixelsPerYard = float(height) * 0.5f / std::tan(fov_ * 3.14159265f / 360.0f);
+        particleDraw_.draw(particles_, viewProj, eye_, pixelsPerYard, particleStrength_);
+    }
+    particleClock_ = clock;
     // the placement editor's ghost and gizmo (editview.cpp), over the scene
     litUniforms(m2Prog_, light_, eye_, viewProj);
     drawGhost(viewProj, nowMs);
     drawGizmo();
     if (graded) grade_.end(width, height, cineGrade_);
+}
+
+// ---------------------------------------------------------------------------------------------- additive layers
+
+void Scene::setMotion(int id, float intensity, int target) {
+    auto it = actors_.find(id);
+    if (it == actors_.end()) return;
+    MotionState& st = it->second.motion;
+    if (!st.on) { st.on = true; st.seed = uint32_t(id) * 7919u + 17u; st.started = false; }
+    st.intensity = std::isfinite(intensity) ? std::clamp(intensity, 0.0f, 1.0f) : st.intensity;
+    st.target = target == id ? 0 : target;
+}
+
+void Scene::clearMotion(int id) {
+    auto it = actors_.find(id);
+    if (it != actors_.end()) { it->second.motion.on = false; it->second.motion.yaw = it->second.motion.pitch = 0; }
+}
+
+void Scene::layMotion(Actor& a, uint32_t now) {
+    MotionState& st = a.motion;
+    if (!st.on || !a.character || a.ghost) return;
+    // who it looks at: the other's head as last drawn (world), or the camera's eye
+    st.hasTarget = false;
+    if (st.target == -1) { st.targetPoint = eye_; st.hasTarget = true; }
+    else if (st.target > 0) {
+        auto t = actors_.find(st.target);
+        if (t != actors_.end() && t->second.visible && t->second.mesh && t->second.mesh->model) {
+            const Actor& o = t->second;
+            const M2Model& om = *o.mesh->model;
+            int h = om.findWowBone("Head");
+            V3 local = h >= 0 && size_t(h) < o.mats.size() ? o.mats[size_t(h)].point(om.bones[size_t(h)].pivot) : V3(0, 0, actorHeight(t->first) * 0.9f / std::max(o.scale, 1e-3f));
+            st.targetPoint = (M4::translation(o.position) * M4::rotationZ(o.facing) * M4::scaling(V3(o.scale, o.scale, o.scale))).point(local);
+            st.hasTarget = true;
+        }
+    }
+    // a game animation other than standing (an emote, a seat) moves the body itself: the idle motions quieten
+    if (!a.boneAnim) {
+        const M2Model& m = *a.mesh->model;
+        bool standing = a.seq < 0 || size_t(a.seq) >= m.sequences.size() || m.sequences[size_t(a.seq)].id == 0 || m.sequences[size_t(a.seq)].id == a.idleAnim;
+        st.idleWeight = standing && a.furniture == kOnFloor ? 1.0f : 0.4f;
+    }
+    motion::apply(st, *a.mesh->model, a.mats, motion::placementInverse(a.position, a.facing, a.scale), motionParams_, now);
+}
+
+void Scene::setParticles(int count, float strength, uint32_t seed) {
+    int n = std::clamp(count, 0, ParticleField::kMaxCount);
+    if (n != int(particles_.motes().size()) || seed != particles_.seed()) {
+        particles_.setBox(target_, V3(2.2f, 2.2f, 1.1f));
+        particles_.configure(n, seed);
+    }
+    particleStrength_ = std::isfinite(strength) ? std::clamp(strength, 0.0f, 1.0f) : 0.0f;
 }
 
 void Scene::setCinematic(float mood, float vignette, float grain, float bars) {
@@ -1652,7 +1760,7 @@ void Scene::drawCloth(Actor& a, const M4& world, const float tint[4]) {
     ClothGl& c = a.cloth;
     if (!c.sim.started()) stepCloth(a, animClock_);   // (a thumbnail's actor: hung from its pose)
     if (!c.active() || !c.sim.started()) return;
-    clothVertices(*c.rig, c.sim.positions(), world, c.tex ? c.uvBox : nullptr, c.verts, c.indices);
+    clothVertices(*c.rig, c.sim.positions(), world, c.tex ? c.uvBox : nullptr, c.verts, c.indices, c.tex && c.panel ? c.panelPx : nullptr);
     if (c.indices.empty()) return;
     unsigned tex = c.tex;
     if (!tex) {
@@ -1796,6 +1904,7 @@ void Scene::refreshBody(Actor& a) {
             b.indices = cutTriangles(b.indices, b.submeshes, mask, 3);
             std::fprintf(stderr, "body cut: %zu of %zu triangles left out\n", (before - b.indices.size()) / 3, before / 3);
         }
+        eveRefit(a);   // the Eve body (evescene.cpp): fitted to the body as shaped, the body under it cut
         b.shapeDirty = false;
     }
     if (!b.shaped.empty()) {
