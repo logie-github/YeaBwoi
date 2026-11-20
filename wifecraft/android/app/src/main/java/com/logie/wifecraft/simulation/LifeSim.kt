@@ -22,6 +22,8 @@ interface LifeWorld {
     fun approachable(index: Int): Boolean
     /** Cuts short what [index] is doing by itself (its need is met, or another is pressing). */
     fun finish(index: Int)
+    /** [index] leaves the conversation they are in by themselves, saying [line] ("I should get something to eat."). */
+    fun excuse(index: Int, line: String) {}
     /** Whether NPCs talk by themselves (the scene's Chatter setting is not Off). */
     val chatterOn: Boolean
     /** Whether NPCs start two-person animations by themselves (the Partner setting is not Off). */
@@ -128,6 +130,15 @@ class LifeSim(
         var complaint: InteractionId? = null
         var sleeps = 0
         var lastSleepEnd = 0.0
+        /** Real seconds ([realTime]) when [doing] began, and its need then (the one it fills: [primary]). */
+        var startedReal = 0f
+        var startNeed = 1f
+        /** Game hours of the conversation now running (its needs' fall stops after [TALK_COST_HOURS]). */
+        var talkHours = 0.0
+        /** The furniture [doing] is on (a nap's bed, couch or chair), or null: the floor. */
+        var on: SceneObject? = null
+        /** Whether the last sleep ended rested (then the night's bonus waits for a lower energy before bed again). */
+        var wokeRested = false
 
         fun retrait(t: List<Trait>) {
             traits = t
@@ -149,6 +160,8 @@ class LifeSim(
     }
 
     fun index(id: String): Int = indexOf[id] ?: -1
+    /** Person [i]'s first name (the notices'). */
+    fun firstName(i: Int): String = people.getOrNull(i)?.first ?: "They"
     fun traits(id: String): List<Trait> = indexOf[id]?.let { minds[it].traits }.orEmpty()
     fun needs(id: String): FloatArray? = indexOf[id]?.let { minds[it].needs.copyOf() }
     fun need(id: String, need: Need): Float = indexOf[id]?.let { minds[it].needs[need.ordinal] } ?: 0f
@@ -210,14 +223,18 @@ class LifeSim(
      * player's order when [directed]. Called each step for everyone by [SceneSimulation]; allocates nothing unless what they
      * do changed.
      */
-    fun observe(i: Int, doing: InteractionId?, moving: Boolean, directed: Boolean) {
+    fun observe(i: Int, doing: InteractionId?, moving: Boolean, directed: Boolean, on: SceneObject? = null) {
         val m = minds[i]
         m.moving = moving
         m.directed = directed
         if (doing == m.doing) return
         val was = m.doing
         m.doing = doing
+        m.on = on
         m.since = clock.simHours
+        m.startedReal = realTime
+        m.startNeed = doing?.let { primary(it) }?.let { m.needs[it] } ?: 1f
+        m.talkHours = 0.0
         changed(i, was, doing)
     }
 
@@ -226,6 +243,7 @@ class LifeSim(
         val name = people[i].first
         if (was == InteractionId.SLEEP || was == InteractionId.NAP) {
             m.lastSleepEnd = clock.simHours
+            m.wokeRested = m.needs[Need.ENERGY.ordinal] >= 0.85f
             if (m.needs[Need.ENERGY.ordinal] >= 0.85f) {
                 moodlet(i, "rested", Mood.HAPPY, 0.15f, 4.0, "Well Rested")
                 if (was == InteractionId.SLEEP) event("$name woke up well rested.", "event_wake")
@@ -237,7 +255,7 @@ class LifeSim(
         if (was == InteractionId.DANCE) moodlet(i, "dance", Mood.PLAYFUL, 0.14f, 2.0, "Light on Their Feet")
         when (now) {
             InteractionId.SLEEP -> { m.sleeps++; event("$name went to bed.", "event_sleep") }
-            InteractionId.NAP -> { m.sleeps++; event("$name dozed off on the couch.", "event_sleep") }
+            InteractionId.NAP -> { m.sleeps++; event("$name dozed off ${LifeLines.onWhat(m.on)}.", "event_sleep") }
             InteractionId.EAT -> event("$name sat down to eat.", "event_eat")
             InteractionId.DRINK -> event("$name had a drink.", "event_drink")
             InteractionId.READ -> event("$name opened a book.", "event_read")
@@ -281,8 +299,15 @@ class LifeSim(
         val doing = m.doing
         val asleep = doing == InteractionId.SLEEP || doing == InteractionId.NAP
         val gains = doing?.gains
+        // a conversation's words take real reading time (minutes of game time at x6): it costs the needs at most
+        // [TALK_COST_HOURS] of their fall, however long it is read
+        var talk = 1f
+        if (doing?.social == true) {
+            m.talkHours += h
+            if (m.talkHours > TALK_COST_HOURS) talk = 0f
+        }
         for (k in 0 until Need.COUNT) {
-            var fall = m.decay[k] * (if (asleep) SLEEP_DECAY[k] else 1f)
+            var fall = m.decay[k] * (if (asleep) SLEEP_DECAY[k] else 1f) * talk
             if (m.moving) fall += WALK_COST[k]
             val gain = gains?.get(k) ?: 0f
             val before = m.needs[k]
@@ -414,28 +439,84 @@ class LifeSim(
         }
     }
 
-    /** Cuts short what [i] does by itself once its need is met, or when another need is pressing (never a player's order). */
+    /**
+     * Cuts short what [i] does by itself once its need is met, or when another need is pressing (never a player's order),
+     * with hysteresis so two low needs never take turns cutting each other off: an activity runs [MIN_RUN_SECONDS] at least;
+     * another need cuts it only when it is urgent ([URGENT]) and lower than the one being filled by [URGENT_MARGIN]; one
+     * begun on a critical need ([CRITICAL]) runs until that need is [MOSTLY_FILLED]. A sleep runs to the morning (or full
+     * energy by day) and is broken only by hunger or thirst gone urgent after half a night. A conversation by themselves is
+     * left politely ([LifeWorld.excuse]) when a need other than company turns urgent.
+     */
     private fun interrupt(i: Int, world: LifeWorld) {
         val m = minds[i]
         val doing = m.doing ?: return
-        if (m.directed || doing.social || m.moving) return
+        if (m.moving) return
+        val run = realTime - m.startedReal
+        if (doing.social) {
+            if (!m.directed && run >= MIN_RUN_SECONDS) {
+                val k = lowest(m.needs, doing)
+                if (k >= 0 && m.needs[k] < URGENT) world.excuse(i, LifeLines.excuse(Need.entries[k], random))
+            }
+            return
+        }
+        if (m.directed) return
         val needs = m.needs
         val primary = primary(doing) ?: return
-        val full = needs[primary] >= minOf(doing.cap, 1f) - 0.02f
-        val hour = clock.hourOfDay
         val done = when (doing) {
-            InteractionId.SLEEP -> needs[Need.ENERGY.ordinal] >= 0.97f ||
-                (needs[Need.ENERGY.ordinal] >= 0.7f && !sleepHour(m.traits, hour) &&
-                    (needs[Need.HUNGER.ordinal] < 0.12f || needs[Need.THIRST.ordinal] < 0.12f))
+            InteractionId.SLEEP, InteractionId.NAP -> sleepDone(m, run)
             InteractionId.WANDER -> false
-            else -> full || urgentOther(needs, primary, doing)
+            else -> {
+                val cap = minOf(doing.cap, 1f)
+                // filled (an idle filler begun full runs its time)
+                val full = needs[primary] >= cap - 0.02f && m.startNeed < cap - 0.05f
+                full || (run >= MIN_RUN_SECONDS && pressed(m, primary, doing))
+            }
         }
         if (done) world.finish(i)
     }
 
-    private fun urgentOther(needs: FloatArray, primary: Int, doing: InteractionId): Boolean {
-        for (k in 0 until Need.COUNT) if (k != primary && needs[k] < URGENT && doing.gains[k] <= 0f) return true
-        return false
+    /** Whether a sleep (or nap) is over: rested and not the night, or woken by hunger or thirst after half a night. */
+    private fun sleepDone(m: Mind, run: Float): Boolean {
+        val needs = m.needs
+        val e = needs[Need.ENERGY.ordinal]
+        val night = sleepHour(m.traits, clock.hourOfDay)
+        if (e >= 0.97f && !night) return true
+        if (run < MIN_RUN_SECONDS) return false
+        val food = minOf(needs[Need.HUNGER.ordinal], needs[Need.THIRST.ordinal])
+        if (food < URGENT && e >= WAKE_FOR_FOOD) return true
+        return !night && e >= 0.7f && food < 0.12f
+    }
+
+    /** Whether another need presses on [doing] (filling [primary]) enough to cut it short (see [interrupt]). */
+    private fun pressed(m: Mind, primary: Int, doing: InteractionId): Boolean {
+        val k = lowest(m.needs, doing, primary)
+        if (k < 0) return false
+        val other = m.needs[k]
+        val p = m.needs[primary]
+        if (other >= URGENT || other > p - URGENT_MARGIN) return false
+        return !(m.startNeed < CRITICAL && p < MOSTLY_FILLED * minOf(doing.cap, 1f))
+    }
+
+    /** The lowest need [doing] doesn't fill (not [except]), or -1. */
+    private fun lowest(needs: FloatArray, doing: InteractionId, except: Int = -1): Int {
+        var best = -1
+        for (k in 0 until Need.COUNT) if (k != except && doing.gains[k] <= 0f && (best < 0 || needs[k] < needs[best])) best = k
+        return best
+    }
+
+    /**
+     * The need to see to first when one is critical (under [CRITICAL]), or -1: the lowest, a quick one (a meal, a drink)
+     * before a night's sleep when they are about as low, so nothing sits empty while the long one runs.
+     */
+    private fun critical(m: Mind): Int {
+        var best = -1
+        var low = Float.MAX_VALUE
+        for (k in 0 until Need.COUNT) {
+            if (m.needs[k] >= CRITICAL) continue
+            val v = m.needs[k] + if (k == Need.ENERGY.ordinal) SLOW_BIAS else 0f
+            if (v < low) { low = v; best = k }
+        }
+        return best
     }
 
     /** The need [id] is for: sleep's is energy (though a bed is comfortable too), else the one it fills most. */
@@ -449,12 +530,21 @@ class LifeSim(
 
     /** Whether [hour] is when someone with [traits] sleeps: 22 to 6, an early bird 21 to 5, a night owl 1 to 9. */
     fun sleepHour(traits: List<Trait>, hour: Double): Boolean {
-        val (from, to) = when {
-            Trait.EARLY_BIRD in traits -> 21.0 to 5.0
-            Trait.NIGHT_OWL in traits -> 1.0 to 9.0
-            else -> 22.0 to 6.0
-        }
+        val (from, to) = sleepHours(traits)
         return if (from < to) hour >= from && hour < to else hour >= from || hour < to
+    }
+
+    private fun sleepHours(traits: List<Trait>): Pair<Double, Double> = when {
+        Trait.EARLY_BIRD in traits -> 21.0 to 5.0
+        Trait.NIGHT_OWL in traits -> 1.0 to 9.0
+        else -> 22.0 to 6.0
+    }
+
+    /** Game hours from now to the end of [traits]' sleeping hours (their morning). */
+    private fun untilMorning(traits: List<Trait>): Double {
+        val wake = sleepHours(traits).second
+        val h = clock.hourOfDay
+        return if (h <= wake) wake - h else 24.0 - h + wake
     }
 
     // ---- choosing: the utility AI
@@ -476,7 +566,10 @@ class LifeSim(
         var wanted: InteractionId? = null
         var wantedScore = 0f
         val x = world.x(i); val y = world.y(i)
+        // a critical need first: what fills it outranks the rest, and company waits
+        val crit = critical(m)
         for (id in AUTONOMOUS_SOLO) {
+            if (sated(m, id)) continue
             val value = value(m, id) + timeBonus(m, id)
             if (value <= 0f && BASELINE[id.ordinal] <= 0f) continue
             val place = place(i, id, world, x, y)
@@ -484,10 +577,12 @@ class LifeSim(
                 if (value > wantedScore) { wanted = id; wantedScore = value }
                 continue
             }
-            val s = maxOf(value + BASELINE[id.ordinal], 0.001f) * likes(m, id) * place.bonus * distance(place.distance) * novelty(m, id, -1) * noise()
+            var s = maxOf(value + BASELINE[id.ordinal], 0.001f) * likes(m, id) * place.bonus * distance(place.distance) * novelty(m, id, -1) * noise()
+            if (crit >= 0 && primary(id) == crit) s *= CRITICAL_BOOST
             if (s > bestScore) { bestScore = s; best = solo(i, id, place) }
         }
-        if (size > 1 && (world.chatterOn || world.pairsOn)) {
+        val company = crit < 0 || crit == Need.SOCIAL.ordinal || crit == Need.FUN.ordinal
+        if (company && size > 1 && (world.chatterOn || world.pairsOn)) {
             for (j in 0 until size) {
                 if (j == i || !world.approachable(j)) continue
                 val d = hypot(world.x(j) - x, world.y(j) - y)
@@ -507,6 +602,14 @@ class LifeSim(
         }
         best?.let { remember(m, it.id, it.other) }
         return best ?: LifePlan(InteractionId.WANDER, LifeProvider.FLOOR)
+    }
+
+    /** Whether [m] has no call for [id] now: no meal when not hungry, no drink when not thirsty, no wash when clean. */
+    private fun sated(m: Mind, id: InteractionId): Boolean = when (id) {
+        InteractionId.EAT -> m.needs[Need.HUNGER.ordinal] > EAT_BELOW
+        InteractionId.DRINK -> m.needs[Need.THIRST.ordinal] > EAT_BELOW
+        InteractionId.WASH, InteractionId.TIDY -> m.needs[Need.HYGIENE.ordinal] > WASH_BELOW
+        else -> false
     }
 
     private fun permitted(id: InteractionId, world: LifeWorld): Boolean = when (id) {
@@ -541,18 +644,21 @@ class LifeSim(
     private fun timeBonus(m: Mind, id: InteractionId): Float {
         val hour = clock.hourOfDay
         val energy = m.needs[Need.ENERGY.ordinal]
+        // up rested in the night (a light sleeper, a sleep cut short by the clock): back to bed only once tired again
+        val bedtime = if (m.wokeRested && clock.simHours - m.lastSleepEnd < RESLEEP_HOURS) RESLEEP_BELOW else SLEEP_BELOW
         return when (id) {
             InteractionId.SLEEP -> when {
-                sleepHour(m.traits, hour) && energy < 0.85f -> 0.6f * (1.1f - energy)
+                sleepHour(m.traits, hour) && energy < bedtime -> 0.6f * (1.1f - energy)
                 energy < 0.25f -> 0.2f
                 else -> -value(m, id) * 0.75f
             }
             // the couch is a bed for the night when the bed's taken (less good)
             InteractionId.NAP -> when {
-                sleepHour(m.traits, hour) && energy < 0.85f -> 0.4f * (1.1f - energy)
+                sleepHour(m.traits, hour) && energy < bedtime -> 0.4f * (1.1f - energy)
                 energy > 0.45f -> -value(m, id) * 0.8f
                 else -> 0f
             }
+            // a meal near mealtimes (only for the hungry: [sated])
             InteractionId.EAT -> if (hour in 7.0..9.0 || hour in 12.0..14.0 || hour in 18.0..20.0) 0.05f else 0f
             InteractionId.DANCE -> if (sleepHour(m.traits, hour)) -value(m, id) * 0.7f else 0f
             else -> 0f
@@ -588,7 +694,12 @@ class LifeSim(
         var best: Place? = null
         for (p in id.providers) {
             val at: Place? = when (p) {
-                LifeProvider.FLOOR -> Place(p, null, null, 0f, if (id == InteractionId.EAT || id == InteractionId.DRINK) 0.75f else 1f)
+                LifeProvider.FLOOR -> Place(p, null, null, 0f, when (id) {
+                    InteractionId.EAT, InteractionId.DRINK -> 0.75f
+                    // dozing sat on the floor is the last resort of the tired: any seat or bed first
+                    InteractionId.NAP -> 0.35f
+                    else -> 1f
+                })
                 LifeProvider.BED, LifeProvider.COUCH, LifeProvider.CHAIR, LifeProvider.TABLE -> {
                     val item = when (p) {
                         LifeProvider.BED -> SceneObject.BED
@@ -597,8 +708,12 @@ class LifeSim(
                         else -> SceneObject.TABLE
                     }
                     world.freeSpot(item, i)?.let { spot ->
-                        // an inn meal at the table beats a bite from the pack; a nap is better on the couch than the bed by day
-                        val bonus = if (p == LifeProvider.TABLE && (id == InteractionId.EAT || id == InteractionId.DRINK)) 1.25f else 1f
+                        // an inn meal at the table beats a bite from the pack; a nap in a chair is a poor one
+                        val bonus = when {
+                            p == LifeProvider.TABLE && (id == InteractionId.EAT || id == InteractionId.DRINK) -> 1.25f
+                            p == LifeProvider.CHAIR && id == InteractionId.NAP -> 0.6f
+                            else -> 1f
+                        }
                         Place(p, item, null, hypot(spot.x - x, spot.y - y), bonus)
                     }
                 }
@@ -625,8 +740,10 @@ class LifeSim(
         val hours = if (p == null) id.hours.toDouble() else {
             val gain = id.gains[p]
             val fill = ((minOf(id.cap, 1f) - m.needs[p]).coerceAtLeast(0.1f) / gain).toDouble()
-            // a night on the couch is a night's sleep, not a nap
-            if (id == InteractionId.SLEEP || (id == InteractionId.NAP && sleepHour(m.traits, clock.hourOfDay))) (fill + 0.5).coerceIn(1.0, 10.0) else fill.coerceIn(id.hours * 0.5, id.hours * 1.6)
+            val night = sleepHour(m.traits, clock.hourOfDay)
+            // a night's sleep runs to the morning (a night on the couch too, not a nap)
+            if (id == InteractionId.SLEEP || (id == InteractionId.NAP && night)) maxOf(fill + 0.5, if (night) untilMorning(m.traits) else 0.0).coerceIn(1.0, 10.0)
+            else fill.coerceIn(id.hours * 0.5, id.hours * 1.6)
         }
         val seconds = clock.realSeconds(hours).coerceIn(MIN_HOLD, MAX_HOLD)
         val cycles = if (id.anim >= 0 && id.cycle > 0f) ceil(seconds / id.cycle).toInt().coerceIn(1, 100) else 1
@@ -974,8 +1091,29 @@ class LifeSim(
         const val RECENT = 6
         /** A need over this asks for nothing. */
         const val SATISFIED = 0.75f
-        /** A need under this cuts short whatever else is being done by oneself. */
+        /** A need under this cuts short whatever else is being done by oneself ([interrupt]: by [URGENT_MARGIN] under it). */
         const val URGENT = 0.08f
+        /** Another need cuts an activity short only when this much lower than the need it fills. */
+        const val URGENT_MARGIN = 0.15f
+        /** A need under this is critical: seen to first ([CRITICAL_BOOST]), and what fills it runs to [MOSTLY_FILLED]. */
+        const val CRITICAL = 0.2f
+        const val CRITICAL_BOOST = 3f
+        const val MOSTLY_FILLED = 0.7f
+        /** Energy counts this much higher when picking the critical need: a quick meal or drink before a night's sleep. */
+        const val SLOW_BIAS = 0.08f
+        /** Real seconds an activity runs before another need may cut it short. */
+        const val MIN_RUN_SECONDS = 4f
+        /** A sleeper wakes for urgent hunger or thirst only with this much energy back. */
+        const val WAKE_FOR_FOOD = 0.5f
+        /** Night: to bed under this energy; woken rested less than [RESLEEP_HOURS] ago, only under [RESLEEP_BELOW]. */
+        const val SLEEP_BELOW = 0.85f
+        const val RESLEEP_BELOW = 0.55f
+        const val RESLEEP_HOURS = 6.0
+        /** No meal or drink over this; no wash over [WASH_BELOW]. */
+        const val EAT_BELOW = 0.65f
+        const val WASH_BELOW = 0.8f
+        /** Game hours of needs a conversation costs at most, however long its lines are read. */
+        const val TALK_COST_HOURS = 0.4
         /** A wanted thing that can't be had and scores over this is complained of. */
         const val MISSING_AT = 0.12f
         const val NOISE = 0.15f

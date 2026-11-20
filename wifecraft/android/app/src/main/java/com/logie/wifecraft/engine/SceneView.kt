@@ -648,24 +648,10 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
             main.post { onFound(keys) }
         }
 
-    /** GL thread: a direct segment, or a short detour checked against the scene mesh. */
-    fun glWalkRoute(from: Vec3, to: Vec3): List<Vec3>? {
-        fun clear(a: Vec3, b: Vec3) = Native.walkSegment(handle, a.x, a.y, a.z, b.x, b.y, b.z)
-        if (clear(from, to)) return listOf(to)
-        val delta = to - from
-        val length = kotlin.math.hypot(delta.x, delta.y)
-        if (length < 0.1f || length > 55f) return null
-        val side = Vec3(-delta.y / length, delta.x / length, 0f)
-        val middle = from.lerp(to, 0.5f)
-        for (offset in listOf(1f, -1f, 2f, -2f, 3.5f, -3.5f)) {
-            val point = middle + side * offset
-            val z = Native.groundAt(handle, point.x, point.y, point.z - 0.85f)
-            if (z.isNaN()) continue
-            val waypoint = point.copy(z = z)
-            if (clear(from, waypoint) && clear(waypoint, to)) return listOf(waypoint, to)
-        }
-        return null
-    }
+    /** GL thread: a direct segment, or a short detour checked against the scene mesh (simulation/WalkRoute). */
+    fun glWalkRoute(from: Vec3, to: Vec3): List<Vec3>? = com.logie.wifecraft.simulation.WalkRoute.route(from, to,
+        { a, b -> Native.walkSegment(handle, a.x, a.y, a.z, b.x, b.y, b.z) },
+        { x, y, z -> Native.groundAt(handle, x, y, z) })
 
     /** The floor under (x, y) nearest below [z] (a step up counts), to [onResult] on the main thread (null: none). */
     fun groundAt(x: Float, y: Float, z: Float = 10000f, onResult: (Float?) -> Unit) = post { h, _ ->

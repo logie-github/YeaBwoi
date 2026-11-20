@@ -122,6 +122,8 @@ import com.logie.wifecraft.simulation.InteractionId
 import com.logie.wifecraft.simulation.LifePersonView
 import com.logie.wifecraft.simulation.LifeResult
 import com.logie.wifecraft.simulation.LifeSim
+import com.logie.wifecraft.simulation.LifeProp
+import com.logie.wifecraft.simulation.LifeProps
 import com.logie.wifecraft.simulation.LifeView
 import com.logie.wifecraft.simulation.LightFeed
 import com.logie.wifecraft.simulation.WorldClock
@@ -378,6 +380,15 @@ fun LiveSceneScreen(
             } catch (e: Exception) { emptyList() }
         }
     }
+    // the room's props for the life simulation (a bookshelf...: locations.json "props", only the game's own models there)
+    val lifeProps by produceState(emptyList<LifeProp>(), locationName) {
+        value = withContext(Dispatchers.IO) {
+            try {
+                context.assets.open("locations.json").bufferedReader().use { LifeProps.of(it.readText(), locationName, toLocal, -stageRotation) }
+            } catch (e: Exception) { emptyList() }
+        }
+    }
+    LaunchedEffect(live, lifeProps) { live.life.setProps(lifeProps) }
     val furnitureAt = remember(pieces, objects) {
         val out = HashMap<SceneObject, Furniture>()
         for (item in objects) pieces.firstOrNull { it.item == item.name }?.let { piece ->
@@ -723,11 +734,11 @@ fun LiveSceneScreen(
         if (choice.participantCount == 2) {
             val pairId = choice.id.removePrefix(PairAnim.CHOICE_PREFIX)
             val with = partnerId?.takeIf { it != owner }
-            live.order { sim -> if (sim.partnerOn(item, pairId, owner, with)) null else refused }
+            live.order { sim -> if (sim.partnerOn(item, pairId, owner, with)) null else sim.takeRefusal() ?: refused }
         } else {
             val need = needs.choices[choice.id] ?: return
             val order = request(null, choice, repeat)
-            live.order { sim -> if (sim.performOn(owner, item, need, order)) null else refused }
+            live.order { sim -> if (sim.performOn(owner, item, need, order)) null else sim.takeRefusal() ?: refused }
         }
     }
     // the partner leaves the scene's cast or the cast changes: drop who is gone

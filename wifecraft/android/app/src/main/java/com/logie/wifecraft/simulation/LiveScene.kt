@@ -4,12 +4,59 @@ import com.logie.wifecraft.story.CameraPose
 import com.logie.wifecraft.story.Vec3
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.math.PI
+import kotlin.math.atan
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.exp
 import kotlin.math.hypot
 import kotlin.math.sin
+import kotlin.math.tan
 import kotlin.random.Random
+
+/**
+ * The room's view brought to the cast: a room whose view stands far from where its people are (the Embassy's, from across
+ * the hall to the doorway they come in by) shows them small and crowded. [frame] moves the eye in along the line from the
+ * room's eye to the cast's middle, to a distance that fits the cast's circle in the picture, at the room's eye height
+ * (within 1.8 to 3.2 yards over the floor), looking at their middle. With [CameraClearance] it stands only where the floor
+ * under it reaches the room's own eye in a straight walk (the same open room, no wall between): farther back along that
+ * line where it doesn't, never nearer (the cast stays in the picture). A room whose view is near its people already is
+ * kept as it is. Pure JVM.
+ */
+object CastFraming {
+    /** The room's eye farther than this from the cast's middle (yards), and farther than the framing needs, is moved in. */
+    const val FAR = 6.5f
+    const val MIN_DISTANCE = 3.2f
+    /** Yards round the cast's circle (a body's width and some air). */
+    const val MARGIN = 1.2f
+    /** The least width over height of the picture (a phone held sideways is wider). */
+    const val ASPECT = 1.6f
+    const val EYE_MIN = 1.8f
+    const val EYE_MAX = 3.2f
+    /** The point looked at, over the floor (yards): about the chest. */
+    const val AT_HEIGHT = 1.0f
+    private const val DEG = 0.017453292f
+
+    /** The view of [room] framed on a cast whose middle is [cx], [cy] on the floor at [floorZ], within [radius] yards of it. */
+    fun frame(room: CameraPose, cx: Float, cy: Float, floorZ: Float, radius: Float, clear: CameraClearance? = null): CameraPose {
+        val dx = room.eye.x - cx
+        val dy = room.eye.y - cy
+        val far = hypot(dx, dy)
+        val fov = if (room.fov.isFinite() && room.fov > 1f && room.fov < 170f) room.fov else 50f
+        val halfWide = atan(tan(fov * DEG / 2f) * ASPECT)
+        val need = maxOf(MIN_DISTANCE, (radius + MARGIN) / tan(halfWide))
+        if (!far.isFinite() || far < FAR || far <= need + 1f) return room
+        val ux = dx / far
+        val uy = dy / far
+        val h = (room.eye.z - floorZ).coerceIn(EYE_MIN, EYE_MAX)
+        var d = need
+        if (clear != null) {
+            val eyeFloor = Vec3(room.eye.x, room.eye.y, floorZ)
+            while (d < far - 0.5f && !clear.clear(Vec3(cx + ux * d, cy + uy * d, floorZ), eyeFloor)) d += 0.5f
+            if (d >= far - 0.5f) return room
+        }
+        return CameraPose(Vec3(cx + ux * d, cy + uy * d, floorZ + h), Vec3(cx, cy, floorZ + AT_HEIGHT), room.fov)
+    }
+}
 
 /** What the live screen's menus show, made only when it changed (and at most [LiveScene.SNAPSHOT_MS] apart). */
 data class SceneSnapshot(
@@ -99,6 +146,10 @@ class LiveScene(
         const val ROOM_OUT = 3.5f
         /** The step the furniture views' clear floor is found by (yards). */
         const val REACH_STEP = 0.25f
+        /** How often the cast framing is looked at again (ms), how far it must move to be redone (yards), how fast it glides. */
+        const val FRAMING_MS = 1000L
+        const val REFRAME_YARDS = 1.5f
+        const val FRAMING_RATE = 1.5f
         /** A [command]'s answer: the notice unchanged. */
         private const val KEEP = "\u0000keep"
     }
@@ -126,6 +177,13 @@ class LiveScene(
     @Volatile var furnitureView: FurnitureView? = null
     /** Whether the camera may stand at an eye seeing a point (stage coordinates, GL thread: no wall between); null: always. */
     @Volatile var clearance: CameraClearance? = null
+    /** Whether the room's view is brought in to the cast when it stands far from them ([CastFraming]). Any thread. */
+    @Volatile var frameCast = true
+    // the cast framing: the room view it was made for, where it is going, what is shown, when it is looked at again
+    private var framedFor: CameraPose? = null
+    private var framedGoal: CameraPose? = null
+    private var framedShown: CameraPose? = null
+    private var nextFraming = Long.MIN_VALUE
     // the furniture view's pose now: for whom, which, the simulation's version it was made at
     private var viewPose: CameraPose? = null
     private var viewFor = -1
@@ -239,10 +297,39 @@ class LiveScene(
 
     private fun stage(p: Vec3) = Vec3(stageX(p.x, p.y), stageY(p.x, p.y), oz + p.z)
 
+    /** The room's view this frame: [roomView], or brought in to the cast ([CastFraming]: looked at once a second, glided). */
+    private fun castRoom(nowNanos: Long, dt: Float): CameraPose {
+        val room = roomView
+        if (!frameCast || n == 0) { framedShown = null; return room }
+        if (room !== framedFor) { framedFor = room; framedGoal = null; framedShown = null; nextFraming = Long.MIN_VALUE }
+        if (nextFraming == Long.MIN_VALUE || nowNanos >= nextFraming) {
+            nextFraming = nowNanos + FRAMING_MS * 1_000_000L
+            var cx = 0f; var cy = 0f; var cz = 0f
+            for (i in 0 until n) { cx += stageX(curX[i], curY[i]); cy += stageY(curX[i], curY[i]); cz += oz + curZ[i] }
+            cx /= n; cy /= n; cz /= n
+            var r = 0f
+            for (i in 0 until n) r = maxOf(r, hypot(stageX(curX[i], curY[i]) - cx, stageY(curX[i], curY[i]) - cy))
+            val goal = CastFraming.frame(room, cx, cy, cz, r, clearance)
+            val old = framedGoal
+            // a new framing only when it moved by more than a step (a walk across the room, not a shuffle)
+            if (old == null || hypot(old.eye.x - goal.eye.x, old.eye.y - goal.eye.y) > REFRAME_YARDS ||
+                hypot(old.at.x - goal.at.x, old.at.y - goal.at.y) > REFRAME_YARDS) framedGoal = goal
+        }
+        val goal = framedGoal ?: return room
+        val shown = framedShown
+        val next = if (shown == null) goal else if (shown == goal) shown else {
+            val k = 1f - exp(-FRAMING_RATE * dt)
+            val moved = shown.lerp(goal, k)
+            if (hypot(moved.eye.x - goal.eye.x, moved.eye.y - goal.eye.y) < 0.01f && hypot(moved.at.x - goal.at.x, moved.at.y - goal.at.y) < 0.01f) goal else moved
+        }
+        framedShown = next
+        return next
+    }
+
     /** The camera's room this frame: the furniture view asked for when [sel] is on furniture that has it, else the room's. */
-    private fun cameraRoom(sel: Int): CameraPose {
+    private fun cameraRoom(sel: Int, room: CameraPose): CameraPose {
         val want = furnitureView
-        if (want == null || sel < 0) { viewPose = null; viewOf = null; return roomView }
+        if (want == null || sel < 0) { viewPose = null; viewOf = null; return room }
         val version = simulation.version
         if (sel != viewFor || want != viewOf || version != viewVersion) {
             viewFor = sel; viewOf = want; viewVersion = version
@@ -250,7 +337,7 @@ class LiveScene(
                 CameraPose(stage(p.eye), stage(p.at), p.fov)
             }
         }
-        return viewPose ?: roomView
+        return viewPose ?: room
     }
 
     /**
@@ -337,7 +424,7 @@ class LiveScene(
             lastPairStarts = starts
             simulation.lastPairName?.let { name -> notice = "Partner animation: $name"; noticeChanged = true }
         }
-        val wantRoom = cameraRoom(sel)
+        val wantRoom = cameraRoom(sel, castRoom(nowNanos, dt))
         if (camera.room !== wantRoom) camera.room = wantRoom
         camera.update(dt, hasFocus, fx, fy, fz)
         sink.camera(camera.eyeX, camera.eyeY, camera.eyeZ, camera.atX, camera.atY, camera.atZ, camera.fov)

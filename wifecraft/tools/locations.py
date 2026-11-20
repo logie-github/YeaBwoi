@@ -76,7 +76,9 @@ LOCATIONS = [
          wmo=106851, wdt=775971, tile=(31, 49), uid=71414, doodadSets=[0, 2], area=87, wmoArea=20327,
          outsideRadius=40.0, outsideFog=(28.0, 60.0),
          room=dict(bed=511, chair=470, table=527, books=[424, 439],                 # the canopy bed upstairs, the writing desk
-                   eye=(3.4, -0.9, 9.6), at=(8.8, 2.2, 8.0))),
+                   eye=(3.4, -0.9, 9.6), at=(8.8, 2.2, 8.0),
+                   props=[dict(kind="BOOKSHELF", model=198053, near=(8.41, -8.61)),     # duskwoodbookshelf02, both upstairs
+                          dict(kind="BOOKSHELF", model=198053, near=(-0.32, -1.34))])),
     dict(id="thunderbrew", name="Thunderbrew Distillery, Kharanos", kind="interior", people="dwarf",
          # snow_inn.wmo, WMOID 1970 name set 1 (WMOAreaTable 25370 "Thunderbrew Distillery", area 2102); azeroth 32_42
          wmo=113925, wdt=775971, tile=(32, 42), uid=125539, doodadSets=[0, 2], area=2102, wmoArea=25370,
@@ -109,7 +111,9 @@ LOCATIONS = [
          # nd_forsaken_house.wmo, WMOID 4953; Brill, azeroth 31_27 (beside the Brill Inn)
          wmo=114858, wdt=775971, tile=(31, 27), uid=5521907, doodadSets=[0], area=159, wmoArea=None,
          outsideRadius=40.0, outsideFog=(28.0, 60.0),
-         room=dict(bed=9, eye=(-2.69, 3.70, 9.61))),                                # the upstairs bed among the coffins
+         room=dict(bed=9, eye=(-2.69, 3.70, 9.61),                                  # the upstairs bed among the coffins
+                   props=[dict(kind="BOOKSHELF", model=203837, near=(-0.54, -4.51)),    # scholme_bookshelflarge, upstairs
+                          dict(kind="BOOKSHELF", model=189993, near=(-3.42, -4.63))])),  # karazahnbookshelfsmall, upstairs
     dict(id="gadgetzan_inn", name="Gadgetzan Inn, Tanaris", kind="interior", people="goblin",
          # kl_tanaris_goblinbld_b.wmo, WMOID 1770 name set 2 (WMOAreaTable 89788, area 976), set_GoblinInn; kalimdor 39_45
          wmo=112806, wdt=782779, tile=(39, 45), uid=357332, doodadSets=[0, 1], area=976, wmoArea=89788,
@@ -129,7 +133,10 @@ LOCATIONS = [
          wmo=115783, wdt=828395, tile=(18, 36), uid=798146, doodadSets=[0], area=3626, wmoArea=None,
          outsideRadius=40.0, outsideFog=(30.0, 70.0),
          extras=[dict(model=979920, at=(5.0, 6.5, 1.0), yawDeg=90.0, scale=0.8)],     # on the rug, the stores behind it
-         room=dict(bed="extra:0", headTurn=math.pi, eye=(1.11, 10.39, 3.9))),       # its pillows are at its +y end
+         room=dict(bed="extra:0", headTurn=math.pi, eye=(1.11, 10.39, 3.9),         # its pillows are at its +y end
+                   props=[dict(kind="BOOKSHELF", model=193332, near=(0.3, 10.23)),      # ancient_d_bookshelf, the ground floor's
+                          dict(kind="BOOKSHELF", model=193332, near=(-1.76, 9.15)),
+                          dict(kind="BOOKSHELF", model=193332, near=(6.68, 12.43))])),
 ]
 
 
@@ -614,7 +621,8 @@ def furniture_rows(spots):
             rows.append(dict(object=obj, kind="BED_DOUBLE", position=[pose[0], pose[1], entry[2]], yaw=round(flip, 4),
                              surface=round(pose[2] - entry[2], 3)))
         elif obj == "CHAIR":
-            rows.append(dict(object=obj, kind="CHAIR", position=list(entry), yaw=round(facing, 4), surface=0.514))
+            # where it stands: the seat (its pose); its entry is the floor beside it the sitter gets up onto
+            rows.append(dict(object=obj, kind="CHAIR", position=list(s.get("pose", entry)), yaw=round(facing, 4), surface=0.514))
         elif obj == "TABLE" and s.get("models"):
             m = s["models"][0]["position"]
             books = [b["position"][2] for b in s["models"][1:]]
@@ -699,12 +707,29 @@ def bedroom(st, w, tris, room, extras=()):
     eye = room.get("eye") or cand[1]
     at = room.get("at") or at
     spawn_facing = math.atan2(eye[1] - entry[1], eye[0] - entry[0])
+    table_at = dd(room["table"])["pos"] if "table" in room else None
     for key, obj in (("chair", "CHAIR"),):
         if key in room:
             c = dd(room[key])
             cf = floor_at(local, c["pos"][0], c["pos"][1], c["pos"][2] + 0.5)
             p = (c["pos"][0], c["pos"][1], c["pos"][2] if cf is None else cf)
-            spots.append(dict(object=obj, entry=rnd(p), pose=rnd(p), facing=round(quat_yaw(c["rot"]), 4),
+            cyaw = quat_yaw(c["rot"])
+            # the floor its sitter gets up onto: in front of the seat, else beside it (a desk in front), on the same floor,
+            # clear of the chair's own spot and out of the room's table (never the seat itself: they'd stand up in the chair)
+            stand = None
+            for turn, d in ((0.0, 0.6), (math.pi / 2, 0.75), (-math.pi / 2, 0.75), (0.0, 0.9)):
+                a = cyaw + turn
+                sx, sy = p[0] + math.cos(a) * d, p[1] + math.sin(a) * d
+                f = floor_at(local, sx, sy, p[2] + 0.5)
+                if f is None or abs(f - p[2]) > 0.3:
+                    continue
+                if table_at is not None and abs(sx - table_at[0]) < 0.7 and abs(sy - table_at[1]) < 0.7:
+                    continue
+                if ray_hit(local, (p[0], p[1], p[2] + 0.6), (math.cos(a), math.sin(a), 0), 2) < d:
+                    continue
+                stand = (sx, sy, f)
+                break
+            spots.append(dict(object=obj, entry=rnd(stand or p), pose=rnd(p), facing=round(cyaw, 4),
                               models=[dict(id=c["model"], position=rnd(c["pos"]))]))
     if "table" in room:
         t = dd(room["table"])
@@ -723,7 +748,38 @@ def bedroom(st, w, tris, room, extras=()):
                                      [dict(id=dd(b)["model"], position=rnd(dd(b)["pos"])) for b in room.get("books", [])]))
     view = dict(eye=rnd(eye), at=rnd(at), fov=60)
     spawn = dict(pos=rnd(entry), facing=round(spawn_facing, 4))
-    return view, spawn, spots
+    return view, spawn, spots, room_props(w, local, room)
+
+
+def room_props(w, tris, room):
+    """The life simulation's props of the room (locations.json "props", simulation/LifeProps): only the game's own models
+    that stand in it (room["props"]: each a kind, FIREPLACE, BASIN or BOOKSHELF, the model's file id and a point near it,
+    picked by looking at the room's doodads' file names: fireplace, hearth, basin, bookshelf, bookcase). The one of that
+    model nearest the point; its user stands 0.8 yards out on the side with floor at its height and the most room (its
+    model's +x first), facing it. None is made up: a room with none of the game's own has none."""
+    out = []
+    for want in room.get("props", []):
+        near = [d for d in w.doodads if d["model"] == want["model"]]
+        if not near:
+            continue
+        d = min(near, key=lambda d: math.hypot(d["pos"][0] - want["near"][0], d["pos"][1] - want["near"][1]))
+        yaw = quat_yaw(d["rot"])
+        best = None
+        for turn in (0.0, math.pi / 2, -math.pi / 2, math.pi):
+            a = yaw + turn
+            px, py = d["pos"][0] + math.cos(a) * 0.8, d["pos"][1] + math.sin(a) * 0.8
+            f = floor_at(tris, px, py, d["pos"][2] + 0.5)
+            if f is None or abs(f - d["pos"][2]) > 0.3:
+                continue
+            free = ray_hit(tris, (px, py, f + 1.0), (math.cos(a), math.sin(a), 0), 4)
+            if best is None or free > best[0] + 0.5:
+                best = (free, (px, py, f))
+        if best is None:
+            continue
+        p = best[1]
+        out.append(dict(kind=want["kind"], entry=rnd(p), facing=round(math.atan2(d["pos"][1] - p[1], d["pos"][0] - p[0]), 4),
+                        model=d["model"], position=rnd(d["pos"])))
+    return out
 
 
 def door_portal(w, tris):
@@ -894,10 +950,11 @@ def build(st, loc):
     inside["groups"] = list(range(len(w.groups)))
     outside["groups"] = list(range(len(w.groups)))
     spots = []
+    props = []
     if loc.get("room"):
         # a bedroom: the camera on its bed, the person beside it; the room's MFOG kept as interiorFog and the map's fog
         # seen through windows and doors, as the Embassy's
-        inside["view"], inside["spawn"], spots = bedroom(st, w, tris, loc["room"], extras)
+        inside["view"], inside["spawn"], spots, props = bedroom(st, w, tris, loc["room"], extras)
         ov = loc["room"].get("outside")
         if ov:
             # the outside view picked by looking (tools: the yard seen from all round): eye and target as (x, y, height
@@ -981,6 +1038,7 @@ def build(st, loc):
         id=loc["id"], name=loc["name"], kind=loc["kind"], **({"people": loc["people"]} if "people" in loc else {}),
         **({"interactions": spots} if spots else {}),
         **({"furniture": furniture_rows(spots)} if spots else {}),
+        **({"props": props} if props else {}),
         frame=dict(comment="the building's own frame; world (map %d) = origin + Rz(yawDeg) * local" % continent(st, loc),
                    map=continent(st, loc), origin=rnd(origin), yawDeg=round(place["rot"][1] + 180, 4)),
         wmo=dict(root=loc["wmo"], groups=group_files, groupIndices=list(range(len(w.groups))),

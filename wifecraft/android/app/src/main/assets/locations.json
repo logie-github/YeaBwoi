@@ -5583,7 +5583,7 @@
     },
     {
      "object": "CHAIR",
-     "entry": [2.528, -6.608, 7.294],
+     "entry": [3.277, -6.562, 7.294],
      "pose": [2.528, -6.608, 7.294],
      "facing": -1.5097,
      "models": [
@@ -5617,6 +5617,10 @@
     {"object": "BED", "kind": "BED_DOUBLE", "position": [8.567, 1.606, 7.294], "yaw": -1.5708, "surface": 0.765},
     {"object": "CHAIR", "kind": "CHAIR", "position": [2.528, -6.608, 7.294], "yaw": -1.5097, "surface": 0.514},
     {"object": "TABLE", "kind": "TABLE", "position": [2.527, -7.546, 7.294], "yaw": 0.0, "surface": 1.093}
+   ],
+   "props": [
+    {"kind": "BOOKSHELF", "entry": [8.414, -7.812, 7.294], "facing": -1.5758, "model": 198053, "position": [8.41, -8.61, 7.29]},
+    {"kind": "BOOKSHELF", "entry": [0.485, -1.338, 7.294], "facing": -3.1391, "model": 198053, "position": [-0.32, -1.34, 7.29]}
    ],
    "frame": {
     "comment": "the building's own frame; world (map 0) = origin + Rz(yawDeg) * local",
@@ -15971,7 +15975,7 @@
     },
     {
      "object": "CHAIR",
-     "entry": [9.55, -1.628, 23.468],
+     "entry": [9.395, -1.048, 23.467],
      "pose": [9.55, -1.628, 23.468],
      "facing": 1.8326,
      "models": [
@@ -18421,6 +18425,10 @@
    ],
    "furniture": [
     {"object": "BED", "kind": "BED_DOUBLE", "position": [-6.389, 0.0, 7.411], "yaw": -0.0, "surface": 0.859}
+   ],
+   "props": [
+    {"kind": "BOOKSHELF", "entry": [-0.539, -3.708, 7.411], "facing": -1.572, "model": 203837, "position": [-0.54, -4.51, 7.37]},
+    {"kind": "BOOKSHELF", "entry": [-3.424, -3.826, 7.411], "facing": -1.5658, "model": 189993, "position": [-3.42, -4.63, 7.31]}
    ],
    "frame": {
     "comment": "the building's own frame; world (map 0) = origin + Rz(yawDeg) * local",
@@ -23524,6 +23532,11 @@
    ],
    "furniture": [
     {"object": "BED", "kind": "BED_DOUBLE", "position": [5.0, 6.5, 1.474], "yaw": -1.5708, "surface": 0.808}
+   ],
+   "props": [
+    {"kind": "BOOKSHELF", "entry": [0.676, 9.529, 1.482], "facing": 2.0631, "model": 193332, "position": [0.3, 10.23, 1.45]},
+    {"kind": "BOOKSHELF", "entry": [-1.38, 8.447, 1.483], "facing": 2.0663, "model": 193332, "position": [-1.76, 9.15, 1.46]},
+    {"kind": "BOOKSHELF", "entry": [6.819, 11.638, 1.486], "facing": 1.7445, "model": 193332, "position": [6.68, 12.43, 1.46]}
    ],
    "frame": {
     "comment": "the building's own frame; world (map 530) = origin + Rz(yawDeg) * local",

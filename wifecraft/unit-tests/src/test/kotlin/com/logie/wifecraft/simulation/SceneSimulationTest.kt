@@ -58,7 +58,11 @@ class SceneSimulationTest {
         assertEquals(surface, resting.position)
         assertEquals(spot.entry, resting.entry)
         sim.freeWill("a")
-        assertEquals(spot.entry, sim.people().single().position)
+        // off it onto the floor beside its spot (the spot itself is left for its next user)
+        val off = sim.people().single().position
+        val d = kotlin.math.hypot(off.x - spot.entry.x, off.y - spot.entry.y)
+        assertTrue(d >= SceneSimulation.MIN_SEPARATION - 1e-3f && d <= 1.6f, "$off from ${spot.entry}")
+        assertEquals(spot.entry.z, off.z)
         assertEquals(null, sim.people().single().furniture)
     }
 
