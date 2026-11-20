@@ -197,18 +197,21 @@ class Furniture(val id: String, val spec: FurnitureSpec, val x: Float, val y: Fl
          * The live scene's own objects ([SceneObject]) as furniture, at their measured [spot] when there is one. The object's
          * front: a chair's or couch's sitter's facing; a table's, the side its reader stands at (facing + PI); a bed's foot,
          * opposite the rest pose's facing (tools/locations.py faces a lying body toward the bed's higher end, its headboard).
-         * It stands on the spot's floor (its entry's height); a bed's surface is how far its rest pose is over that floor.
+         * It stands on the spot's floor (its entry's height); its surface (a bed's mattress, a chair's or couch's seat) is how
+         * far its pose is over that floor when that is measured (over 0.1), else the usual height.
          */
         fun of(item: SceneObject, spot: InteractionSpot?, unitsPerMetre: Float = FurnitureSpec.YARDS_PER_METRE): Furniture {
             val facing = spot?.facing ?: when (item) { SceneObject.TABLE -> (PI / 2).toFloat(); else -> -(PI / 2).toFloat() }
             val floor = spot?.entry?.z ?: item.position.z
+            // the measured spot's height over its floor: the bed's mattress, the seat's top (the model's own, not the usual)
+            val measured = spot?.let { it.pose.z - floor }?.takeIf { it > 0.1f }
             return when (item) {
                 SceneObject.BED -> Furniture(item.name, FurnitureSpec.standard(FurnitureKind.BED_DOUBLE, unitsPerMetre,
-                    spot?.let { it.pose.z - floor }?.takeIf { it > 0.1f }), spot?.pose?.x ?: item.position.x, spot?.pose?.y ?: item.position.y,
+                    measured), spot?.pose?.x ?: item.position.x, spot?.pose?.y ?: item.position.y,
                     floor, facing + PI.toFloat())
-                SceneObject.CHAIR -> Furniture(item.name, FurnitureSpec.standard(FurnitureKind.CHAIR, unitsPerMetre),
+                SceneObject.CHAIR -> Furniture(item.name, FurnitureSpec.standard(FurnitureKind.CHAIR, unitsPerMetre, measured),
                     spot?.pose?.x ?: item.position.x, spot?.pose?.y ?: item.position.y, floor, facing)
-                SceneObject.COUCH -> Furniture(item.name, FurnitureSpec.standard(FurnitureKind.COUCH, unitsPerMetre),
+                SceneObject.COUCH -> Furniture(item.name, FurnitureSpec.standard(FurnitureKind.COUCH, unitsPerMetre, measured),
                     spot?.pose?.x ?: item.position.x, spot?.pose?.y ?: item.position.y, floor, facing)
                 SceneObject.TABLE -> Furniture(item.name, FurnitureSpec.standard(FurnitureKind.TABLE, unitsPerMetre),
                     item.position.x, item.position.y, floor, facing + PI.toFloat())
@@ -301,7 +304,7 @@ data class FurnitureFit(
                     val ax = a.x * bodyUnit; val ay = a.y * bodyUnit
                     val tx = slot.x - (ax * c - ay * s)
                     val ty = slot.y - (ax * s + ay * c)
-                    val lift = slot.height - a.heightUnits * bodyUnit
+                    val lift = slot.height - a.restUnits * bodyUnit
                     val landed = ArrayList<String>(r.actors.size)
                     val at = ArrayList<Vec3>(r.actors.size)
                     var score = 0f
@@ -309,7 +312,7 @@ data class FurnitureFit(
                     for ((j, b) in r.actors.withIndex()) {
                         fun place(px: Float, py: Float) = (tx + (px * bodyUnit) * c - (py * bodyUnit) * s) to (ty + (px * bodyUnit) * s + (py * bodyUnit) * c)
                         val (px, py) = place(b.x, b.y)
-                        val pz = b.heightUnits * bodyUnit + lift
+                        val pz = b.restUnits * bodyUnit + lift
                         val land = land(f, b.posture, px, py, pz, tol, k)
                         if (land == null) { ok = false; break }
                         if (b.posture.lying) {

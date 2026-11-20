@@ -81,6 +81,14 @@ class Pose {
     var furniture: SceneObject? = null
     var playback: ClipPlayback? = null
     var ex = 0f; var ey = 0f; var ez = 0f
+    /**
+     * Playing a clip: the floor under them ([floor]) and how far over it the clip's origin is ([lift] = z - floor): onto a
+     * bed or seat ([FurnitureFit]), or off a floor its joints would reach under. The engine stands an actor on the floor under
+     * it (Scene::placeActor), so whoever draws them raises the clip by [lift] (its Root track) or places them without that.
+     * Otherwise the floor they stand on and 0.
+     */
+    var floor = 0f
+    var lift = 0f
     /** The line said now (a speech bubble), or null; [speechId] is new for every line said. */
     var speech: String? = null
     var speechId = 0L
@@ -185,9 +193,20 @@ class SceneSimulation(
         return furnitureMade.getOrPut(item) { pieces[item] ?: Furniture.of(item, spot) }
     }
 
-    /** What [pair] needs, or null (not classified yet: [classifyPairs] off). */
-    fun requirementOf(pair: PartnerPair): Requirement? =
-        requirements[pair.id] ?: if (classifyPairs) classified.getOrPut(pair.id) { FurnitureAnimation.of(pair).requirement } else null
+    /**
+     * What [pair] needs, or null (not classified yet: [classifyPairs] off). A pair whose roles had to be moved apart
+     * ([spaced]) is read again at its new slots (the screen's reading is of the old ones).
+     */
+    fun requirementOf(pair: PartnerPair): Requirement? {
+        val s = spaced(pair)
+        if (s !== pair && classifyPairs) return classified.getOrPut(pair.id + SPACED) { FurnitureAnimation.of(s).requirement }
+        return requirements[pair.id] ?: if (classifyPairs) classified.getOrPut(pair.id) { FurnitureAnimation.of(pair).requirement } else null
+    }
+
+    private val spacedPairs = java.util.IdentityHashMap<PartnerPair, PartnerPair>()
+
+    /** [pair] with its two bodies kept apart ([PairSpacing]: no two trunks in each other, never both on one axis); cached. */
+    fun spaced(pair: PartnerPair): PartnerPair = spacedPairs.getOrPut(pair) { PairSpacing.spaced(pair) }
 
     /** World units of one body unit for these people (the human body's standing pelvis, times their mean size). */
     private fun bodyUnit(vararg people: Actor): Float =
@@ -217,6 +236,9 @@ class SceneSimulation(
         /** The floor the places are walked to on (NaN: the anchor's own height): played on furniture, the clip is raised. */
         val floorZ: Float = Float.NaN,
         val fit: FurnitureFit? = null,
+        /** How far each role's clip is raised over [anchor] (world units, role order): a floor clip whose joints would reach
+         *  under the floor ([com.logie.wifecraft.anim.ActorRequirement.liftUnits]); null: none. */
+        val lifts: FloatArray? = null,
     ) {
         var started = false
         /** The life simulation's interaction this is (an [InteractionId] ordinal: a hug, a dance), or -1. */
@@ -233,7 +255,7 @@ class SceneSimulation(
      */
     private class Setup(val anchor: Vec3, val heading: Float, val furniture: SceneObject?, val emote: Int,
         val initiator: Actor, val directed: Boolean, val partner: Boolean = true, val floorZ: Float = Float.NaN,
-        val fit: FurnitureFit? = null)
+        val fit: FurnitureFit? = null, val lifts: FloatArray? = null)
 
     private enum class Phase { WAITING, MOVING, ACTING }
 
@@ -312,6 +334,9 @@ class SceneSimulation(
         out.furniture = item
         val entry = item?.let { spots[it]?.entry }
         if (entry != null) { out.ex = entry.x; out.ey = entry.y; out.ez = entry.z } else { out.ex = a.x; out.ey = a.y; out.ez = a.z }
+        val playing = a.performance?.takeIf { a.phase == Phase.ACTING && a.playback != null }
+        out.floor = playing?.let { p -> if (p.floorZ.isNaN()) p.anchor.z else p.floorZ } ?: a.z
+        out.lift = (a.z - out.floor).coerceAtLeast(0f)
         out.speech = a.spoken?.takeIf { time < a.spokenUntil }
         out.speechId = a.spokenId
         out.gesture = gestureOf(a)
@@ -468,7 +493,8 @@ class SceneSimulation(
         val roles = if (setup == null) PairFit.roles(request.roles, floatArrayOf(size(lead), size(other))) else request.roles
         val performance = Performance(lead, other, roles, request.seconds.coerceIn(0.25f, 3600f),
             anchor, heading, request.repeat, request.repetitions, directed, request.name, request.sounds,
-            setup?.partner == true, setup?.initiator, furniture, setup?.emote ?: -1, setup?.floorZ ?: Float.NaN, setup?.fit)
+            setup?.partner == true, setup?.initiator, furniture, setup?.emote ?: -1, setup?.floorZ ?: Float.NaN, setup?.fit,
+            setup?.lifts)
         if (other != null && previous == null &&
             !beginAny(other, Activity.PERFORM, approaches(performance, roles[1]), directed, furniture)) return false
 
@@ -571,7 +597,7 @@ class SceneSimulation(
         val command = ++version
         for ((index, actor) in listOfNotNull(performance.lead, performance.other).withIndex()) {
             val role = performance.roles[index]
-            actor.position = rolePosition(performance, role)
+            actor.position = rolePosition(performance, role) + Vec3(0f, 0f, performance.lifts?.getOrNull(index) ?: 0f)
             actor.facing = performance.heading + role.facing
             actor.performance = performance
             actor.playback = ClipPlayback(role.clip, command)
@@ -1359,8 +1385,9 @@ class SceneSimulation(
             val cast = FurnitureSelection.cast(fit, listOf(NearbyNpc(initiator.id, initiator.x, initiator.y), NearbyNpc(target.id, target.x, target.y)))
             if (cast != null && cast[0] == target.id) { playA = target; playB = initiator }
         }
-        // the slots for the two bodies' sizes (a gnome comes nearer the contact point: PairFit)
-        val (slotA, slotB) = PairFit.slots(pair?.slotA ?: PartnerEmotes.SLOT_A, pair?.slotB ?: PartnerEmotes.SLOT_B,
+        // the slots for the two bodies' sizes (a gnome comes nearer the contact point: PairFit), the bodies kept apart (PairSpacing)
+        val placed = pair?.let { spaced(it) }
+        val (slotA, slotB) = PairFit.slots(placed?.slotA ?: PartnerEmotes.SLOT_A, placed?.slotB ?: PartnerEmotes.SLOT_B,
             size(playA), size(playB))
         val keyA = if (pair != null) PlaybackKeys.pair(pair.id, 0) else PlaybackKeys.emote(emote!!.anim)
         val keyB = if (pair != null) PlaybackKeys.pair(pair.id, 1) else PlaybackKeys.emote(emote!!.anim)
@@ -1397,8 +1424,12 @@ class SceneSimulation(
         val sounds = pair?.sounds.orEmpty().map { it.copy(actor = if (it.actor == 0) 1 else 0) }
         val request = PerformanceOrder(playA.id, listOf(role(keyB, slotB), role(keyA, slotA)), seconds, false,
             cycles.coerceIn(1, 100), pair?.name ?: emote!!.name, sounds)
+        // on the floor, each role raised where its clip's joints would reach under the floor (role order: playB's, playA's)
+        val lifts = if (pair != null && fit == null) requirementOf(pair)?.actors?.let { need ->
+            floatArrayOf((need.getOrNull(1)?.liftUnits ?: 0f) * bodyUnit(playB), (need.getOrNull(0)?.liftUnits ?: 0f) * bodyUnit(playA))
+        }?.takeIf { l -> l.any { it > 0f } } else null
         return startPerformance(playB, request, null,
-            Setup(anchor, heading, furniture, emote?.anim ?: -1, playA, directed, floorZ = floorZ, fit = fit))
+            Setup(anchor, heading, furniture, emote?.anim ?: -1, playA, directed, floorZ = floorZ, fit = fit, lifts = lifts))
     }
 
     private fun role(key: String, slot: PartnerSlot) = PlaybackRole(key, Vec3(slot.x, slot.y, slot.z), slot.yawDeg * DEG)
@@ -1416,7 +1447,9 @@ class SceneSimulation(
             var d = hypot(dx, dy)
             if (d < 0.05f) { dx = -cos(actor.facing); dy = -sin(actor.facing); d = 1f }
             val away = 1f + random.nextFloat() * 0.6f
-            begin(actor, Activity.IDLE, Vec3(actor.x + dx / d * away, actor.y + dy / d * away, actor.z), directed = false)
+            // back down onto the floor the clip was raised from
+            val floor = if (performance.floorZ.isNaN()) performance.anchor.z else performance.floorZ
+            begin(actor, Activity.IDLE, Vec3(actor.x + dx / d * away, actor.y + dy / d * away, floor), directed = false)
         }
     }
 
@@ -1469,5 +1502,6 @@ class SceneSimulation(
         val HUMAN_BODY_UNIT = (BodyGeometry.REF_UNIT * HumanScale.PAIR).toFloat()
         private const val DEG = 0.017453292f
         private val NO_PLACE = Any()
+        private const val SPACED = ":spaced"
     }
 }

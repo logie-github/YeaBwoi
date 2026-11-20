@@ -600,6 +600,11 @@ def near_tris(tris, p, r):
 
 
 
+# Chair seats (yards over the floor) measured on the models by engine-test/audit (`solid`: the top of the seat's stretch at
+# its middle): the Lion's Pride Inn's chair 198115. Others keep the usual 0.47 m (0.514 yards) until measured.
+CHAIR_SEATS = {198115: 0.479}
+
+
 def furniture_rows(spots):
     """The location's furniture for animations (locations.json "furniture", read by location/Locations.kt FurniturePiece and
     simulation/Furniture.of), from its interaction spots: each piece's kind, its middle on the floor, its front's direction
@@ -609,7 +614,7 @@ def furniture_rows(spots):
     (bedroom() faces it toward the headboard: the end that stands higher), its surface the mattress (the pose's height over
     that floor); every bed is taken as a double: bedroom() steps 0.55 yards out from half its width and every bed's half
     width came out 0.9 yards or more. A chair: where it stands, its front the model's +x (as bedroom() faces the sitter;
-    not checked against each model), its seat the usual 0.47 m (not measured). A table: its model's middle, its front toward
+    not checked against each model), its seat measured where CHAIR_SEATS has the model, else the usual 0.47 m. A table: its model's middle, its front toward
     the spot its reader stands at, its top as high as the lowest of its books stands (their origins: a book's base, not
     checked), else the usual 0.75 m."""
     rows = []
@@ -621,8 +626,11 @@ def furniture_rows(spots):
             rows.append(dict(object=obj, kind="BED_DOUBLE", position=[pose[0], pose[1], entry[2]], yaw=round(flip, 4),
                              surface=round(pose[2] - entry[2], 3)))
         elif obj == "CHAIR":
-            # where it stands: the seat (its pose); its entry is the floor beside it the sitter gets up onto
-            rows.append(dict(object=obj, kind="CHAIR", position=list(s.get("pose", entry)), yaw=round(facing, 4), surface=0.514))
+            # where it stands: the seat (its pose); its entry is the floor beside it the sitter gets up onto; its seat's
+            # height as engine-test/audit measures the model's top over its floor (CHAIR_SEATS), else the usual 0.47 m
+            model = (s.get("models") or [{}])[0].get("id")
+            rows.append(dict(object=obj, kind="CHAIR", position=list(s.get("pose", entry)), yaw=round(facing, 4),
+                             surface=CHAIR_SEATS.get(model, 0.514)))
         elif obj == "TABLE" and s.get("models"):
             m = s["models"][0]["position"]
             books = [b["position"][2] for b in s["models"][1:]]
