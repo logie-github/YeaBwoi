@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.LruCache
+import com.logie.wifecraft.bodyparts.EveContext
+import com.logie.wifecraft.bodyparts.EveDress
 import com.logie.wifecraft.characters.ImportedLooks
 import com.logie.wifecraft.characters.NamedCast
 import com.logie.wifecraft.creator.Appearance
@@ -49,6 +51,8 @@ class Thumbs(
     private val overrides: () -> Overrides = { ImportStore.current ?: Overrides.None },
     /** The named characters: a picture of one is of her chosen look (her display, her bare or partial stand-in...). */
     private val named: () -> NamedCast? = { null },
+    /** The Eve set as the dressing needs it (bodyparts/EveDress): an NPC's picture shows her Eve body as the scene does. */
+    private val eve: () -> EveContext? = { null },
 ) : LookSource {
     private val _errors = MutableStateFlow<String?>(null)
     /** The last picture that couldn't be made, and why. */
@@ -81,7 +85,7 @@ class Thumbs(
      */
     private fun keyOf(kind: PlaceKind, asset: Int, size: Int, appearance: Appearance? = null): String =
         kind.name.lowercase() + "_" + asset + (appearance?.let { "_" + Integer.toHexString(it.toJson().toString().hashCode()) } ?: "") +
-            (if (kind == PlaceKind.PROP) "" else importsMark()) + "_" + size
+            (if (kind == PlaceKind.PROP) "" else importsMark() + EveDress.cacheMark(eve(), appearance)) + "_" + size
 
     /** "_i<hash>" of the imports' signature (Overrides.signature), "" when nothing is imported. */
     private fun importsMark(): String = overrides().signature().let { if (it.isEmpty()) "" else "_i" + Integer.toHexString(it.hashCode()) }
@@ -178,6 +182,7 @@ class Thumbs(
             val p = look(job.kind, job.asset, job.appearance)
             val call = p.call ?: run { fail(job, p.error ?: "it has no look"); return null }
             pixels = onGl(view) { h ->
+                p.eve?.let { e -> Native.thumbEve(h, e.on, e.bottom, e.tone, e.overlaySlot, e.overlayShade, e.opacity) }
                 Native.thumbLook(h, call.model, call.scale, call.geosetKeys, call.geosetValues, call.layerFiles, call.layerMeta,
                     call.tintColours, call.extraModels, p.body.morph, p.body.k, p.body.fold, job.size)
                     ?: run { fail(job, Native.thumbError(h)); null }
@@ -210,7 +215,7 @@ class Thumbs(
     private val glGate = Mutex()
 
     /** A card's picture if it is in memory now. */
-    fun cachedCard(key: String): Bitmap? = memory.get(key + importsMark())
+    fun cachedCard(key: String, look: Appearance? = null): Bitmap? = memory.get(key + importsMark() + EveDress.cacheMark(eve(), look))
 
     /**
      * Off the main thread: [order]'s picture (the character wearing the card's pieces, framed as TransmogCards says, around her
@@ -219,7 +224,7 @@ class Thumbs(
      */
     suspend fun card(order: CardOrder): Bitmap? {
         // named with what is imported and on, as the NPCs' pictures are
-        val name = order.key + importsMark()
+        val name = order.key + importsMark() + EveDress.cacheMark(eve(), order.look)
         memory.get(name)?.let { return it }
         cardDir.mkdirs()
         val file = File(cardDir, "$name.png")
@@ -235,6 +240,7 @@ class Thumbs(
         val s = order.shot
         val pixels = glGate.withLock {
             onGl(view) { h ->
+                p.eve?.let { e -> Native.thumbEve(h, e.on, e.bottom, e.tone, e.overlaySlot, e.overlayShade, e.opacity) }
                 Native.thumbCard(h, call.model, call.scale, call.geosetKeys, call.geosetValues, call.layerFiles, call.layerMeta,
                     call.tintColours, call.extraModels, p.body.morph, p.body.k, p.body.fold, order.width, order.height,
                     s.lo, s.hi, s.az, s.el, s.fitWidth, true)
@@ -307,7 +313,9 @@ class Thumbs(
         val drawn = plan.drawn
         val body = if (drawn == null) BodyCall.NONE
             else runCatching { Dressing.body(files.dir.parentFile!!, drawn, o.hasBody()) }.getOrDefault(BodyCall.NONE)
-        return LookSource.Prepared(call, body, plan.character)
+        // the Eve body as the scene draws her (a creature's or a display's picture never)
+        val eveOptions = if (kind == PlaceKind.CREATURE) null else EveDress.decide(appearance, drawn, resolved.model, eve()).options
+        return LookSource.Prepared(call, body, plan.character, eve = eveOptions)
     }
 
     override fun prepareProp(model: Int, onDone: (String?) -> Unit) {

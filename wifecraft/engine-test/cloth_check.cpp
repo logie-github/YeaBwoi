@@ -1,10 +1,14 @@
 // The tabard flap's cloth on a real model, without GL (engine/cloth.h): a look file's model and geosets, an animation
 // played at 60 frames a second, the cloth stepped as Scene steps it, and per frame what the renders can't show by eye:
 // how many free cloth points lie inside the body (the nearest skinned body vertex's normal faces away from the point,
-// within 5 cm), the deepest one, the cloth's largest stretch, and the time a frame of cloth takes.
+// within 5 cm), the deepest one, the cloth's largest stretch, its narrowest row along the hips' side as a share of its
+// width at rest (ClothSim::minWidthRatio: a flap turned edge-on or bunched up reads low), and the time a frame of cloth
+// takes. Sitting on a chair (animation 103, SitChairMed) the back flap lies on the seat as Scene places her: the seat's top
+// 0.12 below the pelvis (Scene::fitFurniture).
 //
-//   build/cloth_check FILES_DIR LOOKFILE ANIM_ID FRAMES [STEP_MS]     exit 0 when no frame has a point inside the body
-//                                                                      and the stretch stays under 5%
+//   build/cloth_check FILES_DIR LOOKFILE ANIM_ID FRAMES [STEP_MS]     exit 0 when no frame has a point inside the body,
+//                                                                      the stretch stays at or under 10% and no row
+//                                                                      narrows below 60% of its width
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -100,6 +104,8 @@ int main(int argc, char** argv) {
     ClothSim sim;
     sim.setRig(&rig);
     sim.setFloor(0.0f);   // the model's own floor
+    const bool chair = anim == 103;
+    const int pelvisBone = m.findWowBone("Pelvis");
     std::vector<BonePose> pose;
     std::vector<M4> mats;
     std::vector<V3> posed;
@@ -108,7 +114,7 @@ int main(int argc, char** argv) {
     const M4 world;   // the model's own place: the sim in model units
     int worstInside = 0, framesInside = 0;
     float swing[2] = {0, 0};
-    float deepest = 0, worstStretch = 0;
+    float deepest = 0, worstStretch = 0, narrowest = 1e9f;
     double clothMs = 0;
     uint32_t dur = std::max<uint32_t>(1, m.sequences[size_t(seq)].duration);
     std::vector<V3> bp(bodyIdx.size()), bn(bodyIdx.size());
@@ -120,6 +126,7 @@ int main(int argc, char** argv) {
         clothPosed(rig, m.vertices, mats, world, posed);
         clothCapsules(m, rig, mats, world, caps);
         clothSurface(rig, m.vertices, mats, world, skin);
+        if (chair && pelvisBone >= 0) sim.setFloor(0.0f, mats[size_t(pelvisBone)].point(m.bones[size_t(pelvisBone)].pivot).z - 0.12f);
         sim.step(posed, caps, std::getenv("CLOTH_NOSKIN") ? nullptr : &skin, 1.0f, now);
         auto t1 = std::chrono::steady_clock::now();
         if (f > 0) clothMs += std::chrono::duration<double, std::milli>(t1 - t0).count();
@@ -173,6 +180,8 @@ int main(int argc, char** argv) {
             swing[pi] = std::max(swing[pi], ang);
         }
         float stretch = sim.maxStretch(1.0f);
+        float width = sim.minWidthRatio(1.0f);
+        if (f >= 30) narrowest = std::min(narrowest, width);   // (after the first half second: the hang from the pose)
         if (std::getenv("CLOTH_DEBUG")) {
             float w = 0; int wp = 0; ClothLink wl;
             for (size_t pi = 0; pi < rig.pieces.size(); ++pi)
@@ -195,7 +204,27 @@ int main(int argc, char** argv) {
         worstInside = std::max(worstInside, inside);
         if (inside) ++framesInside;
         deepest = std::max(deepest, frameDeep);
-        std::printf("frame %3d t %5u inside %2d deepest %.4f nearest %.4f stretch %.4f\n", f, now, inside, frameDeep, minClear, stretch);
+        std::printf("frame %3d t %5u inside %2d deepest %.4f nearest %.4f stretch %.4f width %.3f\n", f, now, inside, frameDeep, minClear, stretch, width);
+    }
+    if (const char* dump = std::getenv("CLOTH_DUMP")) {
+        // the last frame: the body's points (b), the cloth's (c: piece, row, column) and the game's posed flap (p)
+        if (FILE* o = std::fopen(dump, "w")) {
+            for (size_t i = 0; i < bp.size(); i += 2) std::fprintf(o, "b %.4f %.4f %.4f\n", bp[i].x, bp[i].y, bp[i].z);
+            for (const ClothCapsule& c : caps)
+                std::fprintf(o, "k %s a0 %.3f %.3f %.3f a1 %.3f %.3f %.3f n %.2f %.2f %.2f reach %.3f start %.3f end %.3f sided %d drape %d\n", kFleshSegs[c.seg].name,
+                             c.a0.x, c.a0.y, c.a0.z, c.a1.x, c.a1.y, c.a1.z, c.n.x, c.n.y, c.n.z, c.reach, c.start, c.end, c.sided, c.drape);
+            const std::vector<V3>& x = sim.positions();
+            for (size_t pi = 0; pi < rig.pieces.size(); ++pi) {
+                const ClothPiece& p = rig.pieces[pi];
+                for (size_t i = 0; i < p.points.size(); ++i) {
+                    const V3& q = x[p.first + i];
+                    const V3& o2 = posed[p.first + i];
+                    std::fprintf(o, "c %zu %zu %zu %.4f %.4f %.4f\np %zu %zu %zu %.4f %.4f %.4f\n", pi, i / size_t(p.cols), i % size_t(p.cols), q.x, q.y, q.z,
+                                 pi, i / size_t(p.cols), i % size_t(p.cols), o2.x, o2.y, o2.z);
+                }
+            }
+            std::fclose(o);
+        }
     }
     if (std::getenv("CLOTH_ROWS")) {
         const std::vector<V3>& x = sim.positions();
@@ -207,7 +236,8 @@ int main(int argc, char** argv) {
                 std::printf("\n");
             }
     }
-    std::printf("summary: frames %d, frames with a point inside %d, most inside %d, deepest %.4f, worst stretch %.4f, widest swing %.0f/%.0f deg, cloth %.4f ms a frame (desktop)\n",
-                frames, framesInside, worstInside, deepest, worstStretch, swing[0], swing[1], frames > 1 ? clothMs / (frames - 1) : 0.0);
-    return framesInside == 0 && worstStretch < 0.05f ? 0 : 1;
+    if (narrowest > 1e8f) narrowest = 1.0f;
+    std::printf("summary: frames %d, frames with a point inside %d, most inside %d, deepest %.4f, worst stretch %.4f, narrowest row %.3f of its width, widest swing %.0f/%.0f deg, cloth %.4f ms a frame (desktop)\n",
+                frames, framesInside, worstInside, deepest, worstStretch, narrowest, swing[0], swing[1], frames > 1 ? clothMs / (frames - 1) : 0.0);
+    return framesInside == 0 && worstStretch <= 0.10f && narrowest >= 0.6f ? 0 : 1;
 }

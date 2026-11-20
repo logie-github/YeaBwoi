@@ -11,10 +11,16 @@ namespace wc {
 namespace {
 
 // The segments the cloth collides with, and which of them are the torso.
-constexpr int kClothSegs[] = {kFleshPelvis, kFleshSpine, kFleshChest, kFleshLThigh, kFleshRThigh, kFleshLCalf, kFleshRCalf,
-                              kFleshLFoot, kFleshRFoot, kFleshLForearm, kFleshRForearm, kFleshLHand, kFleshRHand};
+// (the arms first: a forearm or a hand resting on the lap presses the cloth down onto it, and the thighs under it have the
+// last word)
+constexpr int kClothSegs[] = {kFleshLForearm, kFleshRForearm, kFleshLHand, kFleshRHand, kFleshPelvis, kFleshSpine, kFleshChest,
+                              kFleshLThigh, kFleshRThigh, kFleshLCalf, kFleshRCalf, kFleshLFoot, kFleshRFoot};
 
 bool isFlap(uint16_t id) { return id >= 100 && id / 100 == kClothGroup; }
+
+// A segment's tip past its last joint (model units): a hand runs on from the wrist (flesh.h's hand is the wrist and a tip),
+// so a hand resting on the lap is a capsule the cloth goes under, not nothing.
+float segTip(int seg) { return seg == kFleshLHand || seg == kFleshRHand ? 0.12f : 0.0f; }
 
 V3 vpos(const M2Vertex& v) { return V3(v.pos[0], v.pos[1], v.pos[2]); }
 
@@ -224,7 +230,7 @@ bool buildPiece(const std::vector<M2Vertex>& verts, const std::vector<uint32_t>&
                 pt.uv[0] += v.uv[0] * pt.w[k];
                 pt.uv[1] += v.uv[1] * pt.w[k];
             }
-            pt.pinned = r == 0;
+            pt.pinned = r < kClothPinnedRows;
             out.points.push_back(pt);
             rest.push_back(at);
         }
@@ -271,6 +277,26 @@ std::map<std::string, V3> jointsOf(const M2Model& m, const int jointBone[], cons
         J[kFleshJoints[j]] = world.point(p);
     }
     return J;
+}
+
+// The hips' frame this frame from the capsules: `side` from the right hip joint to the left (the thighs' tops), `axis` up the
+// spine (Spine1 to Chest) square to it. False without both thighs.
+bool hipFrame(const std::vector<ClothCapsule>& bodies, V3& axis, V3& side) {
+    const ClothCapsule *l = nullptr, *r = nullptr, *spine = nullptr;
+    for (const ClothCapsule& c : bodies) {
+        if (c.seg == kFleshLThigh) l = &c;
+        else if (c.seg == kFleshRThigh) r = &c;
+        else if (c.seg == kFleshSpine) spine = &c;
+    }
+    if (!l || !r) return false;
+    side = l->a0 - r->a0;
+    if (side.length() < 1e-5f) return false;
+    side = side.normalized();
+    V3 up = spine ? spine->axis : V3(0, 0, 1);
+    axis = up - side * up.dot(side);
+    if (axis.length() < 1e-4f) axis = V3(0, 0, 1) - side * side.z;
+    axis = axis.normalized();
+    return true;
 }
 
 } // namespace
@@ -326,6 +352,11 @@ void clothLinks(ClothPiece& out, const std::vector<V3>& rest) {
             else out.tris.insert(out.tris.end(), {a, d, b, b, d, e});
         }
     indexRests(out);
+    // each row's width, and which way it runs along the side (model y: the hips' line at rest; clothRig sets it again
+    // from the pelvis's own frame)
+    out.restWidth.assign(size_t(rows), 0.0f);
+    for (int r = 0; r < rows; ++r) out.restWidth[size_t(r)] = (rest[id(r, cols - 1)] - rest[id(r, 0)]).length();
+    out.sideSign = rest[id(0, cols - 1)].y >= rest[id(0, 0)].y ? 1.0f : -1.0f;
 }
 
 ClothRig clothRig(const M2Model& m, const std::vector<M2Vertex>& verts, const std::vector<uint32_t>& indices,
@@ -387,7 +418,7 @@ ClothRig clothRig(const M2Model& m, const std::vector<M2Vertex>& verts, const st
         ClothBodySeg b;
         b.seg = seg;
         FleshFrame f;
-        if (!fleshFrame(seg, J, 0.0f, f) || f.len < 1e-4f) { rig.body.push_back(b); continue; }
+        if (!fleshFrame(seg, J, segTip(seg), f) || f.len < 1e-4f) { rig.body.push_back(b); continue; }
         std::vector<float> st, en;
         float far[kClothSections][kClothBins] = {};
         int count[kClothSections][kClothBins] = {};
@@ -444,6 +475,10 @@ ClothRig clothRig(const M2Model& m, const std::vector<M2Vertex>& verts, const st
     clothPosed(rig, verts, bind, M4(), posed);
     clothCapsules(m, rig, bind, M4(), caps);
     clothSurface(rig, verts, bind, M4(), skin);
+    V3 hipAxis, hipSide;
+    if (hipFrame(caps, hipAxis, hipSide))
+        for (ClothPiece& p : rig.pieces)
+            if (posed.size() >= p.first + size_t(p.cols)) p.sideSign = (posed[p.first + size_t(p.cols - 1)] - posed[p.first]).dot(hipSide) >= 0 ? 1.0f : -1.0f;
     ClothSim fit;
     fit.setRig(&rig);
     fit.setGravity(false);
@@ -533,7 +568,7 @@ void clothCapsules(const M2Model& m, const ClothRig& rig, const std::vector<M4>&
     for (const ClothBodySeg& b : rig.body) {
         if (!b.ok) continue;
         FleshFrame f;
-        if (!fleshFrame(b.seg, J, 0.0f, f) || f.len < 1e-5f) continue;
+        if (!fleshFrame(b.seg, J, segTip(b.seg) * k, f) || f.len < 1e-5f) continue;
         ClothCapsule c;
         c.a0 = f.a0; c.a1 = f.a1; c.axis = f.axis; c.n = f.n; c.m = f.m; c.len = f.len;
         for (int sc = 0; sc < kClothSections; ++sc)
@@ -541,11 +576,25 @@ void clothCapsules(const M2Model& m, const ClothRig& rig, const std::vector<M4>&
         c.start = b.start * k; c.end = b.end * k;
         c.seg = b.seg;
         c.torso = b.seg == kFleshPelvis || b.seg == kFleshSpine || b.seg == kFleshChest;
-        // a thigh keeps the flaps on their sides of it while it hangs (standing, walking); raised (seated, kneeling) it is
-        // round like the rest: the cloth lies over it or falls past it, never pushed through it to the top
-        c.sided = c.torso || ((b.seg == kFleshLThigh || b.seg == kFleshRThigh) && c.axis.z < -0.6f);
+        // a thigh keeps the flaps on their sides of it while it hangs (standing, walking); raised (seated, kneeling) the
+        // front flap lies over its top and the back flap goes round it; a shin or a foot lying near the level (kneeling,
+        // sitting on the ground) has both laid over it
+        const bool thigh = b.seg == kFleshLThigh || b.seg == kFleshRThigh;
+        const bool lower = b.seg == kFleshLCalf || b.seg == kFleshRCalf || b.seg == kFleshLFoot || b.seg == kFleshRFoot;
+        const bool arm = b.seg == kFleshLHand || b.seg == kFleshRHand || b.seg == kFleshLForearm || b.seg == kFleshRForearm;
+        c.sided = c.torso || (thigh && c.axis.z < -0.6f);
+        V3 up = V3(0, 0, 1) - c.axis * c.axis.z;
+        float ul = up.length();
+        c.up = ul > 1e-4f ? up * (1.0f / ul) : c.n;
+        c.drape = thigh && !c.sided ? 1 : lower && std::fabs(c.axis.z) < 0.6f ? 3 : 0;
+        // a forearm or a hand lying across (on the lap) has the front flap under it (pushed down, never over its back)
+        if (arm && std::fabs(c.axis.z) < 0.6f) { c.up = c.up * -1.0f; c.drape = 1; }
         out.push_back(c);
     }
+    // lying down, nothing is laid over the top of a limb (her top is her side or her front): the limbs are round
+    V3 axis, side;
+    if (hipFrame(out, axis, side) && axis.z < 0.5f)
+        for (ClothCapsule& c : out) c.drape = 0;
 }
 
 float clothCapsuleDepth(const ClothCapsule& c, const V3& p, bool& within) {
@@ -566,23 +615,30 @@ bool clothCollide(const ClothCapsule& c, int side, float standoff, V3& p, V3& no
     float r2 = dn * dn + dm * dm, most = c.reach + standoff;
     if (r2 >= most * most) return false;
     float t = c.len > 0 ? std::clamp(al / c.len, 0.0f, 1.0f) : 0.0f;
-    if (side != 0 && c.sided) {
+    const bool drapes = side != 0 && (c.drape & (side > 0 ? 1 : 2));
+    if (drapes || (side != 0 && c.sided)) {
         // the torso and the thighs keep a front piece in front of them and a back piece behind them: pushed straight out
         // to the front (or back) surface at the same place across it, so a flap lying over the belly isn't spread sideways
-        // and a thigh swinging into it carries it along rather than passing between its points
-        const float s = float(side);
-        float out = dn * s;   // how far toward the piece's side
+        // and a thigh swinging into it carries it along rather than passing between its points. A limb lying across lays
+        // the cloth over its top the same way (`up`): over the lap, never squeezed out between the thighs.
+        const V3 dir = drapes ? c.up : c.n * float(side);
+        const V3 across = c.axis.cross(dir);
+        float out = q.dot(dir), lat = q.dot(across);   // how far toward that side, and across it
+        auto reach = [&](float o) {
+            V3 d = dir * o + across * lat;
+            float ang = std::atan2(d.dot(c.m), d.dot(c.n));
+            return profileAt(c.r, t, ang < 0 ? ang + kTwoPi : ang) + standoff;
+        };
         float guess = std::max(out, 0.0f);
         float want = 0;
         for (int k = 0; k < 3; ++k) {
-            float ang = std::atan2(dm, guess * s);
-            want = profileAt(c.r, t, ang < 0 ? ang + kTwoPi : ang) + standoff;
-            if (std::fabs(dm) >= want) return false;
-            guess = std::sqrt(want * want - dm * dm);
+            want = reach(guess);
+            if (std::fabs(lat) >= want) return false;
+            guess = std::sqrt(want * want - lat * lat);
         }
         if (out >= guess) return false;
-        p = p + c.n * ((guess - out) * s);
-        normal = c.n * s;
+        p = p + dir * (guess - out);
+        normal = dir;
         return true;
     }
     bool turned = false;
@@ -627,6 +683,32 @@ uint64_t cellKey(int x, int y, int z) {
 }
 } // namespace
 
+namespace {
+
+// How much each free point is drawn toward the game's posed flap: fully where that lies outside the body, not at all where
+// it lies kFollowDeep in it (seated, the game's flap runs through the thighs: the cloth is left to lie over them).
+void followWeights(const ClothRig& rig, const std::vector<V3>& posed, const std::vector<ClothCapsule>& bodies, float scale,
+                   std::vector<float>& out) {
+    out.assign(posed.size(), 1.0f);
+    for (const ClothPiece& p : rig.pieces)
+        for (size_t i = 0; i < p.points.size(); ++i) {
+            if (p.points[i].pinned) continue;
+            V3 x = posed[p.first + i], nrm;
+            for (const ClothCapsule& c : bodies) clothCollide(c, p.side, 0.0f, x, nrm);
+            float deep = (x - posed[p.first + i]).length() / std::max(scale, 1e-4f);
+            out[p.first + i] = std::clamp(1.0f - (deep - ClothSim::kFollowDeep * 0.25f) / (ClothSim::kFollowDeep * 0.75f), 0.0f, 1.0f);
+        }
+}
+
+
+// v turned by `angle` (radians) about the unit axis a.
+V3 turned(const V3& v, const V3& a, float angle) {
+    float c = std::cos(angle), s = std::sin(angle);
+    return v * c + a.cross(v) * s + a * (a.dot(v) * (1 - c));
+}
+
+} // namespace
+
 void ClothSim::step(const std::vector<V3>& posed, const std::vector<ClothCapsule>& bodies, const ClothSurface* skin, float scale,
                     uint32_t nowMs) {
     steps_ = 0;
@@ -645,6 +727,8 @@ void ClothSim::step(const std::vector<V3>& posed, const std::vector<ClothCapsule
     }
     const float dt = 1.0f / float(kHz);
     const size_t n = posed.size();
+    target_ = posed;
+    followWeights(*rig_, posed, bodies, scale, followW_);
     bool restart = !started_ || x_.size() != n || nowMs < last_ || nowMs - last_ > kMaxFrameMs;
     if (!restart) {
         for (const ClothPiece& p : rig_->pieces)
@@ -653,20 +737,23 @@ void ClothSim::step(const std::vector<V3>& posed, const std::vector<ClothCapsule
     }
     if (restart || lastBodies_.size() != bodies.size()) {
         if (restart) {
-            x_ = posed;
-            xp_ = posed;
+            // hung from the game's flap as it lies out of the body
+            x_ = target_;
+            xp_ = target_;
             contact_.assign(n, V3());
-            for (int k = 0; k < kSettleSteps; ++k) substep(posed, bodies, scale, dt);
+            for (int k = 0; k < kSettleSteps; ++k) substep(posed, target_, bodies, scale, dt);
             for (size_t i = 0; i < n; ++i) xp_[i] = x_[i];   // settled: at rest
             started_ = true;
             last_ = nowMs;
             acc_ = 0;
             lastPosed_ = posed;
+            lastTarget_ = target_;
             lastBodies_ = bodies;
             return;
         }
         lastBodies_ = bodies;
     }
+    if (lastTarget_.size() != n) lastTarget_ = target_;
     acc_ += (nowMs - last_) * uint32_t(kHz);
     last_ = nowMs;
     int steps = int(acc_ / 1000u);
@@ -676,45 +763,52 @@ void ClothSim::step(const std::vector<V3>& posed, const std::vector<ClothCapsule
     // nothing carries it along them), it is drawn toward it harder until it is near again
     if (gravity_ && followOn_) {
         float far = 0;
-        for (size_t i = 0; i < n; ++i) far += (x_[i] - posed[i]).length();
-        far /= float(n) * std::max(scale, 1e-3f);
+        float wsum = 0;
+        for (size_t i = 0; i < n; ++i) { far += (x_[i] - target_[i]).length() * followW_[i]; wsum += followW_[i]; }
+        far /= std::max(wsum, 1.0f) * std::max(scale, 1e-3f);
         float k = std::clamp((far - kFarFrom) / (kFarTo - kFarFrom), 0.0f, 1.0f);
         follow_ = kFollow + (kFollowFar - kFollow) * k * k * (3 - 2 * k);
     }
     for (int s = 0; s < steps; ++s) {
         float f = float(s + 1) / float(steps);
         pinsNow_.resize(n);
-        for (size_t i = 0; i < n; ++i) pinsNow_[i] = lerp(lastPosed_[i], posed[i], f);
+        targetNow_.resize(n);
+        for (size_t i = 0; i < n; ++i) { pinsNow_[i] = lerp(lastPosed_[i], posed[i], f); targetNow_[i] = lerp(lastTarget_[i], target_[i], f); }
         bodiesNow_.resize(bodies.size());
         for (size_t b = 0; b < bodies.size(); ++b) bodiesNow_[b] = lerpCapsule(lastBodies_[b], bodies[b], f);
-        substep(pinsNow_, bodiesNow_, scale, dt);
+        substep(pinsNow_, targetNow_, bodiesNow_, scale, dt);
     }
     steps_ = steps;
     lastPosed_ = posed;
+    lastTarget_ = target_;
     lastBodies_ = bodies;
 }
 
-void ClothSim::substep(const std::vector<V3>& pins, const std::vector<ClothCapsule>& bodies, float scale, float dt) {
+void ClothSim::substep(const std::vector<V3>& pins, const std::vector<V3>& targets, const std::vector<ClothCapsule>& bodies,
+                       float scale, float dt) {
     const V3 g(0, 0, gravity_ ? -kGravity * dt * dt : 0.0f);
+    V3 hipAxis, hipSide;
+    const bool hips = hipFrame(bodies, hipAxis, hipSide);
     for (const ClothPiece& p : rig_->pieces)
         for (size_t i = 0; i < p.points.size(); ++i) {
             size_t k = p.first + i;
             if (p.points[i].pinned) {
-                // the top edge goes where the skinned flap's top goes, but on the hips' and thighs' surface rather than in them
+                // the top edge goes where the skinned flap's top goes, but on the hips' surface rather than in them (and,
+                // seated, on the raised thighs' top: the front flap's waist lies on the lap)
                 V3 at = pins[k], nrm;
-                // (a thigh only when it is raised, seated: a walking stride's thigh would shove the waist about)
                 for (const ClothCapsule& c : bodies)
-                    if (c.torso || ((c.seg == kFleshLThigh || c.seg == kFleshRThigh) && c.axis.z > -0.6f))
-                        clothCollide(c, c.torso ? p.side : 0, kStandoff * scale, at, nrm);
+                    if (c.torso || (c.drape & 1)) clothCollide(c, p.side, kStandoff * scale, at, nrm);
                 xp_[k] = x_[k];
                 x_[k] = at;
                 continue;
             }
             V3 v = (x_[k] - xp_[k]) * (1.0f - kDamping);
+            // a stride's sideways throw is lost faster than the rest: the flap swings with the legs, it isn't flicked out
+            if (hips) v = v - hipSide * (v.dot(hipSide) * kSideDamping);
             xp_[k] = x_[k];
-            // a little of the way toward where the game's own flap is this frame (its bones' drape: over the lap when
-            // seated), so a pose change carries the cloth with it instead of piling it at the waist
-            x_[k] = x_[k] + v + g + (pins[k] - x_[k]) * follow_;
+            // a little of the way toward where the game's own flap is this frame, out of the body (its bones' drape: over
+            // the lap when seated), so a pose change carries the cloth with it instead of piling it at the waist
+            x_[k] = x_[k] + v + g + (targets[k] - x_[k]) * (follow_ * followW_[k]);
         }
     std::fill(contact_.begin(), contact_.end(), V3());
     for (int it = 0; it < kIterations; ++it) solve(bodies, scale, it % 2 == 1);
@@ -725,7 +819,12 @@ void ClothSim::substep(const std::vector<V3>& pins, const std::vector<ClothCapsu
         inextensible(scale);
         collide(bodies, scale);
     }
+    // no row turned edge-on; the body; then no link past kMaxStrain, a point the body holds barely moving for it (the free
+    // cloth gives way to the body, so the flap neither stretches over a lap nor sinks into it)
+    twist(bodies);
+    collide(bodies, scale);
     skinPass(scale);
+    strainLimit(scale);
     // a point touching the body doesn't bounce off it (the push out of it is no speed) and loses some of its sliding
     // along it; no point moves faster than kMaxSpeed (a limb's sweep pushes the cloth aside, it doesn't throw it)
     const float most = kMaxSpeed * scale * dt;
@@ -741,6 +840,80 @@ void ClothSim::substep(const std::vector<V3>& pins, const std::vector<ClothCapsu
         if (len > most) d = d * (most / len);
         xp_[k] = x_[k] - d;
     }
+}
+
+// Every link along the grid no longer than (1 + kMaxStrain) of its rest: both ends drawn together, a pinned end not at all
+// and an end touching the body a little (the free cloth gives way to the body, not the body to the cloth).
+void ClothSim::strainLimit(float scale) {
+    const float most = (1.0f + kMaxStrain) * scale;
+    for (int pass = 0; pass < 4; ++pass)
+        for (const ClothPiece& p : rig_->pieces) {
+            const uint32_t o = p.first;
+            for (const ClothLink& l : p.links) {
+                if (l.kind != 0) continue;
+                auto weight = [&](uint16_t i) {
+                    if (p.points[i].pinned) return 0.0f;
+                    const V3& c = contact_[o + i];
+                    return c.x != 0 || c.y != 0 || c.z != 0 ? 0.02f : 1.0f;
+                };
+                float wa = weight(l.a), wb = weight(l.b);
+                if (wa + wb <= 0) continue;
+                V3& a = x_[o + l.a];
+                V3& b = x_[o + l.b];
+                V3 d = b - a;
+                float len = d.length(), cap = l.rest * most;
+                if (len <= cap || len < 1e-7f) continue;
+                float corr = (len - cap) / len / (wa + wb);
+                a = a + d * (corr * wa);
+                b = b - d * (corr * wb);
+            }
+        }
+}
+
+// Each row (but the pinned top) turned back about the hips' up axis, round its middle, to within kTwistCone of the hips'
+// side: a stride may swing the flap and turn it a little, never edge-on to the front.
+void ClothSim::twist(const std::vector<ClothCapsule>& bodies) {
+    V3 A, hipSide;
+    if (!hipFrame(bodies, A, hipSide) || A.z < 0.5f) return;   // (lying down the flap lies where it falls)
+    for (const ClothPiece& p : rig_->pieces) {
+        const int C = p.cols;
+        const V3 side = hipSide * p.sideSign;
+        for (int r = 1; r < p.rows; ++r) {
+            const size_t row = p.first + size_t(r * C);
+            V3 L = x_[row + size_t(C - 1)] - x_[row];
+            L = L - A * L.dot(A);
+            float len = L.length();
+            if (len < 1e-6f) continue;
+            float ang = std::atan2(side.cross(L).dot(A), side.dot(L));
+            if (std::fabs(ang) <= kTwistCone) continue;
+            float back = ang > 0 ? kTwistCone - ang : -kTwistCone - ang;
+            V3 mid(0, 0, 0);
+            for (int c = 0; c < C; ++c) mid = mid + x_[row + size_t(c)];
+            mid = mid * (1.0f / float(C));
+            for (int c = 0; c < C; ++c) {
+                if (p.points[size_t(r * C + c)].pinned) continue;
+                V3& x = x_[row + size_t(c)];
+                x = mid + turned(x - mid, A, back);
+            }
+        }
+    }
+}
+
+float ClothSim::minWidthRatio(float worldScale) const {
+    V3 A, side;
+    if (!rig_ || x_.size() != rig_->particles() || !hipFrame(lastBodies_, A, side)) return 1.0f;
+    float worst = 1e9f;
+    for (const ClothPiece& p : rig_->pieces) {
+        const int C = p.cols;
+        for (int r = 1; r < p.rows && size_t(r) < p.restWidth.size(); ++r) {
+            if (p.restWidth[size_t(r)] <= 0) continue;
+            const size_t row = p.first + size_t(r * C);
+            V3 L = x_[row + size_t(C - 1)] - x_[row];
+            L = L - A * L.dot(A);
+            worst = std::min(worst, std::fabs(L.dot(side)) / (p.restWidth[size_t(r)] * worldScale));
+        }
+    }
+    return worst > 1e8f ? 1.0f : worst;
 }
 
 void ClothSim::solve(const std::vector<ClothCapsule>& bodies, float scale, bool withBodies) {
@@ -860,8 +1033,32 @@ float ClothSim::maxStretch(float worldScale) const {
     return worst;
 }
 
+bool clothPanelRect(const std::vector<int>& sections, int mw, int mh, int out[4]) {
+    int x0 = 1 << 30, y0 = 1 << 30, x1 = -(1 << 30), y1 = -(1 << 30);
+    for (size_t i = 0; i + 3 < sections.size(); i += 4) {
+        if (sections[i + 2] <= 0 || sections[i + 3] <= 0) continue;
+        x0 = std::min(x0, sections[i]); y0 = std::min(y0, sections[i + 1]);
+        x1 = std::max(x1, sections[i] + sections[i + 2]); y1 = std::max(y1, sections[i + 1] + sections[i + 3]);
+    }
+    if (mw <= 0 || mh <= 0) return false;
+    x0 = std::clamp(x0, 0, mw); x1 = std::clamp(x1, 0, mw);
+    y0 = std::clamp(y0, 0, mh); y1 = std::clamp(y1, 0, mh);
+    if (x1 - x0 < 8 || y1 - y0 < 8) return false;
+    int top = y0 + int(std::lround(float(y1 - y0) * kClothPanelTop));
+    out[0] = x0; out[1] = top; out[2] = x1 - x0; out[3] = y1 - top;
+    return out[3] > 0;
+}
+
+void clothPanelUv(int side, float across, float down, int texW, int texH, float uv[2]) {
+    float a = std::min(std::fabs(across), 1.0f) * kClothPanelHalf;
+    float u = side < 0 ? 1.0f - a : a;
+    float iu = texW > 3 ? 1.5f / float(texW) : 0.0f, iv = texH > 3 ? 1.5f / float(texH) : 0.0f;
+    uv[0] = std::clamp(u, iu, 1.0f - iu);
+    uv[1] = std::clamp(down, iv, 1.0f - iv);
+}
+
 void clothVertices(const ClothRig& rig, const std::vector<V3>& world, const M4& worldMatrix, const float* uvBox,
-                   std::vector<M2Vertex>& out, std::vector<uint16_t>& indices) {
+                   std::vector<M2Vertex>& out, std::vector<uint16_t>& indices, const int* panelPx) {
     out.clear();
     indices.clear();
     if (world.size() != rig.particles()) return;
@@ -884,7 +1081,12 @@ void clothVertices(const ClothRig& rig, const std::vector<V3>& world, const M4& 
                     v.pos[0] = x.x; v.pos[1] = x.y; v.pos[2] = x.z;
                     v.normal[0] = nrm.x; v.normal[1] = nrm.y; v.normal[2] = nrm.z;
                     float u = pt.uv[0], w = pt.uv[1];
-                    if (uvBox && uvBox[2] > 0 && uvBox[3] > 0) { u = (u - uvBox[0]) / uvBox[2]; w = (w - uvBox[1]) / uvBox[3]; }
+                    if (panelPx) {
+                        float uv[2];
+                        clothPanelUv(p.side, C > 1 ? 2.0f * float(c) / float(C - 1) - 1.0f : 0.0f, R > 1 ? float(r) / float(R - 1) : 0.0f,
+                                     panelPx[0], panelPx[1], uv);
+                        u = uv[0]; w = uv[1];
+                    } else if (uvBox && uvBox[2] > 0 && uvBox[3] > 0) { u = (u - uvBox[0]) / uvBox[2]; w = (w - uvBox[1]) / uvBox[3]; }
                     v.uv[0] = v.uv2[0] = u;
                     v.uv[1] = v.uv2[1] = w;
                     out.push_back(v);

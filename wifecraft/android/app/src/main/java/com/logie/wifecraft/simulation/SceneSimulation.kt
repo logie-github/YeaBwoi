@@ -522,6 +522,21 @@ class SceneSimulation(
             actor.performance?.started == true, actor.performance?.takeIf { it.started }?.let(::lineOf))
     }
 
+    /**
+     * Where [id]'s moment is, for its intensity ([IntensityModel]): what plays, with whom, the author's stage, the part, the
+     * pass and how long it has played; [MomentProgress.IDLE] when nothing does. Allocates (a few times a second).
+     */
+    fun momentOf(id: String): MomentProgress {
+        val a = actors[id] ?: return MomentProgress.IDLE
+        val p = a.performance?.takeIf { it.started } ?: return MomentProgress.IDLE
+        val c = p.cursor
+        return MomentProgress(true, partnered = p.other != null, stage = MomentProgress.stageOf(p.name), kind = c.kind,
+            pass = c.pass, wanted = c.wanted, seconds = p.clock)
+    }
+
+    /** Who [id] is with now (the other of a two-person animation, else of a conversation), or null: whom they look at. */
+    fun companionOf(id: String): String? = actors[id]?.let { a -> partnerOf(a)?.id ?: talkingWith(id) }
+
     /** What [p] plays now for the HUD ([StageLine]). */
     private fun lineOf(p: Performance): String {
         val c = p.cursor

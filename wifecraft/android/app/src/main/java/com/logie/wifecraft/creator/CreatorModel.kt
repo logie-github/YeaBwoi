@@ -149,7 +149,8 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
         val skins = bodyOverrides?.undeadSkins(next.race.id, next.sex).orEmpty()
         val undead = appearance.undead && skins.isNotEmpty()
         appearance = Appearance(next.race.id, next.sex, picks, body, appearance.gear, undead,
-            if (undead) appearance.undeadSkin.coerceIn(0, skins.size - 1) else 0, appearance.clothing, appearance.starterClothing)
+            if (undead) appearance.undeadSkin.coerceIn(0, skins.size - 1) else 0, appearance.clothing, appearance.starterClothing,
+            sculpt = appearance.sculpt, personality = appearance.personality)
         normalize(null)
     }
 
@@ -254,12 +255,42 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
 
     /** The dice: a choice of every option at random (the body options and Gear kept, as Wrath++'s dice keeps them; with
      *  Undead on, one of the undead skins at random: W.AfterRandomize). */
-    fun randomize() {
+    fun randomize(keep: (Option) -> Boolean = { false }) {
+        val before = current()
         val picks = HashMap<Int, Int>()
-        for (o in model.options) picks[o.id] = o.choices[random.nextInt(o.choices.size)].id
+        for (o in model.options) picks[o.id] = if (keep(o) && before[o.id] != null) before.getValue(o.id) else o.choices[random.nextInt(o.choices.size)].id
         appearance = appearance.copy(picks = picks)
-        if (isUndead) appearance = appearance.copy(undeadSkin = random.nextInt(undeadSkins().size))
+        val keepSkin = model.options.any { it.name == SKIN_COLOR && keep(it) }
+        if (isUndead && !keepSkin) appearance = appearance.copy(undeadSkin = random.nextInt(undeadSkins().size))
         normalize(null)
+        // a kept option the others moved (a face for the skin drawn): put back, the others kept right with it
+        for (o in model.options) {
+            val was = before[o.id] ?: continue
+            if (keep(o) && current()[o.id] != was) { appearance = appearance.copy(picks = current() + (o.id to was)); normalize(o.id) }
+        }
+    }
+
+    /** The Body tab's sculpt ([BodySculpt]; null or all zeros: none). */
+    fun setSculpt(s: BodySculpt?) { appearance = appearance.copy(sculpt = s?.takeIf { !it.isNeutral }) }
+
+    /** The Personality tab ([CasPersonality]; null or the defaults: none). */
+    fun setPersonality(p: CasPersonality?) { appearance = appearance.copy(personality = p?.takeIf { !it.isDefault }) }
+
+    /** A look put back as it was (Undo, Redo, a preset): its race and sex on, its choices as they were saved. */
+    fun restore(a: Appearance) {
+        model = entryFor(a.raceId, a.sex)
+        appearance = a.copy(raceId = model.race.id, sex = model.sex)
+        normalize(null)
+    }
+
+    /** Any other part of the look changed by [transform] (a field this model has no rows for: the Eve body's options), race and sex kept. */
+    fun edit(transform: (Appearance) -> Appearance) {
+        appearance = transform(appearance).copy(raceId = model.race.id, sex = model.sex)
+    }
+
+    /** What [before] wore put back (Randomize with Outfit locked). */
+    fun restoreOutfit(before: Appearance) {
+        appearance = appearance.copy(clothing = before.clothing, gear = before.gear, starterClothing = before.starterClothing)
     }
 
     /**

@@ -37,6 +37,7 @@
 //   ghost MODEL X Y Z YAW SCALE | ghostlook LOOKFILE X Y Z YAW   the ghost of what is about to be placed (a prop, a look)
 //   ghostmove X Y Z YAW | ghostclear
 //   thumb prop FILE_ID|look LOOKFILE SIZE OUT.png   a library thumbnail (Scene::thumbnail), drawn between frames
+//   thumbeve ON [BOTTOM TONE SLOT SHADE OPACITY]   the Eve body on the look pictures that follow (ThumbLook::eve)
 //   card LOOKFILE W H LO HI AZ EL FITWIDTH CLEAR OUT.png   a Transmog card (Scene::ThumbFrame; RGBA PNG when CLEAR), timed
 //   camerainfo                                 prints the camera as last drawn (Scene::cameraInfo)
 //   timing on|off                              prints how long each later command took (what the GL thread would stall)
@@ -405,9 +406,13 @@ static Light preset(const std::string& name) {
     return l;
 }
 
+// The Eve body on the look pictures that follow (thumbeve; Native.thumbEve's options): off until set.
+static EveOptions gThumbEve;
+
 // A look file as Scene::thumbnail takes it.
 static Scene::ThumbLook thumbLook(const LookFile& lf) {
     Scene::ThumbLook t;
+    t.eve = gThumbEve;
     t.model = lf.model; t.scale = lf.scale; t.textures = lf.tex; t.geo = lf.geo; t.layers = lf.layers; t.extras = lf.extras;
     if (lf.body) { t.morph = lf.morph; t.bodyK = lf.bodyK; t.bodyFold = lf.bodyFold; }
     return t;
@@ -783,6 +788,27 @@ int main(int argc, char** argv) {
             float hours; ss >> hours; scene.setTimeOfDay(hours);   // the world clock's hour on the location (negative: off)
         } else if (cmd == "cinematic") {
             ss >> cine[0] >> cine[1] >> cine[2] >> cine[3];
+        } else if (cmd == "motionparams") {   // motionparams BREATHING IDLE LOOKAT(0|1): Options' shares (motionlayer.h)
+            MotionParams p; int look = 1;
+            ss >> p.breathing >> p.idle >> look; p.lookAt = look != 0;
+            scene.setMotionParams(p);
+        } else if (cmd == "motion") {         // motion NAME INTENSITY TARGET_NAME (0 nobody, -1 the camera): the body's layer on
+            int name, target = 0; float intensity = 0.2f;
+            ss >> name >> intensity >> target;
+            int tid = target > 0 ? (actors.count(target) ? actors[target] : 0) : target;
+            if (actors.count(name)) scene.setMotion(actors[name], intensity, tid);
+        } else if (cmd == "nomotion") {       // nomotion NAME: the layer off
+            int name; ss >> name;
+            if (actors.count(name)) scene.clearMotion(actors[name]);
+        } else if (cmd == "particles") {      // particles COUNT STRENGTH [SEED]: the atmosphere's motes (particles.h)
+            int n = 0; float s = 0; uint32_t seed = 7;
+            ss >> n >> s >> seed;
+            scene.setParticles(n, s, seed);
+        } else if (cmd == "motionstate") {    // motionstate NAME: prints its eased intensity and look-at angles (degrees)
+            int name; ss >> name;
+            const MotionState* st = actors.count(name) ? scene.motionState(actors[name]) : nullptr;
+            if (st) std::printf("motion %d: intensity %.2f yaw %.1f pitch %.1f clip %.2f target %d\n", name, st->shown,
+                                st->yaw * 57.2958f, st->pitch * 57.2958f, st->clipWeight, st->hasTarget ? 1 : 0);
         } else if (cmd == "fog") {
             ss >> light.fogStart >> light.fogEnd; scene.setLight(light);
         } else if (cmd == "look") {
@@ -832,6 +858,58 @@ int main(int argc, char** argv) {
             if (target >= 0) partpaint::recolor(img, target, partpaint::uvMask(pd, img.w, img.h));
             bool ok = scene.attachPart(actors[name], part, img.px.data(), img.w, img.h);
             std::fprintf(stderr, "part %d %s (%s %s): %s, skin %06X\n", name, pd.id.c_str(), pd.state.c_str(), pd.variant.c_str(), ok ? "ok" : "FAILED", target < 0 ? 0 : target);
+        } else if (cmd == "eveset") {
+            // eveset DIR FIT_JSON: the converted Eve set (bodyparts/EveConvert) and the fit table (assets/eve_fit.json)
+            std::string d, fitPath, err; ss >> d >> fitPath;
+            Bytes fj;
+            readFile(fitPath, fj);
+            bool ok = scene.loadEveSet(d, std::string(fj.begin(), fj.end()), err);
+            std::fprintf(stderr, "eveset %s: %s\n", d.c_str(), ok ? "ok" : err.c_str());
+        } else if (cmd == "eve") {
+            // eve N ON [BOTTOM TONE SLOT SHADE OPACITY]: person N's Eve body (Scene::setEveBody; -1: auto / none)
+            int name, on; EveOptions o; std::string bottom = "plain";
+            ss >> name >> on;
+            if (ss >> bottom) { o.bottom = bottom; ss >> o.tone >> o.overlaySlot >> o.overlayShade >> o.opacity; }
+            o.on = on != 0;
+            if (actors.count(name)) scene.setEveBody(actors[name], o);
+        } else if (cmd == "sculpt") {
+            // sculpt N V0 .. V10: person N's sculpt sliders (Scene::setSculpt; creator/BodySculpt.kt's order, -1..1)
+            int name; ss >> name;
+            std::vector<float> v; float x;
+            while (ss >> x) v.push_back(x);
+            if (actors.count(name)) scene.setSculpt(actors[name], v.data(), v.size());
+        } else if (cmd == "bodypick") {
+            // bodypick N X Y W H: the part of person N's body at pixel (X, Y) of a W x H view of the last camera (bodypick.h)
+            int name, w, h; float x, y; ss >> name >> x >> y >> w >> h;
+            std::printf("bodypick %d %.0f %.0f: %d\n", name, x, y, actors.count(name) ? scene.pickBodyRegion(actors[name], x, y, w, h) : -1);
+        } else if (cmd == "evemeasure") {
+            // evemeasure N: person N's flesh measure (Scene::actorFlesh, as the simulation reads it) and soft-body regions
+            int name; ss >> name;
+            if (!actors.count(name)) continue;
+            std::vector<float> fl;
+            auto t0 = std::chrono::steady_clock::now();
+            bool ok = scene.actorFlesh(actors[name], fl);
+            double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+            std::printf("flesh %d: %s (%.1f ms) %zu floats:", name, ok ? "ok" : "not yet", ms, fl.size());
+            for (size_t i = 0; i < fl.size() && i < 48; ++i) std::printf(" %.3f", fl[i]);
+            std::printf("\n");
+            if (const SoftSim* sim = scene.softSim(actors[name]))
+                for (size_t r = 0; r < sim->regions().size(); ++r) {
+                    const SoftRegion& g = sim->regions()[r];
+                    std::printf("soft %d region %zu: kind %d centre %.3f %.3f %.3f radii %.3f %.3f %.3f weight %.2f\n", name, r, int(g.kind),
+                                g.centre.x, g.centre.y, g.centre.z, g.radii.x, g.radii.y, g.radii.z, g.weight);
+                }
+        } else if (cmd == "evestatus") {
+            int name; ss >> name;
+            Scene::EveStatus st;
+            if (actors.count(name) && scene.eveStatus(actors[name], st))
+                std::printf("evestatus %d: %s %s fit %.1f ms skin %.1f ms unit %.3f kHip %.3f kShoulder %.3f cut %zu/%zu tris (kept %zu) "
+                            "edges neck %zu ankles %zu/%zu rings %zu/%zu/%zu move neck %.4f/%.4f ankles %.4f/%.4f neck %06X ankle %06X ref %06X shade %d (%.1f) eve %zu body %zu\n",
+                            name, st.active ? "ON" : "off", st.status.c_str(), st.stats.ms, st.composeMs, st.stats.unit, st.stats.kHip, st.stats.kShoulder,
+                            st.stats.cutTriangles, st.stats.cutTriangles + st.stats.keptTriangles, st.stats.keptTriangles, st.stats.neckEdges,
+                            st.stats.ankleEdges[0], st.stats.ankleEdges[1], st.stats.ringSnapped[0], st.stats.ringSnapped[1], st.stats.ringSnapped[2],
+                            st.stats.ringMoveMean[0], st.stats.ringMoveMax[0], st.stats.ringMoveMean[1], st.stats.ringMoveMax[1], st.neck, st.ankle,
+                            st.reference, st.shade, st.shadeDist, st.eveTriangles, st.bodyTriangles);
         } else if (cmd == "partstate") {
             int name, st; ss >> name >> st;
             if (actors.count(name)) scene.setPartState(actors[name], st);
@@ -1053,6 +1131,13 @@ int main(int argc, char** argv) {
             int actor = scene.ghostActorId();
             scene.ghostClear();
             if (actor) scene.removeActor(actor);
+        } else if (cmd == "thumbeve") {
+            // thumbeve ON [BOTTOM TONE SLOT SHADE OPACITY]: the Eve body on the look pictures (thumb, card) that follow
+            int on = 0; EveOptions o; std::string bottom;
+            ss >> on;
+            if (ss >> bottom) { o.bottom = bottom; ss >> o.tone >> o.overlaySlot >> o.overlayShade >> o.opacity; }
+            o.on = on != 0;
+            gThumbEve = o;
         } else if (cmd == "thumb") {
             std::string kind, asset, out; int size = 160;
             ss >> kind >> asset >> size >> out;

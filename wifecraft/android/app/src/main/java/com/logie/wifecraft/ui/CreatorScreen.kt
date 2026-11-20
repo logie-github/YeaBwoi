@@ -87,9 +87,43 @@ import kotlin.math.roundToInt
  * CreatorModel / Catalog contracts and checked only through CreatorLayoutTest.
  */
 
-/** @param onLook the look to draw whenever the appearance changes (resolved off the main thread); the host dresses its actor with it. */
+/**
+ * The character creator: the Create-a-Character shell ([CasScreen]: tabs, the character in the middle, the tab's panel) over
+ * the same [CreatorModel]; [classic] the Wrath++/Shadowlands layout below ([ClassicCreatorScreen]), kept whole.
+ * @param onLook the look to draw whenever the appearance changes (resolved off the main thread); the host dresses its actor with it.
+ * @param eve the Eve body's options on the look (the Body tab's Eve section; null until the host binds them).
+ */
 @Composable
 fun CreatorScreen(
+    model: CreatorModel,
+    art: WowArt,
+    scene: SceneView,
+    tables: Tables,
+    onFinish: (name: String, Appearance) -> Unit,
+    onBack: () -> Unit,
+    atlas: ArtAtlas? = null,
+    initialName: String = "",
+    actorKey: String = "creator",
+    randomName: (() -> String)? = null,
+    onPreviewRace: (Int) -> Unit = {},
+    transmog: com.logie.wifecraft.creator.TransmogCatalog? = null,
+    transmogStatus: String? = null,
+    onLoadTransmog: () -> Unit = {},
+    iconSource: GameIcons? = null,
+    portraits: Thumbs? = null,
+    onLook: (ResolvedLook) -> Unit = {},
+    classic: Boolean = false,
+    eve: CasEveBinding? = null,
+) {
+    if (classic) ClassicCreatorScreen(model, art, scene, tables, onFinish, onBack, atlas, initialName, actorKey, randomName, onPreviewRace,
+        transmog, transmogStatus, onLoadTransmog, iconSource, portraits, onLook)
+    else CasScreen(model, art, scene, tables, onFinish, onBack, atlas, initialName, actorKey, randomName, onPreviewRace,
+        transmog, transmogStatus, onLoadTransmog, iconSource, portraits, onLook, eve)
+}
+
+/** The Wrath++/Shadowlands creator as it was (the race step, then Customize). @param onLook as [CreatorScreen]'s. */
+@Composable
+fun ClassicCreatorScreen(
     model: CreatorModel,
     art: WowArt,
     scene: SceneView,

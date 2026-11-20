@@ -9,6 +9,7 @@ import android.os.Looper
 import android.os.SystemClock
 import com.logie.wifecraft.data.GameFiles
 import com.logie.wifecraft.play.Sounds
+import com.logie.wifecraft.simulation.IntensityMix
 import java.util.concurrent.Executors
 import kotlin.random.Random
 
@@ -297,8 +298,10 @@ class Audio(context: Context, private val files: GameFiles) : Sounds {
     }
 
     private fun applyVolumes() {
-        val m = Mixer.gain(levels, Bus.MUSIC, ducker.level) * nightMusic * cineMusic.level
-        val a = Mixer.gain(levels, Bus.AMBIENCE, ducker.ambienceLevel)
+        val m = Mixer.gain(levels, Bus.MUSIC, ducker.level) * nightMusic * cineMusic.level * moodMusic
+        val a = Mixer.gain(levels, Bus.AMBIENCE, ducker.ambienceLevel) * moodAmbience
+        val layer = Mixer.gain(levels, Bus.AMBIENCE) * atmosLevel
+        for ((file, p) in atmos) { val v = layer * (if (file == RAIN_LIGHT) 0.8f else 1f); runCatching { p.setVolume(v, v) } }
         for (d in music.decks) players[deckKey(false, d.id)]?.let { p -> val v = d.level * m; runCatching { p.setVolume(v, v) } }
         for (d in ambience.decks) players[deckKey(true, d.id)]?.let { p -> val v = d.level * a; runCatching { p.setVolume(v, v) } }
     }
@@ -385,12 +388,71 @@ class Audio(context: Context, private val files: GameFiles) : Sounds {
         ready(file, t) { startDeck(file, isAmbience = true, loop = true, fadeMs = 1200, t = t) }
     }
 
+    // ---- immersive mode: the moment's intensity in the mix, the atmosphere's loops, cloth (simulation/Immersion: IntensityMix) --
+
+    private var moodMusic = 1f
+    private var moodAmbience = 1f
+    private var atmosLevel = 0f
+    private val atmos = HashMap<Int, MediaPlayer>()
+    private val atmosWanted = HashSet<Int>()
+
+    /**
+     * A scene's intensity now ([value] 0..1, eased by the caller; null: no scene, everything as before) with Options'
+     * Atmosphere sounds ([atmosphere] 0..100) and Rain outside: the music swells and the room's ambience recedes as it rises
+     * (one bed's levels, not other tracks), and the atmosphere's loops play under it at their level: a small fire's crackle
+     * (the game's campfiresmallloop.ogg) and, when asked, light rain (rainlightloop.ogg). Main thread, a few times a second.
+     */
+    fun intensity(value: Float?, atmosphere: Int, rain: Boolean) {
+        moodMusic = value?.let { IntensityMix.music(it) } ?: 1f
+        moodAmbience = value?.let { IntensityMix.ambience(it) } ?: 1f
+        atmosLevel = if (value == null) 0f else IntensityMix.atmosphere(atmosphere)
+        val want = HashSet<Int>()
+        if (value != null && atmosphere > 0) { want += FIRE_SMALL; if (rain) want += RAIN_LIGHT }
+        if (want != atmosWanted) {
+            for (f in atmosWanted - want) atmos.remove(f)?.let { runCatching { it.release() } }
+            atmosWanted.clear(); atmosWanted += want
+            for (f in want) if (f !in atmos) startAtmos(f)
+        }
+        applyVolumes()
+    }
+
+    /** A piece of clothing coming off: one of the game's cloth movement sounds (sound/foley/cloth), on Sound effects. */
+    fun clothRustle() { playShort(CLOTH[Random.nextInt(CLOTH.size)], Bus.EFFECTS, 0.45f) }
+
+    private fun startAtmos(file: Int) {
+        val go = {
+            if (file in atmosWanted && file !in atmos && files.has(file)) {
+                val p = try {
+                    MediaPlayer().apply {
+                        setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+                        setDataSource(files.file(file).path)
+                        isLooping = true
+                        setVolume(0f, 0f)
+                    }
+                } catch (e: Exception) { null }
+                if (p != null) {
+                    atmos[file] = p
+                    p.setOnErrorListener { mp, _, _ -> if (atmos[file] === mp) atmos.remove(file); runCatching { mp.release() }; true }
+                    p.setOnPreparedListener { mp -> if (atmos[file] === mp) { applyVolumes(); if (!paused) runCatching { mp.start() } } }
+                    runCatching { p.prepareAsync() }.onFailure { atmos.remove(file); runCatching { p.release() } }
+                }
+            }
+        }
+        if (files.has(file)) { go(); return }
+        if (!fetchAllowed) return
+        background {
+            runCatching { files.fetchNow(file) }
+            handler.post { go() }
+        }
+    }
+
     // ---- the app's life ---------------------------------------------------------------------------------------------
 
     /** The app went to the background: everything holds, silent. */
     fun pause() {
         paused = true
         for (p in players.values) runCatching { if (p.isPlaying) p.pause() }
+        for (p in atmos.values) runCatching { if (p.isPlaying) p.pause() }
         pool.autoPause()
     }
 
@@ -399,6 +461,7 @@ class Audio(context: Context, private val files: GameFiles) : Sounds {
         if (!paused) return
         paused = false
         for (p in players.values) runCatching { p.start() }
+        for (p in atmos.values) runCatching { p.start() }
         if (levels.enabled) pool.autoResume()
         tick()
     }
@@ -414,6 +477,8 @@ class Audio(context: Context, private val files: GameFiles) : Sounds {
         placeToken++
         handler.removeCallbacksAndMessages(null)
         for (p in players.values) runCatching { p.release() }
+        for (p in atmos.values) runCatching { p.release() }
+        atmos.clear(); atmosWanted.clear()
         players.clear(); music.clear(); ambience.clear()
         io.shutdownNow()
         pool.release()
@@ -421,5 +486,11 @@ class Audio(context: Context, private val files: GameFiles) : Sounds {
 
     private companion object {
         const val TICK_MS = 40L
+        /** The game's files by id (FileDataID, the listfile's names): sound/doodad/campfiresmallloop.ogg, ... */
+        const val FIRE_SMALL = 565519
+        /** sound/ambience/weather/rainlightloop.ogg */
+        const val RAIN_LIGHT = 538983
+        /** sound/foley/cloth/10.0_foley_cloth_movementlong_01..07.ogg */
+        val CLOTH = intArrayOf(4612169, 4612171, 4612173, 4612175, 4612177, 4612179, 4612181)
     }
 }

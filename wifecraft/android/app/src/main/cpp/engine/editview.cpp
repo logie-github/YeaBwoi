@@ -580,6 +580,8 @@ bool Scene::thumbnail(uint32_t propFile, const ThumbLook* look, const ThumbFrame
             a.ghost = true;   // never picked nor drawn by the frame (it is gone before the next)
             dress(actor, look->geo, look->layers, look->extras);
             if (!look->morph.empty() || look->bodyK > 0) setBody(actor, look->morph, look->bodyK, look->bodyFold);
+            // the Eve body as the live scene draws it (evescene.cpp: fitted in refreshBody, drawn by drawActor)
+            if (look->eve.on) { setEveBody(actor, look->eve); eveCheck(a); }
             refreshSkin(a);
             if (a.body.dirty) refreshBody(a);
             a.position = V3(); a.facing = 0;

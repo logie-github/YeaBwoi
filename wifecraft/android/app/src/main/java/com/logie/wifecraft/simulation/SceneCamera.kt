@@ -220,6 +220,10 @@ class SceneCamera(room: CameraPose) {
     val directing: Boolean get() = directWanted
     /** 0..1: how far the view is the directed pose (linear in time; eased when applied). GL thread. */
     val directAmount: Float get() = directBlend
+    /** Cinematic mode's handheld sway, 0..1 of [HandheldSway.MAX_YARDS] (Options' Immersion page); 0: a still camera. Any thread. */
+    @Volatile var handheld: Float = 0f
+    private var swaySeconds = 0.0
+    private val sway = FloatArray(3)
 
     /** This frame's directed pose (GL thread, before [update]); nothing given: the player's camera stays. */
     fun directPose(ex: Float, ey: Float, ez: Float, ax: Float, ay: Float, az: Float, f: Float) {
@@ -420,6 +424,14 @@ class SceneCamera(room: CameraPose) {
             eyeX += (dEyeX - eyeX) * k; eyeY += (dEyeY - eyeY) * k; eyeZ += (dEyeZ - eyeZ) * k
             atX += (dAtX - atX) * k; atY += (dAtY - atY) * k; atZ += (dAtZ - atZ) * k
             fov += (dFov - fov) * k
+            // a hand holding the camera: a small slow drift of the eye, half of it at the point looked at
+            val hh = handheld
+            if (hh > 0f) {
+                swaySeconds += step
+                HandheldSway.offset(swaySeconds, hh * k, sway)
+                eyeX += sway[0]; eyeY += sway[1]; eyeZ += sway[2]
+                atX += sway[0] * 0.5f; atY += sway[1] * 0.5f; atZ += sway[2] * 0.5f
+            }
         } else if (!directWanted) directHas = false
         moving = directBlend > 0f || blendTime < TRANSITION_S || spinYaw != 0f || spinPitch != 0f || holding ||
             (blend > 0f && (abs(yaw.velocity) + abs(pitch.velocity) + abs(distance.velocity) +

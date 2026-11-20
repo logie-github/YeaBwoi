@@ -1,9 +1,12 @@
 // The hanging cloth's maths alone (engine/cloth.h; no GL): a strip pinned along its top edge falls under gravity and
 // hangs at its own length, a capsule pushes points out to its surface (and a sided one keeps a front piece in front),
 // a strip hanging over a body stays outside it, the same frames give the same cloth, and a long gap or a pin put far
-// away hangs it again from the pose. With a files folder holding the human woman's model (1000764) the real flap's rig
+// away hangs it again from the pose; a limb lying across has the cloth laid over its top (a lap, a shin), a row turned
+// edge-on is turned back within the twist cone, no link is left past the strain limit, and the tabard's panel gives the
+// flap its texture window and coordinates. With a files folder holding the human woman's model (1000764) the real flap's rig
 // is checked too: two pieces, and the flap's texture rectangle on its 2048 x 1024 skin (x 744..916, y 176..380).
 //   build/cloth_test [FILES_DIR]     exit 0 when all pass
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -166,6 +169,113 @@ int main(int argc, char** argv) {
         CHECK(sim.maxStretch(1.0f) < 0.05f, "teleport stretch %.4f", sim.maxStretch(1.0f));
     }
 
+    // ---- a limb lying across (a raised thigh: the front piece) lays the cloth over its top, never out at its side
+    {
+        ClothCapsule thigh;
+        thigh.a0 = V3(0, 0, 0.5f); thigh.a1 = V3(0.4f, 0, 0.5f); thigh.axis = V3(1, 0, 0); thigh.len = 0.4f;
+        thigh.n = V3(0, 0, 1); thigh.m = thigh.axis.cross(thigh.n);
+        for (auto& sct : thigh.r) for (float& r : sct) r = 0.07f;
+        thigh.reach = 0.07f; thigh.drape = 1; thigh.up = V3(0, 0, 1);
+        V3 n;
+        V3 low(0.2f, 0.03f, 0.47f);   // in it, low on its side
+        CHECK(clothCollide(thigh, 1, 0.01f, low, n), "a point in a raised thigh wasn't pushed");
+        CHECK(std::fabs(low.y - 0.03f) < 1e-5f && low.z > 0.5f + 0.07f && n.z > 0.99f, "drape: went to %.4f %.4f (not over the top)", low.y, low.z);
+        V3 beside(0.2f, 0.09f, 0.5f);   // between the thighs, past its side: free to fall there
+        CHECK(!clothCollide(thigh, 1, 0.01f, beside, n), "a point beside the thigh was pushed");
+        V3 back(0.2f, 0.0f, 0.48f);    // the back piece goes round it (radially)
+        CHECK(clothCollide(thigh, -1, 0.01f, back, n) && back.z < 0.5f, "back piece over the thigh: %.4f", back.z);
+        // a strip pinned above a lap of two thighs lies on them: nothing inside either
+        ClothCapsule left = thigh, right = thigh;
+        left.a0.y = left.a1.y = 0.07f; right.a0.y = right.a1.y = -0.07f;
+        std::vector<ClothCapsule> lap = {left, right};
+        std::vector<V3> rest;
+        ClothRig rig = strip(5, 9, 0.05f, 0.6f, rest);   // laid out toward +x along the thighs, 10 cm above their axes
+        for (V3& p : rest) p.x += 0.02f;
+        std::vector<V3> posed = rest;
+        for (V3& p : posed) p.z -= 0.1f;                 // the game's flap through the thighs: it isn't followed in
+        ClothSim sim;
+        sim.setRig(&rig);
+        for (uint32_t t = 0; t <= 2000; t += 16) sim.step(posed, lap, nullptr, 1.0f, t);
+        int inside = 0;
+        for (size_t i = 5; i < sim.positions().size(); ++i)
+            for (const ClothCapsule& c : lap) { bool within = false; if (clothCapsuleDepth(c, sim.positions()[i], within) < -1e-4f && within) ++inside; }
+        CHECK(inside == 0, "%d points of the strip inside the lap", inside);
+        CHECK(sim.maxStretch(1.0f) <= ClothSim::kMaxStrain + 0.01f, "lap stretch %.4f", sim.maxStretch(1.0f));
+        std::printf("over a lap: %d inside, stretch %.4f\n", inside, sim.maxStretch(1.0f));
+    }
+
+    // ---- no link past the strain limit: a strip dragged hard against a body that holds its middle
+    {
+        std::vector<V3> rest;
+        ClothRig rig = strip(5, 9, 0.05f, 1.0f, rest);
+        ClothCapsule bar = upright(V3(0.0f, 0.0f, 0.5f), 0.4f, 0.06f, false);   // a post the strip hangs across
+        ClothSim sim;
+        sim.setRig(&rig);
+        float worst = 0;
+        for (uint32_t t = 0; t <= 3000; t += 16) {
+            std::vector<V3> posed = rest;
+            float swing = 0.25f * std::sin(float(t) * 0.006f);
+            for (V3& p : posed) { p.y += swing; p.x -= 0.12f; }
+            sim.step(posed, {bar}, nullptr, 1.0f, t);
+            if (t > 500) worst = std::max(worst, sim.maxStretch(1.0f));
+        }
+        CHECK(worst <= ClothSim::kMaxStrain + 0.02f, "dragged: stretch %.4f", worst);
+        std::printf("dragged across a post: worst stretch %.4f (limit %.2f)\n", worst, ClothSim::kMaxStrain);
+    }
+
+    // ---- a row turned edge-on is turned back within the twist cone about the hips' up axis
+    {
+        std::vector<V3> rest;
+        ClothRig rig = strip(5, 9, 0.05f, 1.0f, rest);
+        for (V3& p : rest) p.x = 0.0f;                      // hanging flat, its rows along y (the hips' side)
+        for (int r = 0; r < 9; ++r) for (int c = 0; c < 5; ++c) rest[size_t(r * 5 + c)].z = 1.0f - 0.05f * float(r);
+        clothLinks(rig.pieces[0], rest);
+        // the hips: the thighs' tops apart along y, the spine up (no flesh: they only frame the hips)
+        auto bone = [](int seg, V3 a0, V3 a1) {
+            ClothCapsule c; c.seg = seg; c.a0 = a0; c.a1 = a1; c.len = (a1 - a0).length(); c.axis = (a1 - a0).normalized();
+            c.n = V3(1, 0, 0); c.m = c.axis.cross(c.n); return c;
+        };
+        std::vector<ClothCapsule> hips = {bone(kFleshLThigh, V3(-0.5f, 0.1f, 1.2f), V3(-0.5f, 0.1f, 0.8f)),
+                                          bone(kFleshRThigh, V3(-0.5f, -0.1f, 1.2f), V3(-0.5f, -0.1f, 0.8f)),
+                                          bone(kFleshSpine, V3(-0.5f, 0, 1.2f), V3(-0.5f, 0, 1.6f))};
+        // posed: the whole flap turned 90 degrees about z (edge-on to the front), its pins too: nothing but the cone turns
+        // its rows back (the links keep any shape turned whole)
+        std::vector<V3> posed = rest;
+        for (size_t i = 0; i < posed.size(); ++i) { float y = posed[i].y; posed[i].y = 0; posed[i].x = y; }
+        ClothSim sim;
+        sim.setRig(&rig);
+        sim.setGravity(false);
+        sim.step(posed, hips, nullptr, 1.0f, 0);
+        float worstAngle = 0;
+        for (int r = 3; r < 9; ++r) {   // (the rows by the turned pins are held by them)
+            V3 L = sim.positions()[size_t(r * 5 + 4)] - sim.positions()[size_t(r * 5)];
+            float ang = std::atan2(std::fabs(L.x), std::fabs(L.y));
+            worstAngle = std::max(worstAngle, ang);
+        }
+        CHECK(worstAngle <= ClothSim::kTwistCone + 0.05f, "a row stays %.1f degrees off the hips' side", worstAngle * 57.2958f);
+        // (at the cone a row keeps cos 60 = half its width along the side; the rows by the turned pins less)
+        CHECK(sim.minWidthRatio(1.0f) >= 0.35f, "width ratio %.3f", sim.minWidthRatio(1.0f));
+        std::printf("twist: worst row %.1f degrees off the hips' side (cone %.0f), width ratio %.3f\n", worstAngle * 57.2958f,
+                    ClothSim::kTwistCone * 57.2958f, sim.minWidthRatio(1.0f));
+    }
+
+    // ---- the tabard's panel: the window composed for the cloth and the grid's coordinates on it
+    {
+        int rect[4];
+        CHECK(clothPanelRect({512, 0, 512, 256, 512, 256, 512, 128}, 2048, 1024, rect), "no panel");
+        CHECK(rect[0] == 512 && rect[2] == 512 && rect[1] == 150 && rect[1] + rect[3] == 384, "panel %d %d %d %d", rect[0], rect[1], rect[2], rect[3]);
+        CHECK(!clothPanelRect({}, 2048, 1024, rect) && !clothPanelRect({512, 0, 0, 256}, 2048, 1024, rect), "a panel of nothing");
+        float a[2], b[2], c[2], d[2];
+        clothPanelUv(1, 0.0f, 0.0f, 512, 234, a);    // the front's middle, top: the torso's front middle (the left edge)
+        clothPanelUv(1, -1.0f, 1.0f, 512, 234, b);   // the front's first column, hem
+        clothPanelUv(1, 1.0f, 1.0f, 512, 234, c);    // its last column: mirrored, the same place
+        clothPanelUv(-1, 0.0f, 0.5f, 512, 234, d);   // the back's middle: the right edge
+        CHECK(std::fabs(a[0] - 1.5f / 512) < 1e-5f && std::fabs(a[1] - 1.5f / 234) < 1e-5f, "front middle %.4f %.4f", a[0], a[1]);
+        CHECK(std::fabs(b[0] - kClothPanelHalf) < 1e-5f && std::fabs(b[0] - c[0]) < 1e-6f && b[1] > 0.99f, "front edge %.4f %.4f", b[0], c[0]);
+        CHECK(std::fabs(d[0] - (1 - 1.5f / 512)) < 1e-5f && std::fabs(d[1] - 0.5f) < 1e-5f, "back middle %.4f", d[0]);
+        std::printf("panel: window %d %d %d %d; front middle u %.4f, edge %.4f; back middle %.4f\n", rect[0], rect[1], rect[2], rect[3], a[0], b[0], d[0]);
+    }
+
     // ---- the real flap (with the game's files)
     if (argc > 1) {
         std::string dir = argv[1];
@@ -177,6 +287,9 @@ int main(int argc, char** argv) {
             ClothRig rig = clothRig(m, m.vertices, m.indices, m.submeshes, shown);
             CHECK(rig.ok && rig.pieces.size() == 2, "rig ok %d pieces %zu", rig.ok, rig.pieces.size());
             if (rig.pieces.size() == 2) CHECK(rig.pieces[0].side == 1 && rig.pieces[1].side == -1, "sides %d %d", rig.pieces[0].side, rig.pieces[1].side);
+            for (const ClothPiece& p : rig.pieces)
+                for (size_t i = 0; i < p.points.size(); ++i)
+                    CHECK(p.points[i].pinned == (int(i) / p.cols < kClothPinnedRows), "piece %+d point %zu pinned %d", p.side, i, p.points[i].pinned);
             CHECK(rig.particles() <= 256, "%zu points", rig.particles());
             int rect[4];
             CHECK(clothUvRect(m, shown, 2048, 1024, 0, rect), "no flap rectangle");

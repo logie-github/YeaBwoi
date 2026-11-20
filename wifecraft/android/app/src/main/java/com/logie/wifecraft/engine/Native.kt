@@ -134,6 +134,19 @@ object Native {
     /** Where to sample the actor's skin for the parts' tint: skin texture (u, v) pairs, v 0 at the top (empty: can't say). */
     @JvmStatic external fun partSkinUvs(scene: Long, actor: Int): FloatArray
 
+    // ---- the Eve body (cpp engine/evebody.h, evescene.cpp; bodyparts/EveConvert, EveOptions)
+    /** The converted Eve set in [dir] (files/bodyparts/eve) with the fit table's text (assets/eve_fit.json): "" or why it can't be read. */
+    @JvmStatic external fun loadEveSet(scene: Long, dir: String, fitJson: String): String
+    /**
+     * Eve on [actor] (bodyparts/EveOptions: [on], the lower body [bottom], [tone] -1 tinted / a tone's index, overlay [slot]
+     * -1 none, [shade] -1 nearest, [opacity] 0..1); fitted at the next frame and again at each change of look. The caller
+     * says when the look is unclothed (EveRule); the engine refuses a race its fit table excludes.
+     */
+    @JvmStatic external fun setEveBody(scene: Long, actor: Int, on: Boolean, bottom: String, tone: Int, slot: Int, shade: Int, opacity: Float)
+    @JvmStatic external fun clearEveBody(scene: Long, actor: Int)
+    /** "on|NECK|ANKLE|SHADE|MS|why": drawn or not, the skin colours matched (RRGGBB), the overlay shade, the fit's cost, why not. */
+    @JvmStatic external fun eveStatus(scene: Long, actor: Int): String
+
     // ---- model parts (cpp engine/modelpart.h; bodyparts/ModelParts: the manifest and set.json)
     /**
      * A model part (a version 2 part file, [loadPart]) on [actor], rigid on the bone its file names, fitted to the actor's
@@ -173,6 +186,19 @@ object Native {
      * [vignette] and [grain] 0..1; [bars] each letterbox bar's share of the height (0..0.5). All 0: off (no extra pass).
      */
     @JvmStatic external fun cinematic(scene: Long, mood: Float, vignette: Float, grain: Float, bars: Float)
+    /**
+     * The body's additive motion for everyone it is on (cpp engine/motionlayer.h): Options' [breathing] and [idle] shares
+     * 0..1 (weight shifts, head tilts) and eye contact ([lookAt]).
+     */
+    @JvmStatic external fun motionParams(scene: Long, breathing: Float, idle: Float, lookAt: Boolean)
+    /**
+     * Actor [actor]'s additive motion on: its [intensity] 0..1 (breathing's rate and depth) and who it looks at ([target]
+     * another actor's id, -1 the camera, 0 nobody). Laid over its clip or emote; a clip that turns the head itself keeps it.
+     */
+    @JvmStatic external fun motion(scene: Long, actor: Int, intensity: Float, target: Int)
+    @JvmStatic external fun clearMotion(scene: Long, actor: Int)
+    /** The atmosphere's glowing motes (cpp engine/particles.h): [count] (0: none) round the camera's target, [strength] 0..1. */
+    @JvmStatic external fun particles(scene: Long, count: Int, strength: Float)
 
     // ---- locations and the editor's props (cpp engine/location.h, location.cpp, terrain.cpp)
 
@@ -214,6 +240,14 @@ object Native {
     @JvmStatic external fun locationObject(scene: Long, model: Int, x: Float, y: Float, z: Float): Int
     @JvmStatic external fun walkSegment(scene: Long, x: Float, y: Float, z: Float, tx: Float, ty: Float, tz: Float): Boolean
     @JvmStatic external fun groundAt(scene: Long, x: Float, y: Float, z: Float): Float
+    /**
+     * The part of [actor]'s body the screen point (sx, sy) of a [width] x [height] view lands on: its shown triangles as posed
+     * this frame, the region of the bones the hit is weighted to most (cpp engine/bodypick.h; creator/CasTabs.kt BodyRegion's
+     * codes: 0 none, 1 head, 2 hair, 3 neck, 4 chest, 5 waist, 6 hips, 7 legs, 8 arms, 9 hands, 10 feet).
+     */
+    @JvmStatic external fun pickBodyRegion(scene: Long, actor: Int, sx: Float, sy: Float, width: Int, height: Int): Int
+    /** The creator's sculpt sliders on [actor] (creator/BodySculpt.kt's order, -1..1): the Eve body is fitted again with them (engine/sculpt.h). */
+    @JvmStatic external fun setSculpt(scene: Long, actor: Int, values: FloatArray)
 
     const val PICK_NONE = 0
     const val PICK_PROP = 1
@@ -282,6 +316,11 @@ object Native {
     ): IntArray?
     /** Why the last thumbnail couldn't be drawn. */
     @JvmStatic external fun thumbError(scene: Long): String
+    /**
+     * The Eve body (as [setEveBody] takes it) on the NEXT [thumbLook] or [thumbCard] only, called right before it on the GL
+     * thread; taken once (a picture without it is of her own body).
+     */
+    @JvmStatic external fun thumbEve(scene: Long, on: Boolean, bottom: String, tone: Int, slot: Int, shade: Int, opacity: Float)
 
     const val GIZMO_OFF = 0
     const val GIZMO_MOVE = 1

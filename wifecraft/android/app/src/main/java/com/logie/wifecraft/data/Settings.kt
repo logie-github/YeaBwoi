@@ -3,6 +3,7 @@ package com.logie.wifecraft.data
 import android.content.Context
 import com.logie.wifecraft.simulation.CinematicSettings
 import com.logie.wifecraft.simulation.ClockSettings
+import com.logie.wifecraft.simulation.ImmersiveSettings
 
 /** The reader's settings, kept between runs. */
 class Settings(context: Context) {
@@ -58,6 +59,26 @@ class Settings(context: Context) {
     var cinematic: CinematicSettings
         get() = CinematicSettings.parse(prefs.getString("cinematic", null))
         set(v) = prefs.edit().putString("cinematic", v.toJson().toString()).apply()
+    /**
+     * Immersive mode's settings (Options' Immersion page: the life HUD, the HUD's time, Auto flow, undressing, body language,
+     * motes, the camera's sway, atmosphere and voice), as JSON. The first read after the update moves everyone to immersive
+     * mode once (ImmersiveSettings.migrate: the life HUD hidden); every other option of theirs is kept as it was.
+     */
+    var immersive: ImmersiveSettings
+        get() {
+            val stored = prefs.getString("immersive", null)
+            ImmersiveSettings.migrate(stored)?.let { prefs.edit().putString("immersive", it).apply(); return ImmersiveSettings.parse(it) }
+            return ImmersiveSettings.parse(stored)
+        }
+        set(v) = prefs.edit().putString("immersive", v.toJson().toString()).apply()
+    /** What each NPC keeps on when the scene's flow undresses them (equipment slots, by NPC id); none kept by default. */
+    fun keepOn(npcId: String): Set<Int> =
+        prefs.getString("keepOn.$npcId", null)?.split(',')?.mapNotNull { it.trim().toIntOrNull() }?.toSet() ?: keepOnAll
+    fun setKeepOn(npcId: String, slots: Set<Int>) = prefs.edit().putString("keepOn.$npcId", slots.sorted().joinToString(",")).apply()
+    /** What every NPC without a list of their own keeps on (Options' Immersion page's Keep on chips). */
+    var keepOnAll: Set<Int>
+        get() = prefs.getString("keepOnAll", "")?.split(',')?.mapNotNull { it.trim().toIntOrNull() }?.toSet().orEmpty()
+        set(v) = prefs.edit().putString("keepOnAll", v.sorted().joinToString(",")).apply()
     /** Files fetched at once by the first launch's gathering: Gentle 24, Normal 48, Fast 96 (the ceiling; it backs off by itself). */
     var downloadSpeed: Int
         get() = prefs.getInt("downloadSpeed", FAST).let { if (it in CHOICES) it else FAST }
@@ -76,6 +97,15 @@ class Settings(context: Context) {
     var partSet: String?
         get() = prefs.getString("partSet", null)?.takeIf { it.isNotEmpty() }
         set(v) = prefs.edit().putString("partSet", v ?: "").apply()
+
+    /**
+     * Options' "Use the Eve body for new women" (bodyparts/EveDress): a woman with no Eve choice of her own (a new NPC, a named
+     * character, a starter, an NPC saved before) is drawn with the imported Eve body. Off by default. The set itself is
+     * files/bodyparts/eve (EveStore: imported, its status read from its set.json).
+     */
+    var eveDefault: Boolean
+        get() = prefs.getBoolean("eveDefault", false)
+        set(v) = prefs.edit().putBoolean("eveDefault", v).apply()
 
     /**
      * The placement editor's own switches, kept for the user ([name]: "place.panel" the side panel open, "place.tip.<id>"

@@ -43,7 +43,13 @@ import com.logie.wifecraft.anim.PairAnim
 import com.logie.wifecraft.anim.animationChoices
 import com.logie.wifecraft.simulation.PartnerPair
 import com.logie.wifecraft.simulation.PartnerSoundSink
+import com.logie.wifecraft.simulation.IntensityMix
 import com.logie.wifecraft.ui.PartnerSoundsSection
+import com.logie.wifecraft.bodyparts.EveContext
+import com.logie.wifecraft.bodyparts.EveFitTable
+import com.logie.wifecraft.bodyparts.EveImportRunner
+import com.logie.wifecraft.bodyparts.EveOptionsEditor
+import com.logie.wifecraft.bodyparts.EveStore
 import com.logie.wifecraft.bodyparts.ModelParts
 import com.logie.wifecraft.bodyparts.PartChoice
 import com.logie.wifecraft.bodyparts.PartStates
@@ -59,6 +65,8 @@ import com.logie.wifecraft.ui.NpcDeleteWindow
 import com.logie.wifecraft.ui.NpcMenuWindow
 import com.logie.wifecraft.ui.PartControl
 import com.logie.wifecraft.ui.PartImportSection
+import com.logie.wifecraft.ui.EveImportSection
+import com.logie.wifecraft.ui.casEveBinding
 import com.logie.wifecraft.creator.Catalog
 import com.logie.wifecraft.creator.CreatorModel
 import com.logie.wifecraft.creator.CsvTables
@@ -143,6 +151,25 @@ class MainActivity : ComponentActivity() {
     private val looksFile by lazy { AtomicFile(File(filesDir, "npc-looks.json")) }
     /** files/bodyparts: the named characters' model sets cut on the phone and the imported body-part sets. */
     private val partsRoot by lazy { File(filesDir, "bodyparts") }
+
+    // ---- the Eve body (bodyparts/EveStore, EveDress): the set in files/bodyparts/eve, imported in Options, loaded into the 3D view
+    private val eveStore by lazy { EveStore(partsRoot) }
+    private val eveRunner by lazy { EveImportRunner(eveStore, { assetText("sims_profile.json").orEmpty() }) }
+    private val eveFitJson by lazy { assetText("eve_fit.json").orEmpty() }
+    private val eveFit by lazy { runCatching { EveFitTable.parse(eveFitJson) }.getOrNull() }
+    /** Whether the set is loaded into the 3D view (its last load said ""); every dressing path asks [eveContext]. */
+    @Volatile private var eveLoaded = false
+    @Volatile private var eveDefaultOn = false
+
+    private fun eveContext(): EveContext = EveContext(eveLoaded && eveStore.installed(), eveFit, eveDefaultOn, eveStore.signature())
+
+    /** The set loaded into [view] (or taken out: none imported). Main thread. */
+    private fun loadEve(view: SceneView) {
+        if (!eveStore.installed()) { eveLoaded = false; return }
+        // ready from now on for the dressing (the GL thread loads it before any actor dressed after this call is drawn)
+        eveLoaded = true
+        view.loadEveSet(eveStore.dir.path, eveFitJson) { why -> if (why.isNotEmpty()) { eveLoaded = false; android.util.Log.w("Wifecraft", "Eve set: $why") } }
+    }
     /** The named characters (assets/characters.json) with their partial looks (assets/model_parts.json). */
     private val namedCast by lazy { NamedCast.parse(assetText("characters.json"), assetText(ModelParts.ASSET)) }
 
@@ -170,7 +197,11 @@ class MainActivity : ComponentActivity() {
         files.planner = { Prefetch.plan(Catalog.build(tables), tables) }
         listfile = ListfileNames(File(filesDir, "cache/listfile-character.csv"))
         imports = ImportStore(filesDir, listfile, supportedKinds = setOf(ImportKind.RALIA, ImportKind.BODY, ImportKind.UNDEAD))
+        eveDefaultOn = settings.eveDefault
+        // a finished import or a Remove: the set (re)loaded into the 3D view, if there is one
+        eveRunner.listen { st -> if (st is EveImportRunner.State.Done) runOnUiThread { scene?.let { loadEve(it) } ?: run { eveLoaded = eveStore.installed() } } }
         dresser = Dresser(files, tables, imports, lifecycleScope).apply {
+            eve = { eveContext() }
             named = namedCast
             manifestJson = assetText(ModelParts.ASSET)
             partsRoot = this@MainActivity.partsRoot
@@ -219,7 +250,7 @@ class MainActivity : ComponentActivity() {
         sceneAudio?.volumes = Mixer.sceneVolumes(m)
     }
 
-    private fun sceneView(): SceneView = scene ?: SceneView(this, files.dir.path).also { scene = it; it.softBody(Settings(this).softBody) }
+    private fun sceneView(): SceneView = scene ?: SceneView(this, files.dir.path).also { scene = it; it.softBody(Settings(this).softBody); loadEve(it) }
 
     private fun readText(file: AtomicFile): String? = if (file.baseFile.exists()) file.readFully().decodeToString() else null
 
@@ -341,11 +372,16 @@ class MainActivity : ComponentActivity() {
         var lifeOn by remember { mutableStateOf(settings.lifeSimulation) }
         var clockSettings by remember { mutableStateOf(settings.clock) }
         var cinematicSettings by remember { mutableStateOf(settings.cinematic) }
+        // Options' Immersion page (immersive mode: the life HUD hidden, the flow, body language, atmosphere) and what NPCs keep on
+        var immersiveSettings by remember { mutableStateOf(settings.immersive) }
+        var keepOnAll by remember { mutableStateOf(settings.keepOnAll) }
+        // the partner sounds' volume as the scene's intensity sets it (IntensityMix.voice), read as each sound starts
+        val voiceScale = remember { floatArrayOf(1f) }
         var partnerOn by remember { mutableStateOf(settings.partnerSoundsOn) }
         var partnerVolume by remember { mutableIntStateOf(settings.partnerSoundVolume) }
         val partnerSink = remember {
             object : PartnerSoundSink {
-                override fun play(name: String, actorKey: String?, loop: Boolean) { sceneAudio?.partnerSound(name, actorKey, loop, 1f) }
+                override fun play(name: String, actorKey: String?, loop: Boolean) { sceneAudio?.partnerSound(name, actorKey, loop, voiceScale[0]) }
                 override fun stopAll() { sceneAudio?.stopAll() }
             }
         }
@@ -451,7 +487,7 @@ class MainActivity : ComponentActivity() {
                     Screen.SETUP -> {
                         val previewView = if (step == SetupStep.OBJECTS) null else sceneView()
                         val portraits = if (step == SetupStep.CAST) {
-                            remember { Thumbs(applicationContext, files, previewView, tables, { imports }, { namedCast }) }.also { source ->
+                            remember { Thumbs(applicationContext, files, previewView, tables, { imports }, { namedCast }, { eveContext() }) }.also { source ->
                                 DisposableEffect(source) { onDispose { source.close() } }
                             }
                         } else null
@@ -515,7 +551,7 @@ class MainActivity : ComponentActivity() {
                         val view = sceneView()
                         val model = remember { CreatorModel(c, checkNotNull(defaultAppearance(c))) }
                         val key = "npc-preview"
-                        val portraits = remember(view) { Thumbs(applicationContext, files, view, tables, { imports }, { namedCast }) }
+                        val portraits = remember(view) { Thumbs(applicationContext, files, view, tables, { imports }, { namedCast }, { eveContext() }) }
                         var backdropRace by remember { mutableStateOf<Int?>(null) }
                         var backdropStatus by remember { mutableStateOf<String?>(null) }
                         var backdropRetry by remember { mutableIntStateOf(0) }
@@ -594,6 +630,10 @@ class MainActivity : ComponentActivity() {
                                 }.onFailure { problem = "The NPC could not be saved." }
                             },
                             onBack = { screen = Screen.SETUP },
+                            // the Body tab's Eve rows (bodyparts/EveOptionsEditor: the imported set's lists, the races it leaves out)
+                            eve = remember(eveLoaded, eveDefaultOn) {
+                                casEveBinding(eveStore.index()?.takeIf { eveLoaded }?.let { EveOptionsEditor(it, eveFit) }, eveDefaultOn)
+                            },
                         )
                         if (wardrobe == null) {
                             val message = wardrobeStatus ?: "Loading starter clothing…"
@@ -747,7 +787,7 @@ class MainActivity : ComponentActivity() {
                         val lifeIds = remember(chosen) { chosen.map { it.id } }
                         val lifeStore = remember(lifeIds) { lifeFiles(lifeIds) }
                         val lifeSim = remember(session, lifeIds) {
-                            LifeSim(lifeIds, chosen.associate { it.id to LifeProfile(it.name, it.appearance.raceId, it.appearance.sex == Sex.FEMALE) },
+                            LifeSim(lifeIds, chosen.associate { it.id to LifeProfile(it.name, it.appearance.raceId, it.appearance.sex == Sex.FEMALE, it.appearance.personality) },
                                 seed = System.nanoTime()).also { sim ->
                                 sim.enabled = lifeOn
                                 runCatching { readText(lifeStore.first)?.let { sim.load(it) } }
@@ -782,6 +822,22 @@ class MainActivity : ComponentActivity() {
                             onCinematic = { on -> audio?.cinematic(on) },
                             onLifeSave = { life, clock -> lifecycleScope.launch(Dispatchers.IO) { saveLife(lifeStore, life, clock) } },
                             icons = icons,
+                            immersive = immersiveSettings,
+                            // the flow's undressing: what each wears (their outfit as dressed), what they keep on, dressed again without
+                            worn = { id -> chosen.firstOrNull { it.id == id }?.let { a -> (wardrobe?.equipStarter(a.appearance) ?: a.appearance).clothing.keys } ?: emptySet() },
+                            keepOn = { id -> settings.keepOn(id) },
+                            onUndress = { id, off ->
+                                chosen.firstOrNull { it.id == id }?.let { a ->
+                                    val dressed = wardrobe?.equipStarter(a.appearance) ?: a.appearance
+                                    val look = if (off.isEmpty()) dressed else dressed.copy(clothing = dressed.clothing - off, starterClothing = false)
+                                    dresser.dress(view, c, actorKey(a.id), look, objects.mapTo(mutableSetOf()) { it.action.animation })
+                                }
+                            },
+                            onCloth = { audio?.clothRustle() },
+                            onIntensity = { v ->
+                                voiceScale[0] = if (v == null) 1f else IntensityMix.voice(v, immersiveSettings.voice)
+                                audio?.intensity(v, immersiveSettings.atmosphere, immersiveSettings.rain)
+                            },
                         ) } }
                     }
                 }
@@ -837,9 +893,17 @@ class MainActivity : ComponentActivity() {
                         onLifeSimulation = { lifeOn = it; settings.lifeSimulation = it },
                         cinematic = cinematicSettings,
                         onCinematic = { cinematicSettings = it; settings.cinematic = it },
+                        immersive = immersiveSettings,
+                        onImmersive = { immersiveSettings = it; settings.immersive = it },
+                        keepOn = keepOnAll,
+                        onKeepOn = { keepOnAll = it; settings.keepOnAll = it },
                         mods = {
                             Column {
                                 ImportsSection(imports, listfile)
+                                var eveDefault by remember { mutableStateOf(settings.eveDefault) }
+                                EveImportSection(eveRunner, eveStore, eveDefault, onDefault = { on ->
+                                    eveDefault = on; settings.eveDefault = on; eveDefaultOn = on
+                                }, raliaOn = imports.hasRalia())
                                 PartImportSection(partsRoot, partSet, profileJson = { assetText("sims_profile.json").orEmpty() }, onChanged = { set ->
                                     partSet = set
                                     settings.partSet = set

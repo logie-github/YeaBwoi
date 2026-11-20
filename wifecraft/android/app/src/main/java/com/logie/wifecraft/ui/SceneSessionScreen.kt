@@ -133,6 +133,15 @@ import com.logie.wifecraft.simulation.LifeProps
 import com.logie.wifecraft.simulation.LifeView
 import com.logie.wifecraft.simulation.LightFeed
 import com.logie.wifecraft.simulation.WorldClock
+import com.logie.wifecraft.simulation.FlowPhase
+import com.logie.wifecraft.simulation.FlowStep
+import com.logie.wifecraft.simulation.HudReveal
+import com.logie.wifecraft.simulation.ImmersiveSettings
+import com.logie.wifecraft.simulation.IntensityEase
+import com.logie.wifecraft.simulation.IntensityModel
+import com.logie.wifecraft.simulation.MomentProgress
+import com.logie.wifecraft.simulation.SceneFlow
+import com.logie.wifecraft.simulation.SoftControl
 import com.logie.wifecraft.creator.Sex
 import androidx.compose.ui.layout.onSizeChanged
 import com.logie.wifecraft.story.CameraPose
@@ -143,6 +152,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.random.Random
@@ -324,6 +334,17 @@ fun LiveSceneScreen(
     onLifeSave: (life: String?, clock: String?) -> Unit = { _, _ -> },
     /** The game's icons (the life HUD's: needs, moods, thoughts, the radial menu); null: their drawn glyphs. */
     icons: GameIcons? = null,
+    /** Options' Immersion page (applied at once): the life HUD, the HUD's time, the flow, body language, atmosphere. */
+    immersive: ImmersiveSettings = ImmersiveSettings.DEFAULT,
+    /** The equipment slots an NPC wears now, and what they keep on (the flow's undressing). */
+    worn: (String) -> Set<Int> = { emptySet() },
+    keepOn: (String) -> Set<Int> = { emptySet() },
+    /** An NPC dressed again without these equipment slots (empty: as they were). Main thread. */
+    onUndress: (String, Set<Int>) -> Unit = { _, _ -> },
+    /** A piece of clothing came off (its rustle). Main thread. */
+    onCloth: () -> Unit = {},
+    /** The scene's intensity (0..1, the most intense person's, eased; null when the scene ends), four times a second. */
+    onIntensity: (Float?) -> Unit = {},
 ) {
     // the scene's seed: one per scene, so a scene replays the same way from it (the tests use it so)
     val seed = remember(cast, objects) { Random.nextLong() }
@@ -503,6 +524,17 @@ fun LiveSceneScreen(
     var feedOpen by remember(live) { mutableStateOf(false) }
     // the answer to the player's last interaction, and when it came (the same answer twice still shows twice)
     var lifeToast by remember(live) { mutableStateOf<Pair<LifeResult, Long>?>(null) }
+    // immersive mode (Options' Immersion, Show life HUD off): the HUD hidden until a tap, then up a few seconds (HudReveal)
+    val immersiveHud = !immersive.lifeHud
+    val hudReveal = remember(live) { HudReveal() }
+    var hudUp by remember(live) { mutableStateOf(false) }
+    var revealTick by remember(live) { mutableIntStateOf(0) }
+    fun revealHud() { hudReveal.tap(SystemClock.uptimeMillis()); revealTick++ }
+    // the scene's flow between the controlled NPC and their partner (SceneFlow), shared with the GL thread (ImmersionFeed)
+    var flow by remember(live) { mutableStateOf<SceneFlow?>(null) }
+    var flowPhase by remember(live) { mutableStateOf(FlowPhase.NONE) }
+    val feed = remember(live) { ImmersionFeed() }
+    SideEffect { feed.settings = immersive.clamped(); feed.cinematic = cinematic }
     val active = selected?.let { id -> snapshot.people.firstOrNull { it.id == id } }
     val views = selected?.let { snapshot.furnitureViews[it] }.orEmpty()
     val viewNames = remember(views) { views.map { it.label } }
@@ -589,6 +621,7 @@ fun LiveSceneScreen(
     var clockNow by remember(live) { mutableStateOf<ClockReading?>(null) }
     val timeOfDay by rememberUpdatedState(onTimeOfDay)
     val saveLife by rememberUpdatedState(onLifeSave)
+    val intensityOut by rememberUpdatedState(onIntensity)
     DisposableEffect(live, view) {
         val main = Handler(Looper.getMainLooper())
         val ids = Array(live.count) { live.id(it) }
@@ -603,6 +636,14 @@ fun LiveSceneScreen(
         var clockNanos = 0L
         var clockKey = -1L
         var soundNanos = 0L
+        // GL thread: each person's intensity (IntensityModel, eased), whom they look at, and when these were last looked at
+        val eases = Array(live.count) { IntensityEase() }
+        val goals = FloatArray(live.count) { IntensityModel.IDLE }
+        val lookAt = arrayOfNulls<String>(live.count)
+        val keyOf = ids.indices.associate { ids[it] to keys[it] }
+        var momentNanos = 0L
+        var motionNanos = 0L
+        var intensityNanos = 0L
         val sink = object : LiveScene.Sink {
             override fun camera(eyeX: Float, eyeY: Float, eyeZ: Float, atX: Float, atY: Float, atZ: Float, fov: Float) {
                 view.glCamera(eyeX, eyeY, eyeZ, atX, atY, atZ, fov)
@@ -689,11 +730,42 @@ fun LiveSceneScreen(
             cineLook.frame(now)
             view.glCinematic(cineLook.mood(), cineLook.vignette(), cineLook.grain(), cineLook.letterbox())
             live.frame(now, sink, emit)
+            // the body language (cpp engine/motionlayer.h) and the atmosphere, after the frame's placements
+            val imm = feed.settings
+            view.glMotionParams(imm.breathing / 100f, imm.idleMotion / 100f, imm.eyeContact)
+            val step = if (motionNanos == 0L) 0f else ((now - motionNanos) / 1e9f).coerceIn(0f, 0.1f)
+            motionNanos = now
+            if (now - momentNanos >= MOMENT_NANOS) {
+                momentNanos = now
+                val fl = feed.flow
+                for (i in 0 until live.count) {
+                    val other = if (fl == null) null else if (ids[i] == fl.a) fl.b else if (ids[i] == fl.b) fl.a else null
+                    goals[i] = if (fl != null && other != null) IntensityModel.of(live.moment(i), fl.phase, fl.tempo)
+                        else IntensityModel.of(live.moment(i))
+                    lookAt[i] = live.companion(i) ?: other
+                }
+            }
+            var most = 0f
+            for (i in 0 until live.count) {
+                val v = eases[i].step(goals[i], step)
+                if (v > most) most = v
+                view.glMotion(keys[i], v, lookAt[i]?.let { keyOf[it] })
+            }
+            val cine = feed.cinematic
+            view.glParticles(if (imm.particlesOn(cine)) MOTES else 0, if (cine) 0.9f else 0.6f)
+            live.camera.handheld = if (cine) imm.handheld / 100f else 0f
+            if (now - intensityNanos >= LifeHud.UI_MS * 1_000_000L) {
+                intensityNanos = now
+                val v = most
+                main.post { intensityOut(v) }
+            }
         }
         onDispose {
             view.driver = null
             main.removeCallbacksAndMessages(null)
             sounds.stopAll()
+            view.clearAtmosphere()
+            intensityOut(null)
             // the scene's life and time as they were last (the GL thread drives them no more)
             // (the GL thread may still be finishing a frame: a failed read here loses only the last half minute, which the periodic save keeps)
             if (life != null || clock != null) runCatching { saveLife(life?.toJson(), clock?.toJson()?.toString()) }
@@ -753,7 +825,8 @@ fun LiveSceneScreen(
         val r = radial ?: return@LaunchedEffect
         live.life.menu(r.actor, r.other) { list -> mainHandler.post { if (radial == r) radialAvail = list } }
     }
-    val lifeOn = life != null && lifeShown?.enabled == true
+    // the life simulation's HUD only with Options' Show life HUD (the simulation runs underneath either way)
+    val lifeOn = life != null && lifeShown?.enabled == true && immersive.lifeHud
     val lifeOf: (String) -> LifePersonView? = { id -> lifeShown?.takeIf { it.enabled }?.person(id) }
     SideEffect {
         live.running = ready && !ending
@@ -872,6 +945,12 @@ fun LiveSceneScreen(
     }
 
     val onTap by rememberUpdatedState<(Hit?) -> Unit>({ hit ->
+        // immersive mode: a tap on the hidden HUD only brings it back; while it is up, every tap keeps it a while longer
+        if (immersiveHud && !cinematic) {
+            val wasUp = hudUp
+            revealHud()
+            if (!wasUp) return@rememberUpdatedState
+        }
         when (hit?.kind) {
             // nobody controlled: take control; one controlled: the tapped NPC becomes (or, tapped again, stops being) its partner
             Hit.Kind.ACTOR -> cast.firstOrNull { actorKey(it.id) == hit.key }?.let { other -> control = control.tapNpc(other.id) }
@@ -938,6 +1017,117 @@ fun LiveSceneScreen(
         HudOrder.PLAY, HudOrder.PARTNER, HudOrder.SAY, HudOrder.CHAT, HudOrder.LIFE -> ready
         HudOrder.USE -> ready && SceneObject.entries.firstOrNull { it.name == slot.target }?.let { snapshot.available(it, id) } == true
         else -> true
+    }
+
+    // immersive mode's HUD: up after a tap for Options' time, kept while a window or menu is open
+    val windowOpen = choosingAnimation != null || furnitureMenu != null || saying != null || chatting != null ||
+        choosingPartner != null || menu || ending
+    LaunchedEffect(revealTick, windowOpen, immersive.hudSeconds, immersiveHud) {
+        if (!immersiveHud) { hudUp = true; return@LaunchedEffect }
+        hudReveal.holdMs = immersive.clamped().hudSeconds * 1000L
+        hudReveal.hold(windowOpen, SystemClock.uptimeMillis())
+        while (true) {
+            val now = SystemClock.uptimeMillis()
+            hudUp = windowOpen || hudReveal.alpha(now) >= 1f
+            if (windowOpen || !hudUp) break
+            delay((hudReveal.remaining(now) - HudReveal.FADE_MS).coerceIn(16L, 1000L))
+        }
+    }
+    // the flow (SceneFlow): what each of its steps does in the scene
+    val undone = remember(live) { HashMap<String, MutableSet<Int>>() }
+    val immersiveNow by rememberUpdatedState(immersive)
+    fun startStages(a: String, b: String) {
+        // the author's chain from its first stage when there is one, else any two-person animation, else a partner one
+        val two = choices.filter { it.participantCount == 2 }
+        val first = two.firstOrNull { MomentProgress.stageOf(it.stage.ifEmpty { it.name }) == 1 } ?: two.firstOrNull()
+        if (first != null) schedule(PendingAnimation(a, first, AnimationOrderMode.SEQUENCE), b) else sendToPartner(a, b)
+    }
+    fun runFlow(steps: List<FlowStep>) {
+        for (st in steps) when (st) {
+            is FlowStep.LeadIn -> {
+                // they come together, face each other, and share a slow emote
+                val key = PlaybackKeys.emote(st.emote)
+                val roles = listOf(PlaybackRole(key, Vec3(-FLOW_APART, 0f, 0f), 0f), PlaybackRole(key, Vec3(FLOW_APART, 0f, 0f), PI.toFloat()))
+                live.order { sim -> if (sim.perform(st.a, PerformanceOrder(st.b, roles, FLOW_EMOTE_S, repetitions = 2))) null else sim.takeRefusal() }
+            }
+            is FlowStep.TakeOff -> {
+                val off = undone.getOrPut(st.actor) { HashSet() }
+                off += st.slot
+                onUndress(st.actor, off.toSet())
+                onCloth()
+            }
+            is FlowStep.Stages -> startStages(st.a, st.b)
+            is FlowStep.Afterglow -> {
+                val bed = SceneObject.BED.takeIf { it in objects }
+                live.order { sim ->
+                    sim.stopAll(st.a); sim.stopAll(st.b)
+                    if (bed != null && sim.available(bed, st.a)) sim.use(st.a, bed)
+                    null
+                }
+            }
+            is FlowStep.Rest -> if (life != null) { live.life.interact(st.a, null, InteractionId.SLEEP); live.life.interact(st.b, null, InteractionId.SLEEP) }
+            is FlowStep.Redress -> { undone.remove(st.actor); onUndress(st.actor, emptySet()) }
+        }
+        val f = flow
+        flowPhase = f?.phase ?: FlowPhase.NONE
+        feed.flow = f?.let { ImmersionFeed.FlowNow(it.a, it.b, it.phase, it.tempo) }
+    }
+    LaunchedEffect(flow) {
+        val f = flow ?: return@LaunchedEffect
+        var last = SystemClock.uptimeMillis()
+        while (true) {
+            delay(FLOW_TICK_MS)
+            val now = SystemClock.uptimeMillis()
+            f.auto = immersiveNow.autoFlow
+            val steps = f.tick((now - last) / 1000f)
+            last = now
+            if (steps.isNotEmpty()) runFlow(steps)
+        }
+    }
+    // the stages' queue has played out: the flow hears of it (Auto flow moves on to the afterglow)
+    var flowSawPlaying by remember(live) { mutableStateOf(false) }
+    LaunchedEffect(snapshot, flowPhase) {
+        val f = flow ?: return@LaunchedEffect
+        if (f.phase != FlowPhase.STAGE) { flowSawPlaying = false; return@LaunchedEffect }
+        val lead = snapshot.people.firstOrNull { it.id == f.a } ?: return@LaunchedEffect
+        if (lead.performing || lead.queued > 0) flowSawPlaying = true
+        else if (flowSawPlaying) { flowSawPlaying = false; runFlow(f.stagesFinished()) }
+    }
+    /** A soft control: Slower and Faster the tempo, Closer the camera, Change position the next stage, Continue, End. */
+    fun soft(c: SoftControl) {
+        revealHud()
+        val f = flow
+        when (c) {
+            SoftControl.CONTINUE -> if (f != null && f.active) runFlow(f.proceed()) else {
+                val a = selected
+                val b = mate
+                if (a != null && b != null) {
+                    val next = SceneFlow(a, b, worn(a), worn(b), keepOn(a), keepOn(b), undress = immersive.undress, auto = immersive.autoFlow)
+                    flow = next
+                    runFlow(next.start())
+                }
+            }
+            SoftControl.END -> {
+                val steps = f?.end().orEmpty()
+                val lead = f?.a ?: selected
+                if (lead != null) live.order { sim -> sim.stopAll(lead); null }
+                flow = null
+                runFlow(steps)
+            }
+            SoftControl.SLOWER -> { f?.slower(); runFlow(emptyList()) }
+            SoftControl.FASTER -> { f?.faster(); runFlow(emptyList()) }
+            SoftControl.CLOSER -> {
+                if (selected != null && cameraMode == CameraMode.ROOM) cameraMode = CameraMode.FOLLOW
+                live.camera.zoomBy(CLOSER_ZOOM)
+            }
+            SoftControl.POSITION -> {
+                val a = f?.a ?: selected
+                if (a != null) {
+                    val person = snapshot.people.firstOrNull { it.id == a }
+                    if (person != null && person.queued > 0) live.order { sim -> sim.stop(a); null } else choosingAnimation = a
+                }
+            }
+        }
     }
 
     val reduced = reduceMotion()
@@ -1036,7 +1226,7 @@ fun LiveSceneScreen(
         )
         val partnerIndex = partnerId?.let { id -> cast.indexOfFirst { it.id == id } } ?: -1
         val wordsShown = !(cinematic && cinematicSettings.hideWords)
-        if (life != null && wordsShown) {
+        if (life != null && wordsShown && lifeOn) {
             val gems = remember(lifeShown, cast) { cast.map { a -> lifeOf(a.id)?.mood?.let(LifeHud::gem) } }
             LifeMarkers(speechSpots, gems, lines, if (lifeOn) thoughts else List(cast.size) { null }, partnerIndex, icons)
         }
@@ -1047,13 +1237,15 @@ fun LiveSceneScreen(
         val shown by animateFloatAsState(if (revealed) 1f else 0f, tween(MenuMotion.duration(MenuMotion.WINDOW_IN_MS, reduced)), label = "hud")
         // cinematic mode hides it (the layer over it takes the touches; a tap brings it back a while)
         val cineHidden = cinematic && !cinePeek
-        val hudAlpha by animateFloatAsState(if (cineHidden) 0f else 1f, tween(MenuMotion.duration(CINEMATIC_HUD_MS, reduced)), label = "cinematicHud")
-        BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).graphicsLayer { alpha = hudAlpha }) {
+        // immersive mode hides it too until a tap (HudReveal); hidden, it isn't there to be touched
+        val hudHidden = cineHidden || (!cinematic && immersiveHud && !hudUp)
+        val hudAlpha by animateFloatAsState(if (hudHidden) 0f else 1f, tween(MenuMotion.duration(CINEMATIC_HUD_MS, reduced)), label = "cinematicHud")
+        if (hudAlpha > 0f || cinematic) BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).graphicsLayer { alpha = hudAlpha }) {
             val hud = SceneHud.layout(maxWidth.value, maxHeight.value)
             val events = lifeShown?.events
             val unseen = remember(events, feedSeenAt) { events?.let { e -> feedSeen.unseen(e.map { it.hours to it.text }) } ?: 0 }
             SceneTopBar(locationName, { menu = true }, Modifier.align(Alignment.TopCenter).fillMaxWidth(),
-                face = clockNow?.let { LifeHud.clockFace(it.hour, it.day, it.speed, h24) },
+                face = clockNow?.takeIf { lifeOn }?.let { LifeHud.clockFace(it.hour, it.day, it.speed, h24) },
                 onClock = { speedOpen = !speedOpen; feedOpen = false },
                 unseen = if (lifeOn) unseen else -1, feedOpen = feedOpen,
                 onFeed = { feedOpen = !feedOpen; speedOpen = false })
@@ -1068,7 +1260,7 @@ fun LiveSceneScreen(
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         for (person in people) key(person.id) {
-                            CastFrame(names[person.id] ?: "", doing(person, names), person.id == selected, person.id == partnerId,
+                            CastFrame(names[person.id] ?: "", if (immersiveHud) "" else doing(person, names), person.id == selected, person.id == partnerId,
                                 { control = control.tapCast(person.id) }, Modifier.fillMaxWidth().height(hud.castH.dp),
                                 frameLife(person.id))
                         }
@@ -1080,7 +1272,7 @@ fun LiveSceneScreen(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         for (person in people) key(person.id) {
-                            CastFrame(names[person.id] ?: "", doing(person, names), person.id == selected, person.id == partnerId,
+                            CastFrame(names[person.id] ?: "", if (immersiveHud) "" else doing(person, names), person.id == selected, person.id == partnerId,
                                 { control = control.tapCast(person.id) }, Modifier.width(hud.castW.dp).height(hud.castH.dp),
                                 frameLife(person.id))
                         }
@@ -1112,7 +1304,9 @@ fun LiveSceneScreen(
                         // the life answer's toast said it already: the line keeps the help
                         val toastText = lifeToast?.first?.message
                         // while an animation plays: its part and loop counter ("Stage 2 · Cowgirl · Loop 3/5")
-                        val line = (snapshot.notice?.takeIf { it != toastText } ?: active?.playing ?: hint.takeIf { active != null }).orEmpty()
+                        // (immersive mode: no counters, only what the scene says back)
+                        val line = (snapshot.notice?.takeIf { it != toastText }
+                            ?: if (immersiveHud) null else (active?.playing ?: hint.takeIf { active != null })).orEmpty()
                         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                             if (line.isNotEmpty()) HudLine(line)
                         }
@@ -1142,7 +1336,13 @@ fun LiveSceneScreen(
             FeedPanel(feedOpen, lifeShown?.events.orEmpty(), icons, { feedOpen = false },
                 Modifier.align(Alignment.TopEnd).padding(end = SceneHud.MARGIN.dp, top = SceneHud.TOP_H.dp, start = SceneHud.MARGIN.dp))
         }
-        CinematicLayer(cinematic, cineHidden, revealed && shown > 0f, {
+        // the soft controls: with a partner chosen or a flow under way, while the HUD is up
+        if (revealed && !hudHidden && (flow != null || (active != null && mate != null))) {
+            Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).graphicsLayer { alpha = hudAlpha }) {
+                SoftRadial(SoftControl.offered(flowPhase), { soft(it) }, Modifier.align(Alignment.CenterEnd).padding(end = SceneHud.MARGIN.dp))
+            }
+        }
+        CinematicLayer(cinematic, cineHidden, revealed && shown > 0f && (cinematic || !immersiveHud || hudUp), {
             cinematic = !cinematic
             if (cinematic) { radial = null; speedOpen = false; feedOpen = false; menu = false }
         }, { cinePeek = true }, { live.aspect = it })
@@ -1832,3 +2032,22 @@ internal fun lifted(animation: Anim, lift: Float): Anim = if (lift == 0f) animat
         })
     } else track
 })
+
+/** The scene's intensity is looked at again this often (ns): the moments' goals; each frame eases toward them. */
+private const val MOMENT_NANOS = 100_000_000L
+/** The atmosphere's motes on screen. */
+private const val MOTES = 48
+/** The flow's timers' step (ms), the lead-in's emote (seconds a cycle) and how far apart they stand for it (yards). */
+private const val FLOW_TICK_MS = 100L
+private const val FLOW_EMOTE_S = 4f
+private const val FLOW_APART = 0.45f
+/** Closer: the camera's distance times this. */
+private const val CLOSER_ZOOM = 0.8f
+
+/** What the GL thread reads of immersive mode each frame: Options' settings, the flow, whether cinematic mode is on. */
+private class ImmersionFeed {
+    class FlowNow(val a: String, val b: String, val phase: FlowPhase, val tempo: Int)
+    @Volatile var settings: ImmersiveSettings = ImmersiveSettings.DEFAULT
+    @Volatile var flow: FlowNow? = null
+    @Volatile var cinematic = false
+}

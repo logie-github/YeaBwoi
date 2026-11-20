@@ -14,10 +14,13 @@
 #include "bodypart.h"
 #include "boneanim.h"
 #include "cloth.h"
+#include "evebody.h"
 #include "grade.h"
 #include "location.h"
 #include "m2.h"
 #include "modelpart.h"
+#include "motionlayer.h"
+#include "particles.h"
 #include "skin.h"
 #include "softbody.h"
 #include "wmath.h"
@@ -143,6 +146,29 @@ public:
     // measured yet (no such actor, its shape waiting for the next frame, a skeleton that isn't a person's).
     bool actorFlesh(int id, std::vector<float>& out);
 
+    // ---------------------------------------------------------------- the Eve body (evebody.h; evescene.cpp)
+    // The converted Eve set in `dir` (files/bodyparts/eve: set.json, its meshes, skins and overlays) with the fit table
+    // (assets/eve_fit.json's text), kept for the scene's life; a new call replaces it (every actor wearing Eve is fitted
+    // again). False and `error` when it can't be read; the actors then keep their own bodies.
+    bool loadEveSet(const std::string& dir, const std::string& fitJson, std::string& error);
+    // Eve on actor `id` with these options (on false: its own body). Applied at the next frame and again whenever its look
+    // changes: only on a model the fit table has a row for, enabled, and only while the caller says the look is unclothed
+    // (the caller decides: bodyparts/EveOptions.kt EveRule). Kept across dress().
+    void setEveBody(int id, const EveOptions& options);
+    void clearEveBody(int id);
+    // What became of it (the desktop check, the menus' note): drawn or why not, the fit's numbers, the colours matched.
+    struct EveStatus {
+        bool requested = false, active = false;
+        std::string status;
+        EveFitStats stats;
+        uint32_t neck = 0, ankle = 0, reference = 0;
+        int shade = -1;
+        float shadeDist = 0;
+        double composeMs = 0;
+        size_t eveTriangles = 0, bodyTriangles = 0;
+    };
+    bool eveStatus(int id, EveStatus& out) const;
+
     // ---------------------------------------------------------------- body parts (bodypart.h)
     // A part file (.wcbp) read and kept: its handle (> 0), the same one again for a path already loaded; 0 and partError()
     // when it can't be read. Parts stay loaded for the scene's life (a set is 36 small meshes).
@@ -210,6 +236,21 @@ public:
     // height (0..0.5). All 0: off, the frame drawn straight to the screen as before. Cheap; the caller eases them in and out.
     void setCinematic(float mood, float vignette, float grain, float bars);
 
+    // ---------------------------------------------------------------- body language and atmosphere (additive layers)
+    // The body's additive motion (motionlayer.h) for everyone it is on: Options' breathing and idle shares, eye contact.
+    void setMotionParams(const MotionParams& p) { motionParams_ = p; }
+    // Actor `id`'s layer on, its intensity 0..1 (breathing's rate and depth; the idle motions quieten as it rises) and who
+    // it looks at (another actor's id, -1 the camera, 0 nobody). Laid over its clip or emote, never replacing it.
+    void setMotion(int id, float intensity, int target);
+    // Its layer off (the pose as the animation alone makes it).
+    void clearMotion(int id);
+    // The desktop check: the layer's state (its eased intensity, look-at angles, the clip's weight on the head), or null.
+    const MotionState* motionState(int id) const { auto it = actors_.find(id); return it == actors_.end() ? nullptr : &it->second.motion; }
+    // The atmosphere's glowing motes (particles.h): `count` of them (0: none) at `strength` 0..1, in a box round the camera's
+    // target; deterministic from `seed`.
+    void setParticles(int count, float strength, uint32_t seed = 7);
+    const ParticleField& particleField() const { return particles_; }
+
     // ---------------------------------------------------------------- locations and props (location.cpp)
     // A location (location.h: an entry of assets/locations.json): its WMO's groups in world coordinates, its doodads and
     // extra placements drawn instanced by model, its light and fog (with `view`'s own over them; "" none). Its files must be
@@ -252,6 +293,11 @@ public:
     // What the screen point (sx, sy) of a `width` x `height` view of the last camera hits first: a prop, an actor, the
     // location (a floor facing up is the ground) or the plain ground.
     PickHit pick(float sx, float sy, int width, int height) const;
+    // The part of actor `id`'s body the screen point lands on (bodypick.h's BodyRegion; 0: none): its shown triangles as
+    // posed this frame, the region of the bones the triangle hit is weighted to most (bodyrig.cpp).
+    int pickBodyRegion(int id, float sx, float sy, int width, int height) const;
+    // The creator's sculpt sliders (sculpt.h's order, -1..1) on actor `id`: the Eve body is fitted again with them.
+    void setSculpt(int id, const float* values, size_t count);
     int locationObject(uint32_t model, V3 origin) const;
     bool walkSegment(V3 from, V3 to) const;
     // The floor under (x, y) nearest below z (a little above counts: a step up): the location's groups and WMO props,
@@ -301,6 +347,7 @@ public:
         std::vector<DressModel> extras;
         std::vector<float> morph;
         float bodyK = 0, bodyFold = 0;
+        EveOptions eve;                          // the Eve body on the look (setEveBody's; `on` false: her own body)
     };
     bool thumbnail(uint32_t propFile, const ThumbLook* look, int size, std::vector<uint8_t>& rgba, std::string& error);
     // How a look's picture is framed instead (the Transmog window's cards, creator/TransmogCards.kt): the band of the body
@@ -405,6 +452,8 @@ private:
         unsigned vao = 0, vbo = 0, ibo = 0;
         unsigned tex = 0;                // the cloth's own texture (the look's cloth layers over the skin), 0: the body's skin
         float uvBox[4] = {0, 0, 0, 0};   // that texture's rectangle of the material (x, y, w, h as fractions)
+        bool panel = false;              // it is the tabard's panel (cloth.h clothPanelRect), not the flap's own strip
+        int panelPx[2] = {0, 0};         // its window's size (material pixels)
         bool active() const { return rig && rig->ok; }
     };
     struct Actor {
@@ -472,10 +521,13 @@ private:
         SoftDraw soft;                 // the soft body (softbody.h)
         ClothGl cloth;                 // a tabard flap hung as cloth (cloth.h)
         bool character = false;        // setCharacter: the soft body applies (a creature's never does)
+        MotionState motion;            // the additive body language (setMotion; motionlayer.h)
         bool ghost = false;            // ghostActor: drawn as the ghost, never picked
         // actorFlesh's measure and the look it was made for (0: none yet)
         std::vector<float> flesh;
         uint64_t fleshKey = 0;
+        EveDraw eve;                   // the Eve body (evescene.cpp)
+        std::vector<float> sculpt;     // the creator's sculpt sliders (setSculpt; sculpt.h): the Eve body fitted with them
     };
     struct GroupGl {
         unsigned vao = 0, vbo = 0, ibo = 0;
@@ -610,6 +662,9 @@ private:
     bool softBodyDraw_ = false;        // drawModel is drawing an actor's body with its soft body on
 
     V3 eye_{0, -10, 2}, target_{0, 0, 1};
+    // pickBodyRegion's bone regions, for the model they were made for
+    mutable std::vector<uint8_t> boneRegions_;
+    mutable const M2Model* boneRegionsModel_ = nullptr;
     float fov_ = 45;
     Light light_;
     Light baseLight_;                    // light_ before the time of day (setLight's, the location view's look over it)
@@ -620,6 +675,13 @@ private:
     float cineFlicker_ = 0;
     GradeParams cineGrade_;
     Grade grade_;
+    // the additive layers: the body's motion (Options'), the motes and how bright, the clock they were last stepped at
+    MotionParams motionParams_;
+    ParticleField particles_;
+    ParticleDraw particleDraw_;
+    float particleStrength_ = 0;
+    uint32_t particleClock_ = 0;
+    void layMotion(Actor& a, uint32_t now);   // motionlayer.h over the posed matrices, before they are uploaded
     M4 view_, proj_;
 
     GlTexture texture(uint32_t fileId, int maxSize);
@@ -666,6 +728,12 @@ private:
     void dropPartGl(ActorParts& ap);
     void drawParts(Actor& a, const M4& world, bool transparent);
     void drawBoneParts(Actor& a, const M4& world, bool transparent);
+    // the Eve body (evescene.cpp)
+    std::unique_ptr<EveSet> eveSet_;
+    void eveCheck(Actor& a);                       // before refreshBody: the look or options changed, so fit again
+    void eveRefit(Actor& a);                       // in refreshBody: fit, cut the body, compose the skin
+    void drawEve(Actor& a, const M4& world, const float tint[4]);
+    void dropEveGl(Actor& a);
 
     // ---- the placement editor's view (editview.cpp)
     struct Ghost {
