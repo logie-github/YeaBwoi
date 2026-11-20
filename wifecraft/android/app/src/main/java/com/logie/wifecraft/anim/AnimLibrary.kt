@@ -205,7 +205,7 @@ class AnimLibrary(private val dir: File, private val freeSpace: (File) -> Long =
 
     /** The classifier's numbers to 4 decimals (a tenth of a millimetre, a hundredth of a degree): the index stays small. */
     private fun rounded(v: Any?): Any? = when (v) {
-        is JSONObject -> v.also { o -> for (k in o.keySet().toList()) o.put(k, rounded(o.get(k))) }
+        is JSONObject -> v.also { o -> for (k in o.keys().asSequence().toList()) o.put(k, rounded(o.get(k))) }
         is JSONArray -> v.also { a -> for (i in 0 until a.length()) a.put(i, rounded(a.get(i))) }
         is Double -> if (v.isFinite()) Math.round(v * 10000.0) / 10000.0 else v
         is Float -> if (v.isFinite()) Math.round(v * 10000.0) / 10000.0 else v
