@@ -27,6 +27,8 @@ object LifeAnims {
     const val KNEEL = 75
     const val FLEX = 82
     const val READ_LOOP = 520
+    /** SitGround: a nap sat on the floor where no bed, couch or chair is free. */
+    const val SIT_GROUND = 97
 }
 
 /**
@@ -40,7 +42,7 @@ enum class InteractionId(
     val anim: Int = -1, val cycle: Float = 0f, val cap: Float = 1f,
 ) {
     SLEEP("Sleep", false, 7f, listOf(LifeProvider.BED)),
-    NAP("Nap", false, 1.5f, listOf(LifeProvider.COUCH, LifeProvider.BED)),
+    NAP("Nap", false, 1.5f, listOf(LifeProvider.COUCH, LifeProvider.BED, LifeProvider.CHAIR, LifeProvider.FLOOR)),
     REST("Rest", false, 1f, listOf(LifeProvider.BED, LifeProvider.COUCH, LifeProvider.CHAIR)),
     RELAX("Relax", false, 0.5f, listOf(LifeProvider.COUCH, LifeProvider.CHAIR)),
     EAT("Eat", false, 0.35f, listOf(LifeProvider.TABLE, LifeProvider.FLOOR), LifeAnims.EAT, 2.6f),

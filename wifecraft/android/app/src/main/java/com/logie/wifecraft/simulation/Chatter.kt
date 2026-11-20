@@ -20,6 +20,12 @@ class Chatter(private val speakers: Map<String, Speaker>, place: String) {
     private val recent = ArrayDeque<String>()
     private var lastTopic = -1
 
+    /**
+     * The game hour (0 until 24) the next conversation is had at, for the greetings that name the time of day ("Morning,
+     * ..."; "Still up?" only at night); NaN: unknown, and those greetings are not used.
+     */
+    var hour: Double = Double.NaN
+
     /** The topic of the last conversation made ("weather", "jokes"...: the life simulation weighs it), or null. */
     val lastTopicName: String? get() = TOPICS.getOrNull(lastTopic)?.name
 
@@ -140,6 +146,8 @@ class Chatter(private val speakers: Map<String, Speaker>, place: String) {
                 "yourhome" -> Races.home(you.race)
                 "yourkind" -> Races.plural(you.race)
                 "kin" -> when (you.female) { true -> "sister"; false -> "brother"; null -> null }
+                "daypart" -> dayPart(hour)
+                "late" -> if (dayPart(hour) == null && !hour.isNaN()) "" else null
                 else -> null
             } ?: return null
             sb.append(value)
@@ -160,6 +168,15 @@ class Chatter(private val speakers: Map<String, Speaker>, place: String) {
         const val NOD_CHANCE = 0.45f
         /** Exchanges in a conversation (two to six, the shorter likelier). */
         private val EXCHANGES = intArrayOf(2, 2, 3, 3, 3, 4, 4, 5, 6)
+
+        /** The time of day a greeting names at game hour [hour]: Morning 5-12, Afternoon 12-17, Evening 17-22; else null. */
+        fun dayPart(hour: Double): String? = when {
+            hour.isNaN() -> null
+            hour >= 5.0 && hour < 12.0 -> "Morning"
+            hour >= 12.0 && hour < 17.0 -> "Afternoon"
+            hour >= 17.0 && hour < 22.0 -> "Evening"
+            else -> null
+        }
 
         /** "the Stormwind Embassy", "Dalaran's streets", "the plaza below...": a place's name as said in a sentence. */
         fun placeRef(name: String): String {
@@ -183,7 +200,8 @@ class Chatter(private val speakers: Map<String, Speaker>, place: String) {
         internal val GREETINGS = listOf(
             w("{you}! There you are."),
             w("Well, if it isn't {you}."),
-            t("Evening, {you}. Have you a moment?"),
+            t("{daypart}, {you}. Have you a moment?"),
+            q("{late}Still up, {you}?"),
             w("{you}, over here!"),
             t("Ah, {you}. Just the face I hoped to see."),
             q("Mind if I join you, {you}?"),

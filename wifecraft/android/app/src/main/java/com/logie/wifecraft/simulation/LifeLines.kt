@@ -111,6 +111,25 @@ object LifeLines {
         else -> listOf("Not now.", "Leave me be, {you}.", "I'm not in the mood.")
     }
 
+    /** Where a nap was had, for the feed: "on the bed", "in the chair", "on the floor". */
+    fun onWhat(item: SceneObject?): String = when (item) {
+        SceneObject.BED -> "on the bed"
+        SceneObject.COUCH -> "on the couch"
+        SceneObject.CHAIR -> "in the chair"
+        SceneObject.TABLE -> "at the table"
+        null -> "on the floor"
+    }
+
+    /** What someone says leaving a conversation of their own because [need] can't wait. */
+    fun excuse(need: Need, random: Random): String = pick(when (need) {
+        Need.ENERGY -> listOf("I can barely keep my eyes open. Forgive me.", "I need to rest. Another time?")
+        Need.HUNGER -> listOf("I should get something to eat.", "Excuse me, my stomach's calling.")
+        Need.THIRST -> listOf("I need a drink. Excuse me.", "Hold that thought, I'm parched.")
+        Need.HYGIENE -> listOf("I really must wash up.")
+        Need.COMFORT -> listOf("I have to sit down. Excuse me.")
+        else -> listOf("I should go.")
+    }, random) ?: "I should go."
+
     /** [text] with {you} and {me} filled in. */
     fun fill(text: String, me: String, you: String): String = text.replace("{you}", you).replace("{me}", me)
 

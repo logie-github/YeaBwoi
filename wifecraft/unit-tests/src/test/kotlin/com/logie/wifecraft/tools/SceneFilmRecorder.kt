@@ -33,6 +33,9 @@ import com.logie.wifecraft.simulation.SceneSnapshot
 import com.logie.wifecraft.simulation.Speaker
 import com.logie.wifecraft.simulation.SpeechLayout
 import com.logie.wifecraft.simulation.WorldClock
+import com.logie.wifecraft.simulation.WalkRoute
+import com.logie.wifecraft.simulation.LifeProps
+import com.logie.wifecraft.simulation.CameraClearance
 import com.logie.wifecraft.story.Vec3
 import org.json.JSONArray
 import org.json.JSONObject
@@ -94,23 +97,8 @@ class SceneFilmRecorder {
         fun ground(x: Float, y: Float, z: Float): Float = ask("ground $x $y $z").toFloatOrNull() ?: Float.NaN
         fun close() { runCatching { out.write("quit\n"); out.flush() }; process.waitFor() }
 
-        /** SceneView.glWalkRoute, line for line (stage coordinates). */
-        fun route(from: Vec3, to: Vec3): List<Vec3>? {
-            if (clear(from, to)) return listOf(to)
-            val delta = to - from
-            val length = hypot(delta.x, delta.y)
-            if (length < 0.1f || length > 55f) return null
-            val side = Vec3(-delta.y / length, delta.x / length, 0f)
-            val middle = from.lerp(to, 0.5f)
-            for (offset in listOf(1f, -1f, 2f, -2f, 3.5f, -3.5f)) {
-                val point = middle + side * offset
-                val z = ground(point.x, point.y, point.z - 0.85f)
-                if (z.isNaN()) continue
-                val waypoint = point.copy(z = z)
-                if (clear(from, waypoint) && clear(waypoint, to)) return listOf(waypoint, to)
-            }
-            return null
-        }
+        /** SceneView.glWalkRoute: the same WalkRoute, the engine's walk test over the pipe (stage coordinates). */
+        fun route(from: Vec3, to: Vec3): List<Vec3>? = WalkRoute.route(from, to, ::clear, ::ground)
     }
 
     private fun plans(): List<Plan> {
@@ -240,6 +228,10 @@ class SceneFilmRecorder {
             Furniture.of(piece, toLocal, -rotation)?.let { furniture[item] = it }
         }
         live.command { sim -> for ((item, f) in furniture) sim.setFurniture(item, f) }
+        // SceneSessionScreen: the room's props (locations.json "props") and the camera's walls (the walk test)
+        val props = LifeProps.of(locationsJson, preset.name, toLocal, -rotation)
+        live.life.setProps(props)
+        if (router != null) live.clearance = CameraClearance { eye, at -> router.route(at, eye)?.size == 1 }
         for (interaction in preset.interactions) {
             val item = objects.firstOrNull { it.name == interaction.item } ?: continue
             val spot = InteractionSpot(toLocal(interaction.entry), toLocal(interaction.pose), interaction.facing - rotation)
@@ -330,6 +322,7 @@ class SceneFilmRecorder {
                     .put("head", heads[i]).put("traits", JSONArray(life.traits(c.id).map { it.label }))
             }))
             .put("clips", clips).put("furniture", furn).put("routed", router != null)
+            .put("props", JSONArray(props.map { p -> val c = toStage(p.entry); JSONObject().put("kind", p.kind.name).put("x", c.x).put("y", c.y).put("z", c.z) }))
             .put("orbit", JSONArray(listOf(cx, cy, o.z.toDouble(), radius, 2.6, 90.0)))
             .put("cues", JSONArray(plan.cues.map { JSONObject().put("t", (it.seconds * 1000).toLong()).put("label", it.label) }))
         track.write(header.toString()); track.newLine()
@@ -359,7 +352,12 @@ class SceneFilmRecorder {
                 track.write(JSONObject().put("type", "cue").put("t", frameMs).put("label", c.label).toString()); track.newLine()
             }
             if (k > 0) clock.advance(1.0 / FPS)
-            live.frame(now, sink) { emitted = it }
+            live.frame(now, sink) { snap ->
+                if (snap.notice != null && snap.notice != emitted?.notice) {
+                    track.write(JSONObject().put("type", "notice").put("t", frameMs).put("text", snap.notice).toString()); track.newLine()
+                }
+                emitted = snap
+            }
             if (frameMs >= nextSample) {
                 nextSample += SAMPLE_MS
                 val people = JSONArray()

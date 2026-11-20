@@ -470,13 +470,13 @@ class SceneSimulation(
             anchor, heading, request.repeat, request.repetitions, directed, request.name, request.sounds,
             setup?.partner == true, setup?.initiator, furniture, setup?.emote ?: -1, setup?.floorZ ?: Float.NaN, setup?.fit)
         if (other != null && previous == null &&
-            !begin(other, Activity.PERFORM, approach(performance, roles[1]), directed, furniture)) return false
+            !beginAny(other, Activity.PERFORM, approaches(performance, roles[1]), directed, furniture)) return false
 
         // the lead steps to its own place too when it is not there already (a two-person one, one placed on furniture), so
         // nobody jumps when the clips start
-        val leadSpot = if (previous == null && (other != null || setup != null)) approach(performance, roles[0]) else null
-        val leadWalks = leadSpot != null && hypot(leadSpot.x - lead.x, leadSpot.y - lead.y) > LEAD_STEP &&
-            begin(lead, Activity.PERFORM, leadSpot, directed, furniture)
+        val leadSpots = if (previous == null && (other != null || setup != null)) approaches(performance, roles[0]) else null
+        val leadWalks = leadSpots != null && hypot(leadSpots[0].x - lead.x, leadSpots[0].y - lead.y) > LEAD_STEP &&
+            beginAny(lead, Activity.PERFORM, leadSpots, directed, furniture)
         if (!leadWalks) release(lead)
         if (other == null) {
             if (leadWalks) {
@@ -521,22 +521,40 @@ class SceneSimulation(
     fun takeQueueNotice(): String? = queueNotice.also { queueNotice = null }
 
     /**
-     * Where [role]'s person walks to: its place, on the floor the performance is reached from; a place on furniture (inside
-     * its footprint) from the floor beside its nearest side (the clip then starts on the furniture: [play] puts them there).
+     * Where [role]'s person walks to, best first: its place, on the floor the performance is reached from; a place on
+     * furniture (inside its footprint) from the floor beside its nearest side (the clip then starts on the furniture: [play]
+     * puts them there), stepping farther out from that side ([STEP_OUT]: a bed bigger than the usual one, its frame in the
+     * way), then the other sides, then the furniture's own floor spot (where its user gets on) as the last resort.
      */
-    private fun approach(performance: Performance, role: PlaybackRole): Vec3 {
+    private fun approaches(performance: Performance, role: PlaybackRole): List<Vec3> {
         val at = rolePosition(performance, role)
-        if (performance.floorZ.isNaN()) return at
+        if (performance.floorZ.isNaN()) return listOf(at)
         val floor = at.copy(z = performance.floorZ)
-        val item = performance.furniture ?: return floor
-        if (performance.fit == null) return floor
-        val f = furniture(item) ?: return floor
+        val item = performance.furniture ?: return listOf(floor)
+        if (performance.fit == null) return listOf(floor)
+        val f = furniture(item) ?: return listOf(floor)
         val (lx, ly) = f.toLocal(at.x, at.y)
         val hx = f.spec.halfX + STEP_OFF
         val hy = f.spec.halfY + STEP_OFF
-        if (abs(lx) >= hx || abs(ly) >= hy) return floor
-        val side = if (hx - abs(lx) < hy - abs(ly)) f.toWorld(if (lx < 0f) -hx else hx, ly) else f.toWorld(lx, if (ly < 0f) -hy else hy)
-        return side.copy(z = performance.floorZ)
+        if (abs(lx) >= hx || abs(ly) >= hy) return listOf(floor)
+        val out = ArrayList<Vec3>()
+        val sx = if (lx < 0f) -1f else 1f
+        val sy = if (ly < 0f) -1f else 1f
+        val nearX = hx - abs(lx) < hy - abs(ly)
+        // the nearest side first, then the opposite long side, then the foot or head
+        val sides = if (nearX) listOf(0 to sx, 1 to sy, 1 to -sy, 0 to -sx) else listOf(1 to sy, 0 to sx, 1 to -sy, 0 to -sx)
+        for ((axis, sign) in sides) for (extra in STEP_OUT) {
+            val p = if (axis == 0) f.toWorld(sign * (hx + extra), ly) else f.toWorld(lx, sign * (hy + extra))
+            out += p.copy(z = performance.floorZ)
+        }
+        spots[item]?.entry?.let { out += it }
+        return out
+    }
+
+    /** [begin] to the first of [destinations] that can be walked to. */
+    private fun beginAny(actor: Actor, activity: Activity, destinations: List<Vec3>, directed: Boolean, target: SceneObject?): Boolean {
+        for (d in destinations) if (begin(actor, activity, d, directed, target)) return true
+        return false
     }
 
     private fun rolePosition(performance: Performance, role: PlaybackRole): Vec3 {
@@ -676,17 +694,58 @@ class SceneSimulation(
                 }
             }
         }
+        pendingInvite?.let { p -> retryInvite(p) }
         val l = life
         if (l != null && l.enabled) {
-            for (a in order) l.observe(a.index, observed(a), a.phase == Phase.MOVING, a.directed)
+            for (a in order) l.observe(a.index, observed(a), a.phase == Phase.MOVING, a.directed, a.target.takeIf { a.phase == Phase.ACTING })
             l.tick(dt, lifeWorld)
         }
     }
 
     private fun wander(actor: Actor) {
         val center = actor.wanderCenter
-        val target = center + Vec3(random.nextFloat() * 3 - 1.5f, random.nextFloat() * 2 - 1f, 0f)
+        // a few tries for a spot nobody stands on (or is walking to)
+        var target = center + Vec3(random.nextFloat() * 3 - 1.5f, random.nextFloat() * 2 - 1f, 0f)
+        for (k in 0 until 3) {
+            if (clearOfOthers(target.x, target.y, actor, null) && !onAnEntry(target.x, target.y)) break
+            target = center + Vec3(random.nextFloat() * 3 - 1.5f, random.nextFloat() * 2 - 1f, 0f)
+        }
         if (!begin(actor, Activity.IDLE, target, false)) actor.remaining = 0.8f
+    }
+
+    /** Whether nobody but [actor] and [ignore] stands within [MIN_SEPARATION] of x, y, or is walking to there. */
+    private fun clearOfOthers(x: Float, y: Float, actor: Actor, ignore: Actor?): Boolean {
+        for (o in order) {
+            if (o === actor || o === ignore) continue
+            if (hypot(o.x - x, o.y - y) < MIN_SEPARATION) return false
+            if (o.phase == Phase.MOVING) {
+                val end = o.waypoints.lastOrNull() ?: continue
+                if (hypot(end.x - x, end.y - y) < MIN_SEPARATION) return false
+            }
+        }
+        return true
+    }
+
+    /** Whether x, y is on a piece of furniture's floor spot (where its next user comes to get on). */
+    private fun onAnEntry(x: Float, y: Float): Boolean = spots.values.any { hypot(it.entry.x - x, it.entry.y - y) < MIN_SEPARATION }
+
+    /**
+     * A place to stand at or near [at] that nobody else is on: [at] itself when free (unless [aside]: then never on it, as
+     * a furniture's floor spot is for its next user), else the first free point on rings round it ([STAND_RINGS] yards out,
+     * eight ways) that is reached from [at] in one straight walk and is no other furniture's spot. [at] when none is.
+     */
+    private fun freeStand(at: Vec3, actor: Actor, ignore: Actor? = null, aside: Boolean = false): Vec3 {
+        if (!aside && clearOfOthers(at.x, at.y, actor, ignore)) return at
+        for ((ring, r) in STAND_RINGS.withIndex()) {
+            for (k in 0 until 8) {
+                val a = (k + ring * 0.5f) * (PI_F / 4f)
+                val p = Vec3(at.x + cos(a) * r, at.y + sin(a) * r, at.z)
+                if (!clearOfOthers(p.x, p.y, actor, ignore) || onAnEntry(p.x, p.y)) continue
+                if (route != null && route.invoke(at, p)?.size != 1) continue
+                return p
+            }
+        }
+        return at
     }
 
     private fun choose(actor: Actor) {
@@ -724,7 +783,20 @@ class SceneSimulation(
         release(other)
         val side = if (other.position.x > 0f) -1f else 1f
         val gap = PairFit.gap(CHAT_GAP, size(actor), size(other))
-        if (!begin(actor, Activity.CHAT, Vec3(other.x + side * gap, other.y, other.z), directed)) {
+        // the side toward the room's middle first, then round the other: a place nobody else stands on
+        var started = false
+        for (pass in 0..1) {
+            for (turn in CHAT_TURNS) {
+                val a = (if (side > 0f) 0f else PI_F) + turn
+                val x = other.x + cos(a) * gap
+                val y = other.y + sin(a) * gap
+                // first only where nobody else stands; then anywhere it can be walked to
+                if (pass == 0 && !clearOfOthers(x, y, actor, other)) continue
+                if (begin(actor, Activity.CHAT, Vec3(x, y, other.z), directed)) { started = true; break }
+            }
+            if (started) break
+        }
+        if (!started) {
             actor.remaining = 0.8f
             return false
         }
@@ -733,6 +805,8 @@ class SceneSimulation(
         other.activity = Activity.LISTEN
         other.phase = Phase.ACTING
         val words = chatter
+        // the greetings by the hour ("Morning, ..."): the life clock's (the world's when it drives it)
+        words?.hour = life?.clock?.hourOfDay ?: Double.NaN
         val said: List<ChatLine>? = lines ?: words?.conversation(actor.id, other.id, random, topic)
             ?: life?.takeIf { it.enabled }?.smallTalk(actor.index, other.index)
         if (said != null) {
@@ -757,7 +831,7 @@ class SceneSimulation(
     }
 
     /** [talk] ran to its end: both carry on (and now and then, being friends, go into a partner animation together). */
-    private fun endTalk(talk: Talk) {
+    private fun endTalk(talk: Talk, cut: Boolean = false) {
         val a = talk.a
         val b = talk.b
         release(a)
@@ -768,16 +842,27 @@ class SceneSimulation(
         if (l != null && l.enabled) {
             l.talkEnded(a.index, b.index, talk.kind, talk.refused, talk.topic)
             when {
-                talk.refused -> {}
+                talk.refused || cut -> {}
                 talk.kind == InteractionId.INVITE_SIT -> seatTogether(a, b, talk.directed)
                 !talk.directed && partnerChance > 0f && free(a) && free(b) && l.followUp(a.index, b.index) ->
                     pairUp(a, b, InteractionId.PLAY_TOGETHER, l.allowed(a.index, b.index), null, directed = false)
             }
             return
         }
-        if (!talk.directed && partnerChance > 0f && random.nextFloat() < FRIENDLY_CHANCE && free(a) && free(b) && pick(a, b)) {
+        if (!cut && !talk.directed && partnerChance > 0f && random.nextFloat() < FRIENDLY_CHANCE && free(a) && free(b) && pick(a, b)) {
             startPartner(a, b, directed = false)
         }
+    }
+
+    /**
+     * [actor] leaves the conversation they are in by themselves, saying [line] (life: a need that can't wait); one the
+     * player ordered runs on. It counts as a conversation had.
+     */
+    private fun excuseTalk(actor: Actor, line: String) {
+        val talk = actor.talk ?: return
+        if (talk.directed || !talk.conversation.started) return
+        endTalk(talk, cut = true)
+        say(actor.id, line)
     }
 
     private fun movementOrigin(actor: Actor): Vec3 =
@@ -847,7 +932,8 @@ class SceneSimulation(
         actor.performance = null
         actor.completedPerformance = null
         actor.playback = null
-        if (actor.phase == Phase.ACTING) actor.target?.let { actor.position = spots.getValue(it).entry }
+        // off the furniture onto its floor spot, or beside it when someone stands there already
+        if (actor.phase == Phase.ACTING) actor.target?.let { actor.position = freeStand(spots.getValue(it).entry, actor, aside = true) }
         actor.target = null
         actor.waypoints = emptyList()
         actor.activity = Activity.IDLE
@@ -883,6 +969,7 @@ class SceneSimulation(
             if (item in objects && available(item, order[index].id)) spots[item]?.entry else null
         override fun approachable(index: Int) = canApproach(order[index])
         override fun finish(index: Int) = finishLife(order[index])
+        override fun excuse(index: Int, line: String) = excuseTalk(order[index], line)
         override val chatterOn: Boolean get() = chatterChance > 0f
         override val pairsOn: Boolean get() = partnerChance > 0f
     }
@@ -949,10 +1036,12 @@ class SceneSimulation(
                     emoteAt(actor, plan, spot.entry, spot.facing, item, directed)
                 }
             }
-            LifeProvider.FLOOR -> if (id == InteractionId.WANDER) {
-                wander(actor)
-                true
-            } else emoteAt(actor, plan, actor.position, actor.facing, null, directed)
+            LifeProvider.FLOOR -> when (id) {
+                InteractionId.WANDER -> { wander(actor); true }
+                // a nap with nowhere to lie or sit: sat on the floor, nodding off
+                InteractionId.NAP -> emoteAt(actor, plan, actor.position, actor.facing, null, directed, LifeAnims.SIT_GROUND)
+                else -> emoteAt(actor, plan, actor.position, actor.facing, null, directed)
+            }
             LifeProvider.FIREPLACE, LifeProvider.BASIN, LifeProvider.BOOKSHELF -> {
                 val prop = plan.prop ?: return false
                 emoteAt(actor, plan, prop.entry, prop.facing, null, directed)
@@ -976,11 +1065,15 @@ class SceneSimulation(
     }
 
     /** [actor] walks to [anchor] (holding [furniture], if any) and plays [plan]'s emote there, facing [heading], its cycles over. */
-    private fun emoteAt(actor: Actor, plan: LifePlan, anchor: Vec3, heading: Float, furniture: SceneObject?, directed: Boolean): Boolean {
+    private fun emoteAt(actor: Actor, plan: LifePlan, anchor: Vec3, heading: Float, furniture: SceneObject?, directed: Boolean,
+        anim: Int = plan.id.anim): Boolean {
         val id = plan.id
-        if (id.anim < 0) return false
-        val request = PerformanceOrder(null, listOf(PlaybackRole(PlaybackKeys.emote(id.anim), Vec3(0f, 0f, 0f), 0f)),
-            id.cycle.coerceAtLeast(0.5f), repetitions = plan.cycles.coerceIn(1, 100), name = id.label)
+        if (anim < 0) return false
+        // its own emote cycles (a meal's bites); another's (a nap sat on the floor) is one long hold
+        val own = anim == id.anim && id.cycle > 0f
+        val request = PerformanceOrder(null, listOf(PlaybackRole(PlaybackKeys.emote(anim), Vec3(0f, 0f, 0f), 0f)),
+            if (own) id.cycle.coerceAtLeast(0.5f) else plan.holdSeconds.coerceAtLeast(1f),
+            repetitions = if (own) plan.cycles.coerceIn(1, 100) else 1, name = id.label)
         if (!startPerformance(actor, request, null, Setup(anchor, heading, furniture, -1, actor, directed, partner = false))) return false
         actor.lifeTag = id.ordinal
         return true
@@ -1048,11 +1141,33 @@ class SceneSimulation(
         val a = actors[aId] ?: return LifeResult(false, "Nobody to do that.")
         val b = if (bId == null) null else actors[bId] ?: return LifeResult(false, "Nobody to do that with.")
         if (id.social && b == null) return LifeResult(false, "Choose someone for ${id.label}.")
-        if (b != null && b.directed && b.performance?.partnerActivity != true) return LifeResult(false, "They're busy with something else.")
+        if (b != null && b.directed && b.performance?.partnerActivity != true) {
+            // busy with another of the player's orders: asked again as soon as they are free (for a while)
+            pendingInvite = PendingInvite(aId, b.id, id, time + INVITE_WAIT)
+            return LifeResult(false, "${l.firstName(b.index)} is busy. ${l.firstName(a.index)} will ask again in a moment.")
+        }
         val (plan, result) = l.request(a.index, b?.index ?: -1, id, lifeWorld)
         if (plan == null) return result
         if (!runLife(a, plan, directed = true)) return LifeResult(false, "Couldn't get there.")
         return result
+    }
+
+    /** The player's interaction waiting for its other to be free ([lifeInteract]), at most until [until] (seconds). */
+    private class PendingInvite(val a: String, val b: String, val id: InteractionId, val until: Float)
+    private var pendingInvite: PendingInvite? = null
+
+    private fun retryInvite(p: PendingInvite) {
+        val b = actors[p.b] ?: run { pendingInvite = null; return }
+        val l = life?.takeIf { it.enabled } ?: run { pendingInvite = null; return }
+        if (b.directed && b.performance?.partnerActivity != true) {
+            if (time > p.until) {
+                pendingInvite = null
+                queueNotice = "${l.firstName(b.index)} is still busy. Try again later."
+            }
+            return
+        }
+        pendingInvite = null
+        queueNotice = lifeInteract(p.a, p.b, p.id).message
     }
 
     /** Which of the player's menu interactions [aId] (with [bId]) can have here now. */
@@ -1154,20 +1269,31 @@ class SceneSimulation(
      * by someone else, the other is busy with an order, or it doesn't fit there.
      */
     fun partnerOn(item: SceneObject, pairId: String, id: String, otherId: String?): Boolean {
+        refusal = null
         val actor = actors[id] ?: return false
         val pair = pairs.firstOrNull { it.id == pairId } ?: return false
         fun joinable(o: Actor) = o !== actor && !(o.directed && o.performance?.partnerActivity != true)
         val other = (if (otherId != null) actors[otherId]?.takeIf(::joinable)
-            else order.filter(::joinable).minByOrNull { hypot(it.x - actor.x, it.y - actor.y) }) ?: return false
-        if (item !in objects || !freeFor(item, actor, other)) return false
-        val f = furniture(item) ?: return false
-        val r = requirementOf(pair) ?: return false
-        val fit = FurnitureFit.fit(r, f, bodyUnit(actor, other)) ?: return false
+            else order.filter(::joinable).minByOrNull { hypot(it.x - actor.x, it.y - actor.y) })
+            ?: return refuse("Nobody is free to join now. Try again in a moment.")
+        val what = item.label.lowercase()
+        if (item !in objects || !freeFor(item, actor, other)) return refuse("The $what is in use.")
+        val f = furniture(item) ?: return refuse("The $what isn't ready yet.")
+        val r = requirementOf(pair) ?: return refuse("That animation is still being read.")
+        val fit = FurnitureFit.fit(r, f, bodyUnit(actor, other)) ?: return refuse("That doesn't fit on the $what.")
         release(actor)
         release(other)
         picked = pair; pickedEmote = null; pickedFurniture = item; pickedFit = fit
-        return startPartner(actor, other, directed = true)
+        return startPartner(actor, other, directed = true) || refuse("They can't reach the $what from where they stand.")
     }
+
+    /** Why the last [partnerOn] or [performOn] was refused (for the player's notice), or null; taken once. */
+    var refusal: String? = null
+        private set
+
+    fun takeRefusal(): String? = refusal.also { refusal = null }
+
+    private fun refuse(why: String): Boolean { refusal = why; return false }
 
     /**
      * The player's Play animation on furniture for one: [id] walks to where [requirement] fits on [item] and plays [request]
@@ -1175,13 +1301,17 @@ class SceneSimulation(
      * or it doesn't fit.
      */
     fun performOn(id: String, item: SceneObject, requirement: Requirement, request: PerformanceOrder): Boolean {
+        refusal = null
         val actor = actors[id] ?: return false
-        if (request.partnerId != null || !valid(actor, request) || item !in objects || !freeFor(item, actor, null)) return false
-        val f = furniture(item) ?: return false
-        val fit = FurnitureFit.fit(requirement, f, bodyUnit(actor)) ?: return false
+        val what = item.label.lowercase()
+        if (request.partnerId != null || !valid(actor, request) || item !in objects) return false
+        if (!freeFor(item, actor, null)) return refuse("The $what is in use.")
+        val f = furniture(item) ?: return refuse("The $what isn't ready yet.")
+        val fit = FurnitureFit.fit(requirement, f, bodyUnit(actor)) ?: return refuse("That doesn't fit on the $what.")
         val role = request.roles[0].let { it.copy(offset = Vec3(0f, 0f, it.offset.z)) }
         return startPerformance(actor, request.copy(roles = listOf(role)), null,
-            Setup(Vec3(fit.x, fit.y, fit.z), fit.yaw, item, -1, actor, true, partner = false, floorZ = f.z, fit = fit))
+            Setup(Vec3(fit.x, fit.y, fit.z), fit.yaw, item, -1, actor, true, partner = false, floorZ = f.z, fit = fit)) ||
+            refuse("They can't reach the $what from where they stand.")
     }
 
     /**
@@ -1318,6 +1448,17 @@ class SceneSimulation(
         const val FRIENDLY_CHANCE = 0.2f
         /** How far beside furniture someone stands before stepping onto it (yards). */
         const val STEP_OFF = 0.35f
+        /** How much farther out from that side the next tries stand (yards: a bed bigger than the usual one). */
+        private val STEP_OUT = floatArrayOf(0f, 0.6f, 1.2f, 1.9f, 2.6f)
+        /** Nobody stands nearer another than this when it can be helped (yards). */
+        const val MIN_SEPARATION = 0.5f
+        /** The rings round a taken spot where the next one stands instead (yards). */
+        private val STAND_RINGS = floatArrayOf(0.6f, 1.0f, 1.5f)
+        /** Where round the other a talker stands (radians from the side toward the room's middle). */
+        private val CHAT_TURNS = floatArrayOf(0f, (PI_F / 4f), -(PI_F / 4f), (PI_F / 2f), -(PI_F / 2f), PI_F, (3f * PI_F / 4f), -(3f * PI_F / 4f))
+        /** Seconds the player's interaction waits for a busy other before it gives up. */
+        const val INVITE_WAIT = 20f
+        private const val PI_F = 3.1415927f
         /** Furniture farther than this from both (yards) is out of an idle pair's reach. */
         const val FURNITURE_RANGE = 10f
         /**
