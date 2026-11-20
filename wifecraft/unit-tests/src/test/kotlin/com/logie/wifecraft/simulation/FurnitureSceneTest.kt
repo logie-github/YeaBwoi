@@ -153,12 +153,17 @@ class FurnitureSceneTest {
                 val row = loc.interactions.first { it.item == piece.item }
                 // on the floor its user stands on, its surface over it at a height a body can use
                 assertEquals(row.entry.z, f.z, 0.05f, loc.id)
-                assertTrue(f.spec.surface in 0.4f..1.2f, "${loc.id} ${piece.item}: ${f.spec.surface}")
+                // (Fairbreeze's round bed is the tallest: its domed cushion 1.22 yards up at its middle, as measured)
+                assertTrue(f.spec.surface in 0.4f..1.25f, "${loc.id} ${piece.item}: ${f.spec.surface}")
                 when (piece.item) {
-                    // the bed's middle is where its user lies; its foot opposite the lying facing
+                    // the bed's middle is where its user lies (measured: its real footprint's middle, near it); its foot
+                    // opposite the lying facing, unless the measure found its head the other way round
                     "BED" -> {
-                        assertEquals(row.pose.x, f.x, 1e-3f); assertEquals(row.pose.y, f.y, 1e-3f)
-                        assertEquals(1f, kotlin.math.cos(f.yaw - row.facing - Math.PI.toFloat()), 1e-3f)
+                        val e = piece.extent
+                        if (e == null) { assertEquals(row.pose.x, f.x, 1e-3f); assertEquals(row.pose.y, f.y, 1e-3f) }
+                        else assertTrue(kotlin.math.hypot(row.pose.x - f.x, row.pose.y - f.y) < 0.6f, "${loc.id}: ${f.x}, ${f.y}")
+                        val turn = if (e != null && e.headEnd > 0) 0f else Math.PI.toFloat()
+                        assertEquals(1f, kotlin.math.cos(f.yaw - row.facing - turn), 1e-3f, loc.id)
                     }
                     // the table's front toward its reader
                     "TABLE" -> assertTrue(f.toLocal(row.entry.x, row.entry.y).first > 0f, loc.id)

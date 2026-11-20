@@ -13,7 +13,7 @@ import java.util.UUID
 class AddResult(val anim: Anim, val duplicate: Boolean, val message: String, val updated: Boolean = false)
 
 /** What [AnimLibrary.addPairResult] did, as [AddResult] for a partner animation. */
-class PairAddResult(val pair: PairAnim, val duplicate: Boolean, val message: String)
+class PairAddResult(val pair: PairAnim, val duplicate: Boolean, val message: String, val updated: Boolean = false)
 
 /** The animation library on disk: dir/<id>.json per animation (see [AnimJson]) and dir/index.json (id, name,
  *  category) for fast listing; partner animations in dir/pair_<id>.json (see [PairJson]), with their own names,
@@ -91,6 +91,15 @@ class AnimLibrary(private val dir: File) {
     /** Adds [a]: the same source (file hash and clip) already stored is skipped; a name already used gets " (2)",
      *  " (3)"...; an id that is unusable or taken is replaced. Returns the stored animation. */
     fun add(a: Anim): Anim = addResult(a).anim
+
+    /**
+     * How many stored animations and partner animations an older conversion made ([Retargeter.CONVERSION_REVISION]; files
+     * written before the revision was stamped read as 0): importing their pack again replaces them ([addResult],
+     * [addPairResult]) with their names, categories and settings kept.
+     */
+    fun stale(): Int = synchronized(state.lock) {
+        load().values.count(::isStale) + loadPairs().values.count { isStale(it.a) || isStale(it.b) }
+    }
 
     fun addResult(a: Anim): AddResult = synchronized(state.lock) {
         val map = load()
@@ -187,6 +196,13 @@ class AnimLibrary(private val dir: File) {
         val map = loadPairs()
         if (p.source.isNotBlank()) {
             val same = map.values.firstOrNull { it.source == p.source }
+            // the same two clips converted by a newer conversion: the stored one is replaced, its name, category and switch kept
+            if (same != null && p.a.conversionRevision > same.a.conversionRevision) {
+                val updated = p.copy(id = same.id, name = same.name, category = same.category, enabled = same.enabled, importedAt = same.importedAt)
+                writePair(updated)
+                map[same.id] = updated
+                return PairAddResult(updated, false, "updated ${same.name}", updated = true)
+            }
             if (same != null) return PairAddResult(same, true, "\"${p.name.trim()}\" is already in the library as \"${same.name}\" (the same two clips), skipped")
         }
         val id = if (ID.matches(p.id) && p.id !in map) p.id else newPairId(map)
@@ -292,6 +308,8 @@ class AnimLibrary(private val dir: File) {
         /** Partner animations' files: pair_<id>.json. */
         const val PAIR_PREFIX = "pair_"
         private fun pairFile(id: String) = "$PAIR_PREFIX$id.json"
+        /** Converted from a Sims clip by an older conversion than this app's (a converted clip always has a source). */
+        fun isStale(a: Anim) = a.source.isNotBlank() && a.conversionRevision < Retargeter.CONVERSION_REVISION
         private fun isAnimFile(f: File) = f.isFile && f.name.endsWith(".json") && f.name != INDEX && !f.name.startsWith(PAIR_PREFIX)
         const val DEFAULT_CATEGORY = "Imported"
         private val ID = Regex("[A-Za-z0-9_-]{1,64}")

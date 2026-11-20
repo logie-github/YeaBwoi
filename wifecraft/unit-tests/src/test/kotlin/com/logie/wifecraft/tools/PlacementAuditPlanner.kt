@@ -3,6 +3,7 @@ package com.logie.wifecraft.tools
 import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.anim.BodyGeometry
 import com.logie.wifecraft.anim.BoneTrack
+import com.logie.wifecraft.anim.FleshProfile
 import com.logie.wifecraft.anim.HumanScale
 import com.logie.wifecraft.anim.PoseFixtures
 import com.logie.wifecraft.anim.Posture
@@ -42,7 +43,9 @@ import kotlin.test.Test
  * AUDIT_OUT the output folder; AUDIT_POSES the converted poses (pose1.anim .. pose15.anim, the harness's anim text);
  * AUDIT_LOOKS the look files (human_m.look ...); AUDIT_FILES the game files; AUDIT_COUCH the couch's seat as the engine
  * measures it ("x z": engine-test/audit's `contact`), else the standard spec's; AUDIT_ROOMS which rooms (default all);
- * AUDIT_SNAP=1 everyone stood on the floor under them (the engine before Scene::kRaised: a raised clip's lift lost).
+ * AUDIT_SNAP=1 everyone stood on the floor under them (the engine before Scene::kRaised: a raised clip's lift lost);
+ * AUDIT_FLESH a folder of each body's flesh as the engine measures it (engine-test/audit's `flesh`: human_m.flesh ...), given
+ * to the simulation as the live screen gives it each dressed person's ([SceneSimulation.flesh]); without it, the generic body.
  */
 class PlacementAuditPlanner {
     private val locale = Locale.ROOT
@@ -138,6 +141,15 @@ class PlacementAuditPlanner {
         // as the app's sink: a clip raised over its floor (Pose.lift) is placed raised (Scene::kRaised, `place ... raw`);
         // AUDIT_SNAP=1: everyone stood on the floor under them, as the engine did before kRaised (the lift lost)
         val snap = System.getenv("AUDIT_SNAP") == "1"
+        // each body's own flesh (the first line of its .flesh file: the engine's floats)
+        val fleshDir = System.getenv("AUDIT_FLESH")?.let { File(it) }
+        val fleshOf: Map<String, FleshProfile> = if (fleshDir == null) emptyMap() else bodies.keys.mapNotNull { b ->
+            val f = File(fleshDir, "$b.flesh")
+            if (!f.isFile) return@mapNotNull null
+            val floats = f.readLines().first().trim().split(Regex("\\s+")).map { it.toFloat() }.toFloatArray()
+            FleshProfile.of(floats)?.let { b to it }
+        }.toMap()
+        if (fleshDir != null) println("audit plan: the flesh of ${fleshOf.keys.sorted()}")
         val couch = System.getenv("AUDIT_COUCH")?.trim()?.split(Regex("\\s+"))?.map { it.toFloat() }
         val assets = File(System.getProperty("wifecraft.assets") ?: "../android/app/src/main/assets")
         val locationsPath = File(assets, "locations.json")
@@ -224,6 +236,8 @@ class PlacementAuditPlanner {
                     emotes = if (emote >= 0) ModelEmotes { _, anim -> anim == emote } else ModelEmotes.STANDARD)
                 s.sizes = ids.associateWith { HumanScale.pairScale(raceOf.getValue(it).race, raceOf.getValue(it).female) }
                 s.bodyScales = ids.associateWith { HumanScale.bodyScale(raceOf.getValue(it).race, raceOf.getValue(it).female) }
+                s.flesh = ids.mapNotNull { id -> fleshOf[raceOf.getValue(id).look]?.let { id to it } }.toMap()
+                s.clips = { key -> key.removePrefix("single:").removePrefix("pose").toIntOrNull()?.let { pose[it] } }
                 if (withFurniture) {
                     for ((item, spot) in spots) s.setSpot(item, spot)
                     for ((item, p) in pieces) s.setFurniture(item, p)

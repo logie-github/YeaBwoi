@@ -26,7 +26,7 @@ def num(v):
     try:
         x = float(v)
         return x if x == x else None
-    except ValueError:
+    except (TypeError, ValueError):
         return None
 
 
@@ -47,7 +47,7 @@ def worst(case, rs):
     """The case's worst values over its moments, and its flags."""
     keys = dict(kv.split("=", 1) for kv in rs[0]["keys"].split(";") if "=" in kv)
     w = dict(overlap=0.0, frac=0.0, hand=0.0, pelvis=None, trunk=None, same=0, furniture=0.0, ffrac=0.0, float=None, sink=0.0,
-             t_overlap=None, t_furniture=None, region="")
+             body_sink=0.0, t_overlap=None, t_furniture=None, region="")
     for r in rs:
         t = int(r["t"])
         o = num(r["aa_body_depth"]) or 0.0
@@ -72,6 +72,8 @@ def worst(case, rs):
             if rest != "stand" and fl is not None:
                 w["float"] = fl if w["float"] is None else max(w["float"], fl)
             w["sink"] = max(w["sink"], num(r[f"sink{s}"]) or 0.0)
+            # the same leaving out what hangs off the body (a tail, a cape): informational, not a flag (older CSVs lack it)
+            w["body_sink"] = max(w["body_sink"], num(r.get(f"body_sink{s}")) or 0.0)
     flags = []
     sev = 0.0
 

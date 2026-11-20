@@ -5,6 +5,7 @@ import android.opengl.GLSurfaceView
 import android.os.SystemClock
 import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.anim.AnimArrays
+import com.logie.wifecraft.anim.FleshProfile
 import com.logie.wifecraft.anim.HumanScale
 import com.logie.wifecraft.bodyparts.ModelParts
 import com.logie.wifecraft.bodyparts.PartDraw
@@ -138,6 +139,8 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     companion object {
         /** The ghost actor's key (never a placement's). */
         const val GHOST_KEY = "ghost:"
+        /** Frames a person's flesh is tried for before it is given up ([glMeasureFlesh]). */
+        private const val FLESH_TRIES = 600
         /** How long focusOn's camera move takes (ms). */
         const val FOCUS_MS = 550
     }
@@ -164,6 +167,13 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     private val humanScales = mutableMapOf<String, Float>()
     /** Each live person's size over a human's of their sex ([HumanScale.bodyScale]: 1 at human scale, a dwarf's or gnome's own). */
     private val bodyRatios = java.util.concurrent.ConcurrentHashMap<String, Float>()
+    /** GL thread: people whose flesh is to be measured (dressed or redressed since), and the frames each has been tried. */
+    private val fleshWanted = mutableMapOf<String, Int>()
+    /** Each person's flesh as last measured ([flesh]). */
+    private val fleshes = java.util.concurrent.ConcurrentHashMap<String, FleshProfile>()
+    /** Goes up whenever a person's flesh is measured again ([flesh]). */
+    @Volatile var fleshVersion = 0L
+        private set
     /** GL thread: each key's imported animation ([playAnim]), put on its actor whenever that actor is (re)made. */
     private val poses = mutableMapOf<String, AnimArrays>()
     /** GL thread: the editor's props, by key. */
@@ -198,6 +208,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
                     d.drive(System.nanoTime())
                     applyGizmo()
                     Native.render(handle, width, height, Clock.now())
+                    glMeasureFlesh()
                     framesDrawn++
                     return
                 }
@@ -214,11 +225,35 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
                     }
                 }
                 Native.render(handle, width, height, Clock.now())
+                glMeasureFlesh()
                 framesDrawn++
             }
         })
         renderMode = RENDERMODE_CONTINUOUSLY
     }
+
+    /**
+     * GL thread, after a frame is drawn (a body's shape is made as it is drawn): one waiting person's flesh measured
+     * ([Native.actorFlesh], the engine's once per look), at most one a frame; one that can't be measured (a creature's
+     * skeleton) is given up after [FLESH_TRIES] frames and keeps the generic body's rules.
+     */
+    private fun glMeasureFlesh() {
+        if (fleshWanted.isEmpty()) return
+        val key = fleshWanted.keys.first()
+        val id = ids[key]
+        val tries = (fleshWanted[key] ?: 0) + 1
+        val profile = id?.let { FleshProfile.of(Native.actorFlesh(handle, it)) }
+        if (profile != null) { fleshes[key] = profile; fleshWanted.remove(key); fleshVersion++ }
+        else if (id == null || tries >= FLESH_TRIES) fleshWanted.remove(key)
+        else { fleshWanted.remove(key); fleshWanted[key] = tries }   // to the back: the others are tried meanwhile
+    }
+
+    /**
+     * The person [key]'s flesh as their dressed model has it ([FleshProfile]: how thick each part of them is, for the floor,
+     * seat and bed contact and a pair's spacing), or null while not measured (not dressed yet, or not a person's skeleton).
+     * Any thread; [fleshVersion] goes up when one changes.
+     */
+    fun flesh(key: String): FleshProfile? = fleshes[key]
 
     /** GL thread, a [FrameDriver] only: the camera this frame. */
     fun glCamera(ex: Float, ey: Float, ez: Float, ax: Float, ay: Float, az: Float, fov: Float) {
@@ -332,10 +367,11 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         Native.character(h, id, character)
         Native.dress(h, id, call.geosetKeys, call.geosetValues, call.layerFiles, call.layerMeta, call.tintColours, call.extraModels)
         Native.body(h, id, body.morph, body.k, body.fold)
+        if (key != GHOST_KEY) fleshWanted[key] = 0
         if (onReady != null) main.post { onReady() }
     }
 
-    override fun removeActor(key: String) = post { h, ids -> ids.remove(key)?.let { Native.removeActor(h, it) }; bodies.remove(key); sizes.remove(key); humanScales.remove(key); bodyRatios.remove(key); requestedAnimations.remove(key); actorParts.remove(key); partRaces.remove(key); modelSets.remove(key) }
+    override fun removeActor(key: String) = post { h, ids -> ids.remove(key)?.let { Native.removeActor(h, it) }; bodies.remove(key); fleshWanted.remove(key); if (fleshes.remove(key) != null) fleshVersion++; sizes.remove(key); humanScales.remove(key); bodyRatios.remove(key); requestedAnimations.remove(key); actorParts.remove(key); partRaces.remove(key); modelSets.remove(key) }
 
     /**
      * The actor [key]'s size over a human's of its sex as the live scene draws it (1 at human scale, a dwarf's or gnome's own:
@@ -359,6 +395,8 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         for (id in ids.values) Native.removeActor(h, id)
         ids.clear()
         bodies.clear()
+        fleshWanted.clear()
+        if (fleshes.isNotEmpty()) { fleshes.clear(); fleshVersion++ }
         sizes.clear()
         humanScales.clear()
         bodyRatios.clear()

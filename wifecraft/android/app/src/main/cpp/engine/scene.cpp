@@ -10,6 +10,7 @@
 
 #include "blp.h"
 #include "bodyshape.h"
+#include "flesh.h"
 #include "glutil.h"
 #include "humanscale.h"
 
@@ -744,6 +745,35 @@ void Scene::setActorScale(int id, float scale) {
 
 bool Scene::actorReady(int id) const { return actors_.count(id) > 0; }
 
+bool Scene::actorFlesh(int id, std::vector<float>& out) {
+    auto it = actors_.find(id);
+    if (it == actors_.end() || !it->second.mesh || !it->second.mesh->model) return false;
+    Actor& a = it->second;
+    if (a.body.shapeDirty) return false;   // the shape is made on the next frame
+    const M2Model& m = *a.mesh->model;
+    const bool shaped = !a.body.shaped.empty() && !a.body.indices.empty();
+    // the look: the model, its shown geosets, its shaped body
+    uint64_t key = 1469598103934665603ull;
+    auto mix = [&key](uint64_t v) { key = (key ^ v) * 1099511628211ull; };
+    mix(uint64_t(reinterpret_cast<uintptr_t>(&m)));
+    for (uint16_t g : a.geosets) mix(g);
+    mix(a.geosets.size());
+    mix(shaped ? a.body.shaped.size() : 0);
+    mix(shaped ? a.body.moved : 0);
+    mix(shaped ? a.body.indices.size() : 0);
+    for (size_t i = 0; i < a.body.morph.size(); i += 97) { uint32_t bits; std::memcpy(&bits, &a.body.morph[i], 4); mix(bits); }
+    if (key == 0) key = 1;
+    if (a.fleshKey != key) {
+        FleshMeasure f = measureFlesh(m, shaped ? a.body.shaped : m.vertices, shaped ? a.body.indices : m.indices,
+                                      shaped && !a.body.submeshes.empty() ? a.body.submeshes : m.submeshes, a.geosets);
+        a.flesh = f.ok ? f.pack() : std::vector<float>();
+        a.fleshKey = key;
+    }
+    if (a.flesh.empty()) return false;
+    out = a.flesh;
+    return true;
+}
+
 float Scene::actorStandHeight(int id) const {
     auto it = actors_.find(id);
     if (it == actors_.end()) return 0;
@@ -1241,6 +1271,10 @@ void Scene::drawCity(bool transparent) {
     glBindVertexArray(0);
 }
 
+// The tabard flap's geoset group and its depth offset (glPolygonOffset: negative is nearer the eye).
+constexpr int kTabardGroup = 12;
+constexpr float kTabardOffsetFactor = -2.0f, kTabardOffsetUnits = -32.0f;
+
 void Scene::drawModel(ModelGl& mg, const M4& world, const std::map<uint32_t, uint32_t>* overrides,
                       const std::vector<uint16_t>* geosets, unsigned boneTex, int seq, uint32_t t,
                       uint32_t now, const float tint[4], bool transparent, int texSize,
@@ -1289,7 +1323,12 @@ void Scene::drawModel(ModelGl& mg, const M4& world, const std::map<uint32_t, uin
         if (softBodyDraw_) SoftDraw::setGain(p, softGeosetGain(sm.id));
         if (blend) { glEnable(GL_BLEND); blendFor(mat.blend); glDepthMask(GL_FALSE); }
         if (mat.flags & 16) glDepthMask(GL_FALSE);
+        // A character's tabard flap (geoset group 12: 1202..1204) lies on the hips' own surface at the waist: drawn a little
+        // nearer the eye, it stays over the skin and the trousers there instead of fighting them in steps.
+        const bool flap = geosets && sm.id / 100 == kTabardGroup;
+        if (flap) { glEnable(GL_POLYGON_OFFSET_FILL); glPolygonOffset(kTabardOffsetFactor, kTabardOffsetUnits); }
         glDrawElements(GL_TRIANGLES, GLsizei(sm.indexCount), GL_UNSIGNED_INT, (void*)(size_t(sm.indexStart) * 4));
+        if (flap) { glPolygonOffset(0, 0); glDisable(GL_POLYGON_OFFSET_FILL); }
         if (blend) glDisable(GL_BLEND);
         glDepthMask(GL_TRUE);
     }

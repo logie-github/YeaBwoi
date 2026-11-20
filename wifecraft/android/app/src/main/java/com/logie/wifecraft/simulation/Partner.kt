@@ -4,7 +4,6 @@ import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.anim.AnimationChoice
 import com.logie.wifecraft.anim.ClipType
 import com.logie.wifecraft.anim.HumanScale
-import com.logie.wifecraft.anim.PERFORMANCE_SCALE
 import com.logie.wifecraft.anim.PairAnim
 import com.logie.wifecraft.story.Vec3
 import kotlin.math.atan2
@@ -78,7 +77,7 @@ class PartnerPair(
             if (choice.participantCount != 2 || !choice.playable || choice.id.startsWith(PairAnim.CHOICE_PREFIX)) return null
             val a = choice.clips[0].forPlayback() ?: return null
             val b = choice.clips[1].forPlayback() ?: return null
-            val scale = if (choice.yards) 1f else PERFORMANCE_SCALE
+            val scale = choice.roleScale
             val (ra, rb) = choice.roles
             fun slot(r: com.logie.wifecraft.anim.PerformanceRole) =
                 PartnerSlot.human(r.offset.x * scale, r.offset.y * scale, r.offset.z * scale, Math.toDegrees(r.facing.toDouble()).toFloat())

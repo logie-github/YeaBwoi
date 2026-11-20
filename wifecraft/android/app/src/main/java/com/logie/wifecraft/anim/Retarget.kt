@@ -24,7 +24,10 @@ import kotlin.math.sqrt
  * pivot to its aim's pivot) onto the Sims bind direction (bind position to the aim's, remapped): the Sims
  * bind pose lands on the WoW skeleton before the clip's motion. Per-bone flips negate rotation axis
  * components last (a fix for a bone that turns the wrong way, none by default). A position-flagged bone (the
- * root) moves by its world displacement from the bind, remapped and scaled to WoW units.
+ * root) moves by its world displacement from the bind, remapped and scaled to WoW units. A root-locked clip (its
+ * ROOT_bind left at the bind, the body moved by the pelvis's own translation keys, as many pose packs are made) has
+ * that translation folded into the root ([PELVIS]: the pelvis's local offset from its bind, turned by the root's pose),
+ * since the WoW skeleton moves through its Root alone; a root-driven clip's pelvis keys sit at the bind and add nothing.
  *
  * Bones the profile leaves out still feed the hierarchy (ROOT, ROOT_bind, twists); only mapped bones present
  * in the rig become tracks. Dropped names ([Profile.drop]) are never mapped. Keys are taken at every time any
@@ -48,6 +51,10 @@ class Retargeter(private val profile: Profile, private val rig: SimsRig?) : Reta
         val axis = profile.axisMatrix().map { it.toDouble() }.toDoubleArray()
         val mapped: List<Mapped>
         val scale: Double
+        /** The position-mapped root's rig index (-1: none) and its child the pelvis ([PELVIS]; -1: the rig has none under it). */
+        val rootIndex: Int
+        val pelvis: Int
+        val pelvisBind: DoubleArray
 
         init {
             for (i in order) {
@@ -82,6 +89,11 @@ class Retargeter(private val profile: Profile, private val rig: SimsRig?) : Reta
             val root = list.firstOrNull { it.rule.position }
             val up = V.mat(axis, root?.let { bindPos[it.index] } ?: doubleArrayOf(0.0, 0.0, 0.0))[2]
             scale = if (profile.rootHeight > 0 && up > 1e-3) profile.rootHeight / up else profile.positionScale.toDouble()
+            rootIndex = root?.index ?: -1
+            pelvis = if (rootIndex < 0) -1 else rig.bones.indices.firstOrNull { i ->
+                rig.bones[i].parent == rootIndex && rig.bones[i].name.equals(PELVIS, ignoreCase = true)
+            } ?: -1
+            pelvisBind = if (pelvis < 0) DoubleArray(3) else rig.bones[pelvis].bindPosition.map { it.toDouble() }.toDoubleArray()
         }
 
         private fun topo(): IntArray {
@@ -100,6 +112,10 @@ class Retargeter(private val profile: Profile, private val rig: SimsRig?) : Reta
             return out.toIntArray()
         }
     }
+
+    /** Model units per Sims metre of this skeleton (rootHeight over its root's bind height): the scale of the clips' root
+     *  movement, and so of an author's tuning offsets; null without a skeleton. */
+    val unitsPerMetre: Double? get() = prep?.scale
 
     override fun convert(clip: SimsClip): Anim {
         val p = prep ?: throw IllegalStateException(NEEDS_RIG)
@@ -279,7 +295,16 @@ class Retargeter(private val profile: Profile, private val rig: SimsRig?) : Reta
                 for (c in 0 until 4) o[k * 4 + c] = r[c].toFloat()
                 if (m.rule.position) {
                     // horizontal by [hScale] (a pair's shared one), vertical by this skeleton's own
-                    val raw = V.mat(p.axis, V.sub(w[m.index], p.bindPos[m.index]))
+                    var world = w[m.index]
+                    if (m.index == p.rootIndex && p.pelvis >= 0) {
+                        // a root-locked clip's body moves by its pelvis's own translation: folded into the root
+                        val pelvisTrack = pos[p.pelvis]
+                        if (pelvisTrack != null) {
+                            val pelvisLocal = sampleV3(pelvisTrack, t).let { if (bindRel) V.add(p.pelvisBind, it) else it }
+                            world = V.add(world, Q.rotate(g[m.index], V.sub(pelvisLocal, p.pelvisBind)))
+                        }
+                    }
+                    val raw = V.mat(p.axis, V.sub(world, p.bindPos[m.index]))
                     val disp = doubleArrayOf(raw[0] * hScale, raw[1] * hScale, raw[2] * p.scale)
                     val local = Q.rotate(Q.inv(parentE), disp)
                     val op = outPos.getValue(m)
@@ -305,7 +330,7 @@ class Retargeter(private val profile: Profile, private val rig: SimsRig?) : Reta
             tracks = tracks,
             source = clip.sourceKey,
             importedAt = System.currentTimeMillis(),
-            conversionRevision = 3,
+            conversionRevision = CONVERSION_REVISION,
             sourceName = clip.name,
             omittedChannels = clip.notes.isNotEmpty() || foreign > 0,
         )
@@ -346,6 +371,15 @@ class Retargeter(private val profile: Profile, private val rig: SimsRig?) : Reta
 
     companion object {
         const val MAX_KEYS = 900
+        /**
+         * The conversion's version, stamped on every converted clip ([Anim.conversionRevision]; 0: written before it was).
+         * Raised whenever a clip already in a library would convert differently: 4 folds a root-locked clip's pelvis
+         * movement into the root. The library replaces an older one when the same clip is imported again
+         * ([AnimLibrary.addResult]) and counts the older ones still there ([AnimLibrary.stale]).
+         */
+        const val CONVERSION_REVISION = 4
+        /** The Sims pelvis: a root-locked clip's movement is its translation. */
+        const val PELVIS = "b__Pelvis__"
         const val NEEDS_RIG = "Converting Sims animations needs your Sims 4 skeleton: in Options, \"Sims skeleton\", pick a package of your Sims 4 game (such as ClientFullBuild0.package) once, then import again"
     }
 }

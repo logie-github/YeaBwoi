@@ -57,6 +57,39 @@ class LibraryTest {
         assertEquals(5, lib.list().size)
     }
 
+    @Test fun anOlderConversionIsCountedAndReplacedByTheReimport() {
+        val d = tmp()
+        val lib = AnimLibrary(d)
+        val old = lib.add(anim("Lie", "h:1").copy(conversionRevision = 3))
+        lib.rename(old.id, "My lie")
+        lib.add(anim("Hand made"))   // no source: not a converted clip
+        // a file written before the revision was stamped still loads, and counts as older
+        val legacy = AnimJson.toJson(anim("Kneel", "h:2", id = "legacy1")).apply { remove("conversionRevision") }
+        File(d, "legacy1.json").writeText(legacy.toString())
+        AnimLibrary.forgetCaches()
+        val again = AnimLibrary(d)
+        assertEquals(3, again.list().size)
+        assertEquals(2, again.stale())
+        // the same clip converted again: replaces it (not skipped as already imported), its name kept
+        val r = again.addResult(anim("Lie", "h:1").copy(conversionRevision = Retargeter.CONVERSION_REVISION))
+        assertTrue(r.updated); assertFalse(r.duplicate)
+        assertEquals(old.id, r.anim.id); assertEquals("My lie", r.anim.name)
+        assertEquals(1, again.stale())
+        // the same conversion again: a duplicate, skipped
+        assertTrue(again.addResult(anim("Lie", "h:1").copy(conversionRevision = Retargeter.CONVERSION_REVISION)).duplicate)
+        // partner animations too: an older pair is replaced, its name and switch kept
+        fun pair(rev: Int) = PairAnim("", "Pair", "Partner", anim("pa", "h:a").copy(conversionRevision = rev),
+            anim("pb", "h:b").copy(conversionRevision = rev), PairOffset.ZERO, PairOffset.ZERO, true, emptySet(), emptyList(),
+            source = "h:a+h:b", importedAt = 1L)
+        val p = again.addPair(pair(3))
+        again.setPairEnabled(p.id, false)
+        assertEquals(2, again.stale())
+        val up = again.addPairResult(pair(Retargeter.CONVERSION_REVISION))
+        assertTrue(up.updated); assertEquals(p.id, up.pair.id); assertFalse(up.pair.enabled)
+        assertEquals(1, again.stale())
+        assertTrue(again.addPairResult(pair(Retargeter.CONVERSION_REVISION)).duplicate)
+    }
+
     @Test fun renameCategoryDeleteFind() {
         val d = tmp()
         val lib = AnimLibrary(d)

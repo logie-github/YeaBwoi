@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.LruCache
+import com.logie.wifecraft.characters.ImportedLooks
+import com.logie.wifecraft.characters.NamedCast
 import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.BodyCall
 import com.logie.wifecraft.creator.CardOrder
@@ -12,7 +14,6 @@ import com.logie.wifecraft.creator.CreatureLooks
 import com.logie.wifecraft.creator.DressCall
 import com.logie.wifecraft.creator.Dressing
 import com.logie.wifecraft.creator.ImportStore
-import com.logie.wifecraft.creator.LookResolver
 import com.logie.wifecraft.creator.M2Files
 import com.logie.wifecraft.creator.Overrides
 import com.logie.wifecraft.creator.Tables
@@ -42,7 +43,13 @@ import java.io.File
  * once, the most recently asked for first, and only the newest [QUEUE] wait: a fast scroll leaves behind what scrolled out.
  * Also the [scene]'s [LookSource] (its ghost's files and look). Main thread for the calls; [request]'s answer comes on it.
  */
-class Thumbs(context: Context, private val files: GameFiles, private val scene: SceneView?, private val tables: Tables) : LookSource {
+class Thumbs(
+    context: Context, private val files: GameFiles, private val scene: SceneView?, private val tables: Tables,
+    /** The user's imports (creator/ImportStore), applied to every NPC's and humanoid's picture as the live scene applies them. */
+    private val overrides: () -> Overrides = { ImportStore.current ?: Overrides.None },
+    /** The named characters: a picture of one is of her chosen look (her display, her bare or partial stand-in...). */
+    private val named: () -> NamedCast? = { null },
+) : LookSource {
     private val _errors = MutableStateFlow<String?>(null)
     /** The last picture that couldn't be made, and why. */
     val errors: StateFlow<String?> = _errors
@@ -68,8 +75,16 @@ class Thumbs(context: Context, private val files: GameFiles, private val scene: 
         scene?.looks = this
     }
 
+    /**
+     * A picture's name: its kind, asset, look and size, and for an NPC or a creature what is imported and on (a picture made
+     * before Ralia's mod was switched on is not shown after).
+     */
     private fun keyOf(kind: PlaceKind, asset: Int, size: Int, appearance: Appearance? = null): String =
-        kind.name.lowercase() + "_" + asset + (appearance?.let { "_" + Integer.toHexString(it.toJson().toString().hashCode()) } ?: "") + "_" + size
+        kind.name.lowercase() + "_" + asset + (appearance?.let { "_" + Integer.toHexString(it.toJson().toString().hashCode()) } ?: "") +
+            (if (kind == PlaceKind.PROP) "" else importsMark()) + "_" + size
+
+    /** "_i<hash>" of the imports' signature (Overrides.signature), "" when nothing is imported. */
+    private fun importsMark(): String = overrides().signature().let { if (it.isEmpty()) "" else "_i" + Integer.toHexString(it.hashCode()) }
 
     /** The picture if it is in memory now (no waiting), else null. */
     fun cached(kind: PlaceKind, asset: Int, size: Int): Bitmap? = memory.get(keyOf(kind, asset, size))
@@ -195,7 +210,7 @@ class Thumbs(context: Context, private val files: GameFiles, private val scene: 
     private val glGate = Mutex()
 
     /** A card's picture if it is in memory now. */
-    fun cachedCard(key: String): Bitmap? = memory.get(key)
+    fun cachedCard(key: String): Bitmap? = memory.get(key + importsMark())
 
     /**
      * Off the main thread: [order]'s picture (the character wearing the card's pieces, framed as TransmogCards says, around her
@@ -203,12 +218,14 @@ class Thumbs(context: Context, private val files: GameFiles, private val scene: 
      * thread) and saved; null when it couldn't be made ([errors] says why).
      */
     suspend fun card(order: CardOrder): Bitmap? {
-        memory.get(order.key)?.let { return it }
+        // named with what is imported and on, as the NPCs' pictures are
+        val name = order.key + importsMark()
+        memory.get(name)?.let { return it }
         cardDir.mkdirs()
-        val file = File(cardDir, order.key + ".png")
+        val file = File(cardDir, "$name.png")
         if (file.isFile && file.length() > 0) BitmapFactory.decodeFile(file.path)?.let {
             file.setLastModified(System.currentTimeMillis())
-            memory.put(order.key, it)
+            memory.put(name, it)
             return it
         }
         val why = { w: String -> _errors.value = "The card picture ${order.key}: $w"; null }
@@ -231,11 +248,11 @@ class Thumbs(context: Context, private val files: GameFiles, private val scene: 
         // straight (not premultiplied) ARGB, as Bitmap.createBitmap(int[]) takes it
         val bmp = Bitmap.createBitmap(pixels, 2, w, w, h, Bitmap.Config.ARGB_8888)
         runCatching {
-            val tmp = File(cardDir, order.key + ".part")
+            val tmp = File(cardDir, "$name.part")
             tmp.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
             tmp.renameTo(file)
         }.onFailure { why("its picture couldn't be saved: ${it.message ?: it}") }
-        memory.put(order.key, bmp)
+        memory.put(name, bmp)
         return bmp
     }
 
@@ -264,28 +281,33 @@ class Thumbs(context: Context, private val files: GameFiles, private val scene: 
         else -> "file $model couldn't be fetched (${lastFailure ?: "wago.tools didn't give it"})"
     }
 
+    /**
+     * A creature's (its display) or an NPC's look, the user's imports applied as the live scene applies them
+     * (characters/ImportedLooks: a named character in her chosen look, a humanoid display whose body the imports change drawn
+     * as that body), its files fetched, and the renderer's call with its Body options.
+     */
     private suspend fun look(kind: PlaceKind, asset: Int, appearance: Appearance?): LookSource.Prepared {
         val read = { id: Int -> if (files.has(id)) runCatching { files.file(id).readBytes() }.getOrNull() else null }
-        val resolved = if (kind == PlaceKind.CREATURE) {
+        val o = overrides()
+        val c = creator ?: Catalog.build(tables).also { creator = it }
+        val plan = if (kind == PlaceKind.CREATURE) {
             val r = CreatureLooks.check(tables, asset)
-            r.look ?: return LookSource.Prepared(error = "display $asset has no look: ${r.why ?: "none"}")
+            if (r.look == null) return LookSource.Prepared(error = "display $asset has no look: ${r.why ?: "none"}")
+            ImportedLooks.ofDisplay(c, tables, asset, o)
         } else {
             val a = appearance ?: return LookSource.Prepared(error = "the NPC's look isn't known")
-            val c = creator ?: Catalog.build(tables).also { creator = it }
-            LookResolver.resolve(c, tables, a, Overrides.None)
+            ImportedLooks.of(c, tables, a, named(), o)
         }
+        val resolved = plan.look
         if (resolved.model == 0) return LookSource.Prepared(error = "it has no model in the game's tables")
         fetch(resolved.needsFiles - resolved.boneFiles.toSet())
         if (!files.has(resolved.model)) return LookSource.Prepared(error = "model ${resolved.model} couldn't be fetched (${lastFailure ?: "wago.tools didn't give it"})")
         for (m in Dressing.models(resolved)) M2Files.closure(m, if (m == resolved.model) setOf(Emotes.STAND) else emptySet(), read) { fetch(it) }
-        val call: DressCall = if (kind == PlaceKind.CREATURE) CreatureLooks.call(tables, resolved) else {
-            val npc = checkNotNull(appearance)
-            val layout = Dressing.layout(checkNotNull(creator), tables, npc)
-            if (npc.gear && npc.clothing.isNotEmpty()) CreatureLooks.call(tables, resolved, layout)
-            else Dressing.call(tables, layout, resolved)
-        }
-        val character = if (kind == PlaceKind.CREATURE) CreatureLooks.isCharacter(tables, resolved) else true
-        return LookSource.Prepared(call, BodyCall.NONE, character)
+        val call: DressCall = plan.call(tables)
+        val drawn = plan.drawn
+        val body = if (drawn == null) BodyCall.NONE
+            else runCatching { Dressing.body(files.dir.parentFile!!, drawn, o.hasBody()) }.getOrDefault(BodyCall.NONE)
+        return LookSource.Prepared(call, body, plan.character)
     }
 
     override fun prepareProp(model: Int, onDone: (String?) -> Unit) {

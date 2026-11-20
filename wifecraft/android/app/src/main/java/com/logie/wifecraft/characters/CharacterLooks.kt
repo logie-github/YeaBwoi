@@ -7,6 +7,7 @@ import com.logie.wifecraft.creator.CreatureLooks
 import com.logie.wifecraft.creator.DressCall
 import com.logie.wifecraft.creator.Dressing
 import com.logie.wifecraft.creator.LookResolver
+import com.logie.wifecraft.creator.Overrides
 import com.logie.wifecraft.creator.ResolvedLook
 import com.logie.wifecraft.creator.Sex
 import com.logie.wifecraft.creator.Tables
@@ -47,6 +48,28 @@ object CharacterLooks {
             equipment = v.equipment.filterKeys { it !in NUDE_REMOVED })
     }
 
+    /**
+     * The equipment slots a [VariantKind.TABARD] variant leaves out of its outfit (ClothingSlot ids): shirt 4, chest or robe 5,
+     * legs 7. The tabard 19 stays, with the head piece 1, shoulders 3, belt 6, feet 8, wrists 9, gloves 10 and cloak 15.
+     */
+    val TABARD_REMOVED = setOf(4, 5, 7)
+
+    /** The tabard's equipment slot (ClothingSlot id). */
+    const val TABARD_SLOT = 19
+
+    /**
+     * An outfit variant's tabard one ("<key>_tabard"): its items but [TABARD_REMOVED]'s over the bare body of its own race
+     * and choices; null for a display variant (a model of its own: its armour is the model's), for a gnome woman, and for
+     * an outfit that wears no tabard.
+     */
+    fun tabard(v: CharacterVariant): CharacterVariant? {
+        if (v.kind != VariantKind.OUTFIT || v.isDisplay || v.raceId == 0) return null
+        if (v.raceId == 7 && v.sex == Sex.FEMALE) return null
+        if (TABARD_SLOT !in v.equipment) return null
+        return v.copy(key = "${v.key}_tabard", label = "${v.label}, tabard only", kind = VariantKind.TABARD,
+            equipment = v.equipment.filterKeys { it !in TABARD_REMOVED })
+    }
+
     /** What a humanoid NPC display is made of: its race, sex, kept choices and worn items (by equipment slot). */
     data class DisplayParts(val displayId: Int, val raceId: Int, val sex: Sex, val picks: Map<Int, Int>, val equipment: Map<Int, Int>)
 
@@ -75,25 +98,29 @@ object CharacterLooks {
     /** The variant's appearance for the creator's resolver; null for a display variant. */
     fun appearance(v: CharacterVariant): Appearance? {
         if (v.isDisplay || v.raceId == 0) return null
-        return if ((v.kind == VariantKind.OUTFIT || v.kind == VariantKind.NUDE) && v.equipment.isNotEmpty())
+        return if (v.kind.worn && v.equipment.isNotEmpty())
             Appearance(v.raceId, v.sex, v.picks, v.body, gear = true, clothing = v.equipment, starterClothing = false)
         else Appearance(v.raceId, v.sex, v.picks, v.body, gear = false)
     }
 
-    /** The variant's look; null when the tables can't draw it (the reason in [why]). */
-    fun resolve(c: Catalog, t: Tables, v: CharacterVariant): ResolvedLook? = check(c, t, v).first
+    /**
+     * The variant's look, the user's imports [o] applied as every dressing path applies them (ImportedLooks); null when the
+     * tables can't draw it (the reason in [why]).
+     */
+    fun resolve(c: Catalog, t: Tables, v: CharacterVariant, o: Overrides = Overrides.None): ResolvedLook? = check(c, t, v, o).first
 
-    fun why(c: Catalog, t: Tables, v: CharacterVariant): String? = check(c, t, v).second
+    fun why(c: Catalog, t: Tables, v: CharacterVariant): String? = check(c, t, v, Overrides.None).second
 
-    private fun check(c: Catalog, t: Tables, v: CharacterVariant): Pair<ResolvedLook?, String?> {
+    private fun check(c: Catalog, t: Tables, v: CharacterVariant, o: Overrides): Pair<ResolvedLook?, String?> {
         if (v.isDisplay) {
             val r = CreatureLooks.check(t, v.display)
-            return r.look to r.why
+            if (r.look == null) return null to r.why
+            return runCatching { ImportedLooks.ofDisplay(c, t, v.display, o).look }.getOrElse { return null to (it.message ?: it.toString()) } to null
         }
         val a = appearance(v) ?: return null to "no race and no display"
         if (c.model(a.raceId, a.sex) == null) return null to "race ${a.raceId} ${a.sex.name.lowercase()} isn't in the creator's catalogue"
-        val look = runCatching { LookResolver.resolve(c, t, a) }.getOrElse { return null to (it.message ?: it.toString()) }
-        return (if (v.kind == VariantKind.BARE || v.kind == VariantKind.NUDE) bare(c, t, a, look) else look) to null
+        val bare = v.kind.bare
+        return runCatching { ImportedLooks.ofBody(c, t, a, bare, o).look }.getOrElse { return null to (it.message ?: it.toString()) } to null
     }
 
     /** The renderer's call for [look] as Dresser makes it for this variant. */
@@ -107,10 +134,13 @@ object CharacterLooks {
     /**
      * [look] without the skin colour's underwear: each layer whose file is one of the Skin Color option's materials (any
      * of its choices') but isn't the body's whole-texture base (texture type 1, every section) goes, as LookResolver does
-     * for an undead skin that brings no underwear of its own.
+     * for an undead skin that brings no underwear of its own. With the user's imports [o], the imported file that stands for
+     * one of them (Ralia's underwear) goes as well.
      */
-    fun bare(c: Catalog, t: Tables, a: Appearance, look: ResolvedLook): ResolvedLook {
-        val files = skinColorFiles(c, t, a)
+    fun bare(c: Catalog, t: Tables, a: Appearance, look: ResolvedLook, o: Overrides = Overrides.None): ResolvedLook {
+        val retail = skinColorFiles(c, t, a)
+        val female = a.sex == Sex.FEMALE
+        val files = if (o.hasRalia()) retail + retail.map { o.texture(it, female) } else retail
         if (files.isEmpty()) return look.copy(diagnostics = look.diagnostics + "Bare: the race has no Skin Color option; its underwear stays")
         val keep = look.layers.filter { l -> l.fileId !in files || (l.textureType == 1 && l.region == -1) }
         val gone = look.layers.size - keep.size

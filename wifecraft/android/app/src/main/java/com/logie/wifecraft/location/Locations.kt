@@ -110,7 +110,8 @@ data class LocationInfo(
                     val row = arr.optJSONObject(i) ?: continue
                     val at = vec(row.optJSONArray("position")) ?: continue
                     furniture += FurniturePiece(row.optString("object"), row.optString("kind"), at,
-                        row.optDouble("yaw", 0.0).toFloat(), row.optDouble("surface", 0.0).toFloat())
+                        row.optDouble("yaw", 0.0).toFloat(), row.optDouble("surface", 0.0).toFloat(),
+                        FurnitureExtent.parse(row.optJSONObject("extent")))
                 }
             }
             val id = e.getString("id")
@@ -127,9 +128,66 @@ data class LocationInfo(
  * CHAIR, TABLE: the scene object it is), its [kind] (simulation/FurnitureKind: BED_DOUBLE, CHAIR, TABLE...), [position] its
  * middle on the floor it stands on (the location's frame, yards), [yaw] its front's direction (radians: a bed's foot, the
  * way a sitter faces, the side a table is used from) and [surface] its bed's, seat's or top's height over that floor (yards;
- * 0: the kind's usual).
+ * 0: the kind's usual); [extent] its measured size and shape, when measured.
  */
-data class FurniturePiece(val item: String, val kind: String, val position: Vec3, val yaw: Float, val surface: Float)
+data class FurniturePiece(
+    val item: String, val kind: String, val position: Vec3, val yaw: Float, val surface: Float,
+    /** Its real size and shape measured on its model (locations.json "extent"); null: not measured, the kind's usual. */
+    val extent: FurnitureExtent? = null,
+)
+
+/** A rectangle of a piece's own frame (x its front, y its left; yards). */
+data class PieceRect(val minX: Float, val maxX: Float, val minY: Float, val maxY: Float) {
+    val midX: Float get() = (minX + maxX) / 2
+    val midY: Float get() = (minY + maxY) / 2
+    val lengthX: Float get() = maxX - minX
+    val widthY: Float get() = maxY - minY
+    fun shifted(dx: Float, dy: Float) = PieceRect(minX + dx, maxX + dx, minY + dy, maxY + dy)
+    fun overlaps(o: PieceRect) = minX < o.maxX && o.minX < maxX && minY < o.maxY && o.minY < maxY
+}
+
+/** A part of a piece standing in [rect] up to [top] over its floor (yards). */
+data class PiecePart(val rect: PieceRect, val top: Float)
+
+/**
+ * A furniture piece's real extent (locations.json "extent", engine-test/furniture_measure on the piece's model as the engine
+ * places it), in the row's own frame (x its front, y its left, z up from its floor; yards): its footprint [box] and
+ * [height]; the [surface] people rest on (a bed's mattress, a seat, a table's top) at [surfaceTop]; a bed's [headEnd] along
+ * x (-1 its back, as the row's yaw has it; +1 its front: the row's yaw is the wrong way round; 0 can't say); its solid
+ * [parts] standing over the surface (a headboard, a footboard, posts, a chair's back and arms), the [rises] in the surface
+ * that are lain on (a bolster) and the free room beside each [sides] ("front", "back", "left", "right"; at most 1.2).
+ */
+data class FurnitureExtent(
+    val box: PieceRect, val height: Float, val surface: PieceRect, val surfaceTop: Float,
+    val headEnd: Int = 0, val parts: List<PiecePart> = emptyList(), val rises: List<PiecePart> = emptyList(),
+    val sides: Map<String, Float> = emptyMap(),
+) {
+    /** The free room beside [side] ("front", "back", "left", "right"); unmeasured: as much as is asked of it. */
+    fun free(side: String): Float = sides[side] ?: Float.MAX_VALUE
+
+    companion object {
+        private fun rect(a: JSONArray?): PieceRect? = if (a == null || a.length() < 4) null else
+            PieceRect(a.getDouble(0).toFloat(), a.getDouble(1).toFloat(), a.getDouble(2).toFloat(), a.getDouble(3).toFloat())
+
+        private fun parts(a: JSONArray?): List<PiecePart> = if (a == null) emptyList() else (0 until a.length()).mapNotNull { i ->
+            val p = a.optJSONArray(i) ?: return@mapNotNull null
+            if (p.length() < 5) null else PiecePart(requireNotNull(rect(p)), p.getDouble(4).toFloat())
+        }
+
+        /** A row's "extent", or null when it has none or it can't be read (the row then keeps the kind's usual shape). */
+        fun parse(o: JSONObject?): FurnitureExtent? {
+            if (o == null) return null
+            val box = rect(o.optJSONArray("box")) ?: return null
+            val surface = rect(o.optJSONArray("surfaceRect")) ?: return null
+            val top = o.optDouble("surfaceTop", Double.NaN).toFloat()
+            if (top.isNaN() || box.lengthX <= 0f || box.widthY <= 0f || surface.lengthX <= 0f || surface.widthY <= 0f) return null
+            val sides = LinkedHashMap<String, Float>()
+            o.optJSONObject("sides")?.let { sd -> for (k in sd.keys()) sides[k] = sd.getDouble(k).toFloat() }
+            return FurnitureExtent(box, o.optDouble("height", top.toDouble()).toFloat(), surface, top,
+                o.optInt("headEnd", 0).coerceIn(-1, 1), parts(o.optJSONArray("parts")), parts(o.optJSONArray("rises")), sides)
+        }
+    }
+}
 
 /**
  * What a WMO root names beside itself, read from its chunks (as cpp engine/wmo.cpp reads them): its groups' files (GFID,

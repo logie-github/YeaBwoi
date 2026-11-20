@@ -4,7 +4,10 @@ import com.logie.wifecraft.anim.ActorRequirement
 import com.logie.wifecraft.anim.Posture
 import com.logie.wifecraft.anim.Requirement
 import com.logie.wifecraft.anim.Surface
+import com.logie.wifecraft.location.FurnitureExtent
 import com.logie.wifecraft.location.FurniturePiece
+import com.logie.wifecraft.location.PiecePart
+import com.logie.wifecraft.location.PieceRect
 import com.logie.wifecraft.story.Vec3
 import kotlin.math.PI
 import kotlin.math.abs
@@ -44,7 +47,11 @@ enum class FurnitureKind(val label: String) {
 /** A place a body takes ([postures]) at [x], [y] (object frame), facing [yaw], resting at [height] over the floor. */
 data class FurnitureSlot(val name: String, val x: Float, val y: Float, val yaw: Float, val height: Float, val postures: Set<Posture>)
 
-/** A rectangle bodies may rest on at [height] with one of [postures]; [solid]: nothing stands under it (a bed, not a table). */
+/**
+ * A rectangle bodies may rest on at [height] with one of [postures]; [solid]: nothing stands under it (a bed, not a table).
+ * One with no [postures] is a solid part nobody rests on (a headboard, a bedpost, a chair's arm): feet and the ends of a
+ * lying body keep out of it.
+ */
 data class FurnitureRegion(
     val name: String, val minX: Float, val maxX: Float, val minY: Float, val maxY: Float, val height: Float,
     val postures: Set<Posture>, val solid: Boolean = true,
@@ -166,6 +173,126 @@ class FurnitureSpec(
                     ), k)
             }
         }
+
+        /** A bed this wide (yards) or wider takes two lying side by side; a narrower one, one (or two head to foot). */
+        const val DOUBLE_WIDTH_YARDS = 1.3f
+        /** A side with less free room than this (yards) has no standing, sitting or leaning places on it. */
+        const val FREE_SIDE_YARDS = 0.45f
+
+        /**
+         * [kind] as [e] measured it (FurnitureExtent: a bed's real mattress, a chair's seat, a table's top, the solid parts
+         * standing over them and the room beside each side) in a scene of [unitsPerMetre] world units to a metre. [e] is in
+         * yards in the piece's frame with its footprint centred on 0, 0 and a bed's head toward -x ([Furniture.of] makes it
+         * so). The places on it are the usual ones moved to its real edges: a bed's sits on the mattress's real edges (the
+         * hips just in from the edge, the legs over the side), its lying places from the head end, side by side only on a
+         * bed [DOUBLE_WIDTH_YARDS] wide or more; a chair's seat from the seat's real front; the places beside it only on
+         * sides with room ([FREE_SIDE_YARDS]); its solid parts become regions nobody rests on.
+         */
+        fun measured(kind: FurnitureKind, e: FurnitureExtent, unitsPerMetre: Float = YARDS_PER_METRE): FurnitureSpec {
+            if (kind == FurnitureKind.FLOOR) return standard(kind, unitsPerMetre)
+            val k = unitsPerMetre
+            val u = k / YARDS_PER_METRE                                   // yards to world units
+            fun m(v: Double) = (v * k).toFloat()
+            fun r(v: Float) = v * u
+            val box = e.box; val sf = e.surface
+            val h = r(e.surfaceTop)
+            val hx = r(box.lengthX) / 2; val hy = r(box.widthY) / 2
+            val sx0 = r(sf.minX); val sx1 = r(sf.maxX); val sy0 = r(sf.minY); val sy1 = r(sf.maxY)
+            val smx = (sx0 + sx1) / 2; val smy = (sy0 + sy1) / 2
+            fun free(side: String) = e.free(side) >= FREE_SIDE_YARDS
+            fun s(name: String, x: Float, y: Float, yaw: Float, height: Float, p: Set<Posture>) = FurnitureSlot(name, x, y, yaw, height, p)
+            val frames = e.parts.mapIndexed { i, part ->
+                FurnitureRegion("frame$i", r(part.rect.minX), r(part.rect.maxX), r(part.rect.minY), r(part.rect.maxY), r(part.top), emptySet())
+            }
+            val beside = ArrayList<FurnitureSlot>()
+            return when (kind) {
+                FurnitureKind.BED_DOUBLE, FurnitureKind.BED_SINGLE -> {
+                    val inset = m(0.2)                                     // a sitter's hips in from the mattress's edge
+                    val wide = sf.widthY >= DOUBLE_WIDTH_YARDS
+                    // the pelvis: the head past the pillows (1.4 m from the head end: nearer, the audit found heads in them)
+                    val lieX = minOf(sx0 + m(1.4), smx)
+                    val apart = minOf(m(0.4), (sy1 - sy0) / 2 - m(0.35))
+                    val lies = ArrayList<FurnitureSlot>()
+                    lies += s("lie_middle", lieX, smy, TURN, h, LIE)
+                    if (wide && apart > m(0.15)) {
+                        lies.add(0, s("lie_right", lieX, smy - apart, TURN, h, LIE))
+                        lies.add(0, s("lie_left", lieX, smy + apart, TURN, h, LIE))
+                    }
+                    val kneel = setOf(Posture.KNEEL, Posture.ALL_FOURS, Posture.CROUCH)
+                    val slots = ArrayList<FurnitureSlot>(lies)
+                    slots += s("kneel_middle", minOf(lieX + m(0.2), smx), smy, TURN, h, kneel)
+                    slots += s("kneel_foot", maxOf(sx1 - m(0.55), sx0 + m(0.3)), smy, 0f, h, kneel)
+                    // the foot's edge is sat on only without a footboard or posts along it
+                    val footBlocked = e.parts.any { p -> r(p.rect.maxX) > sx1 - m(0.1) && r(p.rect.minX) < hx + 0.01f &&
+                        minOf(r(p.rect.maxY), sy1) - maxOf(r(p.rect.minY), sy0) > 0.3f * (sy1 - sy0) }
+                    if (free("left")) slots += s("sit_left", smx, sy1 - inset, HALF_PI, h, setOf(Posture.SIT))
+                    if (free("right")) slots += s("sit_right", smx, sy0 + inset, -HALF_PI, h, setOf(Posture.SIT))
+                    if (free("front") && !footBlocked) slots += s("sit_foot", sx1 - inset, smy, 0f, h, setOf(Posture.SIT))
+                    slots += s("lean_foot", sx1 - m(0.15), smy, TURN, h, setOf(Posture.LEAN))
+                    slots += s("lean_left", smx, sy1 - m(0.15), -HALF_PI, h, setOf(Posture.LEAN))
+                    slots += s("lean_right", smx, sy0 + m(0.15), HALF_PI, h, setOf(Posture.LEAN))
+                    if (free("left")) beside += s("floor_left", smx, hy + m(0.4), -HALF_PI, 0f, BESIDE)
+                    if (free("right")) beside += s("floor_right", smx, -(hy + m(0.4)), HALF_PI, 0f, BESIDE)
+                    if (free("front")) beside += s("floor_foot", hx + m(0.4), smy, TURN, 0f, BESIDE)
+                    FurnitureSpec(kind, hx, hy, r(e.height),
+                        listOf(FurnitureRegion("bed", sx0, sx1, sy0, sy1, h, ON_BED)) + frames, slots + beside, k)
+                }
+                FurnitureKind.COUCH -> {
+                    val seatX = maxOf(sx1 - m(0.27), sx0 + m(0.15))
+                    val side = maxOf(0f, (sy1 - sy0) / 2 - m(0.35))
+                    val slots = ArrayList<FurnitureSlot>()
+                    slots += s("seat_middle", seatX, smy, 0f, h, setOf(Posture.SIT))
+                    if (side > m(0.3)) { slots += s("seat_left", seatX, smy + side, 0f, h, setOf(Posture.SIT)); slots += s("seat_right", seatX, smy - side, 0f, h, setOf(Posture.SIT)) }
+                    slots += s("lie", (sx0 + sx1) / 2, smy, HALF_PI, h, LIE)
+                    slots += s("kneel_seat", (sx0 + sx1) / 2, smy, TURN, h, setOf(Posture.KNEEL, Posture.ALL_FOURS))
+                    val back = e.parts.filter { r(it.rect.maxX) <= sx0 + m(0.1) }.maxByOrNull { it.rect.widthY }
+                    val regions = ArrayList<FurnitureRegion>()
+                    regions += FurnitureRegion("seat", sx0, sx1, sy0, sy1, h, LIE + setOf(Posture.SIT, Posture.KNEEL, Posture.ALL_FOURS, Posture.CROUCH))
+                    if (back != null) {
+                        regions += FurnitureRegion("back", r(back.rect.minX), r(back.rect.maxX), r(back.rect.minY), r(back.rect.maxY), h + m(0.4), setOf(Posture.LEAN))
+                        slots += s("lean_back", r(back.rect.midX), smy, 0f, h + m(0.4), setOf(Posture.LEAN))
+                    }
+                    if (free("front")) {
+                        beside += s("floor_front", hx + m(0.5), smy, TURN, 0f, BESIDE)
+                        if (side > m(0.3)) { beside += s("floor_front_left", hx + m(0.5), smy + side, TURN, 0f, BESIDE); beside += s("floor_front_right", hx + m(0.5), smy - side, TURN, 0f, BESIDE) }
+                    }
+                    FurnitureSpec(kind, hx, hy, r(e.height), regions + frames.filter { f -> back == null || f.minX != r(back.rect.minX) || f.minY != r(back.rect.minY) }, slots + beside, k)
+                }
+                FurnitureKind.CHAIR -> {
+                    // the pelvis a little in from the seat's front (the knees past its edge, the shins clear of it: the audit's
+                    // sits put their feet in a deeper seat), never off its back
+                    val seatX = maxOf(sx1 - m(0.12), sx0 + m(0.15))
+                    val slots = ArrayList<FurnitureSlot>()
+                    slots += s("seat", seatX, smy, 0f, h, setOf(Posture.SIT))
+                    val back = e.parts.filter { r(it.rect.maxX) <= seatX }.maxByOrNull { it.rect.widthY * (it.top - e.surfaceTop) }
+                    val regions = ArrayList<FurnitureRegion>()
+                    regions += FurnitureRegion("seat", sx0, sx1, sy0, sy1, h, setOf(Posture.SIT))
+                    if (back != null) {
+                        regions += FurnitureRegion("back", r(back.rect.minX), r(back.rect.maxX), r(back.rect.minY), r(back.rect.maxY), h + m(0.45), setOf(Posture.LEAN))
+                        slots += s("lean_back", r(back.rect.midX), smy, 0f, h + m(0.45), setOf(Posture.LEAN))
+                    }
+                    if (free("front")) beside += s("floor_front", hx + m(0.5), smy, TURN, 0f, BESIDE)
+                    if (free("left")) beside += s("floor_left", seatX, hy + m(0.4), -HALF_PI, 0f, BESIDE)
+                    if (free("right")) beside += s("floor_right", seatX, -(hy + m(0.4)), HALF_PI, 0f, BESIDE)
+                    FurnitureSpec(kind, hx, hy, r(e.height), regions + frames.filter { f -> back == null || f.minX != r(back.rect.minX) || f.minY != r(back.rect.minY) }, slots + beside, k)
+                }
+                FurnitureKind.TABLE, FurnitureKind.COUNTER -> {
+                    val table = kind == FurnitureKind.TABLE
+                    val slots = listOf(
+                        s("lean_front", sx1 - m(0.15), smy, TURN, h, setOf(Posture.LEAN)),
+                        s("sit_front", sx1 - m(0.15), smy, 0f, h, setOf(Posture.SIT_ON_SURFACE, Posture.SIT)),
+                        s("lie_top", smx, smy, HALF_PI, h, LIE),
+                        s("kneel_top", smx, smy, TURN, h, setOf(Posture.KNEEL, Posture.ALL_FOURS)),
+                    )
+                    if (free("front")) beside += s("floor_front", hx + m(0.4), smy, TURN, 0f, BESIDE)
+                    if (free("left")) beside += s("floor_left", smx, hy + m(0.35), -HALF_PI, 0f, BESIDE)
+                    if (free("right")) beside += s("floor_right", smx, -(hy + m(0.35)), HALF_PI, 0f, BESIDE)
+                    FurnitureSpec(kind, hx, hy, maxOf(h, r(e.height)),
+                        listOf(FurnitureRegion("top", sx0, sx1, sy0, sy1, h, ON_TOP, solid = !table)) + frames, slots + beside, k)
+                }
+                FurnitureKind.FLOOR -> standard(kind, unitsPerMetre)
+            }
+        }
     }
 }
 
@@ -190,6 +317,13 @@ class Furniture(val id: String, val spec: FurnitureSpec, val x: Float, val y: Fl
     fun bounds(): Pair<Vec3, Vec3> {
         val pts = listOf(-1f to -1f, -1f to 1f, 1f to -1f, 1f to 1f).map { (a, b) -> toWorld(a * spec.halfX, b * spec.halfY) }
         return Vec3(pts.minOf { it.x }, pts.minOf { it.y }, z) to Vec3(pts.maxOf { it.x }, pts.maxOf { it.y }, z + spec.top)
+    }
+
+    /** Its main surface's box in the world (a bed's mattress, a seat, a top), floor to surface; its whole box without one. */
+    fun surfaceBounds(): Pair<Vec3, Vec3> {
+        val r = spec.regions.firstOrNull() ?: return bounds()
+        val pts = listOf(r.minX to r.minY, r.minX to r.maxY, r.maxX to r.minY, r.maxX to r.maxY).map { (a, b) -> toWorld(a, b) }
+        return Vec3(pts.minOf { it.x }, pts.minOf { it.y }, z) to Vec3(pts.maxOf { it.x }, pts.maxOf { it.y }, z + r.height)
     }
 
     companion object {
@@ -225,9 +359,43 @@ class Furniture(val id: String, val spec: FurnitureSpec, val x: Float, val y: Fl
         fun of(piece: FurniturePiece, toLocal: (Vec3) -> Vec3 = { it }, rotation: Float = 0f,
                unitsPerMetre: Float = FurnitureSpec.YARDS_PER_METRE): Furniture? {
             val kind = FurnitureKind.of(piece.kind) ?: return null
-            val at = toLocal(piece.position)
-            return Furniture(piece.item, FurnitureSpec.standard(kind, unitsPerMetre, piece.surface.takeIf { it > 0f }),
-                at.x, at.y, at.z, piece.yaw + rotation)
+            val e = piece.extent?.takeIf { kind != FurnitureKind.FLOOR }
+            if (e == null) {
+                val at = toLocal(piece.position)
+                return Furniture(piece.item, FurnitureSpec.standard(kind, unitsPerMetre, piece.surface.takeIf { it > 0f }),
+                    at.x, at.y, at.z, piece.yaw + rotation)
+            }
+            // measured: a bed whose head the measure found at the row's front is turned round (its head toward -x, as
+            // every bed's slots have it), and the piece stands at its footprint's middle
+            val turned = kind.bed && e.headEnd > 0
+            val n = if (turned) turnedRound(e) else e
+            val cx = n.box.midX; val cy = n.box.midY
+            val yaw = piece.yaw + if (turned) PI.toFloat() else 0f
+            val c = cos(yaw); val s = sin(yaw)
+            val p = piece.position
+            val at = toLocal(Vec3(p.x + cx * c - cy * s, p.y + cx * s + cy * c, p.z))
+            return Furniture(piece.item, FurnitureSpec.measured(kind, centred(n, -cx, -cy), unitsPerMetre), at.x, at.y, at.z, wrap(yaw + rotation))
+        }
+
+        /** [e] seen from the other end (its frame turned half round: x and y both reversed, front and back, left and right). */
+        internal fun turnedRound(e: FurnitureExtent): FurnitureExtent {
+            fun t(rc: PieceRect) = PieceRect(-rc.maxX, -rc.minX, -rc.maxY, -rc.minY)
+            fun tp(p: PiecePart) = PiecePart(t(p.rect), p.top)
+            val swap = mapOf("front" to "back", "back" to "front", "left" to "right", "right" to "left")
+            return e.copy(box = t(e.box), surface = t(e.surface), headEnd = -e.headEnd, parts = e.parts.map(::tp), rises = e.rises.map(::tp),
+                sides = e.sides.mapKeys { (key, _) -> swap[key] ?: key })
+        }
+
+        /** [e] moved [dx], [dy] in its own frame. */
+        internal fun centred(e: FurnitureExtent, dx: Float, dy: Float): FurnitureExtent =
+            e.copy(box = e.box.shifted(dx, dy), surface = e.surface.shifted(dx, dy),
+                parts = e.parts.map { PiecePart(it.rect.shifted(dx, dy), it.top) }, rises = e.rises.map { PiecePart(it.rect.shifted(dx, dy), it.top) })
+
+        private fun wrap(a: Float): Float {
+            var x = a % (2 * PI).toFloat()
+            if (x > PI) x -= (2 * PI).toFloat()
+            if (x < -PI) x += (2 * PI).toFloat()
+            return x
         }
 
         /**
@@ -322,10 +490,12 @@ data class FurnitureFit(
                             if (!over(f, land, hx, hy, k) || !over(f, land, fx, fy, k)) { ok = false; break }
                         }
                         // a seated body's shins hang below its seat: its feet must be off the solid it sits on (a sit on a
-                        // bed takes its edge, not its middle, where the shins went into the mattress)
+                        // bed takes its edge, not its middle, where the shins went into the mattress), and out of its
+                        // solid parts (a footboard, a chair's arm)
                         if (b.posture == Posture.SIT && land.region?.solid == true) {
                             val (fx, fy) = place(b.feetX, b.feetY)
                             if (land.region.contains(fx, fy, -0.1f * k)) { ok = false; break }
+                            if (f.spec.regions.any { it.postures.isEmpty() && it.height > land.height && it.contains(fx, fy, -0.03f * k) }) { ok = false; break }
                         }
                         if (b.feetOnFloor) {
                             if (abs(lift) > tol) { ok = false; break }
@@ -368,9 +538,13 @@ data class FurnitureFit(
             return Land("floor", 0f, abs(z), null)
         }
 
-        /** Whether a lying body's end at [x], [y] is over the surface it lies on (the floor: not inside a solid piece). */
+        /**
+         * Whether a lying body's end at [x], [y] is over the surface it lies on (the floor: not inside a solid piece) and not
+         * in a solid part standing over it (a headboard, a footboard, a post).
+         */
         private fun over(f: Furniture, land: Land, x: Float, y: Float, k: Float): Boolean {
             val r = land.region ?: return f.spec.regions.none { it.solid && it.height > 0.2f * k && it.contains(x, y, -0.15f * k) }
+            if (f.spec.regions.any { it.postures.isEmpty() && it.height > r.height + 0.1f * k && it.contains(x, y, -0.03f * k) }) return false
             return r.contains(x, y, OVERHANG_M * k)
         }
 

@@ -47,6 +47,7 @@ fun AnimLibraryScreen(library: AnimLibrary, onImport: () -> Unit, onBack: () -> 
     // read and sorted once per change of the library, not on every letter typed in the search
     val all = remember(rev) { library.list() }
     val allPairs = remember(rev) { library.pairs() }
+    val staleNotice = remember(rev) { AnimBrowse.staleNotice(library.stale()) }
     val pairCats = remember(allPairs) { PairBrowse.categories(allPairs) }
     val cats = remember(all) { AnimBrowse.categories(all) }
     if (category != null && (if (partner) pairCats else cats).none { it.first.equals(category, true) }) category = null
@@ -69,6 +70,8 @@ fun AnimLibraryScreen(library: AnimLibrary, onImport: () -> Unit, onBack: () -> 
     }
     EditorFrame("Animations", onBack, actions = { SmallButton("Import", onImport, width = 110.dp) }) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // clips an older conversion made: said plainly, with how to update them
+            staleNotice?.let { Text(it, style = frizStyle(13.sp, WowColors.gold, false), modifier = Modifier.padding(horizontal = 4.dp)) }
             // the two tabs: single animations, and partner animations (shown once there is one)
             if (allPairs.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 EditorCard(onClick = { if (partner) { partner = false; category = null } }, modifier = Modifier.weight(1f), selected = !partner) {

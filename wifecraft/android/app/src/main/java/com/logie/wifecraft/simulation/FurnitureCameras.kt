@@ -53,6 +53,8 @@ object FurnitureCameras {
     const val MAX_DISTANCE = 8f
     /** Room the framing leaves around the people and furniture (world units). */
     const val PADDING = 0.25f
+    /** With people on it, how much of the furniture round them is framed (world units). */
+    const val NEAR = 0.8f
 
     /** The views each kind offers, with their direction in the furniture's frame (radians from its front) and pitch. */
     fun views(kind: FurnitureKind): List<Triple<FurnitureView, Float, Float>> {
@@ -77,14 +79,21 @@ object FurnitureCameras {
     fun presets(
         f: Furniture, people: List<Vec3>, room: RoomBounds? = null, clearance: CameraClearance? = null, fov: Float = FOV,
     ): List<FurniturePreset> {
-        val (fmin, fmax) = f.bounds()
-        // what is framed: the people (padded by a body's width), the furniture's surface; looked at: the people's middle
+        // what is framed: the people (padded by a body's width), the furniture's surface (its real stretch where it was
+        // measured: a bed's mattress, not its canopy's posts), and with people on it only the part of it near them (a
+        // big inn bed would leave them small in the frame); looked at: the people's middle
         val pts = ArrayList<Vec3>()
         for (p in people) {
             pts += Vec3(p.x - PADDING, p.y - PADDING, p.z - PADDING); pts += Vec3(p.x + PADDING, p.y + PADDING, p.z + PADDING)
         }
         val surfaceZ = f.z + f.spec.surface
-        pts += Vec3(fmin.x, fmin.y, f.z); pts += Vec3(fmax.x, fmax.y, max(surfaceZ, f.z + 0.3f))
+        val (fmin, fmax) = f.surfaceBounds()
+        var lx = fmin.x; var ly = fmin.y; var hx = fmax.x; var hy = fmax.y
+        if (people.isNotEmpty()) {
+            lx = max(lx, people.minOf { it.x } - NEAR); ly = max(ly, people.minOf { it.y } - NEAR)
+            hx = min(hx, people.maxOf { it.x } + NEAR); hy = min(hy, people.maxOf { it.y } + NEAR)
+        }
+        if (lx <= hx && ly <= hy) { pts += Vec3(lx, ly, f.z); pts += Vec3(hx, hy, max(surfaceZ, f.z + 0.3f)) }
         val lo = Vec3(pts.minOf { it.x }, pts.minOf { it.y }, pts.minOf { it.z })
         val hi = Vec3(pts.maxOf { it.x }, pts.maxOf { it.y }, pts.maxOf { it.z })
         val at = if (people.isNotEmpty()) Vec3(people.map { it.x }.average().toFloat(), people.map { it.y }.average().toFloat(),

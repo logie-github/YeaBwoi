@@ -10,14 +10,15 @@ import com.logie.wifecraft.editor.Actor
  * The named characters (assets/characters.json) as NPCs of the scene's roster, each with a variant picker. Pure JVM.
  *
  * A character's choices ([choices]): her listed variants in the file's order (outfits, the undressed kinds, the listed
- * "<outfit>_nude" ones), the nude ones [CharacterLooks.nude] makes of an outfit that has none listed, and for each outfit
+ * "<outfit>_nude" and "<outfit>_tabard" ones), the nude and tabard ones [CharacterLooks.nude] and [CharacterLooks.tabard]
+ * make of an outfit that has none listed, and for each outfit
  * that assets/model_parts.json cuts a set from, "<outfit>_partial": her stand-in's bare body wearing the pieces of her own
  * model ([ModelParts]). A choice that can't be drawn is simply not listed (Alexstrasza's Dragonflight model has no set:
  * no partial; Chromie has her outfit only).
  */
 class NamedCast(val characters: List<Character>, val manifest: ModelParts.Manifest? = null) {
     /** What one choice draws. */
-    enum class Kind { OUTFIT, UNDERWEAR, BARE, NUDE, PARTIAL }
+    enum class Kind { OUTFIT, UNDERWEAR, BARE, NUDE, TABARD, PARTIAL }
 
     /**
      * One choice of a character's: [variant] the variant drawn (for [Kind.PARTIAL] the stand-in's bare one), [set] the
@@ -26,7 +27,7 @@ class NamedCast(val characters: List<Character>, val manifest: ModelParts.Manife
     data class Choice(val key: String, val label: String, val kind: Kind, val variant: CharacterVariant, val set: ModelParts.PartSet? = null) {
         val display: Int get() = if (kind != Kind.PARTIAL && variant.isDisplay) variant.display else 0
         /** Drawn without the skin colour's underwear (CharacterLooks.bare after the look is resolved). */
-        val bare: Boolean get() = kind == Kind.BARE || kind == Kind.NUDE || kind == Kind.PARTIAL && variant.kind == VariantKind.BARE
+        val bare: Boolean get() = kind == Kind.BARE || kind == Kind.NUDE || kind == Kind.TABARD || kind == Kind.PARTIAL && variant.kind == VariantKind.BARE
     }
 
     fun character(id: String): Character? = characters.firstOrNull { it.id == id }
@@ -39,6 +40,9 @@ class NamedCast(val characters: List<Character>, val manifest: ModelParts.Manife
             add(Choice(v.key, v.label, kindOf(v), v))
             if (v.kind == VariantKind.OUTFIT) CharacterLooks.nude(v)?.let { n ->
                 if (c.variants.none { it.key == n.key }) add(Choice(n.key, n.label, Kind.NUDE, n))
+            }
+            if (v.kind == VariantKind.OUTFIT) CharacterLooks.tabard(v)?.let { n ->
+                if (c.variants.none { it.key == n.key }) add(Choice(n.key, n.label, Kind.TABARD, n))
             }
         }
         val standIn = c.variants.firstOrNull { it.kind == VariantKind.BARE && !it.isDisplay && it.raceId > 0 }
@@ -105,6 +109,7 @@ class NamedCast(val characters: List<Character>, val manifest: ModelParts.Manife
             VariantKind.UNDERWEAR -> Kind.UNDERWEAR
             VariantKind.BARE -> Kind.BARE
             VariantKind.NUDE -> Kind.NUDE
+            VariantKind.TABARD -> Kind.TABARD
         }
 
         /** [charactersJson] and [manifestJson] read; an empty cast when the characters can't be read, no partials without the manifest. */

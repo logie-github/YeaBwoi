@@ -25,6 +25,25 @@ class ImportedPerformancesTest {
     }
 
     @Test
+    fun theOffsetsScaleByTheSkeletonTheirClipsWereConvertedWith() {
+        val role = PerformanceRole("a", com.logie.wifecraft.story.Vec3(0.1f, 0.1f, 0.57f), 0f)
+        val recorded = ImportedPerformance("r:0", "Lift", false, listOf(role, role.copy(source = "b")), scale = 1.4233f)
+        assertEquals(recorded, ImportedPerformance.fromJson(recorded.toJson()))
+        assertEquals(1.4233f, recorded.offsetScale)
+        // an older file (no scale written): the fixed scale it was played with, until its pack is imported again
+        val old = ImportedPerformance.fromJson(recorded.toJson().apply { remove("scale") })
+        assertEquals(0f, old.scale)
+        assertEquals(PERFORMANCE_SCALE, old.offsetScale)
+        val clips = listOf("a", "b").map { source ->
+            CheckedAnimation(Anim(source, source, "", 1f, false, emptyList(), source, 0L,
+                performances = if (source == "a") listOf(recorded) else emptyList()), ClipInspection(ClipType.LOOP))
+        }
+        val choice = animationChoices(clips).single { it.participantCount == 2 }
+        assertEquals(1.4233f, choice.roleScale)
+        assertEquals(1f, choice.copy(yards = true).roleScale)
+    }
+
+    @Test
     fun groupsNamedStagesAndFollowsTheirExplicitLinks() {
         fun stage(number: Int, next: Int) = """
             <U>

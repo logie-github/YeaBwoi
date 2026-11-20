@@ -144,6 +144,12 @@ CHARACTERS = [
             }),
         ],
         "identity": 2043,
+        # a tabard variant wearing another tabard than the outfit's (base outfit, key, label, tabard ItemDisplayInfo, note): her
+        # display's own tabard 15983 is an NPC-only piece painting her whole bodice (red gown, studded corset, gold panel) on
+        # the torso; the game's Tabard of the Scarlet Crusade (item 23192: ItemModifiedAppearance 9122 -> ItemAppearance
+        # 31731 -> ItemDisplayInfo 692029) is the plain cloth tabard players wear
+        "tabards": [("scarlet", "scarlet_tabard_crusade", "Scarlet Crusade, Tabard of the Scarlet Crusade only", 692029,
+                     "item 23192 (ItemDisplayInfo 692029)")],
         # her display's skin (95, an NPC-only skin) has no underwear layers: the undressed variants take the death knight
         # pallor (97, the pale grey of the death knight skins), which has them; face, hair, eyes and markings stay hers
         "override": {"Skin Color": 97},
@@ -189,6 +195,30 @@ def nude(v):
              equipment={k: x for k, x in eq.items() if int(k) not in NUDE_REMOVED},
              note="display %d's items without the shirt, chest, tabard, belt, legs and feet, over the bare body" % v["sourceDisplay"])
     return n
+
+
+# A tabard variant ("<outfit>_tabard", kind "tabard"; characters/CharacterLooks.kt TABARD_REMOVED): the outfit's own items
+# without the shirt 4, chest or robe 5 and legs 7, the tabard 19 kept with everything else (head piece, shoulders, belt,
+# boots, wrists, gloves, cloak), over the bare body as "nude". Only an outfit of a playable race's body that wears a tabard
+# has one (of the roster's: Whitemane's Scarlet display 2043; Lilian's 85799, Whitemane's death knight 71257 and
+# Xal'atath's 88826 list none), and a character's "tabards" another tabard on an outfit's (Whitemane's Scarlet look in the
+# game's Tabard of the Scarlet Crusade); a display of a model of its own has its armour in the model, nothing to take off. Never a
+# gnome woman's.
+TABARD_REMOVED = {4, 5, 7}
+
+
+def tabard(v):
+    if v["kind"] != "outfit" or "race" not in v or (v["race"] == 7 and v["sex"] == "FEMALE"):
+        return None
+    eq = v["equipment"]
+    if "19" not in eq:
+        return None
+    n = dict(v)
+    n.update(key=v["key"] + "_tabard", label=v["label"] + ", tabard only", kind="tabard",
+             equipment={k: x for k, x in eq.items() if int(k) not in TABARD_REMOVED},
+             note="display %d's items without the shirt, chest and legs, the tabard kept, over the bare body" % v["sourceDisplay"])
+    return n
+
 
 NPC_SLOT = {0: 1, 1: 3, 2: 4, 3: 5, 4: 6, 5: 7, 6: 8, 7: 9, 8: 10, 9: 19, 10: 15}
 
@@ -263,7 +293,15 @@ def build(t):
                                 "equipment": {str(k): v[0] for k, v in sorted(items.items())}, "sourceDisplay": base,
                                 "era": "assembled: not a display of the game",
                                 "note": "assembled from her choices (display %d) and the items: " % base + "; ".join(v[1] for _, v in sorted(items.items()))})
-        variants += [n for n in map(nude, list(variants)) if n]
+        outfits = list(variants)
+        variants += [n for n in map(nude, outfits) if n]
+        variants += [n for n in map(tabard, outfits) if n]
+        for base, key, label, item, what in c.get("tabards", []):
+            n = tabard(next(v for v in outfits if v["key"] == base))
+            n.update(key=key, label=label, equipment=dict(sorted({**n["equipment"], "19": item}.items(), key=lambda kv: int(kv[0]))),
+                     note="display %d's items without the shirt, chest and legs, wearing the tabard %s in place of its own, over "
+                          "the bare body" % (n["sourceDisplay"], what))
+            variants.append(n)
         if c.get("undressed", True):
             if "identity" in c:
                 race, sex, picks, _ = t.parts(c["identity"])

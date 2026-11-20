@@ -6,7 +6,8 @@ import com.logie.wifecraft.bodyparts.PartDraw
 import com.logie.wifecraft.bodyparts.PartFile
 import com.logie.wifecraft.bodyparts.PartSkin
 import com.logie.wifecraft.bodyparts.RgbaImage
-import com.logie.wifecraft.characters.CharacterLooks
+import com.logie.wifecraft.characters.ImportedLook
+import com.logie.wifecraft.characters.ImportedLooks
 import com.logie.wifecraft.characters.NamedCast
 import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.PartOptions
@@ -16,7 +17,6 @@ import com.logie.wifecraft.creator.CreatureLooks
 import com.logie.wifecraft.creator.DressCall
 import com.logie.wifecraft.creator.Dressing
 import com.logie.wifecraft.creator.ImportStore
-import com.logie.wifecraft.creator.LookResolver
 import com.logie.wifecraft.creator.M2Files
 import com.logie.wifecraft.creator.Overrides
 import com.logie.wifecraft.creator.ResolvedLook
@@ -37,8 +37,8 @@ import java.io.File
 import kotlin.coroutines.coroutineContext
 
 /**
- * Puts an NPC's look on the 3D stage: the appearance resolved from the game's tables (creator/LookResolver, with the
- * user's imports as [overrides]), every file it needs fetched first (the model, its skin and the story's animations, the
+ * Puts an NPC's look on the 3D stage: the appearance resolved from the game's tables with the user's imports as [overrides]
+ * (characters/ImportedLooks, the step the pictures take too: engine/Thumbs), every file it needs fetched first (the model, its skin and the story's animations, the
  * layers' textures, the extra models and theirs, the face's bone files), then made the renderer's call (creator/Dressing)
  * with Wrath++'s body options (Dressing.body: the shape's morph from the user's package, the layer's square) and posted to
  * the [SceneView]. One look at a time per key: a newer one for the same key replaces one still fetching.
@@ -92,11 +92,12 @@ class Dresser(
     }
 
     /**
-     * Puts [a] on the stage under [key]. An appearance naming a named character ([Appearance.named], [named]) is drawn as
-     * its variant: the game's NPC display itself ([dressDisplay]); a body variant, without the skin colour's underwear for
-     * the bare and nude ones (CharacterLooks.bare after the look is resolved); a partial one as its stand-in's bare body
-     * wearing the pieces of her own model ([putModelSet]: the set cut on the phone the first time). A man with nothing
-     * below the waist wears the imported body parts ([wearParts]) when a set is imported.
+     * Puts [a] on the stage under [key], the user's imports applied (characters/ImportedLooks: the one step every dressing path
+     * takes). An appearance naming a named character ([Appearance.named], [named]) is drawn as its variant: the game's NPC
+     * display itself (a humanoid display of a playable race whose body the imports change is drawn as that body wearing its
+     * items); a body variant, without the skin colour's underwear for the bare and nude ones (the imported underwear included);
+     * a partial one as its stand-in's bare body wearing the pieces of her own model ([putModelSet]: the set cut on the phone the
+     * first time). A man with nothing below the waist wears the imported body parts ([wearParts]) when a set is imported.
      */
     fun dress(scene: SceneView, catalog: Catalog, key: String, a: Appearance, extraAnimations: Set<Int> = emptySet(),
         onComplete: (() -> Unit)? = null) {
@@ -104,17 +105,10 @@ class Dresser(
         extras.remove(key)?.cancel()
         bodies.remove(key)
         letGo(scene, key)
-        val choice = named.choiceOf(a)
-        if (choice != null && choice.display > 0) {
-            dressDisplay(scene, key, a, choice.display, onComplete)
-            return
-        }
-        val drawn = choice?.let { CharacterLooks.appearance(it.variant) } ?: a
-        val bare = choice?.bare == true
         jobs[key] = scope.launch {
             val call = withContext(Dispatchers.IO) {
                 try {
-                    prepare(key, catalog, drawn, extraAnimations, bare)
+                    prepare(key, ImportedLooks.of(catalog, tables, a, named, overrides), extraAnimations)
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -125,43 +119,17 @@ class Dresser(
                 onComplete?.invoke()
                 return@launch
             }
-            val set = choice?.set
-            val parts = PartChoice.applies(a) && PartChoice.lowerBodyBare(a) && partSet != null
+            val set = call.set
+            val parts = call.drawn != null && PartChoice.applies(a) && PartChoice.lowerBodyBare(a) && partSet != null
             // the look's sex and race: the live scene's NPCs stand at human scale, the dwarves and gnomes at their own
             // (SceneView.dress, anim/HumanScale); the creator's and the previews' keys keep each race's own size
-            scene.dress(key, call.call, call.body, character = true, onReady = {
+            scene.dress(key, call.call, call.body, character = call.character, onReady = {
                 onComplete?.invoke()
                 if (set != null || parts) extras[key] = scope.launch {
                     if (set != null) putModelSet(scene, key, set, call.skin)
                     if (parts) wearParts(scene, key, a.parts ?: PartOptions(), call.skin)
                 }
             }, sex = a.sex, raceId = a.raceId) { why ->
-                fail(why)
-                if (onComplete != null) scope.launch { onComplete() }
-            }
-        }
-    }
-
-    /** A named character in one of the game's own NPC displays ([display]), standing for [a]'s race and sex in the scene. */
-    private fun dressDisplay(scene: SceneView, key: String, a: Appearance, display: Int, onComplete: (() -> Unit)?) {
-        jobs[key] = scope.launch {
-            val prepared = withContext(Dispatchers.IO) {
-                try {
-                    val r = CreatureLooks.check(tables, display)
-                    val look = r.look
-                    if (look == null) { fail("Display $display can't be drawn: ${r.why ?: "it has no look"}."); null }
-                    else prepareLook(key, look)?.let { it to CreatureLooks.isCharacter(tables, look) }
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    fail(e.message ?: e.toString()); null
-                }
-            }
-            if (prepared == null) {
-                onComplete?.invoke()
-                return@launch
-            }
-            scene.dress(key, prepared.first, BodyCall.NONE, character = prepared.second, onReady = onComplete, sex = a.sex, raceId = a.raceId) { why ->
                 fail(why)
                 if (onComplete != null) scope.launch { onComplete() }
             }
@@ -348,14 +316,17 @@ class Dresser(
         return CreatureLooks.call(tables, look)
     }
 
-    /** A dress's call, its body options and its skin's base file (the body parts' and model sets' skin match; 0: none). */
-    private class Prepared(val call: DressCall, val body: BodyCall, val skin: Int)
+    /**
+     * A dress's call, its body options, its skin's base file (the body parts' and model sets' skin match; 0: none), whether it
+     * is a soft body, the body it is drawn on (null: a display as the game has it) and a partial look's set.
+     */
+    private class Prepared(val call: DressCall, val body: BodyCall, val skin: Int, val character: Boolean, val drawn: Appearance?,
+        val set: ModelParts.PartSet?)
 
-    private suspend fun prepare(key: String, catalog: Catalog, a: Appearance, extraAnimations: Set<Int>, bare: Boolean = false): Prepared? {
-        val resolved = LookResolver.resolve(catalog, tables, a, overrides)
-        // a named character's bare and nude looks: without the skin colour's underwear layers
-        val look = if (bare) CharacterLooks.bare(catalog, tables, a, resolved) else resolved
-        if (look.model == 0) { fail("This race has no model in the game's tables."); return null }
+    /** IO: [plan]'s files fetched (ImportedLooks.of made it: the imports applied), then the renderer's call made. */
+    private suspend fun prepare(key: String, plan: ImportedLook, extraAnimations: Set<Int>): Prepared? {
+        val look = plan.look
+        if (look.model == 0) { fail(if (plan.drawn == null) "This creature has no model in the game's tables." else "This race has no model in the game's tables."); return null }
         // the face's bone files aren't drawn yet (and the pinned build has some empty): not waited for
         fetch(look.needsFiles - look.boneFiles.toSet())
         coroutineContext.ensureActive()
@@ -369,16 +340,13 @@ class Dresser(
         }
         bodies[key] = look.model
         // a skin or skeleton that didn't come is said by the renderer (SceneView.dress's onFail: Native.modelError)
-        val body = try {
-            Dressing.body(files.dir.parentFile!!, a, overrides.hasBody())
+        val drawn = plan.drawn
+        val body = if (drawn == null) BodyCall.NONE else try {
+            Dressing.body(files.dir.parentFile!!, drawn, overrides.hasBody())
         } catch (e: Exception) {
             fail("The body options: ${e.message ?: e}"); BodyCall.NONE
         }
-        val layout = Dressing.layout(catalog, tables, a)
-        val call = if (a.gear && a.clothing.isNotEmpty()) CreatureLooks.call(tables, look, layout)
-            else Dressing.call(tables, layout, look)
-        val skin = look.layers.firstOrNull { it.textureType == 1 && it.region == -1 }?.fileId ?: look.textures[1] ?: 0
-        return Prepared(call, body, skin)
+        return Prepared(plan.call(tables), body, plan.skin, plan.character, drawn, plan.set)
     }
 
     /**

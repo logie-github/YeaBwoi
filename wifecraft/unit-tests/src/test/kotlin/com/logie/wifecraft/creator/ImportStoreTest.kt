@@ -181,4 +181,22 @@ class ImportStoreTest {
     }
 
     private fun assertNotNull(v: Any?) = assertTrue(v != null)
+
+    /** The pictures' caches are named with what is imported and on (engine/Thumbs): it changes with every switch. */
+    @Test fun theSignatureChangesWithWhatIsOn() {
+        val root = tmp(); val store = ImportStore(root, names)
+        assertEquals("", store.signature())
+        store.importZip(ImportKind.RALIA, zip("Character/Human/Female/humanfemaleskin00_03.blp" to byteArrayOf(1)).stream(), "r")
+        val ralia = store.signature()
+        assertTrue(ralia.startsWith("ralia:"))
+        store.importZip(ImportKind.ALTERNATE, zip("Character/Human/Female/humanfemaleskin00_03.blp" to byteArrayOf(2)).stream(), "a")
+        val alternate = store.signature()
+        assertNotEquals(ralia, alternate)
+        store.setActive(ImportKind.RALIA)
+        assertEquals(ralia, store.signature())
+        store.importZip(ImportKind.RALIA, zip("Character/Human/Female/humanfemaleskin00_03.blp" to byteArrayOf(3)).stream(), "r2")
+        assertNotEquals(ralia, store.signature(), "imported again: another zip")
+        store.remove(ImportKind.RALIA); store.remove(ImportKind.ALTERNATE)
+        assertEquals("", store.signature())
+    }
 }

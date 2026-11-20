@@ -11,12 +11,23 @@ import javax.xml.parsers.DocumentBuilderFactory
 
 data class PerformanceRole(val source: String, val offset: Vec3, val facing: Float)
 
+/**
+ * An author's performance read from a pack's tuning: its [roles] (each clip's offset in the tuning's Sims metres: x forward,
+ * y left, z up; facing in radians). [scale] is model units per Sims metre of the skeleton its clips were converted with
+ * ([Retargeter.unitsPerMetre]), the scale of the clips' own root movement, so the offsets are scaled as the clips are;
+ * 0: not recorded (imported before it was: [PERFORMANCE_SCALE]).
+ */
 data class ImportedPerformance(
     val id: String, val name: String, val dance: Boolean, val roles: List<PerformanceRole>, val setting: String = "",
     val stage: String = "", val nextStages: List<String> = emptyList(), val repetitions: Int = 1, val style: String = "",
+    val scale: Float = 0f,
 ) {
+    /** Model units per tuning metre for this performance's offsets: the recorded skeleton's, else the old fixed one. */
+    val offsetScale: Float get() = if (scale > 0f && scale.isFinite()) scale else PERFORMANCE_SCALE
+
     fun toJson(): JSONObject = JSONObject().put("id", id).put("name", name).put("dance", dance).put("setting", setting)
         .put("stage", stage).put("nextStages", JSONArray(nextStages)).put("repetitions", repetitions).put("style", style)
+        .put("scale", scale.toDouble())
         .put("roles", JSONArray().also { array ->
             for (role in roles) array.put(JSONObject().put("source", role.source)
                 .put("x", role.offset.x.toDouble()).put("y", role.offset.y.toDouble()).put("z", role.offset.z.toDouble())
@@ -35,7 +46,8 @@ data class ImportedPerformance(
             return ImportedPerformance(json.getString("id"), json.getString("name"), json.optBoolean("dance"), roles,
                 json.optString("setting"), json.optString("stage"),
                 json.optJSONArray("nextStages")?.let { a -> List(a.length()) { a.getString(it) } }.orEmpty(),
-                json.optInt("repetitions", 1).coerceIn(1, 100), json.optString("style"))
+                json.optInt("repetitions", 1).coerceIn(1, 100), json.optString("style"),
+                json.optDouble("scale", 0.0).toFloat().takeIf { it.isFinite() && it > 0f } ?: 0f)
         }
     }
 }
@@ -95,7 +107,11 @@ internal object ImportedPerformances {
     private fun Element?.number(name: String): Float = this?.field(name)?.toFloatOrNull()?.takeIf { it.isFinite() } ?: 0f
 }
 
-/** How far apart an author's performance roles stand in the scene: their tuning offsets times this (yards). */
+/**
+ * Model units per tuning metre for a performance imported before its skeleton's own scale was recorded
+ * ([ImportedPerformance.scale]). It was the only scale until then and is 16% short of the clips' own (the Sims adult
+ * skeleton's 1.4233): such a performance is put right by importing its pack again.
+ */
 const val PERFORMANCE_SCALE = 1.2f
 
 /**
@@ -108,7 +124,11 @@ data class AnimationChoice(
     val clips: List<CheckedAnimation>, val roles: List<PerformanceRole>, val setting: String = "",
     val stage: String = "", val nextStages: List<String> = emptyList(), val repetitions: Int = 1,
     val yards: Boolean = false, val sounds: List<SoundEvent> = emptyList(),
+    /** Model units per offset unit of [roles] when not [yards] (the performance's [ImportedPerformance.offsetScale]). */
+    val offsetScale: Float = PERFORMANCE_SCALE,
 ) {
+    /** What [roles]' offsets are multiplied by for the scene (model units; then [com.logie.wifecraft.anim.HumanScale.PAIR] across). */
+    val roleScale: Float get() = if (yards) 1f else offsetScale
     val participantCount: Int get() = roles.size
     val playable: Boolean get() = clips.size == roles.size && clips.all { it.inspection.type != ClipType.INVALID }
 }
@@ -116,7 +136,7 @@ data class AnimationChoice(
 fun animationChoices(clips: List<CheckedAnimation>): List<AnimationChoice> {
     val bySource = clips.filter { it.clip.source.isNotBlank() }.associateBy { it.clip.source }
     val groups = clips.flatMap { it.clip.performances }.distinctBy { it.id }
-    val authoredGroups = groups.distinctBy { it.copy(id = "") }
+    val authoredGroups = groups.distinctBy { it.copy(id = "", scale = 0f) }
     val authoredSources = groups.flatMap { it.roles }.mapNotNullTo(HashSet()) { it.source.takeIf(String::isNotBlank) }
     val coordinated = authoredGroups.mapNotNull { group ->
         val lead = group.roles.firstNotNullOfOrNull { bySource[it.source] } ?: return@mapNotNull null
@@ -132,7 +152,7 @@ fun animationChoices(clips: List<CheckedAnimation>): List<AnimationChoice> {
         val stageLabel = numbered?.groupValues?.get(2)?.let { "Stage $it" } ?: group.stage.takeIf(String::isNotBlank)?.let(::readable)
         val name = listOfNotNull(stageLabel, group.name).joinToString(" · ")
         AnimationChoice(group.id, name, groupName, lead, group.roles.mapNotNull { bySource[it.source] }, group.roles,
-            group.setting, group.stage, group.nextStages, group.repetitions)
+            group.setting, group.stage, group.nextStages, group.repetitions, offsetScale = group.offsetScale)
     }
     val standalone = clips.filterNot { it.clip.source in authoredSources }
     val families = standalone.mapNotNull { sourceFamily(it)?.lowercase() }.groupingBy { it }.eachCount()

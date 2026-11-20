@@ -422,6 +422,16 @@ JNIEXPORT jfloatArray JNICALL FN(actorBounds)(JNIEnv* env, jclass, jlong h, jint
     return boxArray(env, mn, mx);
 }
 
+// An actor's flesh around its main bones as dressed (engine/flesh.h, FleshMeasure::pack's floats; anim/FleshProfile.of reads
+// them); null while it can't be measured yet. Measured once per look, kept by the engine.
+JNIEXPORT jfloatArray JNICALL FN(actorFlesh)(JNIEnv* env, jclass, jlong h, jint id) {
+    std::vector<float> v;
+    if (!scene(h)->actorFlesh(id, v) || v.empty()) return nullptr;
+    jfloatArray arr = env->NewFloatArray(jsize(v.size()));
+    env->SetFloatArrayRegion(arr, 0, jsize(v.size()), v.data());
+    return arr;
+}
+
 JNIEXPORT jboolean JNICALL FN(ghostProp)(JNIEnv*, jclass, jlong h, jint model, jfloat x, jfloat y, jfloat z, jfloat yaw, jfloat scale) {
     return scene(h)->ghostProp(uint32_t(model), V3(x, y, z), yaw, scale);
 }

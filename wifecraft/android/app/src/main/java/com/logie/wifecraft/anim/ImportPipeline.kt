@@ -50,6 +50,9 @@ class ImportPipeline(
     /** A package's partner-animation tuning, with [reader]; any failure reads as none. */
     private val tuning: (ByteArray) -> List<PairDefinition> = { AnimTuning.pairs(it) },
 ) {
+    /** Each converted clip's skeleton scale ([Retargeter.unitsPerMetre]) by its source, for its performances' offsets (one package's). */
+    private val unitsBySource = HashMap<String, Float>()
+
     /** The single animations only (partner animations are reported as [ImportEvent.Paired]); see [runAll]. */
     fun run(inputs: List<ImportInput>, onEvent: (ImportEvent) -> Unit): List<Anim> = runAll(inputs, onEvent).anims
 
@@ -149,6 +152,7 @@ class ImportPipeline(
                     return converters.getOrPut(rig) { embeddedRetargeter.invoke(rig) }
                 }
                 val first = out.size
+                unitsBySource.clear()
                 // A package of up to PAIRING_LIMIT clips is held whole so its partner animations can be found (Pairing);
                 // a bigger one (a large mod archive's package) is converted one clip at a time, as read.
                 val held = ArrayList<SimsClip>()
@@ -190,7 +194,9 @@ class ImportPipeline(
                 val groups = ImportedPerformances.read(pkg, sources).groupBy { it.roles.first { role -> role.source.isNotBlank() }.source }
                 for (index in first until out.size) {
                     val clip = out[index]
-                    val performances = groups[clip.source].orEmpty()
+                    // the tuning's offsets in Sims metres, scaled later as this clip's skeleton scales its root movement
+                    val units = unitsBySource[clip.source] ?: 0f
+                    val performances = groups[clip.source].orEmpty().map { it.copy(scale = units) }
                     if (performances.isNotEmpty()) out[index] = clip.copy(performances = performances)
                 }
                 visited
@@ -251,8 +257,10 @@ class ImportPipeline(
         val label = "$packageName :: $name"
         onEvent(ImportEvent.Found(label))
         try {
-            val anim = retargetForClip(clip).convert(clip)
+            val converter = retargetForClip(clip)
+            val anim = converter.convert(clip)
             val result = anim.copy(name = anim.name.ifBlank { name }, source = anim.source.ifBlank { clip.sourceKey })
+            (converter as? Retargeter)?.unitsPerMetre?.takeIf { it > 0.0 && it.isFinite() }?.let { unitsBySource[result.source] = it.toFloat() }
             // a clip that would play broken is said and left out, never saved (ClipValidation)
             val broken = ClipValidation.problem(result)
             if (broken != null) { onEvent(ImportEvent.Skipped(label, broken)); return }
