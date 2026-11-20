@@ -58,6 +58,11 @@ class Settings(context: Context) {
         get() = prefs.getInt("softBody", SOFT_NATURAL).let { if (it in 0..3) it else SOFT_NATURAL }
         set(v) = prefs.edit().putInt("softBody", v).apply()
 
+    /** The imported body-part set the men wear (files/bodyparts/<set>, Options' Body parts); null: none imported. */
+    var partSet: String?
+        get() = prefs.getString("partSet", null)?.takeIf { it.isNotEmpty() }
+        set(v) = prefs.edit().putString("partSet", v ?: "").apply()
+
     /**
      * The placement editor's own switches, kept for the user ([name]: "place.panel" the side panel open, "place.tip.<id>"
      * a first-use tip dismissed). Only names starting with "place." are kept.

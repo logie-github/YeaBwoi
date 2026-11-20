@@ -4,8 +4,10 @@ import com.logie.wifecraft.story.CameraPose
 import com.logie.wifecraft.story.Vec3
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.math.PI
+import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.exp
+import kotlin.math.hypot
 import kotlin.math.sin
 import kotlin.random.Random
 
@@ -20,6 +22,8 @@ data class SceneSnapshot(
     val notice: String?,
     /** How many partner animations (the library's enabled pairs) the scene picks from (0: the Warcraft emotes). */
     val partnerPairs: Int = 0,
+    /** The furniture views of each person on furniture (by id; [FurnitureCameras]: the bed's foot, head...), in order. */
+    val furnitureViews: Map<String, List<FurnitureView>> = emptyMap(),
 ) {
     /** [partner]: the other NPC of a two-person animation, else null; [queued] orders waiting; [repeating] one repeating. */
     data class PersonView(val id: String, val activity: Activity, val directed: Boolean,
@@ -85,17 +89,39 @@ class LiveScene(
         const val SNAPSHOT_MS = 100L
         /** How fast a person turns to their new heading (1/s): a quick, eased turn rather than a snap. */
         const val TURN_RATE = 14f
+        /** How far round the furniture its views' eyes may go (yards): about a room's reach, its walls not known. */
+        const val ROOM_OUT = 3.5f
+        /** The step the furniture views' clear floor is found by (yards). */
+        const val REACH_STEP = 0.25f
         /** A [command]'s answer: the notice unchanged. */
         private const val KEEP = "\u0000keep"
     }
 
     private val simulation = SceneSimulation(ids, objects, random, durations, initiallyReady = false, wanderOnly = wanderOnly,
         route = route, partnerChance = partnerChance, pairs = pairs, emotes = emotes,
-        chatterChance = chatterChance, chatter = chatter)
+        chatterChance = chatterChance, chatter = chatter).also {
+        // the screen classifies the pairs off this thread; until it has, a pair goes by its location names
+        it.classifyPairs = false
+    }
     /** The frame's sink while [frame] runs (the simulation's sound events go to it). */
     private var frameSink: Sink? = null
     val clock = FixedStep()
     val camera = SceneCamera(room)
+
+    /** The room's own view (the screen's): the camera's room, unless a furniture view is on. Any thread. */
+    @Volatile var roomView: CameraPose = room
+    /**
+     * The furniture view the camera shows of the selected person's furniture ([SceneSnapshot.furnitureViews]; null: none),
+     * as the camera's room: the button's Room mode shows it, an orbit turns about it. Any thread.
+     */
+    @Volatile var furnitureView: FurnitureView? = null
+    /** Whether the camera may stand at an eye seeing a point (stage coordinates, GL thread: no wall between); null: always. */
+    @Volatile var clearance: CameraClearance? = null
+    // the furniture view's pose now: for whom, which, the simulation's version it was made at
+    private var viewPose: CameraPose? = null
+    private var viewFor = -1
+    private var viewOf: FurnitureView? = null
+    private var viewVersion = -1L
 
     /** Whether the simulation runs (the scene is loaded and not being ended). Any thread. */
     @Volatile var running = false
@@ -153,7 +179,67 @@ class LiveScene(
             simulation.holder(item)?.let { holders[item] = it }
             if (simulation.measured(item)) usable += item
         }
-        return SceneSnapshot(people, holders, usable, notice, simulation.pairs.size)
+        val views = HashMap<String, List<FurnitureView>>()
+        for (i in 0 until n) {
+            val id = simulation.id(i)
+            val list = presets(id, null).map { it.view }
+            if (list.isNotEmpty()) views[id] = list
+        }
+        return SceneSnapshot(people, holders, usable, notice, simulation.pairs.size, views)
+    }
+
+    /**
+     * The furniture views of what [id] is on ([FurnitureCameras.presets], scene frame): kept within a box round the furniture
+     * (3.5 yards out, up to [SceneCamera.MAX_TARGET_H] over its floor: the room's walls are not known here) and clear by
+     * [clear], asked along the floor: from just beside the furniture, toward the eye, to under the eye (the scene's test is a
+     * walk on its floor; from the furniture's middle the furniture itself would stand in the way). A view no eye can be had
+     * for is left out; with none left, they are made without the walls.
+     */
+    private fun presets(id: String, clear: CameraClearance?): List<FurniturePreset> {
+        val (f, people) = simulation.onFurniture(id) ?: return emptyList()
+        val (lo, hi) = f.bounds()
+        val room = RoomBounds(Vec3(lo.x - ROOM_OUT, lo.y - ROOM_OUT, f.z), Vec3(hi.x + ROOM_OUT, hi.y + ROOM_OUT, f.z + SceneCamera.MAX_TARGET_H))
+        val beside = hypot(f.spec.halfX, f.spec.halfY) + 0.3f
+        // how far the floor is clear each way (by the degree), found once by stepping out: a few tests a view, not one an eye
+        val reach = HashMap<Int, Float>()
+        val local = clear?.let { c ->
+            CameraClearance { eye, _ ->
+                val dx = eye.x - f.x; val dy = eye.y - f.y
+                val d = hypot(dx, dy)
+                if (d <= beside) true else {
+                    val ux = dx / d; val uy = dy / d
+                    val far = reach.getOrPut(Math.round(Math.toDegrees(atan2(dy, dx).toDouble())).toInt()) {
+                        val from = stage(Vec3(f.x + ux * beside, f.y + uy * beside, f.z))
+                        var r = beside
+                        while (r < beside + 2 * ROOM_OUT + SceneCamera.MAX_DISTANCE) {
+                            val next = r + REACH_STEP
+                            if (!c.clear(stage(Vec3(f.x + ux * next, f.y + uy * next, f.z)), from)) break
+                            r = next
+                        }
+                        r
+                    }
+                    d <= far
+                }
+            }
+        }
+        val list = FurnitureCameras.presets(f, people, room, local)
+        return if (list.isEmpty() && local != null) FurnitureCameras.presets(f, people, room, null) else list
+    }
+
+    private fun stage(p: Vec3) = Vec3(stageX(p.x, p.y), stageY(p.x, p.y), oz + p.z)
+
+    /** The camera's room this frame: the furniture view asked for when [sel] is on furniture that has it, else the room's. */
+    private fun cameraRoom(sel: Int): CameraPose {
+        val want = furnitureView
+        if (want == null || sel < 0) { viewPose = null; viewOf = null; return roomView }
+        val version = simulation.version
+        if (sel != viewFor || want != viewOf || version != viewVersion) {
+            viewFor = sel; viewOf = want; viewVersion = version
+            viewPose = presets(simulation.id(sel), clearance).firstOrNull { it.view == want }?.let { p ->
+                CameraPose(stage(p.eye), stage(p.at), p.fov)
+            }
+        }
+        return viewPose ?: roomView
     }
 
     /**
@@ -240,6 +326,8 @@ class LiveScene(
             lastPairStarts = starts
             simulation.lastPairName?.let { name -> notice = "Partner animation: $name"; noticeChanged = true }
         }
+        val wantRoom = cameraRoom(sel)
+        if (camera.room !== wantRoom) camera.room = wantRoom
         camera.update(dt, hasFocus, fx, fy, fz)
         sink.camera(camera.eyeX, camera.eyeY, camera.eyeZ, camera.atX, camera.atY, camera.atZ, camera.fov)
 

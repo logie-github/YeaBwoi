@@ -119,6 +119,11 @@ class FurnitureTest {
         // the bed's measured height is its surface
         val spot = InteractionSpot(Vec3(2.6f, 1.2f, 0f), Vec3(2.6f, 2.2f, 0.6f), 0f)
         assertEquals(0.6f, Furniture.of(SceneObject.BED, spot).spec.surface, 1e-4f)
+        // on a raised floor: it stands on the entry's floor, its surface over that floor; its foot opposite the lying facing
+        val upstairs = Furniture.of(SceneObject.BED, InteractionSpot(Vec3(2.6f, 1.2f, 7.3f), Vec3(2.6f, 2.2f, 8.05f), 0f))
+        assertEquals(7.3f, upstairs.z, 1e-4f)
+        assertEquals(0.75f, upstairs.spec.surface, 1e-3f)
+        assertEquals(PI.toFloat(), upstairs.yaw, 1e-4f)
         // locations.json: the Embassy's study table (the books are its props)
         val assets = File(System.getProperty("wifecraft.assets") ?: "../android/app/src/main/assets")
         val embassy = LocationInfo.parseAll(File(assets, "locations.json").readText()).first { it.interactions.isNotEmpty() }
@@ -167,8 +172,9 @@ class FurnitureTest {
     }
 
     @Test fun aPartnerPairIsClassifiedAtItsSlots() {
-        val pair = PartnerPair("p", "Bed_Lying", F.lyingBack(0.55), F.lyingBack(0.55), PartnerSlot(0f, 0f, 0f, 0f),
-            PartnerSlot(0f, (0.6 * BodyGeometry.REF_UNIT).toFloat(), 0f, 0f), true, setOf("DOUBLE_BED"))
+        // the slots as the live scene has them: at human scale across the floor (PartnerSlot.human)
+        val pair = PartnerPair("p", "Bed_Lying", F.lyingBack(0.55), F.lyingBack(0.55), PartnerSlot.human(0f, 0f, 0f, 0f),
+            PartnerSlot.human(0f, (0.6 * BodyGeometry.REF_UNIT).toFloat(), 0f, 0f), true, setOf("DOUBLE_BED"))
         val a = FurnitureAnimation.of(pair)
         assertEquals(Surface.BED, a.requirement.surface)
         assertEquals(Posture.LIE_BACK, a.posture)

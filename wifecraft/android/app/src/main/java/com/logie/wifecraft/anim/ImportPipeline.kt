@@ -218,7 +218,11 @@ class ImportPipeline(
                 // a pair that would play broken is said and left out, never saved (ClipValidation)
                 val broken = ClipValidation.problem(p)
                 if (broken != null) onEvent(ImportEvent.Skipped(label, broken))
-                else onEvent(ImportEvent.Paired(p.name, p, f.mode))
+                else {
+                    // what it needs (a bed, a seat...) read with the Sims clips' own names and slot targets, for the library
+                    seed { RequirementStore.seed(RequirementStore.keyOf(p), RequirementClassifier.classify(p, RequirementStore.hints(p, f.a, f.b))) }
+                    onEvent(ImportEvent.Paired(p.name, p, f.mode))
+                }
             } catch (e: Exception) {
                 onEvent(ImportEvent.Failed(label, e.message ?: e.javaClass.simpleName))
                 // a pair that does not convert is still two clips the person can try by hand
@@ -252,11 +256,17 @@ class ImportPipeline(
             // a clip that would play broken is said and left out, never saved (ClipValidation)
             val broken = ClipValidation.problem(result)
             if (broken != null) { onEvent(ImportEvent.Skipped(label, broken)); return }
+            seed { RequirementStore.seed(RequirementStore.keyOf(result), RequirementClassifier.classify(result, RequirementStore.hints(result, clip))) }
             out.add(result)
             onEvent(ImportEvent.Done(result))
         } catch (e: Exception) {
             onEvent(ImportEvent.Failed(label, e.message ?: e.javaClass.simpleName))
         }
+    }
+
+    /** A requirement's classification never fails an import: it is made again when the library first meets the animation. */
+    private inline fun seed(block: () -> Unit) {
+        try { block() } catch (e: Exception) { }
     }
 
     companion object {

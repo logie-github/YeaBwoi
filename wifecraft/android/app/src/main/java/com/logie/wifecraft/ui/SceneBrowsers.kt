@@ -27,7 +27,15 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.logie.wifecraft.creator.PartCut
+import com.logie.wifecraft.creator.PartOptions
+import com.logie.wifecraft.creator.PartPlacement
+import com.logie.wifecraft.creator.PartSize
 import com.logie.wifecraft.editor.Actor
+import com.logie.wifecraft.editor.PlaceKind
 import com.logie.wifecraft.engine.LocationLoader
 import com.logie.wifecraft.engine.SceneView
 import com.logie.wifecraft.engine.Thumbs
@@ -153,6 +161,7 @@ internal fun NpcBrowser(
     var search by remember { mutableStateOf("") }
     val shown = remember(roster, search) { roster.filter { it.name.contains(search.trim(), ignoreCase = true) } }
     val icon = LocalWar.current?.icon("tab.npcs")
+    val actions = LocalNpcActions.current
     BoxWithConstraints(modifier) {
         // Thumbnails render off-screen on the same GL context that the creator and live scene use.
         BrowserSurface(view, Modifier.size(1.dp))
@@ -176,24 +185,35 @@ internal fun NpcBrowser(
                     items(shown, key = { it.id }, contentType = { 0 }) { actor ->
                         // dressing a look (the starter clothes) once per actor, not on every redraw of the grid
                         val preview = remember(actor, portraitActor) { portraitActor(actor) }
+                        // a named character drawn as the game's own NPC display: its picture is the display's
+                        val display = remember(actor, actions) { actions?.portraitDisplay?.invoke(actor) ?: 0 }
                         // a portrait already made shows at once (no placeholder frame when scrolled back)
-                        var picture by remember(preview, portraits) {
+                        var picture by remember(preview, portraits, display) {
                             mutableStateOf<ImageBitmap?>(
-                                preview?.let { portraits?.cachedNpc(it.appearance, actor.id.hashCode(), 192)?.asImageBitmap() })
+                                if (display > 0) portraits?.cached(PlaceKind.CREATURE, display, 192)?.asImageBitmap()
+                                else preview?.let { portraits?.cachedNpc(it.appearance, actor.id.hashCode(), 192)?.asImageBitmap() })
                         }
-                        DisposableEffect(preview, portraits) {
+                        DisposableEffect(preview, portraits, display) {
                             var active = true
                             // a request is cancelled when its cell leaves the screen
-                            val ticket = if (preview != null && picture == null) {
-                                portraits?.requestNpc(preview.appearance, actor.id.hashCode(), 192) {
+                            val ticket = when {
+                                picture != null -> null
+                                display > 0 -> portraits?.request(PlaceKind.CREATURE, display, 192) { if (active) picture = it?.asImageBitmap() }
+                                preview != null -> portraits?.requestNpc(preview.appearance, actor.id.hashCode(), 192) {
                                     if (active) picture = it?.asImageBitmap()
                                 }
-                            } else null
+                                else -> null
+                            }
                             onDispose { active = false; ticket?.cancel() }
                         }
                         val inCast = actor.id in cast
                         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-                            WifeCard(actor.name, picture ?: icon, side, inCast, onClick = { onToggle(actor.id) }, enabled = inCast || cast.size < 6)
+                            Box(Modifier.width(side)) {
+                                WifeCard(actor.name, picture ?: icon, side, inCast, onClick = { onToggle(actor.id) }, enabled = inCast || cast.size < 6)
+                                if (actions != null && actions.hasMenu(actor)) {
+                                    NpcMenuButton(actor.name, { actions.open(actor) }, Modifier.align(Alignment.TopEnd))
+                                }
+                            }
                         }
                     }
                 }
@@ -235,6 +255,125 @@ internal fun NpcBrowser(
                 rosterGrid(Modifier.weight(1f).fillMaxWidth())
             }
         }
+    }
+}
+
+/**
+ * What the NPC picker's cards offer beyond choosing (MainActivity provides it around the scene's setup, [LocalNpcActions]):
+ * [hasMenu] whether a card has its menu button (a named character's look, a man's body-part settings, Delete for an NPC the
+ * user made), [open] opens that menu, [portraitDisplay] the game's NPC display a card's picture is drawn from (a named
+ * character in one of its own displays), 0 for the NPC's own look.
+ */
+class NpcActions(
+    val hasMenu: (Actor) -> Boolean,
+    val open: (Actor) -> Unit,
+    val portraitDisplay: (Actor) -> Int = { 0 },
+)
+
+/** The NPC picker's [NpcActions]; none: the cards have no menu button. */
+val LocalNpcActions = compositionLocalOf<NpcActions?> { null }
+
+/**
+ * The live scene's body-part switch for the controlled NPC (MainActivity provides it around the live scene,
+ * [LocalPartControl]): [has] whether the NPC [has] wears the parts (a man with the add-on imported and nothing on his lower
+ * body), [isOn] its ON state, [toggle] switches it. Reads Compose state: a screen that calls [has] or [isOn] is redrawn
+ * when they change.
+ */
+interface PartControl {
+    fun has(npcId: String): Boolean
+    fun isOn(npcId: String): Boolean
+    fun toggle(npcId: String)
+}
+
+/** The live scene's [PartControl]; none outside a live scene. */
+val LocalPartControl = compositionLocalOf<PartControl?> { null }
+
+/** A card's small round menu button (three dots), at the card's top corner. */
+@Composable
+private fun NpcMenuButton(name: String, onClick: () -> Unit, modifier: Modifier) {
+    Box(modifier.size(40.dp).semantics { contentDescription = "$name options" }.warPress(sound = "click", onClick = onClick), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier.size(28.dp).clip(CircleShape).background(WifeTheme.slateDeep).border(1.dp, WifeTheme.trim, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("\u22EF", style = frizStyle(14.sp, WifeTheme.gold), textAlign = TextAlign.Center)
+        }
+    }
+}
+
+/**
+ * An NPC's menu from the picker, in the front menus' window: a named character's look ([variants]: key to label, [variant]
+ * the one chosen), a man's body-part settings ([parts]: null for anyone else; [partsImported] false says they wait for an
+ * import), and Delete for an NPC the user made ([canDelete]; a built-in NPC or named character has none). Each choice is
+ * kept at once by the caller.
+ */
+@Composable
+internal fun NpcMenuWindow(
+    actor: Actor,
+    variants: List<Pair<String, String>>,
+    variant: String?,
+    onVariant: (String) -> Unit,
+    parts: PartOptions?,
+    partsImported: Boolean,
+    onParts: (PartOptions) -> Unit,
+    canDelete: Boolean,
+    onDelete: () -> Unit,
+    onClose: () -> Unit,
+) {
+    WifeWindow(
+        actor.name, onClose, Modifier.widthIn(max = 520.dp).heightIn(max = 560.dp).padding(16.dp),
+        subtitle = if (canDelete) "Your NPC" else "Built-in NPC",
+        footer = {
+            if (canDelete) WifeButton("Delete NPC", onDelete, kind = WifeButtonKind.SECONDARY, sound = "click")
+            WifeButton("Done", onClose, Modifier.widthIn(min = 120.dp), kind = WifeButtonKind.PRIMARY, sound = "close")
+        },
+    ) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
+            if (variants.isNotEmpty()) {
+                WifeSectionHeader("Look")
+                for ((key, label) in variants) {
+                    WifeButton(label, { onVariant(key) }, Modifier.fillMaxWidth(),
+                        kind = if (key == variant) WifeButtonKind.PRIMARY else WifeButtonKind.SECONDARY, sound = "select")
+                }
+            }
+            if (parts != null) {
+                WifeSectionHeader("Body parts")
+                if (!partsImported) WifeNote("Import body parts in Options (Mods) for these to show. They show only while nothing is worn below the waist.")
+                else WifeNote("Shown while nothing is worn below the waist; switched with On / Off in a scene.")
+                PartRow("Size", PartSize.values().map { it.label }, parts.size.ordinal) { onParts(parts.copy(size = PartSize.values()[it])) }
+                PartRow("Cut", PartCut.values().map { it.label }, parts.cut.ordinal) { onParts(parts.copy(cut = PartCut.values()[it])) }
+                PartRow("Scrotum", PartPlacement.values().map { it.label }, parts.placement.ordinal) { onParts(parts.copy(placement = PartPlacement.values()[it])) }
+            }
+            if (variants.isEmpty() && parts == null && canDelete) {
+                WifeNote("Delete takes this NPC out of your roster for good.")
+            }
+        }
+    }
+}
+
+/** One setting's choices as a row of buttons, [chosen] lit. */
+@Composable
+private fun PartRow(label: String, choices: List<String>, chosen: Int, onPick: (Int) -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
+        Text(label, style = WifeTheme.labelStyle(WifeTheme.gold), modifier = Modifier.width(84.dp), maxLines = 1)
+        choices.forEachIndexed { i, text ->
+            WifeButton(text, { onPick(i) }, Modifier.weight(1f), kind = if (i == chosen) WifeButtonKind.PRIMARY else WifeButtonKind.SECONDARY, sound = "select")
+        }
+    }
+}
+
+/** The question before an NPC the user made is deleted: Cancel, or Delete for good. */
+@Composable
+internal fun NpcDeleteWindow(name: String, onCancel: () -> Unit, onDelete: () -> Unit) {
+    WifeWindow(
+        "Delete NPC", onCancel, Modifier.widthIn(max = 480.dp).padding(16.dp),
+        footer = {
+            WifeButton("Cancel", onCancel, Modifier.widthIn(min = 112.dp), kind = WifeButtonKind.SECONDARY, sound = "close")
+            WifeButton("Delete", onDelete, Modifier.widthIn(min = 112.dp), kind = WifeButtonKind.PRIMARY, sound = "click")
+        },
+    ) {
+        Text("Delete $name for good? They leave the roster and any scene cast; this can't be undone.",
+            style = WifeTheme.bodyStyle(), modifier = Modifier.fillMaxWidth())
     }
 }
 

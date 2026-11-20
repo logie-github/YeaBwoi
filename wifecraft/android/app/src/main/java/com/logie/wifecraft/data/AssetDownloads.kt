@@ -7,8 +7,9 @@ import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.coroutineContext
 
-class AssetDownloads(private val files: GameFiles, private val tables: Tables) {
-    enum class Pack(val label: String) { SCENES("Scenes"), ANIMATIONS("Animations"), CLOTHING("Clothes") }
+/** [named]: the named characters, whose own displays and model-part sources the CHARACTERS pack fetches. */
+class AssetDownloads(private val files: GameFiles, private val tables: Tables, private val named: com.logie.wifecraft.characters.NamedCast? = null) {
+    enum class Pack(val label: String) { SCENES("Scenes"), ANIMATIONS("Animations"), CLOTHING("Clothes"), CHARACTERS("Named characters") }
 
     data class Progress(
         val pack: Pack,
@@ -101,6 +102,13 @@ class AssetDownloads(private val files: GameFiles, private val tables: Tables) {
                 val icons = pieces.mapNotNull { p -> p.icon.takeIf { it > 0 } }
                 val (models, textures) = CreatureLooks.clothingFiles(tables, displays)
                 Work(textures + icons, models)
+            }
+            Pack.CHARACTERS -> {
+                // every display a named character is drawn as or a partial look is cut from: its model, skin, textures
+                val cast = named ?: com.logie.wifecraft.characters.NamedCast(emptyList())
+                val looks = cast.displays().mapNotNull { CreatureLooks.resolve(tables, it) }
+                val sets = cast.manifest?.sets.orEmpty().map { it.model }.filter { it > 0 }
+                Work(looks.flatMapTo(HashSet()) { it.needsFiles }, looks.mapTo(HashSet()) { it.model }.filter { it > 0 }.toSet() + sets)
             }
             Pack.ANIMATIONS -> {
                 checkNotNull(catalog) { "Gather the character tables first." }

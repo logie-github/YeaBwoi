@@ -489,8 +489,27 @@ class RequirementCache(private val dir: File) {
 
     @Synchronized fun forget(id: String) { val map = load(); if (map.remove(id) != null) save(map) }
 
-    fun requirement(a: Anim): Requirement = get(a.id, "${a.source}#${a.conversionRevision}") { RequirementClassifier.classify(a) }
-    fun requirement(p: PairAnim): Requirement = get("pair:" + p.id, "${p.source}#${p.a.conversionRevision}") { RequirementClassifier.classify(p) }
+    fun requirement(a: Anim): Requirement = get(a.id, RequirementStore.keyOf(a)) { RequirementStore.seeded(a) ?: RequirementClassifier.classify(a) }
+    fun requirement(p: PairAnim): Requirement = get("pair:" + p.id, RequirementStore.keyOf(p)) { RequirementStore.seeded(p) ?: RequirementClassifier.classify(p) }
+
+    /**
+     * The requirements of all of [anims] and [pairs] (by the animation's id, a pair's as "pair:<id>"), those not kept yet
+     * classified and the file written once at the end (a library opened for the first time: not once per animation).
+     */
+    @Synchronized fun all(anims: List<Anim>, pairs: List<PairAnim>): Map<String, Requirement> {
+        val map = load()
+        val out = HashMap<String, Requirement>()
+        var changed = false
+        fun one(id: String, key: String, classify: () -> Requirement) {
+            val kept = map[id]?.takeIf { it.first == key }?.second
+            val r = kept ?: classify().also { map[id] = key to it; changed = true }
+            out[id] = r
+        }
+        for (a in anims) one(a.id, RequirementStore.keyOf(a)) { RequirementStore.seeded(a) ?: RequirementClassifier.classify(a) }
+        for (p in pairs) one("pair:" + p.id, RequirementStore.keyOf(p)) { RequirementStore.seeded(p) ?: RequirementClassifier.classify(p) }
+        if (changed) save(map)
+        return out
+    }
 
     private fun load(): MutableMap<String, Pair<String, Requirement>> {
         loaded?.let { return it }
@@ -527,4 +546,49 @@ class RequirementCache(private val dir: File) {
 
     /** Not ".json": the library reads every other .json in its folder as an animation and would list this one as damaged. */
     companion object { const val FILE = "requires.cache" }
+}
+
+/**
+ * Where the live scene gets an animation's requirement: the library's [RequirementCache] beside its files once the library
+ * is opened ([AnimLibrary] sets [cache]), else classified in memory. The importer [seed]s what it classified with the Sims
+ * clip's own names and slot targets ([Hints.of] a SimsClip, which the saved animation no longer has), by the animation's
+ * source and conversion revision: the library's cache takes the seed when it first meets that animation (in this run of
+ * the app; after a restart an animation not met yet is classified from its own names). Thread-safe.
+ */
+object RequirementStore {
+    @Volatile var cache: RequirementCache? = null
+    private val seeds = java.util.concurrent.ConcurrentHashMap<String, Requirement>()
+    private val memory = java.util.concurrent.ConcurrentHashMap<String, Requirement>()
+
+    fun keyOf(a: Anim) = "${a.source}#${a.conversionRevision}"
+    fun keyOf(p: PairAnim) = "${p.source}#${p.a.conversionRevision}"
+
+    /** [r] is what an imported animation with [key] ([keyOf]) needs. */
+    fun seed(key: String, r: Requirement) { seeds[key] = r }
+    fun seeded(a: Anim): Requirement? = seeds[keyOf(a)]
+    fun seeded(p: PairAnim): Requirement? = seeds[keyOf(p)]
+
+    fun of(a: Anim): Requirement = cache?.requirement(a)
+        ?: memory.getOrPut("a:" + keyOf(a) + ":" + a.id) { seeded(a) ?: RequirementClassifier.classify(a) }
+
+    fun of(p: PairAnim): Requirement = cache?.requirement(p)
+        ?: memory.getOrPut("p:" + keyOf(p) + ":" + p.id) { seeded(p) ?: RequirementClassifier.classify(p) }
+
+    /** Both lists at once (the cache's file written once); ids as [RequirementCache.all]. */
+    fun all(anims: List<Anim>, pairs: List<PairAnim>): Map<String, Requirement> = cache?.all(anims, pairs)
+        ?: HashMap<String, Requirement>().also { out ->
+            for (a in anims) out[a.id] = of(a)
+            for (p in pairs) out["pair:" + p.id] = of(p)
+        }
+
+    /** The importer's hints: the converted animation's own and the Sims clips' (their names, slot targets). */
+    fun hints(a: Anim, clip: SimsClip): Hints {
+        val own = Hints.of(a); val sims = Hints.of(clip)
+        return Hints(own.names + sims.names, own.locations + sims.locations, own.slotNames + sims.slotNames)
+    }
+
+    fun hints(p: PairAnim, a: SimsClip, b: SimsClip): Hints {
+        val own = Hints.of(p); val x = Hints.of(a); val y = Hints.of(b)
+        return Hints(own.names + x.names + y.names, own.locations, x.slotNames + y.slotNames)
+    }
 }

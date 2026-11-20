@@ -23,6 +23,8 @@ data class LocationInfo(
     val interactions: List<Interaction> = emptyList(),
     /** Whose home it is ("human", "orc"...; empty: no one's in particular). */
     val people: String = "",
+    /** Its furniture for animations (locations.json "furniture"): beds, chairs, tables, each with its surface's height. */
+    val furniture: List<FurniturePiece> = emptyList(),
 ) {
     data class ModelReference(val id: Int, val position: Vec3)
     /**
@@ -102,14 +104,32 @@ data class LocationInfo(
                     interactions += Interaction(row.getString("object"), entry, row.getDouble("facing").toFloat(), references, pose)
                 }
             }
+            val furniture = ArrayList<FurniturePiece>()
+            e.optJSONArray("furniture")?.let { arr ->
+                for (i in 0 until arr.length()) {
+                    val row = arr.optJSONObject(i) ?: continue
+                    val at = vec(row.optJSONArray("position")) ?: continue
+                    furniture += FurniturePiece(row.optString("object"), row.optString("kind"), at,
+                        row.optDouble("yaw", 0.0).toFloat(), row.optDouble("surface", 0.0).toFloat())
+                }
+            }
             val id = e.getString("id")
             return LocationInfo(
                 id, e.optString("name", id), e.optString("kind", ""), views, packs,
-                e.optJSONObject("ambience")?.optInt("area", 0) ?: 0, interactions, e.optString("people", ""),
+                e.optJSONObject("ambience")?.optInt("area", 0) ?: 0, interactions, e.optString("people", ""), furniture,
             )
         }
     }
 }
+
+/**
+ * A piece of a location's furniture for animations (locations.json "furniture"): [item] the interaction it belongs to (BED,
+ * CHAIR, TABLE: the scene object it is), its [kind] (simulation/FurnitureKind: BED_DOUBLE, CHAIR, TABLE...), [position] its
+ * middle on the floor it stands on (the location's frame, yards), [yaw] its front's direction (radians: a bed's foot, the
+ * way a sitter faces, the side a table is used from) and [surface] its bed's, seat's or top's height over that floor (yards;
+ * 0: the kind's usual).
+ */
+data class FurniturePiece(val item: String, val kind: String, val position: Vec3, val yaw: Float, val surface: Float)
 
 /**
  * What a WMO root names beside itself, read from its chunks (as cpp engine/wmo.cpp reads them): its groups' files (GFID,
