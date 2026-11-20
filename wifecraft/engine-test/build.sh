@@ -55,3 +55,9 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/modelparts.cpp" "$engine/modelpart.cpp" "$engine/bodypart.cpp" "$engine/blp.cpp" "$engine/json.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" \
     -o "$here/build/modelparts"
 echo "$here/build/modelparts"
+# The scene film (tools/film/README.md): draws a track the JVM recorder made of the app's live simulation, frame by frame;
+# also serves the location's walk tests to the recorder (--serve). build/film.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/film.cpp" "$engine"/*.cpp \
+    -lEGL -lGLESv2 -lz -o "$here/build/film"
+echo "$here/build/film"

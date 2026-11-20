@@ -16,6 +16,9 @@
 //   dress N LOOKFILE                           dresses person N again (Native.dress): geosets, layers, extras
 //   boneanim N ANIMFILE                        an imported animation on person N (Scene::setBoneAnim; file below)
 //   bonestop N                                 takes it off (Scene::clearBoneAnim)
+//   humanscale N TARGET|own XY                 person N at human scale (TARGET: the sex's standing height; own: the look's
+//                                              scale, a dwarf or gnome) and its root motion across the floor (HumanScale.PAIR)
+//   furnish N sit|lie SX SY SZ FACING          person N's pelvis on a seat or bed at that surface point (Scene::placeActor)
 //   soft off|subtle|natural|strong             Options' Soft body (Scene::setSoftBody; the scene's default: natural)
 //   render OUT.ppm|OUT.png WIDTH HEIGHT TIME_MS
 //   bonepos N MODEL BONE...                   prints where those bones' pivots are as person N was last drawn (WoW-side names)
@@ -940,6 +943,26 @@ int main(int argc, char** argv) {
         } else if (cmd == "bonestop") {
             int name; ss >> name;
             if (actors.count(name)) scene.clearBoneAnim(actors[name]);
+        } else if (cmd == "humanscale") {
+            // humanscale N TARGET|own XY: person N at human scale as SceneView.dress sizes a live NPC (anim/HumanScale.kt):
+            // TARGET the sex's standing height (scale = TARGET / Scene::actorStandHeight), `own` keeps the look's scale (a dwarf,
+            // a gnome); XY the imported animations' root motion across the floor (Scene::setHumanRootMotion: HumanScale.PAIR
+            // times pairScale)
+            int name; std::string target; float xy = 0;
+            ss >> name >> target >> xy;
+            if (!actors.count(name)) continue;
+            int id = actors[name];
+            float stand = scene.actorStandHeight(id), sc = 0;
+            if (target != "own" && stand > 0.15f) { sc = std::clamp(std::strtof(target.c_str(), nullptr) / stand, 0.2f, 4.0f); scene.setActorScale(id, sc); }
+            scene.setHumanRootMotion(id, xy);
+            std::fprintf(stderr, "humanscale %d: stands %.3f, scale %s, root motion %.4f\n", name, stand, sc > 0 ? std::to_string(sc).c_str() : "own", xy);
+        } else if (cmd == "furnish") {
+            // furnish N sit|lie SX SY SZ FACING: person N on a piece of furniture (Scene::placeActor with kSitting or kLying):
+            // the pelvis put on the surface point SX SY SZ, facing FACING radians (the slot's)
+            int name; std::string pose; float sx, sy, sz, facing;
+            ss >> name >> pose >> sx >> sy >> sz >> facing;
+            if (actors.count(name))
+                scene.placeActor(actors[name], V3(sx, sy, 0), facing, pose == "lie" ? Scene::kLying : Scene::kSitting, V3(sx, sy, sz));
         } else if (cmd == "location") {
             std::string path, id, view, json;
             ss >> path >> id >> view;
