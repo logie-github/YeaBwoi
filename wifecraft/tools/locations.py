@@ -9,6 +9,12 @@ files are the game's, fetched on the phone from wago.tools, never put in this re
 --only rebuilds just those locations and keeps every other entry as it is (the Embassy's entry has hand-made parts:
 its interactions, its views' interiorFog; rebuild the bedrooms with --only=<their ids>).
 
+    python3 tools/locations.py CACHE_DIR --day-cycle
+
+adds (or replaces) only each entry's "dayCycle" and leaves the rest of every entry as its text stands: the map light's
+day (LightData's keyframes for the LightParams its "light" came from: hour = Time / 120, ambient, direct, sky middle,
+sky fog), which the engine samples by the world clock's hour (cpp engine/daylight.h).
+
 CACHE_DIR keeps everything fetched while working it out (files named by id, tables as <Name>.csv);
 LISTFILE is the community listfile (wowdev/wow-listfile, `id;path` lines), used only to name files in
 the log. stdlib only. Be gentle with wago.tools: at most 8 requests at once.
@@ -868,6 +874,7 @@ def build(st, loc):
             noon = r
     day = dict(ambient=colour_rgb(noon["AmbientColor"]), direct=colour_rgb(noon["DirectColor"]),
                source="Light %s, LightParams %s, LightData %s (time %s)" % (lp[0], lp[1], noon["ID"], noon["Time"]))
+    cycle = day_cycle(st, lp[1])
     day_fog = dict(colour=colour_rgb(noon["SkyFogColor"]), start=loc["outsideFog"][0], end=loc["outsideFog"][1])
     room_light = dict(ambient=colour_bgra(w.ambient), direct=[0.0, 0.0, 0.0], vertexColours=True,
                       source="MOHD ambient; the room's light is baked into its vertex colours (MOCV)")
@@ -984,7 +991,7 @@ def build(st, loc):
         terrain=dict(comment="the map's ground under the yard: root ADT (MCNK MCVT heights) and tex0 (MCLY layers, MCAL alpha), "
                              "chunks [ix, iy] of the tile, in world coordinates (move with frame)",
                      wdt=loc["wdt"], tile=list(loc["tile"]), root=root, tex0=tex0, chunks=[list(k) for k in near], textures=layers),
-        light=day, fog=day_fog,
+        light=day, fog=day_fog, dayCycle=cycle,
         spawns=dict(inside=inside["spawn"], outside=outside["spawn"]),
         views=dict(inside=dict(inside["view"], light=inside["light"], groups=inside["groups"],
                                **({"interiorFog": inside["interiorFog"]} if "interiorFog" in inside else {}), fog=inside["fog"]),
@@ -1001,6 +1008,51 @@ def build(st, loc):
                   ground=[(t, st.name(t)) for t in layers], packs=[(p["name"], len(p["files"]), p["bytes"]) for p in out_packs],
                   door=rnd(pc), inward=rnd(inward), sill=sill, statuses=dict(st.status))
     return entry, report
+
+
+def day_cycle(st, params):
+    """The map light's whole day: every LightData row of LightParams `params`, by hour (Time / 120: the game counts
+    half-minutes), as [hour, ambient rgb, direct rgb, sky middle rgb, sky fog rgb] (cpp engine/daylight.h's keys)."""
+    rows = sorted((r for r in st.table("LightData") if r["LightParamID"] == str(params)), key=lambda r: int(r["Time"]))
+    keys = []
+    for r in rows:
+        hour = round(int(r["Time"]) / 120.0, 4)
+        if keys and keys[-1][0] == hour:
+            continue
+        keys.append([hour] + colour_rgb(r["AmbientColor"]) + colour_rgb(r["DirectColor"])
+                    + colour_rgb(r["SkyMiddleColor"]) + colour_rgb(r["SkyFogColor"]))
+    return dict(source="LightParams %s: LightData's %d rows, hour = Time / 120; [hour, ambient, direct, sky, fog]" % (params, len(keys)),
+                keys=keys)
+
+
+def add_day_cycles(st):
+    """--day-cycle: each entry's dayCycle from the LightParams its light names, the rest of its text untouched."""
+    path = os.path.join(ASSETS, "locations.json")
+    text = open(path).read()
+    old = json.loads(text)
+    parts = []
+    for loc, t in zip(old["locations"], entry_texts(text)):
+        m = re.search(r"LightParams (\d+)", loc.get("light", {}).get("source", ""))
+        if not m:
+            log("%s: its light names no LightParams; no dayCycle" % loc["id"])
+            parts.append(t)
+            continue
+        cycle = day_cycle(st, m.group(1))
+        body = "\n  ".join(compact(json.dumps(cycle, indent=1)).split("\n"))
+        # its own keys on one line each
+        body = re.sub(r"\[\n\s+(\[[^\[\]]*\](?:,\n\s+\[[^\[\]]*\])*)\n\s+\]",
+                      lambda g: "[\n    " + ",\n    ".join(x.strip() for x in g.group(1).split(",\n")) + "\n   ]", body)
+        if "dayCycle" in loc:
+            # replace the old one: the entry rebuilt from its JSON (its other parts keep their values)
+            loc["dayCycle"] = cycle
+            parts.append("\n  ".join(compact(json.dumps(loc, indent=1)).split("\n")))
+            continue
+        end = t.rstrip().rindex("}")
+        parts.append(t[:end].rstrip() + ",\n   \"dayCycle\": " + body.replace("\n  ", "\n   ") + "\n  }")
+        log("%s: dayCycle from LightParams %s, %d keys" % (loc["id"], m.group(1), len(cycle["keys"])))
+    with open(path, "w") as f:
+        f.write("{\n \"comment\": %s,\n \"build\": %s,\n \"locations\": [\n  %s\n ]\n}\n" % (
+            json.dumps(old["comment"]), json.dumps(old["build"]), ",\n  ".join(parts)))
 
 
 def continent(st, loc):
@@ -1040,6 +1092,9 @@ def main():
     only = {x for a in sys.argv[1:] if a.startswith("--only=") for x in a[7:].split(",")}
     if not args:
         raise SystemExit(__doc__)
+    if "--day-cycle" in args:
+        add_day_cycles(Store(args[0]))
+        return
     st = Store(args[0], args[1] if len(args) > 1 else None)
     todo = [l for l in LOCATIONS if not only or l["id"] in only]
     path = os.path.join(ASSETS, "locations.json")

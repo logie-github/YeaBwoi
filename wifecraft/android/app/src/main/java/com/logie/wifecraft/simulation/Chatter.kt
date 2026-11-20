@@ -20,8 +20,14 @@ class Chatter(private val speakers: Map<String, Speaker>, place: String) {
     private val recent = ArrayDeque<String>()
     private var lastTopic = -1
 
-    /** What [a] (who began it) and [b] say, in order (ChatLine.speaker 0 is [a]). */
-    fun conversation(a: String, b: String, random: Random): List<ChatLine> {
+    /** The topic of the last conversation made ("weather", "jokes"...: the life simulation weighs it), or null. */
+    val lastTopicName: String? get() = TOPICS.getOrNull(lastTopic)?.name
+
+    /**
+     * What [a] (who began it) and [b] say, in order (ChatLine.speaker 0 is [a]). [opening]: the topic it starts on (the life
+     * simulation's Tell a joke: "jokes"); null, or one there is no such topic of, as before: one picked at random.
+     */
+    fun conversation(a: String, b: String, random: Random, opening: String? = null): List<ChatLine> {
         val sa = speakers[a] ?: Speaker("friend")
         val sb = speakers[b] ?: Speaker("friend")
         val who = arrayOf(sa, sb)
@@ -43,7 +49,8 @@ class Chatter(private val speakers: Map<String, Speaker>, place: String) {
         line(1, ANSWERS, "a")
 
         val count = EXCHANGES[random.nextInt(EXCHANGES.size)]
-        var topic = pickTopic(random, -1)
+        val forced = if (opening == null) -1 else TOPICS.indexOfFirst { it.name == opening }
+        var topic = if (forced >= 0) forced else pickTopic(random, -1)
         // whoever didn't speak last speaks next: the one who came over brings up the first topic, and so on in turn
         var leader = 0
         var said = 0

@@ -39,6 +39,9 @@ val pureUi = tasks.register<Copy>("pureUi") {
     from("../android/app/src/main/java/com/logie/wifecraft/ui/MenuMotion.kt")
     // the live scene's HUD: the action bar's orders and pages, the help line, the clock, the layout, the animation tabs (SceneHud)
     from("../android/app/src/main/java/com/logie/wifecraft/ui/SceneHud.kt")
+    // the life simulation's HUD: mood gems, need bars, relationships, thought bubbles, the radial menu, the clock (LifeHud, LifeIcons)
+    from("../android/app/src/main/java/com/logie/wifecraft/ui/LifeHud.kt")
+    from("../android/app/src/main/java/com/logie/wifecraft/ui/LifeIcons.kt")
     into(layout.buildDirectory.dir("gen/pureUi"))
 }
 
@@ -60,6 +63,8 @@ val pureAudio = tasks.register<Copy>("pureAudio") {
     from("../android/app/src/main/java/com/logie/wifecraft/audio/SoundIndex.kt")
     // the soundscape's decisions: the mixer, the ducking, the crossfade, which music where, sounds.json (Soundscape)
     from("../android/app/src/main/java/com/logie/wifecraft/audio/Soundscape.kt")
+    // the time of day's sound: night ambience, the music's night level, flavour sounds, bells (TimeOfDaySound)
+    from("../android/app/src/main/java/com/logie/wifecraft/audio/TimeOfDaySound.kt")
     // the partner animations' sounds folder (resolution, names, hashes, zip import)
     from("../android/app/src/main/java/com/logie/wifecraft/audio/SoundNames.kt")
     from("../android/app/src/main/java/com/logie/wifecraft/audio/PartnerSounds.kt")

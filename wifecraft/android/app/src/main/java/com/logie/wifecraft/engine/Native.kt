@@ -160,6 +160,13 @@ object Native {
     @JvmStatic external fun buildModelParts(manifestJson: String, filesDir: String, outDir: String, set: String): String
     @JvmStatic external fun camera(scene: Long, ex: Float, ey: Float, ez: Float, tx: Float, ty: Float, tz: Float, fov: Float)
     @JvmStatic external fun light(scene: Long, values: FloatArray)
+    /**
+     * The world clock's hour (0..24: simulation/WorldClock's lightHour) on the loaded location's light: its map light's day
+     * cycle (assets/locations.json's dayCycle: the game's LightData) for the sky, the sun or moon, the ambient and the fog,
+     * and its rooms' own light dimmed and warmed at night (cpp engine/daylight.h). Negative: off, the light as given. Cheap;
+     * no location loaded: nothing changes.
+     */
+    @JvmStatic external fun timeOfDay(scene: Long, hours: Float)
 
     // ---- locations and the editor's props (cpp engine/location.h, location.cpp, terrain.cpp)
 

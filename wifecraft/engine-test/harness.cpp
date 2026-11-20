@@ -2,6 +2,7 @@
 // game's files. Reads commands (one per line) from a file:
 //
 //   files DIR                                  the downloaded files, each named by its id
+//   time HOURS                                 the hour (0..24) on the location's light (daylight.h; negative: off)
 //   city ROOT GROUP,GROUP,...  X Y Z RADIUS [X Y Z ...]   Dalaran's groups and the props near the points
 //   actor N MODEL SCALE X Y Z FACING [tex T=F,T=F] [geo GROUP=VALUE,...]
 //   attach N ATTACHMENT MODEL T=F,...
@@ -772,6 +773,8 @@ int main(int argc, char** argv) {
             for (auto& [name, id] : actors) scene.removeActor(id);
             actors.clear();
             modelParts.clear();
+        } else if (cmd == "time") {
+            float hours; ss >> hours; scene.setTimeOfDay(hours);   // the world clock's hour on the location (negative: off)
         } else if (cmd == "fog") {
             ss >> light.fogStart >> light.fogEnd; scene.setLight(light);
         } else if (cmd == "look") {

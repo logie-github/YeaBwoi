@@ -24,6 +24,8 @@ data class SceneSnapshot(
     val partnerPairs: Int = 0,
     /** The furniture views of each person on furniture (by id; [FurnitureCameras]: the bed's foot, head...), in order. */
     val furnitureViews: Map<String, List<FurnitureView>> = emptyMap(),
+    /** The life simulation's view (needs, moods, thoughts, relationships, the feed: [LifeApi]), or null without one. */
+    val life: LifeView? = null,
 ) {
     /** [partner]: the other NPC of a two-person animation, else null; [queued] orders waiting; [repeating] one repeating. */
     data class PersonView(val id: String, val activity: Activity, val directed: Boolean,
@@ -60,6 +62,8 @@ class LiveScene(
     /** The NPCs' small talk: what they say ([Chatter]; null: no words) and how often they go and talk (0: never). */
     chatter: Chatter? = null,
     chatterChance: Float = 0f,
+    /** The life simulation over the scene (its cast this one's, in order: [LifeApi]); null: none, NPCs choose as before. */
+    lifeSim: LifeSim? = null,
 ) {
     /** Where the frame goes (the 3D view, or a test's recorder). GL thread. */
     interface Sink {
@@ -87,6 +91,8 @@ class LiveScene(
     companion object {
         /** The menus' snapshots at most this often (10 a second), and only when something they show changed. */
         const val SNAPSHOT_MS = 100L
+        /** When only the life simulation's view changed (a need moved 5%, a thought), a snapshot at most this often. */
+        const val LIFE_SNAPSHOT_MS = 500L
         /** How fast a person turns to their new heading (1/s): a quick, eased turn rather than a snap. */
         const val TURN_RATE = 14f
         /** How far round the furniture its views' eyes may go (yards): about a room's reach, its walls not known. */
@@ -102,7 +108,10 @@ class LiveScene(
         chatterChance = chatterChance, chatter = chatter).also {
         // the screen classifies the pairs off this thread; until it has, a pair goes by its location names
         it.classifyPairs = false
+        it.life = lifeSim
     }
+    /** The life simulation's commands (any thread: [LifeApi]). */
+    val life = LifeControl(this)
     /** The frame's sink while [frame] runs (the simulation's sound events go to it). */
     private var frameSink: Sink? = null
     val clock = FixedStep()
@@ -158,6 +167,7 @@ class LiveScene(
     private var notice: String? = null
     private var noticeChanged = false
     private var emittedVersion = -1L
+    private var emittedLife = -1L
     private var lastEmitNanos = Long.MIN_VALUE
 
     init {
@@ -185,7 +195,8 @@ class LiveScene(
             val list = presets(id, null).map { it.view }
             if (list.isNotEmpty()) views[id] = list
         }
-        return SceneSnapshot(people, holders, usable, notice, simulation.pairs.size, views)
+        val lifeView = simulation.life?.let { l -> emittedLife = l.version; l.view() }
+        return SceneSnapshot(people, holders, usable, notice, simulation.pairs.size, views, lifeView)
     }
 
     /**
@@ -332,8 +343,10 @@ class LiveScene(
         sink.camera(camera.eyeX, camera.eyeY, camera.eyeZ, camera.atX, camera.atY, camera.atZ, camera.fov)
 
         val version = simulation.version
-        if ((version != emittedVersion || noticeChanged) &&
-            (lastEmitNanos == Long.MIN_VALUE || nowNanos - lastEmitNanos >= SNAPSHOT_MS * 1_000_000L)) {
+        val since = nowNanos - lastEmitNanos
+        val lifeDue = simulation.life.let { it != null && it.version != emittedLife } && since >= LIFE_SNAPSHOT_MS * 1_000_000L
+        if ((version != emittedVersion || noticeChanged || lifeDue) &&
+            (lastEmitNanos == Long.MIN_VALUE || since >= SNAPSHOT_MS * 1_000_000L)) {
             emittedVersion = version
             noticeChanged = false
             lastEmitNanos = nowNanos

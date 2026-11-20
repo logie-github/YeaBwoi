@@ -285,6 +285,11 @@ JNIEXPORT void JNICALL FN(light)(JNIEnv* env, jclass, jlong h, jfloatArray value
     scene(h)->setLight(l);
 }
 
+// The world clock's hour on the location's light (Scene::setTimeOfDay); negative: off.
+JNIEXPORT void JNICALL FN(timeOfDay)(JNIEnv*, jclass, jlong h, jfloat hours) {
+    scene(h)->setTimeOfDay(hours);
+}
+
 // ---- locations and the editor's props (Native.kt documents them)
 
 JNIEXPORT jboolean JNICALL FN(loadLocation)(JNIEnv* env, jclass, jlong h, jstring json, jstring id, jstring view) {

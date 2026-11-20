@@ -16,6 +16,9 @@ object MenuMotion {
     /** A dropdown or a tooltip: quicker, and it drops this far from its button as it shows. */
     const val POP_MS = 90
     const val POP_SLIDE_DP = 6f
+    /** The radial menu's items flying out from its centre (and back), and how small they start. */
+    const val RADIAL_MS = 140
+    const val RADIAL_SCALE_FROM = 0.6f
     /** One page of a window giving way to another (Options' categories, Import Animations' steps). */
     const val PAGE_MS = 140
     /** A press: everything that can be tapped sinks to this and back, in this long. */

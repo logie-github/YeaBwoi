@@ -25,6 +25,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
+import com.logie.wifecraft.simulation.ClockSettings
+import com.logie.wifecraft.simulation.ClockSpeed
+import com.logie.wifecraft.simulation.WorldClock
 
 /**
  * This flow at most once per [intervalMs] ([Sampler]): the first at once, an [urgent] one at once, the latest of those in
@@ -61,7 +64,7 @@ fun <T> StateFlow<T>.collectThrottled(urgent: (T?, T) -> Boolean = { _, _ -> fal
     return throttled.collectAsStateWithLifecycle(value)
 }
 
-private enum class Page(val label: String) { SOUND("Sound"), DOWNLOADS("Downloads"), MODS("Mods") }
+private enum class Page(val label: String) { SOUND("Sound"), TIME("Time"), DOWNLOADS("Downloads"), MODS("Mods") }
 
 /**
  * Options, in the front menus' look (WifeWindow): Sound (the game's own Sound page: Enable Sound, Master, Music, Ambience, Sound
@@ -84,15 +87,22 @@ fun DownloadOptions(
     mods: @Composable () -> Unit,
     /** Extra blocks under the Sound page's sliders (the partner sounds). */
     sound: @Composable () -> Unit = {},
+    /** The Time page's world clock settings and their change (null: no Time page). */
+    clock: ClockSettings? = null,
+    onClock: (ClockSettings) -> Unit = {},
+    /** The Time page's Life simulation switch. */
+    lifeSimulation: Boolean = true,
+    onLifeSimulation: (Boolean) -> Unit = {},
 ) {
     var page by remember { mutableStateOf(Page.SOUND) }
+    val pages = remember(clock != null) { Page.entries.filter { it != Page.TIME || clock != null } }
     val reduced = reduceMotion()
     Overlay(onClose) {
         BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             val layout = ChromeLayout.of(maxWidth.value, maxHeight.value)
             WifeWindow(
                 "Options", onClose, Modifier.width(layout.optionsW.dp).height(layout.optionsH.dp),
-                tabs = Page.entries.map { it.label }, tab = page.ordinal, onTab = { page = Page.entries[it] },
+                tabs = pages.map { it.label }, tab = pages.indexOf(page).coerceAtLeast(0), onTab = { page = pages[it] },
                 footer = {
                     if (page != Page.DOWNLOADS && downloading) Text(
                         "Downloading ${progress?.pack?.label?.lowercase() ?: "game files"}…",
@@ -154,6 +164,7 @@ fun DownloadOptions(
                                 }
                                 if (!canDownload) WifeNote("Gather the character tables first.")
                             }
+                            Page.TIME -> if (clock != null) TimePage(clock, onClock, lifeSimulation, onLifeSimulation)
                             Page.MODS -> mods()
                         }
                     }
@@ -161,4 +172,29 @@ fun DownloadOptions(
             }
         }
     }
+}
+
+/**
+ * Options' Time page: the Life simulation switch, and the world clock's settings (ClockSettings): its speed (where each scene
+ * starts; the clock's own buttons change it for that scene), the hour a new cast's day begins, and Day/night cycle.
+ */
+@Composable
+private fun TimePage(clock: ClockSettings, onClock: (ClockSettings) -> Unit, life: Boolean, onLife: (Boolean) -> Unit) {
+    WifeSwitchRow("Life simulation", life, onLife,
+        detail = "NPCs have needs, moods, wishes and relationships, and live their day as in The Sims")
+    WifeSectionHeader("Speed")
+    val speeds = LifeHud.SPEEDS
+    WifeTabs(speeds.map { if (it == ClockSpeed.PAUSED) "Paused" else it.label }, speeds.indexOf(clock.speed).coerceAtLeast(0),
+        { onClock(clock.copy(speed = speeds[it])) })
+    WifeNote("At x1 a real second is a game minute: a day takes 24 minutes (8 at x3, 4 at x6). The needs follow the clock; Paused stops them too.")
+    WifeSectionHeader("Day")
+    Row(Modifier.fillMaxWidth().heightIn(min = WifeTheme.touch), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapM)) {
+        Text("Start hour", Modifier.weight(1f), style = WifeTheme.labelStyle(), maxLines = 2)
+        val label = ClockSettings.START_HOURS.firstOrNull { it.first == clock.startHour }?.second ?: WorldClock.format24(clock.startHour)
+        WowDropdown(label, ClockSettings.START_HOURS, { h: Double -> onClock(clock.copy(startHour = h)) }, Modifier.weight(1.1f))
+    }
+    WifeNote("Where a new cast's first day begins; a cast you have played before goes on from its own time.")
+    WifeSwitchRow("Day/night cycle", clock.cycle, { onClock(clock.copy(cycle = it)) },
+        detail = "Off: the light and the sounds keep the start hour while the clock still runs")
 }

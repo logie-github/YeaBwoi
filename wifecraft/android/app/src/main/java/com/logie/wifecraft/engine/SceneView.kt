@@ -189,6 +189,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
                     val c = changes.poll() ?: break
                     c.apply(handle, ids)
                 }
+                glTimeOfDay()
                 val d = driver
                 if (d != null) {
                     d.drive(System.nanoTime())
@@ -252,6 +253,22 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     }
 
     override fun light(values: FloatArray) = post { h, _ -> Native.light(h, values) }
+
+    @Volatile private var wantedHour = -1f
+    private var drawnHour = -1f
+
+    /**
+     * The world clock's hour (0..24, simulation/WorldClock.lightHour) on the location's light: sky, sun or moon, ambient,
+     * fog and the rooms' night (Native.timeOfDay). Negative: off (the location's own light). Any thread, as often as the
+     * clock moves: only the latest is used, on the next frame, and only when it changed.
+     */
+    fun setTimeOfDay(hours: Float) { wantedHour = if (hours.isFinite() && hours >= 0f) hours % 24f else -1f }
+
+    /** GL thread: the hour asked for, once per change. */
+    private fun glTimeOfDay() {
+        val h = wantedHour
+        if (h != drawnHour) { drawnHour = h; Native.timeOfDay(handle, h) }
+    }
 
     override fun showCity(shown: Boolean) = post { h, _ -> Native.showCity(h, shown) }
 

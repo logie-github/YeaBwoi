@@ -85,6 +85,10 @@ import com.logie.wifecraft.ui.GameIcons
 import com.logie.wifecraft.simulation.Activity
 import com.logie.wifecraft.simulation.InteractionSpot
 import com.logie.wifecraft.simulation.SceneObject
+import com.logie.wifecraft.simulation.LifeProfile
+import com.logie.wifecraft.simulation.LifeSim
+import com.logie.wifecraft.simulation.WorldClock
+import org.json.JSONObject
 import com.logie.wifecraft.ui.CreatorScreen
 import com.logie.wifecraft.ui.DownloadOptions
 import com.logie.wifecraft.ui.ImportsSection
@@ -219,6 +223,24 @@ class MainActivity : ComponentActivity() {
 
     private fun readText(file: AtomicFile): String? = if (file.baseFile.exists()) file.readFully().decodeToString() else null
 
+    /** A cast's saved life (LifeSim.fileName) and its world clock beside it ("clock_" and the same name), in files/life. */
+    private fun lifeFiles(ids: List<String>): Pair<AtomicFile, AtomicFile> {
+        val name = LifeSim.fileName(ids)
+        val dir = File(filesDir, "life")
+        return AtomicFile(File(dir, name)) to AtomicFile(File(dir, "clock_" + name.removePrefix("life_")))
+    }
+
+    private val lifeLock = Any()
+
+    /** A cast's life and clock written whole or not at all (any thread; one write at a time). A failed write keeps the last. */
+    private fun saveLife(files: Pair<AtomicFile, AtomicFile>, life: String?, clock: String?) = synchronized(lifeLock) {
+        runCatching {
+            files.first.baseFile.parentFile?.mkdirs()
+            if (life != null) writeText(files.first, life)
+            if (clock != null) writeText(files.second, clock)
+        }
+    }
+
     /** [text] written whole or not at all (AtomicFile). */
     private fun writeText(file: AtomicFile, text: String) {
         val output = file.startWrite()
@@ -315,6 +337,9 @@ class MainActivity : ComponentActivity() {
         var pairs by remember { mutableStateOf(emptyList<PairAnim>()) }
         var partnerFrequency by remember { mutableStateOf(PartnerFrequency.of(settings.partnerFrequency)) }
         var chatterFrequency by remember { mutableStateOf(ChatterFrequency.of(settings.chatterFrequency)) }
+        // Options' Time page: the life simulation's switch and the world clock's settings
+        var lifeOn by remember { mutableStateOf(settings.lifeSimulation) }
+        var clockSettings by remember { mutableStateOf(settings.clock) }
         var partnerOn by remember { mutableStateOf(settings.partnerSoundsOn) }
         var partnerVolume by remember { mutableIntStateOf(settings.partnerSoundVolume) }
         val partnerSink = remember {
@@ -716,6 +741,24 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
+                        // one life simulation and one world clock for the scene, built for its cast with the cast's saved life and
+                        // time put back (a new cast's day starts at Options' start hour); the screen drives them from here on
+                        val lifeIds = remember(chosen) { chosen.map { it.id } }
+                        val lifeStore = remember(lifeIds) { lifeFiles(lifeIds) }
+                        val lifeSim = remember(session, lifeIds) {
+                            LifeSim(lifeIds, chosen.associate { it.id to LifeProfile(it.name, it.appearance.raceId, it.appearance.sex == Sex.FEMALE) },
+                                seed = System.nanoTime()).also { sim ->
+                                sim.enabled = lifeOn
+                                runCatching { readText(lifeStore.first)?.let { sim.load(it) } }
+                            }
+                        }
+                        val worldClock = remember(session, lifeIds) {
+                            WorldClock().also { c ->
+                                val saved = runCatching { readText(lifeStore.second)?.let { JSONObject(it) } }.getOrNull()
+                                if (saved != null) c.restore(saved) else c.start(clockSettings.startHour)
+                                c.apply(clockSettings)
+                            }
+                        }
                         Collected(status) { liveStatus -> CompositionLocalProvider(LocalPartControl provides partControl) { LiveSceneScreen(
                             view, camera, preset.name, chosen, objects, spots, actorKey, objectHits, toStage, toLocal, rotation,
                             onAnimate = { id, activity -> dresser.fetchAnim(actorKey(id), activity.animation) },
@@ -729,6 +772,13 @@ class MainActivity : ComponentActivity() {
                             onSettings = { panel = Panel.OPTIONS },
                             ready = locationResult == true && loadedActors == chosen.size,
                             status = liveStatus,
+                            lifeSim = lifeSim,
+                            lifeEnabled = lifeOn,
+                            worldClock = worldClock,
+                            clockSettings = clockSettings,
+                            onTimeOfDay = { hours, perHour -> audio?.timeOfDay(hours, perHour) },
+                            onLifeSave = { life, clock -> lifecycleScope.launch(Dispatchers.IO) { saveLife(lifeStore, life, clock) } },
+                            icons = icons,
                         ) } }
                     }
                 }
@@ -778,6 +828,10 @@ class MainActivity : ComponentActivity() {
                         },
                         onPause = { downloadJob?.cancel() },
                         onClose = { panel = Panel.NONE },
+                        clock = clockSettings,
+                        onClock = { clockSettings = it; settings.clock = it },
+                        lifeSimulation = lifeOn,
+                        onLifeSimulation = { lifeOn = it; settings.lifeSimulation = it },
                         mods = {
                             Column {
                                 ImportsSection(imports, listfile)
