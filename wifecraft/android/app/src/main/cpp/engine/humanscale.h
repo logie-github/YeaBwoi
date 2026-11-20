@@ -30,11 +30,10 @@ struct StandFit {
     float height() const { return ok ? 0.5f * (head + bindHead) : 0.0f; }
 };
 
-inline StandFit measureStand(const M2Model& m) {
-    StandFit out;
-    int root = m.findWowBone("Root"), head = m.findWowBone("Head");
-    int lf = m.findWowBone("L_Foot"), rf = m.findWowBone("R_Foot");
-    if (root < 0 || head < 0 || lf < 0 || rf < 0 || m.bones.empty()) return out;
+// The bone matrices of that stance (model space; empty when the model has no bones). flesh.h measures the body in it too.
+inline void standMatrices(const M2Model& m, std::vector<M4>& mats) {
+    mats.clear();
+    if (m.bones.empty()) return;
     // one identity key (the reference's rest) on every bone the clips aim and on what each aims at
     BoneAnim stand;
     for (const AnimRest& r : kAnimRest) {
@@ -57,8 +56,16 @@ inline StandFit measureStand(const M2Model& m) {
         if (b < 0 || size_t(b) >= poses.size() || t.values.size() < 4) continue;
         poses[size_t(b)].r = Quat(t.values[0], t.values[1], t.values[2], t.values[3]).normalized();
     }
-    std::vector<M4> mats;
     m.bonesToMatrices(poses, mats);
+}
+
+inline StandFit measureStand(const M2Model& m) {
+    StandFit out;
+    int root = m.findWowBone("Root"), head = m.findWowBone("Head");
+    int lf = m.findWowBone("L_Foot"), rf = m.findWowBone("R_Foot");
+    if (root < 0 || head < 0 || lf < 0 || rf < 0 || m.bones.empty()) return out;
+    std::vector<M4> mats;
+    standMatrices(m, mats);
     if (mats.size() != m.bones.size()) return out;
     auto at = [&](int b) { return mats[size_t(b)].point(m.bones[size_t(b)].pivot); };
     float soleL = at(lf).z - m.bones[size_t(lf)].pivot.z;

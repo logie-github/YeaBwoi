@@ -161,6 +161,12 @@ class ImportStore(
     }
 
     override fun hasRalia() = loaded.textureKind != null
+
+    override fun signature(): String {
+        val l = loaded
+        val on = l.metas.filterKeys { !it.textures || it == l.textureKind }
+        return on.keys.sortedBy { it.ordinal }.joinToString(";") { k -> k.key + ":" + l.metas.getValue(k).optString("sha256").take(16) }
+    }
     override fun hasBody() = body() != null
 
     // ---------------------------------------------------------------- the undead skins

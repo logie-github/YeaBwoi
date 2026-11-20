@@ -450,7 +450,7 @@ class MainActivity : ComponentActivity() {
                     Screen.SETUP -> {
                         val previewView = if (step == SetupStep.OBJECTS) null else sceneView()
                         val portraits = if (step == SetupStep.CAST) {
-                            remember { Thumbs(applicationContext, files, previewView, tables) }.also { source ->
+                            remember { Thumbs(applicationContext, files, previewView, tables, { imports }, { namedCast }) }.also { source ->
                                 DisposableEffect(source) { onDispose { source.close() } }
                             }
                         } else null
@@ -514,7 +514,7 @@ class MainActivity : ComponentActivity() {
                         val view = sceneView()
                         val model = remember { CreatorModel(c, checkNotNull(defaultAppearance(c))) }
                         val key = "npc-preview"
-                        val portraits = remember(view) { Thumbs(applicationContext, files, view, tables) }
+                        val portraits = remember(view) { Thumbs(applicationContext, files, view, tables, { imports }, { namedCast }) }
                         var backdropRace by remember { mutableStateOf<Int?>(null) }
                         var backdropStatus by remember { mutableStateOf<String?>(null) }
                         var backdropRetry by remember { mutableIntStateOf(0) }

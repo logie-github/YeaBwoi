@@ -1,6 +1,10 @@
 package com.logie.wifecraft.simulation
 
+import com.logie.wifecraft.anim.ActorRequirement
+import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.anim.BodyGeometry
+import com.logie.wifecraft.anim.FleshLift
+import com.logie.wifecraft.anim.FleshProfile
 import com.logie.wifecraft.anim.HumanScale
 import com.logie.wifecraft.anim.Requirement
 import com.logie.wifecraft.anim.Surface
@@ -52,12 +56,14 @@ data class ClipPlayback(val clip: String, val command: Long)
 /**
  * An animation for one or two NPCs: [roles] in order (the lead's, then [partnerId]'s), one cycle of [seconds], played
  * [repetitions] times (or until stopped when [repeat]). [name] is shown while it plays; [sounds] are its sound events on
- * the cycle's clock ([PartnerSound.actor]: the role's index).
+ * the cycle's clock ([PartnerSound.actor]: the role's index). [pairId]: the partner pair ([SceneSimulation.pairs]) a two-person
+ * one is, whose bodies read as needing furniture make it a placed order (played on that furniture, as [SceneSimulation.partnerOn]).
  */
 data class PerformanceOrder(
     val partnerId: String?, val roles: List<PlaybackRole>, val seconds: Float,
     val repeat: Boolean = false, val repetitions: Int = 1,
     val name: String = "", val sounds: List<PartnerSound> = emptyList(),
+    val pairId: String? = null,
 )
 
 /** The clip keys of [PlaybackRole.clip] that are not imported single clips: a partner pair's role, a Warcraft emote. */
@@ -168,6 +174,72 @@ class SceneSimulation(
     var bodyScales: Map<String, Float> = emptyMap()
 
     /**
+     * Each person's own flesh ([FleshProfile], measured by the engine on their dressed model; absent: the generic body's,
+     * the rules as before): how far a clip is raised off the floor, a seat or a bed for them ([FleshLift]), and how far apart
+     * a pair's two bodies are kept ([PairSpacing]). The screen fills it as each person is dressed, and again when redressed.
+     */
+    var flesh: Map<String, FleshProfile> = emptyMap()
+
+    /** The clip a playback key names (the screen's: an imported single clip), for a single clip's lift on furniture; null: none. */
+    var clips: ((String) -> Anim?)? = null
+
+    private fun fleshOf(actor: Actor?): FleshProfile = actor?.let { flesh[it.id] } ?: FleshProfile.GENERIC
+
+    /** One role's lift worked out for one body, by the clip, its slot height and the body's profile (each kept as itself). */
+    private class LiftKey(val anim: Anim, val z: Float, val body: FleshProfile, val need: ActorRequirement) {
+        override fun equals(other: Any?) = other is LiftKey && other.anim === anim && other.z == z && other.body === body && other.need == need
+        override fun hashCode() = (System.identityHashCode(anim) * 31 + z.hashCode()) * 31 + System.identityHashCode(body)
+    }
+    private val lifts = HashMap<LiftKey, ActorRequirement>()
+
+    /** [need] (a role of [anim], its slot [z] high) with the lift its flesh needs on a body with [body] ([FleshLift]). */
+    private fun liftedFor(need: ActorRequirement, anim: Anim, z: Float, body: FleshProfile): ActorRequirement {
+        if (!body.measured) return need
+        if (lifts.size > 512) lifts.clear()
+        return lifts.getOrPut(LiftKey(anim, z, body, need)) {
+            FleshLift.adjusted(need, BodyGeometry.frames(anim, z = z.toDouble(), flesh = body), body)
+        }
+    }
+
+    /** [r] (what [pair] needs) with each role's lift for the body playing it: [first] the pair's actor 0, [second] its actor 1. */
+    private fun forBodies(r: Requirement, pair: PartnerPair, first: FleshProfile, second: FleshProfile): Requirement {
+        if (!first.measured && !second.measured) return r
+        val out = r.actors.mapIndexed { i, need ->
+            when (i) {
+                0 -> liftedFor(need, pair.a, pair.slotA.z, first)
+                1 -> liftedFor(need, pair.b, pair.slotB.z, second)
+                else -> need
+            }
+        }
+        return if (out.indices.all { out[it] === r.actors[it] }) r else r.copy(actors = out)
+    }
+
+    /**
+     * How far each role of [pair] (needing [r]) is raised for the bodies playing it ([first] its actor 0, [second] its actor
+     * 1), world units in the pair's actor order ([first]'s, then [second]'s); null: neither. On the floor ([onFurniture]
+     * false) the whole lift its own flesh needs ([FleshLift]); on furniture, where the fit already put the clip's support on
+     * the seat or bed for the generic body, the difference its own flesh makes (a bulky body up, a slim one down onto it).
+     */
+    private fun roleLifts(r: Requirement, pair: PartnerPair, first: Actor, second: Actor, onFurniture: Boolean): FloatArray? {
+        val own = forBodies(r, pair, fleshOf(first), fleshOf(second)).actors
+        fun raise(i: Int, body: Actor): Float {
+            val mine = own.getOrNull(i)?.liftUnits ?: 0f
+            val base = if (onFurniture) r.actors.getOrNull(i)?.liftUnits ?: 0f else 0f
+            return (mine - base) * bodyUnit(body)
+        }
+        return floatArrayOf(raise(0, first), raise(1, second)).takeIf { l -> l.any { abs(it) > 1e-4f } }
+    }
+
+    /**
+     * Where [pair] (needing [r]) fits on [f] for [first] (its actor 0) and [second] (its actor 1): the fit is made for the
+     * generic body (the same places as before bodies were measured); each body's own flesh then raises its role by
+     * [roleLifts] (onFurniture), which the performance's Setup carries.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    private fun fitFor(r: Requirement, f: Furniture, unit: Float, pair: PartnerPair, first: Actor?, second: Actor?): FurnitureFit? =
+        FurnitureFit.fit(r, f, unit)
+
+    /**
      * What each partner animation needs, by its id ([PartnerPair.id]; the screen classifies them off the GL thread). A pair
      * with none here is classified once on first use when [classifyPairs], else it plays as before by its location names
      * until its entry comes.
@@ -207,6 +279,21 @@ class SceneSimulation(
 
     /** [pair] with its two bodies kept apart ([PairSpacing]: no two trunks in each other, never both on one axis); cached. */
     fun spaced(pair: PartnerPair): PartnerPair = spacedPairs.getOrPut(pair) { PairSpacing.spaced(pair) }
+
+    /** A pair spaced for two bodies (each kept as itself). */
+    private class SpacedKey(val pair: PartnerPair, val a: FleshProfile, val b: FleshProfile) {
+        override fun equals(other: Any?) = other is SpacedKey && other.pair === pair && other.a === a && other.b === b
+        override fun hashCode() = (System.identityHashCode(pair) * 31 + System.identityHashCode(a)) * 31 + System.identityHashCode(b)
+    }
+    private val spacedForBodies = HashMap<SpacedKey, PartnerPair>()
+
+    /** [pair] spaced for the bodies playing it ([first] its actor 0, [second] its actor 1: their own flesh); cached. */
+    private fun spaced(pair: PartnerPair, first: Actor, second: Actor): PartnerPair {
+        val a = fleshOf(first); val b = fleshOf(second)
+        if (!a.measured && !b.measured) return spaced(pair)
+        if (spacedForBodies.size > 256) spacedForBodies.clear()
+        return spacedForBodies.getOrPut(SpacedKey(pair, a, b)) { PairSpacing.spaced(pair, a, b) }
+    }
 
     /** World units of one body unit for these people (the human body's standing pelvis, times their mean size). */
     private fun bodyUnit(vararg people: Actor): Float =
@@ -449,8 +536,68 @@ class SceneSimulation(
         perform(id, PerformanceOrder(otherId, roles, seconds))
 
     fun perform(id: String, request: PerformanceOrder): Boolean {
+        refusal = null
         val actor = actors[id] ?: return false
-        return valid(actor, request) && startPerformance(actor, request)
+        return valid(actor, request) && startOrdered(actor, request, null)
+    }
+
+    /** An ordered [request]: a placed one on its furniture ([startPlacedOrder]), any other as before. */
+    private fun startOrdered(lead: Actor, request: PerformanceOrder, previous: Performance?): Boolean =
+        // (after a stage on furniture, a floor one starts afresh from the floor: never at the bed's height)
+        startPlacedOrder(lead, request, previous) ?: startPerformance(lead, request, previous?.takeIf { it.furniture == null })
+
+    /**
+     * An ordered two-person [request] whose pair ([PerformanceOrder.pairId]) was read from its bodies as needing furniture (a bed,
+     * a seat, a top: not the floor): played as [partnerOn] plays it, the slots kept apart and fitted to the two bodies, the origin
+     * where [FurnitureFit] puts it on the piece, both walking to their places beside it. Its lead plays the pair's actor 0. Right
+     * after a stage on furniture with the same two (a queue, an author's sequence) it stays on that furniture from the same origin,
+     * never re-seated between stages; otherwise the nearest free piece in reach it fits. Null: not such an order (it plays as
+     * before: its own places, on the floor). False: no free furniture in reach fits it ([refusal] says so).
+     */
+    private fun startPlacedOrder(lead: Actor, request: PerformanceOrder, previous: Performance?): Boolean? {
+        val pairId = request.pairId ?: return null
+        val other = request.partnerId?.let(actors::get) ?: return null
+        if (request.roles.size != 2 || other === lead) return null
+        val pair = pairs.firstOrNull { it.id == pairId } ?: return null
+        val r = requirementOf(pair) ?: return null
+        if (!placed(r) || r.surface in Requirement.FLOOR_LEVEL) return null
+        val unit = bodyUnit(lead, other)
+        val before = previous?.takeIf { it.other === other && it.furniture != null && it.fit != null }
+        var item: SceneObject? = null
+        var fit: FurnitureFit? = null
+        if (before != null) {
+            item = before.furniture
+            val f = item?.let { furniture(it) }
+            fit = f?.let { fitFor(r, it, unit, pair, lead, other) } ?: before.fit
+        } else {
+            var best = Float.MAX_VALUE
+            for (candidate in SceneObject.entries) {
+                if (candidate !in objects || !freeFor(candidate, lead, other)) continue
+                val f = furniture(candidate) ?: continue
+                val d = hypot(f.x - lead.x, f.y - lead.y)
+                if (d > FURNITURE_RANGE || d >= best) continue
+                val fits = fitFor(r, f, unit, pair, lead, other) ?: continue
+                best = d; item = candidate; fit = fits
+            }
+        }
+        if (item == null || fit == null) return refuse("Nothing free here fits ${request.name.ifBlank { "that" }}: it needs ${placeName(r.surface)}.")
+        val floorZ = furniture(item)?.z ?: spots[item]?.entry?.z ?: fit.z
+        // the pair's own slots, kept apart for these two bodies and fitted to their sizes (as startPartner's)
+        val spacedPair = spaced(pair, lead, other)
+        val (slotA, slotB) = PairFit.slots(spacedPair.slotA, spacedPair.slotB, size(lead), size(other))
+        val placedRequest = request.copy(roles = listOf(role(PlaybackKeys.pair(pair.id, 0), slotA), role(PlaybackKeys.pair(pair.id, 1), slotB)))
+        val setup = Setup(before?.anchor ?: Vec3(fit.x, fit.y, fit.z), before?.heading ?: fit.yaw, item, -1, lead, true,
+            partner = false, floorZ = floorZ, fit = fit, lifts = roleLifts(r, pair, lead, other, onFurniture = true))
+        return startPerformance(lead, placedRequest, before, setup) || refuse("They can't reach the ${item.label.lowercase()} from where they stand.")
+    }
+
+    /** "a bed", "a seat"... for a placed order's refusal. */
+    private fun placeName(surface: Surface): String = when (surface) {
+        Surface.BED -> "a bed"
+        Surface.COUCH -> "a couch"
+        Surface.CHAIR -> "a chair"
+        Surface.TABLE_OR_COUNTER -> "a table or counter"
+        else -> "a seat"
     }
 
     fun enqueue(id: String, requests: List<PerformanceOrder>): Boolean {
@@ -514,7 +661,11 @@ class SceneSimulation(
             lead.target = furniture
         }
         if (other != null) {
-            if (previous != null) release(other)
+            if (previous != null) {
+                release(other)
+                // a stage after a stage on the same furniture: still on it
+                other.target = furniture
+            }
             lead.partner = other
             other.partner = lead
             lead.performance = performance
@@ -537,7 +688,8 @@ class SceneSimulation(
         actor.queue.removeFirst()
         val previous = actor.completedPerformance
         actor.completedPerformance = null
-        if (!startPerformance(actor, next, previous)) queueNotice = "The NPCs couldn’t reach their starting positions."
+        refusal = null
+        if (!startOrdered(actor, next, previous)) queueNotice = takeRefusal() ?: "The NPCs couldn’t reach their starting positions."
         version++
     }
 
@@ -1334,9 +1486,16 @@ class SceneSimulation(
         if (!freeFor(item, actor, null)) return refuse("The $what is in use.")
         val f = furniture(item) ?: return refuse("The $what isn't ready yet.")
         val fit = FurnitureFit.fit(requirement, f, bodyUnit(actor)) ?: return refuse("That doesn't fit on the $what.")
+        // raised (or let down) by what this body's own flesh changes of the lift (its single clip, when the screen gives it;
+        // the screen's clip carries its role's lift in its Root track already)
+        val body = fleshOf(actor)
+        val clip = if (body.measured) request.roles.firstOrNull()?.clip?.let { key -> clips?.invoke(key) } else null
+        val raise = if (clip != null && requirement.actors.isNotEmpty())
+            (liftedFor(requirement.actors[0], clip, 0f, body).liftUnits - requirement.actors[0].liftUnits) * bodyUnit(actor) else 0f
         val role = request.roles[0].let { it.copy(offset = Vec3(0f, 0f, it.offset.z)) }
         return startPerformance(actor, request.copy(roles = listOf(role)), null,
-            Setup(Vec3(fit.x, fit.y, fit.z), fit.yaw, item, -1, actor, true, partner = false, floorZ = f.z, fit = fit)) ||
+            Setup(Vec3(fit.x, fit.y, fit.z), fit.yaw, item, -1, actor, true, partner = false, floorZ = f.z, fit = fit,
+                lifts = if (abs(raise) > 1e-4f) floatArrayOf(raise) else null)) ||
             refuse("They can't reach the $what from where they stand.")
     }
 
@@ -1385,8 +1544,9 @@ class SceneSimulation(
             val cast = FurnitureSelection.cast(fit, listOf(NearbyNpc(initiator.id, initiator.x, initiator.y), NearbyNpc(target.id, target.x, target.y)))
             if (cast != null && cast[0] == target.id) { playA = target; playB = initiator }
         }
-        // the slots for the two bodies' sizes (a gnome comes nearer the contact point: PairFit), the bodies kept apart (PairSpacing)
-        val placed = pair?.let { spaced(it) }
+        // the slots for the two bodies' sizes (a gnome comes nearer the contact point: PairFit), the bodies kept apart (PairSpacing,
+        // by each one's own flesh when measured)
+        val placed = pair?.let { spaced(it, playA, playB) }
         val (slotA, slotB) = PairFit.slots(placed?.slotA ?: PartnerEmotes.SLOT_A, placed?.slotB ?: PartnerEmotes.SLOT_B,
             size(playA), size(playB))
         val keyA = if (pair != null) PlaybackKeys.pair(pair.id, 0) else PlaybackKeys.emote(emote!!.anim)
@@ -1424,10 +1584,10 @@ class SceneSimulation(
         val sounds = pair?.sounds.orEmpty().map { it.copy(actor = if (it.actor == 0) 1 else 0) }
         val request = PerformanceOrder(playA.id, listOf(role(keyB, slotB), role(keyA, slotA)), seconds, false,
             cycles.coerceIn(1, 100), pair?.name ?: emote!!.name, sounds)
-        // on the floor, each role raised where its clip's joints would reach under the floor (role order: playB's, playA's)
-        val lifts = if (pair != null && fit == null) requirementOf(pair)?.actors?.let { need ->
-            floatArrayOf((need.getOrNull(1)?.liftUnits ?: 0f) * bodyUnit(playB), (need.getOrNull(0)?.liftUnits ?: 0f) * bodyUnit(playA))
-        }?.takeIf { l -> l.any { it > 0f } } else null
+        // on the floor, each role raised where its clip's flesh would reach under the floor (role order: playB's, playA's); on
+        // furniture, by what each body's own flesh changes of the fit's lift (roleLifts)
+        val lifts = if (pair != null) requirementOf(pair)?.let { roleLifts(it, pair, playA, playB, onFurniture = fit != null) }
+            ?.let { floatArrayOf(it[1], it[0]) } else null
         return startPerformance(playB, request, null,
             Setup(anchor, heading, furniture, emote?.anim ?: -1, playA, directed, floorZ = floorZ, fit = fit, lifts = lifts))
     }

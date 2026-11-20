@@ -61,3 +61,9 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/film.cpp" "$engine"/*.cpp \
     -lEGL -lGLESv2 -lz -o "$here/build/film"
 echo "$here/build/film"
+# The flesh measure (engine/flesh.h, anim/FleshProfile.kt: each bone segment's flesh, front, back and side, from a synthetic body
+# with known extents; the packed floats' layout; its cost): build/flesh_test, exit 0 when all pass. No GL, no game files.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/flesh_test.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" \
+    -o "$here/build/flesh_test"
+echo "$here/build/flesh_test"

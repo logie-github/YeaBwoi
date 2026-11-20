@@ -44,8 +44,8 @@ class NamedCastTest {
         // Alexstrasza's Dragonflight model has no set: no partial for it
         assertTrue("visage_partial" in keys("alexstrasza"))
         assertFalse("dragonflight_partial" in keys("alexstrasza"))
-        // the listed nude variants are offered once
-        assertEquals(listOf("scarlet", "deathknight", "scarlet_nude", "deathknight_nude", "underwear", "bare"), keys("whitemane"))
+        // the listed nude and tabard variants are offered once
+        assertEquals(listOf("scarlet", "deathknight", "scarlet_nude", "deathknight_nude", "scarlet_tabard", "scarlet_tabard_crusade", "underwear", "bare"), keys("whitemane"))
         // the eleven partial looks of model_parts.json
         val partials = cast.characters.flatMap { c -> cast.choices(c).filter { it.kind == NamedCast.Kind.PARTIAL } }
         assertEquals(11, partials.size)
@@ -66,6 +66,10 @@ class NamedCastTest {
         assertFalse(assertNotNull(cast.choice(sylvanas, "underwear")).bare)
         val lilian = assertNotNull(cast.character("lilian"))
         assertTrue(assertNotNull(cast.choice(lilian, "bfa_nude")).bare)
+        val tabard = assertNotNull(cast.choice(assertNotNull(cast.character("whitemane")), "scarlet_tabard"))
+        assertEquals(NamedCast.Kind.TABARD, tabard.kind)
+        assertTrue(tabard.bare)
+        assertEquals("Scarlet Crusade (High Inquisitor, Scarlet Monastery), tabard only", tabard.label)
         // a display variant stands in the scene as her stand-in's race and sex, no gear
         val a = cast.appearance(sylvanas, outfit)
         assertEquals(29, a.raceId)

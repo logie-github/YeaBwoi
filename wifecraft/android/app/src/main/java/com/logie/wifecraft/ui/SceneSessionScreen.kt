@@ -63,10 +63,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.logie.wifecraft.anim.CheckedAnimation
 import com.logie.wifecraft.anim.HumanScale
+import com.logie.wifecraft.anim.FleshProfile
 import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.anim.AnimationChoice
 import com.logie.wifecraft.anim.BoneTrack
-import com.logie.wifecraft.anim.PERFORMANCE_SCALE
 import com.logie.wifecraft.anim.PairAnim
 import com.logie.wifecraft.anim.Requirement
 import com.logie.wifecraft.anim.RequirementStore
@@ -410,6 +410,23 @@ fun LiveSceneScreen(
         }
     }
     LaunchedEffect(live, needs) { val known = needs.pairs; live.command { it.requirements = known } }
+    // each one's own flesh as the engine measured their dressed model (anim/FleshProfile: how far a clip is raised off the
+    // floor, a seat or a bed for them, how far apart a pair's bodies are kept), again whenever someone is redressed; and the
+    // single clips the orders name, for a single clip's lift on furniture
+    LaunchedEffect(live) { live.command { sim -> sim.clips = { key -> playback[key] } } }
+    LaunchedEffect(live, cast) {
+        var seen = -1L
+        while (true) {
+            val version = view.fleshVersion
+            if (version != seen) {
+                seen = version
+                val measured = HashMap<String, FleshProfile>()
+                for (c in cast) view.flesh(actorKey(c.id))?.let { measured[c.id] = it }
+                live.command { sim -> sim.flesh = measured }
+            }
+            delay(500)
+        }
+    }
     LaunchedEffect(live, furnitureAt) {
         val measured = furnitureAt
         live.command { sim -> for ((item, f) in measured) sim.setFurniture(item, f) }
@@ -482,13 +499,16 @@ fun LiveSceneScreen(
         val roles = choice.roles.mapIndexed { index, role ->
             val animation = animations[index].copy(loop = false)
             val key = "${choice.id}:$index"
-            val scale = if (choice.yards) 1f else PERFORMANCE_SCALE
+            val scale = choice.roleScale
             playback[key] = lifted(animation, role.offset.z * scale)
             PlaybackRole(key, Vec3(role.offset.x * scale * HumanScale.PAIR, role.offset.y * scale * HumanScale.PAIR, role.offset.z * scale), role.facing)
         }
         val cycle = animations.maxOf { it.duration }.takeIf { it > 0f } ?: 12f
+        // a two-person one names its partner pair: one whose bodies need furniture (a bed, a seat, a top) is played on it,
+        // fitted as the furniture's Play window fits it (SceneSimulation: placed orders); a floor one plays as before
+        val pairId = if (other != null && choice.participantCount == 2) choice.id.removePrefix(PairAnim.CHOICE_PREFIX) else null
         return PerformanceOrder(other, roles, cycle, repeat, choice.repetitions, choice.name,
-            choice.sounds.map { PartnerSound(it.timeSec, it.name, it.actor) })
+            choice.sounds.map { PartnerSound(it.timeSec, it.name, it.actor) }, pairId)
     }
 
     fun schedule(order: PendingAnimation, partner: String?) {
@@ -504,7 +524,7 @@ fun LiveSceneScreen(
             val request = request(partner, choice, mode == AnimationOrderMode.REPEAT)
             live.order { sim ->
                 if (sim.perform(owner, request)) null
-                else "The NPCs couldn’t reach their starting positions."
+                else sim.takeRefusal() ?: "The NPCs couldn’t reach their starting positions."
             }
         }
     }

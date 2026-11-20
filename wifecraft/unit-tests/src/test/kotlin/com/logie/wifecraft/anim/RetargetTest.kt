@@ -252,6 +252,34 @@ class RetargetTest {
     }
 
     @Test
+    fun aRootLockedClipMovesByItsPelvisAsARootDrivenOneDoes() {
+        val b = matching()
+        fun bindOf(n: String) = b.rig.bones.first { it.name == n }.bindPosition.map { it.toDouble() }.toDoubleArray()
+        val root = bindOf("b__ROOT_bind__"); val pelvis = bindOf("b__Pelvis__"); val spine = bindOf("b__Spine0__")
+        val turn = axisAngle(doubleArrayOf(0.0, 1.0, 0.0), 90.0)
+        // root-driven: the root lowered 0.5, 0.1 back and turned; the pelvis and spine keyed at their binds
+        val driven = Retargeter(profile, b.rig).convert(clip(mapOf("b__ROOT_bind__" to turn),
+            mapOf("b__ROOT_bind__" to doubleArrayOf(root[0], root[1] - 0.5, root[2] - 0.1), "b__Pelvis__" to pelvis, "b__Spine0__" to spine)))
+        // root-locked: the root left at its bind (and turned), the same movement in the pelvis's and spine's own keys (root's frame)
+        val back = Q.rotate(Q.inv(turn), doubleArrayOf(0.0, -0.5, -0.1))
+        val locked = Retargeter(profile, b.rig).convert(clip(mapOf("b__ROOT_bind__" to turn),
+            mapOf("b__ROOT_bind__" to root, "b__Pelvis__" to V.add(pelvis, back), "b__Spine0__" to V.add(spine, back))))
+        val pd = driven.tracks.single { it.bone == "Root" && it.channel == Channel.POSITION }.values
+        val pl = locked.tracks.single { it.bone == "Root" && it.channel == Channel.POSITION }.values
+        val scale = profile.rootHeight / toSims(wow.getValue("b__ROOT_bind__").second)[1]
+        assertEquals(-0.5 * scale, pl[2].toDouble(), 1e-4, "the root-locked body goes down with its pelvis")
+        for (c in 0 until 3) assertEquals(pd[c].toDouble(), pl[c].toDouble(), 1e-4, "axis $c as the root-driven one")
+        for (bone in listOf("Root", "Pelvis", "Spine1")) assertQuat(rotOf(driven, bone), rotOf(locked, bone), what = bone)
+        assertEquals(Retargeter.CONVERSION_REVISION, locked.conversionRevision)
+        // a pelvis key at its bind adds nothing: the root-driven clip converts as it did without one
+        val noPelvis = Retargeter(profile, b.rig).convert(clip(mapOf("b__ROOT_bind__" to turn),
+            mapOf("b__ROOT_bind__" to doubleArrayOf(root[0], root[1] - 0.5, root[2] - 0.1))))
+        val pn = noPelvis.tracks.single { it.bone == "Root" && it.channel == Channel.POSITION }.values
+        for (c in 0 until 3) assertEquals(pn[c].toDouble(), pd[c].toDouble(), 1e-5)
+        assertEquals(scale, Retargeter(profile, b.rig).unitsPerMetre!!, 1e-6)
+    }
+
+    @Test
     fun aFlipNegatesTheAxis() {
         val flipped = Profile.load(File(assets, "sims_profile.json").readText()
             .replace("{\"sims\": \"b__Head__\", \"wow\": \"Head\", \"parent\": \"Neck1\"}", "{\"sims\": \"b__Head__\", \"wow\": \"Head\", \"parent\": \"Neck1\", \"flip\": \"z\"}"))

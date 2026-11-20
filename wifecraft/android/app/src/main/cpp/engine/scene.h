@@ -127,6 +127,10 @@ public:
     bool actorBounds(int id, V3& min, V3& max) const;
     // What the body options made of an actor (the desktop check): vertices the shape moved, the layer's triangles.
     bool bodyStats(int id, size_t& moved, size_t& layerTriangles) const;
+    // The actor's flesh around its main bones as dressed (flesh.h: its shown geosets, its body shape, in the clips' stance;
+    // FleshMeasure::pack's layout), measured once per look and kept until the look changes. False while it can't be
+    // measured yet (no such actor, its shape waiting for the next frame, a skeleton that isn't a person's).
+    bool actorFlesh(int id, std::vector<float>& out);
 
     // ---------------------------------------------------------------- body parts (bodypart.h)
     // A part file (.wcbp) read and kept: its handle (> 0), the same one again for a path already loaded; 0 and partError()
@@ -436,6 +440,9 @@ private:
         SoftDraw soft;                 // the soft body (softbody.h)
         bool character = false;        // setCharacter: the soft body applies (a creature's never does)
         bool ghost = false;            // ghostActor: drawn as the ghost, never picked
+        // actorFlesh's measure and the look it was made for (0: none yet)
+        std::vector<float> flesh;
+        uint64_t fleshKey = 0;
     };
     struct GroupGl {
         unsigned vao = 0, vbo = 0, ibo = 0;

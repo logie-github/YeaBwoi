@@ -233,6 +233,12 @@ object Native {
     @JvmStatic external fun viewCamera(scene: Long, view: String): FloatArray?
     /** Actor [actor]'s standing box placed at x, y, z turned [facing]: min x,y,z, max x,y,z; null when there is no such actor. */
     @JvmStatic external fun actorBounds(scene: Long, actor: Int, x: Float, y: Float, z: Float, facing: Float): FloatArray?
+    /**
+     * Actor [actor]'s flesh around its main bones as dressed (engine/flesh.h: its shown geosets and body shape, in the clips'
+     * stance), the floats [com.logie.wifecraft.anim.FleshProfile.of] reads; null while it can't be measured yet. The engine
+     * measures it once per look.
+     */
+    @JvmStatic external fun actorFlesh(scene: Long, actor: Int): FloatArray?
 
     /**
      * The ghost of a prop about to be placed ([model] an M2 or a WMO, its files downloaded): drawn half see-through, tinted

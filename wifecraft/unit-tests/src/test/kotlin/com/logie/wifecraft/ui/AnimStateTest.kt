@@ -140,6 +140,12 @@ class AnimStateTest {
         assertEquals("2.4 s, loops", AnimBrowse.describe(all[3]))
     }
 
+    @Test fun theLibrarySaysPlainlyHowManyToReimport() {
+        assertNull(AnimBrowse.staleNotice(0))
+        assertTrue(AnimBrowse.staleNotice(1)!!.startsWith("Re-import to update 1 animation:"))
+        assertTrue(AnimBrowse.staleNotice(12)!!.startsWith("Re-import to update 12 animations:"))
+    }
+
     @Test fun editorPickersListTheLibraryByName() {
         val all = listOf(anim("Wave", category = "Gestures"), anim("Sit", category = "Sitting"))
         assertEquals(listOf("id_Wave" to "Gestures: Wave", "id_Sit" to "Sitting: Sit"), PoseChoices.items(all))

@@ -27,6 +27,12 @@ interface Overrides {
     /** The undead skins' package is imported. */
     fun hasUndead(): Boolean = false
 
+    /**
+     * What is imported and on now, as a short text that changes whenever a look drawn with these imports could (a set switched
+     * on, imported again or removed): the pictures' caches (engine/Thumbs) are named with it. Empty: nothing imported.
+     */
+    fun signature(): String = ""
+
     object None : Overrides {
         override fun texture(retailFileId: Int, female: Boolean) = retailFileId
         override fun bodyModel(raceId: Int, shape: Int): Int? = null

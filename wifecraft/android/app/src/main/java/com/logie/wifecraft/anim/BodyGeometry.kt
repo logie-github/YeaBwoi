@@ -73,9 +73,13 @@ object BodyGeometry {
 
     /**
      * The body of a retargeted [anim], stood at [x], [y], [z] (model units) turned [yawDeg] about up (a pair's actor
-     * offset; zero for a single clip), at up to [samples] moments over its length.
+     * offset; zero for a single clip), at up to [samples] moments over its length. With [flesh] measured on a body
+     * ([FleshProfile.rest]: its own skeleton in the clips' stance), the clip turns that body's bones, as the engine plays
+     * it on them; otherwise the reference skeleton's ([REF]).
      */
-    fun frames(anim: Anim, x: Double = 0.0, y: Double = 0.0, z: Double = 0.0, yawDeg: Double = 0.0, samples: Int = SAMPLES): List<BodyFrame> {
+    fun frames(anim: Anim, x: Double = 0.0, y: Double = 0.0, z: Double = 0.0, yawDeg: Double = 0.0, samples: Int = SAMPLES,
+               flesh: FleshProfile? = null): List<BodyFrame> {
+        val rest = flesh?.rest ?: REF
         val rot = HashMap<String, BoneTrack>()
         var rootPos: BoneTrack? = null
         for (t in anim.tracks) {
@@ -96,11 +100,11 @@ object BodyGeometry {
                 if (parent == null) {
                     e[j] = local
                     val tr = rootPos?.let { sampleV3(it, t) } ?: DoubleArray(3)
-                    p[j] = V.add(REF.getValue(j), tr)
+                    p[j] = V.add(rest[j] ?: REF.getValue(j), tr)
                 } else {
                     val pe = e.getValue(parent)
                     e[j] = Q.norm(Q.mul(pe, local))
-                    p[j] = V.add(p.getValue(parent), Q.rotate(pe, V.sub(REF.getValue(j), REF.getValue(parent))))
+                    p[j] = V.add(p.getValue(parent), Q.rotate(pe, V.sub(rest[j] ?: REF.getValue(j), rest[parent] ?: REF.getValue(parent))))
                 }
             }
             BodyFrame(p.mapValues { (_, v) ->

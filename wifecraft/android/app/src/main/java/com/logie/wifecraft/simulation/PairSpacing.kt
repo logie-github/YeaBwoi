@@ -2,7 +2,10 @@ package com.logie.wifecraft.simulation
 
 import com.logie.wifecraft.anim.BodyFrame
 import com.logie.wifecraft.anim.BodyGeometry
+import com.logie.wifecraft.anim.FleshPart
+import com.logie.wifecraft.anim.FleshProfile
 import com.logie.wifecraft.anim.HumanScale
+import com.logie.wifecraft.anim.PartFrame
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.sqrt
@@ -14,7 +17,9 @@ import kotlin.math.sqrt
  * [MARGIN]; hands, faces and arm on arm may touch. A pair that comes nearer (two clips authored on one spot, a spoon made for
  * thinner bodies, both roles given the same root, an arm through the other's chest on a couch) has its second role moved
  * away from the first, across the floor only (a slot's height is its clip's), along the line between the parts where they
- * come nearest (between the slots when they are on one axis; else to the first role's left), at most [MAX_PUSH]. Pure; the
+ * come nearest (between the slots when they are on one axis; else to the first role's left), at most [MAX_PUSH]. Parts may
+ * come [CONTACT_TOLERANCE] into each other first (stages made to touch keep their contact), and a stage made for contact (a
+ * kiss, an embrace, a cuddle, a hug, a cradle) is moved at most [MAX_PUSH_CONTACT]. Pure; the
  * simulation caches one per pair.
  */
 object PairSpacing {
@@ -27,6 +32,19 @@ object PairSpacing {
     const val MARGIN = 0.02
     /** The farthest the second role is moved (body units, about 0.7 yards): a pair that needs more is left as it is made. */
     const val MAX_PUSH = 0.6
+    /**
+     * How far two bodies may come into each other before the second is moved (body units, about 21 cm): stages made to
+     * touch (a kiss, an embrace, a lap) keep their contact; two clips stacked on one spot (30 cm and more) are still moved,
+     * by what they come nearer than this.
+     */
+    const val CONTACT_TOLERANCE = 0.2
+    /** The farthest a stage made for contact (a kiss, an embrace, a cuddle, a hug, a cradle: [contact]) is moved (body units). */
+    const val MAX_PUSH_CONTACT = 0.1
+
+    private val CONTACT_WORDS = Regex("kiss|embrac|cuddl|hug|cradl", RegexOption.IGNORE_CASE)
+
+    /** Whether [p] is a stage made for contact, by its name or id (a kiss, an embrace, a cuddle, a hug, a cradle). */
+    fun contact(p: PartnerPair): Boolean = CONTACT_WORDS.containsMatchIn(p.name) || CONTACT_WORDS.containsMatchIn(p.id)
 
     /** The parts kept apart: a segment of the first body, one of the second, and how far apart their axes must stay. */
     private class Rule(val a0: String, val a1: String, val b0: String, val b1: String, val need: Double)
@@ -44,24 +62,37 @@ object PairSpacing {
         }
     }
 
-    /** [p] with its second role moved clear of the first, or [p] itself when nothing comes too near. */
-    fun spaced(p: PartnerPair): PartnerPair {
-        val (dx, dy) = push(p) ?: return p
+    /** The parts kept apart with measured flesh: a part of the first body and one of the second. */
+    private val PART_RULES: List<Pair<FleshPart, FleshPart>> = buildList {
+        for (a in FleshPart.TRUNK) for (b in FleshPart.TRUNK) add(a to b)
+        for (limb in FleshPart.ARMS + FleshPart.THIGHS) for (t in FleshPart.TRUNK) { add(limb to t); add(t to limb) }
+        for (a in FleshPart.THIGHS) for (b in FleshPart.THIGHS) add(a to b)
+    }
+
+    /**
+     * [p] with its second role moved clear of the first, or [p] itself when nothing comes too near; [fleshA] the body
+     * playing the first role, [fleshB] the second's (generic: the reference body).
+     */
+    fun spaced(p: PartnerPair, fleshA: FleshProfile = FleshProfile.GENERIC, fleshB: FleshProfile = FleshProfile.GENERIC): PartnerPair {
+        val (dx, dy) = push(p, fleshA, fleshB) ?: return p
         val unit = (BodyGeometry.REF_UNIT * HumanScale.PAIR).toFloat()
         val b = p.slotB.copy(x = p.slotB.x + (dx * unit).toFloat(), y = p.slotB.y + (dy * unit).toFloat())
         return PartnerPair(p.id, p.name, p.a, p.b, p.slotA, b, p.loops, p.locations, p.sounds)
     }
 
     /** How far (body units, x and y of the pair's frame) [p]'s second role must move; null: not at all, or the bodies can't be read. */
-    fun push(p: PartnerPair): Pair<Double, Double>? {
-        fun frames(s: PartnerSlot, a: com.logie.wifecraft.anim.Anim) =
-            BodyGeometry.frames(a, (s.x / HumanScale.PAIR).toDouble(), (s.y / HumanScale.PAIR).toDouble(), s.z.toDouble(), s.yawDeg.toDouble())
-        val a = frames(p.slotA, p.a)
-        val b = frames(p.slotB, p.b)
+    fun push(p: PartnerPair, fleshA: FleshProfile = FleshProfile.GENERIC, fleshB: FleshProfile = FleshProfile.GENERIC): Pair<Double, Double>? {
+        val a = frames(p.slotA, p.a, fleshA)
+        val b = frames(p.slotB, p.b, fleshB)
         if (a.isEmpty() || b.isEmpty()) return null
         val fallback = (p.slotB.x - p.slotA.x).toDouble() to (p.slotB.y - p.slotA.y).toDouble()
-        return push(a, b, fallback)
+        return push(a, b, fallback, fleshA, fleshB, if (contact(p)) MAX_PUSH_CONTACT else MAX_PUSH)
     }
+
+    /** A role's body over its clip at its slot, on [flesh]'s own skeleton when measured. */
+    fun frames(s: PartnerSlot, a: com.logie.wifecraft.anim.Anim, flesh: FleshProfile = FleshProfile.GENERIC): List<BodyFrame> =
+        BodyGeometry.frames(a, (s.x / HumanScale.PAIR).toDouble(), (s.y / HumanScale.PAIR).toDouble(), s.z.toDouble(), s.yawDeg.toDouble(),
+            flesh = flesh.takeIf { it.measured })
 
     /** The least room left by [RULES] between [fa] and [fb] (the second moved by [ox], [oy]), and the way apart there. */
     fun slack(fa: BodyFrame, fb: BodyFrame, ox: Double = 0.0, oy: Double = 0.0): Triple<Double, Double, Double>? {
@@ -80,16 +111,24 @@ object PairSpacing {
      * How far the second body ([b], sampled with [a] over one clock: each list as long, or the shorter's last frame held)
      * must move across the floor; [toward] the way to go when the parts are on one axis (from the first to the second).
      */
-    fun push(a: List<BodyFrame>, b: List<BodyFrame>, toward: Pair<Double, Double> = 0.0 to 0.0): Pair<Double, Double>? {
+    fun push(a: List<BodyFrame>, b: List<BodyFrame>, toward: Pair<Double, Double> = 0.0 to 0.0,
+             fleshA: FleshProfile = FleshProfile.GENERIC, fleshB: FleshProfile = FleshProfile.GENERIC,
+             maxPush: Double = MAX_PUSH): Pair<Double, Double>? {
+        val measured = fleshA.measured || fleshB.measured
+        // with measured flesh, each moment's parts placed once (moving the second body only shifts its parts)
+        val partsA = if (measured) a.map { parts(it, fleshA) } else emptyList()
+        val partsB = if (measured) b.map { parts(it, fleshB) } else emptyList()
         var ox = 0.0; var oy = 0.0
         // a few rounds: moving away from the nearest moment may bring another nearer
         repeat(6) {
             var worst = Double.MAX_VALUE; var wx = 0.0; var wy = 0.0
             for (i in 0 until max(a.size, b.size)) {
-                val (s, x, y) = slack(a[minOf(i, a.size - 1)], b[minOf(i, b.size - 1)], ox, oy) ?: return null
+                val (s, x, y) = (if (measured) slack(partsA[minOf(i, a.size - 1)], partsB[minOf(i, b.size - 1)], fleshA, fleshB, ox, oy)
+                    else slack(a[minOf(i, a.size - 1)], b[minOf(i, b.size - 1)], ox, oy)) ?: return null
                 if (s < worst) { worst = s; wx = x; wy = y }
             }
-            if (worst >= -1e-6) return if (ox == 0.0 && oy == 0.0) null else ox to oy
+            // nearer than the contact tolerance: moved by what it comes nearer than that
+            if (worst >= -CONTACT_TOLERANCE - 1e-6) return if (ox == 0.0 && oy == 0.0) null else ox to oy
             var h = hypot(wx, wy)
             if (h < 1e-3) {
                 // on one axis: between the slots, else to the first body's left
@@ -100,12 +139,65 @@ object PairSpacing {
                     if (h < 1e-3) { wx = 0.0; wy = 1.0; h = 1.0 }
                 }
             }
-            val step = -worst + 1e-3
+            val step = -worst - CONTACT_TOLERANCE + 1e-3
             ox += wx / h * step; oy += wy / h * step
             val total = hypot(ox, oy)
-            if (total > MAX_PUSH) return ox / total * MAX_PUSH to oy / total * MAX_PUSH
+            if (total > maxPush) return ox / total * maxPush to oy / total * maxPush
         }
         return ox to oy
+    }
+
+    /** [f]'s parts the measured rules read, placed with [flesh]'s segments (a part [f] lacks the joints of is left out). */
+    fun parts(f: BodyFrame, flesh: FleshProfile): Map<FleshPart, PartFrame> {
+        val out = HashMap<FleshPart, PartFrame>()
+        for (p in FleshPart.TRUNK + FleshPart.ARMS + FleshPart.THIGHS) flesh.frame(p, f)?.let { out[p] = it }
+        return out
+    }
+
+    /**
+     * The least room left between two bodies' measured parts ([pa], [pb] from [parts]; the second moved by [ox], [oy]): each
+     * pair of [PART_RULES]' parts, their axes' distance less each one's flesh toward the other there ([FleshProfile.reach])
+     * and [MARGIN]; and the way apart there.
+     */
+    fun slack(pa: Map<FleshPart, PartFrame>, pb: Map<FleshPart, PartFrame>, fleshA: FleshProfile, fleshB: FleshProfile,
+              ox: Double = 0.0, oy: Double = 0.0): Triple<Double, Double, Double>? {
+        var worst = Double.MAX_VALUE; var wx = 0.0; var wy = 0.0
+        for ((ka, kb) in PART_RULES) {
+            val fa = pa[ka] ?: continue
+            val fb0 = pb[kb] ?: continue
+            val fb = if (ox == 0.0 && oy == 0.0) fb0 else fb0.shifted(ox, oy)
+            val (d, ta, tb) = nearestAt(fa.a0, fa.a1, fb.a0, fb.a1)
+            val pA = lerp(fa.a0, fa.a1, ta); val pB = lerp(fb.a0, fb.a1, tb)
+            val sa = fleshA.segment(ka); val sb = fleshB.segment(kb)
+            val need = if (d < 1e-6) sa.most + sb.most + MARGIN else {
+                val dir = DoubleArray(3) { (pB[it] - pA[it]) / d }
+                val back = DoubleArray(3) { -dir[it] }
+                FleshProfile.reach(sa, fa, dir, ta <= 1e-6, ta >= 1 - 1e-6) + FleshProfile.reach(sb, fb, back, tb <= 1e-6, tb >= 1 - 1e-6) + MARGIN
+            }
+            if (d - need < worst) { worst = d - need; wx = pB[0] - pA[0]; wy = pB[1] - pA[1] }
+        }
+        return if (worst == Double.MAX_VALUE) null else Triple(worst, wx, wy)
+    }
+
+    /** The nearest points of segments [a0]-[a1] and [b0]-[b1]: their distance and where on each (0 to 1). */
+    fun nearestAt(a0: DoubleArray, a1: DoubleArray, b0: DoubleArray, b1: DoubleArray): Triple<Double, Double, Double> {
+        var best = Double.MAX_VALUE; var ta = 0.0; var tb = 0.0
+        val n = 24
+        for (i in 0..n) {
+            val t = i.toDouble() / n
+            val p = lerp(a0, a1, t)
+            val (u, q) = closest(p, b0, b1)
+            val d = dist(p, q)
+            if (d < best) { best = d; ta = t; tb = u }
+        }
+        for (i in 0..n) {
+            val u = i.toDouble() / n
+            val q = lerp(b0, b1, u)
+            val (t, p) = closest(q, a0, a1)
+            val d = dist(p, q)
+            if (d < best) { best = d; ta = t; tb = u }
+        }
+        return Triple(best, ta, tb)
     }
 
     /** The nearest points of segments [a0]-[a1] and [b0]-[b1] and their distance. */

@@ -247,6 +247,15 @@ object AnimBrowse {
     fun categories(all: List<Anim>): List<Pair<String, Int>> =
         all.groupBy { it.category.lowercase() }.map { (_, v) -> v.first().category to v.size }.sortedBy { it.first.lowercase() }
 
+    /**
+     * The library screen's line about [stale] animations an older conversion made (AnimLibrary.stale), null when none: importing
+     * their pack again (Import WickedWhims, or the same files) converts them anew and replaces them, names and categories kept.
+     */
+    fun staleNotice(stale: Int): String? = if (stale <= 0) null else
+        "Re-import to update $stale animation${if (stale == 1) "" else "s"}: ${if (stale == 1) "it was" else "they were"} converted by an " +
+            "older version (bodies on beds and seats could stand in one spot). Import WickedWhims again, or the same files: " +
+            "names and categories are kept."
+
     /** "1.5 s, plays once" / "Pose" for the list's second line. */
     fun describe(a: Anim): String = when {
         a.duration < 0.2f -> "Pose"
@@ -343,6 +352,7 @@ class PairDraft(pairs: List<PairAnim>, unpaired: List<ImportEvent.Unpaired>) {
         try {
             val r = store.addPair(item.pair.copy(name = name, category = pairCategory(item.category), enabled = item.enabled))
             when {
+                r.updated -> SaveOutcome.Updated(r.pair.name)
                 r.duplicate -> SaveOutcome.Duplicate(name, r.pair.name)
                 r.pair.name != name -> SaveOutcome.Added(r.pair.name, name)
                 else -> SaveOutcome.Added(r.pair.name, null)

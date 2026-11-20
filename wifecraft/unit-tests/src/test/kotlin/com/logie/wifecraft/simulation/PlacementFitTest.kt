@@ -40,31 +40,44 @@ class PlacementFitTest {
     @Test fun twoBodiesOnOneSpotAreMovedApartSideways() {
         val push = PairSpacing.push(listOf(body(0.0, 0.0)), listOf(body(0.0, 0.0)))
         assertNotNull(push)
-        assertTrue(clearance(body(0.0, 0.0), body(0.0, 0.0), push) >= -1e-6, "clear after the push: $push")
+        // two clips stacked on one spot: moved until they come no nearer than the contact tolerance
+        assertTrue(clearance(body(0.0, 0.0), body(0.0, 0.0), push) >= -PairSpacing.CONTACT_TOLERANCE - 1e-6, "after the push: $push")
         // on one axis the way apart is the first body's side (its thighs), not along its facing
         assertTrue(kotlin.math.abs(push.second) > kotlin.math.abs(push.first), "$push")
         // and between the slots when the pair names one
         val toward = PairSpacing.push(listOf(body(0.0, 0.0)), listOf(body(0.0, 0.0)), 1.0 to 0.0)!!
-        assertTrue(toward.first > 0.2 && kotlin.math.abs(toward.second) < 1e-6, "$toward")
+        assertTrue(toward.first > 0.05 && kotlin.math.abs(toward.second) < 1e-6, "$toward")
     }
 
     @Test fun bodiesFarEnoughApartStayWhereTheyAre() {
         assertNull(PairSpacing.push(listOf(body(0.0, 0.0)), listOf(body(0.0, 0.8))))
     }
 
-    @Test fun anArmThroughTheOtherTrunkWidensTheSpacing() {
-        // side by side 0.4 apart, the first one's left arm reaching 0.45 out: through the second one's chest
+    @Test fun anArmAcrossTheOtherTrunkIsContactNotMoved() {
+        // side by side 0.4 apart, the first one's left arm reaching 0.45 out: across the second one's chest, as an arm round
+        // someone is (an embrace): within the contact tolerance, left as it is made
         val a = body(0.0, 0.0, armOut = 0.45)
         val b = body(0.0, 0.4, armOut = 0.0)
         assertTrue(clearance(a, b, null) < 0)
-        val push = PairSpacing.push(listOf(a), listOf(b))!!
-        assertTrue(push.second > 0.1, "moved away along the arm: $push")
-        assertTrue(clearance(a, b, push) >= -1e-6)
+        assertTrue(clearance(a, b, null) > -PairSpacing.CONTACT_TOLERANCE)
+        assertNull(PairSpacing.push(listOf(a), listOf(b)))
+        // two trunks 0.05 apart (two clips almost on one spot) come 0.21 into each other: moved
+        val push = PairSpacing.push(listOf(body(0.0, 0.0, armOut = 0.0)), listOf(body(0.0, 0.05, armOut = 0.0)))!!
+        assertTrue(push.second > 0.0, "moved apart sideways: $push")
+        assertTrue(clearance(body(0.0, 0.0, armOut = 0.0), body(0.0, 0.05, armOut = 0.0), push) >= -PairSpacing.CONTACT_TOLERANCE - 1e-6)
+    }
+
+    @Test fun aStageMadeForContactIsMovedLittle() {
+        fun pair(id: String) = PartnerPair(id, id, F.lyingBack(0.55, name = "${id}_a"), F.lyingBack(0.55, name = "${id}_b"),
+            PartnerSlot.human(0f, 0f, 0f, 0f), PartnerSlot.human(0f, 0f, 0f, 0f), true)
+        // by the stage's name (the cap itself: FleshContactTest.aStageMadeForContactIsMovedLittle)
+        assertTrue(PairSpacing.contact(pair("Kissing")) && PairSpacing.contact(pair("Cradle")) && PairSpacing.contact(pair("Embrace")) &&
+            PairSpacing.contact(pair("hug_2")) && PairSpacing.contact(pair("Cuddle")) && !PairSpacing.contact(pair("stacked")))
     }
 
     @Test fun thePushIsBounded() {
-        val push = PairSpacing.push(listOf(body(0.0, 0.0, armOut = 2.0)), listOf(body(0.0, 0.1)))!!
-        assertTrue(hypot(push.first, push.second) <= PairSpacing.MAX_PUSH + 1e-9)
+        val push = PairSpacing.push(listOf(body(0.0, 0.0)), listOf(body(0.0, 0.0)), maxPush = 0.03)!!
+        assertTrue(hypot(push.first, push.second) <= 0.03 + 1e-9)
     }
 
     @Test fun aSpoonMadeOnOneRootIsSpacedInTheSimulation() {
@@ -74,12 +87,13 @@ class PlacementFitTest {
         val sim = SceneSimulation(listOf("a", "b"), setOf(SceneObject.BED), Random(1), pairs = listOf(spoon))
         val spaced = sim.spaced(spoon)
         assertNotSame(spoon, spaced)
-        assertTrue(hypot(spaced.slotB.x - spaced.slotA.x, spaced.slotB.y - spaced.slotA.y) > 0.3f)
+        // (moved until the trunks come no nearer than the contact tolerance)
+        assertTrue(hypot(spaced.slotB.x - spaced.slotA.x, spaced.slotB.y - spaced.slotA.y) > 0.05f)
         assertTrue(sim.partner("a", "b"))
         var n = 0
         while (sim.partnerOf("a")?.stage != "PLAY") { sim.tick(step); check(++n < 20_000) }
         val pa = sim.position("a")!!; val pb = sim.position("b")!!
-        assertTrue(hypot(pa.x - pb.x, pa.y - pb.y) > 0.3f, "not on one axis: $pa $pb")
+        assertTrue(hypot(pa.x - pb.x, pa.y - pb.y) > 0.05f, "not on one axis: $pa $pb")
         // a side-by-side pair already apart is left as it is
         // (the fixtures' arms stand straight out, about half a body unit each side: 1.3 apart they clear each other's trunk)
         val apart = pair("apart", F.lyingBack(0.55, name = "p_a"), F.lyingBack(0.55, name = "p_b"), 1.3)

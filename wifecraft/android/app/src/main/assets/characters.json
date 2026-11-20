@@ -845,6 +845,76 @@
      "note": "display 71257's items without the shirt, chest, tabard, belt, legs and feet, over the bare body"
     },
     {
+     "key": "scarlet_tabard",
+     "label": "Scarlet Crusade (High Inquisitor, Scarlet Monastery), tabard only",
+     "kind": "tabard",
+     "sourceDisplay": 2043,
+     "sourceCreatures": [],
+     "era": "classic display 2043 (npc 3977), on the human woman's current model",
+     "race": 1,
+     "sex": "FEMALE",
+     "picks": {
+      "14": 95,
+      "15": 106,
+      "16": 134,
+      "17": 165,
+      "464": 15744,
+      "501": 4752,
+      "510": 4908,
+      "516": 4963,
+      "526": 5059,
+      "970": 15676
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": {
+      "1": 15991,
+      "3": 9574,
+      "8": 15988,
+      "10": 15989,
+      "19": 15983
+     },
+     "note": "display 2043's items without the shirt, chest and legs, the tabard kept, over the bare body"
+    },
+    {
+     "key": "scarlet_tabard_crusade",
+     "label": "Scarlet Crusade, Tabard of the Scarlet Crusade only",
+     "kind": "tabard",
+     "sourceDisplay": 2043,
+     "sourceCreatures": [],
+     "era": "classic display 2043 (npc 3977), on the human woman's current model",
+     "race": 1,
+     "sex": "FEMALE",
+     "picks": {
+      "14": 95,
+      "15": 106,
+      "16": 134,
+      "17": 165,
+      "464": 15744,
+      "501": 4752,
+      "510": 4908,
+      "516": 4963,
+      "526": 5059,
+      "970": 15676
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": {
+      "1": 15991,
+      "3": 9574,
+      "8": 15988,
+      "10": 15989,
+      "19": 692029
+     },
+     "note": "display 2043's items without the shirt, chest and legs, wearing the tabard item 23192 (ItemDisplayInfo 692029) in place of its own, over the bare body"
+    },
+    {
      "key": "underwear",
      "label": "Underwear (No Gear)",
      "kind": "underwear",

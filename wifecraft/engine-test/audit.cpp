@@ -20,6 +20,8 @@
 //   place SLOT X Y Z FACING [raw]          where the app put them (the engine's floor pose; raw: Scene::kRaised, not stood on the floor)
 //   clip SLOT PATH | emote SLOT ANIM LOOP | still SLOT     what they play (from the case's clock 0)
 //   hide SLOT
+//   flesh SLOT OUT                         writes the person's flesh as the app reads it (Scene::actorFlesh, engine/flesh.h):
+//                                          the packed floats on one line, then a line per segment; and how long it took
 //   case ID key=value...                   starts a case: its keys go into every CSV row (rest0=, rest1=: sit|lie|kneel|floor|stand)
 //   measure T                              poses everyone at T ms and writes a row
 //   camera EX EY EZ TX TY TZ FOV | render PNG W H T
@@ -55,6 +57,7 @@
 #define private public
 #define protected public
 #include "../android/app/src/main/cpp/engine/scene.h"
+#include "../android/app/src/main/cpp/engine/flesh.h"
 #undef private
 #undef protected
 
@@ -212,10 +215,11 @@ struct Body {
     Capsule caps[kRegionCount];
     std::map<std::string, V3> joint;
     float minZ = 1e9f;
+    float minBodyZ = 1e9f;              // the same leaving out what hangs off it (a tail, a cape: flesh.h's dropped bones)
     int lowBone = -1, lowVertex = -1;   // the lowest vertex's dominant bone and its number (AUDIT_DEBUG)
 };
 
-struct ModelInfo { std::vector<int> regionOfBone; };
+struct ModelInfo { std::vector<int> regionOfBone; std::vector<uint8_t> hanging; };
 
 static const ModelInfo& infoOf(const M2Model& m) {
     static std::map<const M2Model*, ModelInfo> cache;
@@ -230,6 +234,8 @@ static const ModelInfo& infoOf(const M2Model& m) {
         while (c >= 0 && named[size_t(c)] < 0 && guard++ < 64) c = m.bones[size_t(c)].parent;
         info.regionOfBone[b] = c >= 0 ? named[size_t(c)] : -1;
     }
+    // what hangs off the body (a tail, a cape), as the flesh measure leaves it out: every geoset shown
+    measureFlesh(m, m.vertices, m.indices, m.submeshes, {}, &info.hanging);
     return cache[&m] = info;
 }
 
@@ -273,6 +279,7 @@ static bool bodyOf(const Scene& scene, int id, Body& out) {
         out.v.push_back(wp);
         out.region.push_back(int8_t(r));
         if (wp.z < out.minZ) { out.minZ = wp.z; out.lowBone = dom; out.lowVertex = int(i); }
+        if (wp.z < out.minBodyZ && !(dom >= 0 && size_t(dom) < info.hanging.size() && info.hanging[size_t(dom)])) out.minBodyZ = wp.z;
         if (r >= 0) byRegion[size_t(r)].push_back(wp);
     }
     for (int r = 0; r < kRegionCount; ++r) {
@@ -476,7 +483,7 @@ int main(int argc, char** argv) {
     FILE* csv = std::fopen(argv[2], "w");
     if (!csv) { std::fprintf(stderr, "can't write %s\n", argv[2]); return 1; }
     std::fprintf(csv, "case,t,keys,aa_body_depth,aa_body_frac,aa_hand_depth,pelvis_dist,trunk_gap,same_axis,"
-                      "f0_depth,f0_frac,f1_depth,f1_frac,float0,float1,sink0,sink1,worst_region0,worst_region1\n");
+                      "f0_depth,f0_frac,f1_depth,f1_frac,float0,float1,sink0,sink1,worst_region0,worst_region1,body_sink0,body_sink1\n");
 
     std::map<std::string, int> props;
     std::vector<Solid> solids;
@@ -590,6 +597,33 @@ int main(int argc, char** argv) {
             scene.showActor(p.id, true);
             p.shown = true;
             slotKey[slot] = key;
+        } else if (cmd == "flesh") {
+            int slot; std::string out; ss >> slot >> out;
+            if (!slotKey.count(slot)) continue;
+            int id = cache[slotKey[slot]].id;
+            // a frame first: the body's shape is made when it is drawn
+            target(32, 32);
+            scene.render(32, 32, clock0);
+            auto t0 = std::chrono::steady_clock::now();
+            std::vector<float> v;
+            bool ok = scene.actorFlesh(id, v);
+            double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+            FILE* f = std::fopen(out.c_str(), "w");
+            if (!f) { std::fprintf(stderr, "flesh: can't write %s\n", out.c_str()); continue; }
+            for (size_t i = 0; i < v.size(); ++i) std::fprintf(f, "%s%.5f", i ? " " : "", v[i]);
+            std::fprintf(f, "\n");
+            if (ok) {
+                const Scene::Actor& a = scene.actors_.at(id);
+                std::fprintf(f, "# %s: pelvis %.4f model units (x scale %.4f = %.4f yards), lowest %.4f, measured in %.2f ms\n",
+                             cache[slotKey[slot]].look.c_str(), v[1], a.scale, v[1] * a.scale, v[2], ms);
+                for (int s = 0; s < kFleshCount; ++s) {
+                    const float* q = &v[size_t(4 + 7 * s)];
+                    std::fprintf(f, "# %-11s ok %d front %.4f back %.4f side %.4f start %.4f end %.4f tip %.4f (body units)\n",
+                                 kFleshSegs[s].name, int(q[0]), q[1], q[2], q[3], q[4], q[5], q[6]);
+                }
+            } else std::fprintf(f, "# not measured\n");
+            std::fclose(f);
+            std::fprintf(stderr, "flesh slot %d: %s in %.2f ms\n", slot, ok ? "measured" : "NOT measured", ms);
         } else if (cmd == "hide") {
             int slot; ss >> slot;
             if (slotKey.count(slot)) { Person& p = cache[slotKey[slot]]; scene.showActor(p.id, false); p.shown = false; }
@@ -689,7 +723,7 @@ int main(int argc, char** argv) {
                 if (trunkOf(b[0], a0, a1, ra) && trunkOf(b[1], b0, b1, rb)) trunk = segSegDist(a0, a1, b0, b1) - ra - rb;
                 same = (!std::isnan(pelvis) && pelvis < 0.25f) || (!std::isnan(trunk) && trunk < -0.12f) ? 1 : 0;
             }
-            float fd[2] = {0, 0}, ff[2] = {0, 0}, fl[2] = {NAN, NAN}, sk[2] = {0, 0};
+            float fd[2] = {0, 0}, ff[2] = {0, 0}, fl[2] = {NAN, NAN}, sk[2] = {0, 0}, bsk[2] = {0, 0};
             std::string worst[2];
             for (int s = 0; s < 2; ++s) {
                 if (!have[s]) continue;
@@ -704,6 +738,7 @@ int main(int argc, char** argv) {
                 fd[s] = deepest; ff[s] = me.v.empty() ? 0 : float(in) / float(me.v.size());
                 worst[s] = deepRegion >= 0 ? kRegions[deepRegion].bone : "";
                 sk[s] = std::max(0.0f, floorZ - me.minZ);
+                bsk[s] = std::max(0.0f, floorZ - me.minBodyZ);
                 // a resting body: the gap between it and whatever it rests on (the furniture's top under it, else the floor)
                 std::string rest = keys.count("rest" + std::to_string(s)) ? keys["rest" + std::to_string(s)] : "stand";
                 float gap = me.minZ - floorZ;
@@ -716,9 +751,9 @@ int main(int argc, char** argv) {
                 }
                 fl[s] = gap;
             }
-            std::fprintf(csv, "%s,%u,%s,%.4f,%.4f,%.4f,%.4f,%.4f,%d,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%s,%s\n",
+            std::fprintf(csv, "%s,%u,%s,%.4f,%.4f,%.4f,%.4f,%.4f,%d,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%s,%s,%.4f,%.4f\n",
                          caseId.c_str(), t, caseKeys.c_str(), aaBody, aaFrac, aaHand, pelvis, trunk, same,
-                         fd[0], ff[0], fd[1], ff[1], fl[0], fl[1], sk[0], sk[1], worst[0].c_str(), worst[1].c_str());
+                         fd[0], ff[0], fd[1], ff[1], fl[0], fl[1], sk[0], sk[1], worst[0].c_str(), worst[1].c_str(), bsk[0], bsk[1]);
             ++rows;
         } else if (cmd == "camera") {
             float ex, ey, ez, tx, ty, tz, fov; ss >> ex >> ey >> ez >> tx >> ty >> tz >> fov;

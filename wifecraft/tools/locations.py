@@ -15,6 +15,12 @@ adds (or replaces) only each entry's "dayCycle" and leaves the rest of every ent
 day (LightData's keyframes for the LightParams its "light" came from: hour = Time / 120, ambient, direct, sky middle,
 sky fog), which the engine samples by the world clock's hour (cpp engine/daylight.h).
 
+    python3 tools/locations.py --furniture-extents=MEASURED.json
+
+adds (or replaces) only each furniture row's "extent" (and its "model") from engine-test/furniture_measure's output: the
+piece's real box, surface, solid parts, head end and free sides, measured on its model as the engine places it; every
+other line of the file stays as it stands. A rebuild keeps the rows' extents (furniture_rows).
+
 CACHE_DIR keeps everything fetched while working it out (files named by id, tables as <Name>.csv);
 LISTFILE is the community listfile (wowdev/wow-listfile, `id;path` lines), used only to name files in
 the log. stdlib only. Be gentle with wago.tools: at most 8 requests at once.
@@ -605,7 +611,7 @@ def near_tris(tris, p, r):
 CHAIR_SEATS = {198115: 0.479}
 
 
-def furniture_rows(spots):
+def furniture_rows(spots, previous=None):
     """The location's furniture for animations (locations.json "furniture", read by location/Locations.kt FurniturePiece and
     simulation/Furniture.of), from its interaction spots: each piece's kind, its middle on the floor, its front's direction
     and its surface's height over that floor (yards).
@@ -616,8 +622,13 @@ def furniture_rows(spots):
     width came out 0.9 yards or more. A chair: where it stands, its front the model's +x (as bedroom() faces the sitter;
     not checked against each model), its seat measured where CHAIR_SEATS has the model, else the usual 0.47 m. A table: its model's middle, its front toward
     the spot its reader stands at, its top as high as the lowest of its books stands (their origins: a book's base, not
-    checked), else the usual 0.75 m."""
+    checked), else the usual 0.75 m.
+
+    `previous` (the location's rows as locations.json has them before this rebuild) gives back each row's measured
+    "extent" (engine-test/furniture_measure, written by --furniture-extents) to the row of the same object and model, so
+    a rebuild keeps them; measure again after a rebuild that moves or turns a piece."""
     rows = []
+    kept = {(r.get("object"), r.get("model")): r["extent"] for r in (previous or []) if r.get("extent")}
     for s in spots:
         obj, entry, facing = s["object"], s["entry"], s["facing"]
         flip = math.atan2(math.sin(facing + math.pi), math.cos(facing + math.pi))
@@ -636,7 +647,67 @@ def furniture_rows(spots):
             books = [b["position"][2] for b in s["models"][1:]]
             top = round(min(books) - entry[2], 3) if books else 0.82
             rows.append(dict(object=obj, kind="TABLE", position=[m[0], m[1], entry[2]], yaw=round(flip, 4), surface=top))
+    for r, s in zip(rows, [s for s in spots if s["object"] in ("BED", "CHAIR") or s["object"] == "TABLE" and s.get("models")]):
+        model = (s.get("models") or [{}])[0].get("id")
+        r["model"] = model
+        if (r["object"], model) in kept:
+            r["extent"] = kept[(r["object"], model)]
     return rows
+
+
+# Locations whose bed's lying height was set by hand (LOCATIONS' room "bedTop": a hammock's sling): their measured extent
+# keeps the row's surface as its surfaceTop and names no head end (a hammock lies either way).
+def hand_set_beds():
+    return {l["id"] for l in LOCATIONS if "bedTop" in l.get("room", {})}
+
+
+def extent_of(measured, row, hand_set):
+    """A row's "extent" from engine-test/furniture_measure's row (its own frame: x its front, y its left, z up from its
+    floor; yards): its footprint box, its height, the surface people rest on (its stretch and height), the head end of a
+    bed along x (-1 the back, as the row's yaw says; +1 its front: the row's yaw is the wrong way round; 0 can't say), the
+    solid parts standing over that surface (headboards, footboards, posts, a chair's back and arms: [minX, maxX, minY, maxY,
+    top]), the rises in it lain on (a bolster) and the free room beside each side (front, back, left, right; at most 1.2)."""
+    def r3(v):
+        return [round(x, 3) for x in v]
+    top = measured["surfaceTop"]
+    head = measured.get("head", 0)
+    if hand_set:
+        top, head = row["surface"], 0
+    return dict(box=r3(measured["box"]), height=round(measured["height"], 3), surfaceRect=r3(measured["surfaceRect"]),
+                surfaceTop=round(top, 3), headEnd=head, parts=[r3(p) for p in measured.get("parts", [])],
+                rises=[r3(p) for p in measured.get("rises", [])], sides={k: round(v, 2) for k, v in measured["sides"].items()})
+
+
+def add_furniture_extents(measured_path):
+    """--furniture-extents=MEASURED.json: each furniture row's "extent" from engine-test/furniture_measure's output (its
+    model too), the rest of locations.json as its text stands: only the rows' own lines are written again."""
+    path = os.path.join(ASSETS, "locations.json")
+    text = open(path).read()
+    data = json.loads(text)
+    measured = json.load(open(measured_path))["locations"]
+    hand = hand_set_beds()
+    out = text
+    for loc in data["locations"]:
+        rows = loc.get("furniture") or []
+        got = measured.get(loc["id"], [])
+        for row in rows:
+            m = next((g for g in got if g["object"] == row["object"]), None)
+            if m is None or "error" in m:
+                log("%s %s: not measured%s" % (loc["id"], row["object"], (": " + m["error"]) if m else ""))
+                continue
+            line = json.dumps(row)
+            if out.count(line) != 1:
+                raise SystemExit("%s %s: its row's text is not found once in locations.json" % (loc["id"], row["object"]))
+            new = dict(row)
+            new["model"] = m["model"]
+            new["extent"] = extent_of(m, row, loc["id"] in hand and row["object"] == "BED")
+            out = out.replace(line, json.dumps(new))
+            e = new["extent"]
+            log("%s %s: %.2f x %.2f, surface %.3f (row %.3f), head %d, %d parts" % (
+                loc["id"], row["object"], e["box"][1] - e["box"][0], e["box"][3] - e["box"][2], e["surfaceTop"],
+                row["surface"], e["headEnd"], len(e["parts"])))
+    with open(path, "w") as f:
+        f.write(out)
 
 def bedroom(st, w, tris, room, extras=()):
     """The bedroom's view, spawn and interaction spots from the building's own furniture (room: MODD indices).
@@ -809,7 +880,7 @@ def door_portal(w, tris):
 
 # ---- a location ----
 
-def build(st, loc):
+def build(st, loc, previous=None):
     w = Wmo(st, loc["wmo"])
     tiles = wdt_tiles(st, loc["wdt"])
     root, obj0, _obj1, tex0 = tiles[loc["tile"]][:4]
@@ -1045,7 +1116,7 @@ def build(st, loc):
     entry = dict(
         id=loc["id"], name=loc["name"], kind=loc["kind"], **({"people": loc["people"]} if "people" in loc else {}),
         **({"interactions": spots} if spots else {}),
-        **({"furniture": furniture_rows(spots)} if spots else {}),
+        **({"furniture": furniture_rows(spots, previous)} if spots else {}),
         **({"props": props} if props else {}),
         frame=dict(comment="the building's own frame; world (map %d) = origin + Rz(yawDeg) * local" % continent(st, loc),
                    map=continent(st, loc), origin=rnd(origin), yawDeg=round(place["rot"][1] + 180, 4)),
@@ -1161,6 +1232,10 @@ def main():
     if "--day-cycle" in args:
         add_day_cycles(Store(args[0]))
         return
+    extents = [a.split("=", 1)[1] for a in args if a.startswith("--furniture-extents=")]
+    if extents:
+        add_furniture_extents(extents[0])
+        return
     st = Store(args[0], args[1] if len(args) > 1 else None)
     todo = [l for l in LOCATIONS if not only or l["id"] in only]
     path = os.path.join(ASSETS, "locations.json")
@@ -1169,14 +1244,16 @@ def main():
                       "wago.tools by id at build " + BUILD + "; nothing of the game is in this file but ids and transforms.",
            "build": BUILD, "locations": []}
     kept = {}
+    previous = {}
     if os.path.exists(path):
         text = open(path).read()
         old = json.loads(text)
         out["locations"] = [l for l in old.get("locations", []) if l["id"] not in {x["id"] for x in todo}]
         kept = {l["id"]: t for l, t in zip(old.get("locations", []), entry_texts(text))}
+        previous = {l["id"]: l.get("furniture") for l in old.get("locations", [])}
     reports = {}
     for loc in todo:
-        entry, rep = build(st, loc)
+        entry, rep = build(st, loc, previous.get(loc["id"]))
         out["locations"].append(entry)
         reports[loc["id"]] = rep
         log("%s: %d groups, %d props, %d yard props, %d ground chunks, %.2f MB, %d missing" % (

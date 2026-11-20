@@ -10,10 +10,18 @@ import org.json.JSONObject
  * taken off, the body model's own underwear kept (the creator's No Gear), [BARE] that and the skin colour's underwear
  * layers taken off too (the race's base skin as the model draws it; no geometry or texture is added), [NUDE] an outfit's
  * own items without its torso, leg and feet pieces (CharacterLooks.NUDE_REMOVED: shirt, chest or robe, tabard, belt, legs,
- * feet) over that bare body: the head piece, shoulders, wrists, gloves and cloak stay.
+ * feet) over that bare body: the head piece, shoulders, wrists, gloves and cloak stay; [TABARD] an outfit's own items
+ * without its shirt, chest or robe and legs (CharacterLooks.TABARD_REMOVED), the tabard and everything else kept, over
+ * that bare body.
  */
 enum class VariantKind(val key: String) {
-    OUTFIT("outfit"), UNDERWEAR("underwear"), BARE("bare"), NUDE("nude");
+    OUTFIT("outfit"), UNDERWEAR("underwear"), BARE("bare"), NUDE("nude"), TABARD("tabard");
+
+    /** Wears its own items (an outfit, or one with some of them taken off). */
+    val worn: Boolean get() = this == OUTFIT || this == NUDE || this == TABARD
+
+    /** Drawn without the skin colour's underwear layers. */
+    val bare: Boolean get() = this == BARE || this == NUDE || this == TABARD
 
     companion object {
         fun of(key: String) = entries.firstOrNull { it.key == key } ?: throw IllegalArgumentException("variant kind \"$key\"")
@@ -119,7 +127,7 @@ object CharacterRoster {
                 o.put("race", v.raceId).put("sex", v.sex.name)
                 o.put("picks", JSONObject().also { p -> v.picks.toSortedMap().forEach { (k, x) -> p.put(k.toString(), x) } })
                 o.put("body", JSONObject().put("shape", v.body.shape).put("style", v.body.style).put("density", v.body.density))
-                if (v.kind == VariantKind.OUTFIT || v.kind == VariantKind.NUDE) o.put("equipment", JSONObject().also { e -> v.equipment.toSortedMap().forEach { (k, x) -> e.put(k.toString(), x) } })
+                if (v.kind.worn) o.put("equipment", JSONObject().also { e -> v.equipment.toSortedMap().forEach { (k, x) -> e.put(k.toString(), x) } })
                 else o.put("equipment", "nude")
             }
             if (v.sourceDisplay > 0) o.put("sourceDisplay", v.sourceDisplay)

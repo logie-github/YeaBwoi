@@ -160,6 +160,10 @@ class CharacterLooksTest {
                     // its outfit's items but the torso, leg and feet pieces (NudeVariantsTest)
                     assertTrue(!v.isDisplay && v.equipment.keys.none { it in CharacterLooks.NUDE_REMOVED }, "${c.id}/${v.key} is nude")
                 }
+                if (v.kind == VariantKind.TABARD) {
+                    // its outfit's items but the shirt, chest and legs, the tabard kept (TabardVariantsTest)
+                    assertTrue(!v.isDisplay && v.equipment.keys.none { it in CharacterLooks.TABARD_REMOVED } && CharacterLooks.TABARD_SLOT in v.equipment, "${c.id}/${v.key} wears a tabard")
+                }
             }
         }
         // Chromie's only humanoid form is a gnome's: she has no undressed variant
