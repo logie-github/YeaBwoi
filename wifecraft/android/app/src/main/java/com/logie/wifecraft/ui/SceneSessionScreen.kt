@@ -1099,12 +1099,17 @@ fun LiveSceneScreen(
     }
     val pending = rememberHeld(choosingPartner)
     if (pending != null) {
-        val candidates = cast.filter { it.id != pending.owner }.map { it.id to it.name }
+        val ownerLife = lifeOf(pending.owner)
+        // each name with what they are to the one inviting, when the life simulation is on ("Rowan  ·  Friendly")
+        val candidates = cast.filter { it.id != pending.owner }.map { person ->
+            val tier = ownerLife?.relationships?.firstOrNull { it.other == person.id }?.friendTier
+            person.id to if (tier.isNullOrEmpty()) person.name else "${person.name}  ·  $tier"
+        }
         if (candidates.isEmpty()) {
-            HudConfirm("Partner animation", "Add a second NPC to the scene to play this animation.", "OK",
+            HudConfirm("Invite who?", "Add a second NPC to the scene to play this animation.", "OK",
                 choosingPartner != null, { choosingPartner = null }, { choosingPartner = null })
         } else {
-            HudPick("Choose a partner", candidates, choosingPartner != null, { choosingPartner = null }) { other ->
+            HudPick("Invite who?", candidates, choosingPartner != null, { choosingPartner = null }) { other ->
                 choosingPartner = null
                 schedule(pending, other)
             }
