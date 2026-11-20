@@ -18,6 +18,9 @@
      ]
     }
    ],
+   "furniture": [
+    {"object": "TABLE", "kind": "TABLE", "position": [-5.057, -0.22, 1.72], "yaw": -0.0, "surface": 1.091}
+   ],
    "frame": {
     "comment": "the building's own frame; world (map 0) = origin + Rz(yawDeg) * local",
     "map": 0,
@@ -5593,6 +5596,11 @@
      ]
     }
    ],
+   "furniture": [
+    {"object": "BED", "kind": "BED_DOUBLE", "position": [8.567, 1.606, 7.294], "yaw": -1.5708, "surface": 0.765},
+    {"object": "CHAIR", "kind": "CHAIR", "position": [2.528, -6.608, 7.294], "yaw": -1.5097, "surface": 0.514},
+    {"object": "TABLE", "kind": "TABLE", "position": [2.527, -7.546, 7.294], "yaw": 0.0, "surface": 1.093}
+   ],
    "frame": {
     "comment": "the building's own frame; world (map 0) = origin + Rz(yawDeg) * local",
     "map": 0,
@@ -9278,6 +9286,9 @@
       }
      ]
     }
+   ],
+   "furniture": [
+    {"object": "BED", "kind": "BED_DOUBLE", "position": [-18.2, 3.943, -17.352], "yaw": 1.5708, "surface": 0.67}
    ],
    "frame": {
     "comment": "the building's own frame; world (map 0) = origin + Rz(yawDeg) * local",
@@ -13004,6 +13015,9 @@
      ]
     }
    ],
+   "furniture": [
+    {"object": "BED", "kind": "BED_DOUBLE", "position": [-7.036, 0.827, 18.563], "yaw": 0.0, "surface": 0.793}
+   ],
    "frame": {
     "comment": "the building's own frame; world (map 1) = origin + Rz(yawDeg) * local",
     "map": 1,
@@ -14012,6 +14026,9 @@
       }
      ]
     }
+   ],
+   "furniture": [
+    {"object": "BED", "kind": "BED_DOUBLE", "position": [12.865, -9.791, 1.285], "yaw": 1.9722, "surface": 0.808}
    ],
    "frame": {
     "comment": "the building's own frame; world (map 1) = origin + Rz(yawDeg) * local",
@@ -15244,6 +15261,9 @@
      ]
     }
    ],
+   "furniture": [
+    {"object": "BED", "kind": "BED_DOUBLE", "position": [15.41, -1.176, 8.543], "yaw": -3.1329, "surface": 0.813}
+   ],
    "frame": {
     "comment": "the building's own frame; world (map 1) = origin + Rz(yawDeg) * local",
     "map": 1,
@@ -15884,6 +15904,10 @@
       }
      ]
     }
+   ],
+   "furniture": [
+    {"object": "BED", "kind": "BED_DOUBLE", "position": [6.271, -8.917, 23.47], "yaw": 2.2327, "surface": 1.025},
+    {"object": "CHAIR", "kind": "CHAIR", "position": [9.55, -1.628, 23.468], "yaw": 1.8326, "surface": 0.514}
    ],
    "frame": {
     "comment": "the building's own frame; world (map 530) = origin + Rz(yawDeg) * local",
@@ -18306,6 +18330,9 @@
      ]
     }
    ],
+   "furniture": [
+    {"object": "BED", "kind": "BED_DOUBLE", "position": [-6.389, 0.0, 7.411], "yaw": -0.0, "surface": 0.859}
+   ],
    "frame": {
     "comment": "the building's own frame; world (map 0) = origin + Rz(yawDeg) * local",
     "map": 0,
@@ -19511,6 +19538,9 @@
       }
      ]
     }
+   ],
+   "furniture": [
+    {"object": "BED", "kind": "BED_DOUBLE", "position": [-8.89, 1.486, -1.776], "yaw": 0.0, "surface": 0.726}
    ],
    "frame": {
     "comment": "the building's own frame; world (map 1) = origin + Rz(yawDeg) * local",
@@ -21535,6 +21565,9 @@
      ]
     }
    ],
+   "furniture": [
+    {"object": "BED", "kind": "BED_DOUBLE", "position": [7.308, -5.964, 14.877], "yaw": -1.5272, "surface": 0.983}
+   ],
    "frame": {
     "comment": "the building's own frame; world (map 1) = origin + Rz(yawDeg) * local",
     "map": 1,
@@ -23357,6 +23390,9 @@
       }
      ]
     }
+   ],
+   "furniture": [
+    {"object": "BED", "kind": "BED_DOUBLE", "position": [5.0, 6.5, 1.474], "yaw": -1.5708, "surface": 0.808}
    ],
    "frame": {
     "comment": "the building's own frame; world (map 530) = origin + Rz(yawDeg) * local",

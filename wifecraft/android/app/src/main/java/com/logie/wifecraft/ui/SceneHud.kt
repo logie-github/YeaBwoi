@@ -19,6 +19,9 @@ data class HudSlot(val order: HudOrder, val label: String, val lit: Boolean = fa
     val key: String get() = if (target == null) order.name else "${order.name}:$target"
 }
 
+/** What the camera button has on: the camera's [mode] and, at 0 or more, the furniture view shown ([SceneHud.nextCamera]). */
+data class CameraChoice(val mode: CameraMode, val view: Int = -1)
+
 /**
  * Where the HUD goes on a screen [w] x [h] dp: the cast as party frames down the left ([castSide]) or a strip under the top
  * bar; the action bar's [cols] x [rows] slots, each [slotW] wide, [barH] high with its gaps (the same whether the slots are
@@ -140,6 +143,30 @@ object SceneHud {
      */
     fun cameraAfterRelease(mode: CameraMode, selected: Boolean): CameraMode =
         if (!selected && mode == CameraMode.FOLLOW) CameraMode.ORBIT else mode
+
+    /**
+     * The camera button's next choice when the controlled NPC is on furniture with [views] furniture views: Room view,
+     * Orbit, Follow (with someone to follow), then each furniture view in turn ([CameraChoice.view], shown in the room's
+     * mode), then the room's view again. An orbit begun from a furniture view (a drag on it) goes on to the next view.
+     * Without views it is [CameraMode.next].
+     */
+    fun nextCamera(current: CameraChoice, canFollow: Boolean, views: Int): CameraChoice {
+        val view = current.view.takeIf { it in 0 until views } ?: -1
+        if (view >= 0) return if (view + 1 < views) CameraChoice(CameraMode.ROOM, view + 1) else CameraChoice(CameraMode.ROOM)
+        val next = current.mode.next(canFollow)
+        return if (next == CameraMode.ROOM && views > 0) CameraChoice(CameraMode.ROOM, 0) else CameraChoice(next)
+    }
+
+    /** The camera button's words for [choice] ([viewName]: the furniture view's name, "Foot", "Head"...). */
+    fun cameraLabel(choice: CameraChoice, viewName: String?): String =
+        if (choice.view >= 0 && viewName != null) viewName else cameraLabel(choice.mode)
+
+    /** What the camera button says it does with furniture views [viewNames]: the choice now and the next a tap gives. */
+    fun cameraDescription(choice: CameraChoice, canFollow: Boolean, viewNames: List<String>): String {
+        val next = nextCamera(choice, canFollow, viewNames.size)
+        return "Camera: ${cameraLabel(choice, viewNames.getOrNull(choice.view))}. " +
+            "Tap for ${cameraLabel(next, viewNames.getOrNull(next.view))}."
+    }
 
     /** The two-person animations' own tab in the Play animation window. */
     const val PARTNER_TAB = "Partner"

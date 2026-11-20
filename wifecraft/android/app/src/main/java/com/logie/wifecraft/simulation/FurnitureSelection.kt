@@ -3,6 +3,7 @@ package com.logie.wifecraft.simulation
 import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.anim.BodyGeometry
 import com.logie.wifecraft.anim.Hints
+import com.logie.wifecraft.anim.HumanScale
 import com.logie.wifecraft.anim.Posture
 import com.logie.wifecraft.anim.Requirement
 import com.logie.wifecraft.anim.RequirementClassifier
@@ -19,11 +20,17 @@ data class FurnitureAnimation(val id: String, val name: String, val requirement:
     val posture: Posture get() = requirement.actors.getOrNull(requirement.primary)?.posture ?: Posture.UNKNOWN
 
     companion object {
-        /** A partner pair as the simulation has it, classified from its two clips at their slots and its names and locations. */
+        /**
+         * A partner pair as the simulation has it, classified from its two clips at their slots and its names and locations.
+         * Its slots are at human scale across the floor (yards: [PartnerSlot.human]); the clips' frame is the reference
+         * body's, so they are taken back by [HumanScale.PAIR] (up and down a slot is the clip's own already).
+         */
         fun of(p: PartnerPair): FurnitureAnimation = FurnitureAnimation(p.id, p.name, RequirementClassifier.classify(listOf(
-            BodyGeometry.frames(p.a, p.slotA.x.toDouble(), p.slotA.y.toDouble(), p.slotA.z.toDouble(), p.slotA.yawDeg.toDouble()),
-            BodyGeometry.frames(p.b, p.slotB.x.toDouble(), p.slotB.y.toDouble(), p.slotB.z.toDouble(), p.slotB.yawDeg.toDouble()),
+            frames(p.a, p.slotA), frames(p.b, p.slotB),
         ), Hints(listOf(p.name, p.a.sourceName, p.b.sourceName), p.locations)), p)
+
+        private fun frames(a: Anim, s: PartnerSlot) = BodyGeometry.frames(a, (s.x / HumanScale.PAIR).toDouble(),
+            (s.y / HumanScale.PAIR).toDouble(), s.z.toDouble(), s.yawDeg.toDouble())
 
         /** A single clip. */
         fun of(a: Anim): FurnitureAnimation = FurnitureAnimation(a.id, a.name, RequirementClassifier.classify(a))

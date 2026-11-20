@@ -23,9 +23,23 @@ class PairAddResult(val pair: PairAnim, val duplicate: Boolean, val message: Str
 class AnimLibrary(private val dir: File) {
     class IndexEntry(val id: String, val name: String, val category: String)
 
-    private class State { val lock = Any(); var anims: LinkedHashMap<String, Anim>? = null; var pairs: LinkedHashMap<String, PairAnim>? = null }
+    private class State {
+        val lock = Any(); var anims: LinkedHashMap<String, Anim>? = null; var pairs: LinkedHashMap<String, PairAnim>? = null
+        var requirements: RequirementCache? = null
+    }
 
     private val state: State = synchronized(states) { states.getOrPut(dir.absoluteFile.normalize().path) { State() } }
+
+    /**
+     * What each animation and partner animation needs to be played on (anim/Requirements: a bed, a seat, a top, the floor),
+     * kept beside the library in dir/requires.cache and classified when missing or outdated; the live scene reads it through
+     * [RequirementStore] (this library's cache from the moment it is opened).
+     */
+    val requirements: RequirementCache = synchronized(state.lock) {
+        state.requirements ?: RequirementCache(dir).also { state.requirements = it }
+    }
+
+    init { RequirementStore.cache = requirements }
 
     /** Names of animation files that could not be read at the last load. */
     @Volatile var damaged: List<String> = emptyList()
@@ -121,6 +135,7 @@ class AnimLibrary(private val dir: File) {
         if (map.remove(id) == null) return@synchronized
         File(dir, "$id.json").delete()
         writeIndex(map)
+        requirements.forget(id)
     }
 
     /** Every category in use, alphabetical, no repeats. */
@@ -201,6 +216,7 @@ class AnimLibrary(private val dir: File) {
         val map = loadPairs()
         if (map.remove(id) == null) return@synchronized
         File(dir, pairFile(id)).delete()
+        requirements.forget("pair:$id")
     }
 
     /** Every partner-animation category in use, alphabetical, no repeats. */

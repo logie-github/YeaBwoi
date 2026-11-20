@@ -67,6 +67,9 @@ import com.logie.wifecraft.anim.AnimationChoice
 import com.logie.wifecraft.anim.BoneTrack
 import com.logie.wifecraft.anim.PERFORMANCE_SCALE
 import com.logie.wifecraft.anim.PairAnim
+import com.logie.wifecraft.anim.Requirement
+import com.logie.wifecraft.anim.RequirementStore
+import com.logie.wifecraft.anim.Surface
 import com.logie.wifecraft.anim.animationChoices
 import com.logie.wifecraft.anim.animationSequence
 import com.logie.wifecraft.catalog.EmotePlayability
@@ -85,7 +88,13 @@ import com.logie.wifecraft.engine.Hit
 import com.logie.wifecraft.engine.LocationLoader
 import com.logie.wifecraft.engine.Thumbs
 import com.logie.wifecraft.engine.SceneView
+import com.logie.wifecraft.location.FurniturePiece
 import com.logie.wifecraft.location.LocationInfo
+import com.logie.wifecraft.simulation.CameraClearance
+import com.logie.wifecraft.simulation.Furniture
+import com.logie.wifecraft.simulation.FurnitureAnimation
+import com.logie.wifecraft.simulation.FurnitureSelection
+import com.logie.wifecraft.simulation.SceneSimulation
 import com.logie.wifecraft.simulation.Activity
 import com.logie.wifecraft.simulation.CameraMode
 import com.logie.wifecraft.simulation.InteractionSpot
@@ -110,7 +119,9 @@ import com.logie.wifecraft.creator.Sex
 import androidx.compose.ui.layout.onSizeChanged
 import com.logie.wifecraft.story.CameraPose
 import com.logie.wifecraft.story.Vec3
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -200,6 +211,37 @@ fun SceneSetupScreen(
 
 private data class PendingAnimation(val owner: String, val choice: AnimationChoice, val mode: AnimationOrderMode)
 
+/** The Play animation window of a piece of furniture: [owner] plays, on [item], one of [choices] (only what fits on it). */
+private class FurnitureMenu(val owner: String, val item: SceneObject, val choices: List<AnimationChoice>)
+
+/** What each animation needs (anim/Requirements): by the browser's choice id, and by the partner pair's id (the simulation's). */
+private class AnimationNeeds(val choices: Map<String, Requirement> = emptyMap(), val pairs: Map<String, Requirement> = emptyMap())
+
+/**
+ * The needs of [choices] and the partner pairs (off the main thread): the library's kept requirements ([RequirementStore]:
+ * its single clips and enabled pairs, classified once and kept beside it), the authors' two-person performances classified
+ * here. One that can't be classified is left out (it plays as before, and isn't offered on furniture).
+ */
+private fun needsOf(choices: List<AnimationChoice>, library: List<PairAnim>, partnerPairs: List<PartnerPair>): AnimationNeeds {
+    val enabled = library.filter { it.enabled }
+    val singles = choices.filter { it.participantCount == 1 }.mapNotNull { it.clips.firstOrNull()?.clip }.distinctBy { it.id }
+    val kept = try { RequirementStore.all(singles, enabled) } catch (e: Exception) { emptyMap() }
+    val byChoice = HashMap<String, Requirement>()
+    val byPair = HashMap<String, Requirement>()
+    for (p in enabled) kept[PairAnim.CHOICE_PREFIX + p.id]?.let { byPair[p.id] = it; byChoice[PairAnim.CHOICE_PREFIX + p.id] = it }
+    for (pp in partnerPairs) {
+        if (pp.id in byPair) continue
+        val r = try { FurnitureAnimation.of(pp).requirement } catch (e: Exception) { null } ?: continue
+        byPair[pp.id] = r
+        byChoice[pp.id] = r
+    }
+    for (c in choices) if (c.participantCount == 1) c.clips.firstOrNull()?.clip?.let { a -> kept[a.id]?.let { byChoice[c.id] = it } }
+    return AnimationNeeds(byChoice, byPair)
+}
+
+/** Whether [r] was read from the bodies (where each actor goes is known): only those are offered on furniture. */
+private fun placedNeed(r: Requirement) = r.surface != Surface.UNKNOWN && "geometry" in r.basis
+
 /**
  * The live scene. Nothing here changes every frame: the simulation, the people's motion and the camera run on the GL
  * thread ([LiveScene] driving the [SceneView] through its [FrameDriver]); this screen gets a [SceneSnapshot] only when what
@@ -269,6 +311,31 @@ fun LiveSceneScreen(
     val pairSizes = remember(cast) {
         cast.associate { it.id to HumanScale.pairScale(it.appearance.raceId, it.appearance.sex == Sex.FEMALE) }
     }
+    // each one's body over a human's (a dwarf's or gnome's own): what furniture fits them (simulation/FurnitureFit)
+    val bodyScales = remember(cast) {
+        cast.associate { it.id to HumanScale.bodyScale(it.appearance.raceId, it.appearance.sex == Sex.FEMALE) }
+    }
+    // what each animation needs (a bed, a seat, a top, the floor), read off the main thread
+    val needs by produceState(AnimationNeeds(), choices, partnerPairs) {
+        value = withContext(Dispatchers.Default) { needsOf(choices, pairs, partnerPairs) }
+    }
+    // the place's furniture as locations.json measures it (its beds', seats' and tops' heights), by the object it is
+    val context = LocalContext.current
+    val pieces by produceState(emptyList<FurniturePiece>(), locationName) {
+        value = withContext(Dispatchers.IO) {
+            try {
+                context.assets.open("locations.json").bufferedReader().use { LocationInfo.parseAll(it.readText()) }
+                    .firstOrNull { it.name == locationName }?.furniture.orEmpty()
+            } catch (e: Exception) { emptyList() }
+        }
+    }
+    val furnitureAt = remember(pieces, objects) {
+        val out = HashMap<SceneObject, Furniture>()
+        for (item in objects) pieces.firstOrNull { it.item == item.name }?.let { piece ->
+            Furniture.of(piece, toLocal, -stageRotation)?.let { out[item] = it }
+        }
+        out
+    }
     // the clips every playback key names (GL thread reads it): the orders' (request) and the partner pairs' roles
     val playback = remember(live) { ConcurrentHashMap<String, Anim>() }
     LaunchedEffect(live, partnerPairs, partner, emotes, chatter) {
@@ -279,11 +346,23 @@ fun LiveSceneScreen(
         live.command { sim ->
             sim.pairs = partnerPairs; sim.partnerChance = partner.chance; sim.emotes = emotes; sim.chatterChance = chatter.chance
             sim.sizes = pairSizes
+            sim.bodyScales = bodyScales
         }
     }
+    LaunchedEffect(live, needs) { val known = needs.pairs; live.command { it.requirements = known } }
+    LaunchedEffect(live, furnitureAt) {
+        val measured = furnitureAt
+        live.command { sim -> for ((item, f) in measured) sim.setFurniture(item, f) }
+    }
     SideEffect {
-        live.camera.room = camera
+        live.roomView = camera
         live.camera.floorZ = toStage(Vec3(0f, 0f, 0f)).z   // the stage's floor: the camera's lift stays in the room
+    }
+    // the furniture views' walls: a walk along the floor from beside the furniture to under the eye must be clear (the
+    // scene's own test, GL thread); a view none passes is offered without it (LiveScene)
+    DisposableEffect(live, view) {
+        live.clearance = CameraClearance { eye, at -> view.glWalkRoute(at, eye)?.size == 1 }
+        onDispose { live.clearance = null }
     }
     var snapshot by remember(live) { mutableStateOf(live.snapshot()) }
     // who the player controls and that NPC's partner (SceneControl: a tap on another NPC makes it the partner)
@@ -293,6 +372,9 @@ fun LiveSceneScreen(
     // Walk on: a tap on the floor sends the controlled NPC there. The camera: the room's view, the orbit, or Follow
     var walking by remember { mutableStateOf(false) }
     var cameraMode by remember(live) { mutableStateOf(CameraMode.ROOM) }
+    // the furniture view shown (an index into the controlled NPC's views; -1: none) and the Play window of a tapped piece
+    var furnitureView by remember(live) { mutableIntStateOf(-1) }
+    var furnitureMenu by remember { mutableStateOf<FurnitureMenu?>(null) }
     var ending by remember { mutableStateOf(false) }
     var choosingAnimation by remember { mutableStateOf<String?>(null) }
     var choosingPartner by remember { mutableStateOf<PendingAnimation?>(null) }
@@ -302,6 +384,10 @@ fun LiveSceneScreen(
     var menu by remember { mutableStateOf(false) }
     val names = remember(cast) { cast.associate { it.id to it.name } }
     val active = selected?.let { id -> snapshot.people.firstOrNull { it.id == id } }
+    val views = selected?.let { snapshot.furnitureViews[it] }.orEmpty()
+    val viewNames = remember(views) { views.map { it.label } }
+    LaunchedEffect(views.size, furnitureView) { if (furnitureView >= views.size) furnitureView = -1 }
+    SideEffect { live.furnitureView = views.getOrNull(furnitureView) }
 
     BackHandler {
         if (saying != null) saying = null
@@ -309,7 +395,9 @@ fun LiveSceneScreen(
         else if (choosingPartner != null) choosingPartner = null
         else if (choosingAnimation != null) choosingAnimation = null
         else if (menu) menu = false
+        else if (furnitureMenu != null) furnitureMenu = null
         else if (walking) walking = false
+        else if (furnitureView >= 0) furnitureView = -1
         else if (cameraMode != CameraMode.ROOM) cameraMode = CameraMode.ROOM
         else if (partnerId != null) control = control.clearPartner()
         else if (selected != null) control = control.release()
@@ -436,6 +524,7 @@ fun LiveSceneScreen(
     LaunchedEffect(selected) {
         if (selected == null) walking = false
         cameraMode = SceneHud.cameraAfterRelease(cameraMode, selected != null)
+        furnitureView = -1
     }
     LaunchedEffect(live, cameraMode) { live.camera.setMode(cameraMode) }
     LaunchedEffect(selected) {
@@ -456,6 +545,41 @@ fun LiveSceneScreen(
     fun chatWith(id: String, otherId: String) = live.order { sim ->
         if (sim.chat(id, otherId)) null else "There’s no clear path to ${names[otherId]}."
     }
+    /**
+     * Furniture tapped with [id] controlled: its Play animation window, with only the animations that fit on it, grouped by
+     * the posture on it (Lying, Sitting...): two-person ones with the partner (else the nearest who can join). Nothing fits
+     * (or nothing is classified yet): it is used, as before.
+     */
+    fun openFurniture(id: String, item: SceneObject) {
+        val f = furnitureAt[item] ?: spots[item]?.let { Furniture.of(item, it) }
+        val with = partnerId?.takeIf { it != id }
+        val known = needs.choices
+        val byId = choices.associateBy { it.id }
+        val library = choices.mapNotNull { c ->
+            val r = known[c.id]?.takeIf(::placedNeed) ?: return@mapNotNull null
+            if (c.participantCount == 2 && cast.size < 2 || c.participantCount !in 1..2 || !c.playable) null
+            else FurnitureAnimation(c.id, c.name, r)
+        }
+        val unit = SceneSimulation.HUMAN_BODY_UNIT * listOfNotNull(id, with).map { bodyScales[it] ?: 1f }.average().toFloat()
+        val listed = if (f == null) emptyList() else FurnitureSelection.listFor(f, library, unit)
+            .flatMap { (group, entries) -> entries.mapNotNull { e -> byId[e.animation.id]?.copy(group = group) } }
+        if (listed.isEmpty()) use(id, item) else furnitureMenu = FurnitureMenu(id, item, listed)
+    }
+    /** [choice] played on [target]'s furniture: a two-person one with the partner (else the nearest who can join), or alone. */
+    fun playOn(target: FurnitureMenu, choice: AnimationChoice, repeat: Boolean) {
+        val item = target.item
+        val owner = target.owner
+        val refused = "That can’t be played on the ${item.label.lowercase()} now."
+        if (choice.participantCount == 2) {
+            val pairId = choice.id.removePrefix(PairAnim.CHOICE_PREFIX)
+            val with = partnerId?.takeIf { it != owner }
+            live.order { sim -> if (sim.partnerOn(item, pairId, owner, with)) null else refused }
+        } else {
+            val need = needs.choices[choice.id] ?: return
+            val order = request(null, choice, repeat)
+            live.order { sim -> if (sim.performOn(owner, item, need, order)) null else refused }
+        }
+    }
     // the partner leaves the scene's cast or the cast changes: drop who is gone
     LaunchedEffect(cast) { control = control.keep(cast.map { it.id }) }
 
@@ -466,7 +590,7 @@ fun LiveSceneScreen(
             Hit.Kind.LOCATION, Hit.Kind.PROP -> if (ready) {
                 val item = hit.key?.let(objectHits::get)
                 val id = selected
-                if (item != null && id != null) use(id, item)
+                if (item != null && id != null) openFurniture(id, item)
             }
             Hit.Kind.GROUND -> {
                 val id = selected
@@ -640,7 +764,8 @@ fun LiveSceneScreen(
                         }
                     }
                 }
-                CameraControls(cameraMode, selected != null, { cameraMode = it }, live,
+                CameraControls(CameraChoice(cameraMode, furnitureView), selected != null, viewNames,
+                    { cameraMode = it.mode; furnitureView = it.view }, live,
                     Modifier.align(Alignment.TopEnd).graphicsLayer { alpha = shown }
                         .padding(end = SceneHud.MARGIN.dp, top = SceneHud.cameraTop(hud).dp))
                 // the line of help (or the last refusal) with the partner chip, and the action bar: a fixed height, so
@@ -657,7 +782,12 @@ fun LiveSceneScreen(
                             exit = fadeOut(tween(MenuMotion.duration(FrontMotion.GLOW_MS, reduced)))) {
                             WifeChip("Partner: ${rememberHeld(mate)?.let { names[it] } ?: ""}", { control = control.clearPartner() })
                         }
-                        val line = (snapshot.notice ?: hint.takeIf { active != null }).orEmpty()
+                        val partControl = LocalPartControl.current
+                        val partNpc = active?.id?.takeIf { partControl?.has(it) == true }
+                        if (partControl != null && partNpc != null) {
+                            WifeChip(if (partControl.isOn(partNpc)) "Off" else "On", { partControl.toggle(partNpc) }, trailing = null)
+                        }
+                        val line =(snapshot.notice ?: hint.takeIf { active != null }).orEmpty()
                         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                             if (line.isNotEmpty()) HudLine(line)
                         }
@@ -700,6 +830,21 @@ fun LiveSceneScreen(
             onPreview = { choice -> start(choice, AnimationOrderMode.PLAY) },
             partnerName = with?.let { names[it] },
             actorName = names[owner],
+        )
+    }
+    furnitureMenu?.let { menuOf ->
+        val with = partnerId?.takeIf { it != menuOf.owner }
+        AnimationBrowser(
+            menuOf.choices, preview = null, onClose = { furnitureMenu = null },
+            notice = snapshot.notice ?: ("What fits on the ${menuOf.item.label.lowercase()}." +
+                (with?.let { " Two-person animations play with ${names[it]}." } ?: "")),
+            onPlay = { choice, mode ->
+                furnitureMenu = null
+                playOn(menuOf, choice, mode == AnimationOrderMode.REPEAT)
+            },
+            onPreview = { choice -> playOn(menuOf, choice, false) },
+            partnerName = with?.let { names[it] },
+            actorName = names[menuOf.owner],
         )
     }
     val sayFor = rememberHeld(saying)
@@ -1027,13 +1172,14 @@ private fun Modifier.holdRepeat(enabled: Boolean, step: () -> Unit): Modifier {
  * out, all held to repeat and eased by the camera's springs. Their place is kept while they are hidden: nothing moves.
  */
 @Composable
-private fun CameraControls(mode: CameraMode, canFollow: Boolean, onMode: (CameraMode) -> Unit, live: LiveScene, modifier: Modifier) {
+private fun CameraControls(choice: CameraChoice, canFollow: Boolean, viewNames: List<String>, onChoice: (CameraChoice) -> Unit,
+                           live: LiveScene, modifier: Modifier) {
     val reduced = reduceMotion()
-    val orbit = mode != CameraMode.ROOM
+    val orbit = choice.mode != CameraMode.ROOM
     val controlsAlpha by animateFloatAsState(if (orbit) 1f else 0f,
         tween(MenuMotion.duration(if (orbit) MenuMotion.WINDOW_IN_MS else MenuMotion.WINDOW_OUT_MS, reduced)), label = "cameraControls")
     Column(modifier.width(SceneHud.CAMERA_W.dp), verticalArrangement = Arrangement.spacedBy(SceneHud.CAMERA_GAP.dp)) {
-        CameraModeButton(mode, canFollow) { onMode(mode.next(canFollow)) }
+        CameraModeButton(choice, canFollow, viewNames) { onChoice(SceneHud.nextCamera(choice, canFollow, viewNames.size)) }
         // hidden: an empty space of the same size (touches go through to the room); shown or fading: the buttons
         if (!orbit && controlsAlpha <= 0f) {
             Spacer(Modifier.width(SceneHud.CAMERA_W.dp).height((2 * SceneHud.SLOT_H + SceneHud.CAMERA_GAP).dp))
@@ -1052,19 +1198,19 @@ private fun CameraControls(mode: CameraMode, canFollow: Boolean, onMode: (Camera
 
 /** The camera button: the mode's name on a slate pill with the gold trim, 48 dp to touch, a fixed width (no shift). */
 @Composable
-private fun CameraModeButton(mode: CameraMode, canFollow: Boolean, onClick: () -> Unit) {
+private fun CameraModeButton(choice: CameraChoice, canFollow: Boolean, viewNames: List<String>, onClick: () -> Unit) {
     val pill = RoundedCornerShape(50)
-    val lit = mode != CameraMode.ROOM
+    val lit = choice.mode != CameraMode.ROOM || choice.view >= 0
     Box(
         Modifier.width(SceneHud.CAMERA_W.dp).height(WifeTheme.touch)
-            .semantics { contentDescription = SceneHud.cameraDescription(mode, canFollow) }
+            .semantics { contentDescription = SceneHud.cameraDescription(choice, canFollow, viewNames) }
             .warPress(sound = "tab", onClick = onClick)
             .padding(vertical = 4.dp)
             .clip(pill).background(Brush.verticalGradient(listOf(WifeTheme.secondaryTop, WifeTheme.secondaryBottom)))
             .border(if (lit) 2.dp else WifeTheme.trimWidth, if (lit) WifeTheme.gold else WifeTheme.trim, pill),
         contentAlignment = Alignment.Center,
     ) {
-        Text(SceneHud.cameraLabel(mode), style = frizStyle(13.sp, if (lit) Color.White else WifeTheme.gold), maxLines = 1,
+        Text(SceneHud.cameraLabel(choice, viewNames.getOrNull(choice.view)), style = frizStyle(13.sp, if (lit) Color.White else WifeTheme.gold), maxLines = 1,
             overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
     }
 }

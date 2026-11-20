@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
@@ -43,7 +44,21 @@ import com.logie.wifecraft.anim.animationChoices
 import com.logie.wifecraft.simulation.PartnerPair
 import com.logie.wifecraft.simulation.PartnerSoundSink
 import com.logie.wifecraft.ui.PartnerSoundsSection
+import com.logie.wifecraft.bodyparts.ModelParts
+import com.logie.wifecraft.bodyparts.PartChoice
+import com.logie.wifecraft.bodyparts.PartStates
+import com.logie.wifecraft.characters.NamedCast
+import com.logie.wifecraft.characters.NpcLooks
+import com.logie.wifecraft.characters.NpcRosterFile
 import com.logie.wifecraft.creator.Appearance
+import com.logie.wifecraft.creator.PartOptions
+import com.logie.wifecraft.ui.LocalNpcActions
+import com.logie.wifecraft.ui.LocalPartControl
+import com.logie.wifecraft.ui.NpcActions
+import com.logie.wifecraft.ui.NpcDeleteWindow
+import com.logie.wifecraft.ui.NpcMenuWindow
+import com.logie.wifecraft.ui.PartControl
+import com.logie.wifecraft.ui.PartImportSection
 import com.logie.wifecraft.creator.Catalog
 import com.logie.wifecraft.creator.CreatorModel
 import com.logie.wifecraft.creator.CsvTables
@@ -102,8 +117,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
 import java.io.File
 import java.util.UUID
 
@@ -122,6 +135,14 @@ class MainActivity : ComponentActivity() {
     /** The Sound page's levels (Options), kept by [mixSettings]. */
     private var mix = MixLevels()
     private val rosterFile by lazy { AtomicFile(File(filesDir, "npc-roster.json")) }
+    /** What the user chose for the built-in NPCs and the named characters (their look, a man's body-part settings): NpcLooks. */
+    private val looksFile by lazy { AtomicFile(File(filesDir, "npc-looks.json")) }
+    /** files/bodyparts: the named characters' model sets cut on the phone and the imported body-part sets. */
+    private val partsRoot by lazy { File(filesDir, "bodyparts") }
+    /** The named characters (assets/characters.json) with their partial looks (assets/model_parts.json). */
+    private val namedCast by lazy { NamedCast.parse(assetText("characters.json"), assetText(ModelParts.ASSET)) }
+
+    private fun assetText(name: String): String? = runCatching { assets.open(name).bufferedReader().use { it.readText() } }.getOrNull()
 
     private val animationDirectory by lazy { File(filesDir, "anims") }
     private val animationLibrary by lazy { AnimLibrary(animationDirectory) }
@@ -145,7 +166,12 @@ class MainActivity : ComponentActivity() {
         files.planner = { Prefetch.plan(Catalog.build(tables), tables) }
         listfile = ListfileNames(File(filesDir, "cache/listfile-character.csv"))
         imports = ImportStore(filesDir, listfile, supportedKinds = setOf(ImportKind.RALIA, ImportKind.BODY, ImportKind.UNDEAD))
-        dresser = Dresser(files, tables, imports, lifecycleScope)
+        dresser = Dresser(files, tables, imports, lifecycleScope).apply {
+            named = namedCast
+            manifestJson = assetText(ModelParts.ASSET)
+            partsRoot = this@MainActivity.partsRoot
+            partSet = settings.partSet
+        }
         mixSettings = MixSettings(applicationContext)
         mix = mixSettings.load()
         audio = runCatching { Audio(applicationContext, files) }.getOrNull()
@@ -191,31 +217,38 @@ class MainActivity : ComponentActivity() {
 
     private fun sceneView(): SceneView = scene ?: SceneView(this, files.dir.path).also { scene = it; it.softBody(Settings(this).softBody) }
 
-    private fun readRoster(): List<Actor> {
-        val local = if (rosterFile.baseFile.exists()) {
-            val rows = JSONArray(rosterFile.readFully().decodeToString())
-            List(rows.length()) { i ->
-                val row = rows.getJSONObject(i)
-                Actor(row.getString("id"), row.getString("name"), Appearance.fromJson(row.getJSONObject("appearance")))
-            }
-        } else emptyList()
+    private fun readText(file: AtomicFile): String? = if (file.baseFile.exists()) file.readFully().decodeToString() else null
+
+    /** [text] written whole or not at all (AtomicFile). */
+    private fun writeText(file: AtomicFile, text: String) {
+        val output = file.startWrite()
+        try {
+            output.write(text.encodeToByteArray())
+            file.finishWrite(output)
+        } catch (failure: Exception) {
+            file.failWrite(output)
+            throw failure
+        }
+    }
+
+    /** The NPCs the user made (npc-roster.json: they can be deleted) and those of older projects (read from the projects). */
+    private fun readRoster(): Pair<List<Actor>, List<Actor>> {
+        val local = NpcRosterFile.parse(readText(rosterFile))
         val legacy = ProjectStore(File(filesDir, "projects")).list().flatMap { project ->
             project.cast.map { it.copy(id = "${project.id}:${it.id}") }
         }
-        return local + legacy
+        return local to legacy
     }
 
-    private fun saveNpc(actor: Actor) {
-        val rows = if (rosterFile.baseFile.exists()) JSONArray(rosterFile.readFully().decodeToString()) else JSONArray()
-        rows.put(JSONObject().put("id", actor.id).put("name", actor.name).put("appearance", actor.appearance.toJson()))
-        val output = rosterFile.startWrite()
-        try {
-            output.write(rows.toString().encodeToByteArray())
-            rosterFile.finishWrite(output)
-        } catch (failure: Exception) {
-            rosterFile.failWrite(output)
-            throw failure
-        }
+    private fun saveNpc(actor: Actor) = writeText(rosterFile, NpcRosterFile.add(readText(rosterFile), actor))
+
+    private fun updateNpc(actor: Actor) = writeText(rosterFile, NpcRosterFile.replace(readText(rosterFile), actor))
+
+    /** The NPC [id] out of npc-roster.json, and its portraits out of files/thumbs. */
+    private fun deleteNpc(id: String) {
+        writeText(rosterFile, NpcRosterFile.delete(readText(rosterFile), id))
+        val thumbs = File(filesDir, "thumbs")
+        for (name in NpcRosterFile.thumbnails(thumbs.list()?.toList().orEmpty(), id)) File(thumbs, name).delete()
     }
 
     private val wardrobeLock = Mutex()
@@ -264,6 +297,12 @@ class MainActivity : ComponentActivity() {
         var art by remember { mutableStateOf<WowArt?>(null) }
         var catalog by remember { mutableStateOf<Catalog?>(null) }
         var savedRoster by remember { mutableStateOf(emptyList<Actor>()) }
+        // the ids of npc-roster.json's NPCs (the user's own: they have Delete); the older projects' NPCs are in savedRoster too
+        var savedIds by remember { mutableStateOf(emptySet<String>()) }
+        var npcLooks by remember { mutableStateOf(NpcLooks()) }
+        var npcMenu by remember { mutableStateOf<String?>(null) }
+        var npcDelete by remember { mutableStateOf<Actor?>(null) }
+        var partSet by remember { mutableStateOf(settings.partSet) }
         var problem by remember { mutableStateOf<String?>(null) }
         var update by remember { mutableStateOf<Updater.Update?>(null) }
         var updateStatus by remember { mutableStateOf("") }
@@ -302,13 +341,16 @@ class MainActivity : ComponentActivity() {
         val stages = remember { locationLoader.locations.filter { it.views["inside"]?.camera != null } }
         fun sceneObjects(id: String?) = stages.firstOrNull { it.id == id }?.interactions.orEmpty()
             .mapNotNull { interaction -> SceneObject.entries.firstOrNull { it.name == interaction.item } }.toSet()
-        val starters = remember(catalog) {
+        val starters = remember(catalog, npcLooks.variants) {
             val race = catalog?.races?.let { races -> races.firstOrNull { it.id == 1 } ?: races.firstOrNull() }
-            if (race == null) emptyList() else race.sexes.take(2).map { sex ->
-                Actor("starter:${sex.name}", if (sex == Sex.FEMALE) "Mira" else "Rowan", Appearance(race.id, sex))
+            val built = if (race == null) emptyList() else race.sexes.take(2).map { sex ->
+                Actor("${NpcRosterFile.STARTER_PREFIX}${sex.name}", if (sex == Sex.FEMALE) "Mira" else "Rowan", Appearance(race.id, sex))
             }
+            // the named characters, each in the look chosen on its menu (npc-looks.json)
+            built + namedCast.actors(npcLooks.variants)
         }
-        val roster = remember(savedRoster, starters) { savedRoster + starters }
+        // a man's body-part settings: in npc-roster.json for the user's own NPCs, in npc-looks.json for the others
+        val roster = remember(savedRoster, starters, npcLooks) { (savedRoster + starters).map { npcLooks.apply(it) } }
         val chosen = remember(roster, cast) { roster.filter { it.id in cast } }
 
         LaunchedEffect(complete) {
@@ -324,12 +366,28 @@ class MainActivity : ComponentActivity() {
         }
         LaunchedEffect(Unit) {
             runCatching { withContext(Dispatchers.IO) { readRoster() } }
-                .onSuccess { savedRoster = it }
+                .onSuccess { (local, legacy) -> savedRoster = local + legacy; savedIds = local.mapTo(HashSet()) { it.id } }
                 .onFailure { problem = "Saved NPCs could not be loaded." }
+            runCatching { withContext(Dispatchers.IO) { NpcLooks.parse(readText(looksFile)) } }.onSuccess { npcLooks = it }
             if (Updater.isConfigured) update = withContext(Dispatchers.IO) { runCatching { Updater.findUpdate() }.getOrNull() }
         }
 
         LaunchedEffect(art != null) { if (art != null) menuArt.start() }
+        // the NPC picker's card menus: a named character's look, a man's body-part settings, Delete for the user's own NPCs
+        val npcActions = remember(savedIds) {
+            NpcActions(
+                hasMenu = { actor -> NpcRosterFile.canDelete(actor.id, savedIds) || NamedCast.isNamed(actor.id) || PartChoice.applies(actor.appearance) },
+                open = { actor -> npcMenu = actor.id },
+                portraitDisplay = { actor -> namedCast.choiceOf(actor.appearance)?.display ?: 0 },
+            )
+        }
+        fun saveLooks(looks: NpcLooks) {
+            npcLooks = looks
+            scope.launch {
+                runCatching { withContext(Dispatchers.IO) { writeText(looksFile, looks.toJson()) } }
+                    .onFailure { problem = "The NPC's look could not be saved." }
+            }
+        }
         // the soundscape follows the screen: the title's music on the menus, a place's music and ambience in its live scene
         LaunchedEffect(screen, location) {
             val a = audio ?: return@LaunchedEffect
@@ -371,7 +429,7 @@ class MainActivity : ComponentActivity() {
                                 DisposableEffect(source) { onDispose { source.close() } }
                             }
                         } else null
-                        SceneSetupScreen(
+                        CompositionLocalProvider(LocalNpcActions provides npcActions) { SceneSetupScreen(
                             step, stages, location, { id ->
                                 if (location != id) {
                                     location = id
@@ -424,7 +482,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             },
-                        )
+                        ) }
                     }
                     Screen.CREATOR -> {
                         val c = checkNotNull(catalog)
@@ -504,6 +562,7 @@ class MainActivity : ComponentActivity() {
                                 val npc = Actor(UUID.randomUUID().toString(), name.ifBlank { "New NPC" }, dressed)
                                 runCatching { saveNpc(npc) }.onSuccess {
                                     savedRoster = savedRoster + npc
+                                    savedIds = savedIds + npc.id
                                     if (cast.size < 6) cast = cast + npc.id
                                     screen = Screen.SETUP
                                 }.onFailure { problem = "The NPC could not be saved." }
@@ -597,7 +656,7 @@ class MainActivity : ComponentActivity() {
                                             return@onFound
                                         }
                                         val entry = toLocal(interaction.entry)
-                                        spots = spots + (item to InteractionSpot(entry, entry, interaction.facing - rotation))
+                                        spots = spots + (item to InteractionSpot(entry, toLocal(interaction.pose), interaction.facing - rotation))
                                         objectHits = objectHits + keys.associateWith { item }
                                     }
                                 }
@@ -620,6 +679,26 @@ class MainActivity : ComponentActivity() {
                                 view.clearLocation()
                             }
                         }
+                        // the body parts' switch per NPC (bodyparts/PartStates): an NPC wearing them (Dresser.withParts) starts at
+                        // DEFAULT; the controlled NPC's On / Off (LocalPartControl) shows the ON part
+                        val partKeys by dresser.withParts.collectAsStateWithLifecycle()
+                        var partStates by remember(session) { mutableStateOf(PartStates()) }
+                        LaunchedEffect(partKeys, chosen) {
+                            partStates = chosen.fold(partStates) { states, actor ->
+                                if (actorKey(actor.id) in partKeys) states.register(actor.id) else states.remove(actor.id)
+                            }
+                        }
+                        val partControl = remember(session) {
+                            object : PartControl {
+                                override fun has(npcId: String): Boolean = partStates.has(npcId)
+                                override fun isOn(npcId: String): Boolean = partStates.isOn(npcId)
+                                override fun toggle(npcId: String) {
+                                    if (!partStates.has(npcId)) return
+                                    partStates = partStates.toggle(npcId)
+                                    dresser.showParts(view, actorKey(npcId), partStates.state(npcId))
+                                }
+                            }
+                        }
                         // The loaders' ticks (each file) are read only here, through the derived status: it changes a few
                         // times a second at most, and only the live screen's host is redrawn for it.
                         val stage = locationLoader.progress.collectThrottled { old, new -> old?.id != new.id || new.error != old?.error }
@@ -630,13 +709,14 @@ class MainActivity : ComponentActivity() {
                                     locationResult != null && st.id == preset.id && st.error != null -> st.error
                                     locationResult != true -> "Opening ${preset.name}…"
                                     fe.total > 0 -> "Loading NPCs… ${fe.done}/${fe.total}"
+                                    fe.modelSets > 0 -> "Preparing a named character's partial look…"
                                     loadedActors < chosen.size -> "Preparing NPCs… $loadedActors/${chosen.size}"
                                     fe.error != null -> fe.error
                                     else -> contactError
                                 }
                             }
                         }
-                        Collected(status) { liveStatus -> LiveSceneScreen(
+                        Collected(status) { liveStatus -> CompositionLocalProvider(LocalPartControl provides partControl) { LiveSceneScreen(
                             view, camera, preset.name, chosen, objects, spots, actorKey, objectHits, toStage, toLocal, rotation,
                             onAnimate = { id, activity -> dresser.fetchAnim(actorKey(id), activity.animation) },
                             clips = availableClips,
@@ -649,7 +729,7 @@ class MainActivity : ComponentActivity() {
                             onSettings = { panel = Panel.OPTIONS },
                             ready = locationResult == true && loadedActors == chosen.size,
                             status = liveStatus,
-                        ) }
+                        ) } }
                     }
                 }
                 if (screen == Screen.CREATOR && npcLoading) {
@@ -684,7 +764,7 @@ class MainActivity : ComponentActivity() {
                                 downloadStatus = null
                                 downloadJob = scope.launch {
                                     try {
-                                        downloadStatus = AssetDownloads(files, tables).download(packs, stages, catalog, ::loadWardrobe) { value -> downloadProgress.value = value }
+                                        downloadStatus = AssetDownloads(files, tables, namedCast).download(packs, stages, catalog, ::loadWardrobe) { value -> downloadProgress.value = value }
                                     } catch (failure: CancellationException) {
                                         downloadStatus = "Download paused. Cached files are ready for the next download."
                                         throw failure
@@ -698,7 +778,16 @@ class MainActivity : ComponentActivity() {
                         },
                         onPause = { downloadJob?.cancel() },
                         onClose = { panel = Panel.NONE },
-                        mods = { ImportsSection(imports, listfile) },
+                        mods = {
+                            Column {
+                                ImportsSection(imports, listfile)
+                                PartImportSection(partsRoot, partSet, profileJson = { assetText("sims_profile.json").orEmpty() }, onChanged = { set ->
+                                    partSet = set
+                                    settings.partSet = set
+                                    dresser.partSet = set
+                                })
+                            }
+                        },
                         sound = {
                             sceneAudio?.let { sa ->
                                 PartnerSoundsSection(sa.partner, partnerOn,
@@ -722,6 +811,53 @@ class MainActivity : ComponentActivity() {
                         }
                         UpdatePanel(updateStatus, update != null, onInstall = { update?.let { installUpdate(it) { status -> updateStatus = status } } },
                             onBack = { panel = Panel.NONE })
+                }
+                // Back closes the Delete question, then the NPC's menu (composed after the panels' own: it is asked first)
+                BackHandler(npcMenu != null || npcDelete != null) { if (npcDelete != null) npcDelete = null else npcMenu = null }
+                val menuActor = roster.firstOrNull { it.id == npcMenu }
+                OverlayFor(menuActor, { npcMenu = null }) { actor ->
+                    val character = namedCast.character(actor.id.removePrefix(NamedCast.PREFIX)).takeIf { NamedCast.isNamed(actor.id) }
+                    val canDelete = NpcRosterFile.canDelete(actor.id, savedIds)
+                    NpcMenuWindow(
+                        actor,
+                        variants = character?.let { c -> namedCast.choices(c).map { it.key to it.label } }.orEmpty(),
+                        variant = actor.appearance.named?.variant,
+                        onVariant = { key -> saveLooks(npcLooks.withVariant(actor.id, key)) },
+                        parts = if (PartChoice.applies(actor.appearance)) actor.appearance.parts ?: PartOptions() else null,
+                        partsImported = partSet != null,
+                        onParts = { options ->
+                            if (actor.id in savedIds) {
+                                val changed = actor.copy(appearance = actor.appearance.copy(parts = options))
+                                scope.launch {
+                                    runCatching { withContext(Dispatchers.IO) { updateNpc(changed) } }
+                                        .onSuccess { savedRoster = savedRoster.map { if (it.id == changed.id) changed else it } }
+                                        .onFailure { problem = "The NPC could not be saved." }
+                                }
+                            } else {
+                                saveLooks(npcLooks.withParts(actor.id, options))
+                            }
+                        },
+                        canDelete = canDelete,
+                        onDelete = { npcDelete = actor },
+                        onClose = { npcMenu = null },
+                    )
+                }
+                OverlayFor(npcDelete, { npcDelete = null }) { actor ->
+                    NpcDeleteWindow(actor.name, onCancel = { npcDelete = null }, onDelete = {
+                        if (npcDelete != null) {
+                            npcDelete = null
+                            npcMenu = null
+                            scope.launch {
+                                runCatching { withContext(Dispatchers.IO) { deleteNpc(actor.id) } }
+                                    .onSuccess {
+                                        savedRoster = savedRoster.filter { it.id != actor.id }
+                                        savedIds = savedIds - actor.id
+                                        cast = NpcRosterFile.castWithout(cast, actor.id)
+                                    }
+                                    .onFailure { problem = "The NPC could not be deleted." }
+                            }
+                        }
+                    })
                 }
                 OverlayFor(problem, { problem = null }) { message ->
                     WifeMessage("Wifecraft", message) { problem = null }

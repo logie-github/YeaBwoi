@@ -1,6 +1,11 @@
 package com.logie.wifecraft.simulation
 
+import com.logie.wifecraft.anim.BodyGeometry
+import com.logie.wifecraft.anim.HumanScale
+import com.logie.wifecraft.anim.Requirement
+import com.logie.wifecraft.anim.Surface
 import com.logie.wifecraft.story.Vec3
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
@@ -146,8 +151,50 @@ class SceneSimulation(
     }.toMutableMap() else mutableMapOf()
 
     fun setSpot(item: SceneObject, spot: InteractionSpot) {
-        if (item in objects) { spots[item] = spot; version++ }
+        if (item in objects) { spots[item] = spot; furnitureMade.remove(item); version++ }
     }
+
+    // ---- furniture: the scene's objects as furniture (Furniture), what each partner animation needs (anim/Requirements)
+
+    /** Each person's body over a human's (HumanScale.bodyScale: a dwarf's or gnome's own; absent: 1), for the furniture fit. */
+    var bodyScales: Map<String, Float> = emptyMap()
+
+    /**
+     * What each partner animation needs, by its id ([PartnerPair.id]; the screen classifies them off the GL thread). A pair
+     * with none here is classified once on first use when [classifyPairs], else it plays as before by its location names
+     * until its entry comes.
+     */
+    var requirements: Map<String, Requirement> = emptyMap()
+    var classifyPairs = true
+
+    private val pieces = HashMap<SceneObject, Furniture>()
+    private val furnitureMade = HashMap<SceneObject, Furniture>()
+    private val classified = HashMap<String, Requirement>()
+
+    /** [item] is [piece] (the location's own measure of it: locations.json "furniture"); null: made from its spot. */
+    fun setFurniture(item: SceneObject, piece: Furniture?) {
+        if (item !in objects) return
+        if (piece == null) pieces.remove(item) else pieces[item] = piece
+        furnitureMade.remove(item)
+        version++
+    }
+
+    /** [item] as furniture (its spot measured), or null. */
+    fun furniture(item: SceneObject): Furniture? {
+        val spot = spots[item] ?: return null
+        return furnitureMade.getOrPut(item) { pieces[item] ?: Furniture.of(item, spot) }
+    }
+
+    /** What [pair] needs, or null (not classified yet: [classifyPairs] off). */
+    fun requirementOf(pair: PartnerPair): Requirement? =
+        requirements[pair.id] ?: if (classifyPairs) classified.getOrPut(pair.id) { FurnitureAnimation.of(pair).requirement } else null
+
+    /** World units of one body unit for these people (the human body's standing pelvis, times their mean size). */
+    private fun bodyUnit(vararg people: Actor): Float =
+        HUMAN_BODY_UNIT * people.map { bodyScales[it.id] ?: 1f }.average().toFloat()
+
+    /** Whether nobody but [a] and [b] holds [item]. */
+    private fun freeFor(item: SceneObject, a: Actor, b: Actor?): Boolean = order.none { it !== a && it !== b && it.target == item }
 
     /**
      * Goes up whenever what a menu shows changes (someone's activity, whether they were directed, who holds which object,
@@ -167,6 +214,9 @@ class SceneSimulation(
         val directed: Boolean = true, val name: String = "", val sounds: List<PartnerSound> = emptyList(),
         val partnerActivity: Boolean = false, val initiator: Actor? = null, val furniture: SceneObject? = null,
         val emote: Int = -1,
+        /** The floor the places are walked to on (NaN: the anchor's own height): played on furniture, the clip is raised. */
+        val floorZ: Float = Float.NaN,
+        val fit: FurnitureFit? = null,
     ) {
         var started = false
         /** Seconds played since the first cycle started, and cycles finished: one clock for both. */
@@ -175,9 +225,13 @@ class SceneSimulation(
         var startStep = 0L
     }
 
-    /** How a partner animation is set up (the partner activity's placement): see [startPartner]. */
+    /**
+     * How a placed performance is set up: a partner animation's ([partner]; see [startPartner]) or one played on furniture
+     * ([performOn]); [floorZ] the floor the places are walked to on, [fit] where it lands on the furniture.
+     */
     private class Setup(val anchor: Vec3, val heading: Float, val furniture: SceneObject?, val emote: Int,
-        val initiator: Actor, val directed: Boolean)
+        val initiator: Actor, val directed: Boolean, val partner: Boolean = true, val floorZ: Float = Float.NaN,
+        val fit: FurnitureFit? = null)
 
     private enum class Phase { WAITING, MOVING, ACTING }
 
@@ -230,7 +284,6 @@ class SceneSimulation(
     // reused by [choose] (a decision makes no new lists)
     private val optionScratch = ArrayList<SceneObject>(objects.size)
     private val peopleScratch = ArrayList<Actor>(order.size)
-    private val pairScratch = ArrayList<PartnerPair>()
     private val emoteScratch = ArrayList<PartnerEmote>(PartnerEmotes.ALL.size)
 
     /** How many people are on stage (the indices [pose] takes, in the cast's order). */
@@ -405,15 +458,25 @@ class SceneSimulation(
         val roles = if (setup == null) PairFit.roles(request.roles, floatArrayOf(size(lead), size(other))) else request.roles
         val performance = Performance(lead, other, roles, request.seconds.coerceIn(0.25f, 3600f),
             anchor, heading, request.repeat, request.repetitions, directed, request.name, request.sounds,
-            setup != null, setup?.initiator, furniture, setup?.emote ?: -1)
+            setup?.partner == true, setup?.initiator, furniture, setup?.emote ?: -1, setup?.floorZ ?: Float.NaN, setup?.fit)
         if (other != null && previous == null &&
-            !begin(other, Activity.PERFORM, rolePosition(performance, roles[1]), directed, furniture)) return false
+            !begin(other, Activity.PERFORM, approach(performance, roles[1]), directed, furniture)) return false
 
-        // the lead steps to its own place too when it is not there already, so nobody jumps when the clips start
-        val leadSpot = if (other != null && previous == null) rolePosition(performance, roles[0]) else null
+        // the lead steps to its own place too when it is not there already (a two-person one, one placed on furniture), so
+        // nobody jumps when the clips start
+        val leadSpot = if (previous == null && (other != null || setup != null)) approach(performance, roles[0]) else null
         val leadWalks = leadSpot != null && hypot(leadSpot.x - lead.x, leadSpot.y - lead.y) > LEAD_STEP &&
             begin(lead, Activity.PERFORM, leadSpot, directed, furniture)
         if (!leadWalks) release(lead)
+        if (other == null) {
+            if (leadWalks) {
+                // alone, walking to a place on furniture: the clip starts on arrival
+                lead.performance = performance
+                lead.directed = directed
+                return true
+            }
+            lead.target = furniture
+        }
         if (other != null) {
             if (previous != null) release(other)
             lead.partner = other
@@ -446,6 +509,25 @@ class SceneSimulation(
         private set
 
     fun takeQueueNotice(): String? = queueNotice.also { queueNotice = null }
+
+    /**
+     * Where [role]'s person walks to: its place, on the floor the performance is reached from; a place on furniture (inside
+     * its footprint) from the floor beside its nearest side (the clip then starts on the furniture: [play] puts them there).
+     */
+    private fun approach(performance: Performance, role: PlaybackRole): Vec3 {
+        val at = rolePosition(performance, role)
+        if (performance.floorZ.isNaN()) return at
+        val floor = at.copy(z = performance.floorZ)
+        val item = performance.furniture ?: return floor
+        if (performance.fit == null) return floor
+        val f = furniture(item) ?: return floor
+        val (lx, ly) = f.toLocal(at.x, at.y)
+        val hx = f.spec.halfX + STEP_OFF
+        val hy = f.spec.halfY + STEP_OFF
+        if (abs(lx) >= hx || abs(ly) >= hy) return floor
+        val side = if (hx - abs(lx) < hy - abs(ly)) f.toWorld(if (lx < 0f) -hx else hx, ly) else f.toWorld(lx, if (ly < 0f) -hy else hy)
+        return side.copy(z = performance.floorZ)
+    }
 
     private fun rolePosition(performance: Performance, role: PlaybackRole): Vec3 {
         val x = role.offset.x
@@ -768,16 +850,41 @@ class SceneSimulation(
     private var picked: PartnerPair? = null
     private var pickedEmote: PartnerEmote? = null
     private var pickedFurniture: SceneObject? = null
+    private var pickedFit: FurnitureFit? = null
 
-    /** Chooses what [a] and [b] will play: a random usable pair, else a random emote both models have. False: nothing. */
+    /** One way to play a pair: on the free floor ([item] null), on [item] where [fit] puts it, or on [item] by its names ([fit] null). */
+    private class Option(val pair: PartnerPair, val item: SceneObject?, val fit: FurnitureFit?)
+
+    /**
+     * Chooses what [a] and [b] will play: a random way to play one of the pairs, else a random emote both models have. A pair
+     * whose bodies were read ([placed]) plays where its every actor lands on something that takes their posture at their
+     * height ([FurnitureFit.fit], as [FurnitureSelection.pickFor] chooses): on the floor when it needs none (a floor or
+     * standing one), on any free furniture in reach that fits it (a floor one on a bed too); one that needs a surface with
+     * no fitting furniture in reach is never chosen. A pair read from its names alone goes by its location names, as before
+     * ([furnitureFor]). False: nothing.
+     */
     private fun pick(a: Actor, b: Actor): Boolean {
-        val usable = pairScratch.apply { clear() }
-        for (p in pairs) if (furnitureFor(p, a, b) != NO_PLACE) usable.add(p)
-        picked = null; pickedEmote = null; pickedFurniture = null
-        if (usable.isNotEmpty()) {
-            val p = usable[random.nextInt(usable.size)]
-            picked = p
-            pickedFurniture = furnitureFor(p, a, b) as SceneObject?
+        val options = ArrayList<Option>()
+        val unit = bodyUnit(a, b)
+        for (p in pairs) {
+            val r = requirementOf(p)
+            if (r == null || !placed(r)) {
+                val place = furnitureFor(p, a, b)
+                if (place !== NO_PLACE) options += Option(p, place as SceneObject?, null)
+                continue
+            }
+            if (r.surface in Requirement.FLOOR_LEVEL) options += Option(p, null, null)
+            for (item in SceneObject.entries) {
+                if (item !in objects || !freeFor(item, a, b)) continue
+                val f = furniture(item) ?: continue
+                if (hypot(f.x - a.x, f.y - a.y) > FURNITURE_RANGE && hypot(f.x - b.x, f.y - b.y) > FURNITURE_RANGE) continue
+                FurnitureFit.fit(r, f, unit)?.let { options += Option(p, item, it) }
+            }
+        }
+        picked = null; pickedEmote = null; pickedFurniture = null; pickedFit = null
+        if (options.isNotEmpty()) {
+            val o = options[random.nextInt(options.size)]
+            picked = o.pair; pickedFurniture = o.item; pickedFit = o.fit
             return true
         }
         val mutual = PartnerEmotes.mutual(a.id, b.id, emotes, emoteScratch)
@@ -786,41 +893,119 @@ class SceneSimulation(
         return true
     }
 
-    /** The furniture [p] would play on (null: a free spot), or [NO_PLACE] when the scene has none of what it needs free. */
+    /** Whether [r] was read from the bodies (where each actor goes is known), not from names alone or not at all. */
+    private fun placed(r: Requirement) = r.surface != Surface.UNKNOWN && "geometry" in r.basis
+
+    /** The furniture [p] would play on by its names (null: a free spot), or [NO_PLACE] when the scene has none of it free. */
     private fun furnitureFor(p: PartnerPair, a: Actor, b: Actor): Any? {
         for (location in p.locations) {
             val item = PartnerPlaces.furniture(location) ?: continue
-            if (item in objects && item in spots && order.none { it !== a && it !== b && it.target == item }) return item
+            if (item in objects && item in spots && freeFor(item, a, b)) return item
         }
         return if (PartnerPlaces.free(p)) null else NO_PLACE
     }
 
     /**
-     * [initiator] goes to [target] and they play what [pick] chose, as a [Performance] led by [target]: on the floor, the
-     * shared origin is put so that the target's slot is where it stands, turned so the slots line up with the two of them
-     * (the initiator walks to its slot, the target stays); on furniture, the origin is the seat or bed, facing as it does,
-     * and both walk to their slots. The clips start on one step and play on one clock.
+     * The player's Play animation on furniture: [id] (and [otherId], else the nearest other free to join) play [pairId] on
+     * [item], where it fits, each on the role whose place is nearer. False: no such pair or person, the furniture is held
+     * by someone else, the other is busy with an order, or it doesn't fit there.
+     */
+    fun partnerOn(item: SceneObject, pairId: String, id: String, otherId: String?): Boolean {
+        val actor = actors[id] ?: return false
+        val pair = pairs.firstOrNull { it.id == pairId } ?: return false
+        fun joinable(o: Actor) = o !== actor && !(o.directed && o.performance?.partnerActivity != true)
+        val other = (if (otherId != null) actors[otherId]?.takeIf(::joinable)
+            else order.filter(::joinable).minByOrNull { hypot(it.x - actor.x, it.y - actor.y) }) ?: return false
+        if (item !in objects || !freeFor(item, actor, other)) return false
+        val f = furniture(item) ?: return false
+        val r = requirementOf(pair) ?: return false
+        val fit = FurnitureFit.fit(r, f, bodyUnit(actor, other)) ?: return false
+        release(actor)
+        release(other)
+        picked = pair; pickedEmote = null; pickedFurniture = item; pickedFit = fit
+        return startPartner(actor, other, directed = true)
+    }
+
+    /**
+     * The player's Play animation on furniture for one: [id] walks to where [requirement] fits on [item] and plays [request]
+     * (one role; its offset across the floor is the fit's) there. False: no such person, a bad order, the furniture is held,
+     * or it doesn't fit.
+     */
+    fun performOn(id: String, item: SceneObject, requirement: Requirement, request: PerformanceOrder): Boolean {
+        val actor = actors[id] ?: return false
+        if (request.partnerId != null || !valid(actor, request) || item !in objects || !freeFor(item, actor, null)) return false
+        val f = furniture(item) ?: return false
+        val fit = FurnitureFit.fit(requirement, f, bodyUnit(actor)) ?: return false
+        val role = request.roles[0].let { it.copy(offset = Vec3(0f, 0f, it.offset.z)) }
+        return startPerformance(actor, request.copy(roles = listOf(role)), null,
+            Setup(Vec3(fit.x, fit.y, fit.z), fit.yaw, item, -1, actor, true, partner = false, floorZ = f.z, fit = fit))
+    }
+
+    /**
+     * The furniture [id] is on now (using it, or in an animation played on it) and, for the cameras, a point at the hips and
+     * one at the head of each person on it (a rough height by what they do); null when they are on none.
+     */
+    fun onFurniture(id: String): Pair<Furniture, List<Vec3>>? {
+        val actor = actors[id] ?: return null
+        val item = actor.target?.takeIf { actor.phase == Phase.ACTING } ?: return null
+        val f = furniture(item) ?: return null
+        val points = ArrayList<Vec3>()
+        for (o in order) {
+            if (o.target != item || o.phase != Phase.ACTING) continue
+            val raised = o.z - f.z > 0.25f
+            val head = when {
+                o.activity == Activity.REST -> 0.45f
+                o.activity == Activity.SIT -> 1.05f
+                o.performance?.fit != null && raised -> 0.9f
+                else -> 1.6f
+            }
+            points += Vec3(o.x, o.y, o.z + 0.3f)
+            points += Vec3(o.x, o.y, o.z + head)
+        }
+        return f to points
+    }
+
+    /**
+     * [initiator] goes to [target] and they play what [pick] chose, as a [Performance]. On the floor: the shared origin is
+     * put so that the target's slot is where it stands, turned so the slots line up with the two of them (the initiator
+     * walks to its slot, the target stays). On furniture where the pair's bodies were read: the origin is where
+     * [FurnitureFit] put it (raised onto the bed or top), each plays the role whose place is nearer
+     * ([FurnitureSelection.cast]) and both walk to their places on the floor beside it. On furniture by its names: the
+     * origin is the seat or bed, facing as it does. The clips start on one step and play on one clock.
      */
     private fun startPartner(initiator: Actor, target: Actor, directed: Boolean): Boolean {
         val pair = picked
         val emote = pickedEmote
         val furniture = pickedFurniture
+        val fit = pickedFit
         if (pair == null && emote == null) return false
+        // who plays the pair's actor 0 ([playA], the one who goes) and actor 1 ([playB], the performance's lead)
+        var playA = initiator
+        var playB = target
+        if (fit != null) {
+            val cast = FurnitureSelection.cast(fit, listOf(NearbyNpc(initiator.id, initiator.x, initiator.y), NearbyNpc(target.id, target.x, target.y)))
+            if (cast != null && cast[0] == target.id) { playA = target; playB = initiator }
+        }
         // the slots for the two bodies' sizes (a gnome comes nearer the contact point: PairFit)
-        val (slotI, slotT) = PairFit.slots(pair?.slotA ?: PartnerEmotes.SLOT_A, pair?.slotB ?: PartnerEmotes.SLOT_B,
-            size(initiator), size(target))
-        val keyI = if (pair != null) PlaybackKeys.pair(pair.id, 0) else PlaybackKeys.emote(emote!!.anim)
-        val keyT = if (pair != null) PlaybackKeys.pair(pair.id, 1) else PlaybackKeys.emote(emote!!.anim)
+        val (slotA, slotB) = PairFit.slots(pair?.slotA ?: PartnerEmotes.SLOT_A, pair?.slotB ?: PartnerEmotes.SLOT_B,
+            size(playA), size(playB))
+        val keyA = if (pair != null) PlaybackKeys.pair(pair.id, 0) else PlaybackKeys.emote(emote!!.anim)
+        val keyB = if (pair != null) PlaybackKeys.pair(pair.id, 1) else PlaybackKeys.emote(emote!!.anim)
         val spot = furniture?.let { spots[it] }
         val anchor: Vec3
         val heading: Float
-        if (spot != null) {
+        var floorZ = Float.NaN
+        if (fit != null && furniture != null) {
+            anchor = Vec3(fit.x, fit.y, fit.z)
+            heading = fit.yaw
+            floorZ = this.furniture(furniture)?.z ?: spot?.entry?.z ?: fit.z
+        } else if (spot != null) {
             anchor = Vec3(spot.pose.x, spot.pose.y, spot.entry.z)
             heading = spot.facing
         } else {
-            heading = PartnerMath.yaw(initiator.x, initiator.y, target.x, target.y, slotI, slotT, initiator.facing)
+            heading = PartnerMath.yaw(playA.x, playA.y, playB.x, playB.y, slotA, slotB, playA.facing)
             val c = cos(heading); val s = sin(heading)
-            anchor = Vec3(target.x - (slotT.x * c - slotT.y * s), target.y - (slotT.x * s + slotT.y * c), target.z)
+            anchor = Vec3(playB.x - (slotB.x * c - slotB.y * s), playB.y - (slotB.x * s + slotB.y * c), playB.z)
         }
         val (seconds, cycles) = when {
             pair == null -> (if (emote!!.loop) 6f + random.nextFloat() * 6f else 3f + random.nextFloat() * 2f) to 1
@@ -835,11 +1020,12 @@ class SceneSimulation(
                 }
             }
         }
-        // the pair's actor 0 is the initiator, the performance's role 0 the target (its lead)
+        // the pair's actor 0 is [playA], the performance's role 0 [playB] (its lead)
         val sounds = pair?.sounds.orEmpty().map { it.copy(actor = if (it.actor == 0) 1 else 0) }
-        val request = PerformanceOrder(initiator.id, listOf(role(keyT, slotT), role(keyI, slotI)), seconds, false,
+        val request = PerformanceOrder(playA.id, listOf(role(keyB, slotB), role(keyA, slotA)), seconds, false,
             cycles.coerceIn(1, 100), pair?.name ?: emote!!.name, sounds)
-        return startPerformance(target, request, null, Setup(anchor, heading, furniture, emote?.anim ?: -1, initiator, directed))
+        return startPerformance(playB, request, null,
+            Setup(anchor, heading, furniture, emote?.anim ?: -1, playA, directed, floorZ = floorZ, fit = fit))
     }
 
     private fun role(key: String, slot: PartnerSlot) = PlaybackRole(key, Vec3(slot.x, slot.y, slot.z), slot.yawDeg * DEG)
@@ -884,6 +1070,16 @@ class SceneSimulation(
         const val MAX_CHAT_COOLDOWN = 60f
         /** The chance a conversation that ran its course leads the two into a partner animation (when those are on). */
         const val FRIENDLY_CHANCE = 0.2f
+        /** How far beside furniture someone stands before stepping onto it (yards). */
+        const val STEP_OFF = 0.35f
+        /** Furniture farther than this from both (yards) is out of an idle pair's reach. */
+        const val FURNITURE_RANGE = 10f
+        /**
+         * One body unit (a human's standing pelvis) in yards as the live scene draws a clip: the reference body's pelvis
+         * ([BodyGeometry.REF_UNIT], 1.441) across the floor at [HumanScale.PAIR] (the humans' mean pelvis over it), which is
+         * also how high a human's pelvis is drawn (the man's 1.130, the woman's 1.216; their mean 1.173).
+         */
+        val HUMAN_BODY_UNIT = (BodyGeometry.REF_UNIT * HumanScale.PAIR).toFloat()
         private const val DEG = 0.017453292f
         private val NO_PLACE = Any()
     }

@@ -4,6 +4,7 @@ import com.logie.wifecraft.anim.ActorRequirement
 import com.logie.wifecraft.anim.Posture
 import com.logie.wifecraft.anim.Requirement
 import com.logie.wifecraft.anim.Surface
+import com.logie.wifecraft.location.FurniturePiece
 import com.logie.wifecraft.story.Vec3
 import kotlin.math.PI
 import kotlin.math.abs
@@ -194,21 +195,36 @@ class Furniture(val id: String, val spec: FurnitureSpec, val x: Float, val y: Fl
     companion object {
         /**
          * The live scene's own objects ([SceneObject]) as furniture, at their measured [spot] when there is one. The object's
-         * front: a chair's or couch's sitter's facing; a table's, the side its reader stands at (facing + PI); a bed's foot is
-         * taken along the spot's facing (the rest pose's direction: not checked against the model). Bed height from the spot.
+         * front: a chair's or couch's sitter's facing; a table's, the side its reader stands at (facing + PI); a bed's foot,
+         * opposite the rest pose's facing (tools/locations.py faces a lying body toward the bed's higher end, its headboard).
+         * It stands on the spot's floor (its entry's height); a bed's surface is how far its rest pose is over that floor.
          */
         fun of(item: SceneObject, spot: InteractionSpot?, unitsPerMetre: Float = FurnitureSpec.YARDS_PER_METRE): Furniture {
             val facing = spot?.facing ?: when (item) { SceneObject.TABLE -> (PI / 2).toFloat(); else -> -(PI / 2).toFloat() }
+            val floor = spot?.entry?.z ?: item.position.z
             return when (item) {
                 SceneObject.BED -> Furniture(item.name, FurnitureSpec.standard(FurnitureKind.BED_DOUBLE, unitsPerMetre,
-                    spot?.pose?.z?.takeIf { it > 0.1f }), spot?.pose?.x ?: item.position.x, spot?.pose?.y ?: item.position.y, item.position.z, facing)
+                    spot?.let { it.pose.z - floor }?.takeIf { it > 0.1f }), spot?.pose?.x ?: item.position.x, spot?.pose?.y ?: item.position.y,
+                    floor, facing + PI.toFloat())
                 SceneObject.CHAIR -> Furniture(item.name, FurnitureSpec.standard(FurnitureKind.CHAIR, unitsPerMetre),
-                    spot?.pose?.x ?: item.position.x, spot?.pose?.y ?: item.position.y, item.position.z, facing)
+                    spot?.pose?.x ?: item.position.x, spot?.pose?.y ?: item.position.y, floor, facing)
                 SceneObject.COUCH -> Furniture(item.name, FurnitureSpec.standard(FurnitureKind.COUCH, unitsPerMetre),
-                    spot?.pose?.x ?: item.position.x, spot?.pose?.y ?: item.position.y, item.position.z, facing)
+                    spot?.pose?.x ?: item.position.x, spot?.pose?.y ?: item.position.y, floor, facing)
                 SceneObject.TABLE -> Furniture(item.name, FurnitureSpec.standard(FurnitureKind.TABLE, unitsPerMetre),
-                    item.position.x, item.position.y, item.position.z, facing + PI.toFloat())
+                    item.position.x, item.position.y, floor, facing + PI.toFloat())
             }
+        }
+
+        /**
+         * A location's furniture row (locations.json "furniture": [piece]) as furniture, brought into the scene's frame by
+         * [toLocal] and turned by [rotation] (the location's frame to the scene's); null for a kind that is not furniture.
+         */
+        fun of(piece: FurniturePiece, toLocal: (Vec3) -> Vec3 = { it }, rotation: Float = 0f,
+               unitsPerMetre: Float = FurnitureSpec.YARDS_PER_METRE): Furniture? {
+            val kind = FurnitureKind.of(piece.kind) ?: return null
+            val at = toLocal(piece.position)
+            return Furniture(piece.item, FurnitureSpec.standard(kind, unitsPerMetre, piece.surface.takeIf { it > 0f }),
+                at.x, at.y, at.z, piece.yaw + rotation)
         }
 
         /**

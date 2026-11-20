@@ -307,7 +307,7 @@ object PartPackage {
      * <id>.png (its diffuse cropped to what it uses, uncoloured: the scene recolours it per NPC with [Recolor]), then
      * parts.jsonl, one line per part. Only male parts with a mesh are written unless [maleOnly] is false.
      */
-    fun export(imp: PartImport, spec: AttachSpec, root: File, maleOnly: Boolean = true): Export {
+    fun export(imp: PartImport, spec: AttachSpec, root: File, maleOnly: Boolean = true, onPart: (done: Int, total: Int) -> Unit = { _, _ -> }): Export {
         val r = root.canonicalFile
         val dir = File(r, safeName(imp.set)).canonicalFile
         if (dir.parentFile != r) throw BodyPartFormatException("The set name ${imp.set} does not make a folder inside ${r.path}.")
@@ -315,7 +315,8 @@ object PartPackage {
         val files = ArrayList<File>()
         val problems = ArrayList<String>()
         val lines = ArrayList<String>()
-        for (p in imp.parts) {
+        for ((done, p) in imp.parts.withIndex()) {
+            onPart(done, imp.parts.size)
             if (maleOnly && !p.male) continue
             val mesh = p.mesh ?: continue
             val pp = ArrayList(p.problems)

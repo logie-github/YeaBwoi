@@ -586,6 +586,36 @@ def near_tris(tris, p, r):
             and min(abs(v[2] - p[2]) for v in t) < r]
 
 
+
+def furniture_rows(spots):
+    """The location's furniture for animations (locations.json "furniture", read by location/Locations.kt FurniturePiece and
+    simulation/Furniture.of), from its interaction spots: each piece's kind, its middle on the floor, its front's direction
+    and its surface's height over that floor (yards).
+
+    A bed: its middle at the lying pose, on the floor its entry stands on, its front (the foot) opposite the pose's facing
+    (bedroom() faces it toward the headboard: the end that stands higher), its surface the mattress (the pose's height over
+    that floor); every bed is taken as a double: bedroom() steps 0.55 yards out from half its width and every bed's half
+    width came out 0.9 yards or more. A chair: where it stands, its front the model's +x (as bedroom() faces the sitter;
+    not checked against each model), its seat the usual 0.47 m (not measured). A table: its model's middle, its front toward
+    the spot its reader stands at, its top as high as the lowest of its books stands (their origins: a book's base, not
+    checked), else the usual 0.75 m."""
+    rows = []
+    for s in spots:
+        obj, entry, facing = s["object"], s["entry"], s["facing"]
+        flip = math.atan2(math.sin(facing + math.pi), math.cos(facing + math.pi))
+        if obj == "BED":
+            pose = s.get("pose", entry)
+            rows.append(dict(object=obj, kind="BED_DOUBLE", position=[pose[0], pose[1], entry[2]], yaw=round(flip, 4),
+                             surface=round(pose[2] - entry[2], 3)))
+        elif obj == "CHAIR":
+            rows.append(dict(object=obj, kind="CHAIR", position=list(entry), yaw=round(facing, 4), surface=0.514))
+        elif obj == "TABLE" and s.get("models"):
+            m = s["models"][0]["position"]
+            books = [b["position"][2] for b in s["models"][1:]]
+            top = round(min(books) - entry[2], 3) if books else 0.82
+            rows.append(dict(object=obj, kind="TABLE", position=[m[0], m[1], entry[2]], yaw=round(flip, 4), surface=top))
+    return rows
+
 def bedroom(st, w, tris, room, extras=()):
     """The bedroom's view, spawn and interaction spots from the building's own furniture (room: MODD indices).
 
@@ -943,6 +973,7 @@ def build(st, loc):
     entry = dict(
         id=loc["id"], name=loc["name"], kind=loc["kind"], **({"people": loc["people"]} if "people" in loc else {}),
         **({"interactions": spots} if spots else {}),
+        **({"furniture": furniture_rows(spots)} if spots else {}),
         frame=dict(comment="the building's own frame; world (map %d) = origin + Rz(yawDeg) * local" % continent(st, loc),
                    map=continent(st, loc), origin=rnd(origin), yawDeg=round(place["rot"][1] + 180, 4)),
         wmo=dict(root=loc["wmo"], groups=group_files, groupIndices=list(range(len(w.groups))),

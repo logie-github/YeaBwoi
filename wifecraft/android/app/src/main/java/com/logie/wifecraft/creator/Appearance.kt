@@ -6,6 +6,43 @@ import org.json.JSONObject
 data class Body(val shape: Int = 0, val style: Int = 0, val density: Int = 0)
 
 /**
+ * A named character's look (assets/characters.json, characters/NamedCast): [character] its id, [variant] the chosen
+ * variant's key (an outfit, "underwear", "bare", "<outfit>_nude", or "<outfit>_partial": a model-parts set). The NPC is
+ * drawn as that variant (engine/Dresser); the rest of the [Appearance] is the variant's body (or its stand-in's), so the
+ * scene knows its race and sex.
+ */
+data class NamedLook(val character: String, val variant: String)
+
+/** The body-part add-on's size: which of the imported parts an NPC uses (bodyparts/PartChoice). */
+enum class PartSize(val label: String) { SMALL("Small"), MEDIUM("Medium"), LARGE("Large") }
+
+/** The body-part add-on's cut. */
+enum class PartCut(val label: String) { UNCUT("Uncut"), CUT("Cut"), RETRACTED("Retracted") }
+
+/** The body-part add-on's placement (the setting called Scrotum on the NPC's menu). */
+enum class PartPlacement(val label: String) { HIGH("High"), LOW("Low") }
+
+/**
+ * An NPC's body-part settings (male NPCs; bodyparts/PartChoice picks the part files by them). Medium, Uncut, High by
+ * default; saved as `"parts":{"size":"MEDIUM","cut":"UNCUT","placement":"HIGH"}`, left out while at the default.
+ */
+data class PartOptions(val size: PartSize = PartSize.MEDIUM, val cut: PartCut = PartCut.UNCUT, val placement: PartPlacement = PartPlacement.HIGH) {
+    /** The parts' variant label as the import writes it (PartVariant.label: "Medium Uncut High"). */
+    val label: String get() = "${size.label} ${cut.label} ${placement.label}"
+
+    fun toJson(): JSONObject = JSONObject().put("size", size.name).put("cut", cut.name).put("placement", placement.name)
+
+    companion object {
+        fun fromJson(o: JSONObject?): PartOptions? {
+            if (o == null) return null
+            fun <E : Enum<E>> pick(values: Array<E>, key: String, fallback: E): E = values.firstOrNull { it.name == o.optString(key) } ?: fallback
+            return PartOptions(pick(PartSize.values(), "size", PartSize.MEDIUM), pick(PartCut.values(), "cut", PartCut.UNCUT),
+                pick(PartPlacement.values(), "placement", PartPlacement.HIGH))
+        }
+    }
+}
+
+/**
  * What an NPC's look is: the race and sex, the choice picked for each of the game's options (ChrCustomizationOption id
  * to ChrCustomizationChoice id; an option not in [picks] is at its first choice), Wrath++'s body options and whether
  * the starting outfit shows. Saved in the project as
@@ -19,6 +56,10 @@ data class Appearance(
     val undead: Boolean = false, val undeadSkin: Int = 0,
     val clothing: Map<Int, Int> = emptyMap(),
     val starterClothing: Boolean = clothing.isEmpty(),
+    /** A named character's variant ([NamedLook]); null for a created NPC. Saved as `"named":{"character":..,"variant":..}`. */
+    val named: NamedLook? = null,
+    /** The body-part settings ([PartOptions]); null: the defaults. */
+    val parts: PartOptions? = null,
 ) {
     fun toJson(): JSONObject {
         val p = JSONObject()
@@ -32,6 +73,8 @@ data class Appearance(
             .put("gear", gear)
             .also { if (!starterClothing || clothing.isNotEmpty()) it.put("clothing", outfit) }
             .also { if (undead) it.put("undead", true).put("undeadSkin", undeadSkin) }
+            .also { json -> named?.let { json.put("named", JSONObject().put("character", it.character).put("variant", it.variant)) } }
+            .also { json -> parts?.takeIf { it != PartOptions() }?.let { json.put("parts", it.toJson()) } }
     }
 
     companion object {
@@ -44,8 +87,13 @@ data class Appearance(
             val clothing = o.optJSONObject("clothing")?.let { json ->
                 ClothingSlot.entries.mapNotNull { slot -> json.optInt(slot.id.toString()).takeIf { it > 0 }?.let { slot.id to it } }.toMap()
             }.orEmpty()
+            val named = o.optJSONObject("named")?.let { n ->
+                val character = n.optString("character"); val variant = n.optString("variant")
+                if (character.isEmpty() || variant.isEmpty()) null else NamedLook(character, variant)
+            }
             return Appearance(o.getInt("race"), sex, picks, body, o.optBoolean("gear", true),
-                o.optBoolean("undead", false), o.optInt("undeadSkin", 0).coerceAtLeast(0), clothing, starterClothing = !o.has("clothing"))
+                o.optBoolean("undead", false), o.optInt("undeadSkin", 0).coerceAtLeast(0), clothing, starterClothing = !o.has("clothing"),
+                named = named, parts = PartOptions.fromJson(o.optJSONObject("parts")))
         }
     }
 }
