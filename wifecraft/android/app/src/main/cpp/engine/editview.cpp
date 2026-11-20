@@ -189,6 +189,40 @@ bool drawnBox(const M2Model& m, const std::vector<uint16_t>& geosets, float scal
     return any;
 }
 
+// The box of what an M2 draws as posed by `mats` (its bones' matrices, model space): each shown vertex skinned on the CPU, as
+// the shader does; a card frames the body as it stands, not its bind pose. False when it draws nothing.
+bool posedBox(const M2Model& m, const std::vector<uint16_t>& geosets, const std::vector<M4>& mats, float scale, V3& mn, V3& mx) {
+    mn = V3(1e30f, 1e30f, 1e30f); mx = V3(-1e30f, -1e30f, -1e30f);
+    bool any = false;
+    std::vector<uint8_t> seen(m.submeshes.size(), 0), done(m.vertices.size(), 0);
+    for (const M2Batch& b : m.batches) {
+        if (b.submesh >= m.submeshes.size() || seen[b.submesh]) continue;
+        seen[b.submesh] = 1;
+        const M2Submesh& sm = m.submeshes[b.submesh];
+        if (!geosets.empty() && std::find(geosets.begin(), geosets.end(), sm.id) == geosets.end()) continue;
+        for (uint32_t i = sm.indexStart; i < sm.indexStart + sm.indexCount && i < m.indices.size(); ++i) {
+            uint32_t vi = m.indices[i];
+            if (vi >= m.vertices.size() || done[vi]) continue;
+            done[vi] = 1;
+            const M2Vertex& v = m.vertices[vi];
+            V3 rest(v.pos[0], v.pos[1], v.pos[2]), p;
+            float total = 0;
+            for (int k = 0; k < 4; ++k) {
+                if (!v.weights[k] || v.bones[k] >= mats.size()) continue;
+                float w = v.weights[k] / 255.0f;
+                p = p + mats[v.bones[k]].point(rest) * w;
+                total += w;
+            }
+            p = total > 0.01f ? p * (1.0f / total) : rest;
+            mn = V3(std::min(mn.x, p.x), std::min(mn.y, p.y), std::min(mn.z, p.z));
+            mx = V3(std::max(mx.x, p.x), std::max(mx.y, p.y), std::max(mx.z, p.z));
+            any = true;
+        }
+    }
+    mn = mn * scale; mx = mx * scale;
+    return any;
+}
+
 bool isWmoFile(const std::string& path) {
     uint8_t magic[4] = {0, 0, 0, 0};
     FILE* f = std::fopen(path.c_str(), "rb");
@@ -512,9 +546,17 @@ void Scene::drawGhost(const M4& viewProj, uint32_t now) {
 // ------------------------------------------------------------------------------------------------ thumbnails
 
 bool Scene::thumbnail(uint32_t propFile, const ThumbLook* look, int size, std::vector<uint8_t>& out, std::string& error) {
-    if (!glReady_) { error = "the 3D view isn't ready"; return false; }
     size = std::clamp(size, 16, 512);
-    const int S = size * 2;   // drawn at twice the size, then each 2 x 2 averaged: smooth edges
+    return thumbnail(propFile, look, nullptr, size, size, out, error);
+}
+
+bool Scene::thumbnail(uint32_t propFile, const ThumbLook* look, const ThumbFrame* frame, int w, int h, std::vector<uint8_t>& out,
+                      std::string& error) {
+    if (!glReady_) { error = "the 3D view isn't ready"; return false; }
+    w = std::clamp(w, 16, 512);
+    h = std::clamp(h, 16, 512);
+    if (!look) frame = nullptr;   // a prop is framed whole
+    const int SW = w * 2, SH = h * 2;   // drawn at twice the size, then each 2 x 2 averaged: smooth edges
     // what the caches hold now: whatever is loaded only for the thumbnail is let go after it
     std::set<uint32_t> modelsBefore;
     for (const auto& [k, m] : models_) modelsBefore.insert(k);
@@ -552,7 +594,8 @@ bool Scene::thumbnail(uint32_t propFile, const ThumbLook* look, int size, std::v
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
             }
-            if (!drawnBox(*a.mesh->model, a.geosets, a.scale, mn, mx)) actorBounds(actor, mn, mx);
+            if (!(frame && posedBox(*a.mesh->model, a.geosets, a.mats, a.scale, mn, mx)) &&
+                !drawnBox(*a.mesh->model, a.geosets, a.scale, mn, mx)) actorBounds(actor, mn, mx);
         }
     } else {
         std::string path = files_(propFile);
@@ -585,32 +628,45 @@ bool Scene::thumbnail(uint32_t propFile, const ThumbLook* look, int size, std::v
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glGenRenderbuffers(1, &colour);
         glBindRenderbuffer(GL_RENDERBUFFER, colour);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, S, S);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, SW, SH);
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, colour);
         glGenRenderbuffers(1, &depth);
         glBindRenderbuffer(GL_RENDERBUFFER, depth);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, S, S);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, SW, SH);
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth);
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) { ok = false; error = "the off-screen picture couldn't be made"; }
 
         if (ok) {
             // three quarters in front (models face +x), a little from above; near enough that its box fills the square
             bool person = actor != 0;
-            float az = -0.62f, el = person ? 0.10f : 0.36f;
+            float az = frame ? frame->az : -0.62f, el = frame ? frame->el : person ? 0.10f : 0.36f;
+            const float aspect = float(w) / float(h);
             V3 dir(std::cos(el) * std::cos(az), std::cos(el) * std::sin(az), std::sin(el));
-            V3 c = (mn + mx) * 0.5f;
+            // the band that is framed: the whole box, or (a card) a slice of the body's height
+            V3 bmn = mn, bmx = mx;
+            if (frame) {
+                float H = mx.z - mn.z;
+                bmn.z = mn.z + frame->lo * H;
+                bmx.z = mn.z + frame->hi * H;
+            }
+            V3 c = (bmn + bmx) * 0.5f;
             V3 f = dir * -1.0f, s = f.cross(V3(0, 0, 1)).normalized(), u = s.cross(f);
             fov_ = 30;
             float t = std::tan(fov_ * kPi / 360.0f) * 0.86f;
+            bool fitWidth = !frame || frame->fitWidth;
+            // a box's near corners reach its whole height; a body's front doesn't (a card's band is framed on its middle):
+            // a card counts a third of the depth toward the camera
+            const float nearShare = frame ? 0.35f : 1.0f;
             float D = 0.05f, radius = (mx - mn).length() * 0.5f;
             for (int k = 0; k < 8; ++k) {
-                V3 rel = V3((k & 1) ? mx.x : mn.x, (k & 2) ? mx.y : mn.y, (k & 4) ? mx.z : mn.z) - c;
-                D = std::max(D, rel.dot(dir) + std::max(std::fabs(rel.dot(s)), std::fabs(rel.dot(u))) / t);
+                V3 rel = V3((k & 1) ? bmx.x : bmn.x, (k & 2) ? bmx.y : bmn.y, (k & 4) ? bmx.z : bmn.z) - c;
+                float across = fitWidth ? std::fabs(rel.dot(s)) / (t * aspect) : 0.0f;
+                D = std::max(D, rel.dot(dir) * nearShare + std::max(across, std::fabs(rel.dot(u)) / t));
             }
             eye_ = c + dir * D;
             target_ = c;
             view_ = M4::lookAt(eye_, target_, V3(0, 0, 1));
-            proj_ = M4::perspective(fov_ * kPi / 180.0f, 1.0f, std::max(0.01f, (D - radius) * 0.5f), D + radius * 2 + 10);
+            proj_ = M4::perspective(fov_ * kPi / 180.0f, aspect, std::max(0.01f, (D - radius) * 0.5f), D + radius * 2 + 10);
             M4 vp = proj_ * view_;
             // soft light from the front left and above, a cool fill; a quiet slate gradient behind
             Light l;
@@ -623,48 +679,72 @@ bool Scene::thumbnail(uint32_t propFile, const ThumbLook* look, int size, std::v
             l.fogStart = 1e5f; l.fogEnd = 2e5f;
             light_ = l;
 
-            glViewport(0, 0, S, S);
-            glClearColor(hor[0], hor[1], hor[2], 1);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            glDisable(GL_CULL_FACE);
-            glEnable(GL_DEPTH_TEST);
-            glDepthFunc(GL_LEQUAL);
-            glDepthMask(GL_TRUE);
-            glDisable(GL_BLEND);
-            drawSky();
+            glViewport(0, 0, SW, SH);
             const float white[4] = {1, 1, 1, 1};
-            for (int pass = 0; pass < 2; ++pass) {
-                bool transparent = pass == 1;
-                if (mesh) {
-                    litSetup(m2Prog_, vp);
-                    drawModel(*mesh, M4(), nullptr, nullptr, mesh->boneTex, -1, 0, animClock_, white, transparent, kThumbTex);
-                } else if (wmo && locProg_) {
-                    Frustum fr(vp);
-                    staticSetup(locProg_, vp, wmo->intAmbient);
-                    drawWmoGroups(*wmo, transparent, fr, 0);
-                    std::vector<const Instance*> list;
-                    for (const Instance& in : wmo->doodads) list.push_back(&in);
-                    staticSetup(instProg_, vp, wmo->intAmbient);
-                    drawInstances(list, transparent, nullptr, 0, 0);
-                } else if (actor) {
-                    litSetup(m2Prog_, vp);
-                    drawActor(actors_[actor], animClock_, transparent);
-                }
-            }
-            std::vector<uint8_t> px(size_t(S) * S * 4);
-            glPixelStorei(GL_PACK_ALIGNMENT, 4);
-            glReadPixels(0, 0, S, S, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
-            out.assign(size_t(size) * size * 4, 0);
-            for (int y = 0; y < size; ++y)
-                for (int x = 0; x < size; ++x)
-                    for (int ch = 0; ch < 4; ++ch) {
-                        // GL's rows are bottom first
-                        int sy = S - 2 - 2 * y;
-                        unsigned sum = 0;
-                        for (int dy = 0; dy < 2; ++dy)
-                            for (int dx = 0; dx < 2; ++dx) sum += px[(size_t(sy + dy) * S + size_t(2 * x + dx)) * 4 + size_t(ch)];
-                        out[(size_t(y) * size + size_t(x)) * 4 + size_t(ch)] = ch == 3 ? 255 : uint8_t((sum + 2) / 4);
+            // drawn once on the slate (or, clear, on black and again on white: what differs is the backdrop showing through)
+            auto drawOn = [&](float bg, std::vector<uint8_t>& px) {
+                if (frame && frame->clear) glClearColor(bg, bg, bg, 1);
+                else glClearColor(hor[0], hor[1], hor[2], 1);
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+                glDisable(GL_CULL_FACE);
+                glEnable(GL_DEPTH_TEST);
+                glDepthFunc(GL_LEQUAL);
+                glDepthMask(GL_TRUE);
+                glDisable(GL_BLEND);
+                if (!(frame && frame->clear)) drawSky();
+                for (int pass = 0; pass < 2; ++pass) {
+                    bool transparent = pass == 1;
+                    if (mesh) {
+                        litSetup(m2Prog_, vp);
+                        drawModel(*mesh, M4(), nullptr, nullptr, mesh->boneTex, -1, 0, animClock_, white, transparent, kThumbTex);
+                    } else if (wmo && locProg_) {
+                        Frustum fr(vp);
+                        staticSetup(locProg_, vp, wmo->intAmbient);
+                        drawWmoGroups(*wmo, transparent, fr, 0);
+                        std::vector<const Instance*> list;
+                        for (const Instance& in : wmo->doodads) list.push_back(&in);
+                        staticSetup(instProg_, vp, wmo->intAmbient);
+                        drawInstances(list, transparent, nullptr, 0, 0);
+                    } else if (actor) {
+                        litSetup(m2Prog_, vp);
+                        drawActor(actors_[actor], animClock_, transparent);
                     }
+                }
+                px.resize(size_t(SW) * SH * 4);
+                glPixelStorei(GL_PACK_ALIGNMENT, 4);
+                glReadPixels(0, 0, SW, SH, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
+            };
+            std::vector<uint8_t> onBlack, onWhite;
+            drawOn(0.0f, onBlack);
+            const bool clear = frame && frame->clear;
+            if (clear) drawOn(1.0f, onWhite);
+            out.assign(size_t(w) * h * 4, 0);
+            for (int y = 0; y < h; ++y)
+                for (int x = 0; x < w; ++x) {
+                    // GL's rows are bottom first; each picture pixel is 2 x 2 drawn ones
+                    int sy = SH - 2 - 2 * y;
+                    float rgb[3] = {0, 0, 0}, cover = 0;
+                    for (int dy = 0; dy < 2; ++dy)
+                        for (int dx = 0; dx < 2; ++dx) {
+                            size_t at = (size_t(sy + dy) * SW + size_t(2 * x + dx)) * 4;
+                            if (!clear) { for (int ch = 0; ch < 3; ++ch) rgb[ch] += onBlack[at + size_t(ch)]; cover += 255; continue; }
+                            // over black: colour x alpha; over white: that plus (1 - alpha)
+                            float a = 0;
+                            for (int ch = 0; ch < 3; ++ch) a += 255.0f - (float(onWhite[at + size_t(ch)]) - float(onBlack[at + size_t(ch)]));
+                            a = std::clamp(a / 3.0f, 0.0f, 255.0f);
+                            for (int ch = 0; ch < 3; ++ch) rgb[ch] += onBlack[at + size_t(ch)];   // premultiplied
+                            cover += a;
+                        }
+                    uint8_t* o = &out[(size_t(y) * w + size_t(x)) * 4];
+                    if (!clear) {
+                        for (int ch = 0; ch < 3; ++ch) o[ch] = uint8_t((rgb[ch] + 2) / 4);
+                        o[3] = 255;
+                    } else if (cover > 0.5f) {
+                        // straight colour: the premultiplied sum over the coverage's sum
+                        for (int ch = 0; ch < 3; ++ch) o[ch] = uint8_t(std::clamp(rgb[ch] * 255.0f / cover, 0.0f, 255.0f) + 0.5f);
+                        o[3] = uint8_t(std::clamp(cover / 4.0f, 0.0f, 255.0f) + 0.5f);
+                    }
+                }
         }
         glBindFramebuffer(GL_FRAMEBUFFER, GLuint(fbo0));
         glDeleteFramebuffers(1, &fbo);

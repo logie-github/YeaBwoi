@@ -6,7 +6,16 @@ enum class ClothingSlot(val id: Int, val label: String) {
     GLOVES(10, "Gloves"), BACK(15, "Back"), TABARD(19, "Tabard");
 
     companion object {
-        fun fromInventory(id: Int) = entries.firstOrNull { it.id == if (id == 20) 5 else id }
+        /**
+         * An item's slot from its InventoryType: a robe (20) is worn on the chest, a cloak (16, INVTYPE_CLOAK) on the back;
+         * 15 is INVTYPE_RANGED (bows), not the back, though the back's equipment slot is 15.
+         */
+        fun fromInventory(id: Int): ClothingSlot? = when (id) {
+            20 -> TORSO
+            16 -> BACK
+            15 -> null
+            else -> entries.firstOrNull { it.id == id }
+        }
     }
 }
 

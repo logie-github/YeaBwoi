@@ -271,6 +271,9 @@ fun CreatorScreen(
                     fit = frameFit,
                     font = art.friz,
                     outfitName = name.trim().ifEmpty { "Outfit 1" },
+                    thumbs = portraits,
+                    // read with rev: a named outfit's look (Chromie's) redraws the cards on her new face
+                    look = rev.let { model.appearance },
                 )
             }
         }

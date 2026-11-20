@@ -57,8 +57,11 @@ object CreatureLooks {
     /** Where several slots set one group, the first listed here that does wins (else the lowest slot). */
     internal val PRIORITY = mapOf(8 to listOf(10, 5, 4), 10 to listOf(5, 4), 13 to listOf(5, 7))
 
-    /** Attachment points of the slots whose items are models of their own: the helm's, the left (6) and right (5) shoulders'. */
-    internal val ATTACH = mapOf(1 to listOf(11), 3 to listOf(6, 5))
+    /**
+     * Attachment points of the slots whose items hang models of their own: the helm's, the left (6) and right (5) shoulders',
+     * a belt's buckle (53, BeltBuckle: ModelResourcesID_0 of ModelType 0, most of the game's belts).
+     */
+    internal val ATTACH = mapOf(1 to listOf(11), 3 to listOf(6, 5), 6 to listOf(53))
 
     /** The creature skins' M2 texture types, in TextureVariationFileDataID's order. */
     internal val VARIATION_TYPES = intArrayOf(11, 12, 13, 5)
@@ -216,6 +219,7 @@ object CreatureLooks {
                 perGroup.getOrPut(group) { ArrayList() } += slot to if (group == 20) (if (v == 0) 2 else v) else 1 + v
             }
             for ((k, att) in ATTACH[slot].orEmpty().withIndex()) {
+                if (row.int("ModelType_$k") == COLLECTION) continue   // skinned to the body, below (a belt's or hood's piece)
                 val res = row.int("ModelResourcesID_$k").takeIf { it != 0 } ?: row.int("ModelResourcesID_0").takeIf { k > 0 && it != 0 } ?: continue
                 val mres = row.int("ModelMaterialResourcesID_$k").takeIf { it != 0 } ?: row.int("ModelMaterialResourcesID_0")
                 val position = if (slot == 3) (if (att == 6) 0 else 1) else -1
@@ -223,7 +227,8 @@ object CreatureLooks {
                 if (m == 0) { diagnostics += "item $item: model resource $res not in ModelFileData"; continue }
                 extra += ExtraModel(att, m, ix.texture(mres, race, sex))
             }
-            if (ATTACH[slot] == null) for (k in 0..1) {
+            // armour collection pieces, every slot's (a hood's cloth over a helm's: ModelResourcesID_1 of a head piece)
+            for (k in 0..1) {
                 if (row.int("ModelType_$k") != COLLECTION) continue
                 val res = row.int("ModelResourcesID_$k").takeIf { it != 0 } ?: continue
                 val m = ix.itemModel(res, race, sex, -1)

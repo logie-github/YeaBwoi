@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.util.LruCache
 import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.BodyCall
+import com.logie.wifecraft.creator.CardOrder
 import com.logie.wifecraft.creator.Catalog
 import com.logie.wifecraft.creator.CreatureLooks
 import com.logie.wifecraft.creator.DressCall
@@ -15,6 +16,7 @@ import com.logie.wifecraft.creator.LookResolver
 import com.logie.wifecraft.creator.M2Files
 import com.logie.wifecraft.creator.Overrides
 import com.logie.wifecraft.creator.Tables
+import com.logie.wifecraft.creator.TransmogCards
 import com.logie.wifecraft.data.Emotes
 import com.logie.wifecraft.data.GameFiles
 import com.logie.wifecraft.editor.PlaceKind
@@ -26,6 +28,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 
@@ -181,6 +185,65 @@ class Thumbs(context: Context, private val files: GameFiles, private val scene: 
         val done = CompletableDeferred<T?>()
         view.post { h, _ -> done.complete(runCatching { f(h) }.getOrNull()) }
         return withTimeoutOrNull(GL_WAIT_MS) { done.await() }
+    }
+
+    // ---- the Transmog window's cards (engine/TransmogPictures queues them)
+
+    /** The cards' PNGs (files/thumbs/transmog/<key>.png), kept within TransmogCards.DISK_BYTES and DISK_FILES ([pruneCards]). */
+    private val cardDir = File(dir, "transmog")
+    /** One card on the GL thread at a time (each is a frame's work at most: the queue never floods the 3D view's thread). */
+    private val glGate = Mutex()
+
+    /** A card's picture if it is in memory now. */
+    fun cachedCard(key: String): Bitmap? = memory.get(key)
+
+    /**
+     * Off the main thread: [order]'s picture (the character wearing the card's pieces, framed as TransmogCards says, around her
+     * transparent) from memory, the disk, or drawn (her files and the pieces' fetched first, then Native.thumbCard on the GL
+     * thread) and saved; null when it couldn't be made ([errors] says why).
+     */
+    suspend fun card(order: CardOrder): Bitmap? {
+        memory.get(order.key)?.let { return it }
+        cardDir.mkdirs()
+        val file = File(cardDir, order.key + ".png")
+        if (file.isFile && file.length() > 0) BitmapFactory.decodeFile(file.path)?.let {
+            file.setLastModified(System.currentTimeMillis())
+            memory.put(order.key, it)
+            return it
+        }
+        val why = { w: String -> _errors.value = "The card picture ${order.key}: $w"; null }
+        val view = scene ?: return why("there is no 3D view to draw it with")
+        val p = look(PlaceKind.NPC, 0, order.look)
+        val call = p.call ?: return why(p.error ?: "it has no look")
+        val s = order.shot
+        val pixels = glGate.withLock {
+            onGl(view) { h ->
+                Native.thumbCard(h, call.model, call.scale, call.geosetKeys, call.geosetValues, call.layerFiles, call.layerMeta,
+                    call.tintColours, call.extraModels, p.body.morph, p.body.k, p.body.fold, order.width, order.height,
+                    s.lo, s.hi, s.az, s.el, s.fitWidth, true)
+                    ?: run { why(Native.thumbError(h)); null }
+            }
+        }
+        if (pixels == null || pixels.size < 2) return null
+        val w = pixels[0]
+        val h = pixels[1]
+        if (w <= 0 || h <= 0 || pixels.size < 2 + w * h) return why("the picture came back the wrong size")
+        // straight (not premultiplied) ARGB, as Bitmap.createBitmap(int[]) takes it
+        val bmp = Bitmap.createBitmap(pixels, 2, w, w, h, Bitmap.Config.ARGB_8888)
+        runCatching {
+            val tmp = File(cardDir, order.key + ".part")
+            tmp.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            tmp.renameTo(file)
+        }.onFailure { why("its picture couldn't be saved: ${it.message ?: it}") }
+        memory.put(order.key, bmp)
+        return bmp
+    }
+
+    /** Off the main thread: the cards' disk cache trimmed to its limits, the least recently used let go first. */
+    fun pruneCards() {
+        val list = cardDir.listFiles()?.filter { it.isFile } ?: return
+        val drop = TransmogCards.prune(list.map { TransmogCards.Cached(it.name, it.length(), it.lastModified()) }).toSet()
+        for (f in list) if (f.name in drop || f.name.endsWith(".part")) f.delete()
     }
 
     // ---- the files and looks (also the scene's LookSource: its ghost)
