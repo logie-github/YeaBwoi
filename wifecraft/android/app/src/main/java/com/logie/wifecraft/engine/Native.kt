@@ -251,6 +251,16 @@ object Native {
         scene: Long, model: Int, scale: Float, geosetKeys: IntArray, geosetValues: IntArray, layerFiles: IntArray,
         layerMeta: IntArray, tintColours: IntArray, extraModels: IntArray, morph: FloatArray?, k: Float, fold: Float, size: Int,
     ): IntArray?
+    /**
+     * A look's picture framed as a Transmog card (creator/TransmogCards.Shot): the body's band [lo] to [hi] (fractions of
+     * its height, feet 0) from azimuth [az] and elevation [el] (radians), [fitWidth] keeping the band's width in too; [clear]:
+     * transparent around her (straight alpha). [width] x [height] 16 to 512: [width, height, ARGB...] or null ([thumbError]).
+     */
+    @JvmStatic external fun thumbCard(
+        scene: Long, model: Int, scale: Float, geosetKeys: IntArray, geosetValues: IntArray, layerFiles: IntArray,
+        layerMeta: IntArray, tintColours: IntArray, extraModels: IntArray, morph: FloatArray?, k: Float, fold: Float,
+        width: Int, height: Int, lo: Float, hi: Float, az: Float, el: Float, fitWidth: Boolean, clear: Boolean,
+    ): IntArray?
     /** Why the last thumbnail couldn't be drawn. */
     @JvmStatic external fun thumbError(scene: Long): String
 

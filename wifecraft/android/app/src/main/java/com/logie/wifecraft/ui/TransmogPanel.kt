@@ -10,9 +10,11 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -23,12 +25,16 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -44,11 +50,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.CardGrid
+import com.logie.wifecraft.creator.CardOrder
 import com.logie.wifecraft.creator.ClothingPiece
 import com.logie.wifecraft.creator.ClothingSet
 import com.logie.wifecraft.creator.ClothingSlot
 import com.logie.wifecraft.creator.TBox
+import com.logie.wifecraft.creator.TransmogCards
 import com.logie.wifecraft.creator.TransmogCatalog
 import com.logie.wifecraft.creator.TransmogFit
 import com.logie.wifecraft.creator.TransmogFrame as F
@@ -56,6 +65,8 @@ import com.logie.wifecraft.creator.TransmogLists
 import com.logie.wifecraft.creator.TransmogState
 import com.logie.wifecraft.creator.TransmogTab
 import com.logie.wifecraft.creator.Worn
+import com.logie.wifecraft.engine.Thumbs
+import com.logie.wifecraft.engine.TransmogPictures
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -73,8 +84,11 @@ import kotlin.math.roundToInt
  * Custom Sets (the named characters' outfits: Chromie's), with search, filter and pages.
  *
  * A pick shows on her at once and is pending (purple) until Save Outfit; closing the window without saving puts back what
- * she wore (the host does it: [onClose]). The logic is creator/TransmogState.kt (unit-tested); this file only draws it and
- * is compiled by CI only, never run on a phone.
+ * she wore (the host does it: [onClose]); a mouse or stylus resting on an item card shows it on her for as long as it rests.
+ * The Items and Sets cards show her wearing each appearance, as the game's do (creator/TransmogCards: the framing per slot,
+ * the cache's names, the queue; engine/TransmogPictures draws them off-screen for the page on show), the piece's icon until
+ * its picture is ready. The logic is creator/TransmogState.kt and TransmogCards.kt (unit-tested); this file only draws it
+ * and is compiled by CI only, never run on a phone.
  */
 
 @Immutable
@@ -100,6 +114,8 @@ private fun rgb(v: Int) = Color(0xFF000000.toInt() or (v and 0xFFFFFF))
  * @param onSave Save Outfit: what she now wears is kept
  * @param onClose the window closes (the host puts back what was saved, if anything is pending)
  * @param fit where the window is on the screen ([F.fit])
+ * @param thumbs the creator's off-screen pictures (null: the cards show the pieces' icons)
+ * @param look the character the cards are drawn on (her race, sex and choices; her clothes don't matter)
  */
 @Composable
 fun TransmogPanel(
@@ -116,6 +132,8 @@ fun TransmogPanel(
     fit: TransmogFit,
     font: FontFamily?,
     outfitName: String,
+    thumbs: Thumbs? = null,
+    look: Appearance? = null,
 ) {
     val density = LocalDensity.current
     val play = LocalSounds.current
@@ -128,11 +146,34 @@ fun TransmogPanel(
 
     LaunchedEffect(Unit) { play("open") }
 
+    // the cards' pictures: made for the page on show (TransmogPictures), held here while the page shows them
+    val pictures = remember(thumbs) { thumbs?.let { TransmogPictures(it) } }
+    DisposableEffect(pictures) { onDispose { pictures?.close() } }
+    val lookHash = look?.let { TransmogCards.lookHash(it) }
+    val cardLook = remember(lookHash) { look }
+    val shownPictures = remember { mutableStateMapOf<String, ImageBitmap>() }
+    fun pictureOf(key: String?): ImageBitmap? =
+        key?.let { k -> shownPictures[k] ?: pictures?.cached(k)?.asImageBitmap() }
+
+    // a mouse or stylus resting on an item card: it shows on her after a moment, and what is pending comes back as it leaves
+    var hovered by remember { mutableStateOf<Int?>(null) }
+    var peeking by remember { mutableStateOf(false) }
+
     fun update(next: TransmogState) {
         val before = state
         state = next
         tip = null
-        if (next.pending != before.pending) previewNow(next.pending)
+        if (next.pending != before.pending || peeking) previewNow(next.pending)
+        peeking = false
+    }
+    LaunchedEffect(hovered) {
+        val display = hovered
+        if (display == null) {
+            if (peeking) { peeking = false; previewNow(state.pending) }
+        } else {
+            delay(HOVER_MS)
+            if (state.piece(state.slot) != display) { peeking = true; previewNow(state.pending + (state.slot.id to display)) }
+        }
     }
 
     // what each look is called and drawn with, by slot and display (the slot buttons' icons and tooltips)
@@ -220,12 +261,16 @@ fun TransmogPanel(
                     val grid = F.ITEMS
                     val page = state.page(key, list.size, grid.perPage, TransmogLists.pageOf(list, state.piece(state.slot), grid.perPage))
                     val from = page * grid.perPage
-                    for (i in 0 until min(grid.perPage, list.size - from)) {
-                        val p = list[from + i]
+                    val cards = list.subList(from, min(list.size, from + grid.perPage))
+                    val orders = cardLook?.let { a -> cards.map { TransmogCards.itemOrder(a, it.slot, it.display) } }.orEmpty()
+                    CardFeed(pictures, orders, shownPictures)
+                    cards.forEachIndexed { i, p ->
                         kit.AppearanceCard(fit.box(content.inside(grid.card(i))), p, state.wornCard(p.display), icons,
-                            onTap = { play("click"); update(state.choose(p.display)) },
+                            picture = pictureOf(orders.getOrNull(i)?.key),
+                            onTap = { play("click"); hovered = null; update(state.choose(p.display)) },
                             onHold = { b -> tip = Tip(listOf(p.name to rgb(F.qualityColour(p.quality)), F.caption(p.slot) to White,
-                                F.expansionName(p.expansion) to Grey), b) })
+                                F.expansionName(p.expansion) to Grey), b) },
+                            onHover = { on -> hovered = if (on) p.display else if (hovered == p.display) null else hovered })
                     }
                     kit.Pager(grid, content, page, grid.pages(list.size)) { play("page"); update(state.turn(key, it)) }
                 }
@@ -234,13 +279,13 @@ fun TransmogPanel(
                 kit.SearchBox(fit.box(content.inside(F.SEARCH)), setSearch) { update(state.typed(it)) }
                 kit.FilterButton(fit.box(content.inside(F.FILTER)), filterOpen, state.expansions.isNotEmpty()) { filterOpen = !filterOpen }
                 val list = sets?.list
-                if (list != null) kit.SetGrid(list, content, state, icons, "You don't have any Set appearances",
+                if (list != null) kit.SetGrid(list, content, state, icons, "You don't have any Set appearances", cardLook, pictures, shownPictures,
                     onTurn = { key, to -> play("page"); update(state.turn(key, to)) },
                     onWear = { set -> play("click"); update(state.wear(set)) },
                     onHold = { set, b -> tip = Tip(listOf(set.name to White) + listOfNotNull(
                         set.expansion.takeIf { it >= 0 }?.let { F.expansionName(it) to Grey }), b) })
             }
-            TransmogTab.CUSTOM_SETS -> kit.SetGrid(customSets, content, state, icons, "You don't have any Custom Sets",
+            TransmogTab.CUSTOM_SETS -> kit.SetGrid(customSets, content, state, icons, "You don't have any Custom Sets", cardLook, pictures, shownPictures,
                 onTurn = { key, to -> play("page"); update(state.turn(key, to)) },
                 onWear = { set ->
                     play("click")
@@ -748,20 +793,29 @@ private fun Kit.DisplayType(b: TBox, text: String, on: Boolean, pending: Boolean
 }
 
 /**
- * TransmogItemModelTemplate: the black card, the piece's icon in its middle (the game turns a model of the character
- * wearing it here), the card's border, pink while she wears it, purple while that is pending.
+ * TransmogItemModelTemplate: the black card, the character wearing the piece ([picture]; its icon, dimmed, until the picture
+ * is made), the card's border, pink while she wears it, purple while that is pending.
  */
 @Composable
-private fun Kit.AppearanceCard(b: TBox, p: ClothingPiece, worn: Worn, icons: GameIcons?, onTap: () -> Unit, onHold: (TBox) -> Unit) {
+private fun Kit.AppearanceCard(
+    b: TBox, p: ClothingPiece, worn: Worn, icons: GameIcons?, picture: ImageBitmap?, onTap: () -> Unit, onHold: (TBox) -> Unit,
+    onHover: (Boolean) -> Unit,
+) {
     val image = gameIcon(icons, p.icon)
     var held by remember { mutableStateOf(false) }
-    At(b, press(onTap, { onHold(b) }, { held = it }).semantics { role = Role.Button; selected = worn != Worn.NO; contentDescription = p.name })
+    At(b, press(onTap, { onHold(b) }, { held = it }).then(hover(onHover)).semantics { role = Role.Button; selected = worn != Worn.NO; contentDescription = p.name })
     Canvas(Modifier.fillMaxSize()) {
         val unit = fit.scale
         drawRect(Color.Black, Offset(b.x, b.y), androidx.compose.ui.geometry.Size(b.w, b.h))
-        val d = u(64f)
-        if (image != null) drawImage(image, IntOffset.Zero, IntSize(image.width, image.height),
-            IntOffset((b.centerX - d / 2f).roundToInt(), (b.centerY - d / 2f).roundToInt()), IntSize(d.roundToInt(), d.roundToInt()))
+        if (picture != null) {
+            // her, wearing it (the picture has the card's shape)
+            drawImage(picture, IntOffset.Zero, IntSize(picture.width, picture.height),
+                IntOffset(b.x.roundToInt(), b.y.roundToInt()), IntSize(b.w.roundToInt(), b.h.roundToInt()), filterQuality = FilterQuality.Medium)
+        } else {
+            val d = u(64f)
+            if (image != null) drawImage(image, IntOffset.Zero, IntSize(image.width, image.height),
+                IntOffset((b.centerX - d / 2f).roundToInt(), (b.centerY - d / 2f).roundToInt()), IntSize(d.roundToInt(), d.roundToInt()), alpha = 0.6f)
+        }
         val frame = TBox(b.centerX - u(F.ITEM_BORDER_W) / 2f, b.centerY - u(F.ITEM_BORDER_H) / 2f, u(F.ITEM_BORDER_W), u(F.ITEM_BORDER_H))
         val border = piece("transmog-itemcard-default")
         if (border != null) nine(border, frame, unit) else drawRect(Color(0xFF5A4E3A), Offset(b.x, b.y), androidx.compose.ui.geometry.Size(b.w, b.h), style = androidx.compose.ui.graphics.drawscope.Stroke(u(1.5f)))
@@ -778,10 +832,12 @@ private fun Kit.AppearanceCard(b: TBox, p: ClothingPiece, worn: Worn, icons: Gam
 @Composable
 private fun Kit.SetGrid(
     list: List<ClothingSet>, content: TBox, state: TransmogState, icons: GameIcons?, none: String,
+    look: Appearance?, pictures: TransmogPictures?, shownPictures: MutableMap<String, ImageBitmap>,
     onTurn: (String, Int) -> Unit, onWear: (ClothingSet) -> Unit, onHold: (ClothingSet, TBox) -> Unit,
 ) {
     val grid = F.SETS
     if (list.isEmpty()) {
+        CardFeed(pictures, emptyList(), shownPictures)
         Words(none, fit.box(content.inside(TBox(grid.area.centerX - 295f, grid.area.centerY - 20f + 31f, 590f, 40f))), F.FONT_MED, Gold, TextAlign.Center)
         return
     }
@@ -789,28 +845,37 @@ private fun Kit.SetGrid(
     val worn = list.indexOfFirst { state.wornSet(it) != Worn.NO }
     val page = state.page(key, list.size, grid.perPage, if (worn < 0) 0 else worn / grid.perPage)
     val from = page * grid.perPage
-    for (i in 0 until min(grid.perPage, list.size - from)) {
-        val set = list[from + i]
-        SetCard(fit.box(content.inside(grid.card(i))), set, state.wornSet(set), icons, { onWear(set) }, { b -> onHold(set, b) })
+    val cards = list.subList(from, min(list.size, from + grid.perPage))
+    val orders = look?.let { a -> cards.map { TransmogCards.setOrder(a, it) } }.orEmpty()
+    CardFeed(pictures, orders, shownPictures)
+    cards.forEachIndexed { i, set ->
+        val cardKey = orders.getOrNull(i)?.key
+        val picture = cardKey?.let { k -> shownPictures[k] ?: pictures?.cached(k)?.asImageBitmap() }
+        SetCard(fit.box(content.inside(grid.card(i))), set, state.wornSet(set), icons, picture, { onWear(set) }, { b -> onHold(set, b) })
     }
     Pager(grid, content, page, grid.pages(list.size)) { onTurn(key, it) }
 }
 
 /**
  * TransmogSetBaseModelTemplate: the black card in its set border (pink while she wears the set, purple while that is
- * pending); the set's chest icon and its name stand in for the game's model of the character in it.
+ * pending), the character in the set ([picture]; the set's chest icon until it is made) and the set's name.
  */
 @Composable
-private fun Kit.SetCard(b: TBox, set: ClothingSet, worn: Worn, icons: GameIcons?, onTap: () -> Unit, onHold: (TBox) -> Unit) {
+private fun Kit.SetCard(b: TBox, set: ClothingSet, worn: Worn, icons: GameIcons?, picture: ImageBitmap?, onTap: () -> Unit, onHold: (TBox) -> Unit) {
     val image = gameIcon(icons, set.icon)
     var held by remember { mutableStateOf(false) }
     At(b, press(onTap, { onHold(b) }, { held = it }).semantics { role = Role.Button; selected = worn != Worn.NO; contentDescription = set.name })
     Canvas(Modifier.fillMaxSize()) {
         val unit = fit.scale
         drawRect(Color.Black, Offset(b.x, b.y), androidx.compose.ui.geometry.Size(b.w, b.h))
-        val d = u(72f)
-        if (image != null) drawImage(image, IntOffset.Zero, IntSize(image.width, image.height),
-            IntOffset((b.centerX - d / 2f).roundToInt(), (b.y + u(54f)).roundToInt()), IntSize(d.roundToInt(), d.roundToInt()))
+        if (picture != null) {
+            drawImage(picture, IntOffset.Zero, IntSize(picture.width, picture.height),
+                IntOffset(b.x.roundToInt(), b.y.roundToInt()), IntSize(b.w.roundToInt(), b.h.roundToInt()), filterQuality = FilterQuality.Medium)
+        } else {
+            val d = u(72f)
+            if (image != null) drawImage(image, IntOffset.Zero, IntSize(image.width, image.height),
+                IntOffset((b.centerX - d / 2f).roundToInt(), (b.y + u(54f)).roundToInt()), IntSize(d.roundToInt(), d.roundToInt()))
+        }
         val frame = TBox(b.centerX - u(F.SET_BORDER_W) / 2f, b.centerY - u(F.SET_BORDER_H) / 2f, u(F.SET_BORDER_W), u(F.SET_BORDER_H))
         val border = piece("transmog-setcard-default")
         if (border != null) nine(border, frame, unit) else drawRect(Color(0xFF5A4E3A), Offset(b.x, b.y), androidx.compose.ui.geometry.Size(b.w, b.h), style = androidx.compose.ui.graphics.drawscope.Stroke(u(1.5f)))
@@ -846,5 +911,44 @@ private fun Kit.PageButton(b: TBox, name: String, enabled: Boolean, label: Strin
         val p = piece(when { !enabled -> "$name-disabled"; held -> "$name-down"; else -> name })
         if (p != null) img(p, b)
         else drawCircle(if (enabled) Gold else Grey, b.w / 3f, Offset(b.centerX, b.centerY), style = androidx.compose.ui.graphics.drawscope.Stroke(u(2f)))
+    }
+}
+
+/** How long a mouse or stylus rests on a card before it shows on her (a sweep across the grid dresses her in nothing). */
+private const val HOVER_MS = 250L
+
+/** A mouse's or stylus's pointer coming onto (true) and leaving (false) what this is on; a finger is not a hover. */
+@Composable
+private fun hover(onHover: (Boolean) -> Unit): Modifier {
+    val onChange by rememberUpdatedState(onHover)
+    return Modifier.pointerInput(Unit) {
+        awaitPointerEventScope {
+            while (true) {
+                val e = awaitPointerEvent()
+                val change = e.changes.firstOrNull() ?: continue
+                if (change.type != PointerType.Mouse && change.type != PointerType.Stylus) continue
+                when (e.type) {
+                    PointerEventType.Enter -> onChange(true)
+                    PointerEventType.Exit -> onChange(false)
+                    else -> {}
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The page's card pictures asked for (TransmogPictures: the page in grid order; what the last page still had waiting is
+ * dropped) and kept in [shown] while the page shows them; when the page or its list changes, the others are let go.
+ */
+@Composable
+private fun CardFeed(pictures: TransmogPictures?, orders: List<CardOrder>, shown: MutableMap<String, ImageBitmap>) {
+    val keys = orders.map { it.key }
+    val current by rememberUpdatedState(orders)
+    LaunchedEffect(pictures, keys) {
+        val p = pictures ?: return@LaunchedEffect
+        val keep = keys.toSet()
+        for (k in shown.keys.filter { it !in keep }) shown.remove(k)
+        p.show(current) { key, bmp -> if (key in keys) shown[key] = bmp.asImageBitmap() }
     }
 }

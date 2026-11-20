@@ -31,6 +31,7 @@
 //   ghost MODEL X Y Z YAW SCALE | ghostlook LOOKFILE X Y Z YAW   the ghost of what is about to be placed (a prop, a look)
 //   ghostmove X Y Z YAW | ghostclear
 //   thumb prop FILE_ID|look LOOKFILE SIZE OUT.png   a library thumbnail (Scene::thumbnail), drawn between frames
+//   card LOOKFILE W H LO HI AZ EL FITWIDTH CLEAR OUT.png   a Transmog card (Scene::ThumbFrame; RGBA PNG when CLEAR), timed
 //   camerainfo                                 prints the camera as last drawn (Scene::cameraInfo)
 //   timing on|off                              prints how long each later command took (what the GL thread would stall)
 //   part N WCBP PNG SKIN                       a body part file on person N (Scene::loadPart, attachPart: its slot by its
@@ -1025,6 +1026,24 @@ int main(int argc, char** argv) {
             std::string kind, asset, out; int size = 160;
             ss >> kind >> asset >> size >> out;
             thumbTo(scene, kind + ":" + asset, size, out);
+        } else if (cmd == "card") {
+            // card LOOKFILE W H LO HI AZ EL FITWIDTH CLEAR OUT.png: a Transmog card (Native.thumbCard), timed
+            std::string lookPath, out; int w = 128, h = 168, fitWidth = 1, clearBg = 1; float lo, hi, az, el;
+            ss >> lookPath >> w >> h >> lo >> hi >> az >> el >> fitWidth >> clearBg >> out;
+            LookFile lf;
+            if (!readLook(lookPath, lf)) continue;
+            Scene::ThumbLook t = thumbLook(lf);
+            Scene::ThumbFrame frame;
+            frame.lo = lo; frame.hi = hi; frame.az = az; frame.el = el; frame.fitWidth = fitWidth != 0; frame.clear = clearBg != 0;
+            std::vector<uint8_t> rgba;
+            std::string err;
+            auto t0 = std::chrono::steady_clock::now();
+            bool ok = scene.thumbnail(0, &t, &frame, w, h, rgba, err);
+            glFinish();
+            double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+            if (!ok) { std::fprintf(stderr, "card %s: FAILED: %s\n", lookPath.c_str(), err.c_str()); continue; }
+            writePng(out, w, h, rgba, 4);
+            std::fprintf(stderr, "card %s: wrote %s (%dx%d) in %.1f ms\n", lookPath.c_str(), out.c_str(), w, h, ms);
         } else if (cmd == "camerainfo") {
             Scene::CameraInfo c = scene.cameraInfo();
             std::fprintf(stderr, "camera eye %.2f %.2f %.2f target %.2f %.2f %.2f up %.2f %.2f %.2f fov %.1f aspect %.3f\n",

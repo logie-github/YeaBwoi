@@ -436,10 +436,11 @@ JNIEXPORT jfloatArray JNICALL FN(ghostBounds)(JNIEnv* env, jclass, jlong h) {
 }
 
 namespace {
-jintArray thumbPixels(JNIEnv* env, const std::vector<uint8_t>& rgba, int size) {
-    std::vector<jint> out(size_t(size) * size + 2);
-    out[0] = size; out[1] = size;
-    for (size_t i = 0; i < size_t(size) * size; ++i) {
+jintArray thumbPixels(JNIEnv* env, const std::vector<uint8_t>& rgba, int size, int height = -1) {
+    const int w = size, hgt = height < 0 ? size : height;
+    std::vector<jint> out(size_t(w) * hgt + 2);
+    out[0] = w; out[1] = hgt;
+    for (size_t i = 0; i < size_t(w) * hgt; ++i) {
         const uint8_t* p = &rgba[i * 4];
         out[i + 2] = jint(uint32_t(p[3]) << 24 | uint32_t(p[0]) << 16 | uint32_t(p[1]) << 8 | p[2]);
     }
@@ -458,10 +459,10 @@ JNIEXPORT jintArray JNICALL FN(thumbProp)(JNIEnv* env, jclass, jlong h, jint mod
     return thumbPixels(env, rgba, s);
 }
 
-// A look's thumbnail (the arrays as Native.dress and Native.body take them), or null (thumbError says why).
-JNIEXPORT jintArray JNICALL FN(thumbLook)(JNIEnv* env, jclass, jlong h, jint model, jfloat scale, jintArray geosetKeys,
-                                         jintArray geosetValues, jintArray layerFiles, jintArray layerMeta, jintArray tintColours,
-                                         jintArray extraModels, jfloatArray morph, jfloat k, jfloat fold, jint size) {
+namespace {
+// The arrays as Native.dress and Native.body take them, made a Scene::ThumbLook.
+Scene::ThumbLook thumbLookOf(JNIEnv* env, jint model, jfloat scale, jintArray geosetKeys, jintArray geosetValues, jintArray layerFiles,
+                             jintArray layerMeta, jintArray tintColours, jintArray extraModels, jfloatArray morph, jfloat k, jfloat fold) {
     constexpr size_t kMeta = 9, kTints = 2, kExtra = 4;
     Scene::ThumbLook look;
     look.model = uint32_t(model);
@@ -483,11 +484,38 @@ JNIEXPORT jintArray JNICALL FN(thumbLook)(JNIEnv* env, jclass, jlong h, jint mod
     for (size_t i = 0; i + kExtra <= ex.size(); i += kExtra) look.extras.push_back({ex[i], uint32_t(ex[i + 1]), uint32_t(ex[i + 2]), ex[i + 3]});
     look.morph = floats(env, morph);
     look.bodyK = k; look.bodyFold = fold;
+    return look;
+}
+} // namespace
+
+// A look's thumbnail (the arrays as Native.dress and Native.body take them), or null (thumbError says why).
+JNIEXPORT jintArray JNICALL FN(thumbLook)(JNIEnv* env, jclass, jlong h, jint model, jfloat scale, jintArray geosetKeys,
+                                         jintArray geosetValues, jintArray layerFiles, jintArray layerMeta, jintArray tintColours,
+                                         jintArray extraModels, jfloatArray morph, jfloat k, jfloat fold, jint size) {
+    Scene::ThumbLook look = thumbLookOf(env, model, scale, geosetKeys, geosetValues, layerFiles, layerMeta, tintColours, extraModels, morph, k, fold);
     std::vector<uint8_t> rgba;
     gThumbError.clear();
     int s = std::clamp(int(size), 16, 512);
     if (!scene(h)->thumbnail(0, &look, s, rgba, gThumbError)) return nullptr;
     return thumbPixels(env, rgba, s);
+}
+
+// A look's picture framed as a Transmog card (Scene::ThumbFrame: the band lo..hi of the body, from az, el), width x height,
+// clear (transparent) or on the slate: [width, height, ARGB pixels...] or null (thumbError says why).
+JNIEXPORT jintArray JNICALL FN(thumbCard)(JNIEnv* env, jclass, jlong h, jint model, jfloat scale, jintArray geosetKeys,
+                                         jintArray geosetValues, jintArray layerFiles, jintArray layerMeta, jintArray tintColours,
+                                         jintArray extraModels, jfloatArray morph, jfloat k, jfloat fold, jint width, jint height,
+                                         jfloat lo, jfloat hi, jfloat az, jfloat el, jboolean fitWidth, jboolean clear) {
+    Scene::ThumbLook look = thumbLookOf(env, model, scale, geosetKeys, geosetValues, layerFiles, layerMeta, tintColours, extraModels, morph, k, fold);
+    Scene::ThumbFrame frame;
+    frame.lo = lo; frame.hi = hi; frame.az = az; frame.el = el;
+    frame.fitWidth = fitWidth == JNI_TRUE;
+    frame.clear = clear == JNI_TRUE;
+    std::vector<uint8_t> rgba;
+    gThumbError.clear();
+    int w = std::clamp(int(width), 16, 512), ht = std::clamp(int(height), 16, 512);
+    if (!scene(h)->thumbnail(0, &look, &frame, w, ht, rgba, gThumbError)) return nullptr;
+    return thumbPixels(env, rgba, w, ht);
 }
 
 JNIEXPORT jstring JNICALL FN(thumbError)(JNIEnv* env, jclass, jlong) { return env->NewStringUTF(gThumbError.c_str()); }

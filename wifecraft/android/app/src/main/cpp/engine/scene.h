@@ -274,6 +274,20 @@ public:
         float bodyK = 0, bodyFold = 0;
     };
     bool thumbnail(uint32_t propFile, const ThumbLook* look, int size, std::vector<uint8_t>& rgba, std::string& error);
+    // How a look's picture is framed instead (the Transmog window's cards, creator/TransmogCards.kt): the band of the body
+    // from `lo` to `hi` (fractions of the body's drawn height, feet 0, crown 1) fills the picture's height, seen from
+    // azimuth `az` (radians about the vertical; models face +x, 0 is straight in front) and elevation `el`; `fitWidth`
+    // also keeps the band's whole width in the picture. `clear`: no backdrop, the picture's alpha is what was drawn
+    // (found by drawing it over black and over white: blended edges keep their coverage), straight (not premultiplied).
+    struct ThumbFrame {
+        float lo = -0.02f, hi = 1.02f;
+        float az = -0.62f, el = 0.10f;
+        bool fitWidth = true;
+        bool clear = false;
+    };
+    // A look's picture, `w` x `h` (16 to 512 each), framed by `frame` (null: as thumbnail frames it, square or not).
+    bool thumbnail(uint32_t propFile, const ThumbLook* look, const ThumbFrame* frame, int w, int h, std::vector<uint8_t>& rgba,
+                   std::string& error);
 
 private:
     struct ModelGl {
