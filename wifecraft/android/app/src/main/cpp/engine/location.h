@@ -18,6 +18,7 @@
 //   ground:   {z, colour} | false                                        the plain ground under an exterior (the terrain
 //                                                                        isn't loaded): at z, fading into the fog
 //   views:    {name: {eye, at, fov (or camera: {eye, at|target, fov}), spawn, light, fog, ground}}  a view's own light/fog
+//   dayCycle: {source, keys: [[hour, ambient rgb, direct rgb, sky rgb, fog rgb]...]}  the map light's day (daylight.h)
 // Colours are 0..1 (or 0..255 when any is over 1.5).
 #pragma once
 
@@ -26,6 +27,7 @@
 #include <string>
 #include <vector>
 
+#include "daylight.h"
 #include "json.h"
 #include "wmath.h"
 
@@ -82,6 +84,7 @@ struct LocationDesc {
     float frameYawDeg = 0;
     LocationLook look;
     std::map<std::string, LocationView> views;
+    DayCycle dayCycle;                     // empty: the default (defaultDayCycle)
 };
 
 // Reads an entry (the object itself, or {"locations": [...]} / {"id": entry...} with `id` choosing it). False and

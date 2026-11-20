@@ -20,6 +20,12 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/bodyshape_test.cpp" "$engine/bodyshape.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" \
     -o "$here/build/bodyshape_test"
 echo "$here/build/bodyshape_test"
+# The time of day as light (engine/daylight.cpp: the game's day cycle sampled, continuous over the day, the sun's path, the
+# rooms' night): build/daylight_test [LOCATIONS_JSON], exit 0 when all pass.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/daylight_test.cpp" "$engine/daylight.cpp" "$engine/json.cpp" \
+    -o "$here/build/daylight_test"
+echo "$here/build/daylight_test"
 # Imported animations as the engine plays them (engine/boneanim.h: keys, the loop's wrap, the fit to a model's rest pose) and
 # the game's layers (M2Model::isLayer, a layer posed over its base): build/boneanim_test [FILES_DIR], exit 0 when all pass.
 g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \

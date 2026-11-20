@@ -11,7 +11,7 @@ import kotlin.math.min
 // Play animation window's category tabs.
 
 /** What an action-bar slot does. */
-enum class HudOrder { WALK, PLAY, PARTNER, SAY, CHAT, STOP_REPEAT, CLEAR_QUEUE, RELEASE, USE, FREE_WILL }
+enum class HudOrder { WALK, PLAY, PARTNER, SAY, CHAT, STOP_REPEAT, CLEAR_QUEUE, RELEASE, USE, FREE_WILL, LIFE }
 
 /** One slot of the action bar: what it does, its words, [lit] while it is on (Walk), [target] the object it uses. */
 data class HudSlot(val order: HudOrder, val label: String, val lit: Boolean = false, val target: String? = null) {
@@ -65,7 +65,8 @@ object SceneHud {
     /**
      * The controlled NPC's orders, most used first: Walk (tap the floor), Play animation, Partner animation (with a
      * partner), Say, Chat with (with someone else in the scene), Stop repeat and Clear queue (while there is one), Release,
-     * then the scene's objects ([uses]: target to words) and Free will.
+     * then the scene's objects ([uses]: target to words) and Free will. With the life simulation on ([life]), Actions (its
+     * radial menu: Rest, Eat, Chat, Hug...) comes second, after Walk.
      */
     fun orders(
         walking: Boolean,
@@ -74,8 +75,10 @@ object SceneHud {
         repeating: Boolean,
         queued: Int,
         uses: List<Pair<String, String>> = emptyList(),
+        life: Boolean = false,
     ): List<HudSlot> = buildList {
         add(HudSlot(HudOrder.WALK, "Walk", lit = walking))
+        if (life) add(HudSlot(HudOrder.LIFE, "Actions"))
         add(HudSlot(HudOrder.PLAY, "Play animation"))
         if (partner) add(HudSlot(HudOrder.PARTNER, "Partner animation"))
         add(HudSlot(HudOrder.SAY, "Say…"))

@@ -100,6 +100,7 @@ uniform vec3 uSunDir;
 uniform vec3 uSunColor;
 uniform vec3 uAmbient;
 uniform vec3 uIntAmbient;
+uniform vec3 uRoomTint;   // the time of day on a room's own light (1 by day; darker and warmer at night)
 uniform vec3 uFogColor;
 uniform vec2 uFog;
 uniform vec3 uEye;
@@ -119,8 +120,8 @@ void main() {
         if (dot(n, uEye - vWorld) < 0.0) n = -n;       // seen from behind (two-sided): lit as its side facing us
         float ndl = max(dot(n, -uSunDir), 0.0);
         vec3 sky = uAmbient * (n.z >= 0.0 ? mix(1.0, 1.1, n.z) : mix(1.0, 0.7, -n.z));
-        vec3 outside = sky + uSunColor * ndl + vLight.rgb * 0.5;
-        vec3 inside = uIntAmbient + vLight.rgb;
+        vec3 outside = sky + uSunColor * ndl + vLight.rgb * 0.5 * uRoomTint;
+        vec3 inside = (uIntAmbient + vLight.rgb) * uRoomTint;
         float blend = uExtLight == 1 ? 1.0 : clamp(vLight.a, 0.0, 1.0);
         rgb *= mix(inside, outside, blend);
     }
@@ -420,6 +421,7 @@ bool parseLocation(const std::string& json, const std::string& id, LocationDesc&
     }
     unsetLight(out.look);
     readLook(*e, out.look);
+    parseDayCycle((*e)["dayCycle"], out.dayCycle);
     for (const auto& [name, v] : (*e)["views"].o) {
         LocationView view;
         unsetLight(view.look);
@@ -716,7 +718,9 @@ bool Scene::locationView(const std::string& view) {
     auto it = locDesc_.views.find(view);
     if (it != locDesc_.views.end()) locLook_ = overlay(locLook_, it->second.look);
     if (locLook_.hasInterior) std::copy(locLook_.interiorAmbient, locLook_.interiorAmbient + 3, location_->intAmbient);
+    light_ = baseLight_;                 // the look over the light as given, not over an hour's grading of it
     applyLook(locLook_, light_);
+    baseLight_ = light_;
     if (!terrain_.empty() && !locLook_.hasGround) locLook_.ground = false;   // the map's own ground is there
     // the plain ground: given, else the floor under the outside's spawn, else the WMO's lowest point
     if (!locLook_.groundZSet) {
@@ -736,11 +740,46 @@ bool Scene::locationView(const std::string& view) {
         const float earth[3] = {0.26f, 0.23f, 0.19f};
         for (int i = 0; i < 3; ++i) locLook_.groundColor[i] = earth[i] * 0.85f + light_.fogColor[i] * 0.15f;
     }
+    applyTimeOfDay();
     return it != locDesc_.views.end() || view.empty();
+}
+
+// ------------------------------------------------------------------------------------------------ the time of day
+
+void Scene::setTimeOfDay(float hours) {
+    timeOfDay_ = std::isfinite(hours) && hours >= 0 ? wrapHour(hours) : -1.0f;
+    applyTimeOfDay();
+}
+
+// The hour's change from noon added to the light as given: the entries' light is the map's LightData at noon, so at
+// noon nothing changes, and a view's own colours (a hand-made fog, say) keep their difference from the game's. The
+// sun's direction is the hour's; a room's own light is tinted (roomTint_), the baked vertex light kept as it is.
+void Scene::applyTimeOfDay() {
+    roomTint_[0] = roomTint_[1] = roomTint_[2] = 1.0f;
+    if (timeOfDay_ < 0 || !location_) { light_ = baseLight_; return; }
+    const DayCycle& c = locDesc_.dayCycle.empty() ? defaultDayCycle() : locDesc_.dayCycle;
+    DaySample now = sampleDay(c, timeOfDay_, locDesc_.frameYawDeg);
+    DayKey noon;
+    sampleKeys(c, 12.0f, noon);
+    Light l = baseLight_;
+    auto shift = [](float* dst, const float* base, const float* at, const float* ref) {
+        for (int i = 0; i < 3; ++i) dst[i] = std::clamp(base[i] + at[i] - ref[i], 0.0f, 1.5f);
+    };
+    shift(l.ambient, baseLight_.ambient, now.ambient, noon.ambient);
+    shift(l.sunColor, baseLight_.sunColor, now.direct, noon.direct);
+    shift(l.fogColor, baseLight_.fogColor, now.fog, noon.fog);
+    shift(l.skyTop, baseLight_.skyTop, now.sky, noon.sky);
+    shift(l.skyHorizon, baseLight_.skyHorizon, now.fog, noon.fog);
+    shift(l.skyBelow, baseLight_.skyBelow, now.fog, noon.fog);
+    l.sunDir[0] = now.lightDir.x; l.sunDir[1] = now.lightDir.y; l.sunDir[2] = now.lightDir.z;
+    std::copy(now.interior, now.interior + 3, roomTint_);
+    light_ = l;
 }
 
 void Scene::clearLocation() {
     location_.reset();
+    light_ = baseLight_;
+    roomTint_[0] = roomTint_[1] = roomTint_[2] = 1.0f;
     terrain_.clear();
     locExtras_.clear();
     locExtrasMissing_ = 0;
@@ -1103,8 +1142,11 @@ Scene::PickHit Scene::pick(float sx, float sy, int width, int height) const {
 
 namespace {
 
-void staticUniforms(unsigned p, const Light& l, const V3& eye, const M4& viewProj, const float intAmbient[3]) {
+void staticUniforms(unsigned p, const Light& l, const V3& eye, const M4& viewProj, const float intAmbient[3],
+                    const float* roomTint = nullptr) {
+    static const float kNoTint[3] = {1, 1, 1};
     glUseProgram(p);
+    glUniform3fv(loc(p, "uRoomTint"), 1, roomTint ? roomTint : kNoTint);
     glUniformMatrix4fv(loc(p, "uViewProj"), 1, GL_FALSE, viewProj.m);
     V3 sd = V3(l.sunDir[0], l.sunDir[1], l.sunDir[2]).normalized();
     float sdv[3] = {sd.x, sd.y, sd.z};
@@ -1125,8 +1167,8 @@ void staticUniforms(unsigned p, const Light& l, const V3& eye, const M4& viewPro
 
 } // namespace
 
-void Scene::staticSetup(unsigned prog, const M4& viewProj, const float intAmbient[3]) {
-    staticUniforms(prog, light_, eye_, viewProj, intAmbient);
+void Scene::staticSetup(unsigned prog, const M4& viewProj, const float intAmbient[3], const float* roomTint) {
+    staticUniforms(prog, light_, eye_, viewProj, intAmbient, roomTint);
 }
 
 void Scene::drawWmoGroups(const PlacedWmo& w, bool transparent, const Frustum& f, float glow) {
@@ -1247,11 +1289,11 @@ void Scene::drawStatic(bool transparent, const M4& viewProj) {
     float zero[3] = {0, 0, 0};
     const float* intAmb = location_ ? location_->intAmbient : zero;
     if (!transparent) frameStats_.drawCalls = frameStats_.groupsDrawn = frameStats_.instancesDrawn = 0;
-    staticUniforms(locProg_, light_, eye_, viewProj, intAmb);
+    staticUniforms(locProg_, light_, eye_, viewProj, intAmb, roomTint_);
     if (location_) drawWmoGroups(*location_, transparent, f, 0);
     if (!transparent && !terrain_.empty()) {
         drawTerrain(viewProj, f);
-        staticUniforms(locProg_, light_, eye_, viewProj, intAmb);
+        staticUniforms(locProg_, light_, eye_, viewProj, intAmb, roomTint_);
     }
     for (const auto& [id, p] : editorProps_)
         if (p.wmo) drawWmoGroups(*p.wmo, transparent, f, selKind_ == 1 && selId_ == id ? 0.12f : 0.0f);
@@ -1272,7 +1314,7 @@ void Scene::drawStatic(bool transparent, const M4& viewProj) {
         consider(p.inst);
     }
     if (!transparent) frameStats_.instancesDrawn = list.size() + (selected ? 1 : 0);
-    staticUniforms(instProg_, light_, eye_, viewProj, intAmb);
+    staticUniforms(instProg_, light_, eye_, viewProj, intAmb, roomTint_);
     drawInstances(list, transparent, nullptr, 0, 0);
     if (selected) drawInstances({selected}, transparent, nullptr, 0, 0.12f);
 }
@@ -1326,8 +1368,9 @@ void Scene::lightActor(const V3& feet, bool restore) {
     }
     // the room's ambient and its mean baked light, a little of it from the sun's side so the body keeps its shape
     const float* ia = location_->intAmbient;
-    float amb[3] = {ia[0] + room->meanLight.x * 0.8f, ia[1] + room->meanLight.y * 0.8f, ia[2] + room->meanLight.z * 0.8f};
-    float dir[3] = {room->meanLight.x * 0.5f, room->meanLight.y * 0.5f, room->meanLight.z * 0.5f};
+    const float* t = roomTint_;
+    float amb[3] = {(ia[0] + room->meanLight.x * 0.8f) * t[0], (ia[1] + room->meanLight.y * 0.8f) * t[1], (ia[2] + room->meanLight.z * 0.8f) * t[2]};
+    float dir[3] = {room->meanLight.x * 0.5f * t[0], room->meanLight.y * 0.5f * t[1], room->meanLight.z * 0.5f * t[2]};
     glUniform3fv(loc(p, "uAmbient"), 1, amb);
     glUniform3fv(loc(p, "uSunColor"), 1, dir);
 }
@@ -1340,7 +1383,7 @@ void Scene::drawSelection(const M4& viewProj) {
     float dist = std::max(0.5f, (in.centre - eye_).length());
     float flat[4] = {1.0f, 0.82f, 0.30f, 1.0f};
     const float* intAmb = location_ ? location_->intAmbient : flat;
-    staticUniforms(instProg_, light_, eye_, viewProj, intAmb);
+    staticUniforms(instProg_, light_, eye_, viewProj, intAmb, roomTint_);
     // the shell, pushed out a few pixels' worth, behind the prop: its rim shows round the prop's edge
     drawInstances({&in}, false, flat, dist * 0.006f, 0);
     // the prop again over the shell's inside (the same depth: LEQUAL lets it through)

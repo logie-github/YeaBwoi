@@ -65,16 +65,22 @@ class Audio(context: Context, private val files: GameFiles) : Sounds {
     private fun deckKey(isAmbience: Boolean, id: Int) = if (isAmbience) -id else id
 
     /** The title's music (sounds.json's title), the ambience off. */
-    fun title() = setBed(MusicPicker.title(book), MusicPicker.TITLE_FADE_MS)
+    fun title() { leavePlace(); setBed(MusicPicker.title(book), MusicPicker.TITLE_FADE_MS) }
 
-    /** A place's music and ambience (sounds.json's places, by the location's id); silence for a place without sound. */
-    fun place(locationId: String, night: Boolean = false) {
+    /**
+     * A place's music and ambience (sounds.json's places, by the location's id); silence for a place without sound. By
+     * day or by [night]: by default as the world's clock last said ([timeOfDay]).
+     */
+    fun place(locationId: String, night: Boolean = clockNight) {
         val p = book.places[locationId]?.let { MusicPicker.place(it, night) }
-        if (p == null) silence() else setBed(p, MusicPicker.FADE_MS)
+        if (p == null) { leavePlace(); silence(); return }
+        if (placeId != locationId) enterPlace(locationId)
+        setBed(p, MusicPicker.FADE_MS)
     }
 
     /** Both beds fade out (a screen without music: the creator, the importers). */
     fun silence(fadeMs: Int = MusicPicker.FADE_MS) {
+        leavePlace()
         token++; bed = null; ambienceKey = ""
         music.stop(fadeMs); ambience.stop(fadeMs)
         tick()
@@ -82,6 +88,13 @@ class Audio(context: Context, private val files: GameFiles) : Sounds {
 
     private fun setBed(b: MusicBed, fadeMs: Int) {
         if (bed?.key == b.key) return
+        val old = bed
+        if (old != null && old.tracks.isNotEmpty() && old.tracks == b.tracks && old.loop == b.loop && old.gapMs == b.gapMs) {
+            // the same music (a place by day and by night): it plays on; only the ambience crosses, slowly
+            bed = b
+            crossAmbience(b.ambience.firstOrNull(), TimeOfDaySound.AMBIENCE_CROSS_MS)
+            return
+        }
         bed = b
         val t = ++token
         played = 0
@@ -164,6 +177,87 @@ class Audio(context: Context, private val files: GameFiles) : Sounds {
         tick()
     }
 
+    /** The ambience loop crosses to [amb] over [fadeMs] (none: fades out); the music is left as it is. */
+    private fun crossAmbience(amb: Int?, fadeMs: Int) {
+        val ak = amb?.toString() ?: ""
+        if (ak == ambienceKey) return
+        ambienceKey = ak
+        val t = token
+        if (amb == null || !files.has(amb)) ambience.stop(fadeMs)
+        if (amb != null) ready(amb, t) { if (ambienceKey == ak) startDeck(amb, isAmbience = true, loop = true, fadeMs = fadeMs, t = t) }
+        tick()
+    }
+
+    // ---- the time of day (simulation/WorldClock): night ambience, the music's level, flavour sounds, bells -----------
+
+    private var clockNight = false
+    private var clockHour = Double.NaN
+    private var nightMusic = 1f
+    private var placeId: String? = null
+    private var placeSounds: PlaceTimeSounds? = null
+    private var placeToken = 0                               // a new place (or none) makes the old one's flavour and bells stop
+    private var flavorCount = 0L
+
+    /**
+     * The world's clock: its hour of the day ([hours], WorldClock.lightHour) and how many real seconds a game hour takes
+     * now ([realSecondsPerHour], WorldClock.realSecondsPerHour). Call it as the clock moves (a few times a second is plenty).
+     * At dusk and dawn the place's ambience crosses to its night or day loop (the music plays on), the music settles a
+     * little quieter by night, and on a bell hour a place with a bell rings it. Main thread.
+     */
+    fun timeOfDay(hours: Double, realSecondsPerHour: Double = 60.0) {
+        if (!hours.isFinite()) return
+        val before = clockHour
+        clockHour = hours
+        val night = TimeOfDaySound.isNight(hours)
+        val level = TimeOfDaySound.musicLevel(hours)
+        if (kotlin.math.abs(level - nightMusic) > 0.002f) { nightMusic = level; applyVolumes() }
+        if (night != clockNight) {
+            clockNight = night
+            placeId?.let { id -> book.places[id]?.let { p -> MusicPicker.place(p, night)?.let { setBed(it, MusicPicker.FADE_MS) } } }
+        }
+        val struck = TimeOfDaySound.struck(before, hours) ?: return
+        val bell = placeSounds?.bell.orEmpty()
+        if (bell.isEmpty() || paused) return
+        val strokes = TimeOfDaySound.bellStrokes(struck, realSecondsPerHour)
+        val vol = placeSounds?.bellVolume ?: 1f
+        val pt = placeToken
+        for (i in 0 until strokes) {
+            val file = TimeOfDaySound.pick(bell, i.toLong()) ?: break
+            handler.postDelayed({ if (pt == placeToken && !paused) playShort(file, Bus.AMBIENCE, vol) }, i * TimeOfDaySound.BELL_SPACING_MS)
+        }
+    }
+
+    private fun enterPlace(id: String) {
+        placeId = id
+        placeSounds = TimeOfDaySound.PLACES[id]
+        val pt = ++placeToken
+        // its flavour and bell sounds loaded ahead (fetched when they aren't here: small files)
+        placeSounds?.files?.forEach { load(it) }
+        if (placeSounds?.flavor(false).isNullOrEmpty() && placeSounds?.flavor(true).isNullOrEmpty()) return
+        scheduleFlavor(pt)
+    }
+
+    private fun leavePlace() {
+        if (placeId == null) return
+        placeId = null
+        placeSounds = null
+        placeToken++
+    }
+
+    /** Now and then, while the place is the same: one of its flavour sounds, the day's or the night's. */
+    private fun scheduleFlavor(pt: Int) {
+        val wait = TimeOfDaySound.flavorDelayMs(pt * 7919L + flavorCount)
+        handler.postDelayed({
+            if (pt != placeToken) return@postDelayed
+            val ps = placeSounds
+            if (ps != null && !paused) {
+                flavorCount++
+                TimeOfDaySound.pick(ps.flavor(clockNight), flavorCount * 31 + pt)?.let { playShort(it, Bus.AMBIENCE, ps.flavorVolume) }
+            }
+            scheduleFlavor(pt)
+        }, wait)
+    }
+
     // ---- the mixer and its clock ------------------------------------------------------------------------------------
 
     /** How many voices are speaking now (SceneAudio.onVoices): the beds dip under them. */
@@ -194,7 +288,7 @@ class Audio(context: Context, private val files: GameFiles) : Sounds {
     }
 
     private fun applyVolumes() {
-        val m = Mixer.gain(levels, Bus.MUSIC, ducker.level)
+        val m = Mixer.gain(levels, Bus.MUSIC, ducker.level) * nightMusic
         val a = Mixer.gain(levels, Bus.AMBIENCE, ducker.ambienceLevel)
         for (d in music.decks) players[deckKey(false, d.id)]?.let { p -> val v = d.level * m; runCatching { p.setVolume(v, v) } }
         for (d in ambience.decks) players[deckKey(true, d.id)]?.let { p -> val v = d.level * a; runCatching { p.setVolume(v, v) } }
@@ -208,15 +302,15 @@ class Audio(context: Context, private val files: GameFiles) : Sounds {
     private val loaded = HashMap<Int, Int>()            // file id -> sound pool id, once loaded
     private val loading = HashMap<Int, Int>()           // sound pool id -> file id, while loading
     private val fetching = HashSet<Int>()
-    private val playWhenLoaded = HashMap<Int, Bus>()     // sound pool ids asked for before they loaded
+    private val playWhenLoaded = HashMap<Int, Pair<Bus, Float>>()     // sound pool ids asked for before they loaded, and their level
 
     init {
         pool.setOnLoadCompleteListener { p, id, status ->
             val file = loading.remove(id) ?: return@setOnLoadCompleteListener
-            val bus = playWhenLoaded.remove(id)
+            val want = playWhenLoaded.remove(id)
             if (status != 0) return@setOnLoadCompleteListener
             loaded[file] = id
-            if (bus != null && !paused) Mixer.gain(levels, bus).let { v -> if (v > 0f) p.play(id, v, v, 1, 0, 1f) }
+            if (want != null && !paused) (Mixer.gain(levels, want.first) * want.second).let { v -> if (v > 0f) p.play(id, v, v, 1, 0, 1f) }
         }
         filesArrived()
     }
@@ -237,12 +331,13 @@ class Audio(context: Context, private val files: GameFiles) : Sounds {
         return id
     }
 
-    private fun playShort(file: Int, bus: Bus) {
+    /** [file] once on [bus], at [scale] of the bus's level (a sound kit's own volume). */
+    private fun playShort(file: Int, bus: Bus, scale: Float = 1f) {
         if (paused) return
-        val v = Mixer.gain(levels, bus)
+        val v = Mixer.gain(levels, bus) * scale.coerceIn(0f, 1f)
         if (v <= 0f) return
         val id = load(file) ?: return
-        if (loaded[file] == id) pool.play(id, v, v, 1, 0, 1f) else playWhenLoaded[id] = bus
+        if (loaded[file] == id) pool.play(id, v, v, 1, 0, 1f) else playWhenLoaded[id] = bus to scale.coerceIn(0f, 1f)
     }
 
     private fun pick(list: List<Int>?): Int? = list?.takeIf { it.isNotEmpty() }?.let { it[Random.nextInt(it.size)] }
@@ -259,6 +354,7 @@ class Audio(context: Context, private val files: GameFiles) : Sounds {
     // ---- the story's named music and ambience (play/Sounds) -----------------------------------------------------------
 
     override fun music(name: String, fadeMs: Int) {
+        leavePlace()
         val file = book.music[name]
         if (file == null) { token++; bed = null; music.stop(fadeMs); tick(); return }
         val b = MusicBed("story:$name", listOf(file), loop = true)
@@ -306,6 +402,7 @@ class Audio(context: Context, private val files: GameFiles) : Sounds {
 
     fun release() {
         token++
+        placeToken++
         handler.removeCallbacksAndMessages(null)
         for (p in players.values) runCatching { p.release() }
         players.clear(); music.clear(); ambience.clear()

@@ -219,6 +219,8 @@ class SceneSimulation(
         val fit: FurnitureFit? = null,
     ) {
         var started = false
+        /** The life simulation's interaction this is (an [InteractionId] ordinal: a hug, a dance), or -1. */
+        var lifeKind = -1
         /** Seconds played since the first cycle started, and cycles finished: one clock for both. */
         var clock = 0f
         var loops = 0
@@ -267,10 +269,18 @@ class SceneSimulation(
         var spokenId = 0L
         var spokenUntil = 0f
         var sayGestureUntil = 0f
+        /** Seconds to stay on furniture once there (the life simulation's; 0: the activity's own time). */
+        var hold = 0f
+        /** The life simulation's interaction this person is doing (an [InteractionId] ordinal), or -1. */
+        var lifeTag = -1
     }
 
-    /** Two people talking: [a] went to [b]; [conversation] is its lines' clock (started when [a] arrives). */
-    private class Talk(val a: Actor, val b: Actor, val conversation: Conversation, val directed: Boolean)
+    /**
+     * Two people talking: [a] went to [b]; [conversation] is its lines' clock (started when [a] arrives). For the life
+     * simulation: what it was ([kind]), whether [b] said no ([refused]) and the small talk's [topic].
+     */
+    private class Talk(val a: Actor, val b: Actor, val conversation: Conversation, val directed: Boolean,
+        val kind: InteractionId = InteractionId.CHAT, val refused: Boolean = false, val topic: String? = null)
 
     /** Seconds the simulation has run (the speech bubbles' clock). */
     private var time = 0f
@@ -666,6 +676,11 @@ class SceneSimulation(
                 }
             }
         }
+        val l = life
+        if (l != null && l.enabled) {
+            for (a in order) l.observe(a.index, observed(a), a.phase == Phase.MOVING, a.directed)
+            l.tick(dt, lifeWorld)
+        }
     }
 
     private fun wander(actor: Actor) {
@@ -675,6 +690,12 @@ class SceneSimulation(
     }
 
     private fun choose(actor: Actor) {
+        val l = life
+        if (l != null && l.enabled && actor.queue.isEmpty() && !actor.directed) {
+            val plan = l.decide(actor.index, lifeWorld)
+            if (plan == null || !runLife(actor, plan, directed = false)) wander(actor)
+            return
+        }
         if (partnerChance > 0f && actor.cooldown <= 0f && !actor.directed && actor.queue.isEmpty()) {
             val other = nearestFree(actor)
             if (other != null && random.nextFloat() < partnerChance && pick(actor, other) && startPartner(actor, other, directed = false)) return
@@ -697,7 +718,8 @@ class SceneSimulation(
         }
     }
 
-    private fun startChat(actor: Actor, other: Actor, directed: Boolean): Boolean {
+    private fun startChat(actor: Actor, other: Actor, directed: Boolean, lines: List<ChatLine>? = null,
+        kind: InteractionId = InteractionId.CHAT, refused: Boolean = false, topic: String? = null): Boolean {
         release(actor)
         release(other)
         val side = if (other.position.x > 0f) -1f else 1f
@@ -710,8 +732,11 @@ class SceneSimulation(
         other.partner = actor
         other.activity = Activity.LISTEN
         other.phase = Phase.ACTING
-        chatter?.let { words ->
-            val talk = Talk(actor, other, Conversation(words.conversation(actor.id, other.id, random)), directed)
+        val words = chatter
+        val said: List<ChatLine>? = lines ?: words?.conversation(actor.id, other.id, random, topic)
+            ?: life?.takeIf { it.enabled }?.smallTalk(actor.index, other.index)
+        if (said != null) {
+            val talk = Talk(actor, other, Conversation(said), directed, kind, refused, if (lines == null) words?.lastTopicName else null)
             actor.talk = talk
             other.talk = talk
         }
@@ -739,6 +764,17 @@ class SceneSimulation(
         if (b.talk === talk) release(b)
         a.chatCooldown = MIN_CHAT_COOLDOWN + random.nextFloat() * (MAX_CHAT_COOLDOWN - MIN_CHAT_COOLDOWN)
         b.chatCooldown = MIN_CHAT_COOLDOWN + random.nextFloat() * (MAX_CHAT_COOLDOWN - MIN_CHAT_COOLDOWN)
+        val l = life
+        if (l != null && l.enabled) {
+            l.talkEnded(a.index, b.index, talk.kind, talk.refused, talk.topic)
+            when {
+                talk.refused -> {}
+                talk.kind == InteractionId.INVITE_SIT -> seatTogether(a, b, talk.directed)
+                !talk.directed && partnerChance > 0f && free(a) && free(b) && l.followUp(a.index, b.index) ->
+                    pairUp(a, b, InteractionId.PLAY_TOGETHER, l.allowed(a.index, b.index), null, directed = false)
+            }
+            return
+        }
         if (!talk.directed && partnerChance > 0f && random.nextFloat() < FRIENDLY_CHANCE && free(a) && free(b) && pick(a, b)) {
             startPartner(a, b, directed = false)
         }
@@ -782,7 +818,7 @@ class SceneSimulation(
         actor.position = actor.destination
         if (actor.activity == Activity.IDLE && actor.directed) actor.wanderCenter = actor.position
         actor.phase = Phase.ACTING
-        actor.remaining = durations[actor.activity]?.takeIf { it.isFinite() && it > 0f } ?: actor.activity.seconds
+        actor.remaining = actor.hold.takeIf { it > 0f } ?: durations[actor.activity]?.takeIf { it.isFinite() && it > 0f } ?: actor.activity.seconds
         actor.target?.let { target ->
             val spot = spots.getValue(target)
             actor.position = spot.pose
@@ -818,11 +854,216 @@ class SceneSimulation(
         actor.phase = Phase.WAITING
         actor.remaining = 1.25f + random.nextFloat() * 2f
         actor.directed = false
+        actor.hold = 0f
+        actor.lifeTag = -1
         if (partner != null) {
             partner.partner = null
             release(partner)
         }
     }
+
+    // ---- the life simulation (LifeSim): needs, moods, relationships; it decides, this runtime carries it out
+
+    /**
+     * The life simulation laid over this scene (null: none; NPCs choose as before). Its cast must be this one's, in order.
+     * While it is on, an NPC free to choose asks it ([LifeSim.decide]) instead of wandering at random, and every step it is
+     * told what each one is doing ([observed]).
+     */
+    var life: LifeSim? = null
+        set(v) {
+            require(v == null || v.ids == order.map { it.id }) { "the life simulation's cast is not the scene's" }
+            field = v
+            version++
+        }
+
+    private val lifeWorld = object : LifeWorld {
+        override fun x(index: Int) = order[index].x
+        override fun y(index: Int) = order[index].y
+        override fun freeSpot(item: SceneObject, index: Int): Vec3? =
+            if (item in objects && available(item, order[index].id)) spots[item]?.entry else null
+        override fun approachable(index: Int) = canApproach(order[index])
+        override fun finish(index: Int) = finishLife(order[index])
+        override val chatterOn: Boolean get() = chatterChance > 0f
+        override val pairsOn: Boolean get() = partnerChance > 0f
+    }
+
+    /**
+     * Whether an NPC may go to [o] for something social by themselves: [o] under no order and in no conversation or pair,
+     * not lately in one, and standing, wandering, sitting or reading (they stop for it, as anyone would); never one asleep
+     * or at a meal.
+     */
+    private fun canApproach(o: Actor): Boolean {
+        if (o.directed || o.talk != null || o.performance != null || o.queue.isNotEmpty() || o.chatCooldown > 0f) return false
+        if (o.lifeTag == InteractionId.SLEEP.ordinal || o.lifeTag == InteractionId.NAP.ordinal) return false
+        return when (o.phase) {
+            Phase.WAITING -> true
+            Phase.MOVING -> o.activity == Activity.IDLE && o.target == null
+            Phase.ACTING -> o.activity == Activity.SIT || o.activity == Activity.READ || o.activity == Activity.IDLE
+        }
+    }
+
+    /** What life counts [a] as doing now, or null (standing, waiting, walking, a two-person animation not begun). */
+    private fun observed(a: Actor): InteractionId? {
+        if (a.phase != Phase.ACTING) return null
+        val p = a.performance
+        if (p != null && !p.started) return null
+        val talk = a.talk
+        if (talk != null && !talk.conversation.started) return null
+        if (a.lifeTag >= 0) return InteractionId.entries[a.lifeTag]
+        return when (a.activity) {
+            Activity.REST -> if (a.target == SceneObject.BED) InteractionId.SLEEP else InteractionId.NAP
+            Activity.SIT -> InteractionId.RELAX
+            Activity.READ -> InteractionId.READ
+            Activity.CHAT, Activity.LISTEN -> InteractionId.CHAT
+            Activity.PERFORM -> if (p?.other != null) InteractionId.PLAY_TOGETHER else null
+            else -> null
+        }
+    }
+
+    /** Ends what [actor] does by itself now (life: its need is met); a conversation, a pair or a player's order runs on. */
+    private fun finishLife(actor: Actor) {
+        if (actor.directed || actor.talk != null || actor.phase != Phase.ACTING) return
+        val p = actor.performance
+        if (p != null) {
+            if (p.other != null || p.lead !== actor) return
+            p.repeat = false
+            p.remainingCycles = 1
+        }
+        actor.remaining = 0f
+    }
+
+    /** Carries out [plan] for [actor] with this runtime's own machinery. False: it couldn't start (held, no way there). */
+    private fun runLife(actor: Actor, plan: LifePlan, directed: Boolean): Boolean {
+        val id = plan.id
+        return when (plan.provider) {
+            LifeProvider.BED, LifeProvider.COUCH, LifeProvider.CHAIR -> {
+                val item = plan.item ?: return false
+                sitOrLie(actor, item, id, plan.holdSeconds, directed)
+            }
+            LifeProvider.TABLE -> {
+                val item = plan.item ?: return false
+                if (id == InteractionId.READ) sitOrLie(actor, item, id, plan.holdSeconds, directed)
+                else {
+                    if (!available(item, actor.id)) return false
+                    val spot = spots.getValue(item)
+                    emoteAt(actor, plan, spot.entry, spot.facing, item, directed)
+                }
+            }
+            LifeProvider.FLOOR -> if (id == InteractionId.WANDER) {
+                wander(actor)
+                true
+            } else emoteAt(actor, plan, actor.position, actor.facing, null, directed)
+            LifeProvider.FIREPLACE, LifeProvider.BASIN, LifeProvider.BOOKSHELF -> {
+                val prop = plan.prop ?: return false
+                emoteAt(actor, plan, prop.entry, prop.facing, null, directed)
+            }
+            LifeProvider.PERSON -> social(actor, plan, directed)
+        }
+    }
+
+    /** [actor] goes to [item] and sits, lies or reads there (its own pose), for [hold] seconds. */
+    private fun sitOrLie(actor: Actor, item: SceneObject, id: InteractionId, hold: Float, directed: Boolean): Boolean {
+        if (!available(item, actor.id)) return false
+        val activity = when {
+            item == SceneObject.TABLE -> Activity.READ
+            item == SceneObject.BED && id != InteractionId.RELAX && id != InteractionId.INVITE_SIT -> Activity.REST
+            else -> Activity.SIT
+        }
+        if (!begin(actor, activity, spots.getValue(item).entry, directed, item)) return false
+        actor.hold = hold
+        actor.lifeTag = id.ordinal
+        return true
+    }
+
+    /** [actor] walks to [anchor] (holding [furniture], if any) and plays [plan]'s emote there, facing [heading], its cycles over. */
+    private fun emoteAt(actor: Actor, plan: LifePlan, anchor: Vec3, heading: Float, furniture: SceneObject?, directed: Boolean): Boolean {
+        val id = plan.id
+        if (id.anim < 0) return false
+        val request = PerformanceOrder(null, listOf(PlaybackRole(PlaybackKeys.emote(id.anim), Vec3(0f, 0f, 0f), 0f)),
+            id.cycle.coerceAtLeast(0.5f), repetitions = plan.cycles.coerceIn(1, 100), name = id.label)
+        if (!startPerformance(actor, request, null, Setup(anchor, heading, furniture, -1, actor, directed, partner = false))) return false
+        actor.lifeTag = id.ordinal
+        return true
+    }
+
+    /** A social [plan]: a conversation, a spoken exchange, or a two-person animation (with words when none fits). */
+    private fun social(actor: Actor, plan: LifePlan, directed: Boolean): Boolean {
+        val other = order.getOrNull(plan.other) ?: return false
+        if (other === actor) return false
+        if (!directed && !canApproach(other)) return false
+        val id = plan.id
+        fun spoken(refused: Boolean) = startChat(actor, other, directed, listOf(
+            ChatLine(0, plan.ask ?: "", Gestures.of(plan.ask ?: "")),
+            ChatLine(1, plan.answer ?: "", if (refused) Gestures.STAND else Gestures.of(plan.answer ?: ""))), id, refused)
+        if (!plan.accepted) return spoken(true)
+        return when (id) {
+            InteractionId.CHAT -> startChat(actor, other, directed, kind = id)
+            InteractionId.JOKE -> startChat(actor, other, directed, kind = id, topic = "jokes")
+            InteractionId.HUG, InteractionId.KISS, InteractionId.DANCE_TOGETHER, InteractionId.PLAY_TOGETHER -> {
+                val words = when (id) {
+                    InteractionId.HUG -> PairKinds.HUG_WORDS
+                    InteractionId.KISS -> PairKinds.KISS_WORDS
+                    InteractionId.DANCE_TOGETHER -> PairKinds.DANCE_WORDS
+                    else -> null
+                }
+                // the player's choice is any that fits the words; by themselves, only what their standing allows
+                val max = if (directed) Intimacy.INTIMATE else life?.allowed(actor.index, other.index) ?: Intimacy.CASUAL
+                pairUp(actor, other, id, max, words, directed) || spoken(false)
+            }
+            else -> spoken(false)
+        }
+    }
+
+    /** [a] and [b] play a two-person animation of [id] no more intimate than [max] (and named by [words]). False: none fits. */
+    private fun pairUp(a: Actor, b: Actor, id: InteractionId, max: Intimacy, words: List<String>?, directed: Boolean): Boolean {
+        val gate = { name: String, emote: Int ->
+            val level = if (emote >= 0) PairKinds.ofEmote(emote) else PairKinds.of(name)
+            level.ordinal <= max.ordinal && (words == null || PairKinds.matches(name, words))
+        }
+        if (!pick(a, b, gate)) return false
+        release(a)
+        release(b)
+        if (!startPartner(a, b, directed)) return false
+        a.performance?.lifeKind = id.ordinal
+        a.lifeTag = id.ordinal
+        b.lifeTag = id.ordinal
+        return true
+    }
+
+    /** After "Sit with me?": [a] and [b] each take a seat, the couch first, and sit a while together. */
+    private fun seatTogether(a: Actor, b: Actor, directed: Boolean) {
+        val seats = listOf(SceneObject.COUCH, SceneObject.CHAIR, SceneObject.BED).filter { it in objects && it in spots }
+        val hold = life?.clock?.realSeconds(InteractionId.INVITE_SIT.hours.toDouble())?.coerceIn(LifeSim.MIN_HOLD, LifeSim.MAX_HOLD) ?: 30f
+        var taken: SceneObject? = null
+        for (item in seats) if (available(item, a.id) && sitOrLie(a, item, InteractionId.INVITE_SIT, hold, directed)) { taken = item; break }
+        for (item in seats) if (item != taken && available(item, b.id) && sitOrLie(b, item, InteractionId.INVITE_SIT, hold, directed)) break
+    }
+
+    /**
+     * The player's life interaction ([LifeControl.interact]): [id] by [aId] (with [bId]), as the player's order; the other
+     * may refuse. The answer is the scene's notice.
+     */
+    fun lifeInteract(aId: String, bId: String?, id: InteractionId): LifeResult {
+        val l = life?.takeIf { it.enabled } ?: return LifeResult(false, "Life simulation is off.")
+        val a = actors[aId] ?: return LifeResult(false, "Nobody to do that.")
+        val b = if (bId == null) null else actors[bId] ?: return LifeResult(false, "Nobody to do that with.")
+        if (id.social && b == null) return LifeResult(false, "Choose someone for ${id.label}.")
+        if (b != null && b.directed && b.performance?.partnerActivity != true) return LifeResult(false, "They're busy with something else.")
+        val (plan, result) = l.request(a.index, b?.index ?: -1, id, lifeWorld)
+        if (plan == null) return result
+        if (!runLife(a, plan, directed = true)) return LifeResult(false, "Couldn't get there.")
+        return result
+    }
+
+    /** Which of the player's menu interactions [aId] (with [bId]) can have here now. */
+    fun lifeMenu(aId: String, bId: String?): List<Pair<InteractionId, Boolean>> {
+        val l = life ?: return emptyList()
+        val a = actors[aId] ?: return emptyList()
+        return l.menu(a.index, bId?.let { actors[it]?.index } ?: -1, lifeWorld)
+    }
+
+    /** What [id] is doing as life counts it (tests). */
+    fun lifeDoing(id: String): InteractionId? = actors[id]?.let { observed(it) }
 
     // ---- the partner activity: an idle NPC goes to another and they play a two-person animation (a Performance)
 
@@ -863,10 +1104,11 @@ class SceneSimulation(
      * no fitting furniture in reach is never chosen. A pair read from its names alone goes by its location names, as before
      * ([furnitureFor]). False: nothing.
      */
-    private fun pick(a: Actor, b: Actor): Boolean {
+    private fun pick(a: Actor, b: Actor, gate: ((name: String, emote: Int) -> Boolean)? = null): Boolean {
         val options = ArrayList<Option>()
         val unit = bodyUnit(a, b)
         for (p in pairs) {
+            if (gate != null && !gate(p.name, -1)) continue
             val r = requirementOf(p)
             if (r == null || !placed(r)) {
                 val place = furnitureFor(p, a, b)
@@ -888,6 +1130,7 @@ class SceneSimulation(
             return true
         }
         val mutual = PartnerEmotes.mutual(a.id, b.id, emotes, emoteScratch)
+        if (gate != null) mutual.removeAll { !gate(it.name, it.anim) }
         if (mutual.isEmpty()) return false
         pickedEmote = mutual[random.nextInt(mutual.size)]
         return true
@@ -1032,6 +1275,9 @@ class SceneSimulation(
 
     /** The end of a finished partner animation (both already released): they step a little apart, then carry on. */
     private fun part(performance: Performance) {
+        val other = performance.other
+        if (other != null) life?.takeIf { it.enabled }?.together(performance.lead.index, other.index,
+            InteractionId.entries.getOrNull(performance.lifeKind) ?: InteractionId.PLAY_TOGETHER)
         val ox = performance.anchor.x
         val oy = performance.anchor.y
         for (actor in listOfNotNull(performance.lead, performance.other)) {

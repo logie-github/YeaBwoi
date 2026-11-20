@@ -178,8 +178,15 @@ public:
     float floorAt(float x, float y, float z) const;
 
     void setCamera(V3 eye, V3 target, float fovDegrees);
-    void setLight(const Light& l) { light_ = l; }
+    // The light as given (a stage's preset, or what a location's view made of it); with a time of day set, the light
+    // drawn is this graded by the hour (setTimeOfDay).
+    void setLight(const Light& l) { baseLight_ = l; light_ = l; applyTimeOfDay(); }
     const Light& light() const { return light_; }
+    // The world clock's hour (0..24) on the loaded location's light (daylight.h: its dayCycle, else the default one): the
+    // sky, sun or moon, ambient and fog of that hour, and its rooms' own light dimmed and warmed at night. Negative: off,
+    // the light as given. Cheap: call it as often as the clock moves (a few times a second). No location: no change.
+    void setTimeOfDay(float hours);
+    float timeOfDay() const { return timeOfDay_; }
 
     // ---------------------------------------------------------------- locations and props (location.cpp)
     // A location (location.h: an entry of assets/locations.json): its WMO's groups in world coordinates, its doodads and
@@ -563,6 +570,10 @@ private:
     V3 eye_{0, -10, 2}, target_{0, 0, 1};
     float fov_ = 45;
     Light light_;
+    Light baseLight_;                    // light_ before the time of day (setLight's, the location view's look over it)
+    float timeOfDay_ = -1;               // the hour, negative: off
+    float roomTint_[3] = {1, 1, 1};      // a room's own light (interior ambient, baked vertex light) times this
+    void applyTimeOfDay();               // light_ and roomTint_ from baseLight_ and timeOfDay_ (location.cpp)
     M4 view_, proj_;
 
     GlTexture texture(uint32_t fileId, int maxSize);
@@ -625,7 +636,7 @@ private:
     void drawGizmo();
     void freeWmoGl(PlacedWmo& w);
     void litSetup(unsigned prog, const M4& viewProj);                            // scene.cpp
-    void staticSetup(unsigned prog, const M4& viewProj, const float intAmbient[3]); // location.cpp
+    void staticSetup(unsigned prog, const M4& viewProj, const float intAmbient[3], const float* roomTint = nullptr); // location.cpp
 };
 
 } // namespace wc
