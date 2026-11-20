@@ -90,7 +90,9 @@ public:
     // character's hair colour times the design. Kept until changed; dress() leaves it.
     void setBody(int id, const std::vector<float>& morph, float k, float fold);
     void removeActor(int id);
-    enum FurniturePose { kOnFloor = 0, kSitting = 1, kLying = 2 };
+    // kRaised: on the floor pose but at the given height, not stood on the floor under it: a clip raised onto a bed or a
+    // seat, or off a floor its joints would reach under (the app's Pose.lift); placeActor stores it as kOnFloor.
+    enum FurniturePose { kOnFloor = 0, kSitting = 1, kLying = 2, kRaised = 3 };
     void placeActor(int id, V3 position, float facing, int furniture = kOnFloor, V3 surface = {});
     void playAnim(int id, uint16_t animId, bool loop, uint32_t nowMs);
     void setIdleAnim(int id, uint16_t animId);

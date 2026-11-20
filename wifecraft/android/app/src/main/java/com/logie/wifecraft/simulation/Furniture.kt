@@ -284,7 +284,8 @@ data class FurnitureFit(
          * actor) is tried on each slot that takes its posture: its support on the slot, its facing (or head) along the slot,
          * the clip raised by the slot's height less its own; then every actor must land on a surface (or the floor around)
          * that takes its posture within [HEIGHT_TOLERANCE_M]; a lying body's head and feet must be over it (give
-         * [OVERHANG_M]); feet that stay on the floor forbid raising the clip and must not land inside a solid piece.
+         * [OVERHANG_M]); a sitting body's feet must be off the solid it sits on (its shins hang); feet that stay on the floor
+         * forbid raising the clip and must not land inside a solid piece.
          * The fit whose actors land nearest slots, at the closest heights, wins. [bodyUnit]: world units of one body unit
          * (the actor's standing pelvis height as drawn).
          */
@@ -319,6 +320,12 @@ data class FurnitureFit(
                             val (hx, hy) = place(b.headX, b.headY)
                             val (fx, fy) = place(b.feetX, b.feetY)
                             if (!over(f, land, hx, hy, k) || !over(f, land, fx, fy, k)) { ok = false; break }
+                        }
+                        // a seated body's shins hang below its seat: its feet must be off the solid it sits on (a sit on a
+                        // bed takes its edge, not its middle, where the shins went into the mattress)
+                        if (b.posture == Posture.SIT && land.region?.solid == true) {
+                            val (fx, fy) = place(b.feetX, b.feetY)
+                            if (land.region.contains(fx, fy, -0.1f * k)) { ok = false; break }
                         }
                         if (b.feetOnFloor) {
                             if (abs(lift) > tol) { ok = false; break }

@@ -273,10 +273,16 @@ class SceneFilmRecorder {
                 camera[0] = eyeX; camera[1] = eyeY; camera[2] = eyeZ; camera[3] = atX; camera[4] = atY; camera[5] = atZ; camera[6] = fov
             }
             override fun place(index: Int, x: Float, y: Float, z: Float, facing: Float, furniture: SceneObject?, sx: Float, sy: Float, sz: Float) {
-                poseKind[index] = when (furniture?.action) { Activity.SIT -> 1; Activity.REST -> 2; else -> 0 }
+                // as SceneSessionScreen's sink: 3 a clip raised over its floor (Scene::kRaised: drawn at z, not stood on the floor)
+                poseKind[index] = when {
+                    furniture?.action == Activity.SIT -> 1
+                    furniture?.action == Activity.REST -> 2
+                    furniture == null && z > sz + 0.01f -> 3
+                    else -> 0
+                }
                 val p = place[index]
                 p[0] = x; p[1] = y; p[2] = z; p[3] = facing; p[4] = sx; p[5] = sy; p[6] = sz
-                p[7] = sz + SpeechLayout.head(heads[index], poseKind[index] == 1, poseKind[index] == 2)
+                p[7] = (if (poseKind[index] == 3) z else sz) + SpeechLayout.head(heads[index], poseKind[index] == 1, poseKind[index] == 2)
             }
             override fun activity(index: Int, activity: Activity) {
                 glAnimate(index, activity.animation)

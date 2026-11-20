@@ -115,7 +115,11 @@ class LiveScene(
     /** Where the frame goes (the 3D view, or a test's recorder). GL thread. */
     interface Sink {
         fun camera(eyeX: Float, eyeY: Float, eyeZ: Float, atX: Float, atY: Float, atZ: Float, fov: Float)
-        /** Person [index] at x, y, z facing [facing] (stage), on [furniture] (null: the floor) whose surface is sx, sy, sz. */
+        /**
+         * Person [index] at x, y, z facing [facing] (stage), on [furniture] (null: the floor) whose surface is sx, sy, sz. On
+         * no furniture, sz under z means a clip raised that far over the floor at sz (Pose.lift: onto a bed or seat, or off a
+         * floor its joints would reach under): drawn at z, not stood on the floor.
+         */
         fun place(index: Int, x: Float, y: Float, z: Float, facing: Float, furniture: SceneObject?, sx: Float, sy: Float, sz: Float)
         /** Person [index] began [activity] this frame (their animation changes now, with the placement). */
         fun activity(index: Int, activity: Activity)
@@ -406,7 +410,9 @@ class LiveScene(
                     stageX(x, y), stageY(x, y), oz + z)
             } else {
                 val sx = stageX(x, y); val sy = stageY(x, y)
-                sink.place(i, sx, sy, oz + z, facing, null, sx, sy, oz + z)
+                // a clip raised over its floor (Pose.lift) keeps that height: the floor goes as the surface
+                val lift = if (pose.playback != null) pose.lift else 0f
+                sink.place(i, sx, sy, oz + z, facing, null, sx, sy, oz + z - lift)
             }
             if (i == sel) {
                 hasFocus = true
