@@ -3,12 +3,16 @@ package com.logie.wifecraft.simulation
 import com.logie.wifecraft.story.CameraPose
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.asin
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.exp
 import kotlin.math.hypot
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
+import kotlin.math.tan
 
 // Pure Kotlin (no Android, no Compose): the live scene's camera and its touch handling, run by the JVM tests
 // (unit-tests/.../simulation/SceneCameraTest.kt). WoW's coordinates: Z up, yaw radians about Z from +X.
@@ -41,12 +45,72 @@ fun easeInOut(t: Float): Float {
 }
 
 /**
- * The live scene's camera: the room's own view, or the NPC camera orbiting the selected NPC. Every value it shows is
- * smoothed: the orbit (yaw, pitch, distance) follows its goal on [Spring]s, the target follows the NPC's walking position
- * on its own slower springs (walking never jitters it), a flick keeps turning with friction, the pitch and distance give a
- * little past their limits while a finger holds them and spring back after, and going between the room and the NPC camera
- * eases over [TRANSITION_S]. The touch side ([dragBy], [release], [pinch], [twist], [zoomBy], [setNpc]) may be called from
- * the main thread; [update] runs once a frame on the GL thread and writes the pose into [eyeX]..[fov] (nothing allocated).
+ * The live scene's three cameras: [ROOM] the place's own fixed view, [ORBIT] a free orbit around a point of the room (it starts
+ * on the room's view, then turns, zooms, pans and rises from there), [FOLLOW] the orbit around the controlled NPC (it glides
+ * after them as they walk).
+ */
+enum class CameraMode {
+    ROOM, ORBIT, FOLLOW;
+
+    /** The camera button's next mode: Room, Orbit, Follow (only with someone controlled to follow), then Room again. */
+    fun next(canFollow: Boolean): CameraMode = when (this) {
+        ROOM -> ORBIT
+        ORBIT -> if (canFollow) FOLLOW else ROOM
+        FOLLOW -> ROOM
+    }
+}
+
+/** The orbit's pure maths (no state): the yaw's wrap, the target's height and pan limits, a finger's pixels in yards. */
+object OrbitMath {
+    private const val TAU = (2.0 * PI).toFloat()
+
+    /** [a] radians brought within -PI..PI, the same direction (not finite: 0). */
+    fun wrap(a: Float): Float {
+        if (!a.isFinite()) return 0f
+        var x = a % TAU
+        if (x > PI) x -= TAU
+        if (x < -PI) x += TAU
+        return x
+    }
+
+    /**
+     * The lowest lift (yards above the [baseZ] the orbit looks at) with the floor at [floorZ] (NaN: unknown): never below
+     * [SceneCamera.MIN_TARGET_H] over the floor nor [SceneCamera.MAX_LIFT] under the base; 0 always allowed.
+     */
+    fun liftLow(baseZ: Float, floorZ: Float): Float {
+        val byRoom = if (floorZ.isNaN()) -SceneCamera.MAX_LIFT else floorZ + SceneCamera.MIN_TARGET_H - baseZ
+        return min(0f, max(-SceneCamera.MAX_LIFT, byRoom))
+    }
+
+    /** The highest lift: never above [SceneCamera.MAX_TARGET_H] over the floor (about the ceiling) nor [SceneCamera.MAX_LIFT]. */
+    fun liftHigh(baseZ: Float, floorZ: Float): Float {
+        val byRoom = if (floorZ.isNaN()) SceneCamera.MAX_LIFT else floorZ + SceneCamera.MAX_TARGET_H - baseZ
+        return max(0f, min(SceneCamera.MAX_LIFT, byRoom))
+    }
+
+    /** The factor that shortens a ground pan ([x], [y] yards) to at most [limit] long (1: it is within it). */
+    fun panScale(x: Float, y: Float, limit: Float): Float {
+        val d = hypot(x, y)
+        return if (d <= limit || d <= 0f) 1f else limit / d
+    }
+
+    /** Yards a finger's pixel moves the target at [distance] with a vertical field of view of [fovDeg] on a view [viewH] high. */
+    fun yardsPerPixel(distance: Float, fovDeg: Float, viewH: Float): Float {
+        val fov = if (fovDeg.isFinite() && fovDeg > 1f && fovDeg < 170f) fovDeg else 50f
+        return 2f * distance * tan(Math.toRadians(fov / 2.0).toFloat()) / viewH.coerceAtLeast(1f)
+    }
+}
+
+/**
+ * The live scene's camera: the room's own view, or an orbit ([CameraMode.ORBIT] round a point of the room,
+ * [CameraMode.FOLLOW] round the controlled NPC). Every value it shows is smoothed: the orbit (yaw, pitch, distance) follows
+ * its goal on [Spring]s, the point it looks at is a base (the room's point, or the NPC's walking position on slower springs:
+ * walking never jitters it) plus an offset the player moves (a two-finger pan along the ground, the lift up and down) on the
+ * orbit's springs; a flick keeps turning with friction, the pitch and distance give a little past their limits while a finger
+ * holds them and spring back after, and going between the room and an orbit eases over [TRANSITION_S]. Going between Orbit
+ * and Follow keeps the view where it is and glides the target. The touch side ([setMode], [dragBy], [release], [pinch],
+ * [twist], [pan], [liftBy], [zoomBy]) may be called from the main thread; [update] runs once a frame on the GL thread and
+ * writes the pose into [eyeX]..[fov] (nothing allocated).
  */
 class SceneCamera(room: CameraPose) {
     companion object {
@@ -57,7 +121,7 @@ class SceneCamera(room: CameraPose) {
         /** How far a finger may push past a limit (it springs back on release). */
         const val PITCH_GIVE = 0.12f
         const val DISTANCE_GIVE = 0.15f
-        /** Room camera to NPC camera and back, seconds. */
+        /** Room camera to an orbit and back, seconds. */
         const val TRANSITION_S = 0.35f
         /** A flick's turning dies away at this rate (1/s). */
         const val FRICTION = 5f
@@ -65,12 +129,25 @@ class SceneCamera(room: CameraPose) {
         const val MAX_SPIN = 6f
         const val START_PITCH = 0.32f
         const val START_DISTANCE = 4.5f
-        /** The orbit's springs and the target's (slower: a walk's steps are smoothed out). */
+        /** The orbit's springs (and the player's pan and lift) and the base target's (slower: a walk's steps are smoothed out). */
         const val ORBIT_OMEGA = 18f
         const val TARGET_OMEGA = 7f
+        /** The farthest the target is panned along the ground from its base, yards. */
+        const val MAX_PAN = 12f
+        /** The most the target is lifted or lowered from its base, yards. */
+        const val MAX_LIFT = 3f
+        /** The target's lowest and highest over the floor (when the floor is known): just above it, about the ceiling. */
+        const val MIN_TARGET_H = 0.1f
+        const val MAX_TARGET_H = 4.0f
+        /** The eye never goes lower than this over the floor (when the floor is known). */
+        const val EYE_ABOVE_FLOOR = 0.2f
+        /** One press (or repeat) of the up and down buttons, yards. */
+        const val LIFT_STEP = 0.15f
     }
 
     @Volatile var room: CameraPose = room
+    /** The stage's floor height (NaN: unknown): the target's lift and the eye are kept within the room. Any thread. */
+    @Volatile var floorZ: Float = Float.NaN
 
     // ---- the touch side's requests, taken by [update] (guarded by `this`)
     private var pendYaw = 0f
@@ -79,8 +156,12 @@ class SceneCamera(room: CameraPose) {
     private var pendFlickYaw = Float.NaN
     private var pendFlickPitch = 0f
     private var pendHold: Boolean? = null
-    private var pendNpc: Boolean? = null
+    private var pendMode: CameraMode? = null
     private var pendSnap = false
+    private var pendPanX = 0f
+    private var pendPanY = 0f
+    private var pendPanH = 1f
+    private var pendLift = 0f
 
     // ---- the GL thread's state
     private var goalYaw = 0f
@@ -89,15 +170,25 @@ class SceneCamera(room: CameraPose) {
     private val yaw = Spring(0f, ORBIT_OMEGA)
     private val pitch = Spring(START_PITCH, ORBIT_OMEGA)
     private val distance = Spring(START_DISTANCE, ORBIT_OMEGA)
+    // the base the orbit looks at (the room's point, or the NPC) and the player's offset from it (pan x, y and lift)
     private val tx = Spring(0f, TARGET_OMEGA)
     private val ty = Spring(0f, TARGET_OMEGA)
     private val tz = Spring(0f, TARGET_OMEGA)
+    private var goalPanX = 0f
+    private var goalPanY = 0f
+    private var goalLift = 0f
+    private val px = Spring(0f, ORBIT_OMEGA)
+    private val py = Spring(0f, ORBIT_OMEGA)
+    private val pz = Spring(0f, ORBIT_OMEGA)
     private var spinYaw = 0f
     private var spinPitch = 0f
     private var holding = false
     private var hasTarget = false
-    /** 0 the room's view, 1 the NPC camera; [blendFrom] where a transition started, [blendTime] how far it is. */
-    private var npc = false
+    /** What the player asked for, what is shown ([ROOM] while a Follow has nobody to follow yet), and the last orbit. */
+    private var requested = CameraMode.ROOM
+    private var shown = CameraMode.ROOM
+    private var orbitKind = CameraMode.ORBIT
+    /** 0 the room's view, 1 an orbit; [blendFrom] where a transition started, [blendTime] how far it is. */
     private var blend = 0f
     private var blendFrom = 0f
     private var blendTime = TRANSITION_S
@@ -114,14 +205,25 @@ class SceneCamera(room: CameraPose) {
     /** Whether anything is still moving (a transition, a spring, a flick): false once the camera rests. */
     var moving = false; private set
 
-    /** 0..1: how far the view is the NPC camera's (eased). */
-    val npcAmount: Float get() = easeInOut(blend)
+    /** The mode shown now (GL thread's view of it; tests). */
+    val mode: CameraMode get() = shown
+
+    /** 0..1: how far the view is an orbit's (eased). */
+    val orbitAmount: Float get() = easeInOut(blend)
+    val npcAmount: Float get() = orbitAmount
+
+    /** The orbit's yaw now (radians, kept within about -PI..PI) and its lift goal (yards). Tests. */
+    internal val orbitYaw: Float get() = yaw.value
+    internal val liftGoal: Float get() = goalLift
 
     /** Radians a finger's move of one pixel turns the orbit on a view [viewH] pixels high (half the height: a quarter turn). */
     fun radiansPerPixel(viewH: Float) = (PI.toFloat() / 2f) / (viewH / 2f).coerceAtLeast(1f)
 
-    /** The NPC camera on or off (eased over [TRANSITION_S] from wherever the view is now). */
-    @Synchronized fun setNpc(on: Boolean) { pendNpc = on }
+    /** The camera's mode (eased over [TRANSITION_S] to or from the room's view; Orbit and Follow glide into each other). */
+    @Synchronized fun setMode(next: CameraMode) { pendMode = next }
+
+    /** The NPC camera on ([CameraMode.FOLLOW]) or off ([CameraMode.ROOM]). */
+    fun setNpc(on: Boolean) = setMode(if (on) CameraMode.FOLLOW else CameraMode.ROOM)
 
     /** A finger moved [dx], [dy] pixels on a view [viewH] high: the orbit turns with it (no flick while it holds). */
     @Synchronized fun dragBy(dx: Float, dy: Float, viewH: Float) {
@@ -153,6 +255,23 @@ class SceneCamera(room: CameraPose) {
         if (radians.isFinite()) pendYaw += radians
     }
 
+    /**
+     * Two fingers moved together by [dx], [dy] pixels on a view [viewH] high: the room is held under them. Sideways moves
+     * the target along the ground (left and right of the view); up and down lowers and raises it (fingers down: the
+     * camera rises), within the room.
+     */
+    @Synchronized fun pan(dx: Float, dy: Float, viewH: Float) {
+        if (!dx.isFinite() || !dy.isFinite()) return
+        pendPanX += dx; pendPanY += dy; pendPanH = viewH
+        pendHold = true
+        pendFlickYaw = 0f; pendFlickPitch = 0f
+    }
+
+    /** The up and down buttons: the target (and the camera with it) [yards] higher, or lower when negative; eased. */
+    @Synchronized fun liftBy(yards: Float) {
+        if (yards.isFinite()) pendLift += yards
+    }
+
     /** The zoom buttons: nearer (more than 1) or further, eased by the springs; held to the hard limits. */
     @Synchronized fun zoomBy(factor: Float) {
         if (!factor.isFinite() || factor <= 0f) return
@@ -167,34 +286,34 @@ class SceneCamera(room: CameraPose) {
     @Synchronized fun snapTarget() { pendSnap = true }
 
     /**
-     * One frame, [dt] seconds after the last, the selected NPC's point to look at [fx], [fy], [fz] ([hasFocus] false: none,
-     * the NPC camera goes back to the room's view). GL thread.
+     * One frame, [dt] seconds after the last, the selected NPC's point to look at [fx], [fy], [fz] ([hasFocus] false: none;
+     * Follow then keeps looking where the NPC last was, and waits for one before it starts). GL thread.
      */
     fun update(dt: Float, hasFocus: Boolean, fx: Float, fy: Float, fz: Float) {
         val step = if (dt.isFinite()) dt.coerceIn(0f, 0.1f) else 0f
         var dYaw: Float; var dPitch: Float; var zoom: Float; var flickYaw: Float; var flickPitch: Float
-        val hold: Boolean?; val wantNpc: Boolean?; val snap: Boolean
+        var panX: Float; var panY: Float; var panH: Float; var lift: Float
+        val hold: Boolean?; val want: CameraMode?; val snap: Boolean
         synchronized(this) {
             dYaw = pendYaw; dPitch = pendPitch; zoom = pendZoom; flickYaw = pendFlickYaw; flickPitch = pendFlickPitch
-            hold = pendHold; wantNpc = pendNpc; snap = pendSnap
+            panX = pendPanX; panY = pendPanY; panH = pendPanH; lift = pendLift
+            hold = pendHold; want = pendMode; snap = pendSnap
             pendYaw = 0f; pendPitch = 0f; pendZoom = 1f; pendFlickYaw = Float.NaN; pendFlickPitch = 0f
-            pendHold = null; pendNpc = null; pendSnap = false
+            pendPanX = 0f; pendPanY = 0f; pendLift = 0f
+            pendHold = null; pendMode = null; pendSnap = false
         }
         if (hold != null) holding = hold
         if (!flickYaw.isNaN()) { spinYaw = flickYaw; spinPitch = flickPitch }
+        val r = room
 
-        // the NPC camera on or off: a transition from where the view is now (a reversal mid-way goes back smoothly)
-        val on = (wantNpc ?: npc) && hasFocus
-        if (on != npc) {
-            if (on) enterOrbit(fx, fy, fz)
-            npc = on
-            blendFrom = blend
-            blendTime = 0f
-        }
+        // the mode: Follow waits in the room's view until there is someone to follow, then keeps their last spot
+        if (want != null) requested = want
+        val waiting = requested == CameraMode.FOLLOW && !hasFocus && shown == CameraMode.ROOM && (blend <= 0f || !hasTarget)
+        val next = if (waiting) CameraMode.ROOM else requested
+        if (next != shown) changeMode(next, fx, fy, fz)
         blendTime = (blendTime + step).coerceAtMost(TRANSITION_S)
-        val goal = if (npc) 1f else 0f
-        val p = blendTime / TRANSITION_S
-        blend = blendFrom + (goal - blendFrom) * p
+        val goal = if (shown != CameraMode.ROOM) 1f else 0f
+        blend = blendFrom + (goal - blendFrom) * (blendTime / TRANSITION_S)
 
         // the orbit's goals: a finger past a limit meets resistance, a flick slows with friction
         goalYaw += dYaw
@@ -211,52 +330,137 @@ class SceneCamera(room: CameraPose) {
         }
         if (!holding) {
             goalPitch = goalPitch.coerceIn(MIN_PITCH, MAX_PITCH)
-            goalDistance = goalDistance.coerceIn(MIN_DISTANCE, MAX_DISTANCE)
+            goalDistance = goalDistance.coerceIn(MIN_DISTANCE, maxDistance())
+        }
+        // the yaw kept within a turn of zero (the spring moved by the same whole turn: nothing seen changes)
+        if (goalYaw > PI || goalYaw < -PI) {
+            val wrapped = OrbitMath.wrap(goalYaw)
+            yaw.value += wrapped - goalYaw
+            goalYaw = wrapped
         }
         yaw.update(goalYaw, step)
         pitch.update(goalPitch, step)
         distance.update(goalDistance, step)
 
-        // the target glides after the NPC (a new NPC: it glides there too)
-        if (hasFocus) {
+        // the base: the room's point for an orbit, the NPC for Follow (it glides after them; a new NPC: it glides there too)
+        if (orbitKind == CameraMode.ORBIT) {
+            tx.update(r.at.x, step); ty.update(r.at.y, step); tz.update(r.at.z, step)
+        } else if (hasFocus) {
             if (!hasTarget || snap) { tx.snap(fx); ty.snap(fy); tz.snap(fz); hasTarget = true }
             tx.update(fx, step); ty.update(fy, step); tz.update(fz, step)
         }
 
+        // the player's offset: two fingers pan along the ground and lift; the buttons lift; all of it within the room
+        if (panX != 0f || panY != 0f) {
+            val k = OrbitMath.yardsPerPixel(distance.value, r.fov, panH)
+            val rightX = -sin(yaw.value)
+            val rightY = cos(yaw.value)
+            goalPanX -= rightX * panX * k
+            goalPanY -= rightY * panX * k
+            goalLift += panY * k
+        }
+        goalLift += lift
+        val s = OrbitMath.panScale(goalPanX, goalPanY, MAX_PAN)
+        goalPanX *= s; goalPanY *= s
+        val baseZ = if (orbitKind == CameraMode.ORBIT) r.at.z else if (hasFocus) fz else tz.value
+        val floor = floorZ
+        goalLift = goalLift.coerceIn(OrbitMath.liftLow(baseZ, floor), OrbitMath.liftHigh(baseZ, floor))
+        px.update(goalPanX, step); py.update(goalPanY, step); pz.update(goalLift, step)
+
+        val ax = tx.value + px.value
+        val ay = ty.value + py.value
+        val az = tz.value + pz.value
         val cp = cos(pitch.value)
-        val ox = tx.value + cp * cos(yaw.value) * distance.value
-        val oy = ty.value + cp * sin(yaw.value) * distance.value
-        val oz = tz.value + sin(pitch.value) * distance.value
-        val r = room
+        val ox = ax + cp * cos(yaw.value) * distance.value
+        val oy = ay + cp * sin(yaw.value) * distance.value
+        var oz = az + sin(pitch.value) * distance.value
+        if (!floor.isNaN()) oz = max(oz, floor + EYE_ABOVE_FLOOR)
         val e = easeInOut(blend)
         eyeX = r.eye.x + (ox - r.eye.x) * e
         eyeY = r.eye.y + (oy - r.eye.y) * e
         eyeZ = r.eye.z + (oz - r.eye.z) * e
-        atX = r.at.x + (tx.value - r.at.x) * e
-        atY = r.at.y + (ty.value - r.at.y) * e
-        atZ = r.at.z + (tz.value - r.at.z) * e
+        atX = r.at.x + (ax - r.at.x) * e
+        atY = r.at.y + (ay - r.at.y) * e
+        atZ = r.at.z + (az - r.at.z) * e
         fov = r.fov
         moving = blendTime < TRANSITION_S || spinYaw != 0f || spinPitch != 0f || holding ||
             (blend > 0f && (abs(yaw.velocity) + abs(pitch.velocity) + abs(distance.velocity) +
-                abs(tx.velocity) + abs(ty.velocity) + abs(tz.velocity) > 1e-3f))
+                abs(tx.velocity) + abs(ty.velocity) + abs(tz.velocity) +
+                abs(px.velocity) + abs(py.velocity) + abs(pz.velocity) > 1e-3f))
     }
 
-    /** The orbit starts where the room's view looks from (so the swing is short) at the starting pitch and distance. */
-    private fun enterOrbit(fx: Float, fy: Float, fz: Float) {
+    /** From the shown mode to [next]: the room's view eases; one orbit to the other keeps the view and glides the target. */
+    private fun changeMode(next: CameraMode, fx: Float, fy: Float, fz: Float) {
+        val from = shown
+        if (next == CameraMode.ROOM) {
+            shown = next
+            blendFrom = blend; blendTime = 0f
+            return
+        }
+        if (from == CameraMode.ROOM) {
+            if (blend <= 0f) enterFromRoom(next, fx, fy, fz) else if (next != orbitKind) switchOrbit(next)
+            blendFrom = blend; blendTime = 0f
+        } else {
+            switchOrbit(next)
+        }
+        shown = next
+        orbitKind = next
+    }
+
+    /**
+     * An orbit from the room's view. Orbit starts exactly on the room's view (its point, from where the room looks: nothing
+     * moves until a finger does); Follow starts on the NPC from the room's side at the starting pitch and distance.
+     */
+    private fun enterFromRoom(next: CameraMode, fx: Float, fy: Float, fz: Float) {
         val r = room
-        val wasOrbiting = blend > 0f
-        if (!wasOrbiting) {
-            val startYaw = atan2(r.eye.y - fy, r.eye.x - fx)
-            // the nearest equivalent of that angle to the current one (no whole turn on the way)
-            val turns = Math.round((yaw.value - startYaw) / (2f * PI.toFloat()))
-            goalYaw = startYaw + turns * 2f * PI.toFloat()
+        if (next == CameraMode.ORBIT) {
+            val vx = r.eye.x - r.at.x
+            val vy = r.eye.y - r.at.y
+            val vz = r.eye.z - r.at.z
+            val d = sqrt(vx * vx + vy * vy + vz * vz).coerceAtLeast(1e-3f)
+            goalYaw = OrbitMath.wrap(atan2(vy, vx))
+            goalPitch = asin((vz / d).coerceIn(-1f, 1f)).coerceIn(MIN_PITCH, MAX_PITCH)
+            goalDistance = d.coerceIn(MIN_DISTANCE, max(MAX_DISTANCE, d))
+            tx.snap(r.at.x); ty.snap(r.at.y); tz.snap(r.at.z)
+        } else {
+            goalYaw = OrbitMath.wrap(atan2(r.eye.y - fy, r.eye.x - fx))
             goalPitch = START_PITCH
             goalDistance = START_DISTANCE
-            yaw.snap(goalYaw); pitch.snap(goalPitch); distance.snap(goalDistance)
             tx.snap(fx); ty.snap(fy); tz.snap(fz)
-            hasTarget = true
-            spinYaw = 0f; spinPitch = 0f
         }
+        yaw.snap(goalYaw); pitch.snap(goalPitch); distance.snap(goalDistance)
+        goalPanX = 0f; goalPanY = 0f; goalLift = 0f
+        px.snap(0f); py.snap(0f); pz.snap(0f)
+        hasTarget = true
+        spinYaw = 0f; spinPitch = 0f
+    }
+
+    /**
+     * Orbit to Follow: the base glides from where it is to the NPC and the player's offset back to none (the sum moves
+     * smoothly). Follow to Orbit: the target stays exactly where it is, now held as the room's point plus an offset.
+     */
+    private fun switchOrbit(next: CameraMode) {
+        if (next == CameraMode.ORBIT) {
+            val r = room
+            val offX = tx.value + px.value - r.at.x
+            val offY = ty.value + py.value - r.at.y
+            val offZ = tz.value + pz.value - r.at.z
+            tx.snap(r.at.x); ty.snap(r.at.y); tz.snap(r.at.z)
+            px.value = offX; py.value = offY; pz.value = offZ
+            goalPanX = offX; goalPanY = offY; goalLift = offZ
+        } else {
+            goalPanX = 0f; goalPanY = 0f; goalLift = 0f
+        }
+    }
+
+    /** The farthest an orbit goes: [MAX_DISTANCE], or as far as the room's own view for Orbit (it starts there). */
+    private fun maxDistance(): Float {
+        if (orbitKind != CameraMode.ORBIT) return MAX_DISTANCE
+        val r = room
+        val vx = r.eye.x - r.at.x
+        val vy = r.eye.y - r.at.y
+        val vz = r.eye.z - r.at.z
+        return max(MAX_DISTANCE, sqrt(vx * vx + vy * vy + vz * vz))
     }
 
     private fun pushed(value: Float, delta: Float, min: Float, max: Float, give: Float): Float {
@@ -268,11 +472,12 @@ class SceneCamera(room: CameraPose) {
 
     private fun zoomed(value: Float, factor: Float): Float {
         val next = value / factor
+        val far = maxDistance()
         return if (holding) {
-            val outward = (factor < 1f && value >= MAX_DISTANCE) || (factor > 1f && value <= MIN_DISTANCE)
+            val outward = (factor < 1f && value >= far) || (factor > 1f && value <= MIN_DISTANCE)
             val eased = if (outward) value + (next - value) * 0.35f else next
-            eased.coerceIn(MIN_DISTANCE * (1f - DISTANCE_GIVE), MAX_DISTANCE * (1f + DISTANCE_GIVE))
-        } else next.coerceIn(MIN_DISTANCE, MAX_DISTANCE)
+            eased.coerceIn(MIN_DISTANCE * (1f - DISTANCE_GIVE), far * (1f + DISTANCE_GIVE))
+        } else next.coerceIn(MIN_DISTANCE, far)
     }
 
     /** The current pose as a [CameraPose] (tests and debugging; allocates). */

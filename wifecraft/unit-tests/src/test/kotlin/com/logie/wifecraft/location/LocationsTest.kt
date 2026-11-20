@@ -71,6 +71,89 @@ class LocationsTest {
         assertEquals(35L, one.bytes)
     }
 
+    // ---- every location (the Embassy and the bedrooms: tools/locations.py)
+
+    private val entries = org.json.JSONObject(json).getJSONArray("locations").let { a -> List(a.length()) { a.getJSONObject(it) } }
+
+    @Test fun everyLocationParsesWithAUniqueIdAndTheEmbassyFirst() {
+        assertEquals(entries.size, locations.size)
+        assertEquals(locations.size, locations.map { it.id }.toSet().size, "an id is used twice")
+        assertEquals("embassy", locations.first().id)
+        assertTrue(locations.size >= 9, "only ${locations.size} locations")
+        for (l in locations) {
+            assertTrue(l.name.isNotBlank() && l.name != l.id, "${l.id} has no name")
+            assertTrue(l.kind in setOf("interior+exterior", "interior", "composed"), "${l.id}: kind ${l.kind}")
+            assertTrue(l.areaId > 0, "${l.id} has no area")
+        }
+    }
+
+    @Test fun everyLocationHasAnInsideViewWithACameraAndASpawn() {
+        // the scene list shows only locations with an inside camera (MainActivity's stages); the live scene starts there
+        for (l in locations) {
+            val inside = assertNotNull(l.views["inside"], "${l.id} has no inside view")
+            assertNotNull(inside.camera, "${l.id}'s inside view has no camera")
+            assertNotNull(inside.spawn, "${l.id}'s inside view has no spawn")
+            assertNotNull(l.views["outside"]?.camera, "${l.id} has no outside camera")
+        }
+    }
+
+    @Test fun everyLocationFetchesItsBuildingItsPropsAndItsGround() {
+        for ((l, e) in locations.zip(entries)) {
+            val ids = l.files().map { it.first }.toSet()
+            assertEquals(l.files().size, ids.size, "${l.id} lists a file twice")
+            assertTrue(l.files().all { it.second > 0 }, "${l.id}: a file without its size")
+            val wmo = e.getJSONObject("wmo")
+            assertTrue(wmo.getInt("root") in ids, "${l.id} doesn't fetch its building")
+            val groups = wmo.getJSONArray("groups")
+            for (i in 0 until groups.length()) assertTrue(groups.getInt(i) in ids, "${l.id} doesn't fetch group ${groups.getInt(i)}")
+            val doodads = e.getJSONArray("doodads")
+            for (i in 0 until doodads.length()) {
+                val model = doodads.getJSONObject(i).getInt("model")
+                assertTrue(model in ids, "${l.id} draws model $model without fetching it")
+            }
+            e.optJSONObject("terrain")?.let { t -> for (k in listOf("root", "tex0")) assertTrue(t.getInt(k) in ids, "${l.id}: ground $k") }
+            assertTrue(e.getJSONObject("files").getJSONArray("missing").length() == 0, "${l.id} has files wago.tools didn't have")
+        }
+    }
+
+    @Test fun everyBedroomHasABedAndItsSpotsAreInsideTheBuilding() {
+        for ((l, e) in locations.zip(entries)) {
+            if (l.id == "embassy") continue
+            assertTrue(l.interactions.any { it.item == "BED" }, "${l.id} has no bed")
+            assertTrue(l.people.isNotBlank(), "${l.id}: whose home is it?")
+            val b = e.getJSONObject("wmo").getJSONArray("bounds")
+            fun inside(p: com.logie.wifecraft.story.Vec3) =
+                p.x >= b.getDouble(0) && p.y >= b.getDouble(1) && p.z >= b.getDouble(2) &&
+                    p.x <= b.getDouble(3) && p.y <= b.getDouble(4) && p.z <= b.getDouble(5)
+            val camera = l.views.getValue("inside").camera!!
+            assertTrue(inside(camera.eye) && inside(camera.at), "${l.id}'s camera is outside its building")
+            for (spot in l.interactions) {
+                assertTrue(spot.item in setOf("BED", "CHAIR", "TABLE", "COUCH"), "${l.id}: ${spot.item}")
+                assertTrue(inside(spot.entry) && inside(spot.pose), "${l.id}'s ${spot.item} is outside its building")
+                assertTrue(spot.models.isNotEmpty(), "${l.id}'s ${spot.item} names no model")
+                if (spot.item == "BED") assertTrue(spot.pose.z > spot.entry.z, "${l.id}: one lies on the bed, not under it")
+                // the furniture is one of the location's own placements, where the entry says
+                val doodads = e.getJSONArray("doodads")
+                for (m in spot.models) assertTrue((0 until doodads.length()).any { i ->
+                    val d = doodads.getJSONObject(i)
+                    val p = d.getJSONArray("pos")
+                    d.getInt("model") == m.id && p.getDouble(0).toFloat() == m.position.x &&
+                        p.getDouble(1).toFloat() == m.position.y && p.getDouble(2).toFloat() == m.position.z
+                }, "${l.id}: ${spot.item}'s model ${m.id} at ${m.position} isn't placed")
+            }
+        }
+    }
+
+    @Test fun aSpotWithoutAPoseIsUsedWhereItIsEntered() {
+        val one = LocationInfo.parseAll(
+            """{"id":"x","wmo":{"root":5},"interactions":[{"object":"CHAIR","entry":[1,2,3],"facing":1,"models":[{"id":9,"position":[1,2,3]}]},
+               {"object":"BED","entry":[1,2,3],"pose":[4,5,6],"facing":0,"models":[{"id":8,"position":[4,5,6]}]}],"people":"orc"}""",
+        ).single()
+        assertEquals(one.interactions[0].entry, one.interactions[0].pose)
+        assertEquals(6f, one.interactions[1].pose.z)
+        assertEquals("orc", one.people)
+    }
+
     // ---- WmoFiles
 
     private fun chunk(out: ByteArrayOutputStream, tag: String, body: ByteArray) {

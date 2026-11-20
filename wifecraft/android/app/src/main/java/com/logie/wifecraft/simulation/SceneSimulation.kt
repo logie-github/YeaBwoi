@@ -119,6 +119,15 @@ class SceneSimulation(
         val talkingWith: String? = null,
     )
 
+    /**
+     * Each person's size over a human's for the pairs' positioning (anim/HumanScale.pairScale: a gnome's own, everyone
+     * else 1; absent: 1): their pair slots, an ordered performance's places and the distance they stand talking are taken
+     * by it ([PairFit]).
+     */
+    var sizes: Map<String, Float> = emptyMap()
+
+    private fun size(actor: Actor?): Float = actor?.let { sizes[it.id] } ?: 1f
+
     /** A performance's sound event is due: actor [index] (the cast's order), sound [name]. Called inside [tick]. */
     var sounds: ((index: Int, name: String) -> Unit)? = null
 
@@ -392,14 +401,16 @@ class SceneSimulation(
         val heading = previous?.heading ?: setup?.heading ?: lead.facing
         val directed = setup?.directed ?: true
         val furniture = setup?.furniture
-        val performance = Performance(lead, other, request.roles, request.seconds.coerceIn(0.25f, 3600f),
+        // an ordered one's places for the two bodies' sizes (a partner animation's slots were fitted already: startPartner)
+        val roles = if (setup == null) PairFit.roles(request.roles, floatArrayOf(size(lead), size(other))) else request.roles
+        val performance = Performance(lead, other, roles, request.seconds.coerceIn(0.25f, 3600f),
             anchor, heading, request.repeat, request.repetitions, directed, request.name, request.sounds,
             setup != null, setup?.initiator, furniture, setup?.emote ?: -1)
         if (other != null && previous == null &&
-            !begin(other, Activity.PERFORM, rolePosition(performance, request.roles[1]), directed, furniture)) return false
+            !begin(other, Activity.PERFORM, rolePosition(performance, roles[1]), directed, furniture)) return false
 
         // the lead steps to its own place too when it is not there already, so nobody jumps when the clips start
-        val leadSpot = if (other != null && previous == null) rolePosition(performance, request.roles[0]) else null
+        val leadSpot = if (other != null && previous == null) rolePosition(performance, roles[0]) else null
         val leadWalks = leadSpot != null && hypot(leadSpot.x - lead.x, leadSpot.y - lead.y) > LEAD_STEP &&
             begin(lead, Activity.PERFORM, leadSpot, directed, furniture)
         if (!leadWalks) release(lead)
@@ -608,7 +619,8 @@ class SceneSimulation(
         release(actor)
         release(other)
         val side = if (other.position.x > 0f) -1f else 1f
-        if (!begin(actor, Activity.CHAT, Vec3(other.x + side * 0.85f, other.y, other.z), directed)) {
+        val gap = PairFit.gap(CHAT_GAP, size(actor), size(other))
+        if (!begin(actor, Activity.CHAT, Vec3(other.x + side * gap, other.y, other.z), directed)) {
             actor.remaining = 0.8f
             return false
         }
@@ -794,8 +806,9 @@ class SceneSimulation(
         val emote = pickedEmote
         val furniture = pickedFurniture
         if (pair == null && emote == null) return false
-        val slotI = pair?.slotA ?: PartnerEmotes.SLOT_A
-        val slotT = pair?.slotB ?: PartnerEmotes.SLOT_B
+        // the slots for the two bodies' sizes (a gnome comes nearer the contact point: PairFit)
+        val (slotI, slotT) = PairFit.slots(pair?.slotA ?: PartnerEmotes.SLOT_A, pair?.slotB ?: PartnerEmotes.SLOT_B,
+            size(initiator), size(target))
         val keyI = if (pair != null) PlaybackKeys.pair(pair.id, 0) else PlaybackKeys.emote(emote!!.anim)
         val keyT = if (pair != null) PlaybackKeys.pair(pair.id, 1) else PlaybackKeys.emote(emote!!.anim)
         val spot = furniture?.let { spots[it] }
@@ -851,6 +864,8 @@ class SceneSimulation(
         private const val MAX_QUEUED = 64
         /** A performance's lead farther than this from its place walks there first. */
         private const val LEAD_STEP = 0.02f
+        /** How far apart two humans stand talking (yards; a gnome stands nearer: [PairFit.gap]). */
+        const val CHAT_GAP = 0.85f
         /** How far an idle NPC looks for a partner (yards). */
         const val PARTNER_RANGE = 6f
         /** Partners nearer than the nearest by this much are as near (a random one is taken). */

@@ -33,6 +33,24 @@
 //   thumb prop FILE_ID|look LOOKFILE SIZE OUT.png   a library thumbnail (Scene::thumbnail), drawn between frames
 //   camerainfo                                 prints the camera as last drawn (Scene::cameraInfo)
 //   timing on|off                              prints how long each later command took (what the GL thread would stall)
+//   part N WCBP PNG SKIN                       a body part file on person N (Scene::loadPart, attachPart: its slot by its
+//                                              state), its PNG tinted to SKIN as the app's Recolor does (RRGGBB hex, or
+//                                              auto: the person's look's base skin layer averaged over its body half)
+//   partstate N 0|1|2                          which part is drawn (Scene::setPartState: none, the default one, the on one)
+//   partfit N DX DZ SCALE                      the race's fit (Scene::setPartFit; bodyparts/PartFit.kt's numbers)
+//   partpose N                                 prints where the drawn part's root is (model space) and its scale
+//   modelset N SETJSON [REGION...]             a model part set (modelpart.h; build/modelparts writes it) on person N: its
+//                                              cut (Scene::setBodyCut) and its parts (Scene::attachBonePart, each with its
+//                                              fit), only those of the REGIONs when named
+//   modelpart N WCBP [DX DY DZ SCALE]          one model part on person N, with that fit
+//   modelfit N REGION|all DX DY DZ SCALE       changes the fit of person N's parts of that region (Scene::setBonePartFit)
+//   modelshow N REGION|all 0|1                 hides or shows them (Scene::setBonePartVisible)
+//   bodycut N [BONE...]                        person N's own triangles under those bones left out (none: the cut taken off)
+//   modelpose N                                prints each drawn model part's bone, pivots and scale
+//   bodytint N R G B                           person N's body drawn times that colour (Scene::setBodyTint)
+//   skinmatch N [RRGGBB]                       person N's body tinted so its face's skin (Scene::faceSkinUvs, sampled on the
+//                                              look's base skin layer) comes to RRGGBB (default: the last modelset's
+//                                              skinColour), as the app does with its composed skin
 //   bench N W H STEP_MS [walk X Y Z]      draws N frames STEP_MS apart into one target, each timed to glFinish:
 //                                              p50/p95/max and the slowest frames (walk: everyone circles as they walk)
 //
@@ -88,11 +106,14 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <sys/stat.h>
 #include <vector>
 
 #include "../android/app/src/main/cpp/engine/blp.h"
+#include "../android/app/src/main/cpp/engine/json.h"
 #include "../android/app/src/main/cpp/engine/scene.h"
+#include "partpaint.h"
 
 using namespace wc;
 
@@ -664,6 +685,9 @@ int main(int argc, char** argv) {
 
     std::ifstream in(argv[1]);
     std::string line;
+    std::map<int, LookFile> looks;   // each person's look file (part's auto skin)
+    std::map<int, std::vector<std::pair<int, std::string>>> modelParts;   // each person's model parts: handle, region
+    std::map<int, std::string> skinColours;   // each person's last model set's skinColour
     bool timing = false;
     std::string timed;
     auto started = std::chrono::steady_clock::now();
@@ -746,6 +770,7 @@ int main(int argc, char** argv) {
         } else if (cmd == "clear") {
             for (auto& [name, id] : actors) scene.removeActor(id);
             actors.clear();
+            modelParts.clear();
         } else if (cmd == "fog") {
             ss >> light.fogStart >> light.fogEnd; scene.setLight(light);
         } else if (cmd == "look") {
@@ -761,6 +786,139 @@ int main(int argc, char** argv) {
             if (lf.body) scene.setBody(id, lf.morph, lf.bodyK, lf.bodyFold);
             scene.placeActor(id, V3(x, y, z), facing);
             actors[name] = id;
+            looks[name] = lf;
+            modelParts.erase(name);
+        } else if (cmd == "part") {
+            int name; std::string wcbp, png, skin;
+            ss >> name >> wcbp >> png >> skin;
+            if (!actors.count(name)) continue;
+            int part = scene.loadPart(wcbp);
+            if (!part) { std::fprintf(stderr, "part: FAILED: %s\n", scene.partError().c_str()); continue; }
+            Bytes raw;
+            PartData pd;
+            std::string err;
+            readFile(wcbp, raw);
+            parsePart(raw.data(), raw.size(), pd, err);
+            partpaint::Rgba img;
+            if (!partpaint::readPng(png, img)) { std::fprintf(stderr, "part: no PNG %s\n", png.c_str()); continue; }
+            int target = -1;
+            if (skin == "auto") {
+                // the look's base skin (type 1, its lowest layer: the whole material) sampled where the body meets the parts
+                // (Scene::partSkinUvs), as the app does with the skin it composed; the material's right half when it can't be
+                const SkinLayer* base = nullptr;
+                for (const SkinLayer& l : looks[name].layers) if (l.textureType == 1 && l.layer != kBodyLayer && (!base || l.layer < base->layer)) base = &l;
+                Bytes blp; Image sk;
+                if (base && readFile(lookup(base->fileId), blp) && decodeBlp(blp, 1024, sk)) {
+                    std::vector<float> uvs = scene.partSkinUvs(actors[name]);
+                    target = partpaint::sampleAt(sk.rgba.data(), sk.width, sk.height, uvs, 2);
+                    if (target < 0) target = partpaint::averageColor(sk.rgba.data(), sk.width, sk.height, {}, sk.width / 2, 0, sk.width, sk.height);
+                    std::fprintf(stderr, "part %d: skin sampled at %zu points\n", name, uvs.size() / 2);
+                }
+            } else {
+                target = int(std::strtol(skin.c_str(), nullptr, 16));
+            }
+            if (target >= 0) partpaint::recolor(img, target, partpaint::uvMask(pd, img.w, img.h));
+            bool ok = scene.attachPart(actors[name], part, img.px.data(), img.w, img.h);
+            std::fprintf(stderr, "part %d %s (%s %s): %s, skin %06X\n", name, pd.id.c_str(), pd.state.c_str(), pd.variant.c_str(), ok ? "ok" : "FAILED", target < 0 ? 0 : target);
+        } else if (cmd == "partstate") {
+            int name, st; ss >> name >> st;
+            if (actors.count(name)) scene.setPartState(actors[name], st);
+        } else if (cmd == "partfit") {
+            int name; PartFit f; ss >> name >> f.dx >> f.dz >> f.scale;
+            if (actors.count(name)) scene.setPartFit(actors[name], f);
+        } else if (cmd == "partpose") {
+            int name; ss >> name;
+            M4 m; PartPlacement pl;
+            int st = actors.count(name) ? scene.partState(actors[name]) : 0;
+            if (st > 0 && scene.partPose(actors[name], st - 1, m, pl)) {
+                V3 r = m.point(V3(kPartRootX, 0, kPartRootZ));
+                std::printf("partpose %d slot %d: pelvis pivot (%.3f,%.3f,%.3f) crotch %.3f root bind (%.3f,%.3f,%.3f) drawn (%.3f,%.3f,%.3f) scale %.3f\n",
+                            name, st - 1, pl.pivot.x, pl.pivot.y, pl.pivot.z, pl.crotch, pl.root.x, pl.root.y, pl.root.z, r.x, r.y, r.z, pl.scale);
+            } else {
+                std::printf("partpose %d: none drawn\n", name);
+            }
+        } else if (cmd == "modelset" || cmd == "modelpart") {
+            int name; std::string path; ss >> name >> path;
+            if (!actors.count(name)) continue;
+            int id = actors[name];
+            // (file, region, fit) of each part to put on
+            std::vector<std::tuple<std::string, std::string, BonePartFit>> todo;
+            if (cmd == "modelpart") {
+                BonePartFit f; float dx = 0, dy = 0, dz = 0, sc = 1;
+                ss >> dx >> dy >> dz >> sc;
+                f.offset = V3(dx, dy, dz); f.scale = sc;
+                todo.emplace_back(path, "", f);
+            } else {
+                std::vector<std::string> only; std::string r;
+                while (ss >> r) only.push_back(r);
+                Bytes raw; Json j; std::string err;
+                if (!readFile(path, raw) || !Json::parse(std::string(raw.begin(), raw.end()), j, &err)) { std::fprintf(stderr, "modelset: can't read %s %s\n", path.c_str(), err.c_str()); continue; }
+                std::string dirOf = path.substr(0, path.find_last_of('/'));
+                std::vector<std::string> cut;
+                for (size_t i = 0; i < j["cut"].size(); ++i) cut.push_back(j["cut"][i].str());
+                skinColours[name] = j["skinColour"].str();
+                scene.setBodyCut(id, cut);
+                const Json& ps = j["parts"];
+                for (size_t i = 0; i < ps.size(); ++i) {
+                    std::string region = ps[i]["region"].str();
+                    if (!only.empty() && std::find(only.begin(), only.end(), region) == only.end()) continue;
+                    BonePartFit f;
+                    const Json& o = ps[i]["offset"];
+                    f.offset = V3(float(o[0].num()), float(o[1].num()), float(o[2].num()));
+                    f.scale = float(ps[i]["scale"].num(1));
+                    todo.emplace_back(dirOf + "/" + ps[i]["file"].str(), region, f);
+                }
+            }
+            for (auto& [file, region, f] : todo) {
+                int part = scene.loadPart(file);
+                int h = part ? scene.attachBonePart(id, part, f) : 0;
+                if (h) modelParts[name].emplace_back(h, region);
+                std::fprintf(stderr, "modelpart %d %s: %s\n", name, file.c_str(), h ? "ok" : (part ? "not a model part" : scene.partError().c_str()));
+            }
+        } else if (cmd == "modelfit" || cmd == "modelshow") {
+            int name; std::string region; ss >> name >> region;
+            if (!actors.count(name)) continue;
+            BonePartFit f; float dx = 0, dy = 0, dz = 0, sc = 1; int show = 1;
+            if (cmd == "modelfit") { ss >> dx >> dy >> dz >> sc; f.offset = V3(dx, dy, dz); f.scale = sc; } else ss >> show;
+            for (auto& [h, r] : modelParts[name])
+                if (region == "all" || region == r) {
+                    if (cmd == "modelfit") scene.setBonePartFit(actors[name], h, f); else scene.setBonePartVisible(actors[name], h, show != 0);
+                }
+        } else if (cmd == "bodytint") {
+            int name; float r = 1, g = 1, b = 1; ss >> name >> r >> g >> b;
+            if (actors.count(name)) scene.setBodyTint(actors[name], r, g, b);
+        } else if (cmd == "skinmatch") {
+            int name; std::string hex; ss >> name >> hex;
+            if (!actors.count(name)) continue;
+            if (hex.empty()) hex = skinColours[name];
+            const SkinLayer* base = nullptr;
+            for (const SkinLayer& l : looks[name].layers) if (l.textureType == 1 && l.layer != kBodyLayer && (!base || l.layer < base->layer)) base = &l;
+            Bytes blp; Image sk;
+            std::vector<float> uvs = scene.faceSkinUvs(actors[name]);
+            int own = base && readFile(lookup(base->fileId), blp) && decodeBlp(blp, 1024, sk) ? meanColourAt(sk.rgba.data(), sk.width, sk.height, uvs) : -1;
+            if (hex.empty() || own < 0) { std::fprintf(stderr, "skinmatch %d: can't (target '%s', own %d, %zu points)\n", name, hex.c_str(), own, uvs.size() / 2); continue; }
+            int want = int(std::strtol(hex.c_str(), nullptr, 16));
+            float t[3];
+            for (int k = 0; k < 3; ++k) {
+                float o = float((own >> (16 - 8 * k)) & 255), w = float((want >> (16 - 8 * k)) & 255);
+                t[k] = std::clamp(o > 1 ? w / o : 1.0f, 0.25f, 2.0f);
+            }
+            scene.setBodyTint(actors[name], t[0], t[1], t[2]);
+            std::fprintf(stderr, "skinmatch %d: face %06X -> %06X (%zu points): tint %.2f %.2f %.2f\n", name, own, want, uvs.size() / 2, t[0], t[1], t[2]);
+        } else if (cmd == "bodycut") {
+            int name; ss >> name;
+            std::vector<std::string> bones; std::string b;
+            while (ss >> b) bones.push_back(b);
+            if (actors.count(name)) scene.setBodyCut(actors[name], bones);
+        } else if (cmd == "modelpose") {
+            int name; ss >> name;
+            for (auto& [h, r] : modelParts[name]) {
+                M4 m; BonePartPlacement pl;
+                if (actors.count(name) && scene.bonePartPose(actors[name], h, m, pl))
+                    std::printf("modelpose %d #%d %s: bone %d source (%.3f,%.3f,%.3f) target (%.3f,%.3f,%.3f) scale %.3f\n", name, h, r.c_str(), pl.bone,
+                                pl.source.x, pl.source.y, pl.source.z, pl.target.x, pl.target.y, pl.target.z, pl.scale);
+                else std::printf("modelpose %d #%d %s: not drawn\n", name, h, r.c_str());
+            }
         } else if (cmd == "dress") {
             int name; std::string path;
             ss >> name >> path;

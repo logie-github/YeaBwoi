@@ -113,6 +113,17 @@ fun CreatorScreen(
     LaunchedEffect(art2) { art2.load() }
 
     var transmogOpen by remember { mutableStateOf(false) }
+    // what she wore as the Transmog window opened (or at its last Save Outfit): put back if it closes with changes unsaved
+    var transmogBefore by remember { mutableStateOf<Appearance?>(null) }
+    // the window's own art (Midnight's Transmogrify atlases), fetched and cut the first time it opens
+    val transmogArt = remember { TransmogArt.open(context) }
+    LaunchedEffect(transmogOpen) { if (transmogOpen) transmogArt.load() }
+    // the named characters' presets (assets/characters.json: Chromie's look): the Transmog window's Custom Sets
+    val presetOutfits = remember {
+        com.logie.wifecraft.characters.CreatorPresets.outfits(
+            runCatching { context.assets.open("characters.json").bufferedReader().use { it.readText() } }.getOrNull())
+    }
+    val wardrobe = remember(transmog, presetOutfits) { transmog?.withNamed(presetOutfits) }
     var step by remember { mutableIntStateOf(1) }
     var rev by remember { mutableIntStateOf(0) }                 // bumped after every change to the model (it is not observable)
     var category by remember { mutableIntStateOf(-1) }
@@ -124,7 +135,24 @@ fun CreatorScreen(
 
     val previewRace = remember(rev) { model.appearance.raceId }
     LaunchedEffect(previewRace) { onPreviewRace(previewRace) }
-    androidx.activity.compose.BackHandler(transmogOpen) { transmogOpen = false }
+    // the Transmog window closes as the game's does: what isn't saved is put back (her clothes, and a named outfit's look)
+    fun closeTransmog() {
+        val before = transmogBefore
+        val now = model.appearance
+        if (before != null && now != before) {
+            if (now.clothing != before.clothing || now.gear != before.gear || now.starterClothing != before.starterClothing) {
+                // a new character's recruit clothes are the catalog's starter pieces (Appearance.starterClothing)
+                model.setClothing(if (before.starterClothing) wardrobe?.starter ?: before.clothing else before.clothing)
+                model.setGear(before.gear)
+            }
+            if (now.picks != before.picks && now.raceId == before.raceId && now.sex == before.sex)
+                model.applyLook(com.logie.wifecraft.creator.LookPreset(before.raceId, before.sex, before.picks))
+            rev++
+        }
+        transmogBefore = null
+        transmogOpen = false
+    }
+    androidx.activity.compose.BackHandler(transmogOpen) { closeTransmog() }
 
     // the look, resolved where the table work is cheap to wait for
     LaunchedEffect(rev, step, transmog) {
@@ -217,25 +245,33 @@ fun CreatorScreen(
             ui.RedButton(navRect(false, width), ui.words.back, arrow = "back") { step = 1; closePopout(); view.setZoom(1f, CL.RESET_FOCUS) }
             ui.RedButton(navRect(true, width), ui.words.finish, arrow = null) { onFinish(name, model.appearance) }
             if (!transmogOpen) {
-                RedButton("Transmog", { closePopout(); transmogOpen = true; onLoadTransmog() },
+                RedButton("Transmog", { closePopout(); transmogBefore = model.appearance; transmogOpen = true; onLoadTransmog() },
                     Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp))
             }
             if (transmogOpen) {
-                val wide = maxWidth >= 820.dp
-                Box(Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { transmogOpen = false } })
-                val panelModifier = if (wide) Modifier.align(Alignment.CenterEnd).width(350.dp).fillMaxHeight(0.92f)
-                    else Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.5f)
-                androidx.compose.material3.MaterialTheme(colorScheme = androidx.compose.material3.darkColorScheme()) {
-                    TransmogPanel(
-                        transmog, transmog?.equipStarter(model.appearance)?.clothing
-                            ?.takeIf { model.appearance.gear }.orEmpty(),
-                        transmogStatus, onLoadTransmog,
-                        onChange = { model.setClothing(it); changed() },
-                        onClose = { transmogOpen = false },
-                        icons = iconSource,
-                        modifier = panelModifier,
-                    )
-                }
+                // Midnight's Transmogrify window over the whole screen (TransmogFrame.fit: its character column over her)
+                val frameFit = com.logie.wifecraft.creator.TransmogFrame.fit(constraints.maxWidth.toFloat(), constraints.maxHeight.toFloat())
+                // the creator under it takes no touch; its character column turns her and brings her nearer as the creator does
+                Box(Modifier.fillMaxSize().pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent() } })
+                val column = frameFit.box(com.logie.wifecraft.creator.TransmogFrame.PREVIEW)
+                ui.SpinArea(Rect(column.x / k, column.y / k, column.w / k, column.h / k), view)
+                TransmogPanel(
+                    wardrobe, wardrobe?.equipStarter(model.appearance)?.clothing?.takeIf { model.appearance.gear }.orEmpty(),
+                    transmogStatus, onLoadTransmog,
+                    onPreview = { model.setClothing(it); changed() },
+                    onPreset = { outfit ->
+                        model.setClothing(outfit.displays)
+                        outfit.look?.let { model.applyLook(it) }
+                        changed()
+                    },
+                    onSave = { transmogBefore = model.appearance },
+                    onClose = { closeTransmog() },
+                    icons = iconSource,
+                    art = transmogArt,
+                    fit = frameFit,
+                    font = art.friz,
+                    outfitName = name.trim().ifEmpty { "Outfit 1" },
+                )
             }
         }
     }

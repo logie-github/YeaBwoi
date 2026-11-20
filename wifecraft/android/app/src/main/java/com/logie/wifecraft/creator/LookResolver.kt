@@ -66,11 +66,14 @@ object LookResolver {
             val pick = a.picks[o.id]?.takeIf { p -> o.choices.any { it.id == p } }
             current[o.id] = pick ?: c.defaultChoice(o.id) ?: o.choices.first().id
         }
-        val chosen = current.values.toSet()
+        // a choice of Wifecraft's own (CustomChoices) draws as its base, tinted: the base counts as on for the rows hanging on it
+        val chosen = c.withBases(current.values.toSet())
+        val tintOfBase = current.values.mapNotNull { id -> c.customs[id]?.let { it.base to (it.tint1 to it.tint2) } }.toMap()
 
         val groups = LinkedHashMap<Int, Int>()
         val materials = LinkedHashMap<Int, Int>()            // texture target -> MaterialResourcesID
         val owners = HashMap<Int, String>()                  // texture target -> the name of the option that set it
+        val tints = HashMap<Int, Pair<Int, Int>>()           // texture target -> a custom choice's tints (light, dark)
         val skinned = LinkedHashMap<Int, ExtraModel>()
         val bones = LinkedHashSet<Int>()
         for (o in options) {
@@ -79,6 +82,8 @@ object LookResolver {
             val what = "${o.name.ifEmpty { "Option ${o.id}" }}: ${choice.name.ifEmpty { "choice ${choice.id}" }}"
             val myGroups = HashMap<Int, Pair<Int, Int>>()      // group -> (rank, geoset id)
             val myMaterials = HashMap<Int, Pair<Int, Int>>()   // target -> (rank, material resources)
+            val myTints = HashMap<Int, Pair<Int, Int>?>()
+            val ownTint = c.tintOf(choiceId)
             var drew = false
             val unsupported = LinkedHashSet<String>()
             for (e in c.elements[choiceId].orEmpty()) {
@@ -101,7 +106,10 @@ object LookResolver {
                         if (ix.layersOf(layout).any { it.int("ChrModelTextureTargetID_0") == target || it.int("ChrModelTextureTargetID_1") == target }) {
                             if (ix.file(m.int("MaterialResourcesID")) == 0) unsupported += "material ${e.material}'s texture isn't in TextureFileData"
                             else {
-                                if ((myMaterials[target]?.first ?: 0) < rank) myMaterials[target] = rank to m.int("MaterialResourcesID")
+                                if ((myMaterials[target]?.first ?: 0) < rank) {
+                                    myMaterials[target] = rank to m.int("MaterialResourcesID")
+                                    myTints[target] = ownTint ?: tintOfBase[e.related]
+                                }
                                 drew = true
                             }
                         }
@@ -130,7 +138,11 @@ object LookResolver {
                 if (e.other != null) unsupported += "${e.other} isn't drawn by Wifecraft's renderer"
             }
             for ((type, v) in myGroups) groups[type] = v.second
-            for ((target, v) in myMaterials) { materials[target] = v.second; owners[target] = o.name }
+            for ((target, v) in myMaterials) {
+                materials[target] = v.second; owners[target] = o.name
+                val tint = myTints[target]
+                if (tint != null) tints[target] = tint else tints.remove(target)
+            }
             if (o.id in shown && !drew) {
                 val hangs = c.relatedTo[choiceId].orEmpty().any { it in chosen }
                 val none = c.isNone(choiceId) || !c.relevant(o.id, chosen) || !c.applies(o.id, chosen) || c.master(o.id)?.let { m -> current[m]?.let { c.isNone(it) } } == true
@@ -161,7 +173,8 @@ object LookResolver {
                 if (l.int("ChrModelTextureTargetID_0") != target && l.int("ChrModelTextureTargetID_1") != target) continue
                 val base = l.int("TextureType") == 1 && l.int("TextureSectionTypeBitMask") == -1
                 if (undead != null && owner == CreatorModel.SKIN_COLOR && !base && !keepUnderwear) continue
-                layers += TextureLayer(file, l.int("TextureSectionTypeBitMask"), l.int("BlendMode"), l.int("Layer"), null, null, l.int("TextureType"))
+                val tint = tints[target]
+                layers += TextureLayer(file, l.int("TextureSectionTypeBitMask"), l.int("BlendMode"), l.int("Layer"), tint?.first, tint?.second, l.int("TextureType"))
             }
         }
         if (undead != null) {

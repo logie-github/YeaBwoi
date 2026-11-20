@@ -59,7 +59,8 @@ internal fun SceneBrowser(
                 ) {
                     items(locations, key = { it.id }, contentType = { 0 }) { entry ->
                         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-                            WifeCard(entry.name, icon, 76.dp, entry.id == location, onClick = { onLocation(entry.id) })
+                            // the card names the building ("Lion's Pride Inn"); the preview above it the whole name, the town too
+                            WifeCard(entry.name.substringBefore(", "), icon, 76.dp, entry.id == location, onClick = { onLocation(entry.id) })
                         }
                     }
                 }

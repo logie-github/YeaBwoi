@@ -3,8 +3,10 @@ package com.logie.wifecraft.simulation
 import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.anim.AnimationChoice
 import com.logie.wifecraft.anim.ClipType
+import com.logie.wifecraft.anim.HumanScale
 import com.logie.wifecraft.anim.PERFORMANCE_SCALE
 import com.logie.wifecraft.anim.PairAnim
+import com.logie.wifecraft.story.Vec3
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.max
@@ -18,7 +20,17 @@ import kotlin.math.sin
  */
 
 /** An actor's start slot from the pair's shared origin: WoW axes (X forward, Y left, Z up), yards; [yawDeg] its facing. */
-data class PartnerSlot(val x: Float, val y: Float, val z: Float, val yawDeg: Float)
+data class PartnerSlot(val x: Float, val y: Float, val z: Float, val yawDeg: Float) {
+    companion object {
+        /**
+         * A pair's slot as the live scene stands it, its NPCs at human scale (anim/HumanScale): [x] and [y], in the clips'
+         * reference units, taken by [HumanScale.PAIR] as the engine takes the clips' root motion across the floor, so the two
+         * stand where their clips put them; [z] stays the clip's (lifted into its Root track, which each body's own pelvis
+         * scales).
+         */
+        fun human(x: Float, y: Float, z: Float, yawDeg: Float) = PartnerSlot(x * HumanScale.PAIR, y * HumanScale.PAIR, z, yawDeg)
+    }
+}
 
 /** A pair's sound event: [name] played for actor [actor] (0 the initiator, 1 the partner) at [timeSec] on the pair's clock. */
 data class PartnerSound(val timeSec: Float, val name: String, val actor: Int)
@@ -45,11 +57,11 @@ class PartnerPair(
     override fun toString() = "PartnerPair($id, $name)"
 
     companion object {
-        /** The library's pair as the simulation takes it. */
+        /** The library's pair as the simulation takes it (its slots at human scale: [PartnerSlot.human]). */
         fun of(p: PairAnim) = PartnerPair(
             p.id, p.name, p.a, p.b,
-            PartnerSlot(p.offsetA.x, p.offsetA.y, p.offsetA.z, p.offsetA.yawDeg),
-            PartnerSlot(p.offsetB.x, p.offsetB.y, p.offsetB.z, p.offsetB.yawDeg),
+            PartnerSlot.human(p.offsetA.x, p.offsetA.y, p.offsetA.z, p.offsetA.yawDeg),
+            PartnerSlot.human(p.offsetB.x, p.offsetB.y, p.offsetB.z, p.offsetB.yawDeg),
             p.loops, p.locations, p.sounds.map { PartnerSound(it.timeSec, it.name, it.actor) },
         )
 
@@ -59,7 +71,8 @@ class PartnerPair(
         /**
          * An author's two-actor performance (the animation browser's [choice], made from the importer's
          * ImportedPerformances) as a pair the NPCs can pick by themselves; null when it is not a playable two-role one or
-         * is a library pair's own entry (those come through [of]). Offsets are scaled as the browser's orders scale them.
+         * is a library pair's own entry (those come through [of]). Offsets are scaled as the browser's orders scale them, then
+         * to human scale ([PartnerSlot.human]).
          */
         fun of(choice: AnimationChoice): PartnerPair? {
             if (choice.participantCount != 2 || !choice.playable || choice.id.startsWith(PairAnim.CHOICE_PREFIX)) return null
@@ -68,7 +81,7 @@ class PartnerPair(
             val scale = if (choice.yards) 1f else PERFORMANCE_SCALE
             val (ra, rb) = choice.roles
             fun slot(r: com.logie.wifecraft.anim.PerformanceRole) =
-                PartnerSlot(r.offset.x * scale, r.offset.y * scale, r.offset.z * scale, Math.toDegrees(r.facing.toDouble()).toFloat())
+                PartnerSlot.human(r.offset.x * scale, r.offset.y * scale, r.offset.z * scale, Math.toDegrees(r.facing.toDouble()).toFloat())
             val loops = choice.clips.any { it.inspection.type == ClipType.LOOP }
             val place = choice.setting.trim().uppercase().replace(' ', '_')
             return PartnerPair(choice.id, choice.name, a, b, slot(ra), slot(rb), loops,
@@ -164,6 +177,45 @@ object PartnerMath {
         if (ex * ex + ey * ey < 1e-4f || dx * dx + dy * dy < 1e-4f) return aFacing - slotA.yawDeg * DEG
         return atan2(dy, dx) - atan2(ey, ex)
     }
+}
+
+/**
+ * Two bodies of different sizes in one pair (a gnome keeps its own size: anim/HumanScale.pairScale). A pair's slots are made
+ * for two human-sized bodies meeting at the pair's contact point, taken as the slots' midpoint; a body [s] times a human's
+ * (its clip's reach and, in the engine, its root motion across the floor are [s] times a human's) stands [s] times as far
+ * from that point, in the same direction, so its hands and face come to the contact as a human's would. Up and down nothing
+ * changes: a slot's z is a lift into the clip's Root track, which the engine already takes by each body's own pelvis. Facing
+ * is the clip's. Everyone at 1 (all but gnomes) leaves the slots as they are. Pure; allocates only when something moves.
+ */
+object PairFit {
+    /** [a] and [b]'s slots for bodies [sa] and [sb] times a human's. */
+    fun slots(a: PartnerSlot, b: PartnerSlot, sa: Float, sb: Float): Pair<PartnerSlot, PartnerSlot> {
+        if (sa == 1f && sb == 1f) return a to b
+        val cx = (a.x + b.x) * 0.5f; val cy = (a.y + b.y) * 0.5f
+        fun fit(p: PartnerSlot, s: Float) = if (s == 1f) p else p.copy(x = cx + (p.x - cx) * s, y = cy + (p.y - cy) * s)
+        return fit(a, sa) to fit(b, sb)
+    }
+
+    /**
+     * A performance's roles (the lead's, then the partner's) for bodies [sizes] (in the same order) times a human's: two roles
+     * as [slots]; one (alone) about the performance's anchor; more are left as they are.
+     */
+    fun roles(roles: List<PlaybackRole>, sizes: FloatArray): List<PlaybackRole> {
+        if (sizes.all { it == 1f }) return roles
+        return when (roles.size) {
+            1 -> listOf(roles[0].let { r -> r.copy(offset = Vec3(r.offset.x * sizes[0], r.offset.y * sizes[0], r.offset.z)) })
+            2 -> {
+                val (a, b) = slots(slot(roles[0]), slot(roles[1]), sizes.getOrElse(0) { 1f }, sizes.getOrElse(1) { 1f })
+                listOf(roles[0].copy(offset = Vec3(a.x, a.y, a.z)), roles[1].copy(offset = Vec3(b.x, b.y, b.z)))
+            }
+            else -> roles
+        }
+    }
+
+    /** How far apart two people stand talking: [human] for two humans, each half of it taken by their own size. */
+    fun gap(human: Float, sa: Float, sb: Float): Float = human * 0.5f * (sa + sb)
+
+    private fun slot(r: PlaybackRole) = PartnerSlot(r.offset.x, r.offset.y, r.offset.z, 0f)
 }
 
 /** Plays a pair's sound events (the audio side: W46's PartnerSounds). Main thread. */

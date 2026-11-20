@@ -1,5 +1,6 @@
 package com.logie.wifecraft.ui
 
+import com.logie.wifecraft.simulation.CameraMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -73,5 +74,29 @@ class SceneHudTest {
         assertFalse(SceneHud.inTab("Partner", "Dances", 1))
         assertTrue(SceneHud.inTab("Dances", "Dances", 1))
         assertTrue(SceneHud.inTab("All", "x", 1))
+    }
+
+    @Test
+    fun theCameraControlsNameTheModeAndKeepTheirPlace() {
+        assertEquals("Room view", SceneHud.cameraLabel(CameraMode.ROOM))
+        assertEquals("Camera: Orbit. Tap for Follow.", SceneHud.cameraDescription(CameraMode.ORBIT, canFollow = true))
+        assertEquals("Camera: Orbit. Tap for Room view.", SceneHud.cameraDescription(CameraMode.ORBIT, canFollow = false))
+        // a drag on the room's view starts the orbit; an orbit or Follow is kept
+        assertEquals(CameraMode.ORBIT, SceneHud.cameraForTouch(CameraMode.ROOM))
+        assertEquals(CameraMode.FOLLOW, SceneHud.cameraForTouch(CameraMode.FOLLOW))
+        // letting the NPC go turns Follow into the orbit; selecting changes nothing
+        assertEquals(CameraMode.ORBIT, SceneHud.cameraAfterRelease(CameraMode.FOLLOW, selected = false))
+        assertEquals(CameraMode.FOLLOW, SceneHud.cameraAfterRelease(CameraMode.FOLLOW, selected = true))
+        assertEquals(CameraMode.ROOM, SceneHud.cameraAfterRelease(CameraMode.ROOM, selected = false))
+        // 48 dp targets, under the top bar (and the cast strip on a narrow screen), clear of the action bar
+        assertEquals(2 * 48f + SceneHud.CAMERA_GAP, SceneHud.CAMERA_W)
+        for ((w, h) in listOf(360f to 780f, 780f to 360f, 900f to 700f)) {
+            val layout = SceneHud.layout(w, h)
+            val top = SceneHud.cameraTop(layout)
+            assertTrue(top >= SceneHud.TOP_H + (if (layout.castSide) 0f else layout.castH), "$w x $h: $top")
+            val bottom = top + 3 * SceneHud.SLOT_H + 2 * SceneHud.CAMERA_GAP
+            val barTop = h - SceneHud.MARGIN - layout.barH - 6f - 48f
+            assertTrue(bottom <= barTop, "$w x $h: the controls end at $bottom, the bar's line starts at $barTop")
+        }
     }
 }

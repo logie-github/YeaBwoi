@@ -13,15 +13,26 @@ import org.json.JSONObject
 data class LocationInfo(
     val id: String,
     val name: String,
+    /** "interior" (a real building of the game, furnished as the game furnishes it), "composed" (a real building of the
+     *  game with props of the game added to it) or the Embassy's "interior+exterior". */
     val kind: String,
     val views: Map<String, View>,
     val packs: List<Pack>,
     /** The area (AreaTable) whose music and ambience it has (ambience.area; 0: none given). */
     val areaId: Int,
     val interactions: List<Interaction> = emptyList(),
+    /** Whose home it is ("human", "orc"...; empty: no one's in particular). */
+    val people: String = "",
 ) {
     data class ModelReference(val id: Int, val position: Vec3)
-    data class Interaction(val item: String, val entry: Vec3, val facing: Float, val models: List<ModelReference>)
+    /**
+     * Furniture someone can use: walked to at [entry] (the floor beside it), then used at [pose] (lying on the bed's
+     * mattress, sitting in the chair; the entry itself when the row names no pose), facing [facing] (radians, the
+     * location's frame). [models] are the furniture's own models in the scene, found by id near their position.
+     */
+    data class Interaction(
+        val item: String, val entry: Vec3, val facing: Float, val models: List<ModelReference>, val pose: Vec3 = entry,
+    )
     data class View(val camera: CameraPose?, val spawn: Vec3?, val facing: Float)
     data class Pack(val name: String, val files: List<Pair<Int, Long>>) {
         val bytes: Long get() = files.sumOf { it.second }
@@ -87,13 +98,14 @@ data class LocationInfo(
                         val model = models.getJSONObject(j)
                         ModelReference(model.getInt("id"), requireNotNull(vec(model.optJSONArray("position"))))
                     }
-                    interactions += Interaction(row.getString("object"), entry, row.getDouble("facing").toFloat(), references)
+                    val pose = vec(row.optJSONArray("pose")) ?: entry
+                    interactions += Interaction(row.getString("object"), entry, row.getDouble("facing").toFloat(), references, pose)
                 }
             }
             val id = e.getString("id")
             return LocationInfo(
                 id, e.optString("name", id), e.optString("kind", ""), views, packs,
-                e.optJSONObject("ambience")?.optInt("area", 0) ?: 0, interactions,
+                e.optJSONObject("ambience")?.optInt("area", 0) ?: 0, interactions, e.optString("people", ""),
             )
         }
     }

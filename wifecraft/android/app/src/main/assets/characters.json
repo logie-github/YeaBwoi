@@ -1,0 +1,1065 @@
+{
+ "characters": [
+  {
+   "id": "sylvanas",
+   "name": "Sylvanas Windrunner",
+   "variants": [
+    {
+     "key": "shadowlands",
+     "label": "Shadowlands (creature/sylvanasshadowlands)",
+     "kind": "outfit",
+     "sourceDisplay": 95032,
+     "sourceCreatures": [
+      177114,
+      179687,
+      180828
+     ],
+     "era": "Shadowlands 9.0: model file 3221727",
+     "display": 95032
+    },
+    {
+     "key": "shadowlands2",
+     "label": "Shadowlands, Sanctum (sylvanasshadowlands2)",
+     "kind": "outfit",
+     "sourceDisplay": 102133,
+     "sourceCreatures": [
+      181799,
+      183676
+     ],
+     "era": "Shadowlands 9.1: model file 4201178",
+     "display": 102133
+    },
+    {
+     "key": "shadowlands3",
+     "label": "Shadowlands, Sepulcher (sylvanasshadowlands3)",
+     "kind": "outfit",
+     "sourceDisplay": 102134,
+     "sourceCreatures": [
+      181286,
+      181393,
+      181789,
+      183666,
+      184231,
+      184605,
+      185167,
+      185857
+     ],
+     "era": "Shadowlands 9.1 to 9.2: model file 4214530",
+     "display": 102134
+    },
+    {
+     "key": "underwear",
+     "label": "Underwear (No Gear)",
+     "kind": "underwear",
+     "race": 29,
+     "sex": "FEMALE",
+     "picks": {
+      "264": 2870,
+      "266": 2886,
+      "267": 19171,
+      "1548": 19180
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 102134,
+     "note": "stand-in: the game draws her with a model of her own; a Void Elf woman with choices picked by hand to resemble her"
+    },
+    {
+     "key": "bare",
+     "label": "Bare (no underwear layers)",
+     "kind": "bare",
+     "race": 29,
+     "sex": "FEMALE",
+     "picks": {
+      "264": 2870,
+      "266": 2886,
+      "267": 19171,
+      "1548": 19180
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 102134,
+     "note": "stand-in: the game draws her with a model of her own; a Void Elf woman with choices picked by hand to resemble her"
+    }
+   ]
+  },
+  {
+   "id": "calia",
+   "name": "Calia Menethil",
+   "variants": [
+    {
+     "key": "shadowlands",
+     "label": "The Pallid Lady (creature/caliamenethil)",
+     "kind": "outfit",
+     "sourceDisplay": 92900,
+     "sourceCreatures": [
+      156513,
+      169075,
+      181231,
+      184112,
+      185512,
+      185523,
+      185797,
+      185803,
+      185826,
+      185839,
+      185848,
+      185893
+     ],
+     "era": "Battle for Azeroth 8.3 model (file 2997555), worn through Shadowlands",
+     "display": 92900
+    },
+    {
+     "key": "underwear",
+     "label": "Underwear (No Gear)",
+     "kind": "underwear",
+     "race": 1,
+     "sex": "FEMALE",
+     "picks": {
+      "14": 97,
+      "16": 136,
+      "17": 165
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 92900,
+     "note": "stand-in: the game draws her with a model of her own; a Human woman with choices picked by hand to resemble her"
+    },
+    {
+     "key": "bare",
+     "label": "Bare (no underwear layers)",
+     "kind": "bare",
+     "race": 1,
+     "sex": "FEMALE",
+     "picks": {
+      "14": 97,
+      "16": 136,
+      "17": 165
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 92900,
+     "note": "stand-in: the game draws her with a model of her own; a Human woman with choices picked by hand to resemble her"
+    }
+   ]
+  },
+  {
+   "id": "lilian",
+   "name": "Lilian Voss",
+   "variants": [
+    {
+     "key": "bfa",
+     "label": "Battle for Azeroth (Forsaken), worn through Shadowlands (Desolate Council)",
+     "kind": "outfit",
+     "sourceDisplay": 85799,
+     "sourceCreatures": [
+      137224,
+      138287,
+      138604,
+      139062,
+      139101,
+      139377,
+      139991,
+      140486,
+      141654,
+      141961,
+      143528,
+      146968
+     ],
+     "era": "Battle for Azeroth display 85799 on the Forsaken model",
+     "race": 5,
+     "sex": "FEMALE",
+     "picks": {
+      "63": 985,
+      "64": 995,
+      "65": 1024,
+      "66": 1029,
+      "67": 1043,
+      "535": 5337,
+      "559": 6275,
+      "568": 6524
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": {
+      "3": 168785,
+      "4": 170609,
+      "5": 170610,
+      "6": 170615,
+      "7": 170617,
+      "8": 168772,
+      "9": 168774,
+      "10": 170614,
+      "15": 26056
+     }
+    },
+    {
+     "key": "bfa_nude",
+     "label": "Battle for Azeroth (Forsaken), worn through Shadowlands (Desolate Council), nude",
+     "kind": "nude",
+     "sourceDisplay": 85799,
+     "sourceCreatures": [
+      137224,
+      138287,
+      138604,
+      139062,
+      139101,
+      139377,
+      139991,
+      140486,
+      141654,
+      141961,
+      143528,
+      146968
+     ],
+     "era": "Battle for Azeroth display 85799 on the Forsaken model",
+     "race": 5,
+     "sex": "FEMALE",
+     "picks": {
+      "63": 985,
+      "64": 995,
+      "65": 1024,
+      "66": 1029,
+      "67": 1043,
+      "535": 5337,
+      "559": 6275,
+      "568": 6524
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": {
+      "3": 168785,
+      "9": 168774,
+      "10": 170614,
+      "15": 26056
+     },
+     "note": "display 85799's items without the shirt, chest, tabard, belt, legs and feet, over the bare body"
+    },
+    {
+     "key": "underwear",
+     "label": "Underwear (No Gear)",
+     "kind": "underwear",
+     "race": 5,
+     "sex": "FEMALE",
+     "picks": {
+      "63": 985,
+      "64": 995,
+      "65": 1024,
+      "66": 1029,
+      "67": 1043,
+      "535": 5337,
+      "559": 6275,
+      "568": 6524
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 85799,
+     "note": "her own choices from display 85799"
+    },
+    {
+     "key": "bare",
+     "label": "Bare (no underwear layers)",
+     "kind": "bare",
+     "race": 5,
+     "sex": "FEMALE",
+     "picks": {
+      "63": 985,
+      "64": 995,
+      "65": 1024,
+      "66": 1029,
+      "67": 1043,
+      "535": 5337,
+      "559": 6275,
+      "568": 6524
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 85799,
+     "note": "her own choices from display 85799"
+    }
+   ]
+  },
+  {
+   "id": "jaina",
+   "name": "Jaina Proudmoore",
+   "variants": [
+    {
+     "key": "bfa",
+     "label": "Lord Admiral (creature/jaina3)",
+     "kind": "outfit",
+     "sourceDisplay": 88316,
+     "sourceCreatures": [
+      144150,
+      156280,
+      156626,
+      156807,
+      156961,
+      216168,
+      223607,
+      228455,
+      228963,
+      229325,
+      233237,
+      233530
+     ],
+     "era": "Battle for Azeroth model (file 1717164, first used by 8.0's displays); reused by later creatures",
+     "display": 88316
+    },
+    {
+     "key": "shadowlands",
+     "label": "Shadowlands (creature/jaina3)",
+     "kind": "outfit",
+     "sourceDisplay": 104817,
+     "sourceCreatures": [
+      181228,
+      181277,
+      181390,
+      181786,
+      183664,
+      183717,
+      183724,
+      184714
+     ],
+     "era": "Shadowlands 9.1 to 9.2 display of the same model",
+     "display": 104817
+    },
+    {
+     "key": "underwear",
+     "label": "Underwear (No Gear)",
+     "kind": "underwear",
+     "race": 1,
+     "sex": "FEMALE",
+     "picks": {
+      "14": 85,
+      "16": 140,
+      "17": 165
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 104817,
+     "note": "stand-in: the game draws her with a model of her own; a Human woman with choices picked by hand to resemble her"
+    },
+    {
+     "key": "bare",
+     "label": "Bare (no underwear layers)",
+     "kind": "bare",
+     "race": 1,
+     "sex": "FEMALE",
+     "picks": {
+      "14": 85,
+      "16": 140,
+      "17": 165
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 104817,
+     "note": "stand-in: the game draws her with a model of her own; a Human woman with choices picked by hand to resemble her"
+    }
+   ]
+  },
+  {
+   "id": "alexstrasza",
+   "name": "Alexstrasza",
+   "variants": [
+    {
+     "key": "visage",
+     "label": "Visage (creature/ladyalexstrasza)",
+     "kind": "outfit",
+     "sourceDisplay": 28227,
+     "sourceCreatures": [
+      153679,
+      164011,
+      185905,
+      187658,
+      187678,
+      189805,
+      193377,
+      200008,
+      203012,
+      204028,
+      205157,
+      206398
+     ],
+     "era": "Dragonflight model: display 28227 drew file 234501 in 9.2.7, the remodel 4218362 now",
+     "display": 28227
+    },
+    {
+     "key": "dragonflight",
+     "label": "Dragonflight cinematic visage (creature/igc_alexstrasza)",
+     "kind": "outfit",
+     "sourceDisplay": 108614,
+     "sourceCreatures": [
+      194542
+     ],
+     "era": "Dragonflight: model file 4569783",
+     "display": 108614
+    },
+    {
+     "key": "underwear",
+     "label": "Underwear (No Gear)",
+     "kind": "underwear",
+     "race": 10,
+     "sex": "FEMALE",
+     "picks": {
+      "119": 1734,
+      "121": 1782,
+      "122": 1803,
+      "126": 1854,
+      "572": 6591
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 108614,
+     "note": "stand-in: the game draws her with a model of her own; a Blood Elf woman with choices picked by hand to resemble her"
+    },
+    {
+     "key": "bare",
+     "label": "Bare (no underwear layers)",
+     "kind": "bare",
+     "race": 10,
+     "sex": "FEMALE",
+     "picks": {
+      "119": 1734,
+      "121": 1782,
+      "122": 1803,
+      "126": 1854,
+      "572": 6591
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 108614,
+     "note": "stand-in: the game draws her with a model of her own; a Blood Elf woman with choices picked by hand to resemble her"
+    }
+   ]
+  },
+  {
+   "id": "chromie",
+   "name": "Chromie",
+   "variants": [
+    {
+     "key": "timewalker",
+     "label": "Timewalker (creature/chromie)",
+     "kind": "outfit",
+     "sourceDisplay": 10008,
+     "sourceCreatures": [
+      78602,
+      205424,
+      205706,
+      208035,
+      208462,
+      248051
+     ],
+     "era": "Dragonflight model: display 10008 drew the gnome player model in 9.2.7, creature/chromie (4218359) now",
+     "display": 10008
+    }
+   ],
+   "presets": [
+    {
+     "key": "gnome",
+     "label": "Chromie",
+     "kind": "outfit",
+     "race": 7,
+     "sex": "FEMALE",
+     "picks": {
+      "85": 1238,
+      "86": 1246,
+      "87": 1265,
+      "88": -70001,
+      "89": 1289,
+      "549": 5637,
+      "786": 15671
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": {
+      "3": 162929,
+      "4": 163039,
+      "5": 163040,
+      "6": 162923,
+      "7": 162928,
+      "8": 162924,
+      "9": 162930,
+      "10": 163018,
+      "15": 26665
+     },
+     "sourceDisplay": 78231,
+     "sourceCreatures": [
+      124154
+     ],
+     "note": "her choices and worn items from display 78231 (creature 124154)"
+    }
+   ]
+  },
+  {
+   "id": "valeera",
+   "name": "Valeera Sanguinar",
+   "variants": [
+    {
+     "key": "current",
+     "label": "Current (creature/valeera)",
+     "kind": "outfit",
+     "sourceDisplay": 26365,
+     "sourceCreatures": [
+      87404,
+      98102,
+      110175,
+      229128,
+      242099,
+      242381,
+      248750,
+      248874,
+      248982,
+      250186,
+      268807,
+      274915
+     ],
+     "era": "Battle for Azeroth 8.3 model (file 3049179); the display her newest creatures (268807, 274915: Midnight's ids) use",
+     "display": 26365
+    },
+    {
+     "key": "underwear",
+     "label": "Underwear (No Gear)",
+     "kind": "underwear",
+     "race": 10,
+     "sex": "FEMALE",
+     "picks": {
+      "119": 1733,
+      "121": 1781,
+      "122": 1801,
+      "572": 6587
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 26365,
+     "note": "stand-in: the game draws her with a model of her own; a Blood Elf woman with choices picked by hand to resemble her"
+    },
+    {
+     "key": "bare",
+     "label": "Bare (no underwear layers)",
+     "kind": "bare",
+     "race": 10,
+     "sex": "FEMALE",
+     "picks": {
+      "119": 1733,
+      "121": 1781,
+      "122": 1801,
+      "572": 6587
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 26365,
+     "note": "stand-in: the game draws her with a model of her own; a Blood Elf woman with choices picked by hand to resemble her"
+    }
+   ]
+  },
+  {
+   "id": "alleria",
+   "name": "Alleria Windrunner",
+   "variants": [
+    {
+     "key": "warwithin",
+     "label": "The War Within (creature/alleria3)",
+     "kind": "outfit",
+     "sourceDisplay": 118072,
+     "sourceCreatures": [
+      211349,
+      211375,
+      211752,
+      213632,
+      214402,
+      214908,
+      215446,
+      216148,
+      216518,
+      217282,
+      217385,
+      219252
+     ],
+     "era": "The War Within: model file 5395590",
+     "display": 118072
+    },
+    {
+     "key": "midnight",
+     "label": "Midnight, void-touched (creature/alleria3void)",
+     "kind": "outfit",
+     "sourceDisplay": 141483,
+     "sourceCreatures": [
+      259399
+     ],
+     "era": "Midnight: model file 6718343, creature 259399",
+     "display": 141483
+    },
+    {
+     "key": "underwear",
+     "label": "Underwear (No Gear)",
+     "kind": "underwear",
+     "race": 10,
+     "sex": "FEMALE",
+     "picks": {
+      "119": 1733,
+      "121": 1782,
+      "122": 1801,
+      "572": 6602
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 141483,
+     "note": "stand-in: the game draws her with a model of her own; a Blood Elf woman with choices picked by hand to resemble her"
+    },
+    {
+     "key": "bare",
+     "label": "Bare (no underwear layers)",
+     "kind": "bare",
+     "race": 10,
+     "sex": "FEMALE",
+     "picks": {
+      "119": 1733,
+      "121": 1782,
+      "122": 1801,
+      "572": 6602
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 141483,
+     "note": "stand-in: the game draws her with a model of her own; a Blood Elf woman with choices picked by hand to resemble her"
+    }
+   ]
+  },
+  {
+   "id": "whitemane",
+   "name": "Sally Whitemane",
+   "variants": [
+    {
+     "key": "scarlet",
+     "label": "Scarlet Crusade (High Inquisitor, Scarlet Monastery)",
+     "kind": "outfit",
+     "sourceDisplay": 2043,
+     "sourceCreatures": [],
+     "era": "classic display 2043 (npc 3977), on the human woman's current model",
+     "race": 1,
+     "sex": "FEMALE",
+     "picks": {
+      "14": 95,
+      "15": 106,
+      "16": 134,
+      "17": 165,
+      "464": 15744,
+      "501": 4752,
+      "510": 4908,
+      "516": 4963,
+      "526": 5059,
+      "970": 15676
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": {
+      "1": 15991,
+      "3": 9574,
+      "4": 15986,
+      "5": 15987,
+      "7": 15984,
+      "8": 15988,
+      "10": 15989,
+      "19": 15983
+     }
+    },
+    {
+     "key": "deathknight",
+     "label": "Death knight (human)",
+     "kind": "outfit",
+     "sourceDisplay": 71257,
+     "sourceCreatures": [
+      109900,
+      111337,
+      161708
+     ],
+     "era": "Legion display, her newest: Shadowlands-era creature 161708 uses it; no newer model exists",
+     "race": 1,
+     "sex": "FEMALE",
+     "picks": {
+      "14": 96,
+      "15": 102,
+      "16": 134,
+      "17": 168,
+      "464": 15743,
+      "501": 4752,
+      "510": 4908,
+      "516": 4963,
+      "526": 5059,
+      "970": 15672
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": {
+      "3": 63609,
+      "4": 148434,
+      "5": 63611,
+      "6": 63612,
+      "7": 63628,
+      "8": 63614,
+      "9": 63615,
+      "10": 63616,
+      "15": 139213
+     }
+    },
+    {
+     "key": "scarlet_nude",
+     "label": "Scarlet Crusade (High Inquisitor, Scarlet Monastery), nude",
+     "kind": "nude",
+     "sourceDisplay": 2043,
+     "sourceCreatures": [],
+     "era": "classic display 2043 (npc 3977), on the human woman's current model",
+     "race": 1,
+     "sex": "FEMALE",
+     "picks": {
+      "14": 95,
+      "15": 106,
+      "16": 134,
+      "17": 165,
+      "464": 15744,
+      "501": 4752,
+      "510": 4908,
+      "516": 4963,
+      "526": 5059,
+      "970": 15676
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": {
+      "1": 15991,
+      "3": 9574,
+      "10": 15989
+     },
+     "note": "display 2043's items without the shirt, chest, tabard, belt, legs and feet, over the bare body"
+    },
+    {
+     "key": "deathknight_nude",
+     "label": "Death knight (human), nude",
+     "kind": "nude",
+     "sourceDisplay": 71257,
+     "sourceCreatures": [
+      109900,
+      111337,
+      161708
+     ],
+     "era": "Legion display, her newest: Shadowlands-era creature 161708 uses it; no newer model exists",
+     "race": 1,
+     "sex": "FEMALE",
+     "picks": {
+      "14": 96,
+      "15": 102,
+      "16": 134,
+      "17": 168,
+      "464": 15743,
+      "501": 4752,
+      "510": 4908,
+      "516": 4963,
+      "526": 5059,
+      "970": 15672
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": {
+      "3": 63609,
+      "9": 63615,
+      "10": 63616,
+      "15": 139213
+     },
+     "note": "display 71257's items without the shirt, chest, tabard, belt, legs and feet, over the bare body"
+    },
+    {
+     "key": "underwear",
+     "label": "Underwear (No Gear)",
+     "kind": "underwear",
+     "race": 1,
+     "sex": "FEMALE",
+     "picks": {
+      "14": 97,
+      "15": 106,
+      "16": 134,
+      "17": 165,
+      "464": 15744,
+      "501": 4752,
+      "510": 4908,
+      "516": 4963,
+      "526": 5059,
+      "970": 15676
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 2043,
+     "note": "her own choices from display 2043; Skin Color set by hand"
+    },
+    {
+     "key": "bare",
+     "label": "Bare (no underwear layers)",
+     "kind": "bare",
+     "race": 1,
+     "sex": "FEMALE",
+     "picks": {
+      "14": 97,
+      "15": 106,
+      "16": 134,
+      "17": 165,
+      "464": 15744,
+      "501": 4752,
+      "510": 4908,
+      "516": 4963,
+      "526": 5059,
+      "970": 15676
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 2043,
+     "note": "her own choices from display 2043; Skin Color set by hand"
+    }
+   ]
+  },
+  {
+   "id": "xalatath",
+   "name": "Xal'atath",
+   "variants": [
+    {
+     "key": "bfa",
+     "label": "Battle for Azeroth (void elf)",
+     "kind": "outfit",
+     "sourceDisplay": 88826,
+     "sourceCreatures": [
+      149745
+     ],
+     "era": "Battle for Azeroth display 88826 on the Void Elf model",
+     "race": 29,
+     "sex": "FEMALE",
+     "picks": {
+      "264": 2870,
+      "265": 2884,
+      "266": 2895,
+      "267": 2896,
+      "268": 2906,
+      "579": 6675,
+      "588": 6895,
+      "589": 6896,
+      "892": 9936,
+      "1548": 19180,
+      "1550": 19186,
+      "6395": 45298,
+      "8553": 54446
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": {
+      "5": 174786,
+      "6": 41080,
+      "7": 46571,
+      "8": 174787,
+      "10": 49949
+     }
+    },
+    {
+     "key": "warwithin",
+     "label": "The Harbinger (creature/xalatath)",
+     "kind": "outfit",
+     "sourceDisplay": 117121,
+     "sourceCreatures": [
+      220558,
+      227225,
+      230155,
+      231546,
+      233231,
+      245155,
+      245524,
+      247433,
+      249504,
+      258536
+     ],
+     "era": "The War Within: model file 5159886",
+     "display": 117121
+    },
+    {
+     "key": "bfa_nude",
+     "label": "Battle for Azeroth (void elf), nude",
+     "kind": "nude",
+     "sourceDisplay": 88826,
+     "sourceCreatures": [
+      149745
+     ],
+     "era": "Battle for Azeroth display 88826 on the Void Elf model",
+     "race": 29,
+     "sex": "FEMALE",
+     "picks": {
+      "264": 2870,
+      "265": 2884,
+      "266": 2895,
+      "267": 2896,
+      "268": 2906,
+      "579": 6675,
+      "588": 6895,
+      "589": 6896,
+      "892": 9936,
+      "1548": 19180,
+      "1550": 19186,
+      "6395": 45298,
+      "8553": 54446
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": {
+      "10": 49949
+     },
+     "note": "display 88826's items without the shirt, chest, tabard, belt, legs and feet, over the bare body"
+    },
+    {
+     "key": "underwear",
+     "label": "Underwear (No Gear)",
+     "kind": "underwear",
+     "race": 29,
+     "sex": "FEMALE",
+     "picks": {
+      "264": 2870,
+      "265": 2884,
+      "266": 2895,
+      "267": 2896,
+      "268": 2906,
+      "579": 6675,
+      "588": 6895,
+      "589": 6896,
+      "892": 9936,
+      "1548": 19180,
+      "1550": 19186,
+      "6395": 45298,
+      "8553": 54446
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 88826,
+     "note": "her own choices from display 88826"
+    },
+    {
+     "key": "bare",
+     "label": "Bare (no underwear layers)",
+     "kind": "bare",
+     "race": 29,
+     "sex": "FEMALE",
+     "picks": {
+      "264": 2870,
+      "265": 2884,
+      "266": 2895,
+      "267": 2896,
+      "268": 2906,
+      "579": 6675,
+      "588": 6895,
+      "589": 6896,
+      "892": 9936,
+      "1548": 19180,
+      "1550": 19186,
+      "6395": 45298,
+      "8553": 54446
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 88826,
+     "note": "her own choices from display 88826"
+    }
+   ]
+  }
+ ]
+}

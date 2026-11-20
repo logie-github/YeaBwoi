@@ -92,7 +92,7 @@ private val Ink = Color.White
 private val Dim = Color(0xFF9D9D9D)
 private val Red = Color(0xFFFF5A46)
 private val Edge = Color(0xFF96784A)
-private val Tip = Color(0xEB08080C)
+private val TipFill = Color(0xEB08080C)
 private val ClearW = 64.dp
 
 /** The window's body: the dark stone of the game's frames, or the spellbook's parchment (the Library). */
@@ -249,7 +249,7 @@ fun WowTooltipBox(modifier: Modifier = Modifier, content: @Composable BoxScope.(
     val war = LocalWar.current
     val shape = RoundedCornerShape(5.dp)
     Box(
-        modifier.shadow(6.dp, shape).clip(shape).background(Tip).border(1.4.dp, Color(0xFF78787D), shape).drawBehindCorners(war),
+        modifier.shadow(6.dp, shape).clip(shape).background(TipFill).border(1.4.dp, Color(0xFF78787D), shape).drawBehindCorners(war),
         content = content,
     )
 }

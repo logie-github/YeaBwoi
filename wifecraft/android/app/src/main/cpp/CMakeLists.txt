@@ -9,12 +9,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(wcengine SHARED
     jni.cpp
     engine/blp.cpp
+    engine/bodypart.cpp
     engine/bodyshape.cpp
     engine/bytes.cpp
     engine/editview.cpp
     engine/json.cpp
     engine/location.cpp
     engine/m2.cpp
+    engine/modelpart.cpp
     engine/scene.cpp
     engine/skin.cpp
     engine/softbody.cpp

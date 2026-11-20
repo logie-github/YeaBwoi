@@ -4,7 +4,10 @@ ground each one is made of, by file id, with every transform already in the loca
 light, fog, music, spawns and cameras, and the files the app fetches for it (ids and sizes only: the
 files are the game's, fetched on the phone from wago.tools, never put in this repository).
 
-    python3 tools/locations.py CACHE_DIR [LISTFILE]
+    python3 tools/locations.py CACHE_DIR [LISTFILE] [--only=ID,ID...]
+
+--only rebuilds just those locations and keeps every other entry as it is (the Embassy's entry has hand-made parts:
+its interactions, its views' interiorFog; rebuild the bedrooms with --only=<their ids>).
 
 CACHE_DIR keeps everything fetched while working it out (files named by id, tables as <Name>.csv);
 LISTFILE is the community listfile (wowdev/wow-listfile, `id;path` lines), used only to name files in
@@ -21,6 +24,7 @@ import io
 import json
 import math
 import os
+import re
 import struct
 import sys
 import time
@@ -38,8 +42,7 @@ TILE = 533.33333
 ORIGIN = 32 * TILE
 
 # The locations. Each names its building by file id and the map placement that stands it in the world
-# (map WDT, tile, MODF unique id): nothing is guessed from names. Later locations (Goldshire's inn,
-# Brill's, Auberdine's, the Azuremyst and Teldrassil glades, Sylvanas' chamber) are added here.
+# (map WDT, tile, MODF unique id): nothing is guessed from names. The bedrooms follow the Embassy.
 LOCATIONS = [
     {
         "id": "embassy",
@@ -57,6 +60,70 @@ LOCATIONS = [
         "outsideRadius": 40.0,           # the map's props and ground this close to the building's centre
         "outsideFog": (28.0, 55.0),      # hides the edge of that yard
     },
+] + [
+    # The bedrooms. Each is a real building of the game, standing where the game stands it (its MODF on the map, found by
+    # file id and unique id, with the placement's own doodad set), its furniture the building's own doodads, picked by
+    # their index in the WMO's MODD (beds, chairs, tables and the books on them): "room" says which. Where the game has no
+    # furnished bedroom of a people, "extras" adds the game's own props to a real building of theirs (kind "composed").
+    dict(id="goldshire_inn", name="Lion's Pride Inn, Goldshire", kind="interior", people="human",
+         # goldshireinn.wmo, WMOID 53 name set 2 (WMOAreaTable 20327 "Lion's Pride Inn"); Elwynn, azeroth 31_49
+         wmo=106851, wdt=775971, tile=(31, 49), uid=71414, doodadSets=[0, 2], area=87, wmoArea=20327,
+         outsideRadius=40.0, outsideFog=(28.0, 60.0),
+         room=dict(bed=511, chair=470, table=527, books=[424, 439],                 # the canopy bed upstairs, the writing desk
+                   eye=(3.4, -0.9, 9.6), at=(8.8, 2.2, 8.0))),
+    dict(id="thunderbrew", name="Thunderbrew Distillery, Kharanos", kind="interior", people="dwarf",
+         # snow_inn.wmo, WMOID 1970 name set 1 (WMOAreaTable 25370 "Thunderbrew Distillery", area 2102); azeroth 32_42
+         wmo=113925, wdt=775971, tile=(32, 42), uid=125539, doodadSets=[0, 2], area=2102, wmoArea=25370,
+         outsideRadius=40.0, outsideFog=(28.0, 60.0),
+         room=dict(bed=69, eye=(-22.09, 7.83, -15.15),                              # the cellar's guest beds
+                   outside=dict(eye=(26.0, 8.35, 3.0), at=(-12.0, 8.35, 6.0), spawn=(2.0, 8.35)))),
+    dict(id="dolanaar_inn", name="Dolanaar Inn, Teldrassil", kind="interior", people="night elf",
+         # nightelfinn.wmo, WMOID 727 (set_Inn); Dolanaar, kalimdor 30_13
+         wmo=112867, wdt=782779, tile=(30, 13), uid=167621, doodadSets=[0, 1], area=186, wmoArea=None,
+         outsideRadius=45.0, outsideFog=(30.0, 65.0),
+         room=dict(bed=10, eye=(-1.54, 0.83, 20.76),                                # the upper loft's beds
+                   outside=dict(eye=(56.0, 12.0, 3.0), at=(20.0, 12.0, 5.0), spawn=(38.0, 12.0)))),
+    dict(id="razor_hill_inn", name="Razor Hill Inn, Durotar", kind="interior", people="orc",
+         # orcinn.wmo, WMOID 1849; Razor Hill, kalimdor 40_31
+         wmo=113021, wdt=782779, tile=(40, 31), uid=359836, doodadSets=[0], area=362, wmoArea=None,
+         outsideRadius=40.0, outsideFog=(30.0, 65.0),
+         room=dict(bed=2, eye=(8.98, -5.90, 3.49))),
+    dict(id="bloodhoof_inn", name="Bloodhoof Village Inn, Mulgore", kind="interior", people="tauren",
+         # taurenlonghouse.wmo, WMOID 704, Set_Inn; Bloodhoof Village, kalimdor 32_36
+         wmo=113176, wdt=782779, tile=(32, 36), uid=340063, doodadSets=[0, 3], area=222, wmoArea=None,
+         outsideRadius=45.0, outsideFog=(30.0, 70.0),
+         room=dict(bed=81, eye=(11.52, 2.71, 10.74))),                              # the loft's beds over the hall
+    dict(id="fairbreeze_inn", name="Fairbreeze Village Inn, Eversong", kind="interior", people="blood elf",
+         # bloodelf_twostory01.wmo, WMOID 4468, Set_TwoStory_02; Fairbreeze Village, expansion01 44_15
+         wmo=114286, wdt=828395, tile=(44, 15), uid=742849, doodadSets=[0, 2], area=3462, wmoArea=None,
+         outsideRadius=40.0, outsideFog=(30.0, 65.0),
+         room=dict(bed=254, chair=211, eye=(2.38, -5.03, 25.67),
+                   outside=dict(eye=(-55.0, 12.77, 3.0), at=(-15.0, 12.77, 6.0), spawn=(-37.0, 12.77)))),
+    dict(id="brill_house", name="A House in Brill, Tirisfal", kind="interior", people="Forsaken",
+         # nd_forsaken_house.wmo, WMOID 4953; Brill, azeroth 31_27 (beside the Brill Inn)
+         wmo=114858, wdt=775971, tile=(31, 27), uid=5521907, doodadSets=[0], area=159, wmoArea=None,
+         outsideRadius=40.0, outsideFog=(28.0, 60.0),
+         room=dict(bed=9, eye=(-2.69, 3.70, 9.61))),                                # the upstairs bed among the coffins
+    dict(id="gadgetzan_inn", name="Gadgetzan Inn, Tanaris", kind="interior", people="goblin",
+         # kl_tanaris_goblinbld_b.wmo, WMOID 1770 name set 2 (WMOAreaTable 89788, area 976), set_GoblinInn; kalimdor 39_45
+         wmo=112806, wdt=782779, tile=(39, 45), uid=357332, doodadSets=[0, 1], area=976, wmoArea=89788,
+         outsideRadius=40.0, outsideFog=(30.0, 70.0),
+         room=dict(bed=23, eye=(-3.39, 1.49, 0.42))),
+    dict(id="senjin_hut", name="Sen'jin Village Hut, Durotar", kind="composed", people="troll",
+         # troll_hotel01.wmo, WMOID 1198, standing in Sen'jin Village (kalimdor 41_33) with its set_TrollGeneral (set 2);
+         # composed: furnished instead with the same building's own set_TrollInn (set 1, the game's bunk-hammocks and
+         # sleeping mats for this hut), as no troll hut the game stands is furnished to sleep in
+         wmo=113195, wdt=782779, tile=(41, 33), uid=576557, doodadSets=[0, 1], area=367, wmoArea=None,
+         outsideRadius=40.0, outsideFog=(30.0, 65.0),
+         room=dict(bed=25, bedTop=1.25, eye=(1.81, -5.96, 16.88))),                 # an upstairs hammock (its sling)
+    dict(id="telaar_hut", name="A Hut in Telaar, Nagrand", kind="composed", people="draenei",
+         # ancdraehuta.wmo, WMOID 4566, as it stands in Telaar (expansion01 18_36, area 3626), furnished by the game with
+         # books, cushions and stores; composed: the game has no draenei bed in any building it stands, so a bed of the
+         # draenei of Draenor (6dr_draenei_bed01, the same ancient draenei style as the hut) is added to it
+         wmo=115783, wdt=828395, tile=(18, 36), uid=798146, doodadSets=[0], area=3626, wmoArea=None,
+         outsideRadius=40.0, outsideFog=(30.0, 70.0),
+         extras=[dict(model=979920, at=(5.0, 6.5, 1.0), yawDeg=90.0, scale=0.8)],     # on the rug, the stores behind it
+         room=dict(bed="extra:0", headTurn=math.pi, eye=(1.11, 10.39, 3.9))),       # its pillows are at its +y end
 ]
 
 
@@ -75,6 +142,7 @@ class Store:
                 if i > 0 and line[:i].isdigit():
                     self.names[int(line[:i])] = line[i + 1:].strip()
         self.status = {}
+        self.tables = {}
 
     def name(self, fid):
         return self.names.get(fid, "?")
@@ -116,12 +184,15 @@ class Store:
             list(ex.map(self.file, sorted(set(f for f in fids if f))))
 
     def table(self, name):
+        if name in self.tables:
+            return self.tables[name]
         path = os.path.join(self.cache, name + ".csv")
         if not os.path.exists(path):
             data, code = self._get(DB2 % name, path)
             if data is None:
                 raise SystemExit("no table %s (%d)" % (name, code))
-        return list(csv.DictReader(io.open(path, encoding="utf-8")))
+        self.tables[name] = list(csv.DictReader(io.open(path, encoding="utf-8")))
+        return self.tables[name]
 
 
 def chunks(d, start=0, end=None):
@@ -433,6 +504,209 @@ def m2_deps(st, fid):
     return skins[:1] + tex
 
 
+def m2_info(st, fid):
+    """A prop's box (MD20 bounding box: min xyz, max xyz) and its vertices' positions, in its own frame."""
+    d = st.file(fid)
+    if not d:
+        return None
+    o = next((o for t, o, n in chunks(d) if t[::-1] == "MD21"), None)
+    if o is None:
+        return None
+    box = struct.unpack_from("<6f", d, o + 160)
+    nv, ov = struct.unpack_from("<2I", d, o + 60)
+    verts = [struct.unpack_from("<3f", d, o + ov + i * 48) for i in range(nv)]
+    return dict(box=box, verts=verts)
+
+
+def quat_yaw(q):
+    x, y, z, w = q
+    return math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z))
+
+
+def m2_tris(st, fid, verts):
+    """A prop's triangles (its first skin's), as positions in its own frame."""
+    d = st.file(fid)
+    skin = next((struct.unpack_from("<I", d, o)[0] for t, o, n in chunks(d) if t[::-1] == "SFID" and n >= 4), 0)
+    k = st.file(skin) if skin else None
+    if not k or k[:4] != b"SKIN":
+        return []
+    n_look, o_look, n_tri, o_tri = struct.unpack_from("<4I", k, 4)
+    look = struct.unpack_from("<%dH" % n_look, k, o_look)
+    idx = struct.unpack_from("<%dH" % n_tri, k, o_tri)
+    return [tuple(verts[look[idx[i + j]]] for j in range(3)) for i in range(0, n_tri - 2, 3)]
+
+
+def lying_top(st, fid, info, scale, cap):
+    """Where someone lies on a bed: its surface under its middle, found by dropping a line onto its own triangles from
+    `cap` yards up (a canopy, posts and a headboard stand above that or beside the middle); along its length a little
+    either way too, the median taken. Its vertices' highest under `cap` when it has no skin to drop onto."""
+    tris = m2_tris(st, fid, info["verts"])
+    b = info["box"]
+    cx, cy = (b[0] + b[3]) / 2, (b[1] + b[4]) / 2
+    hits = []
+    for fx in (-0.2, 0.0, 0.2):
+        for fy in (-0.15, 0.0, 0.15):
+            o = (cx + fx * (b[3] - b[0]), cy + fy * (b[4] - b[1]), cap / scale)
+            t = ray_hit(tris, o, (0.0, 0.0, -1.0), cap / scale + 1)
+            if t < cap / scale + 1:
+                hits.append(o[2] - t)
+    if hits:
+        return sorted(hits)[len(hits) // 2] * scale
+    zs = [v[2] for v in info["verts"] if v[2] * scale < cap]
+    return (max(zs) if zs else b[5]) * scale
+
+
+def ray_hit(tris, o, d, maxd):
+    """The nearest hit of the ray o + t d (t in 0..maxd) on the triangles (both faces), or maxd."""
+    best = maxd
+    for a, b, c in tris:
+        e1 = (b[0] - a[0], b[1] - a[1], b[2] - a[2])
+        e2 = (c[0] - a[0], c[1] - a[1], c[2] - a[2])
+        p = (d[1] * e2[2] - d[2] * e2[1], d[2] * e2[0] - d[0] * e2[2], d[0] * e2[1] - d[1] * e2[0])
+        det = e1[0] * p[0] + e1[1] * p[1] + e1[2] * p[2]
+        if abs(det) < 1e-9:
+            continue
+        inv = 1.0 / det
+        s = (o[0] - a[0], o[1] - a[1], o[2] - a[2])
+        u = (s[0] * p[0] + s[1] * p[1] + s[2] * p[2]) * inv
+        if u < 0 or u > 1:
+            continue
+        q = (s[1] * e1[2] - s[2] * e1[1], s[2] * e1[0] - s[0] * e1[2], s[0] * e1[1] - s[1] * e1[0])
+        v = (d[0] * q[0] + d[1] * q[1] + d[2] * q[2]) * inv
+        if v < 0 or u + v > 1:
+            continue
+        t = (e2[0] * q[0] + e2[1] * q[1] + e2[2] * q[2]) * inv
+        if 0.05 < t < best:
+            best = t
+    return best
+
+
+def near_tris(tris, p, r):
+    return [t for t in tris if min(abs(v[0] - p[0]) for v in t) < r and min(abs(v[1] - p[1]) for v in t) < r
+            and min(abs(v[2] - p[2]) for v in t) < r]
+
+
+def bedroom(st, w, tris, room, extras=()):
+    """The bedroom's view, spawn and interaction spots from the building's own furniture (room: MODD indices).
+
+    The bed: lying on it at its middle, as high as its mattress, facing its length (the model's +x, the way the game's
+    beds lie; room["headTurn"] turns it, radians); getting in from the floor beside its long side, on the side with more room. The camera: from the room's
+    widest side of the bed, as far as the walls let it (at most 5.5 yards), 2 yards up, looking at the bed. A chair: sat in
+    where it stands, facing its way. A table: read at, standing 1.1 yards in front of it, with its books."""
+    def dd(i):
+        # an index of the building's MODD, or "extra:N", the location's Nth composed prop
+        return extras[int(i[6:])] if isinstance(i, str) else w.doodads[i]
+    bed = dd(room["bed"])
+    info = m2_info(st, bed["model"])
+    yaw = quat_yaw(bed["rot"])
+    sc = bed["scale"]
+    bx, by, bz = bed["pos"]
+    box = info["box"]
+    # the box's middle, turned and scaled into the building's frame
+    mx, my = (box[0] + box[3]) / 2 * sc, (box[1] + box[4]) / 2 * sc
+    cx = bx + mx * math.cos(yaw) - my * math.sin(yaw)
+    cy = by + mx * math.sin(yaw) + my * math.cos(yaw)
+    floor = floor_at(tris, cx, cy, bz + 0.3)
+    floor = bz if floor is None else floor
+    top = room.get("bedTop")
+    top = bz + (top if top is not None else lying_top(st, bed["model"], info, sc, 1.05))
+    # its length: its box's longer side (the model's x when nearly square, as the Lion's Pride's canopy bed, whose pillows
+    # are at +x); its head: the end where it stands higher (the headboard); room["headTurn"] for one that lies otherwise
+    ex_, ey_ = box[3] - box[0], box[4] - box[1]
+    along_y = ey_ > 1.15 * ex_
+    axis = 1 if along_y else 0
+    mid = (box[axis] + box[axis + 3]) / 2
+    hi_plus = max([v[2] for v in info["verts"] if v[axis] > mid] or [0])
+    hi_minus = max([v[2] for v in info["verts"] if v[axis] < mid] or [0])
+    head = -1 if hi_minus > hi_plus * 1.05 else 1
+    width = (ex_ if along_y else ey_) * sc / 2
+    yaw += (math.pi / 2 if along_y else 0.0) + (math.pi if head < 0 else 0.0)
+    yaw = math.atan2(math.sin(yaw + room.get("headTurn", 0.0)), math.cos(yaw + room.get("headTurn", 0.0)))
+    local = near_tris(tris, (cx, cy, floor + 1.5), 12)
+    side = (-math.sin(yaw), math.cos(yaw))
+    best = None
+    for sgn in (1, -1):
+        ex, ey = cx + side[0] * sgn * (width + 0.55), cy + side[1] * sgn * (width + 0.55)
+        f = floor_at(local, ex, ey, floor + 0.5)
+        if f is None or abs(f - floor) > 0.3:
+            continue
+        room_d = ray_hit(local, (cx, cy, floor + 0.6), (side[0] * sgn, side[1] * sgn, 0), 8)
+        if best is None or room_d > best[0]:
+            best = (room_d, (ex, ey, f), sgn)
+    if best is None:
+        ex, ey = cx + side[0] * (width + 0.55), cy + side[1] * (width + 0.55)
+        best = (0, (ex, ey, floor), 1)
+    entry = best[1]
+    spots = [dict(object="BED", entry=rnd(entry), pose=rnd((cx, cy, top)), facing=round(yaw, 4),
+                  models=[dict(id=bed["model"], position=rnd(bed["pos"]))])]
+    # the camera: every way round the bed, the one with the most room (a side view of the bed preferred)
+    eye_z = floor + 2.0
+    at = (cx, cy, top + 0.45)
+    cand = None
+    for k in range(36):
+        a = math.radians(k * 10)
+        d = (math.cos(a), math.sin(a), 0.0)
+        free = ray_hit(local, (cx, cy, eye_z), d, 9)
+        dist = min(free - 0.6, 5.5)
+        if dist < 1.5:
+            continue
+        ex_, ey_ = cx + d[0] * dist, cy + d[1] * dist
+        f = floor_at(local, ex_, ey_, eye_z)
+        if f is None or abs(f - floor) > 0.6:
+            continue
+        across = abs(math.sin(a - yaw))
+        score = dist + 1.5 * across
+        if cand is None or score > cand[0]:
+            cand = (score, (ex_, ey_, eye_z))
+    if cand is None:
+        cand = (0, (cx + side[0] * best[2] * 3, cy + side[1] * best[2] * 3, eye_z))
+    eye = room.get("eye") or cand[1]
+    at = room.get("at") or at
+    spawn_facing = math.atan2(eye[1] - entry[1], eye[0] - entry[0])
+    for key, obj in (("chair", "CHAIR"),):
+        if key in room:
+            c = dd(room[key])
+            cf = floor_at(local, c["pos"][0], c["pos"][1], c["pos"][2] + 0.5)
+            p = (c["pos"][0], c["pos"][1], c["pos"][2] if cf is None else cf)
+            spots.append(dict(object=obj, entry=rnd(p), pose=rnd(p), facing=round(quat_yaw(c["rot"]), 4),
+                              models=[dict(id=c["model"], position=rnd(c["pos"]))]))
+    if "table" in room:
+        t = dd(room["table"])
+        tyaw = quat_yaw(t["rot"])
+        # stand at the table's side that faces the room (towards the bed's camera side)
+        opts = []
+        for a in (tyaw, tyaw + math.pi / 2, tyaw + math.pi, tyaw - math.pi / 2):
+            px, py = t["pos"][0] + math.cos(a) * 1.1, t["pos"][1] + math.sin(a) * 1.1
+            f = floor_at(local, px, py, t["pos"][2] + 0.5)
+            if f is not None and abs(f - t["pos"][2]) < 0.4:
+                opts.append((ray_hit(local, (px, py, f + 1.0), (math.cos(a), math.sin(a), 0), 4), (px, py, f), a))
+        if opts:
+            _, p, a = max(opts)
+            spots.append(dict(object="TABLE", entry=rnd(p), facing=round(math.atan2(-math.sin(a), -math.cos(a)), 4),
+                              models=[dict(id=t["model"], position=rnd(t["pos"]))] +
+                                     [dict(id=dd(b)["model"], position=rnd(dd(b)["pos"])) for b in room.get("books", [])]))
+    view = dict(eye=rnd(eye), at=rnd(at), fov=60)
+    spawn = dict(pos=rnd(entry), facing=round(spawn_facing, 4))
+    return view, spawn, spots
+
+
+def door_portal(w, tris):
+    """The building's front door: of the upright portals with open sky on one side (nothing over the step out), the
+    lowest; else portal 0."""
+    best = None
+    for i, p in enumerate(w.portals):
+        c = tuple(sum(v[k] for v in p["verts"]) / len(p["verts"]) for k in range(3))
+        n = p["normal"]
+        for sgn in (1, -1):
+            x, y = c[0] + n[0] * sgn * 2.5, c[1] + n[1] * sgn * 2.5
+            roof = ray_hit(near_tris(tris, (x, y, c[2]), 15), (x, y, c[2]), (0, 0, 1), 40)
+            if roof >= 40 and abs(n[2]) < 0.3:
+                key = (c[2], i)
+                if best is None or key < best:
+                    best = key
+    return best[1] if best else 0
+
+
 # ---- a location ----
 
 def build(st, loc):
@@ -450,6 +724,7 @@ def build(st, loc):
 
     groups = [Group(st, g["file"]) for g in w.groups]
     tris = [t for g in groups for t in g.tris]
+    tris_all = tris
     indoor = [i for i, g in enumerate(w.groups) if g["flags"] & 0x2000]
     outdoor = [i for i, g in enumerate(w.groups) if g["flags"] & 0x8]
 
@@ -476,6 +751,16 @@ def build(st, loc):
         lm = mm(to_local, wp)
         q, _ = quat(lm)
         yard.append(dict(model=p["fid"], pos=rnd(apply(lm, (0, 0, 0))), rot=rnd(q, 5), scale=round(p["scale"], 4), set=-1))
+    # a composed location's own props (the game's models, placed by hand: kind "composed"), standing on the building's
+    # floor under (x, y), turned yawDeg about z
+    extras = []
+    for x in loc.get("extras", []):
+        f = floor_at(tris_all, x["at"][0], x["at"][1], x["at"][2] + 0.5)
+        pos = (x["at"][0], x["at"][1], x["at"][2] if f is None else f)
+        a = math.radians(x["yawDeg"]) / 2
+        extras.append(dict(model=x["model"], pos=rnd(pos), rot=rnd((0.0, 0.0, math.sin(a), math.cos(a)), 5),
+                           scale=round(x.get("scale", 1.0), 4)))
+    yard += [dict(e, set=-1, composed=True) for e in extras]
     others = []
     for p in modf:
         if p["uid"] == loc["uid"]:
@@ -486,11 +771,12 @@ def build(st, loc):
             others.append((p["fid"], round(d, 1)))
 
     ter = Terrain(st, root, tex0)
-    near = ter.near(centre_w[0], centre_w[1], radius)
+    # the ground: as far as the outside view's fog reaches past the yard (the Embassy's hand-picked 95 yards, as a rule)
+    near = ter.near(centre_w[0], centre_w[1], radius + 55 if loc.get("room") else radius)
     layers = sorted({ter.diffuse[i] for k in near for i in ter.chunks[k]["layers"] if i < len(ter.diffuse)})
 
-    # the door: the building's portal between outside and in
-    portal = w.portals[0] if w.portals else None
+    # the door: the building's portal between outside and in (a bedroom's building: its front door, door_portal)
+    portal = (w.portals[door_portal(w, tris)] if loc.get("room") else w.portals[0]) if w.portals else None
     if portal:
         pc = tuple(sum(v[i] for v in portal["verts"]) / len(portal["verts"]) for i in range(3))
         n = portal["normal"]
@@ -538,7 +824,8 @@ def build(st, loc):
 
     # light: the map's default light (Light 1 of the continent, its first params) at noon; inside,
     # the building's own ambient (MOHD) over its baked vertex colours, and its fog (MFOG)
-    lights = [r for r in st.table("Light") if r["ContinentID"] == str(continent(st, loc))]
+    cont = str(continent(st, loc))
+    lights = [r for r in st.table("Light") if r["ContinentID"] == cont]
     lp = None
     for r in lights:
         c = (float(r["GameCoords_0"]), float(r["GameCoords_1"]))
@@ -554,6 +841,13 @@ def build(st, loc):
     day_fog = dict(colour=colour_rgb(noon["SkyFogColor"]), start=loc["outsideFog"][0], end=loc["outsideFog"][1])
     room_light = dict(ambient=colour_bgra(w.ambient), direct=[0.0, 0.0, 0.0], vertexColours=True,
                       source="MOHD ambient; the room's light is baked into its vertex colours (MOCV)")
+    unbaked = [i for i in indoor if "MOCV" not in groups[i].sub]
+    if loc.get("room") and unbaked and sum(room_light["ambient"]) < 0.06:
+        # rooms with no baked light (no MOCV) and no ambient (the Gadgetzan inn's): the game lights them with the area's
+        # light; without it the engine draws them black. The day's ambient and half its sun, as one flat light.
+        room_light = dict(ambient=[round(min(1.0, a + 0.5 * d), 3) for a, d in zip(day["ambient"], day["direct"])],
+                          direct=[0.0, 0.0, 0.0], vertexColours=True,
+                          source="the map's day light (ambient + half the sun): groups %s have no MOCV and MOHD's ambient is black" % unbaked)
     f = w.fogs[0] if w.fogs else None
     room_fog = dict(colour=colour_bgra(f["color"]) if f else day_fog["colour"],
                     start=round(f["end"] * f["mult"], 2) if f else 30.0, end=round(f["end"], 2) if f else 60.0,
@@ -562,6 +856,24 @@ def build(st, loc):
     outside["light"], outside["fog"] = day, day_fog
     inside["groups"] = list(range(len(w.groups)))
     outside["groups"] = list(range(len(w.groups)))
+    spots = []
+    if loc.get("room"):
+        # a bedroom: the camera on its bed, the person beside it; the room's MFOG kept as interiorFog and the map's fog
+        # seen through windows and doors, as the Embassy's
+        inside["view"], inside["spawn"], spots = bedroom(st, w, tris, loc["room"], extras)
+        ov = loc["room"].get("outside")
+        if ov:
+            # the outside view picked by looking (tools: the yard seen from all round): eye and target as (x, y, height
+            # over the ground there), the person standing on the ground at spawn (x, y), facing the camera
+            def on_ground(x, y, dz):
+                g = ground(x, y, sill + 3)
+                return (x, y, (sill if g is None else g) + dz)
+            eye, at = on_ground(*ov["eye"]), on_ground(*ov["at"])
+            sp = on_ground(ov["spawn"][0], ov["spawn"][1], 0.0)
+            outside["view"] = dict(eye=rnd(eye), at=rnd(at), fov=55)
+            outside["spawn"] = dict(pos=rnd(sp), facing=round(math.atan2(eye[1] - sp[1], eye[0] - sp[0]), 4))
+        inside["interiorFog"] = room_fog
+        inside["fog"] = dict(day_fog, source="the map's, as outside: seen through doors and windows; MFOG is interiorFog")
 
     # music and ambience: the building's WMOAreaTable row, else the area's
     area = next(r for r in st.table("AreaTable") if r["ID"] == str(loc["area"]))
@@ -629,7 +941,8 @@ def build(st, loc):
     yard = [d for d in yard if d["model"] not in bad]
 
     entry = dict(
-        id=loc["id"], name=loc["name"], kind=loc["kind"],
+        id=loc["id"], name=loc["name"], kind=loc["kind"], **({"people": loc["people"]} if "people" in loc else {}),
+        **({"interactions": spots} if spots else {}),
         frame=dict(comment="the building's own frame; world (map %d) = origin + Rz(yawDeg) * local" % continent(st, loc),
                    map=continent(st, loc), origin=rnd(origin), yawDeg=round(place["rot"][1] + 180, 4)),
         wmo=dict(root=loc["wmo"], groups=group_files, groupIndices=list(range(len(w.groups))),
@@ -642,7 +955,8 @@ def build(st, loc):
                      wdt=loc["wdt"], tile=list(loc["tile"]), root=root, tex0=tex0, chunks=[list(k) for k in near], textures=layers),
         light=day, fog=day_fog,
         spawns=dict(inside=inside["spawn"], outside=outside["spawn"]),
-        views=dict(inside=dict(inside["view"], light=inside["light"], fog=inside["fog"], groups=inside["groups"]),
+        views=dict(inside=dict(inside["view"], light=inside["light"], groups=inside["groups"],
+                               **({"interiorFog": inside["interiorFog"]} if "interiorFog" in inside else {}), fog=inside["fog"]),
                    outside=dict(outside["view"], light=outside["light"], fog=outside["fog"], groups=outside["groups"])),
         ambience=ambience,
         files=dict(source=CASC.replace("%d", "<id>"), packs=out_packs, total=total, totalMB=round(total / 1e6, 2), missing=missing),
@@ -669,20 +983,47 @@ def count_models(st, items):
     return sorted(((n, m, st.name(m)) for m, n in c.items()), reverse=True)
 
 
+def entry_texts(text):
+    """The text of each entry of a locations.json's "locations" array, as it stands in the file."""
+    dec = json.JSONDecoder()
+    i = text.index("[", text.index('"locations"')) + 1
+    out = []
+    while True:
+        while text[i] in " \t\r\n,":
+            i += 1
+        if text[i] == "]":
+            return out
+        _, end = dec.raw_decode(text, i)
+        out.append(text[i:end])
+        i = end
+
+
+def compact(text):
+    """json.dumps(indent=1)'s text with every list of plain numbers on one line ([x, y, z] rather than a line each)."""
+    return re.sub(r"\[\s*(-?[0-9][-0-9.eE+]*(?:\s*,\s*-?[0-9][-0-9.eE+]*)*)\s*\]",
+                  lambda m: "[" + ", ".join(v.strip() for v in m.group(1).split(",")) + "]", text)
+
+
 def main():
-    if len(sys.argv) < 2:
+    args = [a for a in sys.argv[1:] if not a.startswith("--only=")]
+    only = {x for a in sys.argv[1:] if a.startswith("--only=") for x in a[7:].split(",")}
+    if not args:
         raise SystemExit(__doc__)
-    st = Store(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else None)
+    st = Store(args[0], args[1] if len(args) > 1 else None)
+    todo = [l for l in LOCATIONS if not only or l["id"] in only]
     path = os.path.join(ASSETS, "locations.json")
     out = {"comment": "The editor's locations (tools/locations.py). Each is in its main building's own frame (x, y across, "
                       "z up, yards); doodads: model file id, pos, rot quaternion [x, y, z, w], scale. Files are fetched from "
                       "wago.tools by id at build " + BUILD + "; nothing of the game is in this file but ids and transforms.",
            "build": BUILD, "locations": []}
+    kept = {}
     if os.path.exists(path):
-        old = json.load(open(path))
-        out["locations"] = [l for l in old.get("locations", []) if l["id"] not in {x["id"] for x in LOCATIONS}]
+        text = open(path).read()
+        old = json.loads(text)
+        out["locations"] = [l for l in old.get("locations", []) if l["id"] not in {x["id"] for x in todo}]
+        kept = {l["id"]: t for l, t in zip(old.get("locations", []), entry_texts(text))}
     reports = {}
-    for loc in LOCATIONS:
+    for loc in todo:
         entry, rep = build(st, loc)
         out["locations"].append(entry)
         reports[loc["id"]] = rep
@@ -690,10 +1031,16 @@ def main():
             loc["id"], len(entry["wmo"]["groups"]), sum(1 for d in entry["doodads"] if d["set"] >= 0),
             sum(1 for d in entry["doodads"] if d["set"] < 0), len(entry["terrain"]["chunks"]),
             entry["files"]["totalMB"], len(entry["files"]["missing"])))
-    out["locations"].sort(key=lambda l: l["id"])
+    order = [l["id"] for l in LOCATIONS]      # the scene list's order: the Embassy first, then the bedrooms as listed
+    out["locations"].sort(key=lambda l: (order.index(l["id"]) if l["id"] in order else len(order), l["id"]))
+    # the entries not rebuilt are kept as their text was (the Embassy's hand-made parts, as written); the rebuilt ones
+    # with their number lists on one line
+    rebuilt = {x["id"] for x in todo}
+    parts = [kept[l["id"]] if l["id"] in kept and l["id"] not in rebuilt else
+             "\n  ".join(compact(json.dumps(l, indent=1)).split("\n")) for l in out["locations"]]
     with open(path, "w") as f:
-        json.dump(out, f, indent=1)
-        f.write("\n")
+        f.write("{\n \"comment\": %s,\n \"build\": %s,\n \"locations\": [\n  %s\n ]\n}\n" % (
+            json.dumps(out["comment"]), json.dumps(out["build"]), ",\n  ".join(parts)))
     if os.environ.get("LOCATIONS_REPORT"):
         with open(os.environ["LOCATIONS_REPORT"], "w") as f:
             json.dump(reports, f, indent=1, default=str)

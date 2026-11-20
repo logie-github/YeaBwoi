@@ -182,6 +182,94 @@ JNIEXPORT void JNICALL FN(setActorScale)(JNIEnv*, jclass, jlong h, jint id, jflo
 
 JNIEXPORT jfloat JNICALL FN(height)(JNIEnv*, jclass, jlong h, jint id) { return scene(h)->actorHeight(id); }
 
+// Human scale (anim/HumanScale.kt): the actor's standing height in model units (0: no humanoid skeleton), and the root
+// motion of its imported animations in the pair's shared yards (0: off).
+JNIEXPORT jfloat JNICALL FN(standHeight)(JNIEnv*, jclass, jlong h, jint id) { return scene(h)->actorStandHeight(id); }
+JNIEXPORT void JNICALL FN(humanRootMotion)(JNIEnv*, jclass, jlong h, jint id, jfloat xy) { scene(h)->setHumanRootMotion(id, xy); }
+
+// Body parts (engine/bodypart.h): a part file loaded (its handle, 0: partError says why), put on an actor with its tinted
+// texture (RGBA, w x h, top row first), which slot is drawn, the race's fit, taken off, and where to sample the skin.
+JNIEXPORT jint JNICALL FN(loadPart)(JNIEnv* env, jclass, jlong h, jstring path) { return scene(h)->loadPart(str(env, path)); }
+JNIEXPORT jstring JNICALL FN(partError)(JNIEnv* env, jclass, jlong h) { return env->NewStringUTF(scene(h)->partError().c_str()); }
+JNIEXPORT jboolean JNICALL FN(attachPart)(JNIEnv* env, jclass, jlong h, jint id, jint part, jbyteArray rgba, jint w, jint ht) {
+    if (!rgba || w <= 0 || ht <= 0) return JNI_FALSE;
+    jsize n = env->GetArrayLength(rgba);
+    if (int64_t(n) != int64_t(w) * int64_t(ht) * 4) return JNI_FALSE;
+    std::vector<uint8_t> px(static_cast<size_t>(n));
+    env->GetByteArrayRegion(rgba, 0, n, reinterpret_cast<jbyte*>(px.data()));
+    return scene(h)->attachPart(id, part, px.data(), w, ht) ? JNI_TRUE : JNI_FALSE;
+}
+JNIEXPORT void JNICALL FN(partState)(JNIEnv*, jclass, jlong h, jint id, jint state) { scene(h)->setPartState(id, state); }
+JNIEXPORT void JNICALL FN(partFit)(JNIEnv*, jclass, jlong h, jint id, jfloat dx, jfloat dz, jfloat scale) {
+    PartFit f;
+    f.dx = dx; f.dz = dz; f.scale = scale;
+    scene(h)->setPartFit(id, f);
+}
+JNIEXPORT void JNICALL FN(detachParts)(JNIEnv*, jclass, jlong h, jint id) { scene(h)->detachParts(id); }
+JNIEXPORT jfloatArray JNICALL FN(partSkinUvs)(JNIEnv* env, jclass, jlong h, jint id) {
+    std::vector<float> uv = scene(h)->partSkinUvs(id);
+    jfloatArray out = env->NewFloatArray(jsize(uv.size()));
+    if (out && !uv.empty()) env->SetFloatArrayRegion(out, 0, jsize(uv.size()), uv.data());
+    return out;
+}
+
+// Model parts (engine/modelpart.h): a version 2 part on an actor's named bone with its fit (its handle on the actor, 0: not
+// one), shown or hidden and refitted by handle (0: all), taken off; the stand-in's cut (bone names), its skin tint and where
+// to sample its face's skin; and a manifest's set cut from the downloaded files into files/bodyparts/<set>/ (any thread).
+JNIEXPORT jint JNICALL FN(attachBonePart)(JNIEnv*, jclass, jlong h, jint id, jint part, jfloat dx, jfloat dy, jfloat dz, jfloat scale) {
+    BonePartFit f;
+    f.offset = V3(dx, dy, dz);
+    f.scale = scale;
+    return scene(h)->attachBonePart(id, part, f);
+}
+JNIEXPORT void JNICALL FN(bonePartVisible)(JNIEnv*, jclass, jlong h, jint id, jint handle, jboolean visible) {
+    scene(h)->setBonePartVisible(id, handle, visible == JNI_TRUE);
+}
+JNIEXPORT void JNICALL FN(bonePartFit)(JNIEnv*, jclass, jlong h, jint id, jint handle, jfloat dx, jfloat dy, jfloat dz, jfloat scale) {
+    BonePartFit f;
+    f.offset = V3(dx, dy, dz);
+    f.scale = scale;
+    scene(h)->setBonePartFit(id, handle, f);
+}
+JNIEXPORT void JNICALL FN(detachBoneParts)(JNIEnv*, jclass, jlong h, jint id) { scene(h)->detachBoneParts(id); }
+JNIEXPORT void JNICALL FN(bodyCut)(JNIEnv* env, jclass, jlong h, jint id, jobjectArray bones) {
+    std::vector<std::string> names;
+    jsize n = bones ? env->GetArrayLength(bones) : 0;
+    for (jsize i = 0; i < n; ++i) {
+        auto s = static_cast<jstring>(env->GetObjectArrayElement(bones, i));
+        if (s) { names.push_back(str(env, s)); env->DeleteLocalRef(s); }
+    }
+    scene(h)->setBodyCut(id, names);
+}
+JNIEXPORT void JNICALL FN(bodyTint)(JNIEnv*, jclass, jlong h, jint id, jfloat r, jfloat g, jfloat b) { scene(h)->setBodyTint(id, r, g, b); }
+JNIEXPORT jfloatArray JNICALL FN(faceSkinUvs)(JNIEnv* env, jclass, jlong h, jint id) {
+    std::vector<float> uv = scene(h)->faceSkinUvs(id);
+    jfloatArray out = env->NewFloatArray(jsize(uv.size()));
+    if (out && !uv.empty()) env->SetFloatArrayRegion(out, 0, jsize(uv.size()), uv.data());
+    return out;
+}
+JNIEXPORT jstring JNICALL FN(buildModelParts)(JNIEnv* env, jclass, jstring manifest, jstring filesDir, jstring outDir, jstring set) {
+    std::string base = str(env, filesDir), only = str(env, set), report;
+    FileLookup files = [base](uint32_t fid) {
+        std::string p = base + "/" + std::to_string(fid);
+        struct stat st;
+        return stat(p.c_str(), &st) == 0 && st.st_size > 0 ? p : std::string();
+    };
+    ModelPartManifest man;
+    std::string err;
+    if (!parseModelPartManifest(str(env, manifest), man, err)) return env->NewStringUTF(("failed\nmanifest: " + err).c_str());
+    bool any = false, ok = true;
+    for (const ModelPartSet& s : man.sets) {
+        if (!only.empty() && s.set != only) continue;
+        any = true;
+        std::string r;
+        if (!buildModelPartSet(s, man, files, str(env, outDir), r)) ok = false;
+        report += "== " + s.set + "\n" + r;
+    }
+    if (!any) { ok = false; report = "no set " + only + "\n"; }
+    return env->NewStringUTF(((ok ? "ok\n" : "failed\n") + report).c_str());
+}
+
 JNIEXPORT void JNICALL FN(camera)(JNIEnv*, jclass, jlong h, jfloat ex, jfloat ey, jfloat ez, jfloat tx, jfloat ty, jfloat tz, jfloat fov) {
     scene(h)->setCamera(V3(ex, ey, ez), V3(tx, ty, tz), fov);
 }
