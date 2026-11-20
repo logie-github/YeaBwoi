@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.logie.wifecraft.anim.CheckedAnimation
 import com.logie.wifecraft.anim.AnimationChoice
+import com.logie.wifecraft.anim.StagePart
 import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.Catalog
 import com.logie.wifecraft.data.Lights
@@ -44,7 +45,7 @@ import java.util.UUID
 import kotlin.math.PI
 
 internal enum class AnimationOrderMode(val label: String) {
-    PLAY("Play now"), QUEUE("Queue"), REPEAT("Repeat"), SEQUENCE("Queue stages"),
+    PLAY("Play now"), QUEUE("Queue"), SEQUENCE("Queue stages"),
 }
 
 /**
@@ -65,6 +66,9 @@ internal fun AnimationBrowser(
     /** The controlled NPC's partner (the Partner tab first), and the NPC itself (the subtitle). */
     partnerName: String? = null,
     actorName: String? = null,
+    /** How it repeats and how the queue plays ([PlayOptions], kept per scene by the caller); null: not offered (the library). */
+    options: PlayOptions? = null,
+    onOptions: (PlayOptions) -> Unit = {},
 ) {
     var query by remember { mutableStateOf("") }
     var selection by remember { mutableStateOf<String?>(null) }
@@ -111,6 +115,7 @@ internal fun AnimationBrowser(
                     Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
                         SceneSearchField(query, { query = it.take(40) }, "Find animations", Modifier.fillMaxWidth())
                         if (!split && onPlay != null) OrderModes(mode) { mode = it }
+                        if (!split && onPlay != null && options != null) RepeatControls(options, onOptions)
                         LazyColumn(Modifier.weight(1f).fillMaxWidth().warScrollbar(list), list,
                             verticalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
                             if (grouped.isEmpty()) item {
@@ -130,11 +135,12 @@ internal fun AnimationBrowser(
                     }
                     if (split) Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
                         if (onPlay != null) OrderModes(mode) { mode = it }
+                        if (onPlay != null && options != null) RepeatControls(options, onOptions)
                         if (selected == null) {
                             WifeNote(when {
                                 onPlay == null -> "Choose an animation to preview."
                                 mode == AnimationOrderMode.SEQUENCE -> "Choose a stage to queue it and its linked stages."
-                                mode == AnimationOrderMode.REPEAT -> "Choose an animation to repeat until stopped or another clip is queued."
+                                options?.untilStopped == true -> "Choose an animation to repeat until stopped or another clip is queued."
                                 mode == AnimationOrderMode.QUEUE -> "Choose animations in the order you want them to play."
                                 partnerName != null -> "Partner animations play with $partnerName."
                                 else -> "Partner animations ask for a second NPC."
@@ -159,8 +165,41 @@ internal fun AnimationBrowser(
 /** What a row says under an animation's name: how many NPCs, the setting, the cycles, a missing track. */
 private fun details(choice: AnimationChoice): String {
     val count = "${choice.participantCount} NPC${if (choice.participantCount == 1) "" else "s"}"
-    return listOfNotNull(count, choice.setting.takeIf(String::isNotBlank), "${choice.repetitions} cycles".takeIf { choice.repetitions > 1 },
+    return listOfNotNull(count, choice.setting.takeIf(String::isNotBlank), stagedParts(choice),
+        "${choice.repetitions} cycles".takeIf { choice.repetitions > 1 },
         "Missing track".takeUnless { choice.playable }).joinToString(" · ")
+}
+
+/** A staged animation's parts as one: "Start, loop, end", "Start, 7 loops, end"; null for one clip. */
+private fun stagedParts(choice: AnimationChoice): String? {
+    if (choice.segments.isEmpty()) return null
+    val loops = choice.segments.count { it.part == StagePart.LOOP }
+    return listOfNotNull("start".takeIf { choice.segments.any { it.part == StagePart.START } },
+        if (loops == 1) "loop" else "$loops loops", "end".takeIf { choice.segments.any { it.part == StagePart.END } })
+        .joinToString(", ").replaceFirstChar(Char::uppercase)
+}
+
+/**
+ * How one animation repeats (Once, Repeat ×N with its count, Until stopped) and how the queue plays (Repeat queue, Shuffle):
+ * always all there, the count's buttons only usable for Repeat ×N, so choosing never moves anything. 48 dp targets.
+ */
+@Composable
+private fun RepeatControls(options: PlayOptions, onOptions: (PlayOptions) -> Unit) {
+    WifeTabs(PlayRepeat.entries.map { options.label(it) }, options.repeat.ordinal, { onOptions(options.copy(repeat = PlayRepeat.entries[it])) })
+    val counting = options.repeat == PlayRepeat.TIMES
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
+        WifeButton("-", { onOptions(options.withTimes(options.times - 1)) }, Modifier.width(56.dp),
+            enabled = counting && options.times > PlayOptions.MIN_TIMES)
+        Text("×${options.times}", Modifier.width(48.dp), style = frizStyle(WifeTheme.label, if (counting) WifeTheme.gold else WifeTheme.textDim),
+            maxLines = 1)
+        WifeButton("+", { onOptions(options.withTimes(options.times + 1)) }, Modifier.width(56.dp),
+            enabled = counting && options.times < PlayOptions.MAX_TIMES)
+        Text("loops", Modifier.weight(1f), style = WifeTheme.captionStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
+        WifeSwitchRow("Repeat queue", options.repeatQueue, { onOptions(options.copy(repeatQueue = it)) }, Modifier.weight(1f))
+        WifeSwitchRow("Shuffle", options.shuffle, { onOptions(options.copy(shuffle = it)) }, Modifier.weight(1f))
+    }
 }
 
 /** How a scene's animation is ordered: Play now, Queue, Repeat, Queue stages (tabs of their own, 48 dp). */

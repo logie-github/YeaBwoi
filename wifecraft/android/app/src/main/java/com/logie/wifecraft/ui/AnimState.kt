@@ -168,6 +168,8 @@ class ImportRun {
 interface AnimStore {
     fun add(a: Anim): AddResult
     fun categories(): List<String>
+    /** Runs the save's adds with the library's index written once at the end (AnimLibrary.batch). */
+    fun <T> batch(block: () -> T): T = block()
 }
 
 class ReviewItem(val anim: Anim, var name: String, var category: String, var include: Boolean = true)
@@ -202,7 +204,42 @@ class ReviewDraft(anims: List<Anim>, defaultCategory: String? = null) {
     fun categoryChoices(existing: List<String>): List<String> =
         (existing + items.map { AnimText.category(it.category) } + AnimText.DEFAULT_CATEGORY).distinctBy { it.lowercase() }.sortedBy { it.lowercase() }
 
-    fun save(store: AnimStore): List<SaveOutcome> = items.filter { it.include }.map { item ->
+    /**
+     * The review's filter: with [twoPersonOnly] only the clips that play a role in a two-person entry of their pack
+     * (ImportedPerformance with two roles; the partner's clip comes with it), and with [limit] the first that many of those
+     * (a two-person entry's partner counted, never left behind). Sets every item's Keep/Skip afresh.
+     */
+    fun filter(twoPersonOnly: Boolean, limit: Int?) {
+        val bySource = items.groupBy { it.anim.source }
+        val partners = HashMap<String, Set<String>>()
+        for (it in items) for (p in it.anim.performances) if (p.roles.size == 2) {
+            val sources = p.roles.map { r -> r.source }.toSet()
+            for (s in sources) partners[s] = partners[s].orEmpty() + sources
+        }
+        for (it in items) it.include = false
+        var kept = 0
+        for (it in items) {
+            if (limit != null && kept >= limit) break
+            if (it.include) continue
+            val group = partners[it.anim.source]
+            if (twoPersonOnly && group == null) continue
+            val with = (group ?: setOf(it.anim.source)).flatMap { s -> bySource[s].orEmpty() }.ifEmpty { listOf(it) }
+            for (x in with) if (!x.include) { x.include = true; kept++ }
+        }
+    }
+
+    /** How many items take part in a two-person entry (the filter's toggle shows it). */
+    val twoPersonCount: Int get() {
+        val sources = items.flatMap { it.anim.performances }.filter { it.roles.size == 2 }.flatMap { p -> p.roles.map { it.source } }.toSet()
+        return items.count { it.anim.source in sources }
+    }
+
+    /** The bytes the kept items' clips take on the phone (their staged clip files), 0 for clips held in memory. */
+    val keptBytes: Long get() = items.filter { it.include }.sumOf { (it.anim.tracks as? com.logie.wifecraft.anim.StoredTracks)?.bytes ?: 0L }
+
+    fun save(store: AnimStore): List<SaveOutcome> = store.batch { saveEach(store) }
+
+    private fun saveEach(store: AnimStore): List<SaveOutcome> = items.filter { it.include }.map { item ->
         val name = AnimText.name(item.name, item.anim.name)
         try {
             val r = store.add(item.anim.copy(name = name, category = AnimText.category(item.category)))
@@ -280,6 +317,7 @@ object PoseChoices {
 interface PairStore {
     fun addPair(p: PairAnim): PairAddResult
     fun pairCategories(): List<String>
+    fun <T> batch(block: () -> T): T = block()
 }
 
 class PairReviewItem(val pair: PairAnim, var name: String, var category: String, var enabled: Boolean = true, var include: Boolean = true, val byHand: Boolean = false)
@@ -347,7 +385,9 @@ class PairDraft(pairs: List<PairAnim>, unpaired: List<ImportEvent.Unpaired>) {
     fun categoryChoices(existing: List<String>): List<String> =
         (existing + items.map { pairCategory(it.category) } + AnimText.PARTNER).distinctBy { it.lowercase() }.sortedBy { it.lowercase() }
 
-    fun save(store: PairStore): List<SaveOutcome> = items.filter { it.include }.map { item ->
+    fun save(store: PairStore): List<SaveOutcome> = store.batch { saveEach(store) }
+
+    private fun saveEach(store: PairStore): List<SaveOutcome> = items.filter { it.include }.map { item ->
         val name = AnimText.name(item.name, item.pair.name)
         try {
             val r = store.addPair(item.pair.copy(name = name, category = pairCategory(item.category), enabled = item.enabled))
@@ -389,5 +429,55 @@ object PairBrowse {
             "off".takeIf { !p.enabled },
         )
         return (listOf(base) + extra).joinToString(", ")
+    }
+}
+
+/** How a scene's Play animation repeats one animation: once (its author's own loops), N times, or until stopped. */
+enum class PlayRepeat(val label: String) { ONCE("Once"), TIMES("Repeat"), UNTIL_STOPPED("Until stopped") }
+
+/**
+ * The Play animation window's choices, kept per scene ([sceneKey], [encode]/[decode]): how one animation repeats
+ * ([repeat], [times] for Repeat N: its loop passes, a staged one's START and END once around them), and the queue's own:
+ * played round again when it ends ([repeatQueue]: each entry whole, start to end) and in a random order ([shuffle]).
+ */
+data class PlayOptions(
+    val repeat: PlayRepeat = PlayRepeat.ONCE,
+    val times: Int = DEFAULT_TIMES,
+    val repeatQueue: Boolean = false,
+    val shuffle: Boolean = false,
+) {
+    /** Until stopped: the loop goes on (a staged one: start, then loop) until Stop, Stop repeat or the queue moves on. */
+    val untilStopped: Boolean get() = repeat == PlayRepeat.UNTIL_STOPPED
+
+    /** Loop passes for an animation whose author asked for [authored]: theirs played once, else [times]. */
+    fun loops(authored: Int): Int = when (repeat) {
+        PlayRepeat.TIMES -> times.coerceIn(MIN_TIMES, MAX_TIMES)
+        else -> authored.coerceIn(1, MAX_TIMES)
+    }
+
+    /** The repeat selector's words: "Once", "Repeat ×3", "Until stopped". */
+    fun label(mode: PlayRepeat): String = if (mode == PlayRepeat.TIMES) "${mode.label} ×${times.coerceIn(MIN_TIMES, MAX_TIMES)}" else mode.label
+
+    fun withTimes(n: Int): PlayOptions = copy(times = n.coerceIn(MIN_TIMES, MAX_TIMES))
+
+    fun encode(): String = "${repeat.name};${times.coerceIn(MIN_TIMES, MAX_TIMES)};${if (repeatQueue) 1 else 0};${if (shuffle) 1 else 0}"
+
+    companion object {
+        const val MIN_TIMES = 2
+        const val MAX_TIMES = 20
+        const val DEFAULT_TIMES = 3
+
+        /** What [encode] wrote; anything else (null, damaged, an older form) is the defaults, field by field. */
+        fun decode(text: String?): PlayOptions {
+            val f = text?.split(';').orEmpty()
+            return PlayOptions(
+                PlayRepeat.entries.firstOrNull { it.name == f.getOrNull(0) } ?: PlayRepeat.ONCE,
+                f.getOrNull(1)?.toIntOrNull()?.coerceIn(MIN_TIMES, MAX_TIMES) ?: DEFAULT_TIMES,
+                f.getOrNull(2) == "1", f.getOrNull(3) == "1",
+            )
+        }
+
+        /** A scene's key: its place and its cast (the same scene is the same place with the same people, in any order). */
+        fun sceneKey(place: String, cast: List<String>): String = "play:" + place + "|" + cast.sorted().joinToString(",")
     }
 }

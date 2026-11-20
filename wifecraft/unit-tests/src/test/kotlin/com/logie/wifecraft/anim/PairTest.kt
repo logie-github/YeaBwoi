@@ -188,7 +188,7 @@ class PairTest {
         val lib = AnimLibrary(d)
         lib.add(Anim("", "Sit", "Poses", 0.1f, false, emptyList(), "h:1", 1L))
         val p = lib.addPair(pair("Hug", "a+b"))
-        assertTrue(File(d, "pair_${p.id}.json").isFile)
+        assertTrue(File(d, "clips/pair_${p.id}_a.wclip").isFile && File(d, "clips/pair_${p.id}_b.wclip").isFile)
         val dup = lib.addPairResult(pair("Other", "a+b"))
         assertTrue(dup.duplicate); assertEquals(p.id, dup.pair.id)
         assertEquals("Hug (2)", lib.addPair(pair("hug", "c+d")).name.replace("hug", "Hug"))
@@ -204,7 +204,7 @@ class PairTest {
         assertEquals(listOf("Sit"), again.index().map { it.name })
         assertTrue(again.damaged.isEmpty())
         again.deletePair(p.id)
-        assertNull(again.getPair(p.id)); assertFalse(File(d, "pair_${p.id}.json").exists())
+        assertNull(again.getPair(p.id)); assertFalse(File(d, "clips/pair_${p.id}_a.wclip").exists())
         assertFailsWith<NoSuchElementException> { again.renamePair("nope", "x") }
         assertFailsWith<IllegalArgumentException> { again.renamePair(again.pairs().first().id, " ") }
         // a damaged pair file is skipped, a newer version refused

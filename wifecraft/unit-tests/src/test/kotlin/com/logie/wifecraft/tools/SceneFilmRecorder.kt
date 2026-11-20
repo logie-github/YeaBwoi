@@ -36,6 +36,10 @@ import com.logie.wifecraft.simulation.WorldClock
 import com.logie.wifecraft.simulation.WalkRoute
 import com.logie.wifecraft.simulation.LifeProps
 import com.logie.wifecraft.simulation.CameraClearance
+import com.logie.wifecraft.simulation.CinematicDirector
+import com.logie.wifecraft.simulation.CinematicLook
+import com.logie.wifecraft.simulation.CinematicSettings
+import com.logie.wifecraft.simulation.CinematicStyle
 import com.logie.wifecraft.story.Vec3
 import org.json.JSONArray
 import org.json.JSONObject
@@ -232,6 +236,7 @@ class SceneFilmRecorder {
         val props = LifeProps.of(locationsJson, preset.name, toLocal, -rotation)
         live.life.setProps(props)
         if (router != null) live.clearance = CameraClearance { eye, at -> router.route(at, eye)?.size == 1 }
+        live.camera.floorZ = o.z   // SceneSessionScreen: the stage's floor (the camera's lift, the director's floor and walls)
         for (interaction in preset.interactions) {
             val item = objects.firstOrNull { it.name == interaction.item } ?: continue
             val spot = InteractionSpot(toLocal(interaction.entry), toLocal(interaction.pose), interaction.facing - rotation)
@@ -333,6 +338,23 @@ class SceneFilmRecorder {
             .put("cues", JSONArray(plan.cues.map { JSONObject().put("t", (it.seconds * 1000).toLong()).put("label", it.label) }))
         track.write(header.toString()); track.newLine()
 
+        // cinematic mode (FILM_CINEMATIC: the real second it starts; FILM_CINEMATIC_END: when it ends; FILM_CINEMATIC_STYLE):
+        // the app's director drives the camera, the look's fade is recorded per frame ("cine") and each shot as it starts
+        val cineFrom = System.getenv("FILM_CINEMATIC")?.toDoubleOrNull()
+        val cineTo = System.getenv("FILM_CINEMATIC_END")?.toDoubleOrNull()
+        val look = CinematicLook()
+        if (cineFrom != null) {
+            val settings = CinematicSettings(style = CinematicStyle.of(System.getenv("FILM_CINEMATIC_STYLE") ?: "MIXED"))
+            look.settings = settings
+            live.aspect = 16f / 9f
+            live.director = CinematicDirector(settings, seed = plan.seed.toLong()).also { d ->
+                d.onShot = { shot ->
+                    track.write(JSONObject().put("type", "shot").put("t", frameMs).put("shot", shot.type.name).put("preset", shot.preset)
+                        .put("seconds", shot.seconds.toDouble()).put("cut", shot.cut).put("travel", shot.travel.toDouble()).toString())
+                    track.newLine()
+                }
+            }
+        }
         live.running = true
         val realSeconds = hours * clock.realSecondsPerHour
         val frameNanos = 1_000_000_000L / FPS
@@ -358,6 +380,12 @@ class SceneFilmRecorder {
                 track.write(JSONObject().put("type", "cue").put("t", frameMs).put("label", c.label).toString()); track.newLine()
             }
             if (k > 0) clock.advance(1.0 / FPS)
+            if (cineFrom != null) {
+                val on = frameMs >= cineFrom * 1000 && (cineTo == null || frameMs < cineTo * 1000)
+                live.directing = on
+                look.on = on
+                look.frame(now + 1)
+            }
             live.frame(now, sink) { snap ->
                 if (snap.notice != null && snap.notice != emitted?.notice) {
                     track.write(JSONObject().put("type", "notice").put("t", frameMs).put("text", snap.notice).toString()); track.newLine()
@@ -389,7 +417,9 @@ class SceneFilmRecorder {
                         .put("inFurniture", inside ?: JSONObject.NULL))
                 }
                 track.write(JSONObject().put("type", "frame").put("t", frameMs).put("hour", clock.hourOfDay).put("light", clock.lightHour)
-                    .put("day", clock.day).put("camera", JSONArray(camera.toList())).put("people", people).toString())
+                    .put("day", clock.day).put("camera", JSONArray(camera.toList())).put("people", people)
+                    .put("cine", JSONArray(listOf(look.mood().toDouble(), look.vignette().toDouble(), look.grain().toDouble(), look.letterbox().toDouble())))
+                    .toString())
                 track.newLine()
             }
             activity.indices.forEach { activity[it] = null }
@@ -400,6 +430,11 @@ class SceneFilmRecorder {
         for (a in ids) for (b in ids) if (a < b) life.relationship(a, b)?.let { r ->
             rel.put(JSONObject().put("a", a).put("b", b).put("friendship", r.friendship).put("romance", r.romance)
                 .put("friendTier", r.friendTier.name).put("romanceTier", r.romanceTier.name).put("allows", r.allows.name))
+        }
+        live.director?.let { d ->
+            track.write(JSONObject().put("type", "director").put("t", frameMs).put("rejections", JSONObject(d.rejections.toMap()))
+                .put("wallTests", d.wallTests).toString())
+            track.newLine()
         }
         track.write(JSONObject().put("type", "end").put("t", frameMs).put("feed", feed).put("relationships", rel)
             .put("walkTests", router?.asked ?: 0).put("decisions", life.decisions).toString())

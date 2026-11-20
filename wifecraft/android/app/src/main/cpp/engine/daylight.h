@@ -69,4 +69,33 @@ void interiorTint(float hours, float out[3]);
 // Everything above at `hours`.
 DaySample sampleDay(const DayCycle& c, float hours, float frameYawDeg = 0);
 
+// ---- the cinematic look: a warm, low-key light laid over the hour's (cinematic mode; Scene::setCinematic)
+//
+// `strength` 0..1 (0: nothing changes, exactly); `flicker` -1..1, moodFlicker's slow wobble, moves the warm light by a few
+// percent as a candle or hearth would. What the engine can do with it: scale and tint the location's light (ambient, sun,
+// sky, fog, a room's own baked light), light the people with a warm key from a low side angle and a soft rim from behind
+// (the actor shader's one directional light and its rim term), and grade the finished picture (grade.h).
+
+// A slow, smooth wobble in -1..1 (three slow sines, none in step with another): the flicker at `seconds`.
+float moodFlicker(float seconds);
+
+// The location's light under the mood: ambient lowered and warmed, the sun's colour warmed, the sky and fog darker, a room's
+// own light lower and warmer (with the flicker on it). Each array is changed in place.
+void moodScene(float strength, float flicker, float ambient[3], float sun[3], float sky[3], float fog[3], float roomTint[3]);
+
+// A person's light under the mood, from what the room or the sky gives them (`ambient` and the directional `direct`):
+// less ambient (deeper shadows), a warm key about as bright as their light was (the key's colour), and a soft rim, warm in
+// a room and cool outside. At strength 0: the ambient and direct as given, no rim.
+struct MoodActorLight {
+    float ambient[3] = {0, 0, 0};
+    float key[3] = {0, 0, 0};
+    float rim[3] = {0, 0, 0};
+};
+MoodActorLight moodActor(float strength, float flicker, bool interior, const float ambient[3], const float direct[3]);
+
+// The key's and the rim's directions for a camera at `eye` looking at `target` (Z up): `keyTravel` the way the key's light
+// travels (from the camera's right, low, about 20 degrees up, a little in front of the people), `rimToward` toward the rim
+// light (behind them, seen from the camera, and above). Both unit length; a camera looking straight down keeps +X ahead.
+void moodDirections(const V3& eye, const V3& target, V3& keyTravel, V3& rimToward);
+
 } // namespace wc

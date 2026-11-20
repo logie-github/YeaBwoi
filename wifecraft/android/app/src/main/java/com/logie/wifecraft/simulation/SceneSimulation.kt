@@ -64,6 +64,9 @@ data class PerformanceOrder(
     val repeat: Boolean = false, val repetitions: Int = 1,
     val name: String = "", val sounds: List<PartnerSound> = emptyList(),
     val pairId: String? = null,
+    /** A staged animation's parts in order ([PlaybackSegment]: START once, LOOPs [repetitions] passes or until stopped when
+     *  [repeat], END once or when stopped); empty: [roles] and [seconds] are its one loop, as always. */
+    val segments: List<PlaybackSegment> = emptyList(),
 )
 
 /** The clip keys of [PlaybackRole.clip] that are not imported single clips: a partner pair's role, a Warcraft emote. */
@@ -136,6 +139,12 @@ class SceneSimulation(
         val partner: String? = null,
         /** The other NPC of a conversation (walking to it or talking), else null. */
         val talkingWith: String? = null,
+        /** Their queue plays round again when it ends ([queueOptions]). */
+        val queueRepeat: Boolean = false,
+        /** Playing an animation now (its clips started): Stop plays its END. */
+        val performing: Boolean = false,
+        /** The HUD's line for what plays ([StageLine]: its name, part and loop counter), else null. */
+        val playing: String? = null,
     )
 
     /**
@@ -315,8 +324,8 @@ class SceneSimulation(
      * plays an [emote] when no imported pair fits, and ends with both stepping apart and a cooldown.
      */
     private class Performance(
-        val lead: Actor, val other: Actor?, val roles: List<PlaybackRole>, val seconds: Float,
-        val anchor: Vec3, val heading: Float, var repeat: Boolean, var remainingCycles: Int,
+        val lead: Actor, val other: Actor?, var roles: List<PlaybackRole>, var seconds: Float,
+        val anchor: Vec3, val heading: Float, var repeat: Boolean, cycles: Int,
         val directed: Boolean = true, val name: String = "", val sounds: List<PartnerSound> = emptyList(),
         val partnerActivity: Boolean = false, val initiator: Actor? = null, val furniture: SceneObject? = null,
         val emote: Int = -1,
@@ -326,7 +335,20 @@ class SceneSimulation(
         /** How far each role's clip is raised over [anchor] (world units, role order): a floor clip whose joints would reach
          *  under the floor ([com.logie.wifecraft.anim.ActorRequirement.liftUnits]); null: none. */
         val lifts: FloatArray? = null,
+        /** Its parts ([PerformanceOrder.segments], fitted as [roles] are); empty: [roles] and [seconds] are its one loop. */
+        segments: List<PlaybackSegment> = emptyList(),
     ) {
+        val segments: List<PlaybackSegment> = segments.ifEmpty { listOf(PlaybackSegment(SegmentKind.LOOP, roles, seconds)) }
+        /** Which part plays and how many loops are left (one plain loop: the cycles, or until stopped). */
+        val cursor = StageCursor(this.segments.map { it.kind }, cycles, repeat)
+        val staged: Boolean get() = segments.size > 1
+        init { enter(cursor.index) }
+        /** Part [index] is the one played now: its roles and length. */
+        fun enter(index: Int) {
+            val s = segments.getOrNull(index) ?: return
+            roles = s.roles
+            seconds = s.seconds.coerceIn(0.25f, 3600f)
+        }
         var started = false
         /** The life simulation's interaction this is (an [InteractionId] ordinal: a hug, a dance), or -1. */
         var lifeKind = -1
@@ -382,6 +404,28 @@ class SceneSimulation(
         var hold = 0f
         /** The life simulation's interaction this person is doing (an [InteractionId] ordinal), or -1. */
         var lifeTag = -1
+        /** The queue plays round again when it ends; its next is picked at random ([queueOptions]). */
+        var queueRepeat = false
+        var queueShuffle = false
+        /** A join's ease ([JoinEase]): the place drawn is this much off the real one, let out over [easeLength] seconds. */
+        var easeX = 0f; var easeY = 0f; var easeZ = 0f; var easeYaw = 0f
+        var easeTime = 0f; var easeLength = 0f
+        val easeWeight: Float get() = JoinEase.weight(easeTime, easeLength)
+        /** Eases from where this person was drawn ([x0]..[facing0], the ease then running included) to where they are now. */
+        fun easeFrom(x0: Float, y0: Float, z0: Float, facing0: Float, length: Float) {
+            val dx = x0 - x; val dy = y0 - y; val dz = z0 - z
+            val dyaw = JoinEase.wrap(facing0 - facing)
+            if (abs(dx) < JoinEase.EPSILON && abs(dy) < JoinEase.EPSILON && abs(dz) < JoinEase.EPSILON && abs(dyaw) < JoinEase.EPSILON) {
+                easeLength = 0f; easeTime = 0f; easeX = 0f; easeY = 0f; easeZ = 0f; easeYaw = 0f
+                return
+            }
+            easeX = dx; easeY = dy; easeZ = dz; easeYaw = dyaw
+            easeTime = 0f; easeLength = length
+        }
+        val drawnX: Float get() = x + easeX * easeWeight
+        val drawnY: Float get() = y + easeY * easeWeight
+        val drawnZ: Float get() = z + easeZ * easeWeight
+        val drawnFacing: Float get() = facing + easeYaw * easeWeight
     }
 
     /**
@@ -413,8 +457,10 @@ class SceneSimulation(
     /** What the renderer needs of person [index] this tick, written into [out] (nothing allocated: once a frame). */
     fun pose(index: Int, out: Pose) {
         val a = order[index]
-        out.x = a.x; out.y = a.y; out.z = a.z
-        out.facing = a.facing
+        // drawn where a join's ease has them (JoinEase): never a jump from one part's place to the next
+        val w = a.easeWeight
+        out.x = a.x + a.easeX * w; out.y = a.y + a.easeY * w; out.z = a.z + a.easeZ * w
+        out.facing = a.facing + a.easeYaw * w
         out.playback = a.playback
         out.activity = if (a.phase == Phase.MOVING) Activity.WALK else a.activity
         val item = a.target.takeIf { a.phase == Phase.ACTING }
@@ -423,7 +469,7 @@ class SceneSimulation(
         if (entry != null) { out.ex = entry.x; out.ey = entry.y; out.ez = entry.z } else { out.ex = a.x; out.ey = a.y; out.ez = a.z }
         val playing = a.performance?.takeIf { a.phase == Phase.ACTING && a.playback != null }
         out.floor = playing?.let { p -> if (p.floorZ.isNaN()) p.anchor.z else p.floorZ } ?: a.z
-        out.lift = (a.z - out.floor).coerceAtLeast(0f)
+        out.lift = (out.z - out.floor).coerceAtLeast(0f)
         out.speech = a.spoken?.takeIf { time < a.spokenUntil }
         out.speechId = a.spokenId
         out.gesture = gestureOf(a)
@@ -472,7 +518,15 @@ class SceneSimulation(
         Person(actor.id, actor.position, actor.facing, if (actor.phase == Phase.MOVING) Activity.WALK else actor.activity,
             actor.directed, item, item?.let { spots[it]?.entry } ?: actor.position,
             actor.queue.size, actor.performance?.repeat == true, partnerOf(actor)?.id,
-            actor.talk?.let { if (it.a === actor) it.b.id else it.a.id })
+            actor.talk?.let { if (it.a === actor) it.b.id else it.a.id }, actor.queueRepeat,
+            actor.performance?.started == true, actor.performance?.takeIf { it.started }?.let(::lineOf))
+    }
+
+    /** What [p] plays now for the HUD ([StageLine]). */
+    private fun lineOf(p: Performance): String {
+        val c = p.cursor
+        val repeat = p.repeat && !c.stopping && p.lead.queue.isEmpty()
+        return StageLine.of(p.name, c.kind, c.pass, c.wanted, repeat, p.staged)
     }
 
     private fun partnerOf(actor: Actor): Actor? = actor.performance?.let { if (it.lead === actor) it.other else it.lead }
@@ -585,7 +639,9 @@ class SceneSimulation(
         // the pair's own slots, kept apart for these two bodies and fitted to their sizes (as startPartner's)
         val spacedPair = spaced(pair, lead, other)
         val (slotA, slotB) = PairFit.slots(spacedPair.slotA, spacedPair.slotB, size(lead), size(other))
-        val placedRequest = request.copy(roles = listOf(role(PlaybackKeys.pair(pair.id, 0), slotA), role(PlaybackKeys.pair(pair.id, 1), slotB)))
+        // (the pair's own two clips: a placed order plays its loop alone)
+        val placedRequest = request.copy(roles = listOf(role(PlaybackKeys.pair(pair.id, 0), slotA), role(PlaybackKeys.pair(pair.id, 1), slotB)),
+            segments = emptyList())
         val setup = Setup(before?.anchor ?: Vec3(fit.x, fit.y, fit.z), before?.heading ?: fit.yaw, item, -1, lead, true,
             partner = false, floorZ = floorZ, fit = fit, lifts = roleLifts(r, pair, lead, other, onFurniture = true))
         return startPerformance(lead, placedRequest, before, setup) || refuse("They can't reach the ${item.label.lowercase()} from where they stand.")
@@ -619,13 +675,67 @@ class SceneSimulation(
         val performance = actors[id]?.performance ?: return
         if (performance.repeat) {
             performance.repeat = false
-            performance.remainingCycles = 1
+            // this pass is the last: then its END (if any), as an ordered number of loops ends
+            performance.cursor.finishPass()
             version++
         }
     }
 
+    /**
+     * Stops what [id] plays (as a player's Stop or Skip): its END at once (crossfaded as any join; [JoinEase]), and only
+     * then are they let go; one with no END is let go now. Their queue then goes on ([stopAll] clears it first). False:
+     * nothing plays.
+     */
+    fun stop(id: String): Boolean {
+        val actor = actors[id] ?: return false
+        val p = actor.performance ?: return false
+        val lead = p.lead
+        if (!p.started) {
+            // still walking to their places: nothing played yet, nothing to end
+            release(lead)
+            return true
+        }
+        p.repeat = false
+        when (val next = p.cursor.stop()) {
+            StageCursor.KEEP -> Unit
+            StageCursor.DONE -> finish(lead, p)
+            else -> {
+                p.enter(next)
+                play(p)
+            }
+        }
+        version++
+        return true
+    }
+
+    /** Stops [id] and everything queued for them: the END plays, then they stand. */
+    fun stopAll(id: String): Boolean {
+        val actor = actors[id] ?: return false
+        val lead = actor.performance?.lead ?: actor
+        for (a in listOf(actor, lead)) { a.queue.clear(); a.queueRepeat = false }
+        return stop(id)
+    }
+
+    /** [id]'s queue: played round again when it ends ([repeat]: each entry whole, start to end), its next picked at random ([shuffle]). */
+    fun queueOptions(id: String, repeat: Boolean, shuffle: Boolean) {
+        val actor = actors[id] ?: return
+        if (actor.queueRepeat == repeat && actor.queueShuffle == shuffle) return
+        actor.queueRepeat = repeat
+        actor.queueShuffle = shuffle
+        version++
+    }
+
+    /** A performance that ended (its last part played, or stopped with no END): its lead let go, their queue goes on. */
+    private fun finish(actor: Actor, performance: Performance) {
+        release(actor)
+        actor.completedPerformance = performance.takeIf { actor.queue.isNotEmpty() }
+        startQueuedPerformance(actor)
+        if (performance.partnerActivity) part(performance)
+    }
+
     private fun valid(lead: Actor, request: PerformanceOrder): Boolean =
         request.seconds.isFinite() && request.seconds > 0f && request.repetitions in 1..100 &&
+            request.segments.all { it.roles.size == request.roles.size && it.seconds.isFinite() && it.seconds > 0f } &&
             if (request.partnerId == null) request.roles.size == 1
             else request.partnerId != lead.id && request.partnerId in actors && request.roles.size == 2
 
@@ -637,11 +747,14 @@ class SceneSimulation(
         val directed = setup?.directed ?: true
         val furniture = setup?.furniture
         // an ordered one's places for the two bodies' sizes (a partner animation's slots were fitted already: startPartner)
-        val roles = if (setup == null) PairFit.roles(request.roles, floatArrayOf(size(lead), size(other))) else request.roles
+        val sizes = floatArrayOf(size(lead), size(other))
+        val roles = if (setup == null) PairFit.roles(request.roles, sizes) else request.roles
+        // a staged one's parts fitted as its roles are (the same places for these two bodies)
+        val segments = request.segments.map { s -> if (setup == null) s.copy(roles = PairFit.roles(s.roles, sizes)) else s }
         val performance = Performance(lead, other, roles, request.seconds.coerceIn(0.25f, 3600f),
             anchor, heading, request.repeat, request.repetitions, directed, request.name, request.sounds,
             setup?.partner == true, setup?.initiator, furniture, setup?.emote ?: -1, setup?.floorZ ?: Float.NaN, setup?.fit,
-            setup?.lifts)
+            setup?.lifts, segments)
         if (other != null && previous == null &&
             !beginAny(other, Activity.PERFORM, approaches(performance, roles[1]), directed, furniture)) return false
 
@@ -682,10 +795,14 @@ class SceneSimulation(
 
     private fun startQueuedPerformance(actor: Actor) {
         if (actor.performance != null || actor.directed) return
-        val next = actor.queue.firstOrNull() ?: return
+        if (actor.queue.isEmpty()) return
+        // shuffled: any of the queue next; a repeated queue plays each again after the rest (whole: start, loops, end)
+        val pick = if (actor.queueShuffle && actor.queue.size > 1) random.nextInt(actor.queue.size) else 0
+        val next = actor.queue[pick]
         val partner = next.partnerId?.let(actors::get)
         if (partner?.let { it.directed || it.performance != null } == true) return
-        actor.queue.removeFirst()
+        actor.queue.removeAt(pick)
+        if (actor.queueRepeat) actor.queue.addLast(next)
         val previous = actor.completedPerformance
         actor.completedPerformance = null
         refusal = null
@@ -749,8 +866,12 @@ class SceneSimulation(
         val command = ++version
         for ((index, actor) in listOfNotNull(performance.lead, performance.other).withIndex()) {
             val role = performance.roles[index]
+            // from where they were drawn: a join (another part, another stage) or onto their place from where they walked
+            val x0 = actor.drawnX; val y0 = actor.drawnY; val z0 = actor.drawnZ; val f0 = actor.drawnFacing
+            val joining = actor.playback != null
             actor.position = rolePosition(performance, role) + Vec3(0f, 0f, performance.lifts?.getOrNull(index) ?: 0f)
             actor.facing = performance.heading + role.facing
+            actor.easeFrom(x0, y0, z0, f0, if (joining) JoinEase.JOIN else JoinEase.SETTLE)
             actor.performance = performance
             actor.playback = ClipPlayback(role.clip, command)
             actor.activity = Activity.PERFORM
@@ -773,6 +894,8 @@ class SceneSimulation(
     private fun fire(performance: Performance, from: Float, to: Float) {
         val listener = sounds ?: return
         if (to <= from) return
+        // the sound events are the loop's (a staged one's start and end have none of their own)
+        if (performance.cursor.kind != SegmentKind.LOOP) return
         for (sound in performance.sounds) {
             if (sound.timeSec > from && sound.timeSec <= to) {
                 val who = if (sound.actor == 1) performance.other else performance.lead
@@ -795,6 +918,7 @@ class SceneSimulation(
         time += dt
         for (actor in order) startQueuedPerformance(actor)
         for (actor in order) {
+            if (actor.easeTime < actor.easeLength) actor.easeTime += dt
             if (actor.cooldown > 0f) actor.cooldown -= dt
             if (actor.chatCooldown > 0f) actor.chatCooldown -= dt
             when (actor.phase) {
@@ -856,17 +980,20 @@ class SceneSimulation(
                         if (performance != null) performance.loops++
                         val repeat = performance?.repeat == true && actor.queue.isEmpty() &&
                             performance.other?.queue?.isNotEmpty() != true
-                        if (performance != null && (--performance.remainingCycles > 0 || repeat)) {
+                        // the next part (StageCursor): the start's loop, the next loop or pass, the end; none: it is over
+                        val next = performance?.let { it.cursor.repeat = repeat; it.cursor.next() } ?: StageCursor.DONE
+                        if (performance != null && next >= 0) {
                             // the next cycle keeps the step's overshoot: cycles stay on the one clock, never drifting
                             val over = actor.remaining
+                            performance.enter(next)
                             play(performance)
                             actor.remaining += over
                             fire(performance, 0f, -over)
+                        } else if (performance != null) {
+                            finish(actor, performance)
                         } else {
                             release(actor)
-                            actor.completedPerformance = performance?.takeIf { actor.queue.isNotEmpty() }
                             startQueuedPerformance(actor)
-                            if (performance?.partnerActivity == true) part(performance)
                         }
                     }
                 }
@@ -1107,11 +1234,15 @@ class SceneSimulation(
                 if (who.talk === talk) { who.talk = null; if (who.spokenUntil > time) who.spokenUntil = time }
             }
         }
+        // a clip ending: eased back from where it was drawn to where they stand now (JoinEase), no jump off the furniture
+        val wasPlaying = actor.playback != null
+        val x0 = actor.drawnX; val y0 = actor.drawnY; val z0 = actor.drawnZ; val f0 = actor.drawnFacing
         actor.performance = null
         actor.completedPerformance = null
         actor.playback = null
         // off the furniture onto its floor spot, or beside it when someone stands there already
         if (actor.phase == Phase.ACTING) actor.target?.let { actor.position = freeStand(spots.getValue(it).entry, actor, aside = true) }
+        if (wasPlaying) actor.easeFrom(x0, y0, z0, f0, JoinEase.SETTLE)
         actor.target = null
         actor.waypoints = emptyList()
         actor.activity = Activity.IDLE
@@ -1192,7 +1323,7 @@ class SceneSimulation(
         if (p != null) {
             if (p.other != null || p.lead !== actor) return
             p.repeat = false
-            p.remainingCycles = 1
+            p.cursor.finishPass()
         }
         actor.remaining = 0f
     }
@@ -1493,7 +1624,9 @@ class SceneSimulation(
         val raise = if (clip != null && requirement.actors.isNotEmpty())
             (liftedFor(requirement.actors[0], clip, 0f, body).liftUnits - requirement.actors[0].liftUnits) * bodyUnit(actor) else 0f
         val role = request.roles[0].let { it.copy(offset = Vec3(0f, 0f, it.offset.z)) }
-        return startPerformance(actor, request.copy(roles = listOf(role)), null,
+        // a staged one's parts on the fit's place too (each keeps its own lift)
+        val segments = request.segments.map { s -> s.copy(roles = s.roles.map { it.copy(offset = Vec3(0f, 0f, it.offset.z)) }) }
+        return startPerformance(actor, request.copy(roles = listOf(role), segments = segments), null,
             Setup(Vec3(fit.x, fit.y, fit.z), fit.yaw, item, -1, actor, true, partner = false, floorZ = f.z, fit = fit,
                 lifts = if (abs(raise) > 1e-4f) floatArrayOf(raise) else null)) ||
             refuse("They can't reach the $what from where they stand.")

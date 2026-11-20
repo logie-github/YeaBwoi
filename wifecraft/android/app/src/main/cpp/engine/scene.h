@@ -13,6 +13,8 @@
 
 #include "bodypart.h"
 #include "boneanim.h"
+#include "cloth.h"
+#include "grade.h"
 #include "location.h"
 #include "m2.h"
 #include "modelpart.h"
@@ -111,6 +113,15 @@ public:
     void setCharacter(int id, bool character);
     // An actor's soft body (the desktop check reads its regions and displacements), or null.
     const SoftSim* softSim(int id) const { auto it = actors_.find(id); return it == actors_.end() ? nullptr : &it->second.soft.sim; }
+    // An actor's tabard flap hung as cloth (cloth.h; the desktop check reads its points, its stretch and the body it
+    // collides with), or null when it wears none. `rig`, `caps` and `skin` as last stepped.
+    const ClothSim* clothSim(int id, const ClothRig** rig = nullptr, const std::vector<ClothCapsule>** caps = nullptr) const {
+        auto it = actors_.find(id);
+        if (it == actors_.end() || !it->second.cloth.active()) return nullptr;
+        if (rig) *rig = it->second.cloth.rig.get();
+        if (caps) *caps = &it->second.cloth.caps;
+        return &it->second.cloth.sim;
+    }
     void showActor(int id, bool visible);
     // Replaces an actor's scale (addActor's): the placement editor sizes a placed person.
     void setActorScale(int id, float scale);
@@ -193,6 +204,11 @@ public:
     // the light as given. Cheap: call it as often as the clock moves (a few times a second). No location: no change.
     void setTimeOfDay(float hours);
     float timeOfDay() const { return timeOfDay_; }
+    // Cinematic mode's look (daylight.h's mood, grade.h's last pass): `mood` 0..1 a warm, low-key light over the hour's (the
+    // location's ambient lowered and warmed, the people lit by a warm key from a low side angle and a soft rim, a slow
+    // candle-like flicker) with the picture's grade; `vignette`, `grain` 0..1; `bars` each letterbox bar's share of the
+    // height (0..0.5). All 0: off, the frame drawn straight to the screen as before. Cheap; the caller eases them in and out.
+    void setCinematic(float mood, float vignette, float grain, float bars);
 
     // ---------------------------------------------------------------- locations and props (location.cpp)
     // A location (location.h: an entry of assets/locations.json): its WMO's groups in world coordinates, its doodads and
@@ -375,6 +391,22 @@ private:
         PartPlacement place;
         bool placed = false;     // place measured for the actor's model and fit
     };
+    // A tabard flap hung as cloth (cloth.h): its rig for the look, the sim, this frame's inputs and what is drawn.
+    struct ClothGl {
+        std::unique_ptr<ClothRig> rig;   // null: no flap shown (or not built yet)
+        ClothSim sim;
+        bool dirty = true;               // the look or the shape changed: built again on the next frame
+        std::vector<uint16_t> bodyGeosets;   // the actor's geosets without the flap's (drawn skinned as before)
+        std::vector<V3> posed;
+        std::vector<ClothCapsule> caps;
+        ClothSurface skin;
+        std::vector<M2Vertex> verts;
+        std::vector<uint16_t> indices;
+        unsigned vao = 0, vbo = 0, ibo = 0;
+        unsigned tex = 0;                // the cloth's own texture (the look's cloth layers over the skin), 0: the body's skin
+        float uvBox[4] = {0, 0, 0, 0};   // that texture's rectangle of the material (x, y, w, h as fractions)
+        bool active() const { return rig && rig->ok; }
+    };
     struct Actor {
         ModelGl* mesh = nullptr;
         BodyGl body;
@@ -438,6 +470,7 @@ private:
         int boneAnimRoot = -1;
         std::vector<std::pair<int, float>> breath;   // a held imported pose breathes: these bones, by these shares
         SoftDraw soft;                 // the soft body (softbody.h)
+        ClothGl cloth;                 // a tabard flap hung as cloth (cloth.h)
         bool character = false;        // setCharacter: the soft body applies (a creature's never does)
         bool ghost = false;            // ghostActor: drawn as the ghost, never picked
         // actorFlesh's measure and the look it was made for (0: none yet)
@@ -583,6 +616,10 @@ private:
     float timeOfDay_ = -1;               // the hour, negative: off
     float roomTint_[3] = {1, 1, 1};      // a room's own light (interior ambient, baked vertex light) times this
     void applyTimeOfDay();               // light_ and roomTint_ from baseLight_ and timeOfDay_ (location.cpp)
+    float cineMood_ = 0;                 // setCinematic's: the mood's strength, its flicker now, the grade and its pass
+    float cineFlicker_ = 0;
+    GradeParams cineGrade_;
+    Grade grade_;
     M4 view_, proj_;
 
     GlTexture texture(uint32_t fileId, int maxSize);
@@ -615,6 +652,11 @@ private:
     void refreshBody(Actor& a);
     void drawBodyLayer(Actor& a, const M4& world);
     void stepSoft(Actor& a, uint32_t now);
+    // the tabard flap as cloth (scene.cpp): built for the look and shape, stepped after the bones, drawn after the body
+    void refreshCloth(Actor& a);
+    void stepCloth(Actor& a, uint32_t now);
+    void drawCloth(Actor& a, const M4& world, const float tint[4]);
+    void dropClothGl(Actor& a, bool texture);
     // body parts (scene.cpp)
     std::map<int, std::unique_ptr<PartGl>> parts_;
     std::map<std::string, int> partPaths_;

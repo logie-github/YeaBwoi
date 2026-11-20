@@ -17,6 +17,8 @@ data class ClipInspection(val type: ClipType, val reason: String? = null) {
 
         fun inspect(anim: Anim): ClipInspection {
             fun invalid(reason: String) = ClipInspection(ClipType.INVALID, reason)
+            // a stored clip's verdict is kept in the library's index (anim/ClipStore): its tracks are not read for it
+            (anim.tracks as? StoredTracks)?.inspection?.let { return ClipStore.forDuration(it, anim.duration) }
             if (!anim.duration.isFinite() || anim.duration < 0f) return invalid("The duration is invalid.")
             if (anim.tracks.isEmpty()) return invalid("There are no bone tracks.")
 

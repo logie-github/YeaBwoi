@@ -1,0 +1,24 @@
+{
+  "rules": {
+    "itch": {
+      "kind": "itch",
+      "pageHosts": ["turbodriver.itch.io"],
+      "fileHosts": ["*.itch.zone", "*.itch.io", "itchio-mirror.*.r2.cloudflarestorage.com"]
+    },
+    "wicked": {
+      "kind": "wicked",
+      "pageHosts": ["wicked.cc"],
+      "fileHosts": ["files.wicked.cc"]
+    }
+  },
+  "packs": [
+    { "id": "wickedwhims", "name": "WickedWhims", "author": "TURBODRIVER",
+      "page": "https://turbodriver.itch.io/wickedwhims", "rule": "itch" },
+    { "id": "tibo131-facial-poses", "name": "Facial Climax Pose Pack", "author": "Tibo131",
+      "page": "https://wicked.cc/animations/tibo131/tibo131s-facial-climax-pose-pack", "rule": "wicked" },
+    { "id": "anarcis-animations", "name": "Animations for WickedWhims", "author": "Anarcis",
+      "page": "https://wicked.cc/animations/anarcis/anarcis-animations-for-wickedwhims", "rule": "wicked" },
+    { "id": "azmodan22-animations", "name": "WickedWhims Sex Animations", "author": "Azmodan22",
+      "page": "https://wicked.cc/animations/azmodan22/azmodan22-wickedwhims-sex-animations", "rule": "wicked" }
+  ]
+}

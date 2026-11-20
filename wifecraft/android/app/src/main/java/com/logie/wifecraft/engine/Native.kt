@@ -167,6 +167,12 @@ object Native {
      * no location loaded: nothing changes.
      */
     @JvmStatic external fun timeOfDay(scene: Long, hours: Float)
+    /**
+     * Cinematic mode's look (cpp engine/daylight.h's mood, engine/grade.h): [mood] 0..1 a warm, low-key light over the hour's
+     * (less ambient, a warm key from a low side angle on the people, a soft rim, a slow flicker) and the picture's grade;
+     * [vignette] and [grain] 0..1; [bars] each letterbox bar's share of the height (0..0.5). All 0: off (no extra pass).
+     */
+    @JvmStatic external fun cinematic(scene: Long, mood: Float, vignette: Float, grain: Float, bars: Float)
 
     // ---- locations and the editor's props (cpp engine/location.h, location.cpp, terrain.cpp)
 

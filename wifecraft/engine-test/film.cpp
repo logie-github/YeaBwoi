@@ -9,7 +9,9 @@
 //       "ground X Y Z" -> the floor height or nan (Scene::groundAt, Native.groundAt's answer). Prints "ready" first.
 //   film --track TRACK.jsonl --files DIR --locations JSON --looks DIR --out OUT_DIR
 //        [--size WxH] [--camera app|orbit|fixed:EX,EY,EZ,TX,TY,TZ,FOV] [--every N] [--from MS] [--to MS]
-//        [--soft off|subtle|natural|strong]
+//        [--soft off|subtle|natural|strong] [--cinematic MOOD,VIGNETTE,GRAIN,LETTERBOX]
+//       a frame record's "cine" ([mood, vignette, grain, letterbox], the app's cinematic look as recorded) is drawn as
+//       Scene::setCinematic; --cinematic puts that look on every frame instead (LETTERBOX 1: 2.39:1 bars).
 //       draws every frame record (from 3 s before --from) and writes OUT_DIR/f_NNNNN.png for every Nth one and OUT_DIR/frames.jsonl (each frame's record index, time,
 //       each person's head on screen, how far their feet are over the floor under them).
 #include <EGL/egl.h>
@@ -251,6 +253,9 @@ int main(int argc, char** argv) {
     int every = opt.count("--every") ? std::max(1, std::atoi(opt["--every"].c_str())) : 1;
     double from = opt.count("--from") ? std::atof(opt["--from"].c_str()) : -1, to = opt.count("--to") ? std::atof(opt["--to"].c_str()) : 1e18;
     std::string camMode = opt.count("--camera") ? opt["--camera"] : "app";
+    float cineOpt[4] = {0, 0, 0, 0};
+    bool cineFixed = opt.count("--cinematic") &&
+        std::sscanf(opt["--cinematic"].c_str(), "%f,%f,%f,%f", &cineOpt[0], &cineOpt[1], &cineOpt[2], &cineOpt[3]) == 4;
     float fixedCam[7] = {0};
     if (camMode.rfind("fixed:", 0) == 0)
         std::sscanf(camMode.c_str() + 6, "%f,%f,%f,%f,%f,%f,%f", &fixedCam[0], &fixedCam[1], &fixedCam[2], &fixedCam[3], &fixedCam[4], &fixedCam[5], &fixedCam[6]);
@@ -314,6 +319,13 @@ int main(int argc, char** argv) {
         bool wanted = record % every == 0 && t >= from && t <= to;
         if (t < from - 3000 || t > to) continue;
         scene.setTimeOfDay(float(fr["light"].num(fr["hour"].num())));
+        {
+            float c[4] = {0, 0, 0, 0};
+            const Json& rc = fr["cine"];
+            if (cineFixed) std::copy(cineOpt, cineOpt + 4, c);
+            else if (rc.kind == Json::Array && rc.size() >= 4) for (int k = 0; k < 4; ++k) c[k] = float(rc[size_t(k)].num());
+            scene.setCinematic(c[0], c[1], c[2], c[3] * letterboxBars(w, h));
+        }
         if (camMode == "app") {
             const Json& c = fr["camera"];
             scene.setCamera(V3(float(c[0].num()), float(c[1].num()), float(c[2].num())), V3(float(c[3].num()), float(c[4].num()), float(c[5].num())), float(c[6].num(50)));

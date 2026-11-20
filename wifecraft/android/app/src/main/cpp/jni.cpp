@@ -290,6 +290,11 @@ JNIEXPORT void JNICALL FN(timeOfDay)(JNIEnv*, jclass, jlong h, jfloat hours) {
     scene(h)->setTimeOfDay(hours);
 }
 
+// Cinematic mode's look (Scene::setCinematic): the mood's strength, the vignette, the grain, the letterbox bars.
+JNIEXPORT void JNICALL FN(cinematic)(JNIEnv*, jclass, jlong h, jfloat mood, jfloat vignette, jfloat grain, jfloat bars) {
+    scene(h)->setCinematic(mood, vignette, grain, bars);
+}
+
 // ---- locations and the editor's props (Native.kt documents them)
 
 JNIEXPORT jboolean JNICALL FN(loadLocation)(JNIEnv* env, jclass, jlong h, jstring json, jstring id, jstring view) {

@@ -68,10 +68,14 @@ object ImportedLooks {
         return ofBody(c, t, drawn, choice?.bare == true, o).with(choice?.set)
     }
 
-    /** A playable body: resolved with the imports, without the skin colour's underwear when [bare], then [apply]. */
+    /**
+     * A playable body: resolved with the imports, without the skin colour's underwear when [bare], then [apply]. A bare body
+     * wearing a tabard over no shirt, chest or legs (a tabard-only look) has the tabard hung as cloth, its layers the flap's
+     * own and nothing of it on the chest (LookResolver.hangingCloth).
+     */
     fun ofBody(c: Catalog, t: Tables, a: Appearance, bare: Boolean, o: Overrides): ImportedLook {
         val resolved = LookResolver.resolve(c, t, a, o)
-        val look = if (bare) bare(c, t, a, resolved, o) else resolved
+        val look = if (bare) LookResolver.hangingCloth(t, a, bare(c, t, a, resolved, o)) else resolved
         return ImportedLook(apply(look, a.sex == Sex.FEMALE, o), a, Dressing.layout(c, t, a), true)
     }
 

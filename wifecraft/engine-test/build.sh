@@ -67,3 +67,23 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/flesh_test.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" \
     -o "$here/build/flesh_test"
 echo "$here/build/flesh_test"
+# Cinematic mode's light (engine/daylight.h's mood: strength 0 changes nothing, lower and warmer, the slow flicker, the key's and
+# rim's directions; grade.h's letterbox bars): build/mood_test, exit 0 when all pass. No GL context, no game files.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/mood_test.cpp" "$engine"/*.cpp \
+    -lEGL -lGLESv2 -lz -o "$here/build/mood_test"
+echo "$here/build/mood_test"
+# The tabard flap as cloth (engine/cloth.h: a pinned strip hangs at its length, the body's capsules push it out and keep a
+# front piece in front, the same frames give the same cloth, a teleport hangs it again; the real flap's rig and texture
+# rectangle when given the files): build/cloth_test [FILES_DIR], exit 0 when all pass. No GL.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/cloth_test.cpp" "$engine/cloth.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" \
+    -o "$here/build/cloth_test"
+echo "$here/build/cloth_test"
+# The cloth on a real look over an animation (build/cloth_check FILES_DIR LOOKFILE ANIM_ID FRAMES [STEP_MS]): per frame the
+# free cloth points inside the skinned body, the stretch, the swing and the cost; exit 0 when none is inside and the
+# stretch stays under 5%. No GL.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/cloth_check.cpp" "$engine/cloth.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" \
+    -o "$here/build/cloth_check"
+echo "$here/build/cloth_check"

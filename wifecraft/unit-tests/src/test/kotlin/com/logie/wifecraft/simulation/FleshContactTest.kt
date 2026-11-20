@@ -218,7 +218,13 @@ class FleshContactTest {
                 sim.tick(1f / 60f)
                 sim.pose(0, p); val l0 = p.lift; val ok0 = p.playback != null
                 sim.pose(1, p); val l1 = p.lift; val ok1 = p.playback != null
-                if (ok0 && ok1) return listOf(l0, l1)
+                if (ok0 && ok1) {
+                    // once the settle onto their places is over (JoinEase: drawn from where they walked to, then let out)
+                    repeat(((JoinEase.SETTLE + 0.05f) * 60f).toInt()) { sim.tick(1f / 60f) }
+                    sim.pose(0, p); val s0 = p.lift
+                    sim.pose(1, p); val s1 = p.lift
+                    return listOf(s0, s1)
+                }
                 check(++n < 20_000)
             }
         }

@@ -56,9 +56,13 @@ object SimsReader {
     }
 
     /** An animation archive can contain rigs for props and animals alongside its human rigs. */
-    fun humanoidRigs(pkg: DbpfFile): List<SimsRig> = pkg.entries.filter { it.type == SimsRig.TYPE }.mapNotNull { entry ->
-        val rig = runCatching { SimsRig.parse(pkg.read(entry)) }.getOrNull()
-        rig?.takeIf { it.coverage(humanoidBones) == humanoidBones.size }
+    fun humanoidRigs(pkg: DbpfFile): List<SimsRig> = humanoidRigResources(pkg).map { it.first }
+
+    /** As [humanoidRigs], each with the RIG resource's own bytes (what a [SimsRig] is parsed from, to be kept). */
+    fun humanoidRigResources(pkg: DbpfFile): List<Pair<SimsRig, ByteArray>> = pkg.entries.filter { it.type == SimsRig.TYPE }.mapNotNull { entry ->
+        val bytes = runCatching { pkg.read(entry) }.getOrNull() ?: return@mapNotNull null
+        val rig = runCatching { SimsRig.parse(bytes) }.getOrNull()
+        rig?.takeIf { it.coverage(humanoidBones) == humanoidBones.size }?.let { it to bytes }
     }
 
     private val humanoidBones = listOf("b__ROOT_bind__", "b__Pelvis__", "b__Head__", "b__L_Thigh__", "b__R_Thigh__")

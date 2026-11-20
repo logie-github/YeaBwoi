@@ -73,6 +73,9 @@ import com.logie.wifecraft.anim.RequirementStore
 import com.logie.wifecraft.anim.Surface
 import com.logie.wifecraft.anim.animationChoices
 import com.logie.wifecraft.anim.animationSequence
+import com.logie.wifecraft.anim.StagePart
+import com.logie.wifecraft.simulation.PlaybackSegment
+import com.logie.wifecraft.simulation.SegmentKind
 import com.logie.wifecraft.catalog.EmotePlayability
 import com.logie.wifecraft.engine.Clock
 import com.logie.wifecraft.simulation.PartnerSound
@@ -92,6 +95,9 @@ import com.logie.wifecraft.engine.SceneView
 import com.logie.wifecraft.location.FurniturePiece
 import com.logie.wifecraft.location.LocationInfo
 import com.logie.wifecraft.simulation.CameraClearance
+import com.logie.wifecraft.simulation.CinematicDirector
+import com.logie.wifecraft.simulation.CinematicLook
+import com.logie.wifecraft.simulation.CinematicSettings
 import com.logie.wifecraft.simulation.Furniture
 import com.logie.wifecraft.simulation.FurnitureAnimation
 import com.logie.wifecraft.simulation.FurnitureSelection
@@ -311,6 +317,9 @@ fun LiveSceneScreen(
     clockSettings: ClockSettings = ClockSettings.DEFAULT,
     /** The clock's light hour and real seconds a game hour, for the place's sound (Audio.timeOfDay): main thread, 4 a second. */
     onTimeOfDay: (hours: Double, realSecondsPerHour: Double) -> Unit = { _, _ -> },
+    /** Options' Cinematic page (applied at once), and cinematic mode going on or off (the music eases down: Audio.cinematic). */
+    cinematicSettings: CinematicSettings = CinematicSettings.DEFAULT,
+    onCinematic: (Boolean) -> Unit = {},
     /** The life and the clock as JSON to keep (null: none), every half minute and when the scene ends. Any thread. */
     onLifeSave: (life: String?, clock: String?) -> Unit = { _, _ -> },
     /** The game's icons (the life HUD's: needs, moods, thoughts, the radial menu); null: their drawn glyphs. */
@@ -319,6 +328,15 @@ fun LiveSceneScreen(
     // the scene's seed: one per scene, so a scene replays the same way from it (the tests use it so)
     val seed = remember(cast, objects) { Random.nextLong() }
     val choices = remember(clips, pairs) { animationChoices(clips) + pairs.filter { it.enabled }.map { it.choice() } }
+    // the Play animation window's repeat and queue choices (PlayOptions), kept for this scene: its place and its cast
+    val playContext = LocalContext.current
+    val playPrefs = remember(playContext) { playContext.getSharedPreferences("scene_play_options", android.content.Context.MODE_PRIVATE) }
+    val playKey = remember(locationName, cast) { PlayOptions.sceneKey(locationName, cast.map { it.id }) }
+    var playOptions by remember(playKey) { mutableStateOf(PlayOptions.decode(runCatching { playPrefs.getString(playKey, null) }.getOrNull())) }
+    fun choosePlayOptions(options: PlayOptions) {
+        playOptions = options
+        runCatching { playPrefs.edit().putString(playKey, options.encode()).apply() }
+    }
     // what NPCs pick from by themselves: the library's enabled pairs and the authors' two-actor performances
     val partnerPairs = remember(pairs, choices) { PartnerPair.enabled(pairs) + choices.mapNotNull { PartnerPair.of(it) } }
     // what the NPCs say to each other: their names, races and sexes, and the place
@@ -442,6 +460,22 @@ fun LiveSceneScreen(
         onDispose { live.clearance = null }
     }
     var snapshot by remember(live) { mutableStateOf(live.snapshot()) }
+    // cinematic mode (the Cinematic button): the director's camera, the mood's light, the HUD hidden (a tap shows it a while)
+    val cineLook = remember(live) { CinematicLook() }
+    val cineDirector = remember(live) { CinematicDirector(cinematicSettings) }
+    var cinematic by remember(live) { mutableStateOf(false) }
+    var cinePeek by remember(live) { mutableStateOf(false) }
+    val cineNotify by rememberUpdatedState(onCinematic)
+    SideEffect {
+        cineLook.settings = cinematicSettings
+        cineDirector.settings = cinematicSettings
+        live.director = cineDirector
+        cineLook.on = cinematic
+        live.directing = cinematic
+    }
+    LaunchedEffect(live, cinematic) { cineNotify(cinematic); if (!cinematic) cinePeek = false }
+    LaunchedEffect(cinePeek) { if (cinePeek) { delay(CINEMATIC_PEEK_MS); cinePeek = false } }
+    DisposableEffect(live, view) { onDispose { live.directing = false; view.clearCinematic(); cineNotify(false) } }
     // who the player controls and that NPC's partner (SceneControl: a tap on another NPC makes it the partner)
     var control by remember { mutableStateOf(SceneControl()) }
     val selected = control.selected
@@ -476,7 +510,8 @@ fun LiveSceneScreen(
     SideEffect { live.furnitureView = views.getOrNull(furnitureView) }
 
     BackHandler {
-        if (radial != null) radial = null
+        if (cinematic) cinematic = false
+        else if (radial != null) radial = null
         else if (lifeWindow != null) lifeWindow = null
         else if (speedOpen) speedOpen = false
         else if (feedOpen) feedOpen = false
@@ -494,34 +529,51 @@ fun LiveSceneScreen(
         else ending = true
     }
 
-    fun request(other: String?, choice: AnimationChoice, repeat: Boolean): PerformanceOrder {
-        val animations = choice.clips.map { checkNotNull(it.forPlayback()) }
-        val roles = choice.roles.mapIndexed { index, role ->
-            val animation = animations[index].copy(loop = false)
-            val key = "${choice.id}:$index"
-            val scale = choice.roleScale
-            playback[key] = lifted(animation, role.offset.z * scale)
-            PlaybackRole(key, Vec3(role.offset.x * scale * HumanScale.PAIR, role.offset.y * scale * HumanScale.PAIR, role.offset.z * scale), role.facing)
+    fun request(other: String?, choice: AnimationChoice, options: PlayOptions): PerformanceOrder {
+        // one choice's roles for the scene (its clips kept under their keys) and one play's seconds
+        fun rolesOf(c: AnimationChoice): Pair<List<PlaybackRole>, Float> {
+            val animations = c.clips.map { checkNotNull(it.forPlayback()) }
+            val roles = c.roles.mapIndexed { index, role ->
+                val animation = animations[index].copy(loop = false)
+                val key = "${c.id}:$index"
+                val scale = c.roleScale
+                playback[key] = lifted(animation, role.offset.z * scale)
+                PlaybackRole(key, Vec3(role.offset.x * scale * HumanScale.PAIR, role.offset.y * scale * HumanScale.PAIR, role.offset.z * scale), role.facing)
+            }
+            return roles to (animations.maxOf { it.duration }.takeIf { it > 0f } ?: 12f)
         }
-        val cycle = animations.maxOf { it.duration }.takeIf { it > 0f } ?: 12f
+        val (roles, cycle) = rolesOf(choice)
+        // a staged one (anim/StageRules): its start once, its loops, its end once, played as one (SceneSimulation)
+        val segments = choice.segments.map { part ->
+            val (partRoles, seconds) = rolesOf(part.choice)
+            val kind = when (part.part) {
+                StagePart.START -> SegmentKind.START
+                StagePart.LOOP -> SegmentKind.LOOP
+                StagePart.END -> SegmentKind.END
+            }
+            PlaybackSegment(kind, partRoles, seconds)
+        }
         // a two-person one names its partner pair: one whose bodies need furniture (a bed, a seat, a top) is played on it,
         // fitted as the furniture's Play window fits it (SceneSimulation: placed orders); a floor one plays as before
         val pairId = if (other != null && choice.participantCount == 2) choice.id.removePrefix(PairAnim.CHOICE_PREFIX) else null
-        return PerformanceOrder(other, roles, cycle, repeat, choice.repetitions, choice.name,
-            choice.sounds.map { PartnerSound(it.timeSec, it.name, it.actor) }, pairId)
+        return PerformanceOrder(other, roles, cycle, options.untilStopped, options.loops(choice.repetitions), choice.name,
+            choice.sounds.map { PartnerSound(it.timeSec, it.name, it.actor) }, pairId, segments)
     }
 
     fun schedule(order: PendingAnimation, partner: String?) {
         val (owner, choice, mode) = order
+        val options = playOptions
         if (mode == AnimationOrderMode.QUEUE || mode == AnimationOrderMode.SEQUENCE) {
             val stages = if (mode == AnimationOrderMode.SEQUENCE) animationSequence(choice, choices) else listOf(choice)
-            val requests = stages.map { request(partner, it, false) }
+            val requests = stages.map { request(partner, it, options) }
             live.order { sim ->
+                // the queue's own choices: round again when it ends, in a random order
+                sim.queueOptions(owner, options.repeatQueue, options.shuffle)
                 if (sim.enqueue(owner, requests)) "${requests.size} animation${if (requests.size == 1) "" else "s"} queued."
                 else "Couldn’t add these animations to the queue."
             }
         } else {
-            val request = request(partner, choice, mode == AnimationOrderMode.REPEAT)
+            val request = request(partner, choice, options)
             live.order { sim ->
                 if (sim.perform(owner, request)) null
                 else sim.takeRefusal() ?: "The NPCs couldn’t reach their starting positions."
@@ -634,6 +686,8 @@ fun LiveSceneScreen(
                     main.post { timeOfDay(hour, perHour) }
                 }
             }
+            cineLook.frame(now)
+            view.glCinematic(cineLook.mood(), cineLook.vignette(), cineLook.grain(), cineLook.letterbox())
             live.frame(now, sink, emit)
         }
         onDispose {
@@ -750,7 +804,7 @@ fun LiveSceneScreen(
         if (listed.isEmpty()) use(id, item) else furnitureMenu = FurnitureMenu(id, item, listed)
     }
     /** [choice] played on [target]'s furniture: a two-person one with the partner (else the nearest who can join), or alone. */
-    fun playOn(target: FurnitureMenu, choice: AnimationChoice, repeat: Boolean) {
+    fun playOn(target: FurnitureMenu, choice: AnimationChoice, options: PlayOptions) {
         val item = target.item
         val owner = target.owner
         val refused = "That can’t be played on the ${item.label.lowercase()} now."
@@ -760,7 +814,7 @@ fun LiveSceneScreen(
             live.order { sim -> if (sim.partnerOn(item, pairId, owner, with)) null else sim.takeRefusal() ?: refused }
         } else {
             val need = needs.choices[choice.id] ?: return
-            val order = request(null, choice, repeat)
+            val order = request(null, choice, options)
             live.order { sim -> if (sim.performOn(owner, item, need, order)) null else sim.takeRefusal() ?: refused }
         }
     }
@@ -850,7 +904,8 @@ fun LiveSceneScreen(
     val uses = remember(objects) { SceneObject.entries.filter { it in objects }.map { it.name to useLabel(it) } }
     val mate = partnerId?.takeIf { it != active?.id }
     val slots = if (active == null) emptyList()
-        else SceneHud.orders(walking, mate != null, cast.size - 1, active.repeating, active.queued, uses, life = lifeOn)
+        else SceneHud.orders(walking, mate != null, cast.size - 1, active.repeating, active.queued, uses, life = lifeOn,
+            performing = active.performing)
     var page by remember { mutableIntStateOf(0) }
     LaunchedEffect(selected) { page = 0 }
     fun act(id: String, slot: HudSlot) {
@@ -868,6 +923,9 @@ fun LiveSceneScreen(
                 if (others.size == 1) chatWith(id, others[0].id) else chatting = id
             }
             HudOrder.STOP_REPEAT -> live.order { sim -> sim.stopRepeat(id); null }
+            // Stop: the animation's end now, then they stand (the queue cleared); Skip: its end, then the queue's next
+            HudOrder.STOP -> live.order { sim -> sim.stopAll(id); null }
+            HudOrder.SKIP -> live.order { sim -> sim.stop(id); null }
             HudOrder.CLEAR_QUEUE -> live.order { sim -> sim.clearQueue(id); null }
             HudOrder.RELEASE -> control = control.release()
             HudOrder.USE -> SceneObject.entries.firstOrNull { it.name == slot.target }?.let { use(id, it) }
@@ -977,16 +1035,20 @@ fun LiveSceneScreen(
             },
         )
         val partnerIndex = partnerId?.let { id -> cast.indexOfFirst { it.id == id } } ?: -1
-        if (life != null) {
+        val wordsShown = !(cinematic && cinematicSettings.hideWords)
+        if (life != null && wordsShown) {
             val gems = remember(lifeShown, cast) { cast.map { a -> lifeOf(a.id)?.mood?.let(LifeHud::gem) } }
             LifeMarkers(speechSpots, gems, lines, if (lifeOn) thoughts else List(cast.size) { null }, partnerIndex, icons)
         }
-        SpeechBubbles(speechSpots, remember(cast) { cast.map { it.name } }, lines, partnerIndex)
+        if (wordsShown) SpeechBubbles(speechSpots, remember(cast) { cast.map { it.name } }, lines, partnerIndex)
         SceneLoadingCover(!revealed, locationName, status, progress)
 
         // the HUD, inside the screen's safe area (cut-outs, the hinge's bars, the gesture bar)
         val shown by animateFloatAsState(if (revealed) 1f else 0f, tween(MenuMotion.duration(MenuMotion.WINDOW_IN_MS, reduced)), label = "hud")
-        BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+        // cinematic mode hides it (the layer over it takes the touches; a tap brings it back a while)
+        val cineHidden = cinematic && !cinePeek
+        val hudAlpha by animateFloatAsState(if (cineHidden) 0f else 1f, tween(MenuMotion.duration(CINEMATIC_HUD_MS, reduced)), label = "cinematicHud")
+        BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).graphicsLayer { alpha = hudAlpha }) {
             val hud = SceneHud.layout(maxWidth.value, maxHeight.value)
             val events = lifeShown?.events
             val unseen = remember(events, feedSeenAt) { events?.let { e -> feedSeen.unseen(e.map { it.hours to it.text }) } ?: 0 }
@@ -1049,7 +1111,8 @@ fun LiveSceneScreen(
                         }
                         // the life answer's toast said it already: the line keeps the help
                         val toastText = lifeToast?.first?.message
-                        val line = (snapshot.notice?.takeIf { it != toastText } ?: hint.takeIf { active != null }).orEmpty()
+                        // while an animation plays: its part and loop counter ("Stage 2 · Cowgirl · Loop 3/5")
+                        val line = (snapshot.notice?.takeIf { it != toastText } ?: active?.playing ?: hint.takeIf { active != null }).orEmpty()
                         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                             if (line.isNotEmpty()) HudLine(line)
                         }
@@ -1079,6 +1142,10 @@ fun LiveSceneScreen(
             FeedPanel(feedOpen, lifeShown?.events.orEmpty(), icons, { feedOpen = false },
                 Modifier.align(Alignment.TopEnd).padding(end = SceneHud.MARGIN.dp, top = SceneHud.TOP_H.dp, start = SceneHud.MARGIN.dp))
         }
+        CinematicLayer(cinematic, cineHidden, revealed && shown > 0f, {
+            cinematic = !cinematic
+            if (cinematic) { radial = null; speedOpen = false; feedOpen = false; menu = false }
+        }, { cinePeek = true }, { live.aspect = it })
     }
     choosingAnimation?.let { owner ->
         // with a partner chosen, the two-person animations come first and play with them (solo ones still play alone)
@@ -1093,12 +1160,14 @@ fun LiveSceneScreen(
             shownChoices, preview = null, onClose = { choosingAnimation = null },
             notice = snapshot.notice ?: with?.let { "Two-person animations play with ${names[it]}." },
             onPlay = { choice, mode ->
-                if (mode == AnimationOrderMode.PLAY || mode == AnimationOrderMode.REPEAT) choosingAnimation = null
+                if (mode == AnimationOrderMode.PLAY) choosingAnimation = null
                 start(choice, mode)
             },
             onPreview = { choice -> start(choice, AnimationOrderMode.PLAY) },
             partnerName = with?.let { names[it] },
             actorName = names[owner],
+            options = playOptions,
+            onOptions = { choosePlayOptions(it) },
         )
     }
     furnitureMenu?.let { menuOf ->
@@ -1109,11 +1178,13 @@ fun LiveSceneScreen(
                 (with?.let { " Two-person animations play with ${names[it]}." } ?: "")),
             onPlay = { choice, mode ->
                 furnitureMenu = null
-                playOn(menuOf, choice, mode == AnimationOrderMode.REPEAT)
+                playOn(menuOf, choice, playOptions)
             },
-            onPreview = { choice -> playOn(menuOf, choice, false) },
+            onPreview = { choice -> playOn(menuOf, choice, PlayOptions()) },
             partnerName = with?.let { names[it] },
             actorName = names[menuOf.owner],
+            options = playOptions,
+            onOptions = { choosePlayOptions(it) },
         )
     }
     val sayFor = rememberHeld(saying)

@@ -162,4 +162,77 @@ DaySample sampleDay(const DayCycle& c, float hours, float frameYawDeg) {
     return s;
 }
 
+// ------------------------------------------------------------------------------------------------ the cinematic look
+
+namespace {
+
+// What the mood multiplies at full strength.
+constexpr float kMoodAmbient[3] = {0.66f, 0.58f, 0.52f};   // the location's ambient: lower, the blue lowered most
+constexpr float kMoodSun[3] = {1.05f, 0.86f, 0.64f};       // the sun or moon: warmer
+constexpr float kMoodSky[3] = {0.80f, 0.74f, 0.72f};       // the sky and fog: darker, a little warm
+constexpr float kMoodRoom[3] = {0.90f, 0.78f, 0.66f};      // a room's own light: lower and warmer (lamplight)
+constexpr float kMoodActorAmbient[3] = {0.50f, 0.45f, 0.45f};
+constexpr float kKeyColour[3] = {1.0f, 0.70f, 0.44f};      // the key: a warm, low lamp
+constexpr float kRimWarm[3] = {1.0f, 0.62f, 0.45f};
+constexpr float kRimCool[3] = {0.52f, 0.62f, 1.0f};
+constexpr float kFlickerRoom = 0.035f;                     // the flicker's reach on a room's light and on the key
+constexpr float kFlickerKey = 0.05f;
+constexpr float kKeyFloor = 0.42f;                         // the least brightness the key keeps on a person
+
+float clamp01(float x) { return std::isfinite(x) ? std::clamp(x, 0.0f, 1.0f) : 0.0f; }
+float clampFlicker(float x) { return std::isfinite(x) ? std::clamp(x, -1.0f, 1.0f) : 0.0f; }
+
+void scaleBy(float v[3], const float k[3], float s, float extra = 1.0f) {
+    for (int i = 0; i < 3; ++i) v[i] *= (1.0f + (k[i] - 1.0f) * s) * extra;
+}
+
+} // namespace
+
+float moodFlicker(float seconds) {
+    if (!std::isfinite(seconds)) return 0;
+    double t = std::fmod(double(seconds), 3600.0);
+    double v = 0.5 * std::sin(t * 2.13) + 0.3 * std::sin(t * 3.71 + 1.3) + 0.2 * std::sin(t * 0.87 + 0.4);
+    return float(std::clamp(v, -1.0, 1.0));
+}
+
+void moodScene(float strength, float flicker, float ambient[3], float sun[3], float sky[3], float fog[3], float roomTint[3]) {
+    float s = clamp01(strength);
+    if (s <= 0) return;
+    float f = clampFlicker(flicker);
+    scaleBy(ambient, kMoodAmbient, s);
+    scaleBy(sun, kMoodSun, s);
+    scaleBy(sky, kMoodSky, s);
+    scaleBy(fog, kMoodSky, s);
+    scaleBy(roomTint, kMoodRoom, s, 1.0f + kFlickerRoom * f * s);
+}
+
+MoodActorLight moodActor(float strength, float flicker, bool interior, const float ambient[3], const float direct[3]) {
+    MoodActorLight out;
+    float s = clamp01(strength);
+    float f = clampFlicker(flicker);
+    // how bright the person was lit (their ambient and their light together, by the eye's weights): the key keeps it
+    float lum = 0.299f * (ambient[0] + direct[0]) + 0.587f * (ambient[1] + direct[1]) + 0.114f * (ambient[2] + direct[2]);
+    // a person in a dark room is still lit (the low key is the room's, not theirs): never under kKeyFloor
+    float bright = std::max(lum, kKeyFloor);
+    const float* rim = interior ? kRimWarm : kRimCool;
+    for (int i = 0; i < 3; ++i) {
+        out.ambient[i] = ambient[i] * (1.0f + (kMoodActorAmbient[i] - 1.0f) * s);
+        float key = kKeyColour[i] * bright * 1.1f;
+        out.key[i] = (direct[i] + (key - direct[i]) * s) * (1.0f + kFlickerKey * f * s);
+        out.rim[i] = rim[i] * bright * 0.6f * s;
+    }
+    return out;
+}
+
+void moodDirections(const V3& eye, const V3& target, V3& keyTravel, V3& rimToward) {
+    V3 f(target.x - eye.x, target.y - eye.y, 0);
+    float len = std::sqrt(f.x * f.x + f.y * f.y);
+    f = len > 1e-4f ? V3(f.x / len, f.y / len, 0) : V3(1, 0, 0);
+    V3 right(f.y, -f.x, 0);            // the view's right (f x up)
+    V3 up(0, 0, 1);
+    V3 toKey = (right * 0.85f - f * 0.45f + up * 0.36f).normalized();
+    keyTravel = toKey * -1.0f;
+    rimToward = (f * 0.85f - right * 0.35f + up * 0.5f).normalized();
+}
+
 } // namespace wc
