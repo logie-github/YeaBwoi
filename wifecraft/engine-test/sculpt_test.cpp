@@ -207,9 +207,11 @@ int main() {
         CHECK(!sculptActive(z, kSculptCount), "height and leg length are not mesh moves");
     }
 
-    const char* names[kSculptCount] = {"height", "shoulders", "arms", "bust", "bustLift", "waist", "belly", "hips", "butt", "thighs", "legLength"};
+    const char* names[kSculptCount] = {"height", "shoulders", "arms", "bust", "bustLift", "waist", "belly", "hips", "butt", "thighs", "legLength",
+                                       "neck", "chest", "bustWidth", "bustSpacing", "shoulderSlope", "upperArms", "forearms", "calves",
+                                       "buttLift", "bodyFat", "muscle"};
     for (int k = 1; k < kSculptCount; ++k) {
-        if (k == kSculptLegLength) continue;
+        if (k == kSculptLegLength || k == kSculptNeck) continue;   // (the neck: the game's bodies only, below)
         for (float s : {-1.0f, 1.0f}) {
             auto v = B.verts;
             float vals[kSculptCount] = {};
@@ -226,6 +228,8 @@ int main() {
                 asym = std::max(asym, std::max(std::fabs(di.x - dm.x), std::max(std::fabs(di.y + dm.y), std::fabs(di.z - dm.z))));
             }
             CHECK(asym < 2e-5f, "%s %+.0f symmetric (%g)", names[k], s, asym);
+            if (asym >= 2e-5f) for (size_t i = 0; i < v.size(); ++i) { int m = B.mirror[i]; V3 di = P(v[i]) - P(B.verts[i]), dm = P(v[size_t(m)]) - P(B.verts[size_t(m)]);
+                if (std::fabs(di.x - dm.x) + std::fabs(di.y + dm.y) + std::fabs(di.z - dm.z) > 5e-4f) { std::printf("  v%zu g%d (%f %f %f) d(%f %f %f) m(%f %f %f)\n", i, B.group[i], B.verts[i].pos[0], B.verts[i].pos[1], B.verts[i].pos[2], di.x, di.y, di.z, dm.x, dm.y, dm.z); break; } }
             float seam = 0;
             for (size_t i = 0; i < v.size(); ++i) if (B.group[i] == 4 || B.group[i] == 5) seam = std::max(seam, (P(v[i]) - P(B.verts[i])).length());
             CHECK(seam == 0, "%s %+.0f keeps the neck and ankle rings (%g)", names[k], s, seam);

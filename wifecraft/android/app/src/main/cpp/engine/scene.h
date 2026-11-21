@@ -320,8 +320,14 @@ public:
     // The part of actor `id`'s body the screen point lands on (bodypick.h's BodyRegion; 0: none): its shown triangles as
     // posed this frame, the region of the bones the triangle hit is weighted to most (bodyrig.cpp).
     int pickBodyRegion(int id, float sx, float sy, int width, int height) const;
-    // The creator's sculpt sliders (sculpt.h's order, -1..1) on actor `id`: the Eve body is fitted again with them.
+    // The creator's sculpt sliders (sculpt.h's order, -1..1) on actor `id`: the Eve body is fitted again with them, the
+    // game's own body sculpted again (bodyrig.cpp sculptSync: at most every kSculptMinMs while they change).
     void setSculpt(int id, const float* values, size_t count);
+    // Off: every sculpt change is made on the next frame (the desktop harness's stills); on (the default) at most every
+    // kSculptMinMs.
+    void setSculptThrottle(bool on) { sculptThrottle_ = on; }
+    // What the last sculpt of the game's body cost (ms) and how many vertices it moved (0: none).
+    float sculptMs(int id) const;
     int locationObject(uint32_t model, V3 origin) const;
     bool walkSegment(V3 from, V3 to) const;
     // The floor under (x, y) nearest below z (a little above counts: a step up): the location's groups and WMO props,
@@ -426,6 +432,16 @@ private:
         unsigned layerVao = 0, layerVbo = 0, layerIbo = 0, layerTex = 0;
         size_t layerIndices = 0;
         size_t moved = 0, layerTriangles = 0;
+        // The creator's sculpt on the game's own body (sculpt.h; bodyrig.cpp sculptSync): the mesh sliders it carries (empty:
+        // none), the body before it (a sculpt-only change starts from that, not from the shape again) and what that was made from.
+        std::vector<float> sculpted;
+        bool sculptOnly = false;
+        std::vector<M2Vertex> sculptBase;
+        std::vector<float> baseMorph;
+        std::vector<std::string> baseCut;
+        const void* baseModel = nullptr;
+        float sculptMs = 0;
+        size_t sculptMoved = 0;
     };
     // A loaded part file: its data and, once a context has it, its buffers (M2Vertex, no bone weights: rigid, the positions
     // in the Sims body's frame, partSimsPoint).
@@ -552,6 +568,8 @@ private:
         uint64_t fleshKey = 0;
         EveDraw eve;                   // the Eve body (evescene.cpp)
         std::vector<float> sculpt;     // the creator's sculpt sliders (setSculpt; sculpt.h): the Eve body fitted with them
+        std::vector<float> sculptWant; // what setSculpt last gave (taken into `sculpt` by sculptSync)
+        uint64_t sculptAtMs = 0;       // when the game's body was last sculpted (steady clock)
         LegEdit legEdit;               // its Leg Length on the skeleton (bodyrig.h): made again when the slider or model changes
         float sheen = 0;               // setSheen: the skin's wet sheen 0..1
         int fxBones[5] = {-2, -2, -2, -2, -2};   // L_Eye, R_Eye, Head, L_Hand, R_Hand (-1: none) for fxModel (skinOf)
@@ -767,6 +785,8 @@ private:
     void dropDressGl(Actor& a);
     void dropBodyGl(Actor& a);
     void refreshBody(Actor& a);
+    void sculptSync(Actor& a);                     // before eveCheck: the sculpt taken (bodyrig.cpp)
+    bool sculptThrottle_ = true;
     void drawBodyLayer(Actor& a, const M4& world);
     void stepSoft(Actor& a, uint32_t now);
     // the tabard flap as cloth (scene.cpp): built for the look and shape, stepped after the bones, drawn after the body

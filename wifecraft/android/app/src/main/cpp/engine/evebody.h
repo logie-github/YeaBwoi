@@ -62,6 +62,17 @@ std::vector<uint8_t> writeEve(const EveMesh& m);
 EveMesh eveSplitMesh(const EveMesh& m, float t);
 uint32_t eveCrc32(const uint8_t* data, size_t n);
 
+// Her build on her own rig (EveRaceFit::rig; the row's "bulk"): a bigger race's woman from the standard body's own measured
+// girths (wifecraft/README.md, Her own rig). Each limb segment's skin scaled across its bone about her joints (arm, forearm,
+// thigh, calf), the trunk's width (hips, waist, chest) and depth (hipDepth, waistDepth, chestDepth) about her middle by
+// height, the shoulders' width by her clavicles, and the hips' sides moved with the hip joints (`follow`, 0..1) where a race's
+// legs are set wider than hers. 1 (0 for follow): her own build.
+struct EveBulk {
+    float arm = 1, forearm = 1, thigh = 1, calf = 1;
+    float shoulders = 1, chest = 1, waist = 1, hips = 1, chestDepth = 1, waistDepth = 1, hipDepth = 1;
+    float follow = 0;
+};
+
 // One row of assets/eve_fit.json: a Warcraft female model and how Eve fits it.
 struct EveRaceFit {
     uint32_t model = 0;
@@ -104,6 +115,14 @@ struct EveRaceFit {
     // Sims rig skinned her for (kEveSimsRig), the model's animation run about them, her own weights as authored; the head
     // and feet stay the model's, on its own joints, joined at the seams. 0: fitted onto the model's skeleton (the old way).
     float rig = 0;
+    // On her rig: each upper arm, forearm, thigh and shin stretched along itself this share of the way to the model's own
+    // length (0: hers; 1: the model's, her knees, elbows, hips and hands where the model's are in every pose), her trunk's
+    // height following the hips; the pelvis's pivot the model's.
+    float lengths = 0;
+    // On her rig: her spine's joints (Spine1, Spine2, Chest) moved this share of the way to the model's own (1: her trunk bends
+    // where the model's does, so her head and shoulders follow the model's in every pose).
+    float spine = 0;
+    EveBulk bulk;   // her build on her rig
 };
 struct EveFitTable {
     std::vector<EveRaceFit> rows;

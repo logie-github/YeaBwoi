@@ -14,8 +14,14 @@
 //     which no move touches; [SculptOptions::pinned] keeps any other vertex (a seam) where it is.
 //   - Normals: those of moved vertices are made again from the triangles round them, shared by position (a UV seam's two
 //     copies keep one normal), blended in by how far the vertex moved.
+//   - The game's own bodies (every race's default model, both sexes: scene.cpp refreshBody, [SculptOptions::gameBody]) take
+//     the same moves on the model's whole vertex list (the skin and the clothing geosets on it, so a robe or sleeves follow),
+//     with the spine followed along its curve (an orc's chest stands far forward of its pelvis), the limbs' moves faded out
+//     before the wrists and ankles (the hands and feet keep their size and seams), and any triangle that would turn over or
+//     collapse eased back (its corners' moves halved, by place, up to six times, then dropped).
 // Slider order as the app's (creator/BodySculpt.kt SculptSlider). Height is the actor's scale (the app's), not a move here;
-// leg length needs the skeleton changed and is not a move here either (the app shows it greyed).
+// leg length is the skeleton's (bodyrig.h), not a move here either. Body Fat and Muscle are no moves of their own: each adds
+// shares of the others (more waist, belly, hips, thighs...; more shoulders, arms, chest, calves...).
 #pragma once
 
 #include <cstdint>
@@ -29,12 +35,16 @@ namespace wc {
 
 enum SculptSlider {
     kSculptHeight = 0, kSculptShoulders, kSculptArms, kSculptBust, kSculptBustLift, kSculptWaist, kSculptBelly, kSculptHips,
-    kSculptButt, kSculptThighs, kSculptLegLength, kSculptCount
+    kSculptButt, kSculptThighs, kSculptLegLength,
+    // added after the first eleven (older saves and the Eve fit's arrays end before them)
+    kSculptNeck, kSculptChest, kSculptBustWidth, kSculptBustSpacing, kSculptShoulderSlope, kSculptUpperArms, kSculptForearms,
+    kSculptCalves, kSculptButtLift, kSculptBodyFat, kSculptMuscle, kSculptCount
 };
 
 enum SculptGroup : uint8_t {
     kGroupOther = 0, kGroupBreastL, kGroupBreastR, kGroupChest, kGroupWaist, kGroupPelvis, kGroupThighL, kGroupThighR,
-    kGroupCalf, kGroupUpperArmL, kGroupUpperArmR, kGroupForearmL, kGroupForearmR, kGroupClavicle, kGroupNeck, kGroupCount
+    kGroupCalf, kGroupUpperArmL, kGroupUpperArmR, kGroupForearmL, kGroupForearmR, kGroupClavicle, kGroupNeck, kGroupHead,
+    kGroupFoot, kGroupCount
 };
 
 constexpr float kSculptMaxShare = 0.12f;   // the most any vertex moves: this share of the hip height
@@ -42,7 +52,7 @@ constexpr float kSculptMaxShare = 0.12f;   // the most any vertex moves: this sh
 // The skeleton as the sculpt needs it: each bone's group, and the joints its moves are about (bind pose, model space).
 struct SculptRig {
     std::vector<uint8_t> group;           // per bone
-    V3 pelvis, waist, chest, neck;        // spine joints
+    V3 pelvis, waist, chest, neck, head;  // spine joints
     V3 breast[2];                         // left, right (the breast bones' pivots, or estimates)
     V3 hip[2], knee[2], ankle[2];         // the thighs' and calves' joints
     V3 shoulder[2], elbow[2], wrist[2];   // the arms'
@@ -63,12 +73,14 @@ SculptRig sculptRigOf(const M2Model& m);   // bodyrig.cpp
 
 struct SculptOptions {
     std::vector<uint32_t> pinned;   // vertices never moved
+    bool gameBody = false;          // the game's own body (the curved spine, the limbs' ends kept; the Neck slider on)
 };
 
 struct SculptStats {
     size_t moved = 0;
     float maxMove = 0;              // in model units
     size_t flipped = 0;             // triangles whose facing turned over (should stay 0)
+    size_t eased = 0;               // triangles eased back so as not to turn over or collapse
 };
 
 // The sliders (kSculptCount values, -1..1; fewer: the rest 0) on `verts` (bind pose, the rig's bone indices). `indices`:

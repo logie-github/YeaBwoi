@@ -554,6 +554,7 @@ int main(int argc, char** argv) {
         return stat(p.c_str(), &st) == 0 ? p : std::string();
     };
     Scene scene(lookup);
+    scene.setSculptThrottle(false);   // (each still shows the sculpt it was given)
     scene.initGl();
     scene.setEveAsync(false);   // (each render shows the fit asked for; `eveasync 1` puts it on the worker as the app does)
     std::map<int, int> actors, props;
@@ -963,7 +964,7 @@ int main(int argc, char** argv) {
             }
             std::printf("frametime: %d frames mean %.2f ms worst %.2f ms\n", n, sum / std::max(n, 1), worst);
         } else if (cmd == "sculpt") {
-            // sculpt N V0 .. V10: person N's sculpt sliders (Scene::setSculpt; creator/BodySculpt.kt's order, -1..1)
+            // sculpt N V0 .. V21: person N's sculpt sliders (Scene::setSculpt; creator/BodySculpt.kt's order, -1..1)
             int name; ss >> name;
             std::vector<float> v; float x;
             while (ss >> x) v.push_back(x);
