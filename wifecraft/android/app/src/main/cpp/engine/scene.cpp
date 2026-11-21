@@ -922,7 +922,14 @@ bool Scene::actorFlesh(int id, std::vector<float>& out) {
         const bool eve = a.eve.active && a.eve.measure.host >= 0;
         const LegEdit legs = a.eve.active && !a.eve.body.rigPivots.empty() ? bodyEditFrom(m, a.eve.body.rigPivots, legK) : bodyEditOf(m, legK);
         const LegEdit* lp = legs.active ? &legs : nullptr;
-        FleshMeasure f = eve ? measureFlesh(m, a.eve.measure.verts, a.eve.measure.indices, a.eve.measure.subs, a.geosets, nullptr, lp)
+        // (in Eve: her trunk and thighs read by the segments the model's own skin has where she is: flesh.h FleshGuide)
+        FleshGuide guide;
+        guide.byArea = eve;
+        if (eve && a.eve.baseReady && a.eve.measure.verts.size() >= a.eve.body.verts.size()) {
+            guide.from = a.eve.measure.verts.size() - a.eve.body.verts.size();
+            guide.idx = &a.eve.baseIndices; guide.subs = &a.eve.baseSubs;
+        }
+        FleshMeasure f = eve ? measureFlesh(m, a.eve.measure.verts, a.eve.measure.indices, a.eve.measure.subs, a.geosets, nullptr, lp, &guide)
                              : measureFlesh(m, shaped ? a.body.shaped : m.vertices, shaped ? a.body.indices : m.indices,
                                             shaped && !a.body.submeshes.empty() ? a.body.submeshes : m.submeshes, a.geosets, nullptr, lp);
         a.flesh = f.ok ? f.pack() : std::vector<float>();

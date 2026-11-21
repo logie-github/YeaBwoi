@@ -336,6 +336,123 @@ void posedSeams(M2Model& m, const FileLookup& look, const EveResult& res, size_t
     }
 }
 
+
+// The ankle seam measured (README, "Her own rig", the ankles): per side, her skin against the model's own lower leg that her
+// cut took, both as surfaces (their triangles), along horizontal rays from the model's ankle joint at 48 angles and at 0.3,
+// 0.6, 1, 1.5 and 2 cm over the model's cut edge at that angle (the edge slants over the foot's top): the radial step between
+// the two in cm at her human-scale height (1.709 yards, 156 cm) is the cuff the eye sees where her shin meets the foot; and
+// the angle between her normals and the model's skin's there (degrees). `step`, `turn`: the worst of both sides; `mean`: the
+// mean |step|; `taper`: the same step at 3 and 5 cm (her shin eased from the model's back to her own over the band).
+struct AnkleStep { float step = 0, mean = 0, turn = 0, taper = 0; int samples = 0; };
+AnkleStep ankleStep(const M2Model& m, const EveResult& res, bool print, const char* name) {
+    AnkleStep out;
+    const std::vector<M2Vertex>& ev = res.body.verts;
+    const std::vector<uint32_t>& ei = res.body.indices;
+    const size_t eveVerts = res.body.stats.eveVerts;
+    const float H = res.body.stats.height > 0 ? res.body.stats.height : 2.0f;
+    const float cm = 156.25f / H;   // cm per model unit
+    std::vector<uint8_t> skin(m.submeshes.size(), 0);
+    for (const M2Batch& bt : m.batches) {
+        if (bt.submesh >= m.submeshes.size() || bt.textureCombo >= m.textureCombos.size()) continue;
+        uint16_t ti = m.textureCombos[bt.textureCombo];
+        if (ti < m.textures.size() && m.textures[ti].type == 1 && m.submeshes[bt.submesh].id % 100 <= 1) skin[bt.submesh] = 1;
+    }
+    // as drawn at rest: both skinned on her rig's bind (bodyrig.h; posedSeams' bindMats)
+    LegEdit edit = res.body.rigPivots.empty() ? bodyEditOf(m, res.body.scale) : bodyEditFrom(m, res.body.rigPivots, res.body.scale);
+    std::vector<M4> bindMats;
+    if (edit.active) legEditMatrices(m.bones, std::vector<BonePose>(), edit, bindMats); else bindMats.assign(m.bones.size(), M4());
+    auto skinned = [&](const M2Vertex& v, bool normal) {
+        V3 p = normal ? V3(v.normal[0], v.normal[1], v.normal[2]) : V3(v.pos[0], v.pos[1], v.pos[2]), q; float w = 0;
+        for (int k = 0; k < 4; ++k) if (v.weights[k] && v.bones[k] < bindMats.size()) {
+            const M4& M = bindMats[v.bones[k]];
+            q = q + (normal ? M.point(p) - M.point(V3(0, 0, 0)) : M.point(p)) * (v.weights[k] / 255.0f); w += v.weights[k] / 255.0f;
+        }
+        return w > 0 ? (normal ? q.normalized() : q * (1.0f / w)) : p;
+    };
+    struct Tri { V3 a, b, c, na, nb, nc; };
+    for (int sd = 0; sd < 2; ++sd) {
+        int fb = m.findWowBone(sd ? "R_Foot" : "L_Foot");
+        if (fb < 0) continue;
+        const V3 o = bindMats[size_t(fb)].point(m.bones[size_t(fb)].pivot);
+        auto mine = [&](V3 p) { return p.z < 0.25f * H && (sd ? p.y < 0 : p.y > 0) && V3(p.x - o.x, p.y - o.y, 0).length() < 0.1f * H; };
+        // the model's cut edge on this leg: the stitch's model vertices (exact copies of its edge), their height by angle
+        std::vector<std::pair<float, float>> edge;
+        for (size_t v = eveVerts; v < ev.size(); ++v) { V3 p = skinned(ev[v], false); if (mine(p)) edge.push_back({std::atan2(p.y - o.y, p.x - o.x), p.z}); }
+        if (edge.size() < 3) continue;
+        auto edgeAt = [&](float a) {   // the edge's height at angle a: inverse-distance over the nearest edge vertices by angle
+            float wsum = 0, z = 0;
+            for (auto& [ea, ez] : edge) { float d = std::fabs(std::remainder(ea - a, 6.2831853f)); float w = 1.0f / (d * d + 1e-4f); wsum += w; z += ez * w; }
+            return z / wsum;
+        };
+        std::vector<Tri> model, hers;
+        for (size_t si = 0; si < m.submeshes.size(); ++si) if (skin[si])
+            for (uint32_t t = m.submeshes[si].indexStart; t + 2 < m.submeshes[si].indexStart + m.submeshes[si].indexCount && t + 2 < m.indices.size(); t += 3) {
+                uint32_t i0 = m.indices[t], i1 = m.indices[t + 1], i2 = m.indices[t + 2];
+                if (i0 >= res.body.cut.size() || i1 >= res.body.cut.size() || i2 >= res.body.cut.size()) continue;
+                if (!res.body.cut[i0] && !res.body.cut[i1] && !res.body.cut[i2]) continue;
+                V3 A = skinned(m.vertices[i0], false), B = skinned(m.vertices[i1], false), C = skinned(m.vertices[i2], false);
+                if (!mine((A + B + C) * (1.0f / 3))) continue;
+                model.push_back({A, B, C, skinned(m.vertices[i0], true), skinned(m.vertices[i1], true), skinned(m.vertices[i2], true)});
+            }
+        for (size_t t = 0; t + 2 < ei.size(); t += 3) {
+            V3 A = skinned(ev[ei[t]], false), B = skinned(ev[ei[t + 1]], false), C = skinned(ev[ei[t + 2]], false);
+            if (!mine((A + B + C) * (1.0f / 3))) continue;
+            hers.push_back({A, B, C, skinned(ev[ei[t]], true), skinned(ev[ei[t + 1]], true), skinned(ev[ei[t + 2]], true)});
+        }
+        auto cast = [&](const std::vector<Tri>& ts, V3 org, V3 d, float& dist, V3& n) {
+            bool any = false;
+            for (const Tri& t : ts) {
+                V3 e1 = t.b - t.a, e2 = t.c - t.a, pv = d.cross(e2);
+                float det = e1.dot(pv);
+                if (std::fabs(det) < 1e-12f) continue;
+                float inv = 1.0f / det; V3 tv = org - t.a;
+                float u = tv.dot(pv) * inv; if (u < 0 || u > 1) continue;
+                V3 qv = tv.cross(e1); float w = d.dot(qv) * inv; if (w < 0 || u + w > 1) continue;
+                float tt = e2.dot(qv) * inv;
+                if (tt <= 0 || tt > 0.1f * H || (any && tt <= dist)) continue;
+                dist = tt; any = true; n = (t.na * (1 - u - w) + t.nb * u + t.nc * w).normalized();
+            }
+            return any;
+        };
+        if (getenv("ANKLE_DIAG") && sd == 0) {
+            std::printf("    ankle joint %.3f %.3f %.3f (cm/unit %.1f)\n", o.x, o.y, o.z, cm);
+            for (float adeg : {-161.0f, -109.0f, -41.0f, 4.0f, 19.0f, 56.0f, 109.0f, 169.0f}) {
+                float a = adeg / 57.2958f; V3 d(std::cos(a), std::sin(a), 0);
+                std::printf("    angle %4.0f edge z %.4f; edge vertices near:", adeg, edgeAt(a));
+                for (auto& [ea, ez2] : edge) if (std::fabs(std::remainder(ea - a, 6.2831853f)) < 0.15f) std::printf(" %.3f", ez2);
+                std::printf("\n      h: model / hers (cm from the joint)");
+                for (float h : {-1.0f, -0.5f, 0.0f, 0.3f, 0.6f, 1.0f, 1.5f, 2.0f, 3.0f, 5.0f, 8.0f}) {
+                    V3 org(o.x, o.y, edgeAt(a) + h / cm); float rm = -1, re = -1; V3 nn;
+                    cast(model, org, d, rm, nn); cast(hers, org, d, re, nn);
+                    std::printf(" %.1f:%.1f/%.1f", h, rm * cm, re * cm);
+                }
+                std::printf("\n");
+            }
+        }
+        float worst = 0, wsgn = 0, wh = 0, wa = 0, sum = 0, turn = 0, taper = 0; int n = 0;
+        for (int k = 0; k < 48; ++k) {
+            float a = -3.14159265f + 6.2831853f * (k + 0.5f) / 48;
+            V3 d(std::cos(a), std::sin(a), 0);
+            float ez = edgeAt(a);
+            for (float h : {0.3f, 0.6f, 1.0f, 1.5f, 2.0f, 3.0f, 5.0f}) {
+                V3 org(o.x, o.y, ez + h / cm);
+                float rm, re; V3 nm, ne;
+                if (!cast(model, org, d, rm, nm) || !cast(hers, org, d, re, ne)) continue;
+                float st = (re - rm) * cm;
+                if (h > 2.5f) { taper = std::max(taper, std::fabs(st)); continue; }
+                sum += std::fabs(st); ++n;
+                if (std::fabs(st) > worst) { worst = std::fabs(st); wsgn = st; wh = h; wa = a * 57.2958f; }
+                turn = std::max(turn, std::acos(std::clamp(nm.dot(ne), -1.0f, 1.0f)) * 57.2958f);
+            }
+        }
+        if (print) std::printf("  %s ankle %s: step %.2f cm (%+.2f at %.1f cm up, %.0f deg), mean %.2f cm over %d rays (0.3-2 cm up); her normals within %.0f deg of the "
+                               "model's skin; at 3-5 cm %.2f cm\n", name, sd ? "R" : "L", worst, wsgn, wh, wa, n ? sum / n : 0.0f, n, turn, taper);
+        out.step = std::max(out.step, worst); out.turn = std::max(out.turn, turn); out.taper = std::max(out.taper, taper);
+        out.mean = std::max(out.mean, n ? sum / n : 0.0f); out.samples += n;
+    }
+    return out;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -632,6 +749,7 @@ int main(int argc, char** argv) {
                         }
                         CHECK(added > 0 && off == 0, "%s: %zu stitch vertices, %zu off the model's edge", row->name.c_str(), added, off);
                         posedSeams(m, look, res, res.body.stats.eveVerts, row->name, *row);
+                        if (row->rig > 0) ankleStep(m, res, true, row->name.c_str());
                         // Keep undead bones (a row with "detail"): its details carried, the seams' colour as with them off (within 3)
                         if (row->detail > 0) {
                             EveJob off = j;

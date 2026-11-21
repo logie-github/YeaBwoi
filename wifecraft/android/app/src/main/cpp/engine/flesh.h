@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <map>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "humanscale.h"
@@ -237,10 +238,28 @@ inline float fleshLowest(const FleshSeg& s, const FleshFrame& f) {
 
 // A dressed model measured: [verts] (the model's own, or its shaped body's) and the triangles [idx] of [subs] whose geoset
 // is in [geosets] (empty: all), in the clips' stance. [dropped] (if given): per bone, 1 for what hangs off the body and was
-// left out (a tail, a cape: engine-test/audit tells the body's own sink from a tail's with it).
+// left out (a tail, a cape: engine-test/audit tells the body's own sink from a tail's with it). [guide]: how the Eve body is
+// read (below; null: by the vertices' weights, as every other body).
+//
+// The Eve body: her weights were made for the Sims rig, whose spine carries the underside of her breasts and whose thighs
+// carry her hips' flanks, and her mesh is dense where the Sims body is detailed (the belly, the breasts) and sparse at the
+// sides. Read by her vertices' weights alone, on the human woman her belly came 0.05 body units deeper and her hips 0.04
+// narrower each side than the model's own body, where her skin is as wide and as deep (at the hip joints 0.378 against 0.367
+// model units across, 0.247 against 0.245 through). So each of her vertices counts by its share of the skin's area (`byArea`: a dense patch no heavier than
+// a sparse one of its size; on the game's own bodies, near uniform, it moves their numbers by under 0.01 body unit, so they
+// keep being read by weight), and her weight on the trunk and thighs is given out as the model's own skin there has it (`from`,
+// `idx`, `subs`: her vertices come after the model's in `verts`; each takes the trunk's and thighs' shares of the nearest of the
+// model's own uncut vertices, within two twentieths of the pelvis).
+struct FleshGuide {
+    size_t from = 0;                                 // 0: no guide
+    const std::vector<uint32_t>* idx = nullptr;      // the model's own body, uncut (its vertices are verts[0, from))
+    const std::vector<M2Submesh>* subs = nullptr;
+    bool byArea = false;                             // each vertex counted by its share of the skin's area
+};
+
 inline FleshMeasure measureFlesh(const M2Model& m, const std::vector<M2Vertex>& verts, const std::vector<uint32_t>& idx,
                                  const std::vector<M2Submesh>& subs, const std::vector<uint16_t>& geosets,
-                                 std::vector<uint8_t>* droppedOut = nullptr, const LegEdit* legs = nullptr) {
+                                 std::vector<uint8_t>* droppedOut = nullptr, const LegEdit* legs = nullptr, const FleshGuide* guide = nullptr) {
     FleshMeasure out;
     StandFit stand = measureStand(m, legs);   // (`legs`: the actor's Leg Length on the skeleton, bodyrig.h)
     if (!stand.ok) return out;
@@ -328,13 +347,97 @@ inline FleshMeasure measureFlesh(const M2Model& m, const std::vector<M2Vertex>& 
     if (droppedOut) *droppedOut = dropped;
     std::vector<FleshPoint> pts;
     pts.reserve(verts.size() * 2);
+    // (the guide: the model's own vertices in a grid, each with its weights' shares among the trunk's and thighs' segments)
+    auto trunkLike = [](int sg) { return sg == kFleshPelvis || sg == kFleshSpine || sg == kFleshChest || sg == kFleshLThigh || sg == kFleshRThigh; };
+    const size_t from = guide && guide->idx && guide->subs && guide->from > 0 ? std::min(guide->from, verts.size()) : 0;
+    struct Shares { int seg[4] = {-1, -1, -1, -1}; float w[4] = {0, 0, 0, 0}; };
+    std::vector<Shares> guideShares;
+    std::vector<int> herGuide;   // per vertex: its nearest guide vertex (-1: none, her own weights stay)
+    if (from > 0) {
+        const float cell = std::max(1e-3f, stand.pelvis * 0.05f);
+        auto cellKey = [cell](V3 p, int dx, int dy, int dz) {
+            int64_t x = int64_t(std::floor(p.x / cell)) + dx, y = int64_t(std::floor(p.y / cell)) + dy, z = int64_t(std::floor(p.z / cell)) + dz;
+            return ((x & 0x1FFFFF) << 42) | ((y & 0x1FFFFF) << 21) | (z & 0x1FFFFF);
+        };
+        std::unordered_map<int64_t, std::vector<uint32_t>> grid;
+        std::vector<uint8_t> shown(from, 0);
+        for (const M2Batch& bt : m.batches) {
+            if (bt.submesh >= guide->subs->size()) continue;
+            const M2Submesh& sm = (*guide->subs)[bt.submesh];
+            if (!geosets.empty() && std::find(geosets.begin(), geosets.end(), sm.id) == geosets.end()) continue;
+            for (uint32_t k = sm.indexStart; k < sm.indexStart + sm.indexCount && k < guide->idx->size(); ++k)
+                if ((*guide->idx)[k] < from) shown[(*guide->idx)[k]] = 1;
+        }
+        guideShares.assign(from, Shares());
+        std::vector<V3> gat(from);
+        for (size_t i = 0; i < from; ++i) {
+            if (!shown[i]) continue;
+            const M2Vertex& vx = verts[i];
+            V3 p(vx.pos[0], vx.pos[1], vx.pos[2]), q(0, 0, 0);
+            float w = 0, wt = 0;
+            Shares sh;
+            for (int k = 0; k < 4; ++k) {
+                if (!vx.weights[k] || vx.bones[k] >= mats.size()) continue;
+                float wk = vx.weights[k] / 255.0f;
+                q = q + mats[vx.bones[k]].point(p) * wk;
+                w += wk;
+                int sg = segOf[vx.bones[k]];
+                if (!dropped[vx.bones[k]] && trunkLike(sg)) { sh.seg[k] = sg; sh.w[k] = wk; wt += wk; }
+            }
+            if (w <= 0 || wt < 0.5f * w) continue;   // (a vertex mostly an arm's or the head's guides nothing)
+            for (float& x : sh.w) x /= wt;
+            guideShares[i] = sh;
+            gat[i] = q * (1.0f / w);
+            grid[cellKey(gat[i], 0, 0, 0)].push_back(uint32_t(i));
+        }
+        // her vertices: the nearest guide vertex within two cells (none: her own weights stay)
+        herGuide.assign(verts.size(), -1);
+        for (size_t i = from; i < verts.size(); ++i) {
+            if (wsum[i] <= 0) continue;
+            float best = 1e30f;
+            for (int dz = -2; dz <= 2; ++dz) for (int dy = -2; dy <= 2; ++dy) for (int dx = -2; dx <= 2; ++dx) {
+                auto it = grid.find(cellKey(at[i], dx, dy, dz));
+                if (it == grid.end()) continue;
+                for (uint32_t g : it->second) { V3 dd = gat[g] - at[i]; float d = dd.dot(dd); if (d < best) { best = d; herGuide[i] = int(g); } }
+            }
+        }
+    }
+    // (byArea: a vertex's weight times a third of its triangles' area over the mean: a dense patch of skin no heavier than
+    // a sparse one of the same size)
+    std::vector<float> areaK;
+    if (guide && guide->byArea) {
+        areaK.assign(verts.size(), 0);
+        double total = 0; size_t counted = 0;
+        for (const M2Batch& bt : m.batches) {
+            if (bt.submesh >= subs.size()) continue;
+            const M2Submesh& sm = subs[bt.submesh];
+            if (!geosets.empty() && std::find(geosets.begin(), geosets.end(), sm.id) == geosets.end()) continue;
+            for (uint32_t k = sm.indexStart; k + 2 < sm.indexStart + sm.indexCount && k + 2 < idx.size(); k += 3) {
+                uint32_t a0 = idx[k], a1 = idx[k + 1], a2 = idx[k + 2];
+                if (a0 >= verts.size() || a1 >= verts.size() || a2 >= verts.size()) continue;
+                float ar = (at[a1] - at[a0]).cross(at[a2] - at[a0]).length() * 0.5f / 3.0f;
+                areaK[a0] += ar; areaK[a1] += ar; areaK[a2] += ar;
+            }
+        }
+        for (size_t i = 0; i < verts.size(); ++i) if (wsum[i] > 0 && areaK[i] > 0) { total += areaK[i]; ++counted; }
+        const float mean = counted ? float(total / double(counted)) : 1.0f;
+        for (float& x : areaK) x = mean > 0 ? x / mean : 1.0f;
+    }
     for (size_t i = 0; i < verts.size(); ++i) {
         if (wsum[i] <= 0) continue;
         const M2Vertex& vx = verts[i];
+        const int g = from > 0 && i >= from ? herGuide[i] : -1;
+        const float ak = areaK.empty() ? 1.0f : areaK[i];
+        float trunkW = 0;   // (guided: her weight on the trunk and thighs, given out as the model's skin there has it)
         for (int k = 0; k < 4; ++k) {
             if (!vx.weights[k] || vx.bones[k] >= segOf.size() || dropped[vx.bones[k]]) continue;
-            pts.push_back({at[i], segOf[vx.bones[k]], vx.weights[k] / 255.0f / wsum[i]});
+            int sg = segOf[vx.bones[k]];
+            float w = vx.weights[k] / 255.0f / wsum[i];
+            if (g >= 0 && trunkLike(sg)) { trunkW += w; continue; }
+            pts.push_back({at[i], sg, w * ak});
         }
+        if (g >= 0 && trunkW > 0)
+            for (int k = 0; k < 4; ++k) if (guideShares[size_t(g)].seg[k] >= 0) pts.push_back({at[i], guideShares[size_t(g)].seg[k], trunkW * guideShares[size_t(g)].w[k] * ak});
     }
     size_t shown = out.vertices;
     out = fleshOf(J, pts, stand.ground, stand.pelvis);

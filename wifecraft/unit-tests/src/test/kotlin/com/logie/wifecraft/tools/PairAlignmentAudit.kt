@@ -212,6 +212,7 @@ class PairAlignmentAudit {
                 val orderB = PairAlignment.played(anB, combo.b, times, fb.x.toDouble(), fb.y.toDouble(), rb.offset.z * k, Math.toDegrees(rb.facing.toDouble()))
                 // pair: spaced for the two bodies, fitted, each role lifted as roleLifts lifts it
                 val spaced = PairSpacing.spaced(pp, combo.a.flesh, combo.b.flesh)
+                if (debug != null && c.name.contains(debug, true)) dbg.println("TMPDBG ${combo.name}: " + tmpWorst(pp, combo.a.flesh, combo.b.flesh))
                 val push = PairAlignment.horiz(doubleArrayOf((spaced.slotB.x - pp.slotB.x).toDouble(), (spaced.slotB.y - pp.slotB.y).toDouble(), 0.0))
                 val (sA, sB) = PairFit.slots(spaced.slotA, spaced.slotB, combo.sizeA, combo.sizeB)
                 // each role's lift for its own flesh, shared, the hips matched: PairLifts.of, as SceneSimulation.roleLifts runs it
@@ -387,6 +388,26 @@ class PairAlignmentAudit {
         }
         worst.close()
         log.close()
+    }
+
+    // TMPDBG: the part pairs that come deepest past their tolerance (unshifted), worst moment each
+    private fun tmpWorst(p: PartnerPair, fa: FleshProfile, fb: FleshProfile): String {
+        val a = PairSpacing.frames(p.slotA, p.a, fa); val b = PairSpacing.frames(p.slotB, p.b, fb)
+        val ga = PairSpacing.frames(p.slotA, p.a); val gb = PairSpacing.frames(p.slotB, p.b)
+        val res = HashMap<String, Double>()
+        for (i in 0 until max(a.size, b.size)) {
+            val pa = PairSpacing.parts(a[minOf(i, a.size - 1)], fa); val pb = PairSpacing.parts(b[minOf(i, b.size - 1)], fb)
+            val auth = PairSpacing.slack(ga[minOf(i, ga.size - 1)], gb[minOf(i, gb.size - 1)])?.first ?: 0.0
+            val deep = -auth
+            val tol = if (deep > PairSpacing.CONTACT_TOLERANCE) PairSpacing.CONTACT_TOLERANCE else max(PairSpacing.CONTACT_TOLERANCE, deep + PairSpacing.EXTRA)
+            for ((ka, va) in pa) for ((kb, vb) in pb) {
+                val one = PairSpacing.slack(mapOf(ka to va), mapOf(kb to vb), fa, fb) ?: continue
+                val over = one.first + tol
+                val k = "$ka/$kb"
+                if (over < (res[k] ?: 0.0)) res[k] = over
+            }
+        }
+        return res.entries.sortedBy { it.value }.take(6).joinToString { "${it.key} ${String.format(locale, "%.3f", it.value)}" }
     }
 
     private fun rel(a: Pose, b: Pose) = PairAlignment.sub(b["Root"]!!, a["Root"]!!)

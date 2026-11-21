@@ -627,6 +627,36 @@ int main(int argc, char** argv) {
                     std::fprintf(f, "# %-11s ok %d front %.4f back %.4f side %.4f start %.4f end %.4f tip %.4f (body units)\n",
                                  kFleshSegs[s].name, int(q[0]), q[1], q[2], q[3], q[4], q[5], q[6]);
                 }
+                // the trunk's skin across and through at the hip joints, the waist and the chest (the stance, model units;
+                // her measure's mesh in Eve): a check of the segments' reach against the skin itself
+                const M2Model& m = *a.mesh->model;
+                const bool eve = a.eve.active && a.eve.measure.host >= 0;
+                const LegEdit legs = a.eve.active && !a.eve.body.rigPivots.empty() ? bodyEditFrom(m, a.eve.body.rigPivots, a.eve.body.scale) : LegEdit();
+                std::vector<M4> mats; standMatrices(m, mats, legs.active ? &legs : nullptr);
+                const std::vector<M2Vertex>& vs = eve ? a.eve.measure.verts : (!a.body.shaped.empty() ? a.body.shaped : m.vertices);
+                const std::vector<uint32_t>& ix = eve ? a.eve.measure.indices : (!a.body.shaped.empty() ? a.body.indices : m.indices);
+                const std::vector<M2Submesh>& sb = eve ? a.eve.measure.subs : (!a.body.shaped.empty() && !a.body.submeshes.empty() ? a.body.submeshes : m.submeshes);
+                std::vector<uint8_t> used(vs.size(), 0);
+                for (const M2Batch& bt : m.batches) {
+                    if (bt.submesh >= sb.size()) continue;
+                    const M2Submesh& sm = sb[bt.submesh];
+                    if (!a.geosets.empty() && std::find(a.geosets.begin(), a.geosets.end(), sm.id) == a.geosets.end()) continue;
+                    for (uint32_t k = sm.indexStart; k < sm.indexStart + sm.indexCount && k < ix.size(); ++k) if (ix[k] < used.size()) used[ix[k]] = 1;
+                }
+                auto jointAt = [&](const char* n) { int b = m.findWowBone(n); return b >= 0 && size_t(b) < mats.size() ? mats[size_t(b)].point(legs.active ? legs.pivots[size_t(b)] : m.bones[size_t(b)].pivot) : V3(0, 0, 0); };
+                V3 hip = (jointAt("L_Thigh") + jointAt("R_Thigh")) * 0.5f, chest = jointAt("Chest"), neck = jointAt("Neck1");
+                std::vector<V3> at;
+                for (size_t i = 0; i < vs.size(); ++i) {
+                    if (!used[i] || mats.empty()) continue;
+                    V3 p(vs[i].pos[0], vs[i].pos[1], vs[i].pos[2]), q(0, 0, 0); float w = 0;
+                    for (int k = 0; k < 4; ++k) if (vs[i].weights[k] && vs[i].bones[k] < mats.size()) { q = q + mats[vs[i].bones[k]].point(p) * (vs[i].weights[k] / 255.0f); w += vs[i].weights[k] / 255.0f; }
+                    if (w > 0) at.push_back(q * (1.0f / w));
+                }
+                for (auto [name, z] : {std::pair<const char*, float>{"hips", hip.z}, {"waist", (hip.z + chest.z) * 0.5f}, {"chest", chest.z + 0.4f * (neck.z - chest.z)}}) {
+                    float y0 = 1e9f, y1 = -1e9f, x0 = 1e9f, x1 = -1e9f;
+                    for (const V3& p : at) if (std::fabs(p.z - z) < 0.02f && std::fabs(p.y) < 0.3f) { y0 = std::min(y0, p.y); y1 = std::max(y1, p.y); x0 = std::min(x0, p.x); x1 = std::max(x1, p.x); }
+                    std::fprintf(f, "# skin at the %s (z %.3f): across %.4f, through %.4f (front %.4f, back %.4f of the hip joints' x) model units\n", name, z, y1 - y0, x1 - x0, x1 - hip.x, hip.x - x0);
+                }
             } else std::fprintf(f, "# not measured\n");
             std::fclose(f);
             std::fprintf(stderr, "flesh slot %d: %s in %.2f ms\n", slot, ok ? "measured" : "NOT measured", ms);
