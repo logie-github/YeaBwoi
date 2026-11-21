@@ -218,10 +218,11 @@ public:
     void setPartDrive(int id, float level, int partner, int entry, float rest);
     // The desktop check: the last frame's level, insertion depth and distance (Sims metres), the aim's angle (degrees) and
     // weight, and the partner's entry point (world). False: no such actor.
-    struct PartDriveInfo { float level = -1, depth = 0, distance = -1, aimDeg = 0, aimWeight = 0; bool slotOn = false; V3 entryWorld, rootWorld; };
+    struct PartDriveInfo { float level = -1, depth = 0, distance = -1, aimDeg = 0, aimWeight = 0; bool slotOn = false; V3 entryWorld, rootWorld, pelvisForward; };
     bool partDriveInfo(int id, PartDriveInfo& out) const;
-    // An actor's entry anchor `entry` as posed (world), measured on its model as shown; false when it has none.
-    bool entryWorld(int id, int entry, V3& out);
+    // An actor's entry anchor `entry` as posed (world), and its way in (unit, world) when asked; measured on its model as
+    // shown; false when it has none.
+    bool entryWorld(int id, int entry, V3& out, V3* inward = nullptr);
     // Where to sample the actor's skin colour for its parts' tint: the skin texture coordinates (u, v pairs, v 0 at the top)
     // of its shown lower body around the parts' root (bodySkinUvs: within 0.12 pelvis heights, at most 256). Empty: no actor,
     // or a model without a Pelvis.
@@ -557,6 +558,7 @@ private:
         float distance = -1;     // the last frame's root-to-entry distance (Sims metres; -1 none)
         uint32_t lastMs = 0;
         V3 lastEntry, lastRoot;  // the last frame's entry (world) and shaft root (world)
+        V3 lastForward;          // the pelvis' forward as last drawn (world, unit)
         EntryAnchors entries;    // this actor as a partner: its entry anchors (measured once per look)
     };
     // A tabard flap hung as cloth (cloth.h): its rig for the look, the sim, this frame's inputs and what is drawn.

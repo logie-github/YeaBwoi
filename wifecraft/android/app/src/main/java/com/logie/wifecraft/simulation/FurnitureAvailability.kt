@@ -44,10 +44,10 @@ data class Availability(
     /** A floor play whose bodies, lowered, rest on the floor ([FurnitureAvailability.floorRests]); true when not known. */
     val floorRests: Boolean = true,
 ) {
-    /** The animation window's chip: "Ready", "Bed", "Needs a bed: floor"... */
+    /** The animation window's chip: "Ready", "On the double bed", "Needs a bed: floor"... */
     val chip: String get() = when (state) {
         PlayState.READY -> "Ready"
-        PlayState.ON_FURNITURE -> furniture?.kind?.label ?: "Furniture"
+        PlayState.ON_FURNITURE -> "On the " + (furniture?.kind?.label?.lowercase() ?: "furniture")
         PlayState.FLOOR -> if (needs in Requirement.FLOOR_LEVEL || needs == Surface.UNKNOWN) "Floor"
             else "Needs ${FurnitureAvailability.placeName(needs)}: floor"
     }

@@ -2385,11 +2385,11 @@ bool Scene::partDriveInfo(int id, PartDriveInfo& out) const {
     const ActorParts& ap = it->second.parts;
     out.level = ap.level; out.depth = ap.depth; out.distance = ap.distance;
     out.aimDeg = quatAngle(ap.aim) * 57.29578f; out.aimWeight = ap.aimWeight; out.slotOn = ap.slotOn;
-    out.entryWorld = ap.lastEntry; out.rootWorld = ap.lastRoot;
+    out.entryWorld = ap.lastEntry; out.rootWorld = ap.lastRoot; out.pelvisForward = ap.lastForward;
     return true;
 }
 
-bool Scene::entryWorld(int id, int entry, V3& out) {
+bool Scene::entryWorld(int id, int entry, V3& out, V3* inward) {
     auto it = actors_.find(id);
     if (it == actors_.end() || entry <= kEntryNone || entry >= kEntryCount) return false;
     Actor& o = it->second;
@@ -2401,7 +2401,9 @@ bool Scene::entryWorld(int id, int entry, V3& out) {
     const EntryAnchor& e = o.parts.entries.at[entry];
     if (!e.ok || e.bone < 0 || size_t(e.bone) >= o.mats.size()) return false;
     M4 w = M4::translation(o.position) * M4::rotationZ(o.facing) * M4::scaling(V3(o.scale, o.scale, o.scale));
-    out = w.point(o.mats[size_t(e.bone)].point(e.point));
+    M4 bw = w * o.mats[size_t(e.bone)];
+    out = bw.point(e.point);
+    if (inward) *inward = (bw.point(e.point + e.inward) - out).normalized();
     return true;
 }
 
@@ -2485,8 +2487,11 @@ void Scene::drawParts(Actor& a, const M4& world, bool transparent, uint32_t nowM
     bool aiming = false;
     ap.distance = -1;
     ap.depth = 0;
+    ap.lastRoot = (world * s.drawn).point(V3(kPartRootX, 0.0f, kPartRootZ));
+    ap.lastForward = ((world * s.drawn).point(V3(kPartRootX + 1.0f, 0.0f, kPartRootZ)) - ap.lastRoot).normalized();
     V3 entryW;
-    if (driven && ap.partner && ap.entry != kEntryNone && level >= kPartSwapDown && entryWorld(ap.partner, ap.entry, entryW)) {
+    V3 inwardW;
+    if (driven && ap.partner && ap.entry != kEntryNone && level >= kPartSwapDown && entryWorld(ap.partner, ap.entry, entryW, &inwardW)) {
         // the entry in the part's own (Sims) frame: the world back into the wearer's model space, then through the part matrix
         M4 toSims = affineInverse(world * s.drawn);
         V3 e = toSims.point(entryW);
@@ -2497,15 +2502,23 @@ void Scene::drawParts(Actor& a, const M4& world, bool transparent, uint32_t nowM
         float cosA = dist > 1e-5f ? want.normalized().dot(have) : 1.0f;
         ap.lastEntry = entryW;
         ap.lastRoot = (world * s.drawn).point(root);
-        float reachable = (erect.ok ? erect.length : 0.15f) * kAimReach + kAimSlack;
-        if (dist > 1e-4f && dist <= reachable && cosA >= std::cos(kAimLimitDeg * 0.0174533f)) {
+        float length0 = erect.ok ? erect.length : 0.15f;
+        float reachable = length0 * kAimReach + kAimSlack;
+        if (dist > 1e-4f && dist <= reachable) {
+            // the way: at the entry from in front, root to entry; where the entry is at the root or behind it (the bodies
+            // pressed together), along the partner's own way in. Turned at most kAimLimitDeg from the shaft's rest line.
+            V3 way = want.normalized();
+            if (dist < 0.5f * length0 || cosA < 0.0f) way = (toSims.point(entryW + inwardW) - e).normalized();
+            float lim = kAimLimitDeg * 0.0174533f;
+            float ang = std::acos(std::clamp(way.dot(have), -1.0f, 1.0f));
+            Quat full = quatFromTo(have, way);
+            aimTarget = ang > lim ? slerp(Quat(), full, lim / ang) : full;
             aiming = true;
-            aimTarget = quatFromTo(have, want);
             ap.distance = dist;
-            float length = (erect.ok ? erect.length : 0.15f) * ap.reach;
-            ap.depth = insertionDepth(length, dist, ap.rest);
+            float length = length0 * ap.reach;
+            ap.depth = insertionDepth(length, std::max(0.0f, want.dot(quatRotate(aimTarget, have))), ap.rest);
             // the reach: the drawn length eased (over seconds) toward meeting the stage's rest depth on average, at most +25%
-            float wantReach = std::clamp((dist + std::max(ap.rest, 0.0f)) / std::max(1e-3f, erect.ok ? erect.length : 0.15f), 1.0f, 1.25f);
+            float wantReach = std::clamp((dist + std::max(ap.rest, 0.0f)) / std::max(1e-3f, length0), 1.0f, 1.25f);
             ap.reach += (wantReach - ap.reach) * std::min(1.0f, dt * 0.5f);
         }
     }

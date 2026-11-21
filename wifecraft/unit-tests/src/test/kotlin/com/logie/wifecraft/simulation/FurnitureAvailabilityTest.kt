@@ -50,7 +50,7 @@ class FurnitureAvailabilityTest {
         // a bed one: on the bed where there is one, else on the floor with its notice
         val on = FurnitureAvailability.of(bedPair, listOf(chair, bed), unit)
         assertEquals(PlayState.ON_FURNITURE, on.state); assertSame(bed, on.furniture); assertFalse(on.relaxed)
-        assertEquals("Double bed", on.chip)
+        assertEquals("On the double bed", on.chip)
         val none = FurnitureAvailability.of(bedPair, emptyList(), unit)
         assertEquals(PlayState.FLOOR, none.state)
         assertEquals("No bed here: playing on the floor.", none.notice)

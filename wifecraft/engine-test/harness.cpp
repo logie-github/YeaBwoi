@@ -1089,9 +1089,10 @@ int main(int argc, char** argv) {
             int name; ss >> name;
             Scene::PartDriveInfo pi;
             if (actors.count(name) && scene.partDriveInfo(actors[name], pi))
-                std::printf("partinfo %d: level %.2f slot %s depth %.3f distance %.3f aim %.1f deg weight %.2f root (%.3f,%.3f,%.3f) entry (%.3f,%.3f,%.3f)\n",
+                std::printf("partinfo %d: level %.2f slot %s depth %.3f distance %.3f aim %.1f deg weight %.2f root (%.3f,%.3f,%.3f) entry (%.3f,%.3f,%.3f) forward (%.3f,%.3f,%.3f)\n",
                             name, pi.level, pi.slotOn ? "on" : "default", pi.depth, pi.distance, pi.aimDeg, pi.aimWeight,
-                            pi.rootWorld.x, pi.rootWorld.y, pi.rootWorld.z, pi.entryWorld.x, pi.entryWorld.y, pi.entryWorld.z);
+                            pi.rootWorld.x, pi.rootWorld.y, pi.rootWorld.z, pi.entryWorld.x, pi.entryWorld.y, pi.entryWorld.z,
+                            pi.pelvisForward.x, pi.pelvisForward.y, pi.pelvisForward.z);
         } else if (cmd == "entry") {
             int name, kind; ss >> name >> kind;
             V3 e;
