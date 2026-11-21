@@ -158,6 +158,7 @@ class ShotPreviewRecorder {
             st.clearance = clearance
             st.obstacles = boxes
             st.solids = solids
+            st.canopies = pieces.mapNotNull { PropSolids.canopyBox(it) }
             st.aspect = 16f / 9f
             st.bodyHeight = 1.9f
             st.lineYaw = sc.yaw

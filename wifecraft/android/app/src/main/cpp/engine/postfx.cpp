@@ -300,10 +300,14 @@ const char* kShaftsFs = R"(
 uniform sampler2D uSrc;
 uniform vec2 uSun;
 uniform float uThreshold;
+// What lets the light through: the open sky, most round the sun (a glow on the screen, round on any aspect), and, where
+// something is drawn, only its brightest light (a window, a lamp) a little; everything else stands in its way
 float mask(vec2 uv) {
     vec3 c = texture(uSrc, uv).rgb;
-    float sky = texture(uDepth, uv).r >= 0.99999 ? 1.0 : 0.3;
-    return max(max(c.r, max(c.g, c.b)) - uThreshold, 0.0) * sky;
+    vec2 d = (uv - uSun) * vec2(uProj.x / uProj.y, 1.0);
+    float glow = exp(-dot(d, d) * 14.0);
+    if (texture(uDepth, uv).r >= 0.99999) return 0.12 + glow;
+    return max(max(c.r, max(c.g, c.b)) - uThreshold, 0.0) * 0.3;
 }
 void main() {
     vec2 delta = (uSun - vUv) * (0.85 / 32.0);

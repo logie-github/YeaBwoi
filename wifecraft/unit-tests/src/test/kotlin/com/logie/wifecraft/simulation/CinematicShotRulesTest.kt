@@ -65,6 +65,7 @@ class CinematicShotRulesTest {
         if (f != null) {
             obstacles = listOf(f.bounds())
             solids = PropSolids.world(f)
+            canopies = listOfNotNull(PropSolids.canopyBox(f))
             furniture = focusOf(f, this)
         }
         camera(-3.5f, -3f, 2.2f, 0f, 0f, 1.0f, 55f)
@@ -136,6 +137,12 @@ class CinematicShotRulesTest {
                     }
                 }
                 shots += d.history.count { libId(it) != null }
+                // the canopy (its valance, its drapes) never hangs across the picture
+                val canopy = PropSolids.canopyBox(bed)!!
+                for (s in d.history.filter { it.type != ShotType.HOLD }) for (f in listOf(s.from, s.to)) {
+                    val c = CinematicFraming.boxCover(eyeOf(focus, f), focus + f.at, f.fov, st.aspect, canopy.first, canopy.second)
+                    assertTrue(c <= CinematicDirector.MAX_CANOPY_COVER + 1e-4f, "seed $seed $cls ${s.preset}: the canopy takes $c")
+                }
             }
         }
         assertTrue(shots >= 8, "the library still films the canopy bed ($shots shots)")

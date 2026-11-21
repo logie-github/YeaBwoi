@@ -403,6 +403,7 @@ class LiveScene(
             st.obstacles = simulation.objects.mapNotNull { item -> simulation.furniture(item)?.let(::stageBox) }
             // what the eye can't see through: each piece's real solid parts and a canopy's roof and drapes (PropSolids)
             st.solids = simulation.objects.flatMap { item -> simulation.furniture(item)?.let { f -> PropSolids.world(f).map(::stageBoxOf) } ?: emptyList() }
+            st.canopies = simulation.objects.mapNotNull { item -> simulation.furniture(item)?.let(PropSolids::canopyBox)?.let(::stageBoxOf) }
         }
         st.floorZ = camera.floorZ
         st.ceilingZ = Float.NaN

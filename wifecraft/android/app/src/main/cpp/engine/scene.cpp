@@ -165,7 +165,7 @@ vec3 skinShade(vec3 albedo, vec3 lit, vec3 n, float d) {
         c += uSunColor * pow(max(dot(n, h), 0.0), mix(28.0, 96.0, sheen)) * (0.05 * uSkinFx.y + 0.2 * sheen) * d;
         // wet skin also mirrors the room's light from above, whatever side the key is on
         float hu = max(dot(n, normalize(vec3(0.0, 0.0, 1.0) + v)), 0.0);
-        c += (uAmbient + uSunColor * 0.3) * pow(hu, 40.0) * 0.18 * sheen;
+        c += (uAmbient + uSunColor * 0.3) * pow(hu, 24.0) * 0.4 * sheen;
         return c;
     }
     if (uSkinKind == 3) {

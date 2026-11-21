@@ -816,6 +816,10 @@ int main(int argc, char** argv) {
         } else if (cmd == "sheen") {       // sheen NAME VALUE: the person's skin sheen 0..1 (Scene::setSheen)
             int name = 0; float v = 0; ss >> name >> v;
             if (actors.count(name)) scene.setSheen(actors[name], v);
+        } else if (cmd == "sun") {         // prints where the sun is (the way toward it) and its colour: aim the camera at it
+            const Light& l = scene.light();
+            std::printf("sun toward %.3f %.3f %.3f colour %.2f %.2f %.2f\n", -l.sunDir[0], -l.sunDir[1], -l.sunDir[2],
+                        l.sunColor[0], l.sunColor[1], l.sunColor[2]);
         } else if (cmd == "texmem") {      // prints the game textures loaded and their GPU bytes (texture detail's cost)
             size_t n = 0, bytes = 0;
             scene.textureMemory(n, bytes);

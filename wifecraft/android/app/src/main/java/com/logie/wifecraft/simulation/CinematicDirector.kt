@@ -61,6 +61,8 @@ class CinematicStage(capacity: Int) {
      * roof and valance), every piece's, the one in use too; empty: the [obstacles] (but the one in use) are used instead.
      */
     var solids: List<Pair<Vec3, Vec3>> = emptyList()
+    /** The canopies among them ([PropSolids.canopyBox]): never more than a sliver of the picture. */
+    var canopies: List<Pair<Vec3, Vec3>> = emptyList()
     var clearance: CameraClearance? = null
     var aspect = 16f / 9f
     var eyeX = 0f; var eyeY = 0f; var eyeZ = 0f
@@ -105,15 +107,17 @@ data class FurnitureFocus(val id: String, val centre: Vec3, val presets: List<Fu
  * solid part from the floor to its top (a headboard, a footboard, posts, a chair's back), and, on a piece much taller than
  * its parts' surface ([CANOPY_RISE] over it: a canopy bed), the canopy over its whole footprint from its top down by a
  * share of its rise (its roof and the valance and drapes hung from it). The measure keeps no hung drapes apart (only what
- * stands up from below the surface), so a canopy's sides are open where no part stands. Pure.
+ * stands up from below the surface), so a canopy's sides are open where no part stands, and its footprint leaves out what
+ * hangs high over the room: the canopy is taken [CANOPY_OVERHANG] past it all round. Pure.
  */
 object PropSolids {
     /** A piece this much taller than its surface (yards) carries a canopy. */
     const val CANOPY_RISE = 1.4f
-    /** The canopy's depth: this share of its rise over the surface, within these (yards). */
-    const val CANOPY_SHARE = 0.3f
+    /** The canopy's depth: this share of its rise over the surface, within these (yards); how far past the footprint it hangs. */
+    const val CANOPY_SHARE = 0.35f
     const val CANOPY_MIN = 0.45f
-    const val CANOPY_MAX = 1.0f
+    const val CANOPY_MAX = 1.2f
+    const val CANOPY_OVERHANG = 0.3f
 
     /** The boxes in the piece's own frame: each [minX, maxX, minY, maxY, z0, z1] over its floor (world units). */
     fun local(spec: FurnitureSpec): List<FloatArray> {
@@ -133,23 +137,34 @@ object PropSolids {
             out += floatArrayOf(r.minX, r.maxX, r.minY, r.maxY, 0f, r.height)
             tallest = max(tallest, r.height)
         }
-        val rise = spec.top - top
-        if (rise >= CANOPY_RISE * u) {
-            val depth = (rise * CANOPY_SHARE).coerceIn(CANOPY_MIN * u, CANOPY_MAX * u)
-            out += floatArrayOf(-spec.halfX, spec.halfX, -spec.halfY, spec.halfY, spec.top - depth, spec.top)
-        }
+        canopyLocal(spec)?.let { out += it }
         return out
     }
 
-    /** [f]'s boxes in the world (each the box round its four corners turned there). */
-    fun world(f: Furniture): List<Pair<Vec3, Vec3>> = local(f.spec).map { b ->
-        val pts = listOf(f.toWorld(b[0], b[2]), f.toWorld(b[0], b[3]), f.toWorld(b[1], b[2]), f.toWorld(b[1], b[3]))
-        Vec3(pts.minOf { it.x }, pts.minOf { it.y }, f.z + b[4]) to Vec3(pts.maxOf { it.x }, pts.maxOf { it.y }, f.z + b[5])
+    /** The canopy's box in the piece's frame ([minX, maxX, minY, maxY, z0, z1]), null: none. */
+    private fun canopyLocal(spec: FurnitureSpec): FloatArray? {
+        if (spec.kind == FurnitureKind.FLOOR || spec.regions.isEmpty()) return null
+        val u = spec.unitsPerMetre / FurnitureSpec.YARDS_PER_METRE
+        val rise = spec.top - spec.surface
+        if (rise < CANOPY_RISE * u) return null
+        val depth = (rise * CANOPY_SHARE).coerceIn(CANOPY_MIN * u, CANOPY_MAX * u)
+        val o = CANOPY_OVERHANG * u
+        return floatArrayOf(-spec.halfX - o, spec.halfX + o, -spec.halfY - o, spec.halfY + o, spec.top - depth, spec.top)
     }
 
+    /** [f]'s canopy in the world, null: none. */
+    fun canopyBox(f: Furniture): Pair<Vec3, Vec3>? = canopyLocal(f.spec)?.let { worldBox(f, it) }
+
+    private fun worldBox(f: Furniture, b: FloatArray): Pair<Vec3, Vec3> {
+        val pts = listOf(f.toWorld(b[0], b[2]), f.toWorld(b[0], b[3]), f.toWorld(b[1], b[2]), f.toWorld(b[1], b[3]))
+        return Vec3(pts.minOf { it.x }, pts.minOf { it.y }, f.z + b[4]) to Vec3(pts.maxOf { it.x }, pts.maxOf { it.y }, f.z + b[5])
+    }
+
+    /** [f]'s boxes in the world (each the box round its four corners turned there). */
+    fun world(f: Furniture): List<Pair<Vec3, Vec3>> = local(f.spec).map { worldBox(f, it) }
+
     /** Whether [f] carries a canopy ([CANOPY_RISE]). */
-    fun canopy(f: Furniture): Boolean = f.spec.top - f.spec.surface >= CANOPY_RISE * f.spec.unitsPerMetre / FurnitureSpec.YARDS_PER_METRE &&
-        f.spec.regions.isNotEmpty()
+    fun canopy(f: Furniture): Boolean = canopyLocal(f.spec) != null
 }
 
 /**
@@ -298,6 +313,35 @@ object CinematicFraming {
             }
         }
         return true
+    }
+
+    /**
+     * The share of the picture (0..1) in which the box [lo]..[hi] stands in front of what is looked at: a 32 x 18 grid of
+     * rays from [eye] (looking at [at], [fovDeg] high, [aspect] wide), each hitting the box nearer than [at] is.
+     */
+    fun boxCover(eye: Vec3, at: Vec3, fovDeg: Float, aspect: Float, lo: Vec3, hi: Vec3): Float {
+        var fx = at.x - eye.x; var fy = at.y - eye.y; var fz = at.z - eye.z
+        val fl = sqrt(fx * fx + fy * fy + fz * fz)
+        if (fl < 1e-5f) return 0f
+        fx /= fl; fy /= fl; fz /= fl
+        var rx = fy; var ry = -fx
+        val rl = hypot(rx, ry)
+        if (rl < 1e-5f) return 0f
+        rx /= rl; ry /= rl
+        val ux = ry * fz; val uy = -rx * fz; val uz = rx * fy - ry * fx
+        val t = tan(Math.toRadians(fovDeg / 2.0).toFloat())
+        val gw = 32; val gh = 18
+        var hit = 0
+        for (j in 0 until gh) {
+            val y = (-1f + (j + 0.5f) * 2f / gh) * t
+            for (i in 0 until gw) {
+                val x = (-1f + (i + 0.5f) * 2f / gw) * t * aspect
+                // the ray to the plane of what is looked at (as far as it is, along the view)
+                val end = Vec3(eye.x + (fx + rx * x + ux * y) * fl, eye.y + (fy + ry * x + uy * y) * fl, eye.z + (fz + uz * y) * fl)
+                if (segmentHits(eye, end, lo, hi)) hit++
+            }
+        }
+        return hit.toFloat() / (gw * gh)
     }
 
     /** The body's bounding spheres along its hips to its head: the head, the shoulders, the chest, the hips (radius, yards). */
@@ -484,6 +528,8 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
         const val POV_PITCH = 0.5f
         /** A sight line's end this near what it looks at (yards) may touch a box (the people rest on and against them). */
         const val SIGHT_END = 0.15f
+        /** The most of the picture a canopy (its roof, its valance and drapes) may take in front of what is looked at. */
+        const val MAX_CANOPY_COVER = 0.12f
         /** A surface lower than this over the floor (yards) is the floor (a shot set by the surface is left out). */
         const val MIN_SURFACE = 0.3f
         /** A wide shot fitted to its room keeps this far inside the floor's reach (yards), and comes no nearer (body heights). */
@@ -869,6 +915,8 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
                 if (CinematicFraming.coverage(eye, at, fov, stage.aspect, stage.hip(nearIdx), stage.head(nearIdx)) > limit)
                     return reject(shot, "near person covers the picture")
             }
+            for ((lo, hi) in stage.canopies)
+                if (CinematicFraming.boxCover(eye, at, fov, stage.aspect, lo, hi) > MAX_CANOPY_COVER) return reject(shot, "canopy in the picture")
         }
         val sized = shot.copy(from = shot.from.copy(fov = fov), to = shot.to.copy(fov = fov))
         if (settings.style == CinematicStyle.CUTS || forceCut) return sized.copy(cut = true)
@@ -1276,6 +1324,10 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
         val floor = stage.floorZ
         if (!floor.isNaN() && (eye.z < floor + FLOOR_GAP || eye.z > ceiling(stage) - CEILING_GAP)) return false
         for ((lo, hi) in stage.obstacles) {
+            if (eye.x > lo.x - BOX_GAP && eye.x < hi.x + BOX_GAP && eye.y > lo.y - BOX_GAP && eye.y < hi.y + BOX_GAP &&
+                eye.z > lo.z - BOX_GAP && eye.z < hi.z + BOX_GAP) return false
+        }
+        for ((lo, hi) in stage.solids) {
             if (eye.x > lo.x - BOX_GAP && eye.x < hi.x + BOX_GAP && eye.y > lo.y - BOX_GAP && eye.y < hi.y + BOX_GAP &&
                 eye.z > lo.z - BOX_GAP && eye.z < hi.z + BOX_GAP) return false
         }
