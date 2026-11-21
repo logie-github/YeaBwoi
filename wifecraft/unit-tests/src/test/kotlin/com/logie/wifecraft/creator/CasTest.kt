@@ -155,20 +155,24 @@ class CasTest {
         assertEquals(1f, s.toArray()[SculptSlider.HIPS.ordinal])
         assertEquals(1.06f, BodySculpt().with(SculptSlider.HEIGHT, 1f).heightScale, 1e-6f)
         assertEquals(0.94f, BodySculpt().with(SculptSlider.HEIGHT, -1f).heightScale, 1e-6f)
-        assertEquals(setOf(SculptSlider.HEIGHT), s.with(SculptSlider.HEIGHT, 0.5f).forWarcraftBody().values.keys)
+        assertEquals(setOf(SculptSlider.HEIGHT, SculptSlider.LEG_LENGTH),
+            s.with(SculptSlider.HEIGHT, 0.5f).with(SculptSlider.LEG_LENGTH, -0.4f).forWarcraftBody().values.keys)
         assertEquals(s, BodySculpt.fromJson(s.toJson()))
         assertNull(BodySculpt.fromJson(JSONObject()))
     }
 
-    @Test fun warcraftBodiesTakeTheHeightOnly() {
+    @Test fun warcraftBodiesTakeTheHeightAndLegLength() {
         assertTrue(SculptSupport.supports(SculptSlider.HEIGHT, eveBody = false))
-        for (k in SculptSlider.entries.filter { it != SculptSlider.HEIGHT && it.drawn }) {
+        for (k in SculptSlider.entries.filter { it != SculptSlider.HEIGHT && it != SculptSlider.LEG_LENGTH && it.drawn }) {
             assertFalse(SculptSupport.supports(k, eveBody = false)); assertTrue(SculptSupport.supports(k, eveBody = true))
             assertEquals(BodySculptApplier.NEEDS_EVE, SculptSupport.why(k, eveBody = false)); assertNull(SculptSupport.why(k, eveBody = true))
         }
-        // leg length isn't drawn by the mesh: greyed on every body, saying why, and never randomized
-        assertFalse(SculptSupport.supports(SculptSlider.LEG_LENGTH, eveBody = true))
-        assertEquals(SculptSupport.NOT_DRAWN, SculptSupport.why(SculptSlider.LEG_LENGTH, eveBody = true))
+        // leg length is the skeleton's (engine/bodyrig.h): live on every body, never greyed, never randomized
+        for (eve in listOf(false, true)) {
+            assertTrue(SculptSupport.supports(SculptSlider.LEG_LENGTH, eveBody = eve))
+            assertNull(SculptSupport.why(SculptSlider.LEG_LENGTH, eveBody = eve))
+        }
+        assertTrue(SculptSlider.entries.all { it.drawn })
         for (seed in 1..10) assertEquals(0f, BodySculpt.random(Random(seed), 0.5f)[SculptSlider.LEG_LENGTH])
         val s = BodySculpt().with(SculptSlider.HEIGHT, 0.2f).with(SculptSlider.HIPS, 0.5f)
         val wow = RecordingSculptApplier(false); wow.apply("a", s)
@@ -268,5 +272,24 @@ class CasTest {
         assertEquals(CustomChoices.CHROMIE_HAIR, b.single().appearance.picks[1])
         assertEquals(mapOf(5 to 42), b.single().appearance.clothing)
         assertNotEquals(true, b.single().appearance.starterClothing)
+    }
+
+    @Test fun legLengthMapsAsTheEngineDoes() {
+        // bodyrig.h legLengthFactor: 0.85 at -1, 1 at 0, 1.2 at +1, linear on each side; out of range clamped, NaN neutral
+        assertEquals(0.85f, BodySculpt.legFactor(-1f), 1e-6f)
+        assertEquals(0.925f, BodySculpt.legFactor(-0.5f), 1e-6f)
+        assertEquals(1f, BodySculpt.legFactor(0f), 1e-6f)
+        assertEquals(1.1f, BodySculpt.legFactor(0.5f), 1e-6f)
+        assertEquals(1.2f, BodySculpt.legFactor(1f), 1e-6f)
+        assertEquals(1.2f, BodySculpt.legFactor(3f), 1e-6f)
+        assertEquals(1f, BodySculpt.legFactor(Float.NaN), 1e-6f)
+        assertEquals(1.2f, BodySculpt().with(SculptSlider.LEG_LENGTH, 1f).legScale, 1e-6f)
+        assertEquals(1f, BodySculpt().legScale, 1e-6f)
+        // the engine reads it at Leg Length's place in the array (sculpt.h kSculptLegLength = 10)
+        assertEquals(10, SculptSlider.LEG_LENGTH.ordinal)
+        assertEquals(-0.3f, BodySculpt().with(SculptSlider.LEG_LENGTH, -0.3f).toArray()[10])
+        // saved and read back like the others
+        val s = BodySculpt().with(SculptSlider.LEG_LENGTH, 0.75f)
+        assertEquals(s, BodySculpt.fromJson(s.toJson()))
     }
 }

@@ -14,6 +14,7 @@
 #include "flesh.h"
 #include "glutil.h"
 #include "humanscale.h"
+#include "sculpt.h"
 
 namespace wc {
 
@@ -824,12 +825,18 @@ bool Scene::actorFlesh(int id, std::vector<float>& out) {
     mix(shaped ? a.body.indices.size() : 0);
     for (size_t i = 0; i < a.body.morph.size(); i += 97) { uint32_t bits; std::memcpy(&bits, &a.body.morph[i], 4); mix(bits); }
     mix(a.eve.active ? a.eve.key : 0);   // (the Eve body: measured on its own skin)
+    // the skeleton as she is drawn (bodyrig.h: Eve's proportions, Leg Length)
+    BodyScale legK = a.eve.active ? a.eve.body.scale : BodyScale();
+    if (a.sculpt.size() > size_t(kSculptLegLength)) legK.legs *= legLengthFactor(a.sculpt[size_t(kSculptLegLength)]);
+    for (float f : {legK.legs, legK.torso, legK.arms, legK.hands, legK.spread}) { uint32_t bits; std::memcpy(&bits, &f, 4); mix(bits); }
     if (key == 0) key = 1;
     if (a.fleshKey != key) {
         const bool eve = a.eve.active && a.eve.measure.host >= 0;
-        FleshMeasure f = eve ? measureFlesh(m, a.eve.measure.verts, a.eve.measure.indices, a.eve.measure.subs, a.geosets)
+        const LegEdit legs = bodyEditOf(m, legK);
+        const LegEdit* lp = legs.active ? &legs : nullptr;
+        FleshMeasure f = eve ? measureFlesh(m, a.eve.measure.verts, a.eve.measure.indices, a.eve.measure.subs, a.geosets, nullptr, lp)
                              : measureFlesh(m, shaped ? a.body.shaped : m.vertices, shaped ? a.body.indices : m.indices,
-                                            shaped && !a.body.submeshes.empty() ? a.body.submeshes : m.submeshes, a.geosets);
+                                            shaped && !a.body.submeshes.empty() ? a.body.submeshes : m.submeshes, a.geosets, nullptr, lp);
         a.flesh = f.ok ? f.pack() : std::vector<float>();
         a.fleshKey = key;
     }
@@ -1164,7 +1171,19 @@ void Scene::setCamera(V3 eye, V3 target, float fovDegrees) {
 void Scene::animate(Actor& a, uint32_t now) {
     M2Model& m = *a.mesh->model;
     bool hasSeq = a.seq >= 0 && size_t(a.seq) < m.sequences.size();
-    if (!hasSeq && !a.boneAnim) { a.mats.assign(std::max<size_t>(1, m.bones.size()), M4()); return; }
+    // the skeleton edited for this actor (bodyrig.h): the Eve body's proportions and the sculpt's Leg Length on them, made
+    // again when either changes
+    {
+        BodyScale k = a.eve.active ? a.eve.body.scale : BodyScale();
+        if (a.sculpt.size() > size_t(kSculptLegLength)) k.legs *= legLengthFactor(a.sculpt[size_t(kSculptLegLength)]);
+        if (a.legEdit.model != &m || !(a.legEdit.scale == k)) a.legEdit = bodyEditOf(m, k);
+    }
+    if (!hasSeq && !a.boneAnim) {
+        if (a.legEdit.active) legEditMatrices(m.bones, std::vector<BonePose>(), a.legEdit, a.mats);
+        else a.mats.assign(std::max<size_t>(1, m.bones.size()), M4());
+        if (a.mats.empty()) a.mats.push_back(M4());
+        return;
+    }
     if (!hasSeq) {
         a.pa.assign(m.bones.size(), BonePose());
     } else {
@@ -1217,7 +1236,8 @@ void Scene::animate(Actor& a, uint32_t now) {
         a.fadeMs = 0;
     }
     a.posed = true;
-    m.bonesToMatrices(a.pa, a.mats);
+    if (a.legEdit.active) legEditMatrices(m.bones, a.pa, a.legEdit, a.mats);
+    else m.bonesToMatrices(a.pa, a.mats);
     if (a.mats.empty()) a.mats.push_back(M4());
     layMotion(a, now);
     if (!a.boneTex) {
@@ -1251,7 +1271,7 @@ void Scene::alignWithFurniture(Actor& a) {
     const V3 pelvis = point(a.pelvisBone);
     if (a.furniture == kSitting) {
         // A standing or still-blending pose would put the actor's feet below the floor.
-        if (model.bones[a.pelvisBone].pivot.z - pelvis.z < 0.12f) return;
+        if (model.bones[a.pelvisBone].pivot.z + a.legEdit.lift - pelvis.z < 0.12f) return;   // (Leg Length's lift: bodyrig.h)
         V3 offset = M4::rotationZ(a.furnitureFacing).point(pelvis) * a.scale;
         a.position = a.surface - offset + V3(0, 0, a.scale * 0.12f);
         return;

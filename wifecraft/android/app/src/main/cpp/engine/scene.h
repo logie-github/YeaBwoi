@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "bodypart.h"
+#include "bodyrig.h"
 #include "boneanim.h"
 #include "cloth.h"
 #include "evebody.h"
@@ -166,8 +167,13 @@ public:
         float shadeDist = 0;
         double composeMs = 0;
         size_t eveTriangles = 0, bodyTriangles = 0;
+        double glMs = 0;           // the GL thread's share of the last fit (the snapshot and the swap; the uploads are the frame's)
+        bool pending = false;      // a fit is on the worker; what is drawn is the last one (or her own body)
+        uint32_t waitFrames = 0;   // frames it has waited
     };
     bool eveStatus(int id, EveStatus& out) const;
+    // The fit on a worker thread (default) or at once on the GL thread (the desktop's checks; pictures always are).
+    void setEveAsync(bool on);
 
     // ---------------------------------------------------------------- body parts (bodypart.h)
     // A part file (.wcbp) read and kept: its handle (> 0), the same one again for a path already loaded; 0 and partError()
@@ -528,6 +534,7 @@ private:
         uint64_t fleshKey = 0;
         EveDraw eve;                   // the Eve body (evescene.cpp)
         std::vector<float> sculpt;     // the creator's sculpt sliders (setSculpt; sculpt.h): the Eve body fitted with them
+        LegEdit legEdit;               // its Leg Length on the skeleton (bodyrig.h): made again when the slider or model changes
     };
     struct GroupGl {
         unsigned vao = 0, vbo = 0, ibo = 0;
@@ -729,9 +736,18 @@ private:
     void drawParts(Actor& a, const M4& world, bool transparent);
     void drawBoneParts(Actor& a, const M4& world, bool transparent);
     // the Eve body (evescene.cpp)
-    std::unique_ptr<EveSet> eveSet_;
+    std::shared_ptr<EveSet> eveSet_;               // (shared with the worker's jobs)
     void eveCheck(Actor& a);                       // before refreshBody: the look or options changed, so fit again
-    void eveRefit(Actor& a);                       // in refreshBody: fit, cut the body, compose the skin
+    void eveRefit(Actor& a);                       // in refreshBody: the body's base kept, a fit sent
+    void eveOff(Actor& a);
+    bool eveOffered(Actor& a);
+    void eveStart(Actor& a, bool inRefresh);       // a fit sent to the worker (or computed at once)
+    void eveTake(Actor& a);                        // a finished fit swapped in
+    void eveSwap(Actor& a, EveResult& r, bool inRefresh, bool staged = false);
+    void eveStage(Actor& a);                       // a finished fit uploaded a slice a frame, then swapped in
+    void eveDropStage(Actor& a);
+    bool eveAsync_ = true;
+    std::unique_ptr<EveWorker> eveWorker_;         // (declared after the models and actors: stopped before they go)
     void drawEve(Actor& a, const M4& world, const float tint[4]);
     void dropEveGl(Actor& a);
 

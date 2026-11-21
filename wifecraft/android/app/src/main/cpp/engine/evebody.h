@@ -19,12 +19,18 @@
 //     feathered: within ~1 cm of the neck and ankle rings the texture fades to the Warcraft skin's colour there.
 #pragma once
 
+#include <condition_variable>
 #include <cstdint>
+#include <deque>
 #include <memory>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
+#include "bodyrig.h"
 #include "m2.h"
+#include "sculpt.h"
 #include "softbody.h"
 #include "wmath.h"
 
@@ -43,12 +49,17 @@ struct EveMesh {
     std::vector<uint32_t> idx;
     uint32_t texW = 0, texH = 0;
     float cropV0 = 0, cropV1 = 1;
+    float ankleFeather = 0.012f;   // the ankle rings' colour feather (Sims metres; kEveFeather, wider on a split mesh's thighs)
     size_t vertexCount() const { return pos.size() / 3; }
     bool joint(const std::string& name, V3& out) const;
     const std::vector<uint32_t>* ring(const std::string& name) const;
 };
 bool parseEve(const uint8_t* data, size_t size, EveMesh& out, std::string& error);
 std::vector<uint8_t> writeEve(const EveMesh& m);
+// Eve cut across both thighs at `t` of the way from hip to knee (her joints): the triangles below dropped, the open edge
+// left there her new "L_ankle" and "R_ankle" rings (so the fit, the seam feather and the tint treat it as the ankles were),
+// the variant named "<variant>|split<t>". Vertices are kept (unused below the cut).
+EveMesh eveSplitMesh(const EveMesh& m, float t);
 uint32_t eveCrc32(const uint8_t* data, size_t n);
 
 // One row of assets/eve_fit.json: a Warcraft female model and how Eve fits it.
@@ -65,6 +76,13 @@ struct EveRaceFit {
     float ankleLift = 0.0f;   // Eve's ankle ring moved up (+) or down on the foot (Sims metres, scaled)
     float ankleTuck = -0.05f; // the ankle rings pushed out from their centre (a share of their radius: over the foot's edge)
     float ankleSink = 0.006f; // and down over the foot's top (Sims metres, scaled)
+    // Her proportions under the Warcraft head (the skeleton edited per actor while she wears Eve: bodyrig.h): the body made
+    // `heads` of the model's own head heights tall (chin to crown; 0: the model's own lengths), the hip joints at `hipRatio`
+    // of that height, shoulder to fingertip `armRatio` of it, a hand `handHeads` head heights long, the clavicles `spread`.
+    float heads = 0, hipRatio = 0.53f, armRatio = 0.44f, handHeads = 0.8f, spread = 1.0f;
+    // The split fit (> 0): Eve from the neck to this share of the way down the thigh (hip to knee), the model's own legs
+    // below it (a draenei's hooves): eveSplitMesh trims her there, the model keeps its thighs below the cut and its calves.
+    float split = 0;
 };
 struct EveFitTable {
     std::vector<EveRaceFit> rows;
@@ -115,6 +133,7 @@ struct EveFitStats {
     size_t neckEdges = 0, ankleEdges[2] = {0, 0}, ringSnapped[3] = {0, 0, 0};
     float ringMoveMean[3] = {0, 0, 0}, ringMoveMax[3] = {0, 0, 0};
     float unit = 1;                 // model units per Sims metre (the hip height ratio)
+    float head = 0, height = 0, heightAfter = 0;   // the model's head (chin to crown), its height, hers with the proportions
     float kHip = 1, kShoulder = 1;  // the measured width ratios
     double ms = 0;
 };
@@ -128,6 +147,7 @@ struct EveBody {
     std::vector<bool> cut;                  // per drawn body vertex: under a body bone (its triangles go)
     // where the Warcraft skin meets Eve: its texture coordinates at the neck's and the ankles' cut edge (u, v pairs)
     std::vector<float> neckUvs, ankleUvs;
+    BodyScale scale;                        // her proportions on the skeleton (bodyrig.h), the Leg Length slider's on top
     EveFitStats stats;
 };
 
@@ -185,11 +205,76 @@ struct EveSet {
     EveSetIndex index;
     EveFitTable fits;
     std::vector<std::pair<std::string, std::shared_ptr<EveMesh>>> meshes;   // by variant
+    std::vector<std::pair<std::string, std::shared_ptr<EveMesh>>> splits;   // eveSplitMesh's, by its variant (cacheMutex)
     struct Tex { std::vector<uint8_t> rgba; int w = 0, h = 0; EvePrep prep; };
     std::vector<std::pair<std::string, std::shared_ptr<Tex>>> textures;      // by "file|variant", the skins (corrected)
     std::vector<std::pair<std::string, std::shared_ptr<Tex>>> overlays;      // by file, as they are
     uint64_t generation = 0;
+    std::mutex cacheMutex;           // textures and overlays: the fit's worker and the GL thread both fill them
     std::shared_ptr<EveMesh> mesh(const std::string& variant) const;
+};
+
+// ------------------------------------------------------------------------------------------------ the fit off the GL thread
+// Everything the fit, the cut and the skin need, taken from the actor on the GL thread (a snapshot: the worker never reads
+// the actor), and what comes back. eveCompute is the whole CPU side, the same function for the worker and for a picture
+// drawn at once (Scene::eveRefit with the actor's `sync`), so both give the same bytes.
+struct EveJob {
+    uint64_t serial = 0;                       // the actor's (EveDraw::serial)
+    uint64_t key = 0, base = 0;                // the look it is for, the body it is cut from (EveDraw::key, baseGen)
+    const M2Model* model = nullptr;            // the scene's (kept for its life: Scene::models_ is never pruned)
+    std::shared_ptr<EveSet> set;
+    std::shared_ptr<EveMesh> mesh;
+    EveRaceFit fit;
+    EveOptions opt;
+    std::vector<M2Vertex> verts;               // the shaped body (empty: the model's own vertices)
+    std::vector<uint32_t> indices;             // its triangles before Eve's cut, by `subs`
+    std::vector<M2Submesh> subs;
+    std::vector<uint16_t> geosets;
+    std::vector<float> sculpt;                 // the creator's sliders (sculpt.h)
+    SculptRig rig;                             // sculptRigOf(model), made on the GL thread
+    std::string skinPath;                      // the actor's base skin layer's file ("": none)
+    float tint[3] = {1, 1, 1};                 // its skin's tint (ActorParts::tint)
+    bool mips = false;                         // the texture's mip levels made too (the GL thread then only uploads)
+};
+struct EveResult {
+    uint64_t serial = 0, key = 0, base = 0;
+    bool ok = false;
+    std::string status;                        // why not ("" when ok)
+    EveBody body;
+    EveMeasureMesh measure;
+    std::vector<uint32_t> cutIndices;          // the body's triangles with Eve's cut, by cutSubs
+    std::vector<M2Submesh> cutSubs;
+    std::vector<uint8_t> rgba;
+    int w = 0, h = 0;
+    std::vector<std::vector<uint8_t>> mips;    // its smaller levels (1, 2, ... down to 1 x 1; box filtered), when the job asked
+    uint32_t neckRgb = 0, ankleRgb = 0, reference = 0;
+    int shade = -1;
+    float shadeDist = 0;
+    double composeMs = 0, totalMs = 0;
+};
+// The texture's mip levels below `rgba` (w x h): each the 2 x 2 mean of the one above, down to 1 x 1.
+std::vector<std::vector<uint8_t>> eveMips(const std::vector<uint8_t>& rgba, int w, int h);
+EveResult eveCompute(const EveJob& job);
+
+// One worker thread for a scene: the newest job per actor (a job still queued for an actor is replaced by its newer one; one
+// already running finishes and its result is dropped by key when it no longer matches), results taken by the GL thread.
+class EveWorker {
+public:
+    EveWorker();
+    ~EveWorker();                              // stops and joins (a running job finishes first)
+    void submit(std::unique_ptr<EveJob> job);
+    void cancel(uint64_t serial);              // drops its queued job and any finished result
+    std::unique_ptr<EveResult> take(uint64_t serial);   // its newest finished result (null: none yet)
+    bool idle();                               // nothing queued or running (tests)
+private:
+    void run();
+    std::mutex mu_;
+    std::condition_variable cv_;
+    std::deque<std::unique_ptr<EveJob>> queue_;
+    std::vector<std::unique_ptr<EveResult>> done_;
+    uint64_t running_ = 0;
+    bool stop_ = false;
+    std::thread thread_;
 };
 
 // One actor's Eve body (Scene: setEveBody, its refit at the next frame, its drawing).
@@ -208,7 +293,22 @@ struct EveDraw {
     int shade = -1;
     float shadeDist = 0;
     double composeMs = 0;
-    void forgetGl() { tex = vao = vbo = ibo = 0; }
+    // the fit off the GL thread (EveWorker): the body as built before Eve's cut, kept so a new fit swaps the cut in one frame
+    uint64_t serial = 0;             // this actor's (given at its first fit)
+    std::vector<uint32_t> baseIndices;
+    std::vector<M2Submesh> baseSubs;
+    bool baseReady = false, baseOwn = false;   // baseOwn: BodyGl::shaped was copied from the model for the cut alone
+    uint64_t baseGen = 0;            // a new base each time the body is built again
+    uint64_t pending = 0;            // the key of the job in flight (0: none)
+    uint32_t waitFrames = 0;         // frames drawn since it was sent
+    double glMs = 0;                 // the GL thread's time for the last look change (snapshot, swap, upload)
+    bool sync = false;               // fitted at once (Scene::setEveAsync off, a picture's actor)
+    // a finished fit being uploaded a little each frame (Scene::eveStage) before it is swapped in
+    std::shared_ptr<EveResult> staged;
+    unsigned stTex = 0, stVao = 0, stVbo = 0, stIbo = 0;
+    int stStep = 0;                  // 0: nothing made yet; then the texture's rows uploaded so far (all levels, in order)
+    double stageMs = 0;              // the GL thread's most in one frame while staging
+    void forgetGl() { tex = vao = vbo = ibo = 0; stTex = stVao = stVbo = stIbo = 0; stStep = 0; }
 };
 
 } // namespace wc

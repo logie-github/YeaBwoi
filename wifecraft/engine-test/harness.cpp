@@ -104,6 +104,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <thread>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -549,6 +550,7 @@ int main(int argc, char** argv) {
     };
     Scene scene(lookup);
     scene.initGl();
+    scene.setEveAsync(false);   // (each render shows the fit asked for; `eveasync 1` puts it on the worker as the app does)
     std::map<int, int> actors, props;
     Light light;
 
@@ -872,6 +874,48 @@ int main(int argc, char** argv) {
             if (ss >> bottom) { o.bottom = bottom; ss >> o.tone >> o.overlaySlot >> o.overlayShade >> o.opacity; }
             o.on = on != 0;
             if (actors.count(name)) scene.setEveBody(actors[name], o);
+        } else if (cmd == "eveasync") {
+            // eveasync 0|1: the Eve fit at once on this thread (the harness's default) or on the worker (the app's)
+            int on = 0; ss >> on; scene.setEveAsync(on != 0);
+        } else if (cmd == "evesettle") {
+            // evesettle N MAXFRAMES [FRAME_MS]: frames drawn (64 x 64, the clock held) until person N's fit is swapped in, each
+            // frame's time on this (the GL) thread printed; FRAME_MS (default 16) the frame's pace (the worker runs meanwhile)
+            int name, maxFrames, pace = 16; ss >> name >> maxFrames; ss >> pace;
+            if (!actors.count(name)) continue;
+            static uint32_t settleT = 0;
+            double worst = 0, sum = 0, swapMs = 0; int n = 0, swapAt = -1;
+            for (int f = 0; f < maxFrames; ++f) {
+                Scene::EveStatus before; scene.eveStatus(actors[name], before);
+                auto t0 = std::chrono::steady_clock::now();
+                scene.render(64, 64, settleT);
+                glFinish();
+                double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+                Scene::EveStatus st; scene.eveStatus(actors[name], st);
+                worst = std::max(worst, ms); sum += ms; ++n;
+                if (before.pending && !st.pending) { swapAt = f; swapMs = ms; }
+                if (!st.pending && f > 0 && swapAt >= 0) {
+                    // one more frame: the Eve body's own upload is drawn then
+                    auto t1 = std::chrono::steady_clock::now();
+                    scene.render(64, 64, settleT); glFinish();
+                    double up = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t1).count();
+                    std::printf("evesettle %d: swapped in at frame %d (%.2f ms that frame, then %.2f ms), %d frames mean %.2f ms worst %.2f ms; "
+                                "the fit's GL-thread share %.2f ms\n", name, swapAt, swapMs, up, n, sum / n, worst, st.glMs);
+                    break;
+                }
+                if (!st.pending && swapAt < 0 && f > 0) { std::printf("evesettle %d: nothing pending (%s)\n", name, st.status.c_str()); break; }
+                std::this_thread::sleep_for(std::chrono::milliseconds(pace));
+            }
+        } else if (cmd == "frametime") {
+            // frametime N W H: N frames drawn (the clock held), their mean and worst time on this thread
+            int n, w, h; ss >> n >> w >> h;
+            double worst = 0, sum = 0;
+            for (int f = 0; f < n; ++f) {
+                auto t0 = std::chrono::steady_clock::now();
+                scene.render(w, h, 0); glFinish();
+                double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+                worst = std::max(worst, ms); sum += ms;
+            }
+            std::printf("frametime: %d frames mean %.2f ms worst %.2f ms\n", n, sum / std::max(n, 1), worst);
         } else if (cmd == "sculpt") {
             // sculpt N V0 .. V10: person N's sculpt sliders (Scene::setSculpt; creator/BodySculpt.kt's order, -1..1)
             int name; ss >> name;

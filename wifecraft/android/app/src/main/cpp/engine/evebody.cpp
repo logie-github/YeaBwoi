@@ -4,19 +4,84 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <map>
 #include <unordered_map>
 
 #include <zlib.h>
 
+#include "blp.h"
 #include "bodypart.h"
 #include "bytes.h"
 #include "json.h"
+#include "modelpart.h"
 
 namespace wc {
 
 // ================================================================================================ the .weve file
+
+EveMesh eveSplitMesh(const EveMesh& m, float t) {
+    EveMesh o = m;
+    char tag[32];
+    std::snprintf(tag, sizeof tag, "|split%.3f", t);
+    o.variant = m.variant + tag;
+    V3 hip, knee;
+    if (!m.joint("hip", hip) || !m.joint("knee", knee)) return o;
+    const size_t nv = m.vertexCount();
+    // each vertex: below the cut on its leg (mostly weighted to a leg's bones, past t along that leg's hip -> knee)
+    std::vector<int> legBone(m.bones.size(), -1);
+    for (size_t b = 0; b < m.bones.size(); ++b) {
+        const std::string& n = m.bones[b];
+        if (n == "L_Thigh" || n == "L_Calf" || n == "L_Foot" || n == "L_Toe") legBone[b] = 0;
+        if (n == "R_Thigh" || n == "R_Calf" || n == "R_Foot" || n == "R_Toe") legBone[b] = 1;
+    }
+    std::vector<uint8_t> below(nv, 0);
+    std::vector<float> along(nv, 0);
+    std::vector<int8_t> side(nv, -1);
+    for (size_t v = 0; v < nv; ++v) {
+        float w[2] = {0, 0};
+        for (int k = 0; k < 4; ++k) { int b = m.bi[v * 4 + k]; if (size_t(b) < legBone.size() && legBone[size_t(b)] >= 0) w[legBone[size_t(b)]] += m.bw[v * 4 + k] / 255.0f; }
+        int s = w[0] >= w[1] ? 0 : 1;
+        if (w[s] < 0.5f) continue;
+        V3 h = s ? V3(hip.x, -hip.y, hip.z) : hip, kn = s ? V3(knee.x, -knee.y, knee.z) : knee, ax = kn - h;
+        V3 p(m.pos[v * 3], m.pos[v * 3 + 1], m.pos[v * 3 + 2]);
+        along[v] = (h.z - p.z) / std::max(h.z - kn.z, 1e-4f);   // (by height, as the fit cuts the model: fitEve)
+        (void)ax;
+        side[v] = int8_t(s);
+        below[v] = along[v] > t;
+    }
+    o.idx.clear();
+    for (size_t i = 0; i + 2 < m.idx.size(); i += 3)
+        if (!below[m.idx[i]] && !below[m.idx[i + 1]] && !below[m.idx[i + 2]]) o.idx.insert(o.idx.end(), {m.idx[i], m.idx[i + 1], m.idx[i + 2]});
+    // the open edge: edges (positions welded) of one kept triangle only, on a leg near the cut
+    std::unordered_map<int64_t, uint32_t> weld;
+    std::vector<uint32_t> wid(nv);
+    for (size_t v = 0; v < nv; ++v) {
+        V3 p(m.pos[v * 3], m.pos[v * 3 + 1], m.pos[v * 3 + 2]);
+        auto c = [](float f) { return int64_t(std::llround(double(f) / 1e-5)) & 0x1FFFFF; };
+        int64_t key = c(p.x) << 42 | c(p.y) << 21 | c(p.z);
+        wid[v] = weld.emplace(key, uint32_t(weld.size())).first->second;
+    }
+    std::map<std::pair<uint32_t, uint32_t>, int> uses;
+    for (size_t i = 0; i + 2 < o.idx.size(); i += 3)
+        for (int k = 0; k < 3; ++k) {
+            uint32_t a = wid[o.idx[i + k]], b = wid[o.idx[i + (k + 1) % 3]];
+            if (a != b) uses[{std::min(a, b), std::max(a, b)}]++;
+        }
+    std::vector<uint8_t> open(weld.size(), 0);
+    for (const auto& [e, c] : uses) if (c == 1) { open[e.first] = 1; open[e.second] = 1; }
+    std::vector<uint32_t> ring[2];
+    for (size_t v = 0; v < nv; ++v)
+        if (side[v] >= 0 && open[wid[v]] && along[v] > t - 0.25f && along[v] <= t) ring[size_t(side[v])].push_back(uint32_t(v));
+    std::vector<std::pair<std::string, std::vector<uint32_t>>> rings;
+    for (const auto& r : m.rings) if (r.first == "neck") rings.push_back(r);
+    rings.push_back({"L_ankle", ring[0]});
+    rings.push_back({"R_ankle", ring[1]});
+    o.rings = rings;
+    o.ankleFeather = 0.06f;   // (a thigh's seam: a wider fade to the model's own skin)
+    return o;
+}
 
 uint32_t eveCrc32(const uint8_t* data, size_t n) { return crc32(reinterpret_cast<const char*>(data), n); }
 
@@ -121,19 +186,26 @@ bool parseEveFitTable(const std::string& json, EveFitTable& out, std::string& er
     if (!Json::parse(json, j, &error)) return false;
     const Json& rows = j["races"];
     if (rows.kind != Json::Array) { error = "has no races"; return false; }
+    // "defaults": the fit every row starts from (each row's own "fit" over it)
+    EveRaceFit defaults;
+    auto readFit = [](const Json& k, EveRaceFit& f) {
+        auto num = [&](const char* key, float& v) { if (k.has(key)) v = float(k[key].num(v)); };
+        num("girth", f.girth); num("torso", f.torso); num("hips", f.hips); num("shoulders", f.shoulders); num("thigh", f.thigh);
+        num("calf", f.calf); num("arm", f.arm); num("forearm", f.forearm); num("neckTuck", f.neckTuck); num("neckLift", f.neckLift);
+        num("neckBase", f.neckBase); num("ankleLift", f.ankleLift); num("ankleTuck", f.ankleTuck); num("ankleSink", f.ankleSink);
+        num("heads", f.heads); num("hipRatio", f.hipRatio); num("armRatio", f.armRatio); num("handHeads", f.handHeads); num("spread", f.spread);
+        num("split", f.split);
+    };
+    if (j.has("defaults")) readFit(j["defaults"]["fit"], defaults);
     for (const Json& r : rows.a) {
-        EveRaceFit f;
+        EveRaceFit f = defaults;
         const Json& models = r["models"];
         f.race = int(r["race"].num());
         f.name = r["name"].str();
         f.quality = r["quality"].str();
         f.reason = r["reason"].str();
         f.enabled = r["enabled"].kind == Json::Bool ? r["enabled"].b : false;
-        const Json& k = r["fit"];
-        auto num = [&](const char* key, float& v) { if (k.has(key)) v = float(k[key].num(v)); };
-        num("girth", f.girth); num("torso", f.torso); num("hips", f.hips); num("shoulders", f.shoulders); num("thigh", f.thigh);
-        num("calf", f.calf); num("arm", f.arm); num("forearm", f.forearm); num("neckTuck", f.neckTuck); num("neckLift", f.neckLift);
-        num("neckBase", f.neckBase); num("ankleLift", f.ankleLift); num("ankleTuck", f.ankleTuck); num("ankleSink", f.ankleSink);
+        readFit(r["fit"], f);
         for (const Json& m : models.a) { EveRaceFit c = f; c.model = uint32_t(m.num()); if (c.model) out.rows.push_back(c); }
     }
     return true;
@@ -466,6 +538,65 @@ void measureRing(const std::vector<M2Vertex>& verts, RingEdges& r) {
 
 } // namespace
 
+// Her proportions (EveRaceFit::heads ...) as factors on the skeleton: the model's head measured (its kept skin: the lowest
+// vertex the head's bones carry to the highest), her height and the hip joints', the arms' and the hands' lengths set to the
+// targets in head heights. The neck and head stay; the torso takes what the legs don't.
+static BodyScale eveProportions(const M2Model& m, const std::vector<M2Vertex>& verts, const std::vector<uint32_t>& indices,
+                         const std::vector<M2Submesh>& subs, const std::vector<uint16_t>& geosets, const EveBody& body, const EveRaceFit& fit,
+                         V3 hipL, V3 hipR, V3 neck, V3 shoulder, V3 elbow, V3 wrist, EveFitStats& st) {
+    BodyScale k;
+    const int head = m.findWowBone("Head"), hand = m.findWowBone("L_Hand");
+    if (head < 0 || hand < 0) return k;
+    auto under = [&](int b, int top) { for (int c = b, g = 0; c >= 0 && size_t(c) < m.bones.size() && g < 256; c = m.bones[size_t(c)].parent, ++g) if (c == top) return true; return false; };
+    // the shown skin the cut keeps
+    bool all = geosets.empty() || (geosets.size() == 1 && geosets[0] == 0xFFFF);
+    std::vector<uint8_t> skinSub(subs.size(), 0);
+    for (const M2Batch& bt : m.batches) {
+        if (bt.submesh >= subs.size() || bt.textureCombo >= m.textureCombos.size()) continue;
+        uint16_t ti = m.textureCombos[bt.textureCombo];
+        if (ti < m.textures.size() && m.textures[ti].type == 1) skinSub[bt.submesh] = 1;
+    }
+    float crown = -1e9f, chin = 1e9f;
+    const float mid = m.bones[size_t(head)].pivot.y, band = 0.25f * std::fabs(shoulder.y - mid);   // (a quarter of the shoulder's reach)
+    for (size_t s = 0; s < subs.size(); ++s) {
+        if (!skinSub[s] || (!all && std::find(geosets.begin(), geosets.end(), subs[s].id) == geosets.end())) continue;
+        for (uint32_t t = subs[s].indexStart; t < subs[s].indexStart + subs[s].indexCount && t < indices.size(); ++t) {
+            uint32_t i = indices[t];
+            if (i >= verts.size() || (i < body.cut.size() && body.cut[i])) continue;
+            const M2Vertex& v = verts[i];
+            // near the middle only: an elf's ears reach above her crown and beside her chin
+            if (std::fabs(v.pos[1] - mid) > band) continue;
+            crown = std::max(crown, v.pos[2]);
+            int best = 0;
+            for (int q = 1; q < 4; ++q) if (v.weights[q] > v.weights[best]) best = q;
+            if (under(v.bones[best], head)) chin = std::min(chin, v.pos[2]);
+        }
+    }
+    float H = crown - chin;
+    st.head = H > 0 ? H : 0;
+    st.height = crown;
+    st.heightAfter = crown;
+    if (!(H > 0.02f) || !(fit.heads > 0) || !(crown > H * 5)) return k;   // (a "head" over a fifth of her: no head measured)
+    // her hand as fitted: the farthest of Eve's vertices the hand's bones carry, from the wrist
+    float handLen = 0;
+    for (const M2Vertex& v : body.verts) {
+        int best = 0;
+        for (int q = 1; q < 4; ++q) if (v.weights[q] > v.weights[best]) best = q;
+        if (under(v.bones[best], hand)) handLen = std::max(handLen, (V3(v.pos[0], v.pos[1], v.pos[2]) - wrist).length());
+    }
+    const float total = fit.heads * H, hipZ = (hipL.z + hipR.z) * 0.5f, above = crown - neck.z;
+    const float hip2 = std::clamp(fit.hipRatio, 0.3f, 0.7f) * total;
+    k.legs = std::clamp(hip2 / std::max(hipZ, 1e-3f), 0.6f, 1.3f);
+    const float neck2 = total - above;
+    k.torso = std::clamp((neck2 - hipZ * k.legs) / std::max(neck.z - hipZ, 1e-3f), 0.7f, 1.3f);
+    if (handLen > 1e-3f) k.hands = std::clamp(fit.handHeads * H / handLen, 0.6f, 1.3f);
+    const float upper = (elbow - shoulder).length() + (wrist - elbow).length();
+    if (upper > 1e-3f) k.arms = std::clamp((fit.armRatio * total - handLen * k.hands) / upper, 0.6f, 1.3f);
+    k.spread = std::clamp(fit.spread, 0.7f, 1.4f);
+    st.heightAfter = hipZ * k.legs + (neck.z - hipZ) * k.torso + above;
+    return k;
+}
+
 EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::vector<uint32_t>& indices,
                const std::vector<M2Submesh>& subs, const std::vector<uint16_t>& geosets, const EveMesh& eve, const EveRaceFit& fit) {
     auto t0 = std::chrono::steady_clock::now();
@@ -506,6 +637,8 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
     std::vector<int8_t> named(m.bones.size(), 0);
     for (const char* n : kCutNames) { int b = m.findWowBone(n); if (b >= 0) named[size_t(b)] = 1; }
     for (const char* n : kKeepNames) { int b = m.findWowBone(n); if (b >= 0) named[size_t(b)] = 2; }
+    const bool split = fit.split > 0;   // (the split fit: the model's own legs from mid-thigh down)
+    if (split) for (const char* n : {"L_Calf", "R_Calf"}) { int b = m.findWowBone(n); if (b >= 0) named[size_t(b)] = 2; }
     std::vector<int8_t> boneCut(m.bones.size(), 0);
     for (size_t b = 0; b < m.bones.size(); ++b) {
         int c = int(b), guard = 0;
@@ -519,6 +652,55 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         for (int k = 1; k < 4; ++k) if (v.weights[k] > v.weights[best]) best = k;
         uint8_t b = v.bones[best];
         if (v.weights[best] && b < boneCut.size() && boneCut[b]) { out.cut[i] = true; ++out.stats.cutVertices; }
+    }
+    // a tail stays: what hangs on an unnamed bone under the pelvis, its pivot well behind the hips (a draenei's, a worgen's)
+    {
+        const int pelvis = m.findWowBone("Pelvis"), root = m.findWowBone("Root");
+        std::vector<uint8_t> tail(m.bones.size(), 0);
+        for (size_t b = 0; b < m.bones.size(); ++b) {
+            if (named[b]) continue;
+            int c = int(b), guard = 0;
+            while (c >= 0 && size_t(c) < m.bones.size() && !named[size_t(c)] && guard++ < 128) c = m.bones[size_t(c)].parent;
+            if ((c == pelvis || c == root) && c >= 0 && m.bones[b].pivot.x < pelvisW.x - 0.1f * unit) tail[b] = 1;
+        }
+        // a chain of three at least (a tail; a buttock's single helper bone is no tail)
+        for (size_t b = 0; b < m.bones.size(); ++b) {
+            if (!tail[b]) continue;
+            bool chain = false;
+            for (size_t c = 0; c < m.bones.size() && !chain; ++c)
+                if (m.bones[c].parent == int(b)) for (size_t d = 0; d < m.bones.size() && !chain; ++d) chain = m.bones[d].parent == int(c);
+            if (!chain && (m.bones[b].parent < 0 || !tail[size_t(m.bones[b].parent)])) tail[b] = 0;
+        }
+        for (size_t b = 0; b < m.bones.size(); ++b)   // (and what hangs under a tail bone)
+            for (int c = m.bones[b].parent, guard = 0; c >= 0 && size_t(c) < m.bones.size() && guard < 128; c = m.bones[size_t(c)].parent, ++guard)
+                if (tail[size_t(c)]) { tail[b] = 1; break; }
+        for (size_t i = 0; i < verts.size(); ++i) {
+            if (!out.cut[i]) continue;
+            const M2Vertex& v = verts[i];
+            int best = 0;
+            for (int k = 1; k < 4; ++k) if (v.weights[k] > v.weights[best]) best = k;
+            if (v.bones[best] < tail.size() && tail[v.bones[best]]) { out.cut[i] = false; --out.stats.cutVertices; }
+        }
+    }
+    // the split fit: what the thighs carry below the cut (along hip -> knee, past `split` of it) stays the model's
+    V3 splitW[2];
+    for (int s = 0; s < 2; ++s) splitW[s] = W[s].hip + (W[s].knee - W[s].hip) * fit.split;
+    if (split) {
+        int thighs[2] = {m.findWowBone("L_Thigh"), m.findWowBone("R_Thigh")};
+        for (size_t i = 0; i < verts.size(); ++i) {
+            if (!out.cut[i]) continue;
+            const M2Vertex& v = verts[i];
+            int best = 0;
+            for (int k = 1; k < 4; ++k) if (v.weights[k] > v.weights[best]) best = k;
+            int c = v.bones[best], guard = 0;
+            while (c >= 0 && size_t(c) < m.bones.size() && !named[size_t(c)] && guard++ < 128) c = m.bones[size_t(c)].parent;
+            for (int s = 0; s < 2; ++s) {
+                if (c != thighs[s]) continue;
+                // (by height: a draenei's thigh leans forward, and a cut across its axis would run up into the buttock behind)
+                float t = (W[s].hip.z - v.pos[2]) / std::max(W[s].hip.z - W[s].knee.z, 1e-4f);
+                if (t > fit.split) { out.cut[i] = false; --out.stats.cutVertices; }
+            }
+        }
     }
     // ---- the cut edge: kept triangles' edges (positions welded) that a cut triangle shares
     bool all = geosets.empty() || (geosets.size() == 1 && geosets[0] == 0xFFFF);
@@ -567,7 +749,8 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         if (!c || !goneE.count(e)) continue;   // (shared with a cut triangle: on the edge, whether or not a texture seam doubles it)
         uint32_t a = rep[e.first], b = rep[e.second];
         V3 mid = (posOf(verts[a]) + posOf(verts[b])) * 0.5f;
-        float dn = (mid - neckW).length(), d0 = (mid - W[0].ankle).length(), d1 = (mid - W[1].ankle).length();
+        float dn = (mid - neckW).length(), d0 = (mid - (split ? splitW[0] : W[0].ankle)).length(), d1 = (mid - (split ? splitW[1] : W[1].ankle)).length();
+        if (split && std::fabs(mid.z - splitW[0].z) > 0.1f * unit) { d0 = d1 = 1e9f; }   // (a thigh's ring lies at the cut's height)
         if (dn < near && dn <= d0 && dn <= d1) neckR.e.push_back({a, b});
         else if (d0 < near && d0 <= d1) ankleR[0].e.push_back({a, b});
         else if (d1 < near) ankleR[1].e.push_back({a, b});
@@ -701,7 +884,7 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         }
     }
     // ---- the ankles: the calf's last 12 cm drawn onto the model's foot top (centre, radii), the ring a little inside it
-    for (int s = 0; s < 2; ++s) {
+    for (int s = 0; s < 2 && !split; ++s) {
         if (ankleR[s].e.empty()) continue;
         float yb = 1e9f;
         for (size_t v = 0; v < nv; ++v) if (calfW[s][v] > 0.3f && P0[v].z < 0.30f) yb = std::min(yb, P0[v].z);
@@ -721,6 +904,41 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
             t = t * t * (3 - 2 * t);
             V3 q = P[v];
             V3 f(ankleR[s].centre.x + (q.x - cs.x) * ankleR[s].rx * 0.97f / rxs, ankleR[s].centre.y + (q.y - cs.y) * ankleR[s].ry * 0.97f / rys, zt + (q.z - cs.z));
+            P[v] = q * (1 - t) + f * t;
+        }
+    }
+    // ---- the split fit: each thigh's last 25% above the cut drawn onto the model's cut section (its centre and radii), so the
+    // rings meet without a step
+    for (int sd = 0; sd < 2 && split; ++sd) {
+        if (ankleR[sd].e.empty()) continue;
+        const std::vector<uint32_t>* ring = eve.ring(sd ? "R_ankle" : "L_ankle");
+        if (!ring || ring->empty()) continue;
+        V3 h = sd ? mirrorY(S[0].hip) : S[0].hip, kn = sd ? mirrorY(S[0].knee) : S[0].knee, ax = kn - h;
+        // Eve's section at the cut (her ring as fitted) against the model's
+        V3 cs; float lo[3] = {1e9f, 1e9f, 1e9f}, hi[3] = {-1e9f, -1e9f, -1e9f};
+        for (uint32_t v : *ring) {
+            cs = cs + P[v];
+            lo[0] = std::min(lo[0], P[v].x); hi[0] = std::max(hi[0], P[v].x); lo[1] = std::min(lo[1], P[v].y); hi[1] = std::max(hi[1], P[v].y);
+        }
+        cs = cs * (1.0f / float(ring->size()));
+        float rxs = std::max((hi[0] - lo[0]) * 0.5f, 1e-4f), rys = std::max((hi[1] - lo[1]) * 0.5f, 1e-4f);
+        V3 cw = ankleR[sd].centre;
+        cw.z = ankleR[sd].zmean;
+        for (size_t v = 0; v < nv; ++v) {
+            if ((P0[v].y > 0) != (sd == 0)) continue;
+            float lw = 0;   // (her leg only: a hand hanging beside the thigh stays)
+            for (int k = 0; k < 4; ++k) {
+                int rg = regOf[eve.bi[v * 4 + k]];
+                if (rg == sd * kRegionsPerSide + kThigh || rg == sd * kRegionsPerSide + kCalf) lw += eve.bw[v * 4 + k] / 255.0f;
+            }
+            if (lw < 0.5f) continue;
+            float a = (h.z - P0[v].z) / std::max(h.z - kn.z, 1e-4f);
+            (void)ax;
+            if (a < fit.split - 0.25f) continue;
+            float t = std::clamp((a - (fit.split - 0.25f)) / 0.25f, 0.0f, 1.0f);
+            t = t * t * (3 - 2 * t);
+            V3 q = P[v];
+            V3 f(cw.x + (q.x - cs.x) * ankleR[sd].rx * 0.97f / rxs, cw.y + (q.y - cs.y) * ankleR[sd].ry * 0.97f / rys, cw.z + (q.z - cs.z));
             P[v] = q * (1 - t) + f * t;
         }
     }
@@ -815,6 +1033,7 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         }
     }
     out.indices = eve.idx;
+    out.scale = eveProportions(m, verts, indices, subs, geosets, out, fit, W[0].hip, W[1].hip, neckW, W[0].shoulder, W[0].elbow, W[0].wrist, out.stats);
     out.ok = true;
     out.stats.ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     return out;
@@ -1019,12 +1238,14 @@ EvePrep evePrepare(const EveMesh& m, const std::vector<uint8_t>& rgba, int w, in
     std::unordered_map<uint32_t, std::pair<float, uint8_t>> seam;
     for (size_t t = 0; t + 2 < m.idx.size(); t += 3) {
         uint32_t a = m.idx[t], b = m.idx[t + 1], c = m.idx[t + 2];
-        if (std::min({dist[a], dist[b], dist[c]}) > kEveFeather) continue;
+        if (std::min({dist[a], dist[b], dist[c]}) > std::max(kEveFeather, m.ankleFeather)) continue;
         uint8_t ri = which[dist[a] <= dist[b] && dist[a] <= dist[c] ? a : dist[b] <= dist[c] ? b : c];
+        const float fr = ri ? m.ankleFeather : kEveFeather;   // (kept as a share of kEveFeather: eveCompose divides by it)
         raster(m.uv[a * 2] * w, m.uv[a * 2 + 1] * h, m.uv[b * 2] * w, m.uv[b * 2 + 1] * h, m.uv[c * 2] * w, m.uv[c * 2 + 1] * h, w, h,
                [&](int x, int y, float b0, float b1, float b2) {
                    float d = std::min(dist[a], 1.0f) * b0 + std::min(dist[b], 1.0f) * b1 + std::min(dist[c], 1.0f) * b2;
-                   if (d >= kEveFeather) return;
+                   if (d >= fr) return;
+                   d *= kEveFeather / fr;
                    uint32_t i = uint32_t(y) * uint32_t(w) + uint32_t(x);
                    auto it = seam.find(i);
                    if (it == seam.end() || d < it->second.first) seam[i] = {d, ri};
@@ -1121,6 +1342,242 @@ int eveSampleAt(const uint8_t* rgba, int w, int h, const std::vector<float>& uvs
     }
     if (!n) return -1;
     return int(eveRgb(V3(float(r / n), float(g / n), float(b / n))));
+}
+
+// ================================================================================================ the fit off the GL thread
+
+namespace {
+
+bool readPng(const std::string& path, std::vector<uint8_t>& rgba, int& w, int& h, std::string& error) {
+    Bytes b;
+    if (!readFile(path, b)) { error = "can't be read"; return false; }
+    return decodePng(b.data(), b.size(), rgba, w, h, error);
+}
+
+// A skin texture of the set (corrected once per file and mesh) or an overlay (as it is), from the set's cache or read now.
+std::shared_ptr<EveSet::Tex> eveSkinTex(EveSet& set, const EveMesh& mesh, const EveTexInfo& skin, std::string& why) {
+    const std::string key = skin.file + "|" + mesh.variant;
+    {
+        std::lock_guard<std::mutex> lock(set.cacheMutex);
+        for (auto& t : set.textures) if (t.first == key) return t.second;
+    }
+    auto tex = std::make_shared<EveSet::Tex>();
+    if (!readPng(set.dir + "/" + skin.file, tex->rgba, tex->w, tex->h, why)) return nullptr;
+    tex->prep = evePrepare(mesh, tex->rgba, tex->w, tex->h);
+    eveApplyCorrection(tex->prep, tex->rgba);
+    std::fprintf(stderr, "eve skin %s: front/back brightness %.3f/%.3f before the correction, %.3f/%.3f after\n", skin.file.c_str(),
+                 tex->prep.frontBefore, tex->prep.backBefore, tex->prep.frontAfter, tex->prep.backAfter);
+    std::lock_guard<std::mutex> lock(set.cacheMutex);
+    for (auto& t : set.textures) if (t.first == key) return t.second;   // (made meanwhile by the other thread: the same bytes)
+    set.textures.push_back({key, tex});
+    if (set.textures.size() > 3) set.textures.erase(set.textures.begin());   // (5 MB each)
+    return tex;
+}
+
+std::shared_ptr<EveSet::Tex> eveOverlayTex(EveSet& set, const std::string& file) {
+    {
+        std::lock_guard<std::mutex> lock(set.cacheMutex);
+        for (auto& t : set.overlays) if (t.first == file) return t.second;
+    }
+    auto ov = std::make_shared<EveSet::Tex>();
+    std::string why;
+    if (!readPng(set.dir + "/" + file, ov->rgba, ov->w, ov->h, why)) { std::fprintf(stderr, "eve overlay %s %s\n", file.c_str(), why.c_str()); return nullptr; }
+    std::lock_guard<std::mutex> lock(set.cacheMutex);
+    for (auto& t : set.overlays) if (t.first == file) return t.second;
+    set.overlays.push_back({file, ov});
+    if (set.overlays.size() > 8) set.overlays.erase(set.overlays.begin());
+    return ov;
+}
+
+} // namespace
+
+EveResult eveCompute(const EveJob& job) {
+    auto t0 = std::chrono::steady_clock::now();
+    EveResult r;
+    r.serial = job.serial; r.key = job.key; r.base = job.base;
+    if (!job.model || !job.set || !job.mesh) { r.status = "nothing to fit"; return r; }
+    const M2Model& m = *job.model;
+    EveSet& set = *job.set;
+    std::shared_ptr<EveMesh> splitMesh;
+    if (job.fit.split > 0) {   // the split fit: Eve trimmed at mid-thigh (made once per set, mesh and cut)
+        char tag[32];
+        std::snprintf(tag, sizeof tag, "|split%.3f", job.fit.split);
+        const std::string key = job.mesh->variant + tag;
+        {
+            std::lock_guard<std::mutex> lock(set.cacheMutex);
+            for (auto& sp : set.splits) if (sp.first == key) splitMesh = sp.second;
+        }
+        if (!splitMesh) {
+            splitMesh = std::make_shared<EveMesh>(eveSplitMesh(*job.mesh, job.fit.split));
+            std::lock_guard<std::mutex> lock(set.cacheMutex);
+            set.splits.push_back({key, splitMesh});
+            if (set.splits.size() > 4) set.splits.erase(set.splits.begin());
+        }
+    }
+    const EveMesh& mesh = splitMesh ? *splitMesh : *job.mesh;
+    const std::vector<M2Vertex>& verts = job.verts.empty() ? m.vertices : job.verts;
+    EveBody body = fitEve(m, verts, job.indices, job.subs, job.geosets, mesh, job.fit);
+    if (!body.ok) { r.status = body.error; return r; }
+    // the creator's sculpt sliders (sculpt.h) on the fitted body, before it is measured, cut and drawn
+    if (sculptActive(job.sculpt.data(), job.sculpt.size()))
+        applySculpt(job.rig, body.verts, body.indices, job.sculpt.data(), job.sculpt.size());
+    auto t1 = std::chrono::steady_clock::now();
+    // the actor's own skin where Eve meets it: its base skin layer sampled at the cut edges
+    const EveSetIndex& ix = set.index;
+    uint32_t neck = ix.skin.neck, ankle = ix.skin.ankle;
+    {
+        Bytes blp;
+        Image img;
+        if (!job.skinPath.empty() && readFile(job.skinPath, blp) && decodeBlp(blp, 512, img)) {
+            int n = eveSampleAt(img.rgba.data(), img.width, img.height, body.neckUvs);
+            int k = eveSampleAt(img.rgba.data(), img.width, img.height, body.ankleUvs);
+            auto tinted = [&](int c) {
+                float rr = float((c >> 16) & 255) * job.tint[0], g = float((c >> 8) & 255) * job.tint[1], bl = float(c & 255) * job.tint[2];
+                return uint32_t(std::clamp(rr, 0.0f, 255.0f)) << 16 | uint32_t(std::clamp(g, 0.0f, 255.0f)) << 8 | uint32_t(std::clamp(bl, 0.0f, 255.0f));
+            };
+            if (n >= 0) neck = tinted(n);
+            if (k >= 0) ankle = tinted(k); else if (n >= 0) ankle = neck;
+        }
+    }
+    // the skin texture: the neutral skin tinted to that colour, or a chosen tone as it is (corrected once per file)
+    const EveTexInfo* skin = ix.hasSkin ? &ix.skin : nullptr;
+    const bool tone = job.opt.tone >= 0 && size_t(job.opt.tone) < ix.tones.size();
+    if (tone) skin = &ix.tones[size_t(job.opt.tone)];
+    if (!skin) { r.status = "the Eve set has no skin"; return r; }
+    std::string why;
+    std::shared_ptr<EveSet::Tex> tex = eveSkinTex(set, mesh, *skin, why);
+    if (!tex) { r.status = "the skin " + skin->file + " " + why; return r; }
+    // the reference: the corrected skin's own colour near its neck ring (else set.json's)
+    r.reference = tex->prep.neck ? tex->prep.neck : (skin->neck ? skin->neck : skin->mean);
+    V3 gain = tone ? V3(1, 1, 1) : eveGain(neck, r.reference);
+    // the overlay: its shade nearest the skin (Lab), its brightness scaled to the skin's
+    std::shared_ptr<EveSet::Tex> ov;
+    const EveShadeInfo* shade = nullptr;
+    if (job.opt.overlaySlot >= 0 && size_t(job.opt.overlaySlot) < ix.overlays.size()) {
+        const EveSlotInfo& slot = ix.overlays[size_t(job.opt.overlaySlot)];
+        uint32_t skinRgb = tone ? skin->mean : neck;
+        int sh = job.opt.overlayShade >= 0 && size_t(job.opt.overlayShade) < slot.shades.size() ? job.opt.overlayShade
+                                                                                                 : eveNearestShade(skinRgb, slot.shades, &r.shadeDist);
+        if (sh >= 0) {
+            shade = &slot.shades[size_t(sh)];
+            r.shade = sh;
+            ov = eveOverlayTex(set, shade->file);
+        }
+    }
+    // its colour: brightness only when a shade was made for a skin like this one (Lab distance under 12), so its own pinks and
+    // browns stay; for a skin no shade was made for (green, blue, grey), the full per-channel tint, fading in up to 30
+    V3 ovGain(1, 1, 1);
+    if (shade) {
+        uint32_t want = tone ? skin->mean : neck;
+        V3 t = eveLinear(want), sw = eveLinear(shade->swatch);
+        float yt = 0.2126f * t.x + 0.7152f * t.y + 0.0722f * t.z, ys = 0.2126f * sw.x + 0.7152f * sw.y + 0.0722f * sw.z;
+        float bright = std::clamp(yt / std::max(ys, 1e-4f), 0.5f, 2.0f);
+        V3 full = eveGain(want, shade->swatch);
+        float d = (eveLab(want) - eveLab(shade->swatch)).length();
+        float f = std::clamp((d - 12.0f) / 18.0f, 0.0f, 1.0f);
+        ovGain = V3(bright, bright, bright) * (1 - f) + full * f;
+    }
+    eveCompose(tex->rgba, tex->w, tex->h, gain, ov ? ov->rgba.data() : nullptr, ov ? ov->w : 0, ov ? ov->h : 0, shade ? shade->rect[0] : 0,
+               shade ? shade->rect[1] : 0, std::clamp(job.opt.opacity, 0.0f, 1.0f), ovGain, tex->prep, neck, ankle, r.rgba);
+    r.w = tex->w; r.h = tex->h;
+    if (job.mips) r.mips = eveMips(r.rgba, r.w, r.h);
+    r.neckRgb = neck; r.ankleRgb = ankle;
+    r.composeMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t1).count();
+    // the body under it cut (any corner on a body bone drops the triangle), and the two measured as one
+    r.cutSubs = job.subs;
+    r.cutIndices = cutTriangles(job.indices, r.cutSubs, body.cut, 1);
+    r.measure = eveMeasureMesh(m, verts, r.cutIndices, r.cutSubs, job.geosets, body);
+    r.body = std::move(body);
+    r.ok = true;
+    r.totalMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    return r;
+}
+
+std::vector<std::vector<uint8_t>> eveMips(const std::vector<uint8_t>& rgba, int w, int h) {
+    std::vector<std::vector<uint8_t>> out;
+    const std::vector<uint8_t>* src = &rgba;
+    while ((w > 1 || h > 1) && src->size() >= size_t(w) * h * 4) {
+        int nw = std::max(1, w / 2), nh = std::max(1, h / 2);
+        std::vector<uint8_t> d(size_t(nw) * nh * 4);
+        for (int y = 0; y < nh; ++y)
+            for (int x = 0; x < nw; ++x) {
+                int x0 = std::min(2 * x, w - 1), x1 = std::min(2 * x + 1, w - 1), y0 = std::min(2 * y, h - 1), y1 = std::min(2 * y + 1, h - 1);
+                for (int c = 0; c < 4; ++c) {
+                    int sum = (*src)[(size_t(y0) * w + x0) * 4 + c] + (*src)[(size_t(y0) * w + x1) * 4 + c] + (*src)[(size_t(y1) * w + x0) * 4 + c] +
+                              (*src)[(size_t(y1) * w + x1) * 4 + c];
+                    d[(size_t(y) * nw + x) * 4 + c] = uint8_t((sum + 2) / 4);
+                }
+            }
+        out.push_back(std::move(d));
+        src = &out.back();
+        w = nw; h = nh;
+    }
+    return out;
+}
+
+EveWorker::EveWorker() : thread_([this] { run(); }) {}
+
+EveWorker::~EveWorker() {
+    {
+        std::lock_guard<std::mutex> lock(mu_);
+        stop_ = true;
+        queue_.clear();
+    }
+    cv_.notify_all();
+    if (thread_.joinable()) thread_.join();
+}
+
+void EveWorker::submit(std::unique_ptr<EveJob> job) {
+    if (!job) return;
+    {
+        std::lock_guard<std::mutex> lock(mu_);
+        for (auto& q : queue_) if (q->serial == job->serial) { q = std::move(job); break; }
+        if (job) queue_.push_back(std::move(job));
+    }
+    cv_.notify_one();
+}
+
+void EveWorker::cancel(uint64_t serial) {
+    std::lock_guard<std::mutex> lock(mu_);
+    queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [&](const std::unique_ptr<EveJob>& q) { return q->serial == serial; }), queue_.end());
+    done_.erase(std::remove_if(done_.begin(), done_.end(), [&](const std::unique_ptr<EveResult>& d) { return d->serial == serial; }), done_.end());
+}
+
+std::unique_ptr<EveResult> EveWorker::take(uint64_t serial) {
+    std::lock_guard<std::mutex> lock(mu_);
+    std::unique_ptr<EveResult> out;
+    for (auto it = done_.begin(); it != done_.end();) {
+        if ((*it)->serial == serial) { out = std::move(*it); it = done_.erase(it); } else ++it;   // (the newest wins)
+    }
+    return out;
+}
+
+bool EveWorker::idle() {
+    std::lock_guard<std::mutex> lock(mu_);
+    return queue_.empty() && !running_;
+}
+
+void EveWorker::run() {
+    for (;;) {
+        std::unique_ptr<EveJob> job;
+        {
+            std::unique_lock<std::mutex> lock(mu_);
+            cv_.wait(lock, [&] { return stop_ || !queue_.empty(); });
+            if (stop_) return;
+            job = std::move(queue_.front());
+            queue_.pop_front();
+            running_ = job->serial;
+        }
+        auto res = std::make_unique<EveResult>(eveCompute(*job));
+        job.reset();
+        std::lock_guard<std::mutex> lock(mu_);
+        running_ = 0;
+        // one result kept per actor (the newest), and a few at most: an actor gone never takes its own
+        const uint64_t serial = res->serial;
+        done_.erase(std::remove_if(done_.begin(), done_.end(), [&](const std::unique_ptr<EveResult>& d) { return d->serial == serial; }), done_.end());
+        if (done_.size() >= 8) done_.erase(done_.begin());
+        done_.push_back(std::move(res));
+    }
 }
 
 } // namespace wc

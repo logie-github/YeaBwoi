@@ -237,7 +237,7 @@ private fun CasBodySection(
         CasRows(remember(rev, model.appearance.raceId, model.appearance.sex) { CasTabs.rows(model, CasTab.BODY) }, model, atlas, onChanged)
         return
     }
-    if (!eveBody) WifeNote("Height works on every body. The others shape the Eve body (Options → Mods → Eve body): on a Warcraft body they wait, greyed.",
+    if (!eveBody) WifeNote("Height and Leg Length work on every body. The others shape the Eve body (Options → Mods → Eve body): on a Warcraft body they wait, greyed.",
         Modifier.padding(vertical = 6.dp))
     val order = focused + SculptSlider.entries.filter { it !in focused }
     val sculpt = rev.let { model.appearance.sculpt ?: BodySculpt() }

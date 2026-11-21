@@ -7,7 +7,7 @@ engine="$here/../android/app/src/main/cpp/engine"
 mkdir -p "$here/build"
 g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/harness.cpp" "$engine"/*.cpp \
-    -lEGL -lGLESv2 -lz -o "$here/build/harness"
+    -lEGL -lGLESv2 -lz -lpthread -o "$here/build/harness"
 echo "$here/build/harness"
 # The soft body's maths alone (no GL context, no game files): build/softbody_test, exit 0 when all pass.
 g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
@@ -98,7 +98,7 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -DWC_NO_GL -I"$engine" \
 echo "$here/build/motionlayer_test"
 # The creator's sculpt sliders and tap-to-edit body pick (engine/sculpt.h, engine/bodypick.h) on a made-up symmetric body:
 # bounded, symmetric, no triangle turned over, the neck and ankle rings kept, each slider doing what it says; the bone
-# regions and the ray pick. build/sculpt_test, exit 0 when all pass. No GL, no game files.
+# regions and the ray pick; the skeleton's edit (engine/bodyrig.h: Leg Length and the Eve body's proportions). build/sculpt_test, exit 0 when all pass. No GL, no game files.
 g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/sculpt_test.cpp" "$engine/sculpt.cpp" "$engine/bodypick.cpp" \
     -o "$here/build/sculpt_test"
@@ -108,5 +108,5 @@ echo "$here/build/sculpt_test"
 # when all pass (a converted set and the game's models fitted and timed when given).
 g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/eve_test.cpp" "$engine/evebody.cpp" "$engine/softbody.cpp" "$engine/modelpart.cpp" "$engine/bodypart.cpp" "$engine/blp.cpp" \
-    "$engine/json.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" -lGLESv2 -lz -o "$here/build/eve_test"
+    "$engine/json.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" "$engine/sculpt.cpp" -lGLESv2 -lz -lpthread -o "$here/build/eve_test"
 echo "$here/build/eve_test"
