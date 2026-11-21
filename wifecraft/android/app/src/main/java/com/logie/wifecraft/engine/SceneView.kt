@@ -357,6 +357,22 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         Native.motion(handle, id, intensity, lookAt?.let { ids[it] } ?: 0)
     }
 
+    // the skin sheen as last sent to the engine per actor id (GL thread)
+    private val sheenSent = HashMap<Int, Float>()
+
+    /**
+     * GL thread, a [FrameDriver] only: actor [key]'s skin sheen 0..1 (cpp Scene::setSheen; graphics/SkinSheen), sent when it
+     * moved by more than a little. An actor not on stage yet: nothing.
+     */
+    fun glSheen(key: String, value: Float) {
+        val id = ids[key] ?: return
+        val v = if (value.isFinite()) value.coerceIn(0f, 1f) else 0f
+        val last = sheenSent[id]
+        if (last != null && kotlin.math.abs(last - v) < 0.004f && (v > 0f || last == 0f)) return
+        sheenSent[id] = v
+        Native.sheen(handle, id, v)
+    }
+
     /** GL thread, a [FrameDriver] only: the atmosphere's motes ([count] 0: none; [strength] 0..1), sent when changed. */
     fun glParticles(count: Int, strength: Float) {
         if (count == motesSent && strength == motesStrength) return
@@ -368,7 +384,8 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     fun clearAtmosphere() = post { h, ids ->
         motesSent = 0; motesStrength = 0f
         Native.particles(h, 0, 0f)
-        for (id in ids.values) Native.clearMotion(h, id)
+        for (id in ids.values) { Native.clearMotion(h, id); Native.sheen(h, id, 0f) }
+        sheenSent.clear()
     }
 
     override fun showCity(shown: Boolean) = post { h, _ -> Native.showCity(h, shown) }

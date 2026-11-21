@@ -138,6 +138,8 @@ import com.logie.wifecraft.simulation.FlowPhase
 import com.logie.wifecraft.simulation.FlowStep
 import com.logie.wifecraft.simulation.HudReveal
 import com.logie.wifecraft.simulation.ImmersiveSettings
+import com.logie.wifecraft.graphics.Graphics
+import com.logie.wifecraft.graphics.SkinSheen
 import com.logie.wifecraft.simulation.IntensityEase
 import com.logie.wifecraft.simulation.IntensityModel
 import com.logie.wifecraft.simulation.MomentProgress
@@ -645,6 +647,7 @@ fun LiveSceneScreen(
         var soundNanos = 0L
         // GL thread: each person's intensity (IntensityModel, eased), whom they look at, and when these were last looked at
         val eases = Array(live.count) { IntensityEase() }
+        val sheens = Array(live.count) { SkinSheen.Ease() }   // the skin's wet sheen from the intensity (Options' Graphics)
         val goals = FloatArray(live.count) { IntensityModel.IDLE }
         val lookAt = arrayOfNulls<String>(live.count)
         val keyOf = ids.indices.associate { ids[it] to keys[it] }
@@ -757,6 +760,7 @@ fun LiveSceneScreen(
                 val v = eases[i].step(goals[i], step)
                 if (v > most) most = v
                 view.glMotion(keys[i], v, lookAt[i]?.let { keyOf[it] })
+                view.glSheen(keys[i], sheens[i].step(SkinSheen.target(v, Graphics.effective), step))
             }
             val cine = feed.cinematic
             view.glParticles(if (imm.particlesOn(cine)) MOTES else 0, if (cine) 0.9f else 0.6f)

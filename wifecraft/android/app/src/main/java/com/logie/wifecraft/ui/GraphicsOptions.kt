@@ -60,8 +60,12 @@ fun GraphicsPage() {
     }
     GfxDropdownRow("Texture filtering", if (s.anisotropy <= 1) "Trilinear" else "${s.anisotropy}x anisotropic",
         GraphicsSettings.ANISOTROPY.map { it to if (it <= 1) "Trilinear" else "${it}x anisotropic" }) { n: Int -> edit(s.copy(anisotropy = n)) }
-    WifeSwitchRow("High-resolution textures", s.textureDetail >= 2, { edit(s.copy(textureDetail = if (it) 2 else 1)) },
-        detail = "Twice the size of each texture where the game's file has it; for what is loaded after the change")
+    val detail = GraphicsSettings.TEXTURE_DETAIL
+    GfxDropdownRow("Texture detail", detail.firstOrNull { it.first == s.textureDetail }?.second ?: "Standard", detail) { n: Int ->
+        edit(s.copy(textureDetail = n))
+    }
+    WifeNote("High takes a mip twice the size where the game's file has one, Full four times (the file's own); each step " +
+        "can take up to four times the texture memory. For what is loaded after the change.")
     WifeSliderRow("Sharpen", s.sharpen, { edit(s.copy(sharpen = it)) })
 
     WifeSectionHeader("Light and colour")
@@ -91,6 +95,12 @@ fun GraphicsPage() {
     WifeSectionHeader("People")
     WifeSliderRow("Skin shading", s.skin, { edit(s.copy(skin = it)) })
     WifeSliderRow("Hair highlights", s.hair, { edit(s.copy(hair = it)) })
+    WifeSliderRow("Eye highlights", s.eyes, { edit(s.copy(eyes = it)) })
+    WifeSliderRow("Thin-skin tint", s.thinSkin, { edit(s.copy(thinSkin = it)) })
+    WifeNote("Ears, nose, lips and fingers lit through, warm, most with the light behind them.")
+    WifeSwitchRow("Skin sheen follows intensity", s.sheenFollows, { edit(s.copy(sheenFollows = it)) },
+        detail = "The skin grows a light wet sheen as a scene's moment builds, and keeps it a while after")
+    WifeSliderRow("Maximum sheen", s.sheenMax, { edit(s.copy(sheenMax = it)) }, valueText = "${s.sheenMax}%")
 
     WifeSectionHeader("Atmosphere")
     WifeSliderRow("Light shafts", s.shafts, { edit(s.copy(shafts = it)) })
