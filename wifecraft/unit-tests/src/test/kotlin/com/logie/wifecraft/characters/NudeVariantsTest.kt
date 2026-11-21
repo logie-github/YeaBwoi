@@ -55,7 +55,8 @@ class NudeVariantsTest {
             assertTrue(ch.variants.none { it.kind == VariantKind.NUDE && it.raceId == 7 && it.sex == Sex.FEMALE }, "${ch.id}: no gnome woman nude")
             assertTrue(ch.presets.none { it.kind == VariantKind.NUDE })
         }
-        assertEquals(listOf("lilian/bfa_nude", "whitemane/scarlet_nude", "whitemane/deathknight_nude", "xalatath/bfa_nude"), made)
+        assertEquals(listOf("lilian/bfa_nude", "whitemane/scarlet_nude", "whitemane/deathknight_nude", "xalatath/bfa_nude",
+            "tess/gilneas_nude", "lyssabel/steward_nude"), made)
         assertTrue(roster.first { it.id == "chromie" }.variants.none { it.kind == VariantKind.NUDE })
     }
 }

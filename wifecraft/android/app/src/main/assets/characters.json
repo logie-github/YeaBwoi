@@ -1130,6 +1130,379 @@
      "note": "her own choices from display 88826"
     }
    ]
+  },
+  {
+   "id": "tess",
+   "name": "Tess Greymane",
+   "variants": [
+    {
+     "key": "gilneas",
+     "label": "Princess of Gilneas",
+     "kind": "outfit",
+     "sourceDisplay": 116131,
+     "sourceCreatures": [
+      210905,
+      217117
+     ],
+     "era": "Dragonflight 10.2.5 display (creatures 210905, 217117) on the human woman's current model",
+     "race": 1,
+     "sex": "FEMALE",
+     "picks": {
+      "14": 86,
+      "15": 106,
+      "16": 137,
+      "17": 156,
+      "464": 4154,
+      "501": 4752,
+      "510": 4908,
+      "516": 4963,
+      "526": 5059,
+      "970": 15676,
+      "6339": 45090,
+      "8523": 54353
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": {
+      "1": 155907,
+      "3": 656340,
+      "4": 146909,
+      "5": 177671,
+      "6": 177672,
+      "7": 163336,
+      "8": 169625,
+      "9": 119926,
+      "10": 172566,
+      "15": 170212
+     }
+    },
+    {
+     "key": "gilneas_nude",
+     "label": "Princess of Gilneas, nude",
+     "kind": "nude",
+     "sourceDisplay": 116131,
+     "sourceCreatures": [
+      210905,
+      217117
+     ],
+     "era": "Dragonflight 10.2.5 display (creatures 210905, 217117) on the human woman's current model",
+     "race": 1,
+     "sex": "FEMALE",
+     "picks": {
+      "14": 86,
+      "15": 106,
+      "16": 137,
+      "17": 156,
+      "464": 4154,
+      "501": 4752,
+      "510": 4908,
+      "516": 4963,
+      "526": 5059,
+      "970": 15676,
+      "6339": 45090,
+      "8523": 54353
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": {
+      "1": 155907,
+      "3": 656340,
+      "9": 119926,
+      "10": 172566,
+      "15": 170212
+     },
+     "note": "display 116131's items without the shirt, chest, tabard, belt, legs and feet, over the bare body"
+    },
+    {
+     "key": "underwear",
+     "label": "Underwear (No Gear)",
+     "kind": "underwear",
+     "race": 1,
+     "sex": "FEMALE",
+     "picks": {
+      "14": 86,
+      "15": 106,
+      "16": 137,
+      "17": 156,
+      "464": 4154,
+      "501": 4752,
+      "510": 4908,
+      "516": 4963,
+      "526": 5059,
+      "970": 15676,
+      "6339": 45090,
+      "8523": 54353
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 116131,
+     "note": "her own choices from display 116131"
+    },
+    {
+     "key": "bare",
+     "label": "Bare (no underwear layers)",
+     "kind": "bare",
+     "race": 1,
+     "sex": "FEMALE",
+     "picks": {
+      "14": 86,
+      "15": 106,
+      "16": 137,
+      "17": 156,
+      "464": 4154,
+      "501": 4752,
+      "510": 4908,
+      "516": 4963,
+      "526": 5059,
+      "970": 15676,
+      "6339": 45090,
+      "8523": 54353
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 116131,
+     "note": "her own choices from display 116131"
+    }
+   ],
+   "presets": [
+    {
+     "key": "human",
+     "label": "Tess Greymane",
+     "kind": "outfit",
+     "race": 1,
+     "sex": "FEMALE",
+     "picks": {
+      "14": 86,
+      "15": 106,
+      "16": 137,
+      "17": 156,
+      "464": 4154,
+      "501": 4752,
+      "510": 4908,
+      "516": 4963,
+      "526": 5059,
+      "970": 15676,
+      "6339": 45090,
+      "8523": 54353
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": {
+      "1": 155907,
+      "3": 656340,
+      "4": 146909,
+      "5": 177671,
+      "6": 177672,
+      "7": 163336,
+      "8": 169625,
+      "9": 119926,
+      "10": 172566,
+      "15": 170212
+     },
+     "sourceDisplay": 116131,
+     "sourceCreatures": [
+      210905,
+      217117
+     ],
+     "note": "her choices and worn items from display 116131 (creature 210905)"
+    }
+   ]
+  },
+  {
+   "id": "lyssabel",
+   "name": "Lyssabel Dawnpetal",
+   "variants": [
+    {
+     "key": "steward",
+     "label": "Steward (assembled)",
+     "kind": "outfit",
+     "race": 4,
+     "sex": "FEMALE",
+     "picks": {
+      "49": 802,
+      "50": 825,
+      "51": 843,
+      "52": 864,
+      "53": 880,
+      "55": 8172,
+      "56": 894,
+      "57": 901,
+      "377": 881,
+      "683": 7619,
+      "708": 7845,
+      "710": 7853,
+      "712": 7861,
+      "714": 7868,
+      "724": 7963,
+      "726": 7993,
+      "732": 8052,
+      "736": 8071,
+      "744": 8130,
+      "745": 8290,
+      "6345": 45114,
+      "8529": 54371,
+      "9504": 79010
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": {
+      "1": 192504,
+      "3": 183005,
+      "5": 183006,
+      "6": 677064,
+      "8": 183010,
+      "9": 183003
+     },
+     "sourceDisplay": 123612,
+     "era": "assembled: not a display of the game",
+     "note": "assembled from her choices (display 123612) and the items: spectacles (helm_glasses_b_03, display 123612's); Ardenweald cloth shoulders, blue; Ardenweald cloth robe, blue; scholar's belt with scroll and book (display 123612's); Ardenweald cloth boots, blue; Ardenweald cloth bracers, blue"
+    },
+    {
+     "key": "steward_nude",
+     "label": "Steward (assembled), nude",
+     "kind": "nude",
+     "race": 4,
+     "sex": "FEMALE",
+     "picks": {
+      "49": 802,
+      "50": 825,
+      "51": 843,
+      "52": 864,
+      "53": 880,
+      "55": 8172,
+      "56": 894,
+      "57": 901,
+      "377": 881,
+      "683": 7619,
+      "708": 7845,
+      "710": 7853,
+      "712": 7861,
+      "714": 7868,
+      "724": 7963,
+      "726": 7993,
+      "732": 8052,
+      "736": 8071,
+      "744": 8130,
+      "745": 8290,
+      "6345": 45114,
+      "8529": 54371,
+      "9504": 79010
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": {
+      "1": 192504,
+      "3": 183005,
+      "9": 183003
+     },
+     "sourceDisplay": 123612,
+     "era": "assembled: not a display of the game",
+     "note": "her assembled outfit's items without the shirt, chest, tabard, belt, legs and feet, over the bare body"
+    },
+    {
+     "key": "underwear",
+     "label": "Underwear (No Gear)",
+     "kind": "underwear",
+     "race": 4,
+     "sex": "FEMALE",
+     "picks": {
+      "49": 802,
+      "50": 825,
+      "51": 843,
+      "52": 864,
+      "53": 880,
+      "55": 8172,
+      "56": 894,
+      "57": 901,
+      "377": 881,
+      "683": 7619,
+      "708": 7845,
+      "710": 7853,
+      "712": 7861,
+      "714": 7868,
+      "724": 7963,
+      "726": 7993,
+      "732": 8052,
+      "736": 8071,
+      "744": 8130,
+      "745": 8290,
+      "6345": 45114,
+      "8529": 54371,
+      "9504": 79010
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 123612,
+     "note": "her own choices from display 123612; Skin Color, Hair Color set by hand"
+    },
+    {
+     "key": "bare",
+     "label": "Bare (no underwear layers)",
+     "kind": "bare",
+     "race": 4,
+     "sex": "FEMALE",
+     "picks": {
+      "49": 802,
+      "50": 825,
+      "51": 843,
+      "52": 864,
+      "53": 880,
+      "55": 8172,
+      "56": 894,
+      "57": 901,
+      "377": 881,
+      "683": 7619,
+      "708": 7845,
+      "710": 7853,
+      "712": 7861,
+      "714": 7868,
+      "724": 7963,
+      "726": 7993,
+      "732": 8052,
+      "736": 8071,
+      "744": 8130,
+      "745": 8290,
+      "6345": 45114,
+      "8529": 54371,
+      "9504": 79010
+     },
+     "body": {
+      "shape": 0,
+      "style": 0,
+      "density": 0
+     },
+     "equipment": "nude",
+     "sourceDisplay": 123612,
+     "note": "her own choices from display 123612; Skin Color, Hair Color set by hand"
+    }
+   ]
   }
  ]
 }

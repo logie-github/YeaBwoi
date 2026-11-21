@@ -164,6 +164,47 @@ CHARACTERS = [
         "midnight": "not humanoid: creature 262994 is display 143465, the dagger",
         "identity": 88826,
     },
+    {
+        # Princess Tess Greymane, Genn Greymane's daughter (an adult: a few years older than Anduin, the lore's estimates put
+        # her in her late twenties by Dragonflight), in her human form. Her creatures in the tables: 117478 and 118621 (display
+        # 53598, a Legion display: dropped as older) and 210905, 217117 (display 116131, Dragonflight 10.2.5's Gilneas: a
+        # human woman at scale 1.2 with her own choices and items). Wowhead's 212149 (Silverpine) is not a row of the client's
+        # Creature table at 12.1.7, so its display couldn't be read; 116131 is the newest display of hers the tables have.
+        "id": "tess", "name": "Tess Greymane",
+        "outfits": [
+            (116131, "gilneas", "Princess of Gilneas", "Dragonflight 10.2.5 display (creatures 210905, 217117) on the human woman's current model"),
+        ],
+        "legion": "display 53598 (creatures 117478, 118621): older, left out",
+        "identity": 116131,
+        # the creator's preset: her choices and worn items for a human woman
+        "presets": [(116131, "human", "Tess Greymane", "her choices and worn items from display 116131 (creature 210905)")],
+    },
+    {
+        # Lyssabel Dawnpetal <Steward>, the Alliance's housing steward (The War Within 11.2.7: Stormwind's Wizard's Sanctum and
+        # Founder's Point; warcraft.wiki.gg: a night elf woman, an adult race model). Her creature (wowhead's npc 256078) is not
+        # a row of the client's Creature table at 12.1.7 nor of wago.tools' hotfixes, and wowhead's page gives no display id to
+        # a plain fetch, so her display couldn't be read. The night elf women's displays with spectacles or the scholar's
+        # belt, and most of those of 11.x and 12.x, were drawn on the desktop: none is hers. Her look is therefore ASSEMBLED, like
+        # Whitemane's fallback, from her screenshot (warcraft.wiki.gg File:Lyssabel_Dawnpetal.png): a night elf woman (display
+        # 123612's choices: a steward-scholar night elf with the same round spectacles and the scholar's scroll-and-book belt),
+        # pale lavender skin and indigo hair, in the game's own items: the spectacles, Ardenweald's blue cloth robe (its
+        # leaf-hemmed skirt), shoulders (branches and leaves), boots and bracers, and the scholar's belt. Approximate: her own
+        # robe's maroon bodice and white collar have no match found. No creator preset (a preset is a display's own look).
+        "id": "lyssabel", "name": "Lyssabel Dawnpetal",
+        "outfits": [],
+        "assembled": [
+            ("steward", "Steward (assembled)", 123612, {"Skin Color": 802, "Hair Color": 864}, {
+                1: (192504, "spectacles (helm_glasses_b_03, display 123612's)"),
+                3: (183005, "Ardenweald cloth shoulders, blue"),
+                5: (183006, "Ardenweald cloth robe, blue"),
+                6: (677064, "scholar's belt with scroll and book (display 123612's)"),
+                8: (183010, "Ardenweald cloth boots, blue"),
+                9: (183003, "Ardenweald cloth bracers, blue"),
+            }),
+        ],
+        "identity": 123612,
+        "override": {"Skin Color": 802, "Hair Color": 864},
+    },
 ]
 
 
@@ -193,7 +234,8 @@ def nude(v):
     n = dict(v)
     n.update(key=v["key"] + "_nude", label=v["label"] + ", nude", kind="nude",
              equipment={k: x for k, x in eq.items() if int(k) not in NUDE_REMOVED},
-             note="display %d's items without the shirt, chest, tabard, belt, legs and feet, over the bare body" % v["sourceDisplay"])
+             note=("her assembled outfit's" if v.get("era", "").startswith("assembled") else "display %d's" % v["sourceDisplay"]) +
+                  " items without the shirt, chest, tabard, belt, legs and feet, over the bare body")
     return n
 
 
@@ -241,8 +283,11 @@ class Tables:
             if m and m["Sex"] in ("0", "1"):
                 self.model_of[(int(r["ChrRacesID"]), int(m["Sex"]))] = int(m["ID"])
         self.options = {}
+        self.unnamed = set()  # options the creator doesn't show (no name: an NPC's own, such as 12.1's 9504 on the night elf woman)
         for r in read(d, "ChrCustomizationOption"):
             self.options.setdefault(int(r["ChrModelID"]), {})[r["Name_lang"]] = int(r["ID"])
+            if not r["Name_lang"].strip():
+                self.unnamed.add(int(r["ID"]))
         self.choice_option = {int(r["ID"]): int(r["ChrCustomizationOptionID"]) for r in read(d, "ChrCustomizationChoice")}
         self.creatures = read(d, "Creature")
 
@@ -324,7 +369,8 @@ def build(t):
         presets = []
         for display, key, label, note in c.get("presets", []):
             race, sex, picks, slots = t.parts(display)
-            picks = dict(picks)
+            # a preset holds only the creator's own options (an unnamed NPC option isn't a row of it)
+            picks = {k: x for k, x in picks.items() if k not in t.unnamed}
             own = t.options.get(t.model_of[(race, sex)], {})
             for name, choice in c.get("preset_custom", {}).items():
                 picks[own[name]] = choice
