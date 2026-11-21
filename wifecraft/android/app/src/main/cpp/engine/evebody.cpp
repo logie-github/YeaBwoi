@@ -1607,6 +1607,15 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
             }
             return any;
         };
+        if (getenv("ANKLE_FIT_DIAG") && s == 0) {
+            for (size_t v = 0; v < nv; ++v) {
+                V3 q = P[v]; float a = std::atan2(q.y - o0.y, q.x - o0.x) * 57.2958f;
+                if (std::fabs(a) > 25 || q.z > edgeAt(q) + 0.12f * unit || q.z < edgeAt(q) - 0.03f * unit || V3(q.x - o0.x, q.y - o0.y, 0).length() > 0.2f * unit) continue;
+                if ((q.y > 0) != (s == 0)) continue;
+                float want = -1; V3 n; V3 d(q.x - o0.x, q.y - o0.y, 0); d = d.normalized(); hit(q.z, d, want, n);
+                std::fprintf(stderr, "AFD v %zu ang %.0f z %.4f dz %.4f r %.4f calfW %.2f ring %d want %.4f (unit %.3f)\n", v, a, q.z, q.z - edgeAt(q), V3(q.x - o0.x, q.y - o0.y, 0).length(), calfW[s][v], onRing[v], want, unit);
+            }
+        }
         for (size_t v = 0; v < nv; ++v) {
             if (calfW[s][v] < 0.3f || onRing[v]) continue;   // (the ring itself is snapped onto the edge below)
             V3 q = P[v];

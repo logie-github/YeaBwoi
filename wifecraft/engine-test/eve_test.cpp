@@ -414,6 +414,24 @@ AnkleStep ankleStep(const M2Model& m, const EveResult& res, bool print, const ch
             }
             return any;
         };
+        if (getenv("ANKLE_SLAB") && sd == 0) {   // the leg's section through the ankle joint (x, z): kept, removed, hers
+            FILE* f = std::fopen(getenv("ANKLE_SLAB"), "w");
+            for (size_t i = 0; i < m.vertices.size() && i < res.body.cut.size(); ++i) {
+                V3 p = skinned(m.vertices[i], false);
+                if (std::fabs(p.y - o.y) < 0.012f && p.z < 0.3f * H && std::fabs(p.x - o.x) < 0.2f) std::fprintf(f, "%c %.4f %.4f\n", res.body.cut[i] ? 'r' : 'k', p.x - o.x, p.z);
+            }
+            for (size_t t = 0; t + 2 < ei.size(); t += 3) for (int q = 0; q < 3; ++q) {
+                V3 A = skinned(ev[ei[t + q]], false), B = skinned(ev[ei[t + (q + 1) % 3]], false);
+                if (std::fabs(A.y - o.y) < 0.012f && std::fabs(B.y - o.y) < 0.012f && A.z < 0.3f * H && std::fabs(A.x - o.x) < 0.2f)
+                    std::fprintf(f, "e %.4f %.4f %.4f %.4f %d\n", A.x - o.x, A.z, B.x - o.x, B.z, int(ei[t + q] >= eveVerts || ei[t + (q + 1) % 3] >= eveVerts));
+            }
+            for (size_t t = 0; t < model.size(); ++t) {
+                const Tri& T = model[t];
+                for (auto [A, B] : {std::pair<V3, V3>{T.a, T.b}, {T.b, T.c}, {T.c, T.a}})
+                    if (std::fabs(A.y - o.y) < 0.012f && std::fabs(B.y - o.y) < 0.012f) std::fprintf(f, "m %.4f %.4f %.4f %.4f\n", A.x - o.x, A.z, B.x - o.x, B.z);
+            }
+            std::fclose(f);
+        }
         if (getenv("ANKLE_DIAG") && sd == 0) {
             std::printf("    ankle joint %.3f %.3f %.3f (cm/unit %.1f)\n", o.x, o.y, o.z, cm);
             for (float adeg : {-161.0f, -109.0f, -41.0f, 4.0f, 19.0f, 56.0f, 109.0f, 169.0f}) {
