@@ -42,7 +42,7 @@
 //   ghost MODEL X Y Z YAW SCALE | ghostlook LOOKFILE X Y Z YAW   the ghost of what is about to be placed (a prop, a look)
 //   ghostmove X Y Z YAW | ghostclear
 //   thumb prop FILE_ID|look LOOKFILE SIZE OUT.png   a library thumbnail (Scene::thumbnail), drawn between frames
-//   thumbeve ON [BOTTOM TONE SLOT SHADE OPACITY]   the Eve body on the look pictures that follow (ThumbLook::eve)
+//   thumbeve ON [BOTTOM TONE SLOT SHADE OPACITY [BONES]]   the Eve body on the look pictures that follow (ThumbLook::eve)
 //   card LOOKFILE W H LO HI AZ EL FITWIDTH CLEAR OUT.png   a Transmog card (Scene::ThumbFrame; RGBA PNG when CLEAR), timed
 //   camerainfo                                 prints the camera as last drawn (Scene::cameraInfo)
 //   timing on|off                              prints how long each later command took (what the GL thread would stall)
@@ -913,10 +913,11 @@ int main(int argc, char** argv) {
             bool ok = scene.loadEveSet(d, std::string(fj.begin(), fj.end()), err);
             std::fprintf(stderr, "eveset %s: %s\n", d.c_str(), ok ? "ok" : err.c_str());
         } else if (cmd == "eve") {
-            // eve N ON [BOTTOM TONE SLOT SHADE OPACITY]: person N's Eve body (Scene::setEveBody; -1: auto / none)
+            // eve N ON [BOTTOM TONE SLOT SHADE OPACITY [BONES]]: person N's Eve body (Scene::setEveBody; -1: auto / none; BONES 0:
+            // Keep undead bones off)
             int name, on; EveOptions o; std::string bottom = "plain";
             ss >> name >> on;
-            if (ss >> bottom) { o.bottom = bottom; ss >> o.tone >> o.overlaySlot >> o.overlayShade >> o.opacity; }
+            if (ss >> bottom) { o.bottom = bottom; ss >> o.tone >> o.overlaySlot >> o.overlayShade >> o.opacity; int bones = 1; if (ss >> bones) o.bones = bones != 0; }
             o.on = on != 0;
             if (actors.count(name)) scene.setEveBody(actors[name], o);
         } else if (cmd == "eveasync") {
@@ -1221,10 +1222,10 @@ int main(int argc, char** argv) {
             scene.ghostClear();
             if (actor) scene.removeActor(actor);
         } else if (cmd == "thumbeve") {
-            // thumbeve ON [BOTTOM TONE SLOT SHADE OPACITY]: the Eve body on the look pictures (thumb, card) that follow
+            // thumbeve ON [BOTTOM TONE SLOT SHADE OPACITY [BONES]]: the Eve body on the look pictures (thumb, card) that follow
             int on = 0; EveOptions o; std::string bottom;
             ss >> on;
-            if (ss >> bottom) { o.bottom = bottom; ss >> o.tone >> o.overlaySlot >> o.overlayShade >> o.opacity; }
+            if (ss >> bottom) { o.bottom = bottom; ss >> o.tone >> o.overlaySlot >> o.overlayShade >> o.opacity; int bones = 1; if (ss >> bones) o.bones = bones != 0; }
             o.on = on != 0;
             gThumbEve = o;
         } else if (cmd == "thumb") {

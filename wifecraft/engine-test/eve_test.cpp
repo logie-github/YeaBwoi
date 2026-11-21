@@ -7,12 +7,16 @@
 #include <thread>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
 
 #include <zlib.h>
 
+#include <algorithm>
+
+#include "bodyrig.h"
 #include "bytes.h"
 #include "evebody.h"
 #include "m2.h"
@@ -163,6 +167,166 @@ std::vector<uint8_t> pngOf(int w, int h, const std::vector<uint8_t>& rgba) {
     return out;
 }
 
+// The fit in the game's own poses (the model's sequences whose keys are in FILES_DIR: sitting on a chair, kneeling, lying dead
+// and asleep, cheering with the arms up, bowing), skinned on the CPU as the renderer skins her (the skeleton edited by her
+// proportions, bodyrig.h): the seams can't open (each stitch vertex on its model vertex), the strip between her ring and the
+// model's edge stays a strip (no edge across it grown more than 3 cm, or than half again the model's own cut edge grows), and her own triangles stretch and collapse
+// little more than the model's own body does in the same pose (each triangle's longest edge growth over the bind pose: her
+// 99.9th percentile within 1.5 times the model's and 1 cm more; her coarser mesh spans a joint with fewer, longer
+// triangles; her collapsed triangles, area under 5 % of the bind pose's, at most 0.2 % of them). A pose whose sequence or .anim isn't
+// here is skipped and said.
+void posedSeams(M2Model& m, const FileLookup& look, const EveResult& res, size_t eveVerts, const std::string& name) {
+    struct Pose { const char* what; uint16_t anim; };
+    const Pose poses[] = {{"sit on a chair", 103}, {"kneel", 115}, {"lie dead", 1}, {"lie asleep", 100},
+                          {"cheer, arms up", 68}, {"bow", 66}};
+    const std::vector<M2Vertex>& ev = res.body.verts;
+    const std::vector<uint32_t>& ei = res.body.indices;
+    // each stitch vertex's model vertex (the same place and weights: the check above)
+    std::vector<int> twin(ev.size(), -1);
+    for (size_t v = eveVerts; v < ev.size(); ++v)
+        for (size_t w = 0; w < m.vertices.size(); ++w) {
+            const M2Vertex& a = ev[v]; const M2Vertex& b = m.vertices[w];
+            if (std::fabs(a.pos[0] - b.pos[0]) < 1e-6f && std::fabs(a.pos[1] - b.pos[1]) < 1e-6f && std::fabs(a.pos[2] - b.pos[2]) < 1e-6f) { twin[v] = int(w); break; }
+        }
+    // (on her own rig, the Eve rig's pivots: as the scene runs her, engine/bodyrig.h bodyEditFrom)
+    LegEdit edit = res.body.rigPivots.empty() ? bodyEditOf(m, res.body.scale) : bodyEditFrom(m, res.body.rigPivots, res.body.scale);
+    auto skinAll = [&](const std::vector<M2Vertex>& vs, const std::vector<M4>& mats, std::vector<V3>& out) {
+        out.resize(vs.size());
+        for (size_t i = 0; i < vs.size(); ++i) {
+            V3 p(vs[i].pos[0], vs[i].pos[1], vs[i].pos[2]), s;
+            for (int k = 0; k < 4; ++k) if (vs[i].weights[k] && vs[i].bones[k] < mats.size()) s = s + mats[vs[i].bones[k]].point(p) * (vs[i].weights[k] / 255.0f);
+            out[i] = s;
+        }
+    };
+    // per triangle: the longest edge's stretch over the bind pose's, and the area's share of the bind pose's
+    auto tris = [&](const std::vector<V3>& rest, const std::vector<V3>& posed, const std::vector<uint32_t>& idx, size_t below,
+                    std::vector<float>& stretch, size_t& collapsed, size_t& counted) {
+        stretch.clear(); collapsed = counted = 0;
+        for (size_t t = 0; t + 2 < idx.size(); t += 3) {
+            uint32_t a = idx[t], b = idx[t + 1], c = idx[t + 2];
+            if (a >= below || b >= below || c >= below) continue;
+            float worst = 0;   // the longest edge's growth over the bind pose (model units: a stretch the eye sees, not a 2 mm edge doubled)
+            for (auto [x, y] : {std::pair<uint32_t, uint32_t>{a, b}, {b, c}, {c, a}})
+                worst = std::max(worst, (posed[x] - posed[y]).length() - (rest[x] - rest[y]).length());
+            float ar = (rest[b] - rest[a]).cross(rest[c] - rest[a]).length(), ap = (posed[b] - posed[a]).cross(posed[c] - posed[a]).length();
+            if (ar < 1e-9f) continue;
+            ++counted;
+            stretch.push_back(worst);
+            if (ap < 0.05f * ar) ++collapsed;
+        }
+        std::sort(stretch.begin(), stretch.end());
+    };
+    auto pct = [](const std::vector<float>& s, double q) { return s.empty() ? 0.0f : s[std::min(s.size() - 1, size_t(q * double(s.size())))]; };
+    std::vector<M4> bindMats;
+    if (edit.active) legEditMatrices(m.bones, std::vector<BonePose>(), edit, bindMats); else bindMats.assign(m.bones.size(), M4());
+    std::vector<V3> eRest, mRest;
+    skinAll(ev, bindMats, eRest);
+    std::vector<M4> plain(m.bones.size(), M4());
+    skinAll(m.vertices, plain, mRest);
+    for (const Pose& p : poses) {
+        int seq = m.findSequence(p.anim);
+        if (seq >= 0) m.ensureSequence(seq, look);
+        if (seq < 0 || !m.sequenceReady(seq)) { std::printf("  %s, %s: not here (anim %u), skipped\n", name.c_str(), p.what, p.anim); continue; }
+        // the sequence sampled through: the worst moment of each measure
+        float gap = 0, strip = 0, modelEdge = 0, e999 = 0, m999 = 0, eMax = 0, mMax = 0, e99 = 0, m99 = 0;
+        size_t ec = 0, en = 0, mc = 0, mn = 0;
+        const uint32_t dur = std::max<uint32_t>(1, m.sequences[size_t(seq)].duration);
+        for (float f : {0.2f, 0.4f, 0.6f, 0.8f, 0.97f}) {
+            uint32_t t = uint32_t(f * float(dur));
+            std::vector<BonePose> bp; m.pose(seq, t, t, bp, false);
+            std::vector<M4> em, mm;
+            if (edit.active) legEditMatrices(m.bones, bp, edit, em); else m.bonesToMatrices(bp, em);
+            m.bonesToMatrices(bp, mm);
+            std::vector<V3> eP, mP, mPose;
+            skinAll(ev, em, eP);
+            skinAll(m.vertices, em, mP);   // the model's edge under the same (edited) skeleton, as the renderer draws the cut body
+            skinAll(m.vertices, mm, mPose);
+            for (size_t v = eveVerts; v < ev.size(); ++v) if (twin[v] >= 0) gap = std::max(gap, (eP[v] - mP[size_t(twin[v])]).length());
+            for (size_t k = 0; k + 2 < ei.size(); k += 3) {
+                if (ei[k] < eveVerts && ei[k + 1] < eveVerts && ei[k + 2] < eveVerts) continue;
+                for (int q = 0; q < 3; ++q) {
+                    uint32_t x = ei[k + q], y = ei[k + (q + 1) % 3];
+                    if (x >= eveVerts && y >= eveVerts) {   // the model's own edge at the cut: how much the model itself stretches there
+                        modelEdge = std::max(modelEdge, (eP[x] - eP[y]).length() - (eRest[x] - eRest[y]).length());
+                        continue;
+                    }
+                    float r = (eRest[x] - eRest[y]).length(), d = (eP[x] - eP[y]).length();
+                    strip = std::max(strip, d - r);
+                    if (getenv("EVE_DIAG") && d - r > 0.01f) std::printf("    strip edge %u-%u rest %.4f posed %.4f at %.2f %.2f %.2f\n", x, y, r, d, eRest[x].x, eRest[x].y, eRest[x].z);
+                }
+            }
+            std::vector<float> es, ms; size_t c1, n1, c2, n2;
+            tris(eRest, eP, ei, eveVerts, es, c1, n1);
+            tris(mRest, mPose, m.indices, m.vertices.size(), ms, c2, n2);
+            if (getenv("EVE_DIAG") && f == 0.6f) {
+                const char* names[] = {"Neck1", "Chest", "Spine1", "Pelvis", "L_UpperArm", "R_UpperArm", "L_Forearm", "R_Forearm", "L_Hand", "R_Hand", "L_Thigh", "R_Thigh", "L_Calf", "R_Calf", "L_Foot", "R_Foot"};
+                std::vector<std::pair<float, size_t>> w;
+                for (size_t t2 = 0; t2 + 2 < ei.size(); t2 += 3) {
+                    uint32_t a = ei[t2], b = ei[t2 + 1], c = ei[t2 + 2];
+                    if (a >= eveVerts || b >= eveVerts || c >= eveVerts) continue;
+                    float worst = 0;
+                    for (auto [x, y] : {std::pair<uint32_t, uint32_t>{a, b}, {b, c}, {c, a}}) worst = std::max(worst, (eP[x] - eP[y]).length() - (eRest[x] - eRest[y]).length());
+                    w.push_back({worst, t2});
+                }
+                std::sort(w.rbegin(), w.rend());
+                for (size_t q = 0; q < 12 && q < w.size(); ++q) {
+                    V3 c = (eRest[ei[w[q].second]] + eRest[ei[w[q].second + 1]] + eRest[ei[w[q].second + 2]]) * (1.0f / 3);
+                    const char* best = "?"; float bd = 1e9f;
+                    for (const char* nm : names) { int b = m.findWowBone(nm); if (b < 0) continue; float d = (m.bones[size_t(b)].pivot - c).length(); if (d < bd) { bd = d; best = nm; } }
+                    float edge = 0; for (int k = 0; k < 3; ++k) edge = std::max(edge, (eRest[ei[w[q].second + k]] - eRest[ei[w[q].second + (k + 1) % 3]]).length());
+                    std::printf("    stretch %.2f near %s (%.3f) rest edge %.4f at %.2f %.2f %.2f\n", w[q].first, best, bd, edge, c.x, c.y, c.z);
+                }
+            }
+            if (pct(es, 0.999) - pct(ms, 0.999) * 1.5f > e999 - m999 * 1.5f || en == 0) {   // the moment hers is furthest past the model's
+                e999 = pct(es, 0.999); m999 = pct(ms, 0.999); e99 = pct(es, 0.99); m99 = pct(ms, 0.99);
+                eMax = es.empty() ? 0 : es.back(); mMax = ms.empty() ? 0 : ms.back();
+            }
+            if (c1 >= ec) { ec = c1; en = n1; mc = c2; mn = n2; }
+        }
+        // the rig against the model's own skeleton in the same pose: where the head, hands and feet end up (the scene places her by
+        // them: furniture, partners); the worst moment
+        if (!res.body.rigPivots.empty()) {
+            float worst[3] = {0, 0, 0}, turn = 0;   // (turn: the most a limb segment points away from the model's, degrees)
+            for (float f : {0.2f, 0.5f, 0.8f}) {
+                uint32_t t = uint32_t(f * float(dur));
+                std::vector<BonePose> bp; m.pose(seq, t, t, bp, false);
+                if (getenv("EVE_REST")) bp.clear();
+                std::vector<M4> em, mm;
+                legEditMatrices(m.bones, bp, edit, em); m.bonesToMatrices(bp, mm);
+                const char* segs[][2] = {{"L_UpperArm", "L_Forearm"}, {"L_Forearm", "L_Hand"}, {"R_UpperArm", "R_Forearm"}, {"R_Forearm", "R_Hand"},
+                                         {"L_Thigh", "L_Calf"}, {"L_Calf", "L_Foot"}, {"R_Thigh", "R_Calf"}, {"R_Calf", "R_Foot"}};
+                for (const auto& sg : segs) {
+                    int a2 = m.findWowBone(sg[0]), b2 = m.findWowBone(sg[1]);
+                    if (a2 < 0 || b2 < 0) continue;
+                    // (each skeleton's joint where its own bind pose has it: the Eve rig's at its own pivots)
+                    V3 de = em[size_t(b2)].point(edit.pivots[size_t(b2)]) - em[size_t(a2)].point(edit.pivots[size_t(a2)]);
+                    V3 dm = mm[size_t(b2)].point(m.bones[size_t(b2)].pivot) - mm[size_t(a2)].point(m.bones[size_t(a2)].pivot);
+                    float c = std::clamp(de.normalized().dot(dm.normalized()), -1.0f, 1.0f);
+                    turn = std::max(turn, std::acos(c) * 57.2958f);
+                    if (getenv("EVE_DIAG")) std::printf("    %s %.1f deg\n", sg[0], std::acos(c) * 57.2958f);
+                }
+                const char* ends[3][2] = {{"Head", ""}, {"L_Hand", "R_Hand"}, {"L_Foot", "R_Foot"}};
+                for (int k = 0; k < 3; ++k) for (const char* n : ends[k]) {
+                    if (!n[0]) continue;
+                    int b = m.findWowBone(n); if (b < 0) continue;
+                    worst[k] = std::max(worst[k], (em[size_t(b)].point(edit.pivots[size_t(b)]) - mm[size_t(b)].point(m.bones[size_t(b)].pivot)).length());
+                }
+            }
+            const float h = m.bones[size_t(m.findWowBone("Head"))].pivot.z;
+            std::printf("  %s, %s: the Eve rig against the model's: limbs point within %.1f deg; head %.3f, hands %.3f, feet %.3f apart (%.1f%% / %.1f%% / %.1f%% of the "
+                        "head's height: her own lengths)\n", name.c_str(), p.what, turn, worst[0], worst[1], worst[2], 100 * worst[0] / h, 100 * worst[1] / h, 100 * worst[2] / h);
+            CHECK(turn < 3.0f, "%s, %s: a limb of the Eve rig points %.1f degrees off the model's", name.c_str(), p.what, turn);
+            CHECK(worst[0] <= 0.12f * h && worst[2] <= 0.12f * h, "%s, %s: the head or the feet stray from the model's (%.3f, %.3f)", name.c_str(), p.what, worst[0], worst[2]);
+        }
+        std::printf("  %s, %s: seam gap %.5f, strip's edges grown %.4f (the model's cut edge %.4f), edges grown p99 %.3f p99.9 %.3f max %.3f (the model's %.3f %.3f %.3f), "
+                    "collapsed %zu/%zu (the model's %zu/%zu)\n", name.c_str(), p.what, gap, strip, modelEdge, e99, e999, eMax, m99, m999, mMax, ec, en, mc, mn);
+        CHECK(gap < 1e-4f, "%s, %s: a seam opens %.5f", name.c_str(), p.what, gap);
+        CHECK(strip <= std::max(0.03f, 1.5f * modelEdge), "%s, %s: the seam's strip grew %.4f (the model's edge there %.4f)", name.c_str(), p.what, strip, modelEdge);
+        CHECK(e999 <= m999 * 1.5f + 0.01f, "%s, %s: her triangles' edges grow %.3f, the model's %.3f", name.c_str(), p.what, e999, m999);
+        CHECK(ec * 500 <= en, "%s, %s: %zu of her %zu triangles collapse", name.c_str(), p.what, ec, en);
+    }
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -294,6 +458,89 @@ int main(int argc, char** argv) {
         CHECK(d.forModel(1) && std::fabs(d.forModel(1)->heads - 7.3f) < 1e-6f && std::fabs(d.forModel(1)->girth - 1.2f) < 1e-6f &&
               std::fabs(d.forModel(2)->girth - 1.3f) < 1e-6f && std::fabs(d.forModel(2)->hipRatio - 0.52f) < 1e-6f, "defaults under each row");
     }
+    // ---- Keep undead bones (eveDetailMask, eveDetailLayer): a flat "model" body of skin with a red wound painted on it and a
+    // tan bone piece (an island of its own), Eve's square 1 cm in front of it on a texture of her own
+    {
+        auto vtx = [](float x, float y, float z, float u, float v) {
+            M2Vertex m{}; m.pos[0] = x; m.pos[1] = y; m.pos[2] = z; m.normal[0] = 1; m.uv[0] = u; m.uv[1] = v; m.weights[0] = 255; return m;
+        };
+        // the model: its skin a quad over (0,0)..(1,1) of its texture, on the plane x = 0 facing +x; the piece a small quad of
+        // its own (separate vertices) mapped to the texture's corner (0.875..1, 0..0.125), standing in front of the skin
+        std::vector<M2Vertex> wow = {vtx(0, 0, 0, 0, 0.25f), vtx(0, 1, 0, 0.75f, 0.25f), vtx(0, 1, 1, 0.75f, 1), vtx(0, 0, 1, 0, 1),
+                                     vtx(0.004f, 0.7f, 0.7f, 0.875f, 0), vtx(0.004f, 0.95f, 0.7f, 1, 0), vtx(0.004f, 0.95f, 0.95f, 1, 0.125f),
+                                     vtx(0.004f, 0.7f, 0.95f, 0.875f, 0.125f)};
+        std::vector<uint32_t> tris = {0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7};
+        const int sw = 64, sh = 64;
+        std::vector<uint8_t> skin(size_t(sw) * sh * 4);
+        for (int y = 0; y < sh; ++y) for (int x = 0; x < sw; ++x) {
+            uint8_t* p = &skin[(size_t(y) * sw + x) * 4];
+            uint32_t c = 0xACB3A5;                                               // the Forsaken's pale tone
+            if (x >= 16 && x < 24 && y >= 32 && y < 40) c = 0x8A1E3C;            // a wound (u 0.25..0.375, v 0.5..0.625)
+            if (x >= 56 && y < 8) c = (x + y) % 3 ? 0xB89A6A : 0xD8D0C0;         // the bone piece: tan with pale highlights
+            if (x >= 8 && x < 10 && y >= 50 && y < 52) c = 0xA4AC9E;             // a shading shift: no detail
+            p[0] = uint8_t(c >> 16); p[1] = uint8_t(c >> 8); p[2] = uint8_t(c); p[3] = 255;
+        }
+        EveDetailMask dm = eveDetailMask(wow, tris, skin.data(), sw, sh);
+        CHECK(!dm.empty() && dm.tone == 0xACB3A5u, "the skin's tone found: %06X", dm.tone);
+        CHECK(dm.pieces == 1 && dm.piece[4] && dm.piece[7] && !dm.piece[0] && !dm.piece[3], "the bone piece found by its island (%zu)", dm.pieces);
+        CHECK(dm.a[size_t(36) * sw + 20] == 255 && dm.a[size_t(20) * sw + 30] == 0 && dm.a[size_t(50) * sw + 8] == 0,
+              "the wound is detail, the skin and its shading are not (%d %d %d)", dm.a[size_t(36) * sw + 20], dm.a[size_t(20) * sw + 30], dm.a[size_t(50) * sw + 8]);
+        CHECK(dm.a[size_t(1) * sw + 60] == 255 && dm.a[size_t(0) * sw + 56] == 255, "all of the piece is detail, its highlights too");
+        // Eve: one quad 1 cm in front (x = 0.01), on the left half of her 40 x 40 texture (u 0.1..0.5, v 0.1..0.9)
+        EveBody eb;
+        eb.verts = {vtx(0.01f, 0, 0, 0.1f, 0.1f), vtx(0.01f, 1, 0, 0.5f, 0.1f), vtx(0.01f, 1, 1, 0.5f, 0.9f), vtx(0.01f, 0, 1, 0.1f, 0.9f)};
+        eb.indices = {0, 1, 2, 0, 2, 3};
+        const float tint[3] = {1, 1, 1};
+        const int w = 40, h = 40;
+        EveDetailLayer L1 = eveDetailLayer(eb, w, h, wow, tris, skin.data(), sw, sh, dm, tint, 0.1f);
+        EveDetailLayer L2 = eveDetailLayer(eb, w, h, wow, tris, skin.data(), sw, sh, dm, tint, 0.1f);
+        CHECK(!L1.empty() && L1.rgba == L2.rgba && L1.covered == L2.covered, "the transfer is deterministic (%zu covered)", L1.covered);
+        // (the LUT's round trip: a byte may come back one off)
+        auto near1 = [](int a, uint32_t want) { return std::abs(a - int(want)) <= 1; };
+        // the wound's place on the model (y and z 0.333..0.5) is Eve's u 0.233..0.3, v 0.367..0.5
+        auto at = [&](float u, float v) { return &L1.rgba[(size_t(v * h) * w + size_t(u * w)) * 4]; };
+        const uint8_t* wound = at(0.255f, 0.43f);
+        CHECK(wound[3] > 200 && near1(wound[0], 0x8A) && near1(wound[1], 0x1E) && near1(wound[2], 0x3C), "the wound on Eve, its own colour, no blur (%02X%02X%02X a %d)",
+              wound[0], wound[1], wound[2], wound[3]);
+        CHECK(at(0.2f, 0.75f)[3] == 0, "her skin elsewhere untouched by the layer");
+        const uint8_t* bone = at(0.44f, 0.76f);   // (the piece over y, z 0.7..0.95: Eve's u 0.38..0.48, v 0.66..0.86)
+        CHECK(bone[3] > 200 && (near1(bone[0], 0xB8) || near1(bone[0], 0xD8)), "the bone piece on Eve (%02X%02X%02X a %d)", bone[0], bone[1], bone[2], bone[3]);
+        // the gap fill: her island is texels 4..19 of a row; the layer grown into 1..3 and 20..22 (her colour there, so no mip
+        // level reads bare black past her edge), nothing beyond
+        int y = int(0.43f * h);
+        bool grownOk = L1.grown > 0;
+        for (int x = 0; x < w; ++x) {
+            const uint8_t* q = &L1.rgba[(size_t(y) * w + x) * 4];
+            bool inside = x >= 4 && x < 20, near = (x >= 1 && x < 4) || (x >= 20 && x < 23);
+            if (near) grownOk &= q[0] > 0 && q[1] > 0;
+            else if (!inside) grownOk &= q[0] == 0 && q[3] == 0;
+        }
+        CHECK(grownOk, "grown 3 texels past her island, nothing beyond (%zu grown)", L1.grown);
+        // layer off: eveCompose with none, or with a layer that covers nothing, gives the same bytes as before
+        {
+            std::vector<uint8_t> base(size_t(w) * h * 4, 150), a, b, c;
+            for (size_t i = 3; i < base.size(); i += 4) base[i] = 255;
+            EvePrep prep; prep.w = w; prep.h = h;
+            eveCompose(base, w, h, V3(1.1f, 0.9f, 1.0f), nullptr, 0, 0, 0, 0, 0, V3(1, 1, 1), prep, 0, 0, a);
+            eveCompose(base, w, h, V3(1.1f, 0.9f, 1.0f), nullptr, 0, 0, 0, 0, 0, V3(1, 1, 1), prep, 0, 0, b, nullptr, nullptr);
+            EveDetailLayer none = L1;
+            for (size_t i = 3; i < none.rgba.size(); i += 4) none.rgba[i] = 0;
+            eveCompose(base, w, h, V3(1.1f, 0.9f, 1.0f), nullptr, 0, 0, 0, 0, 0, V3(1, 1, 1), prep, 0, 0, c, nullptr, &none);
+            CHECK(a == b && a == c, "the layer off (or covering nothing): the same bytes");
+            std::vector<uint8_t> d;
+            eveCompose(base, w, h, V3(1.1f, 0.9f, 1.0f), nullptr, 0, 0, 0, 0, 0, V3(1, 1, 1), prep, 0, 0, d, nullptr, &L1);
+            size_t wi = (size_t(int(0.43f * h)) * w + size_t(0.255f * w)) * 4;
+            CHECK(d != a && std::abs(int(d[wi]) - 0x8A) <= 2 && std::abs(int(d[wi + 1]) - 0x1E) <= 2, "the layer on: the wound composed in (%02X%02X%02X)",
+                  d[wi], d[wi + 1], d[wi + 2]);
+        }
+        // the clean: the wound and the piece eased to the tone (the colour transfer reads that), the skin as it was
+        std::vector<uint8_t> cl = skin;
+        eveDetailClean(cl.data(), sw, sh, dm);
+        auto rgbOf = [&](const std::vector<uint8_t>& px, int x, int yy) { const uint8_t* q = &px[(size_t(yy) * sw + x) * 4]; return uint32_t(q[0]) << 16 | uint32_t(q[1]) << 8 | q[2]; };
+        auto nearRgb = [&](uint32_t a, uint32_t b) { return near1(int(a >> 16), b >> 16) && near1(int((a >> 8) & 255), (b >> 8) & 255) && near1(int(a & 255), b & 255); };
+        CHECK(nearRgb(rgbOf(cl, 20, 36), 0xACB3A5) && nearRgb(rgbOf(cl, 60, 2), 0xACB3A5) && rgbOf(cl, 30, 20) == 0xACB3A5u && rgbOf(cl, 8, 50) == 0xA4AC9Eu,
+              "the clean: %06X %06X", rgbOf(cl, 20, 36), rgbOf(cl, 60, 2));
+    }
     // ---- a real set on real models (optional): SET_DIR FILES_DIR MODEL...
     if (argc >= 4) {
         std::string dir = argv[1], files = argv[2];
@@ -347,6 +594,17 @@ int main(int argc, char** argv) {
                         for (int k = 0; k < 3; ++k)
                             CHECK(res.seamDE[k] >= 0 && res.seamDE[k] < 3.0f, "%s: seam %d's colour ΔE %.1f under 3", row->name.c_str(), k, res.seamDE[k]);
                         CHECK(st.stitched == 3, "%s: three seams stitched (%d)", row->name.c_str(), st.stitched);
+                        // her own rig: the head's and the feet's chains stay the model's (its head, hair and feet ride their own joints)
+                        if (row->rig > 0) {
+                            bool keep = res.body.rigPivots.size() == m.bones.size();
+                            for (const char* n : {"Neck1", "Head", "L_Foot", "R_Foot", "L_Toe", "R_Toe"}) {
+                                int b = m.findWowBone(n);
+                                if (keep && b >= 0) keep = (res.body.rigPivots[size_t(b)] - m.bones[size_t(b)].pivot).length() < 1e-6f;
+                            }
+                            int ua = m.findWowBone("L_UpperArm");
+                            CHECK(keep && ua >= 0 && (res.body.rigPivots[size_t(ua)] - m.bones[size_t(ua)].pivot).length() > 1e-4f,
+                                  "%s: her rig moves her body's joints and keeps the head's and feet's", row->name.c_str());
+                        }
                         // the stitch: every vertex added past Eve's own sits exactly on a model vertex with its weights (no gap in any pose)
                         size_t added = 0, off = 0;
                         for (size_t v = e.vertexCount(); v < res.body.verts.size(); ++v) {
@@ -364,6 +622,29 @@ int main(int argc, char** argv) {
                             if (!on) ++off;
                         }
                         CHECK(added > 0 && off == 0, "%s: %zu stitch vertices, %zu off the model's edge", row->name.c_str(), added, off);
+                        posedSeams(m, look, res, e.vertexCount(), row->name);
+                        // Keep undead bones (a row with "detail"): its details carried, the seams' colour as with them off (within 3)
+                        if (row->detail > 0) {
+                            EveJob off = j;
+                            off.opt.bones = false;
+                            EveResult r0 = eveCompute(off);
+                            std::printf("  %s: Keep undead bones: %zu pieces, %zu vertices kept, %zu texels, %.1f ms; seams ΔE off %.1f/%.1f/%.1f\n", row->name.c_str(),
+                                        res.detailPieces, res.detailKept, res.detailCovered, res.detailMs, r0.seamDE[0], r0.seamDE[1], r0.seamDE[2]);
+                            CHECK(res.detail && res.detailPieces > 0 && res.detailCovered > 0 && (row->detail < 2 || res.detailKept > 0), "%s: details carried", row->name.c_str());
+                            CHECK(r0.ok && !r0.detail && r0.rgba != res.rgba, "%s: off, none", row->name.c_str());
+                            for (int k = 0; k < 3; ++k)
+                                CHECK(std::fabs(res.seamDE[k] - r0.seamDE[k]) <= 3.0f, "%s: seam %d's ΔE %.1f with them, %.1f without", row->name.c_str(), k,
+                                      res.seamDE[k], r0.seamDE[k]);
+                            // the set's cache: the same body again is the same bytes, made no slower than the first
+                            EveResult again = eveCompute(j);
+                            CHECK(again.rgba == res.rgba && again.cutIndices == res.cutIndices, "%s: the cached layer gives the same bytes (%.1f ms)", row->name.c_str(),
+                                  again.detailMs);
+                            // off is exactly the table without the row's details
+                            EveJob plain = j;
+                            plain.fit.detail = 0;
+                            EveResult rp = eveCompute(plain);
+                            CHECK(rp.rgba == r0.rgba && rp.cutIndices == r0.cutIndices, "%s: off is the body as it was", row->name.c_str());
+                        }
                     }
                 }
             }

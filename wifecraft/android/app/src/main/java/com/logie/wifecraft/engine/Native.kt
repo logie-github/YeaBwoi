@@ -139,10 +139,10 @@ object Native {
     @JvmStatic external fun loadEveSet(scene: Long, dir: String, fitJson: String): String
     /**
      * Eve on [actor] (bodyparts/EveOptions: [on], the lower body [bottom], [tone] -1 tinted / a tone's index, overlay [slot]
-     * -1 none, [shade] -1 nearest, [opacity] 0..1); fitted at the next frame and again at each change of look. The caller
+     * -1 none, [shade] -1 nearest, [opacity] 0..1, [bones] Keep undead bones: EveBones); fitted at the next frame and again at each change of look. The caller
      * says when the look is unclothed (EveRule); the engine refuses a race its fit table excludes.
      */
-    @JvmStatic external fun setEveBody(scene: Long, actor: Int, on: Boolean, bottom: String, tone: Int, slot: Int, shade: Int, opacity: Float)
+    @JvmStatic external fun setEveBody(scene: Long, actor: Int, on: Boolean, bottom: String, tone: Int, slot: Int, shade: Int, opacity: Float, bones: Boolean)
     @JvmStatic external fun clearEveBody(scene: Long, actor: Int)
     /** "on|NECK|ANKLE|SHADE|MS|why": drawn or not, the skin colours matched (RRGGBB), the overlay shade, the fit's cost, why not. */
     @JvmStatic external fun eveStatus(scene: Long, actor: Int): String
@@ -342,7 +342,7 @@ object Native {
      * The Eve body (as [setEveBody] takes it) on the NEXT [thumbLook] or [thumbCard] only, called right before it on the GL
      * thread; taken once (a picture without it is of her own body).
      */
-    @JvmStatic external fun thumbEve(scene: Long, on: Boolean, bottom: String, tone: Int, slot: Int, shade: Int, opacity: Float)
+    @JvmStatic external fun thumbEve(scene: Long, on: Boolean, bottom: String, tone: Int, slot: Int, shade: Int, opacity: Float, bones: Boolean)
 
     const val GIZMO_OFF = 0
     const val GIZMO_MOVE = 1

@@ -594,7 +594,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     private fun applyEve(h: Long, key: String, id: Int) {
         val o = eveOptions[key] ?: return
         if (o.on && ensureEveSet(h).isNotEmpty()) return
-        Native.setEveBody(h, id, o.on, o.bottom, o.tone, o.overlaySlot, o.overlayShade, o.opacity)
+        Native.setEveBody(h, id, o.on, o.bottom, o.tone, o.overlaySlot, o.overlayShade, o.opacity, o.bones)
     }
 
     /**

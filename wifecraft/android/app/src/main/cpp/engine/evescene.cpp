@@ -113,6 +113,7 @@ void Scene::eveCheck(Actor& a) {
         uint32_t op; std::memcpy(&op, &e.opt.opacity, 4);
         k = mixKey(k, uint64_t(uint32_t(e.opt.tone)) << 32 | uint32_t(e.opt.overlaySlot));
         k = mixKey(k, uint64_t(uint32_t(e.opt.overlayShade)) << 32 | op);
+        if (!e.opt.bones) k = mixKey(k, 0xB0E5);   // (Keep undead bones off; on keeps the key it always had)
         for (float f : a.parts.tint) { uint32_t bits; std::memcpy(&bits, &f, 4); k = mixKey(k, bits); }
         for (size_t i = 0; i < a.sculpt.size(); ++i) {   // the creator's sculpt (sculpt.h; Leg Length is the skeleton's, bodyrig.h)
             if (i == size_t(kSculptLegLength) || i == size_t(kSculptHeight)) continue;
@@ -388,6 +389,9 @@ void Scene::eveSwap(Actor& a, EveResult& r, bool inRefresh, bool staged) {
                  e.body.stats.ms, e.composeMs, r.totalMs, e.sync ? "at once" : "on the worker", e.body.indices.size() / 3, b.indices.size() / 3,
                  e.neckRgb, e.ankleRgb, e.shade, e.glMs, staged ? e.stageMs : 0.0, e.sync ? 0u : e.waitFrames);
     std::fprintf(stderr, "eve seams: colour across the neck %.1f, ankles %.1f / %.1f (CIE76 ΔE)\n", r.seamDE[0], r.seamDE[1], r.seamDE[2]);
+    if (r.detail)
+        std::fprintf(stderr, "eve details (Keep undead bones): %zu pieces (%zu vertices kept), %zu texels covered, %.1f ms\n", r.detailPieces,
+                     r.detailKept, r.detailCovered, r.detailMs);
     const BodyScale& k = e.body.scale;
     std::fprintf(stderr, "eve proportions: head %.3f, height %.3f (%.2f heads) -> %.3f (%.2f heads); legs %.3f torso %.3f arms %.3f hands %.3f spread %.3f\n",
                  e.body.stats.head, e.body.stats.height, e.body.stats.height / std::max(e.body.stats.head, 1e-3f), e.body.stats.heightAfter,

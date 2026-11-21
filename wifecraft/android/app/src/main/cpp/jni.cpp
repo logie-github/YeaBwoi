@@ -222,12 +222,14 @@ JNIEXPORT jstring JNICALL FN(loadEveSet)(JNIEnv* env, jclass, jlong h, jstring d
     return env->NewStringUTF(ok ? "" : err.c_str());
 }
 
-JNIEXPORT void JNICALL FN(setEveBody)(JNIEnv* env, jclass, jlong h, jint id, jboolean on, jstring bottom, jint tone, jint slot, jint shade, jfloat opacity) {
+JNIEXPORT void JNICALL FN(setEveBody)(JNIEnv* env, jclass, jlong h, jint id, jboolean on, jstring bottom, jint tone, jint slot, jint shade, jfloat opacity,
+                                      jboolean bones) {
     wc::EveOptions o;
     o.on = on;
     o.bottom = str(env, bottom);
     if (o.bottom.empty()) o.bottom = "plain";
     o.tone = tone; o.overlaySlot = slot; o.overlayShade = shade; o.opacity = opacity;
+    o.bones = bones == JNI_TRUE;
     scene(h)->setEveBody(id, o);
 }
 
@@ -624,12 +626,14 @@ JNIEXPORT jintArray JNICALL FN(thumbCard)(JNIEnv* env, jclass, jlong h, jint mod
 JNIEXPORT jstring JNICALL FN(thumbError)(JNIEnv* env, jclass, jlong) { return env->NewStringUTF(gThumbError.c_str()); }
 
 // The Eve body (bodyparts/EveOptions) on the next look picture only (thumbLook or thumbCard right after, on this thread).
-JNIEXPORT void JNICALL FN(thumbEve)(JNIEnv* env, jclass, jlong, jboolean on, jstring bottom, jint tone, jint slot, jint shade, jfloat opacity) {
+JNIEXPORT void JNICALL FN(thumbEve)(JNIEnv* env, jclass, jlong, jboolean on, jstring bottom, jint tone, jint slot, jint shade, jfloat opacity,
+                                    jboolean bones) {
     EveOptions o;
     o.on = on == JNI_TRUE;
     o.bottom = str(env, bottom);
     if (o.bottom.empty()) o.bottom = "plain";
     o.tone = tone; o.overlaySlot = slot; o.overlayShade = shade; o.opacity = opacity;
+    o.bones = bones == JNI_TRUE;
     gThumbEve = o;
 }
 

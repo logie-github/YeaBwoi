@@ -918,7 +918,7 @@ bool Scene::actorFlesh(int id, std::vector<float>& out) {
     if (key == 0) key = 1;
     if (a.fleshKey != key) {
         const bool eve = a.eve.active && a.eve.measure.host >= 0;
-        const LegEdit legs = bodyEditOf(m, legK);
+        const LegEdit legs = a.eve.active && !a.eve.body.rigPivots.empty() ? bodyEditFrom(m, a.eve.body.rigPivots, legK) : bodyEditOf(m, legK);
         const LegEdit* lp = legs.active ? &legs : nullptr;
         FleshMeasure f = eve ? measureFlesh(m, a.eve.measure.verts, a.eve.measure.indices, a.eve.measure.subs, a.geosets, nullptr, lp)
                              : measureFlesh(m, shaped ? a.body.shaped : m.vertices, shaped ? a.body.indices : m.indices,
@@ -1262,7 +1262,10 @@ void Scene::animate(Actor& a, uint32_t now) {
     {
         BodyScale k = a.eve.active ? a.eve.body.scale : BodyScale();
         if (a.sculpt.size() > size_t(kSculptLegLength)) k.legs *= legLengthFactor(a.sculpt[size_t(kSculptLegLength)]);
-        if (a.legEdit.model != &m || !(a.legEdit.scale == k)) a.legEdit = bodyEditOf(m, k);
+        // (an Eve body with her own rig: the animation runs about her joints, evebody.h EveBody::rigPivots)
+        const std::vector<V3>* rig = a.eve.active && !a.eve.body.rigPivots.empty() ? &a.eve.body.rigPivots : nullptr;
+        const void* base = rig ? rig->data() : nullptr;
+        if (a.legEdit.model != &m || !(a.legEdit.scale == k) || a.legEdit.base != base) a.legEdit = rig ? bodyEditFrom(m, *rig, k) : bodyEditOf(m, k);
     }
     if (!hasSeq && !a.boneAnim) {
         if (a.legEdit.active) legEditMatrices(m.bones, std::vector<BonePose>(), a.legEdit, a.mats);

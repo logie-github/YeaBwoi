@@ -4,6 +4,7 @@ import com.logie.wifecraft.characters.ImportedLooks
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -34,6 +35,29 @@ class GearRealTest {
                 val a = outfits.dressed(Appearance(race.id, sex, classId = cls.id))
                 val look = ImportedLooks.of(c, t, a, null, Overrides.None).look
                 assertTrue(look.model > 0 && look.layers.isNotEmpty(), "race ${race.id} $sex ${cls.name}")
+            }
+        }
+
+        // every outfit that wears boots draws them: the boots' geoset (group 5) and a feet geoset (group 20: 2002 the shod
+        // foot for the item's GeosetGroup_1 0, else that value, 2001 the toes of an open-toed boot such as the death
+        // knight's Acherus Knight's Greaves, whose foot texture is see-through at the toes in the game's own art), and the
+        // boots' texture layers on the lower leg or foot (CreatureLooks' clothing layer 125) placed by the layout
+        for (race in c.races) for (sex in race.sexes) {
+            if (c.model(race.id, sex) == null) continue
+            for (cls in outfits.classesFor(race.id)) {
+                val a = outfits.dressed(Appearance(race.id, sex, classId = cls.id))
+                val feet = a.clothing[8] ?: continue
+                val what = "race ${race.id} $sex ${cls.name}: boots $feet"
+                val plan = ImportedLooks.of(c, t, a, null, Overrides.None)
+                val g = plan.look.geosetGroups
+                assertTrue((g[5] ?: 0) >= 1, "$what: boots geoset ${g[5]}")
+                val v = items[feet]!!["GeosetGroup_1"]!!.trim().toInt()
+                assertEquals(if (v == 0) 2 else v, g[20], "$what: feet geoset")
+                val sections = materials[feet].orEmpty().map { it["ComponentSection"]!!.trim().toInt() }.filter { it == 6 || it == 7 }
+                if (sections.isEmpty()) continue
+                val call = plan.call(t)
+                val placed = (0 until call.layerFiles.size).count { call.layerMeta[it * Dressing.META + 1] == 125 }
+                assertEquals(sections.size, placed, "$what: lower leg and foot layers placed (skipped: ${call.skipped})")
             }
         }
 

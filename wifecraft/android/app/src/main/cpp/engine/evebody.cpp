@@ -194,7 +194,8 @@ bool parseEveFitTable(const std::string& json, EveFitTable& out, std::string& er
         num("calf", f.calf); num("arm", f.arm); num("forearm", f.forearm); num("neckTuck", f.neckTuck); num("neckLift", f.neckLift);
         num("neckBase", f.neckBase); num("ankleLift", f.ankleLift); num("ankleTuck", f.ankleTuck); num("ankleSink", f.ankleSink);
         num("heads", f.heads); num("hipRatio", f.hipRatio); num("armRatio", f.armRatio); num("handHeads", f.handHeads); num("spread", f.spread);
-        num("split", f.split); num("transfer", f.transfer); num("stitch", f.stitch);
+        num("split", f.split); num("transfer", f.transfer); num("stitch", f.stitch); num("detail", f.detail);
+        num("rezone", f.rezone); num("limbs", f.limbs); num("rig", f.rig);
     };
     if (j.has("defaults")) readFit(j["defaults"]["fit"], defaults);
     for (const Json& r : rows.a) {
@@ -448,6 +449,22 @@ const Helper kHelpers[] = {
     {"L_UpperArmTwist", 73, "L_UpperArm"}, {"R_UpperArmTwist", 72, "R_UpperArm"},
     {"L_ElbowHelper", 75, "L_Forearm"}, {"R_ElbowHelper", 74, "R_Forearm"},
     {"L_ForearmTwist", 77, "L_Forearm"}, {"R_ForearmTwist", 76, "R_Forearm"},
+};
+
+// The Sims 4 adult rig's joints (its bind pose, in Warcraft axes and Sims metres from the feet; read from the game's own rig
+// resource, the one Eve and every CAS body is skinned for), by the Warcraft name her weights carry (EveProfile.wowBone); left
+// side, the right mirrored. Twist and elbow helpers sit at their own joints.
+const std::pair<const char*, V3> kEveSimsRig[] = {
+    {"Pelvis", V3(0.0000f, 0.0000f, 1.1232f)}, {"Spine1", V3(0.0000f, 0.0000f, 1.1292f)}, {"Spine2", V3(0.0000f, 0.0000f, 1.2912f)},
+    {"Chest", V3(0.0000f, 0.0000f, 1.4507f)}, {"Neck1", V3(-0.0361f, 0.0000f, 1.6066f)},
+    {"L_Clavicle", V3(-0.0206f, 0.0200f, 1.5230f)}, {"L_UpperArm", V3(-0.0206f, 0.1600f, 1.5230f)}, {"L_Forearm", V3(-0.0366f, 0.3871f, 1.2967f)},
+    {"L_Hand", V3(-0.0204f, 0.5902f, 1.0943f)}, {"L_Thumb1", V3(0.0090f, 0.5987f, 1.0776f)}, {"L_Thumb2", V3(0.0287f, 0.6041f, 1.0543f)},
+    {"L_Index1", V3(0.0190f, 0.6396f, 1.0437f)}, {"L_Index2", V3(0.0238f, 0.6706f, 1.0128f)}, {"L_Middle1", V3(-0.0032f, 0.6444f, 1.0425f)},
+    {"L_Middle2", V3(-0.0006f, 0.6760f, 1.0091f)}, {"L_Ring1", V3(-0.0253f, 0.6448f, 1.0419f)}, {"L_Ring2", V3(-0.0227f, 0.6746f, 1.0096f)},
+    {"L_Pinky1", V3(-0.0443f, 0.6406f, 1.0433f)}, {"L_Pinky2", V3(-0.0426f, 0.6686f, 1.0147f)},
+    {"L_Thigh", V3(0.0000f, 0.0660f, 1.0122f)}, {"L_Calf", V3(0.0126f, 0.0837f, 0.5287f)}, {"L_Foot", V3(-0.0097f, 0.0991f, 0.1106f)},
+    {"L_Breast", V3(0.0919f, 0.0740f, 1.4190f)},
+    {"L_UpperArmTwist", V3(-0.0206f, 0.1600f, 1.5230f)}, {"L_ForearmTwist", V3(-0.0287f, 0.4870f, 1.1971f)}, {"L_ElbowHelper", V3(-0.0366f, 0.3871f, 1.2967f)},
 };
 
 int resolveBone(const M2Model& m, const std::string& name) {
@@ -866,6 +883,297 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         P[v] = tot > 0 ? acc * (1.0f / tot) : tp;
         N[v] = nacc.normalized();
     }
+    // the model's bones by their nearest ancestor among `named` (-1: none)
+    auto ancestorIn = [&](int b, const std::vector<int>& named) {
+        for (int c = b, g = 0; c >= 0 && size_t(c) < m.bones.size() && g < 256; c = m.bones[size_t(c)].parent, ++g)
+            for (int n : named) if (n == c) return n;
+        return -1;
+    };
+    auto mainBone = [](const M2Vertex& v) { int k = 0; for (int i = 1; i < 4; ++i) if (v.weights[i] > v.weights[k]) k = i; return int(v.bones[k]); };
+    // ---- the limbs' girth toward the model's own: each segment's median radius (its middle 60%) on the body Eve replaces
+    // against hers as fitted, both sides together; her vertices moved across the bone by their weight on it
+    const bool rig = fit.rig > 0;
+    // ---- the Eve rig: her body as made, scaled to the model's neck height and set on its pelvis line; each body bone's pivot
+    // at her own joint (the Sims rig's, likewise scaled); what hangs under a moved bone moves with it, but for the head's and
+    // the feet's chains, which keep the model's (its head, hair and feet are drawn on them, unchanged)
+    if (rig) {
+        V3 simsNeck;
+        for (const auto& j : kEveSimsRig) if (std::string(j.first) == "Neck1") simsNeck = j.second;
+        const float sr = neckW.z / std::max(simsNeck.z, 1e-3f);
+        const V3 off(pelvisW.x, 0, 0);
+        for (size_t v = 0; v < nv; ++v) {
+            P[v] = P0[v] * sr + off;
+            N[v] = V3(eve.nrm[v * 3], eve.nrm[v * 3 + 1], eve.nrm[v * 3 + 2]).normalized();
+        }
+        // her joints (scaled), by Warcraft name, both sides
+        std::map<std::string, V3> J;
+        for (const auto& jt : kEveSimsRig) {
+            std::string n = jt.first;
+            J[n] = jt.second * sr + off;
+            if (n.compare(0, 2, "L_") == 0) J["R_" + n.substr(2)] = mirrorY(jt.second) * sr + off;
+        }
+        // ---- her arms and legs turned to the model's rest pose (each segment along the model's own: the model's animations
+        // are turns from its rest, so her rest must point as its does), skinned by her own weights about her own joints: as a
+        // Sims body is posed in the Sims. Parent first; helpers and fingers ride their limb's turn.
+        struct Turn { V3 from, to; M3 R; bool ok = false; };   // x -> to + R (x - from)
+        std::map<int, Turn> turn;   // by model bone
+        std::map<std::string, V3> A = J;   // her joints as turned
+        auto wowPiv = [&](const std::string& n, V3& p) { int b = m.findWowBone(n); if (b < 0) return false; p = m.bones[size_t(b)].pivot; return true; };
+        const char* chain[][3] = {{"Clavicle", "UpperArm", ""}, {"UpperArm", "Forearm", "Clavicle"}, {"Forearm", "Hand", "UpperArm"},
+                                  {"Hand", "Middle1", "Forearm"}, {"Thigh", "Calf", ""}, {"Calf", "Foot", "Thigh"}};
+        for (int sd = 0; sd < 2; ++sd) {
+            const std::string px = sd ? "R_" : "L_";
+            for (const auto& c : chain) {
+                const std::string bn = px + c[0], cn = px + c[1], pn = c[2][0] ? px + c[2] : "";
+                int b = resolveBone(m, bn);
+                if (b < 0 || m.findWowBone(bn) != b || !J.count(bn) || !J.count(cn)) continue;
+                const Turn* par = !pn.empty() ? (turn.count(m.findWowBone(pn)) ? &turn[m.findWowBone(pn)] : nullptr) : nullptr;
+                // where her joint and her child's are once the parent has turned
+                auto viaParent = [&](V3 x) { return par && par->ok ? par->to + par->R * (x - par->from) : x; };
+                V3 jb = viaParent(J[bn]), jc = viaParent(J[cn]);
+                V3 wb, wc;
+                Turn t;
+                t.from = J[bn]; t.to = jb;
+                M3 G = par && par->ok ? par->R : M3();
+                if (wowPiv(bn, wb) && wowPiv(cn, wc) && (wc - wb).length() > 1e-4f && (jc - jb).length() > 1e-4f) G = rotBetween(jc - jb, wc - wb) * G;
+                t.R = G; t.ok = true;
+                turn[b] = t;
+                A[bn] = jb; A[cn] = t.to + t.R * (J[cn] - t.from);
+            }
+            // the legs exactly along the model's (its feet stay on its own ankles): her shin's length up from the model's ankle along
+            // its shin, her thigh's up from there along its thigh; the hip moves with it (her thigh's skin by its weight)
+            {
+                V3 hipW, kneeW, ankW;
+                const std::string tn = px + "Thigh", cn = px + "Calf", fn = px + "Foot";
+                int tb = m.findWowBone(tn), cb = m.findWowBone(cn);
+                if (tb >= 0 && cb >= 0 && J.count(tn) && J.count(cn) && J.count(fn) && wowPiv(tn, hipW) && wowPiv(cn, kneeW) && wowPiv(fn, ankW)) {
+                    V3 dT = (kneeW - hipW).normalized(), dC = (ankW - kneeW).normalized();
+                    float lT = (J[cn] - J[tn]).length(), lC = (J[fn] - J[cn]).length();
+                    V3 knee2 = ankW - dC * lC, hip2 = knee2 - dT * lT;
+                    Turn tt; tt.from = J[tn]; tt.to = hip2; tt.R = rotBetween(J[cn] - J[tn], dT); tt.ok = true;
+                    Turn tc; tc.from = J[cn]; tc.to = knee2; tc.R = rotBetween(J[fn] - J[cn], dC); tc.ok = true;
+                    turn[tb] = tt; turn[cb] = tc;
+                    A[tn] = hip2; A[cn] = knee2; A[fn] = ankW;
+                }
+            }
+            // helpers and fingers: their limb's turn
+            const std::pair<const char*, const char*> ride[] = {{"UpperArmTwist", "UpperArm"}, {"ForearmTwist", "Forearm"}, {"ElbowHelper", "Forearm"},
+                {"Thumb1", "Hand"}, {"Thumb2", "Hand"}, {"Index1", "Hand"}, {"Index2", "Hand"}, {"Middle1", "Hand"}, {"Middle2", "Hand"},
+                {"Ring1", "Hand"}, {"Ring2", "Hand"}, {"Pinky1", "Hand"}, {"Pinky2", "Hand"}};
+            for (const auto& rd : ride) {
+                int limb = m.findWowBone(px + rd.second);
+                if (limb < 0 || !turn.count(limb)) continue;
+                const Turn& t = turn[limb];
+                std::string hn = px + rd.first;
+                int b = resolveBone(m, hn);
+                if (J.count(hn)) A[hn] = t.to + t.R * (J[hn] - t.from);
+                if (b >= 0 && !turn.count(b)) turn[b] = t;
+            }
+        }
+        // her vertices by her own weights
+        for (size_t v = 0; v < nv; ++v) {
+            V3 acc, nacc; float tot = 0;
+            for (int i = 0; i < WM[v].n; ++i) {
+                int b = WM[v].e[size_t(i)].first;
+                float w = WM[v].e[size_t(i)].second;
+                auto it = turn.find(b);
+                if (it == turn.end()) { acc = acc + P[v] * w; nacc = nacc + N[v] * w; }
+                else { acc = acc + (it->second.to + it->second.R * (P[v] - it->second.from)) * w; nacc = nacc + (it->second.R * N[v]) * w; }
+                tot += w;
+            }
+            if (tot > 0) { P[v] = acc * (1.0f / tot); N[v] = nacc.normalized(); }
+        }
+        out.rigPivots.resize(m.bones.size());
+        std::vector<int8_t> moved(m.bones.size(), 0);   // 1 placed from the rig, -1 kept (head and feet chains)
+        for (size_t b = 0; b < m.bones.size(); ++b) out.rigPivots[b] = m.bones[b].pivot;
+        for (const auto& [name, p] : A) {
+            if (name == "Neck1" || name == "L_Foot" || name == "R_Foot") continue;   // (the neck and feet are the model's)
+            int b = resolveBone(m, name);
+            bool own = m.findWowBone(name) == b;
+            for (const Helper& h : kHelpers) if (name == h.name) own = b >= 0 && m.bones[size_t(b)].keyBoneId == h.key;
+            if (b < 0 || size_t(b) >= m.bones.size() || !own || moved[size_t(b)] == 1) continue;
+            out.rigPivots[size_t(b)] = p;
+            moved[size_t(b)] = 1;
+        }
+        for (const char* n : {"Root", "Neck1", "L_Foot", "R_Foot", "L_Ankle", "R_Ankle"}) { int b = m.findWowBone(n); if (b >= 0 && !moved[size_t(b)]) moved[size_t(b)] = -1; }
+        // the rest: by their nearest decided ancestor (moved: carried by its offset; kept, or none: as the model has them)
+        for (size_t b = 0; b < m.bones.size(); ++b) {
+            if (moved[b]) continue;
+            for (int c = m.bones[b].parent, g = 0; c >= 0 && size_t(c) < m.bones.size() && g < 256; c = m.bones[size_t(c)].parent, ++g) {
+                if (!moved[size_t(c)]) continue;
+                if (moved[size_t(c)] == 1) out.rigPivots[b] = m.bones[b].pivot + (out.rigPivots[size_t(c)] - m.bones[size_t(c)].pivot);
+                break;
+            }
+        }
+        out.stats.rigScale = sr;
+    }
+    if (fit.limbs > 0 && !rig) {
+        const char* segBone[4] = {"UpperArm", "Forearm", "Thigh", "Calf"};
+        const int segRegion[4] = {kUpperArm, kForearm, kThigh, kCalf};
+        std::vector<int> limbBones;
+        int lb[2][4];
+        for (int sd = 0; sd < 2; ++sd) for (int k = 0; k < 4; ++k) {
+            lb[sd][k] = m.findWowBone(std::string(sd ? "R_" : "L_") + segBone[k]);
+            if (lb[sd][k] >= 0) limbBones.push_back(lb[sd][k]);
+        }
+        for (const char* n : {"L_Hand", "R_Hand", "L_Foot", "R_Foot", "L_Ankle", "R_Ankle", "Pelvis", "Chest", "L_Clavicle", "R_Clavicle"}) {
+            int b = m.findWowBone(n); if (b >= 0) limbBones.push_back(b);
+        }
+        auto ends = [&](int sd, int k, V3& a, V3& b) {
+            const Side& w = W[sd];
+            switch (k) { case 0: a = w.shoulder; b = w.elbow; break; case 1: a = w.elbow; b = w.wrist; break;
+                         case 2: a = w.hip; b = w.knee; break; default: a = w.knee; b = w.ankle; }
+        };
+        auto radial = [](V3 p, V3 a, V3 b, float& t) {
+            V3 ab = b - a; t = (p - a).dot(ab) / std::max(ab.dot(ab), 1e-8f);
+            return p - (a + ab * t);
+        };
+        for (int k = 0; k < 4; ++k) {
+            std::vector<float> rm, re;
+            for (int sd = 0; sd < 2; ++sd) {
+                if (lb[sd][k] < 0) continue;
+                V3 a, b; ends(sd, k, a, b);
+                for (size_t i = 0; i < verts.size(); ++i) {
+                    if (!out.cut[i] || ancestorIn(mainBone(verts[i]), limbBones) != lb[sd][k]) continue;
+                    float t; V3 r = radial(posOf(verts[i]), a, b, t);
+                    if (t > 0.2f && t < 0.8f) rm.push_back(r.length());
+                }
+                for (size_t v = 0; v < nv; ++v) {
+                    int best = 0;
+                    for (int q = 1; q < 4; ++q) if (eve.bw[v * 4 + q] > eve.bw[v * 4 + best]) best = q;
+                    if (regOf[eve.bi[v * 4 + best]] != sd * kRegionsPerSide + segRegion[k]) continue;
+                    float t; V3 r = radial(P[v], a, b, t);
+                    if (t > 0.2f && t < 0.8f) re.push_back(r.length());
+                }
+            }
+            if (rm.size() < 8 || re.size() < 8) continue;
+            std::nth_element(rm.begin(), rm.begin() + long(rm.size() / 2), rm.end());
+            std::nth_element(re.begin(), re.begin() + long(re.size() / 2), re.end());
+            float f = std::clamp(1 + fit.limbs * (rm[rm.size() / 2] / std::max(re[re.size() / 2], 1e-4f) - 1), 0.75f, 1.6f);
+            out.stats.limbScale[k] = f;
+            if (std::fabs(f - 1) < 1e-3f) continue;
+            for (int sd = 0; sd < 2; ++sd) {
+                V3 a, b; ends(sd, k, a, b);
+                for (size_t v = 0; v < nv; ++v) {
+                    float w = 0;
+                    for (int q = 0; q < 4; ++q) if (regOf[eve.bi[v * 4 + q]] == sd * kRegionsPerSide + segRegion[k]) w += eve.bw[v * 4 + q] / 255.0f;
+                    if (w <= 0) continue;
+                    float t; V3 r = radial(P[v], a, b, t);
+                    if (t < -0.15f || t > 1.15f) continue;
+                    // (at the joints the move fades: the segment's ends are shared with its neighbours)
+                    float edge = std::clamp(std::min(t + 0.15f, 1.15f - t) / 0.3f, 0.0f, 1.0f);
+                    P[v] = P[v] + r * ((f - 1) * w * edge);
+                }
+            }
+        }
+    }
+    // ---- the trunk's weights from the model's own body: each trunk vertex takes the bone weights of the model's skin around
+    // it (Gaussian over 5 cm, facing the same way), blended in by how much of it the trunk drives (and, round the hips, the
+    // thighs above the hip joints); arms, hands and legs below the hips keep Eve's
+    if (fit.rezone > 0 && !rig) {
+        std::vector<int> trunkNamed;
+        for (const char* n : {"Root", "Pelvis", "Waist", "Spine1", "Spine2", "Chest", "L_Breast", "R_Breast", "L_Clavicle", "R_Clavicle"}) {
+            int b = m.findWowBone(n); if (b >= 0) trunkNamed.push_back(b);
+        }
+        std::vector<int> stops = trunkNamed;   // (a limb's bones end the trunk's reach)
+        for (const char* n : {"L_UpperArm", "R_UpperArm", "L_Thigh", "R_Thigh", "Neck1", "Head"}) { int b = m.findWowBone(n); if (b >= 0) stops.push_back(b); }
+        std::vector<uint8_t> trunk(m.bones.size(), 0), thigh(m.bones.size(), 0);
+        const int thighs[2] = {m.findWowBone("L_Thigh"), m.findWowBone("R_Thigh")};
+        for (size_t b = 0; b < m.bones.size(); ++b) {
+            int a = ancestorIn(int(b), stops);
+            if (a < 0) continue;
+            if (std::find(trunkNamed.begin(), trunkNamed.end(), a) != trunkNamed.end()) trunk[b] = 1;
+            if (a == thighs[0] || a == thighs[1]) thigh[b] = 1;
+        }
+        const float r = 0.05f * unit, sig2 = r * r * 0.25f;
+        std::map<std::array<int, 3>, std::vector<uint32_t>> grid;
+        auto cell = [&](V3 p) { return std::array<int, 3>{int(std::floor(p.x / r)), int(std::floor(p.y / r)), int(std::floor(p.z / r))}; };
+        for (size_t i = 0; i < verts.size(); ++i) if (out.cut[i]) grid[cell(posOf(verts[i]))].push_back(uint32_t(i));
+        const float hipZ = (W[0].hip.z + W[1].hip.z) * 0.5f;
+        for (size_t v = 0; v < nv; ++v) {
+            float tw = 0, th = 0;
+            for (int i = 0; i < WM[v].n; ++i) {
+                int b = WM[v].e[size_t(i)].first;
+                if (b < 0 || size_t(b) >= m.bones.size()) continue;
+                if (trunk[size_t(b)]) tw += WM[v].e[size_t(i)].second;
+                else if (thigh[size_t(b)]) th += WM[v].e[size_t(i)].second;
+            }
+            float tot = 0;
+            for (int i = 0; i < WM[v].n; ++i) tot += WM[v].e[size_t(i)].second;
+            if (tot <= 0) continue;
+            // the thighs' share counts round the hips: fully above the hip joints, none 12 cm below them
+            float hipBand = std::clamp((P[v].z - (hipZ - 0.12f * unit)) / (0.12f * unit), 0.0f, 1.0f);
+            hipBand = hipBand * hipBand * (3 - 2 * hipBand);
+            float alpha = std::clamp((tw + th * hipBand) / tot, 0.0f, 1.0f) * std::clamp(fit.rezone, 0.0f, 1.0f);
+            if (alpha < 0.02f) continue;
+            WMap game; float wsum = 0, best = 1e30f; uint32_t nearest = UINT32_MAX;
+            auto c0 = cell(P[v]);
+            for (int dx = -1; dx <= 1; ++dx) for (int dy = -1; dy <= 1; ++dy) for (int dz = -1; dz <= 1; ++dz) {
+                auto it = grid.find({c0[0] + dx, c0[1] + dy, c0[2] + dz});
+                if (it == grid.end()) continue;
+                for (uint32_t i : it->second) {
+                    V3 q = posOf(verts[i]);
+                    float d2 = (q - P[v]).dot(q - P[v]);
+                    V3 nq(verts[i].normal[0], verts[i].normal[1], verts[i].normal[2]);
+                    float facing = nq.normalized().dot(N[v]);
+                    if (facing > 0.0f && d2 < best) { best = d2; nearest = i; }
+                    if (d2 > r * r || facing <= 0.2f) continue;
+                    float wt = std::exp(-d2 / (2 * sig2)) * facing;
+                    for (int k = 0; k < 4; ++k) if (verts[i].weights[k]) game.add(verts[i].bones[k], verts[i].weights[k] / 255.0f * wt);
+                    wsum += wt;
+                }
+            }
+            if (wsum <= 1e-6f) {
+                if (nearest == UINT32_MAX) continue;
+                game = WMap();
+                for (int k = 0; k < 4; ++k) if (verts[nearest].weights[k]) game.add(verts[nearest].bones[k], verts[nearest].weights[k] / 255.0f);
+                wsum = 1;
+            }
+            WMap own = WM[v].scaled(1.0f / tot);
+            WM[v] = blend(own, game.scaled(1.0f / wsum), alpha);
+            ++out.stats.rezoned;
+        }
+    }
+    // ---- the shoulders' weights smoothed over the mesh (each place's weights toward its neighbours', most at the joint,
+    // none past kShoulderReach): the Sims rig's shoulder helpers fold onto the model's upper arm and clavicle in a narrow
+    // band, which pinched a ridge over the shoulder and a crease into the armpit with the arm raised (cheering, asleep
+    // with an arm under the head). UV copies of a place move together.
+    if (!rig) {
+        constexpr float kShoulderReach = 0.13f;   // Sims metres from the shoulder joint
+        constexpr int kPasses = 4;
+        std::unordered_map<int64_t, uint32_t> rep;
+        std::vector<uint32_t> grp(nv);
+        for (size_t v = 0; v < nv; ++v) grp[v] = rep.emplace(weldKey(P0[v], 1e-5f), uint32_t(v)).first->second;
+        std::vector<float> reach(nv, 0);
+        bool any = false;
+        for (size_t v = 0; v < nv; ++v) {
+            if (grp[v] != v) continue;
+            float d = std::min((P0[v] - S[0].shoulder).length(), (P0[v] - S[1].shoulder).length());
+            if (d < kShoulderReach) { float f = 1 - d / kShoulderReach; reach[v] = f * f; any = true; }
+        }
+        if (any) {
+            std::vector<std::vector<uint32_t>> nb(nv);
+            for (size_t t = 0; t + 2 < eve.idx.size(); t += 3)
+                for (int k = 0; k < 3; ++k) {
+                    uint32_t a = grp[eve.idx[t + size_t(k)]], b = grp[eve.idx[t + size_t((k + 1) % 3)]];
+                    if (a == b || (reach[a] <= 0 && reach[b] <= 0)) continue;
+                    if (std::find(nb[a].begin(), nb[a].end(), b) == nb[a].end()) nb[a].push_back(b);
+                    if (std::find(nb[b].begin(), nb[b].end(), a) == nb[b].end()) nb[b].push_back(a);
+                }
+            for (int pass = 0; pass < kPasses; ++pass) {
+                std::vector<WMap> next = WM;
+                for (size_t v = 0; v < nv; ++v) {
+                    if (reach[v] <= 0 || nb[v].empty()) continue;
+                    WMap avg;
+                    const float s = 1.0f / float(nb[v].size());
+                    for (uint32_t u : nb[v]) for (int i = 0; i < WM[u].n; ++i) avg.add(WM[u].e[size_t(i)].first, WM[u].e[size_t(i)].second * s);
+                    next[v] = blend(WM[v], avg, 0.6f * reach[v]);
+                }
+                WM.swap(next);
+            }
+            for (size_t v = 0; v < nv; ++v) if (grp[v] != v) WM[v] = WM[grp[v]];
+        }
+    }
     // ---- the neck onto the model's neck tube: its section scaled to the cut edge's, its top raised inside it
     {
         float nz1 = neckS.z, hwS = 0, x0 = 1e9f, x1 = -1e9f;
@@ -1173,6 +1481,7 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
     out.indices = eve.idx;
     out.indices.insert(out.indices.end(), XI.begin(), XI.end());
     out.scale = eveProportions(m, verts, indices, subs, geosets, out, fit, W[0].hip, W[1].hip, neckW, W[0].shoulder, W[0].elbow, W[0].wrist, out.stats);
+    if (rig) { out.scale = BodyScale(); out.stats.heightAfter = out.stats.height; }   // (her rig is her own proportions: Leg Length alone acts on it)
     out.ok = true;
     out.stats.ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     return out;
@@ -1427,7 +1736,7 @@ void eveApplyCorrection(const EvePrep& p, std::vector<uint8_t>& rgba) {
 
 void eveCompose(const std::vector<uint8_t>& base, int w, int h, V3 gain, const uint8_t* ov, int ow, int oh, int ox, int oy,
                 float opacity, V3 ovGain, const EvePrep& prep, uint32_t neckRgb, uint32_t ankleRgb, std::vector<uint8_t>& out,
-                const EveGainMap* map) {
+                const EveGainMap* map, const EveDetailLayer* detail) {
     const Lut& L = lut();
     out.resize(size_t(w) * h * 4);
     uint8_t tab[3][256];
@@ -1477,6 +1786,7 @@ void eveCompose(const std::vector<uint8_t>& base, int w, int h, V3 gain, const u
             }
         }
     }
+    if (detail && detail->w == w && detail->h == h) eveApplyDetail(*detail, out);   // (Keep undead bones: under the seams' fade)
     V3 tl[2] = {eveLinear(neckRgb), eveLinear(ankleRgb)};
     for (const EveSeamTexel& t : prep.seam) {
         if (t.texel >= n) continue;
@@ -1655,6 +1965,383 @@ int eveSampleAt(const uint8_t* rgba, int w, int h, const std::vector<float>& uvs
     return int(eveRgb(V3(float(r / n), float(g / n), float(b / n))));
 }
 
+// ================================================================================================ the model's own details
+// Keep undead bones: a Forsaken woman's bones (knee joints, the spine, the spurs at her shoulders, elbows and hips) are pieces
+// of her skin's own mesh, textured from her skin's texture, and her wounds, stitches and torn rims are painted into it; Eve's
+// cut takes them all. Here they are found on the model's texture and baked into Eve's skin where her surface lies over them.
+
+namespace {
+// The point of triangle (a, b, c) nearest p, as barycentric weights (Ericson, Real-Time Collision Detection, 5.1.5).
+V3 closestBary(V3 p, V3 a, V3 b, V3 c) {
+    V3 ab = b - a, ac = c - a, ap = p - a;
+    float d1 = ab.dot(ap), d2 = ac.dot(ap);
+    if (d1 <= 0 && d2 <= 0) return V3(1, 0, 0);
+    V3 bp = p - b;
+    float d3 = ab.dot(bp), d4 = ac.dot(bp);
+    if (d3 >= 0 && d4 <= d3) return V3(0, 1, 0);
+    float vc = d1 * d4 - d3 * d2;
+    if (vc <= 0 && d1 >= 0 && d3 <= 0) { float v = d1 / (d1 - d3); return V3(1 - v, v, 0); }
+    V3 cp = p - c;
+    float d5 = ab.dot(cp), d6 = ac.dot(cp);
+    if (d6 >= 0 && d5 <= d6) return V3(0, 0, 1);
+    float vb = d5 * d2 - d1 * d6;
+    if (vb <= 0 && d2 >= 0 && d6 <= 0) { float t = d2 / (d2 - d6); return V3(1 - t, 0, t); }
+    float va = d3 * d6 - d5 * d4;
+    if (va <= 0 && (d4 - d3) >= 0 && (d5 - d6) >= 0) { float t = (d4 - d3) / ((d4 - d3) + (d5 - d6)); return V3(0, 1 - t, t); }
+    float den = 1.0f / (va + vb + vc);
+    float v = vb * den, t = vc * den;
+    return V3(1 - v - t, v, t);
+}
+V3 nrmOf(const M2Vertex& v) { return V3(v.normal[0], v.normal[1], v.normal[2]); }
+float smooth01(float e0, float e1, float x) { float t = std::clamp((x - e0) / (e1 - e0), 0.0f, 1.0f); return t * t * (3 - 2 * t); }
+} // namespace
+
+EveDetailMask eveDetailMask(const std::vector<M2Vertex>& wow, const std::vector<uint32_t>& tris, const uint8_t* skin, int sw, int sh) {
+    EveDetailMask m;
+    if (!skin || sw <= 0 || sh <= 0 || tris.size() < 3) return m;
+    const size_t nv = wow.size();
+    // the islands: triangles joined by their vertices (a texture seam splits the vertices, so an island is one piece of the map)
+    std::vector<uint32_t> up(nv);
+    for (size_t i = 0; i < nv; ++i) up[i] = uint32_t(i);
+    auto root = [&](uint32_t x) { while (up[x] != x) { up[x] = up[up[x]]; x = up[x]; } return x; };
+    for (size_t t = 0; t + 2 < tris.size(); t += 3) {
+        if (tris[t] >= nv || tris[t + 1] >= nv || tris[t + 2] >= nv) continue;
+        uint32_t a = root(tris[t]), b = root(tris[t + 1]), c = root(tris[t + 2]);
+        up[b] = a; up[root(c)] = a;
+    }
+    // the texels under them, each with its island
+    std::vector<int32_t> island(size_t(sw) * sh, -1);
+    for (size_t t = 0; t + 2 < tris.size(); t += 3) {
+        uint32_t a = tris[t], b = tris[t + 1], c = tris[t + 2];
+        if (a >= nv || b >= nv || c >= nv) continue;
+        int32_t id = int32_t(root(a));
+        raster(wow[a].uv[0] * sw, wow[a].uv[1] * sh, wow[b].uv[0] * sw, wow[b].uv[1] * sh, wow[c].uv[0] * sw, wow[c].uv[1] * sh, sw, sh,
+               [&](int x, int y, float, float, float) { island[size_t(y) * sw + x] = id; });
+        // (a triangle thinner than a texel still marks the texel under its centre)
+        int x = std::clamp(int((wow[a].uv[0] + wow[b].uv[0] + wow[c].uv[0]) / 3 * sw), 0, sw - 1);
+        int y = std::clamp(int((wow[a].uv[1] + wow[b].uv[1] + wow[c].uv[1]) / 3 * sh), 0, sh - 1);
+        if (island[size_t(y) * sw + x] < 0) island[size_t(y) * sw + x] = id;
+    }
+    // the skin's tone: the commonest chroma (2-unit bins of a*, b*), its median lightness, their mean colour
+    std::vector<V3> lab(size_t(sw) * sh);
+    std::vector<uint32_t> hist(64 * 64, 0);
+    auto rgbAt = [&](size_t i) { const uint8_t* p = &skin[i * 4]; return uint32_t(p[0]) << 16 | uint32_t(p[1]) << 8 | p[2]; };
+    auto bin = [](float v) { return std::clamp(int(std::floor((v + 64.0f) / 2.0f)), 0, 63); };
+    for (size_t i = 0; i < island.size(); ++i) {
+        if (island[i] < 0) continue;
+        lab[i] = eveLab(rgbAt(i));
+        ++hist[size_t(bin(lab[i].y)) * 64 + size_t(bin(lab[i].z))];
+        ++m.texels;
+    }
+    if (!m.texels) return m;
+    size_t mode = size_t(std::max_element(hist.begin(), hist.end()) - hist.begin());
+    const float ma = float(mode / 64) * 2 - 63, mb = float(mode % 64) * 2 - 63;   // (the bin's centre)
+    std::vector<float> ls;
+    for (size_t i = 0; i < island.size(); ++i)
+        if (island[i] >= 0 && std::fabs(lab[i].y - ma) <= 3 && std::fabs(lab[i].z - mb) <= 3) ls.push_back(lab[i].x);
+    std::nth_element(ls.begin(), ls.begin() + ptrdiff_t(ls.size() / 2), ls.end());
+    const float ml = ls.empty() ? 70.0f : ls[ls.size() / 2];
+    const Lut& L = lut();
+    double acc[3] = {0, 0, 0}; size_t na = 0;
+    for (size_t i = 0; i < island.size(); ++i) {
+        if (island[i] < 0 || std::fabs(lab[i].y - ma) > 3 || std::fabs(lab[i].z - mb) > 3 || std::fabs(lab[i].x - ml) > 8) continue;
+        for (int c = 0; c < 3; ++c) acc[c] += L.lin[skin[i * 4 + c]];
+        ++na;
+    }
+    m.tone = na ? eveRgb(V3(float(acc[0] / na), float(acc[1] / na), float(acc[2] / na))) : rgbAt(0);
+    const V3 tl = eveLab(m.tone);
+    // each texel's distance from it (darker counts half, lighter little: the painted shading and highlights are skin), soft
+    m.w = sw; m.h = sh;
+    m.a.assign(size_t(sw) * sh, 0);
+    std::unordered_map<int32_t, std::pair<double, size_t>> mean;   // island: its texels' summed detail, their count
+    for (size_t i = 0; i < island.size(); ++i) {
+        if (island[i] < 0) continue;
+        // (a texel is detail well off the tone; an island is a piece when most of it is even a little off: a bone's highlights)
+        float dl = lab[i].x - tl.x, c2 = (lab[i].y - tl.y) * (lab[i].y - tl.y) + (lab[i].z - tl.z) * (lab[i].z - tl.z);
+        float dt = dl * (dl < 0 ? 0.25f : 0.15f), dp = dl * (dl < 0 ? 0.5f : 0.15f);
+        float a = smooth01(14.0f, 22.0f, std::sqrt(dt * dt + c2));
+        m.a[i] = uint8_t(a * 255.0f + 0.5f);
+        auto& s = mean[island[i]];
+        s.first += smooth01(9.0f, 16.0f, std::sqrt(dp * dp + c2)); ++s.second;
+    }
+    // an island mostly off the tone is a piece (a bone): all of it is detail, its highlights too
+    std::vector<uint8_t> pieceIsland(nv, 0);
+    for (const auto& [id, s] : mean)
+        if (s.second && s.first / double(s.second) >= 0.5) { pieceIsland[size_t(id)] = 1; ++m.pieces; }
+    for (size_t i = 0; i < island.size(); ++i) {
+        if (island[i] >= 0 && pieceIsland[size_t(island[i])]) m.a[i] = 255;
+        if (m.a[i] >= 128) ++m.detailTexels;
+    }
+    m.piece.assign(nv, 0);
+    for (size_t t = 0; t + 2 < tris.size(); t += 3)
+        for (int k = 0; k < 3; ++k) if (tris[t + k] < nv && pieceIsland[root(tris[t + k])]) m.piece[tris[t + k]] = 1;
+    return m;
+}
+
+EveDetailLayer eveDetailLayer(const EveBody& eve, int w, int h, const std::vector<M2Vertex>& wow, const std::vector<uint32_t>& tris,
+                              const uint8_t* skin, int sw, int sh, const EveDetailMask& mask, const float tint[3], float reach) {
+    auto t0 = std::chrono::steady_clock::now();
+    EveDetailLayer out;
+    if (eve.verts.empty() || mask.empty() || !skin || mask.w != sw || mask.h != sh || w <= 0 || h <= 0 || !(reach > 0)) return out;
+    const size_t nv = wow.size();
+    // the model's body triangles, each with a bounding sphere, in a grid of cells by their centres
+    struct Tri { uint32_t v[3]; V3 c; float r; };
+    std::vector<Tri> mt;
+    for (size_t t = 0; t + 2 < tris.size(); t += 3) {
+        Tri x{{tris[t], tris[t + 1], tris[t + 2]}, V3(), 0};
+        if (x.v[0] >= nv || x.v[1] >= nv || x.v[2] >= nv) continue;
+        V3 a = posOf(wow[x.v[0]]), b = posOf(wow[x.v[1]]), c = posOf(wow[x.v[2]]);
+        x.c = (a + b + c) * (1.0f / 3);
+        x.r = std::max({(a - x.c).length(), (b - x.c).length(), (c - x.c).length()});
+        mt.push_back(x);
+    }
+    if (mt.empty()) return out;
+    // (a dense grid, cells a quarter of the reach, each triangle in every cell its sphere reaches: a query looks at its own few)
+    const float cs = reach / 4;
+    V3 lo3 = mt[0].c, hi3 = mt[0].c;
+    for (const Tri& x : mt) {
+        lo3 = V3(std::min(lo3.x, x.c.x - x.r), std::min(lo3.y, x.c.y - x.r), std::min(lo3.z, x.c.z - x.r));
+        hi3 = V3(std::max(hi3.x, x.c.x + x.r), std::max(hi3.y, x.c.y + x.r), std::max(hi3.z, x.c.z + x.r));
+    }
+    const int gx = int((hi3.x - lo3.x) / cs) + 1, gy = int((hi3.y - lo3.y) / cs) + 1, gz = int((hi3.z - lo3.z) / cs) + 1;
+    if (size_t(gx) * gy * gz > (1u << 22)) return out;   // (a model this large for its reach: nothing sensible to do)
+    auto cellOf = [&](V3 p, int k) { float f = k == 0 ? (p.x - lo3.x) : k == 1 ? (p.y - lo3.y) : (p.z - lo3.z); return int(std::floor(f / cs)); };
+    std::vector<uint32_t> start(size_t(gx) * gy * gz + 1, 0), items;
+    auto cells = [&](const Tri& t, auto f) {
+        int x0 = std::max(0, cellOf(t.c - V3(t.r, t.r, t.r), 0)), x1 = std::min(gx - 1, cellOf(t.c + V3(t.r, t.r, t.r), 0));
+        int y0 = std::max(0, cellOf(t.c - V3(t.r, t.r, t.r), 1)), y1 = std::min(gy - 1, cellOf(t.c + V3(t.r, t.r, t.r), 1));
+        int z0 = std::max(0, cellOf(t.c - V3(t.r, t.r, t.r), 2)), z1 = std::min(gz - 1, cellOf(t.c + V3(t.r, t.r, t.r), 2));
+        for (int z = z0; z <= z1; ++z) for (int y = y0; y <= y1; ++y) for (int x = x0; x <= x1; ++x) f((size_t(z) * gy + y) * gx + x);
+    };
+    for (const Tri& x : mt) cells(x, [&](size_t c) { ++start[c + 1]; });
+    for (size_t i = 1; i < start.size(); ++i) start[i] += start[i - 1];
+    items.resize(start.back());
+    {
+        std::vector<uint32_t> fill(start.begin(), start.end() - 1);
+        for (size_t i = 0; i < mt.size(); ++i) cells(mt[i], [&](size_t c) { items[fill[c]++] = uint32_t(i); });
+    }
+    std::vector<uint32_t> stamp(mt.size(), 0);
+    uint32_t query = 0;
+    // the model's triangles whose spheres come within `rad` of p (each once)
+    auto gather = [&](V3 p, float rad, std::vector<uint32_t>& outList) {
+        outList.clear();
+        ++query;
+        float span = rad;
+        int x0 = std::max(0, cellOf(p - V3(span, span, span), 0)), x1 = std::min(gx - 1, cellOf(p + V3(span, span, span), 0));
+        int y0 = std::max(0, cellOf(p - V3(span, span, span), 1)), y1 = std::min(gy - 1, cellOf(p + V3(span, span, span), 1));
+        int z0 = std::max(0, cellOf(p - V3(span, span, span), 2)), z1 = std::min(gz - 1, cellOf(p + V3(span, span, span), 2));
+        for (int z = z0; z <= z1; ++z) for (int y = y0; y <= y1; ++y) for (int x = x0; x <= x1; ++x) {
+            size_t c = (size_t(z) * gy + y) * gx + x;
+            for (uint32_t k = start[c]; k < start[c + 1]; ++k) {
+                uint32_t i = items[k];
+                if (stamp[i] == query) continue;
+                stamp[i] = query;
+                if ((mt[i].c - p).length() - mt[i].r <= rad) outList.push_back(i);
+            }
+        }
+    };
+    // the nearest point among `cand` facing n, within `best` (squared; updated): its triangle and weights. With `keys` (each
+    // candidate's sphere's distance from a centre within `slack` of p, ascending), it stops where none further can be nearer.
+    auto nearest = [&](V3 p, V3 n, const std::vector<uint32_t>& cand, float& best, int& bt, V3& bb, const std::vector<float>* keys = nullptr,
+                       float slack = 0) {
+        for (size_t j = 0; j < cand.size(); ++j) {
+            if (keys && (*keys)[j] - slack > 0 && ((*keys)[j] - slack) * ((*keys)[j] - slack) >= best) break;
+            const Tri& x = mt[cand[j]];
+            const uint32_t i = cand[j];
+            float lim = std::sqrt(best) + x.r;
+            if ((x.c - p).dot(x.c - p) > lim * lim) continue;
+            const M2Vertex &A = wow[x.v[0]], &B = wow[x.v[1]], &C = wow[x.v[2]];
+            V3 b = closestBary(p, posOf(A), posOf(B), posOf(C));
+            V3 q = posOf(A) * b.x + posOf(B) * b.y + posOf(C) * b.z;
+            float d2 = (q - p).dot(q - p);
+            if (d2 >= best) continue;
+            V3 qn = nrmOf(A) * b.x + nrmOf(B) * b.y + nrmOf(C) * b.z;
+            if (qn.dot(n) <= 0.1f * qn.length()) continue;   // (the far side of a limb, the other thigh: not hers)
+            best = d2; bt = int(i); bb = b;
+        }
+    };
+    out.w = w; out.h = h;
+    out.rgba.assign(size_t(w) * h * 4, 0);
+    std::vector<uint8_t> done(size_t(w) * h, 0);
+    const Lut& L = lut();
+    const size_t ev = eve.verts.size();
+    // each Eve corner's own nearest distance first: it bounds what her triangle's texels need to look at
+    struct Own { int x, y; V3 b; };
+    std::vector<Own> own;
+    std::vector<uint32_t> hint;
+    std::vector<int32_t> found(size_t(w) * h, -2);   // per lattice texel: the model triangle nearest it (-1 none, -2 not searched)
+    std::vector<float> cornerD(ev, -1), keys;
+    std::vector<uint32_t> cand;
+    std::vector<std::pair<float, uint32_t>> order;
+    for (size_t v = 0; v < ev; ++v) {
+        V3 p = posOf(eve.verts[v]), n = nrmOf(eve.verts[v]).normalized();
+        float best = 0; int bt = -1; V3 bb;
+        for (float rr : {0.35f * reach, reach}) {   // (most lie within a third of the reach: a small gather first)
+            gather(p, rr, cand);
+            best = rr * rr;
+            nearest(p, n, cand, best, bt, bb);
+            if (bt >= 0) break;
+        }
+        if (bt >= 0) cornerD[v] = std::sqrt(best);
+    }
+    for (size_t t = 0; t + 2 < eve.indices.size(); t += 3) {
+        uint32_t a = eve.indices[t], b = eve.indices[t + 1], c = eve.indices[t + 2];
+        if (a >= ev || b >= ev || c >= ev) continue;
+        const M2Vertex &A = eve.verts[a], &B = eve.verts[b], &C = eve.verts[c];
+        V3 pa = posOf(A), pb = posOf(B), pc = posOf(C), centre = (pa + pb + pc) * (1.0f / 3);
+        float r = std::max({(pa - centre).length(), (pb - centre).length(), (pc - centre).length()});
+        float far = std::max({cornerD[a], cornerD[b], cornerD[c]});
+        bool all = cornerD[a] >= 0 && cornerD[b] >= 0 && cornerD[c] >= 0;
+        float rad = r + (all ? std::min(reach, far + 2 * r) : reach) + 0.005f * reach / 0.1f;
+        gather(centre, rad, cand);
+        if (cand.empty()) continue;
+        // nearest first (by their spheres from her triangle's centre): each texel stops once the rest are all farther
+        order.clear();
+        for (uint32_t i : cand) order.push_back({(mt[i].c - centre).length() - mt[i].r, i});
+        std::sort(order.begin(), order.end());
+        keys.resize(order.size());
+        for (size_t j = 0; j < order.size(); ++j) { keys[j] = order[j].first; cand[j] = order[j].second; }
+        V3 na = nrmOf(A), nb = nrmOf(B), nc = nrmOf(C);
+        // her texels this triangle owns; those on the even lattice searched in full first, then each of the others among the
+        // nearest triangles its lattice neighbours found (the same answer but where a triangle is nearest to none of the four)
+        own.clear();
+        raster(A.uv[0] * w, A.uv[1] * h, B.uv[0] * w, B.uv[1] * h, C.uv[0] * w, C.uv[1] * h, w, h, [&](int x, int y, float b0, float b1, float b2) {
+            size_t i = size_t(y) * w + x;
+            if (done[i]) return;   // (a texel two triangles share: the first one's)
+            done[i] = 1;
+            ++out.texels;
+            own.push_back({x, y, V3(b0, b1, b2)});
+        });
+        for (int pass = 0; pass < 2; ++pass)
+            for (const Own& o : own) {
+                bool lattice = !(o.x & 1) && !(o.y & 1);
+                if (lattice != (pass == 0)) continue;
+                size_t i = size_t(o.y) * w + o.x;
+                V3 p = pa * o.b.x + pb * o.b.y + pc * o.b.z, n = (na * o.b.x + nb * o.b.y + nc * o.b.z).normalized();
+                float best = reach * reach; int bt = -1; V3 bb;
+                if (!lattice) {
+                    hint.clear();
+                    int x0 = o.x & ~1, y0 = o.y & ~1, have = 0;
+                    for (int dy = 0; dy <= 2; dy += 2) for (int dx = 0; dx <= 2; dx += 2) {
+                        int xx = x0 + dx, yy = y0 + dy;
+                        if (xx >= w || yy >= h) continue;
+                        int32_t f = found[size_t(yy) * w + xx];
+                        if (f == -2) continue;
+                        ++have;
+                        if (f >= 0 && std::find(hint.begin(), hint.end(), uint32_t(f)) == hint.end()) hint.push_back(uint32_t(f));
+                    }
+                    if (have >= 2 && !hint.empty()) nearest(p, n, hint, best, bt, bb);
+                    if (bt < 0) { best = reach * reach; nearest(p, n, cand, best, bt, bb, &keys, r); }
+                } else {
+                    nearest(p, n, cand, best, bt, bb, &keys, r);
+                    found[i] = bt;
+                }
+                if (bt < 0) continue;
+                const Tri& q = mt[size_t(bt)];
+                float u = wow[q.v[0]].uv[0] * bb.x + wow[q.v[1]].uv[0] * bb.y + wow[q.v[2]].uv[0] * bb.z;
+                float v = wow[q.v[0]].uv[1] * bb.x + wow[q.v[1]].uv[1] * bb.y + wow[q.v[2]].uv[1] * bb.z;
+                int sx = std::clamp(int(u * sw), 0, sw - 1), sy = std::clamp(int(v * sh), 0, sh - 1);   // (the nearest texel: no blur)
+                size_t si = size_t(sy) * sw + sx;
+                float cover = mask.a[si] / 255.0f * (1 - smooth01(0.5f * reach, reach, std::sqrt(best)));
+                uint8_t* d = &out.rgba[i * 4];
+                for (int k = 0; k < 3; ++k) d[k] = L.toByte(L.lin[skin[si * 4 + k]] * tint[k]);
+                d[3] = uint8_t(std::clamp(cover, 0.0f, 1.0f) * 255.0f + 0.5f);
+                if (d[3]) ++out.covered;
+            }
+    }
+    // her coverage's edges softened (3 x 3 over her own texels: separable sums), then the layer grown 3 texels past her
+    // islands (a ring at a time from their edges: mip levels never read past them into nothing)
+    {
+        const size_t n = size_t(w) * h;
+        std::vector<uint32_t> rs(n, 0);
+        std::vector<uint8_t> rc(n, 0);
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x) {
+                uint32_t sum = 0; uint8_t k = 0;
+                for (int dx = -1; dx <= 1; ++dx) {
+                    int xx = x + dx;
+                    if (xx < 0 || xx >= w) continue;
+                    size_t j = size_t(y) * w + xx;
+                    if (done[j]) { sum += out.rgba[j * 4 + 3]; ++k; }
+                }
+                rs[size_t(y) * w + x] = sum; rc[size_t(y) * w + x] = k;
+            }
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x) {
+                size_t i = size_t(y) * w + x;
+                if (!done[i]) continue;
+                uint32_t sum = 0, k = 0;
+                for (int dy = -1; dy <= 1; ++dy) {
+                    int yy = y + dy;
+                    if (yy < 0 || yy >= h) continue;
+                    sum += rs[size_t(yy) * w + x]; k += rc[size_t(yy) * w + x];
+                }
+                out.rgba[i * 4 + 3] = uint8_t((sum + k / 2) / k);
+            }
+    }
+    {
+        std::vector<size_t> ring, next;
+        std::vector<uint8_t> queued(size_t(w) * h, 0);
+        auto around = [&](size_t i, auto f) {
+            int x = int(i % size_t(w)), y = int(i / size_t(w));
+            for (int dy = -1; dy <= 1; ++dy) for (int dx = -1; dx <= 1; ++dx) {
+                int xx = x + dx, yy = y + dy;
+                if ((dx || dy) && xx >= 0 && yy >= 0 && xx < w && yy < h) f(size_t(yy) * w + xx);
+            }
+        };
+        for (size_t i = 0; i < done.size(); ++i)
+            if (done[i]) around(i, [&](size_t j) { if (!done[j] && !queued[j]) { queued[j] = 1; ring.push_back(j); } });
+        std::sort(ring.begin(), ring.end());
+        std::vector<uint8_t> grown;
+        for (int pass = 0; pass < 3 && !ring.empty(); ++pass) {
+            grown.assign(ring.size() * 4, 0);
+            for (size_t r2 = 0; r2 < ring.size(); ++r2) {
+                int sum[4] = {0, 0, 0, 0}, k = 0;
+                around(ring[r2], [&](size_t j) { if (done[j]) { for (int c = 0; c < 4; ++c) sum[c] += out.rgba[j * 4 + c]; ++k; } });
+                for (int c = 0; c < 4; ++c) grown[r2 * 4 + c] = uint8_t(k ? (sum[c] + k / 2) / k : 0);
+            }
+            next.clear();
+            for (size_t r2 = 0; r2 < ring.size(); ++r2) { std::memcpy(&out.rgba[ring[r2] * 4], &grown[r2 * 4], 4); done[ring[r2]] = 1; }
+            for (size_t i : ring) around(i, [&](size_t j) { if (!done[j] && !queued[j]) { queued[j] = 1; next.push_back(j); } });
+            std::sort(next.begin(), next.end());
+            out.grown += ring.size();
+            ring.swap(next);
+        }
+    }
+    out.ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    return out;
+}
+
+void eveApplyDetail(const EveDetailLayer& layer, std::vector<uint8_t>& rgba) {
+    if (layer.empty() || rgba.size() < size_t(layer.w) * layer.h * 4) return;
+    const Lut& L = lut();
+    for (size_t i = 0, n = size_t(layer.w) * layer.h; i < n; ++i) {
+        const uint8_t* s = &layer.rgba[i * 4];
+        if (!s[3]) continue;
+        float a = s[3] / 255.0f;
+        uint8_t* d = &rgba[i * 4];
+        for (int c = 0; c < 3; ++c) d[c] = L.toByte(L.lin[d[c]] * (1 - a) + L.lin[s[c]] * a);
+    }
+}
+
+void eveDetailClean(uint8_t* skin, int sw, int sh, const EveDetailMask& mask) {
+    if (!skin || mask.empty() || sw <= 0 || sh <= 0) return;
+    const Lut& L = lut();
+    V3 t = eveLinear(mask.tone);
+    const float tc[3] = {t.x, t.y, t.z};
+    for (int y = 0; y < sh; ++y) {
+        int my = std::min(mask.h - 1, int((y + 0.5f) * mask.h / sh));
+        for (int x = 0; x < sw; ++x) {
+            int mx = std::min(mask.w - 1, int((x + 0.5f) * mask.w / sw));
+            uint8_t m = mask.a[size_t(my) * mask.w + mx];
+            if (!m) continue;
+            float a = m / 255.0f;
+            uint8_t* d = &skin[(size_t(y) * sw + x) * 4];
+            for (int c = 0; c < 3; ++c) d[c] = L.toByte(L.lin[d[c]] * (1 - a) + tc[c] * a);
+        }
+    }
+}
+
 // ================================================================================================ the fit off the GL thread
 
 namespace {
@@ -1702,6 +2389,23 @@ std::shared_ptr<EveSet::Tex> eveOverlayTex(EveSet& set, const std::string& file)
 
 } // namespace
 
+// The sculpt's rig (sculpt.h) on the Eve rig's joints: its regions about her own joints, not the model's.
+static SculptRig eveSculptRig(const M2Model& m, const std::vector<V3>& pivots) {
+    SculptBones b;
+    auto find = [&](const char* a, const char* alt = nullptr) { int i = m.findWowBone(a); return i >= 0 || !alt ? i : m.findWowBone(alt); };
+    b.pelvis = find("Pelvis", "Root"); b.waist = find("Spine1", "Waist"); b.chest = find("Chest", "Spine2");
+    b.neck = find("Neck1"); b.head = find("Head");
+    for (int k = 0; k < 2; ++k) {
+        std::string sd = k ? "R_" : "L_";
+        b.breast[k] = m.findWowBone(sd + "Breast"); b.clavicle[k] = m.findWowBone(sd + "Clavicle"); b.upperArm[k] = m.findWowBone(sd + "UpperArm");
+        b.forearm[k] = m.findWowBone(sd + "Forearm"); b.hand[k] = m.findWowBone(sd + "Hand"); b.thigh[k] = m.findWowBone(sd + "Thigh");
+        b.calf[k] = m.findWowBone(sd + "Calf"); b.ankle[k] = m.findWowBone(sd + "Ankle");
+    }
+    std::vector<int16_t> parents(m.bones.size());
+    for (size_t i = 0; i < m.bones.size(); ++i) parents[i] = m.bones[i].parent;
+    return sculptRig(pivots, parents, b);
+}
+
 EveResult eveCompute(const EveJob& job) {
     auto t0 = std::chrono::steady_clock::now();
     EveResult r;
@@ -1731,7 +2435,7 @@ EveResult eveCompute(const EveJob& job) {
     if (!body.ok) { r.status = body.error; return r; }
     // the creator's sculpt sliders (sculpt.h) on the fitted body, before it is measured, cut and drawn
     if (sculptActive(job.sculpt.data(), job.sculpt.size()))
-        applySculpt(job.rig, body.verts, body.indices, job.sculpt.data(), job.sculpt.size());
+        applySculpt(body.rigPivots.empty() ? job.rig : eveSculptRig(m, body.rigPivots), body.verts, body.indices, job.sculpt.data(), job.sculpt.size());
     auto t1 = std::chrono::steady_clock::now();
     // the actor's own skin where Eve meets it: its base skin layer sampled at the cut edges
     const EveSetIndex& ix = set.index;
@@ -1806,6 +2510,71 @@ EveResult eveCompute(const EveJob& job) {
                 if (job.indices[t] < use.size()) use[job.indices[t]] = 1;
         }
     }
+    // Keep undead bones (her fit row's "detail", her options' bones): the model's own details found on its skin texture (read
+    // whole: 1024 texels), baked into Eve's skin by where her surface lies over its body, and taken out of what the colour
+    // transfer reads (no brown haze round a bone); with "detail" 2 its bone pieces are also kept, uncut
+    std::shared_ptr<EveSet::Detail> keepDetail;   // (held while it is used: the cache may drop it meanwhile)
+    const EveDetailMask* dmask = nullptr;
+    const EveDetailLayer* dlayer = nullptr;
+    std::vector<uint8_t> cleaned;
+    if (job.opt.bones && job.fit.detail > 0 && haveImg) {
+        auto td = std::chrono::steady_clock::now();
+        // the body Eve takes the place of: the shown skin sections' triangles her cut removes
+        std::vector<uint32_t> tris;
+        {
+            bool all = job.geosets.empty() || (job.geosets.size() == 1 && job.geosets[0] == 0xFFFF);
+            std::vector<uint8_t> taken(job.subs.size(), 0);
+            for (const M2Batch& bt : m.batches) {
+                if (bt.submesh >= job.subs.size() || taken[bt.submesh] || bt.textureCombo >= m.textureCombos.size()) continue;
+                uint16_t ti = m.textureCombos[bt.textureCombo];
+                if (ti >= m.textures.size() || m.textures[ti].type != 1) continue;
+                taken[bt.submesh] = 1;   // (a section two batches draw: once)
+                const M2Submesh& sm = job.subs[bt.submesh];
+                if (!all && std::find(job.geosets.begin(), job.geosets.end(), sm.id) == job.geosets.end()) continue;
+                for (uint32_t t = sm.indexStart; t + 2 < sm.indexStart + sm.indexCount && t + 2 < job.indices.size(); t += 3) {
+                    uint32_t a = job.indices[t], b = job.indices[t + 1], c = job.indices[t + 2];
+                    if (a >= body.cut.size() || b >= body.cut.size() || c >= body.cut.size() || !(body.cut[a] || body.cut[b] || body.cut[c])) continue;
+                    tris.push_back(a); tris.push_back(b); tris.push_back(c);
+                }
+            }
+        }
+        // made once per fitted body, skin, tint and texture (the set's cache: a look change that leaves her body alone is free)
+        uint64_t dkey = uint64_t(eveCrc32(reinterpret_cast<const uint8_t*>(body.verts.data()), body.verts.size() * sizeof(M2Vertex))) << 32 |
+                        eveCrc32(reinterpret_cast<const uint8_t*>(tris.data()), tris.size() * sizeof(uint32_t));
+        dkey ^= uint64_t(eveCrc32(reinterpret_cast<const uint8_t*>(job.skinPath.data()), job.skinPath.size())) * 0x9E3779B97F4A7C15ull;
+        dkey ^= uint64_t(eveCrc32(reinterpret_cast<const uint8_t*>(job.tint), sizeof job.tint)) << 17;
+        dkey ^= (uint64_t(uint32_t(tex->w)) << 40) ^ (uint64_t(uint32_t(tex->h)) << 8) ^ uint64_t(job.fit.detail * 1000.0f) ^ (uint64_t(m.fileId) << 20);
+        std::shared_ptr<EveSet::Detail> det;
+        {
+            std::lock_guard<std::mutex> lock(set.cacheMutex);
+            for (auto& d : set.details) if (d.first == dkey) det = d.second;
+        }
+        if (!det) {
+            Image whole;
+            Bytes blp;
+            if (readFile(job.skinPath, blp) && decodeBlp(blp, 1024, whole)) {
+                det = std::make_shared<EveSet::Detail>();
+                det->mask = eveDetailMask(verts, tris, whole.rgba.data(), whole.width, whole.height);
+                if (!det->mask.empty())
+                    det->layer = eveDetailLayer(body, tex->w, tex->h, verts, tris, whole.rgba.data(), whole.width, whole.height, det->mask, job.tint,
+                                                0.10f * body.stats.unit);
+                std::lock_guard<std::mutex> lock(set.cacheMutex);
+                set.details.push_back({dkey, det});
+                if (set.details.size() > 2) set.details.erase(set.details.begin());   // (5 MB each)
+            }
+        }
+        if (det && !det->mask.empty()) {
+            dmask = &det->mask;
+            dlayer = det->layer.empty() ? nullptr : &det->layer;
+            cleaned = img.rgba;
+            eveDetailClean(cleaned.data(), img.width, img.height, *dmask);
+            r.detail = true;
+            r.detailPieces = dmask->pieces;
+            r.detailCovered = det->layer.covered;
+            keepDetail = det;
+        }
+        r.detailMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - td).count();
+    }
     // the colour transfer (her own skin, tinted): Eve takes the model's skin tones where she lies
     EveGainMap map;
     if (!tone && haveImg && job.fit.transfer > 0) {
@@ -1822,12 +2591,13 @@ EveResult eveCompute(const EveJob& job) {
             an.reach = 0.10f * body.stats.unit;
             anchors.push_back(an);
         }
-        map = eveTransferMap(body, tex->rgba, tex->w, tex->h, verts, use, img.rgba.data(), img.width, img.height, job.tint,
+        map = eveTransferMap(body, tex->rgba, tex->w, tex->h, verts, use, cleaned.empty() ? img.rgba.data() : cleaned.data(), img.width, img.height, job.tint,
                              job.fit.transfer * body.stats.unit, anchors);
         if (!map.empty()) gain = V3(1, 1, 1);
     }
     eveCompose(tex->rgba, tex->w, tex->h, gain, ov ? ov->rgba.data() : nullptr, ov ? ov->w : 0, ov ? ov->h : 0, shade ? shade->rect[0] : 0,
-               shade ? shade->rect[1] : 0, std::clamp(job.opt.opacity, 0.0f, 1.0f), ovGain, tex->prep, neck, ankle, r.rgba, &map);
+               shade ? shade->rect[1] : 0, std::clamp(job.opt.opacity, 0.0f, 1.0f), ovGain, tex->prep, neck, ankle, r.rgba, &map,
+               dlayer);
     // the seams measured: Eve's skin 1.5 to 8 cm from each ring against the model's own at its cut edge there (what meets her)
     if (haveImg) {
         const char* rn[3] = {"neck", "L_ankle", "R_ankle"};
@@ -1860,7 +2630,13 @@ EveResult eveCompute(const EveJob& job) {
     r.composeMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t1).count();
     // the body under it cut (any corner on a body bone drops the triangle), and the two measured as one
     r.cutSubs = job.subs;
-    r.cutIndices = cutTriangles(job.indices, r.cutSubs, body.cut, 1);
+    if (r.detail && job.fit.detail >= 2) {   // (the bone pieces kept: their triangles stay uncut)
+        std::vector<bool> keep = body.cut;
+        for (size_t v = 0; v < keep.size() && v < dmask->piece.size(); ++v) if (dmask->piece[v] && keep[v]) { keep[v] = false; ++r.detailKept; }
+        r.cutIndices = cutTriangles(job.indices, r.cutSubs, keep, 1);
+    } else {
+        r.cutIndices = cutTriangles(job.indices, r.cutSubs, body.cut, 1);
+    }
     r.measure = eveMeasureMesh(m, verts, r.cutIndices, r.cutSubs, job.geosets, body);
     r.body = std::move(body);
     r.ok = true;
