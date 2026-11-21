@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include "blp.h"
 #include "glutil.h"
@@ -440,11 +441,26 @@ void Scene::drawEve(Actor& a, const M4& world, const float tint[4]) {
     glUniform1i(gl::loc(p, "uOpaque"), 1);
     glUniform1i(gl::loc(p, "uUnlit"), 0);
     if (a.soft.active()) SoftDraw::setGain(p, 1.0f);
+    // Her skin is the person's skin: shaded as the model's own skin is (drawModel's skinKind 1) whenever that is, so the
+    // light doesn't change across the neck, wrist and ankle seams (the wrap, the scatter at the terminator, the sheen). Her
+    // texture has its own layout, not the HD skin's, so no thin parts are looked for on it (w 0). At Standard with no
+    // sheen nothing is set: drawn exactly as before.
+    const bool skinFx = gfx_.skin > 0 || (drawSkin_[3] > 0.5f && gfx_.thinSkin > 0) || drawSkin_[0] > 0;
+    if (skinFx) {
+        const float actorSkin[4] = {drawSkin_[0], drawSkin_[1], drawSkin_[2], 0.0f};
+        glUniform4fv(gl::loc(p, "uSkinActor"), 1, actorSkin);
+        glUniform1i(gl::loc(p, "uSkinKind"), 1);
+    }
+    // WC_EVE_DEBUG=1 (the desktop's seam measures): her mesh drawn solid green over its light, so a still finds where she ends
+    static const bool debugMask = [] { const char* v = std::getenv("WC_EVE_DEBUG"); return v && v[0] == '1'; }();
+    if (debugMask) glUniform4f(gl::loc(p, "uGhost"), 0.0f, 1.0f, 0.0f, 1.0f);
     glDisable(GL_BLEND);
     glDepthMask(GL_TRUE);
     glBindVertexArray(e.vao);
     glDrawElements(GL_TRIANGLES, GLsizei(e.body.indices.size()), GL_UNSIGNED_INT, nullptr);
     glBindVertexArray(0);
+    if (debugMask) glUniform4f(gl::loc(p, "uGhost"), 0.0f, 0.0f, 0.0f, 0.0f);
+    if (skinFx) glUniform1i(gl::loc(p, "uSkinKind"), 0);
 }
 
 } // namespace wc
