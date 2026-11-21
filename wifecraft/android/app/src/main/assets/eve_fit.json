@@ -21,7 +21,9 @@
    "ankleSink": 0.0,
    "neckTuck": 0.0,
    "neckLift": 0.0,
-   "rig": 1
+   "rig": 1,
+   "lengths": 1.0,
+   "spine": 1.0
   }
  },
  "races": [
@@ -62,7 +64,21 @@
     "shoulders": 1.0,
     "thigh": 1.03,
     "spread": 1.0,
-    "calf": 1.05
+    "calf": 1.05,
+    "bulk": {
+     "arm": 1.7,
+     "forearm": 1.9,
+     "thigh": 1.45,
+     "calf": 1.4,
+     "hips": 0.95,
+     "waist": 1.2,
+     "chest": 1.2,
+     "shoulders": 1.3,
+     "hipDepth": 1.12,
+     "waistDepth": 1.25,
+     "chestDepth": 1.12,
+     "inset": 0.8
+    }
    },
    "note": "much slimmer than the orc build; the arms read thin"
   },
@@ -163,7 +179,14 @@
     "arm": 1.2,
     "forearm": 1.12,
     "thigh": 1.03,
-    "calf": 1.05
+    "calf": 1.05,
+    "bulk": {
+     "arm": 1.12,
+     "forearm": 1.45,
+     "thigh": 1.12,
+     "shoulders": 1.05,
+     "hips": 0.92
+    }
    },
    "note": "slim and long, as a troll is"
   },
@@ -331,7 +354,14 @@
     "arm": 1.2,
     "forearm": 1.12,
     "thigh": 1.03,
-    "calf": 1.05
+    "calf": 1.05,
+    "bulk": {
+     "arm": 1.13,
+     "forearm": 1.5,
+     "thigh": 1.12,
+     "shoulders": 1.05,
+     "hips": 0.92
+    }
    },
    "note": "very tall and thin"
   },
@@ -353,7 +383,21 @@
     "thigh": 1.03,
     "spread": 1.0,
     "calf": 1.05,
-    "hipRatio": 0
+    "hipRatio": 0,
+    "bulk": {
+     "arm": 1.6,
+     "forearm": 1.8,
+     "thigh": 1.55,
+     "calf": 1.45,
+     "hips": 0.9,
+     "waist": 1.65,
+     "chest": 1.4,
+     "shoulders": 1.28,
+     "hipDepth": 1.3,
+     "waistDepth": 1.75,
+     "chestDepth": 1.25,
+     "inset": 1.0
+    }
    },
    "note": "slimmer than the Kul Tiran build"
   },

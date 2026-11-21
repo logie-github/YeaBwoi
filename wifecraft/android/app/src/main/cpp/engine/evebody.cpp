@@ -1090,10 +1090,38 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         }
         const char* segA[5] = {"", "UpperArm", "Forearm", "Thigh", "Calf"};
         const char* segB[5] = {"", "Forearm", "Hand", "Calf", "Foot"};
+        // each segment's median radius as she stands (its middle 60%, the skin mostly its bone's)
+        float limbR[2][5] = {{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}};
+        if (bulky) {
+            std::vector<float> rs[2][5];
+            for (size_t v = 0; v < nv; ++v) {
+                int best = -1; float bw = 0;
+                for (int i = 0; i < WM[v].n; ++i) if (WM[v].e[size_t(i)].second > bw) { bw = WM[v].e[size_t(i)].second; best = WM[v].e[size_t(i)].first; }
+                if (best < 0 || !limbOf[size_t(best)]) continue;
+                int seg = limbOf[size_t(best)] & 15, sd = limbOf[size_t(best)] >> 4;
+                const std::string px = sd ? "R_" : "L_";
+                auto it = turn.find(best);
+                auto ia = A.find(px + segA[seg]), ib = A.find(px + segB[seg]);
+                if (it == turn.end() || ia == A.end() || ib == A.end()) continue;
+                V3 q = it->second.to + it->second.M * (P[v] - it->second.from), d = ib->second - ia->second;
+                float L = d.length();
+                if (L < 1e-5f) continue;
+                d = d * (1.0f / L);
+                float a = (q - ia->second).dot(d);
+                if (a < 0.2f * L || a > 0.8f * L) continue;
+                rs[sd][seg].push_back(((q - ia->second) - d * a).length());
+            }
+            for (int sd = 0; sd < 2; ++sd) for (int sg = 1; sg < 5; ++sg) {
+                std::vector<float>& r = rs[sd][sg];
+                if (r.empty()) continue;
+                std::nth_element(r.begin(), r.begin() + long(r.size() / 2), r.end());
+                limbR[sd][sg] = r[r.size() / 2];
+            }
+        }
         // a limb's factor along it (0 at its first joint, 1 at its next): an arm's and a thigh's half of the change toward the next
         // segment's factor made over the last quarter; a thigh's growth eased in from the hip crease (her own hips' curve is
-        // there: no ledge), a forearm's partly kept to the wrist, a shin's eased back to the ankle's own size over its last 40%
-        // (the seam's foot top)
+        // there: no ledge), a forearm's partly kept to the wrist, a shin's halfway back over its last 30% (the ankle
+        // is then drawn onto the model's own foot top)
         auto limbK = [&](int seg, float t) {
             switch (seg) {
                 case 1: return kArm + (0.5f * (kArm + kFore) - kArm) * smooth((t - 0.75f) / 0.35f);
@@ -1102,7 +1130,7 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
                     float top = 0.5f * (wHip + 1 + 0.4f * (kThigh - 1));   // (at the hip crease little more than the hips: no ledge there)
                     return top + (kThigh - top) * smooth(t / 0.35f) + (0.5f * (kThigh + kCalf) - kThigh) * smooth((t - 0.75f) / 0.35f);
                 }
-                case 4: return kCalf + (0.5f * (kThigh + kCalf) - kCalf) * smooth((0.25f - t) / 0.35f) + (1 - kCalf) * smooth((t - 0.6f) / 0.4f);
+                case 4: return kCalf + (0.5f * (kThigh + kCalf) - kCalf) * smooth((0.25f - t) / 0.35f) + (0.5f * (1 - kCalf)) * smooth((t - 0.7f) / 0.3f);
                 default: return 1.0f;
             }
         };
@@ -1120,16 +1148,19 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
                 d = d * (1.0f / L);
                 V3 r = q - ia->second;
                 float a = r.dot(d);
+                // thickened by the same depth all round (her median radius there times the factor's growth): a muscular
+                // limb is hers with more on it, not her own taper magnified (a balloon thigh over a thin knee)
                 float k = limbK(seg, a / L);
-                qo = ia->second + d * a + (r - d * a) * k;
+                V3 rad = r - d * a;
+                float rl = rad.length(), add = (k - 1) * limbR[sd][seg];
+                float kk = rl > 1e-5f ? std::clamp((rl + add) / rl, 0.5f, 2.5f) : 1.0f;   // (a crease near the bone: no more than 2.5 times)
+                qo = ia->second + d * a + rad * kk;
                 if (seg == 3 && inset > 0 && legDone[sd]) {   // the thigh's flesh drawn in toward her middle by her hip joint's move out
                     float dy = std::max(0.0f, (hipNew[sd].y - hipOwn[sd].y) * (sd ? -1.0f : 1.0f));
                     float in = inset * dy * (1 - smooth((a / L - 0.1f) / 0.6f));
                     qo.y += sd ? in : -in;
                 }
-                V3 na = d * n.dot(d);
-                no = (na + (n - na) * (1.0f / k)).normalized();
-                return;
+                return;   // (an even thickening keeps the surface's normals)
             }
             if (!trunkOf[size_t(b)]) return;
             float kw, kd;

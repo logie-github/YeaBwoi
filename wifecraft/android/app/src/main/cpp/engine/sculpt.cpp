@@ -181,8 +181,8 @@ size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std
         for (int k = 0; k < 2; ++k) {
             if (bust[k] <= 0) continue;
             const float side = k == 0 ? 1.0f : -1.0f;
-            if (s[kSculptBustWidth] != 0) d.y += (p.y - rig.breast[k].y) * 0.35f * s[kSculptBustWidth] * bust[k];
-            if (s[kSculptBustSpacing] != 0) d.y += side * 0.025f * U * s[kSculptBustSpacing] * bust[k];
+            if (s[kSculptBustWidth] != 0) d.y += (p.y - rig.breast[k].y) * 0.6f * s[kSculptBustWidth] * bust[k];
+            if (s[kSculptBustSpacing] != 0) d.y += side * 0.04f * U * s[kSculptBustSpacing] * bust[k];
         }
 
         // the chest (the pectorals, a man's or a woman's above the bust): its front forward, a little wider
@@ -217,15 +217,16 @@ size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std
             float m = (W[kGroupPelvis] + 0.7f * thighs) * gauss(p.z - (rig.pelvis.z - 0.07f * U), 0.09f * U);
             if (opt.gameBody) m *= 1 - std::min(arms, 1.0f);
             d.x += std::min(0.0f, p.x - spineX) * 0.6f * s[kSculptButt] * m;
-            if (s[kSculptButtLift] != 0) d.z += 0.03f * U * s[kSculptButtLift] * m * smooth(0.0f, 0.05f * U, spineX - p.x);
+            if (s[kSculptButtLift] != 0) d.z += 0.045f * U * s[kSculptButtLift] * m * smooth(0.0f, 0.05f * U, spineX - p.x);
         }
         // the limbs: thicker or thinner about their bones' axes; on the game's bodies faded out before the wrists and
         // ankles (`fade`: from that share of the bone on)
-        auto limb = [&](float value, float w, const V3& a, const V3& b, float fade) {
+        auto limb = [&](float value, float w, const V3& a, const V3& b, float fade, float rise = 0) {
             if (value == 0 || w <= 0) return;
             float t = 0;
             V3 r = p - nearestOn(a, b, p, &t);
             float k = fade < 1 ? 1 - smooth(fade, fade + 0.25f, t) : 1.0f;   // (nothing from 0.25 past it)
+            if (rise > 0) k *= smooth(0.0f, rise, t);                         // (and from nothing at the joint it starts at)
             d = d + r * (0.3f * value * w * k);
         };
         const float wristFade = opt.gameBody ? 0.6f : 1.0f;
@@ -239,7 +240,7 @@ size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std
             limb(s[kSculptForearms], fore, rig.elbow[k], rig.wrist[k], 0.6f);
             // the calves (one group for both: the side by where the vertex is)
             const bool mine = k == 0 ? p.y >= 0 : p.y < 0;
-            if (mine) limb(s[kSculptCalves], W[kGroupCalf], rig.knee[k], rig.ankle[k], 0.6f);
+            if (mine) limb(s[kSculptCalves], W[kGroupCalf], rig.knee[k], rig.ankle[k], 0.6f, 0.35f);   // (the knee kept)
         }
         // the neck (the game's bodies): thicker or thinner about its axis, faded out before the head
         if (s[kSculptNeck] != 0 && W[kGroupNeck] > 0) {
@@ -262,7 +263,7 @@ size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std
             float m = W[kGroupClavicle] + (W[kGroupUpperArmL] + W[kGroupUpperArmR]) * (1 - smooth(0.0f, 0.7f, t)) +
                       W[kGroupChest] * smooth(0.05f * U, 0.15f * U, std::fabs(p.y)) * smooth(rig.chest.z - 0.05f * U, rig.chest.z + 0.08f * U, p.z);
             m = std::min(m, 1.0f) * smooth(0.02f * U, 0.08f * U, std::fabs(p.y));
-            d.z -= 0.035f * U * s[kSculptShoulderSlope] * m;
+            d.z -= 0.055f * U * s[kSculptShoulderSlope] * m;
         }
 
         float len = d.length();
@@ -300,7 +301,7 @@ size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std
                 V3 pa = before[a] + disp[a] * ease[place[a]], pb = before[b] + disp[b] * ease[place[b]], pc = before[c] + disp[c] * ease[place[c]];
                 V3 n0 = (before[b] - before[a]).cross(before[c] - before[a]);
                 float a0 = n0.dot(n0);
-                if (a0 < 1e-14f) continue;
+                if (a0 < 1e-20f) continue;
                 float kept = (pb - pa).cross(pc - pa).dot(n0);
                 if (kept >= (opt.gameBody ? 0.1f : 0.0f) * a0) continue;
                 ++bad;
@@ -330,8 +331,23 @@ size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std
     // normals: made again for what moved, from the triangles round each position (UV seams' copies share them)
     size_t flipped = 0;
     if (!indices.empty()) {
-        std::unordered_map<uint64_t, V3> acc;
-        acc.reserve(verts.size());
+        // a place's normal is shared by its copies that faced alike before (a UV seam's two, or two sections meeting), not by
+        // a copy facing another way (an overlapping hidden geoset's, a fold's other side)
+        struct Entry { V3 n0, acc; int next; };
+        std::vector<Entry> ents;
+        std::unordered_map<uint64_t, int> first;
+        first.reserve(verts.size() / 4 + 16);
+        auto slot = [&](uint32_t i, bool make) -> int {
+            const V3 n0(verts[i].normal[0], verts[i].normal[1], verts[i].normal[2]);
+            const uint64_t k = key(before[i]);
+            auto it = first.find(k);
+            int e = it == first.end() ? -1 : it->second;
+            for (int x = e; x >= 0; x = ents[size_t(x)].next) if (ents[size_t(x)].n0.dot(n0) > 0.7f) return x;
+            if (!make) return -1;
+            ents.push_back({n0, V3(), e});
+            first[k] = int(ents.size() - 1);
+            return int(ents.size() - 1);
+        };
         for (size_t t = 0; t + 2 < indices.size(); t += 3) {
             uint32_t a = indices[t], b = indices[t + 1], c = indices[t + 2];
             if (a >= verts.size() || b >= verts.size() || c >= verts.size()) continue;
@@ -341,13 +357,13 @@ size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std
             V3 n0 = (before[b] - before[a]).cross(before[c] - before[a]);
             if (n0.length() > 1e-10f && n.dot(n0) < 0) ++flipped;
             if (share[a] > 0 || share[b] > 0 || share[c] > 0)
-                for (uint32_t i : {a, b, c}) { V3& s2 = acc[key(before[i])]; s2 = s2 + n; }
+                for (uint32_t i : {a, b, c}) { Entry& en = ents[size_t(slot(i, true))]; en.acc = en.acc + n; }
         }
         for (size_t i = 0; i < verts.size(); ++i) {
             if (share[i] <= 0) continue;
-            auto it = acc.find(key(before[i]));
-            if (it == acc.end() || it->second.length() < 1e-12f) continue;
-            V3 fresh = it->second.normalized();
+            int e = slot(uint32_t(i), false);
+            if (e < 0 || ents[size_t(e)].acc.length() < 1e-12f) continue;
+            V3 fresh = ents[size_t(e)].acc.normalized();
             V3 old(verts[i].normal[0], verts[i].normal[1], verts[i].normal[2]);
             V3 n = (old * (1 - share[i]) + fresh * share[i]).normalized();
             verts[i].normal[0] = n.x; verts[i].normal[1] = n.y; verts[i].normal[2] = n.z;

@@ -12,8 +12,9 @@
 //     either keeps y's sign or scales it), and 0 for every slider leaves the body exactly as it was.
 //   - The neck and ankle rings (where Eve meets the Warcraft head and feet) are weighted to the neck, head and ankle bones,
 //     which no move touches; [SculptOptions::pinned] keeps any other vertex (a seam) where it is.
-//   - Normals: those of moved vertices are made again from the triangles round them, shared by position (a UV seam's two
-//     copies keep one normal), blended in by how far the vertex moved.
+//   - Normals: those of moved vertices are made again from the triangles round them, shared by position among the copies
+//     that faced alike before (a UV seam's two keep one normal; an overlapping hidden geoset's do not), blended in by how far
+//     the vertex moved.
 //   - The game's own bodies (every race's default model, both sexes: scene.cpp refreshBody, [SculptOptions::gameBody]) take
 //     the same moves on the model's whole vertex list (the skin and the clothing geosets on it, so a robe or sleeves follow),
 //     with the spine followed along its curve (an orc's chest stands far forward of its pelvis), the limbs' moves faded out
