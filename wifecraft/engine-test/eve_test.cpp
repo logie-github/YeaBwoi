@@ -356,7 +356,7 @@ struct AnkleStep { float step = 0, mean = 0, turn = 0, taper = 0; int samples = 
 // too. Per mip level (eveMips, as the scene uploads them; level 0 bilinear at the texel centres as GL samples it), the
 // mean and worst CIE ΔE of the composed texture at the strip's and the rings' UVs against the seam's own colour
 // (EveResult::ankleRgb, the band's colour at the ring). EVE_TEX_DUMP=DIR writes the texture (DIR/NAME.ppm) and those UVs.
-struct SeamBleed { float mean[4] = {0, 0, 0, 0}, worst[4] = {0, 0, 0, 0}; int samples = 0, open = 0, gaps = 0; float openLen = 0, gapLen = 0; };
+struct SeamBleed { float mean[4] = {0, 0, 0, 0}, worst[4] = {0, 0, 0, 0}; int samples = 0, open = 0, gaps = 0, folded = 0, stripTris = 0; float openLen = 0, gapLen = 0, edgeOver = -1e9f; };
 SeamBleed seamBleed(const M2Model& m, const EveResult& res, const char* name, const std::vector<uint16_t>& geosets) {
     SeamBleed out;
     const EveBody& b = res.body;
@@ -421,6 +421,76 @@ SeamBleed seamBleed(const M2Model& m, const EveResult& res, const char* name, co
         }
         out.open = open; out.openLen = worst;
     }
+    // the strip's model vertices against the model's own (the same bones and weights to the byte draw to the same place)
+    if (getenv("EVE_DIAG")) {
+        int same = 0, diff = 0, worstW = 0;
+        for (size_t v = b.stats.eveVerts; v < b.verts.size(); ++v) {
+            const M2Vertex& x = b.verts[v];
+            for (const M2Vertex& w : m.vertices) {
+                if (w.pos[0] != x.pos[0] || w.pos[1] != x.pos[1] || w.pos[2] != x.pos[2]) continue;
+                bool eq = true; int dw = 0;
+                for (int a = 0; a < 4; ++a) {
+                    int wa = 0; for (int c = 0; c < 4; ++c) if (x.bones[c] == w.bones[a] && x.weights[c]) wa = x.weights[c];
+                    if (w.weights[a] && wa != w.weights[a]) { eq = false; dw = std::max(dw, std::abs(wa - int(w.weights[a]))); }
+                }
+                if (eq) ++same; else ++diff;
+                worstW = std::max(worstW, dw);
+                break;
+            }
+        }
+        std::printf("    strip vertices: %d with the model's weights to the byte, %d not (worst %d/255); %zu triangles over %zu of the body's\n", same, diff, worstW,
+                    b.indices.size() / 3, res.cutIndices.size() / 3);
+    }
+    // the strip's triangles at the ankles that fold (their face turned against their corners' normals: the strip runs
+    // back over itself), how tall it stands, and per side how far the model's edge stands over the line of her ring
+    {
+        int folded = 0, n = 0; float tallest = 0, lowest = 0;
+        for (size_t t = 0; t + 2 < b.indices.size(); t += 3) {
+            uint32_t i[3] = {b.indices[t], b.indices[t + 1], b.indices[t + 2]};
+            if (std::max({i[0], i[1], i[2]}) < b.stats.eveVerts || b.verts[i[0]].pos[2] > 0.25f * top) continue;
+            V3 p[3], nn;
+            for (int k = 0; k < 3; ++k) { p[k] = V3(b.verts[i[k]].pos[0], b.verts[i[k]].pos[1], b.verts[i[k]].pos[2]); nn = nn + V3(b.verts[i[k]].normal[0], b.verts[i[k]].normal[1], b.verts[i[k]].normal[2]); }
+            V3 fn = (p[1] - p[0]).cross(p[2] - p[0]);
+            ++n; if (fn.length() > 1e-9f && fn.dot(nn) < 0) ++folded;
+            // her corner over the model's (z): the strip's height
+            for (int k = 0; k < 3; ++k) if (i[k] < b.stats.eveVerts) for (int q = 0; q < 3; ++q) if (i[q] >= b.stats.eveVerts) {
+                float dz = p[k].z - p[q].z; tallest = std::max(tallest, dz); lowest = std::min(lowest, dz);
+            }
+        }
+        out.folded = folded; out.stripTris = n;
+        if (getenv("EVE_DIAG")) std::printf("    ankle strip: %d triangles, %d folded; her ring over the model's edge %.4f to %.4f\n", n, folded, lowest, tallest);
+        // per side: the model's edge vertices over the line of her ring at their angle (her ring's places sorted by angle)
+        for (int sd = 0; sd < 2; ++sd) {
+            std::vector<V3> hers, theirs;
+            for (size_t t = 0; t + 2 < b.indices.size(); t += 3) {
+                uint32_t i[3] = {b.indices[t], b.indices[t + 1], b.indices[t + 2]};
+                if (std::max({i[0], i[1], i[2]}) < b.stats.eveVerts || b.verts[i[0]].pos[2] > 0.25f * top) continue;
+                for (uint32_t k : i) {
+                    V3 p(b.verts[k].pos[0], b.verts[k].pos[1], b.verts[k].pos[2]);
+                    if ((p.y > 0) != (sd == 0)) continue;
+                    auto& L = k < b.stats.eveVerts ? hers : theirs;
+                    bool dup = false; for (const V3& q : L) if ((q - p).length() < 1e-6f) { dup = true; break; }
+                    if (!dup) L.push_back(p);
+                }
+            }
+            if (hers.size() < 3 || theirs.empty()) continue;
+            V3 c; for (const V3& q : theirs) c = c + q; c = c * (1.0f / theirs.size());
+            auto ang = [&](V3 p) { return std::atan2(p.y - c.y, p.x - c.x); };
+            std::sort(hers.begin(), hers.end(), [&](V3 x, V3 y) { return ang(x) < ang(y); });
+            float worst = -1e9f;
+            for (const V3& mp : theirs) {
+                float a = ang(mp);
+                size_t j = 0; while (j < hers.size() && ang(hers[j]) < a) ++j;
+                const V3& h1 = hers[j % hers.size()]; const V3& h0 = hers[(j + hers.size() - 1) % hers.size()];
+                float a0 = ang(h0), a1 = ang(h1), span = a1 - a0; if (span <= 0) span += 6.2831853f;
+                float d = a - a0; if (d < 0) d += 6.2831853f;
+                float cz = h0.z + (h1.z - h0.z) * std::clamp(d / span, 0.0f, 1.0f);
+                worst = std::max(worst, mp.z - cz);
+            }
+            out.edgeOver = std::max(out.edgeOver, worst);
+            if (getenv("EVE_DIAG")) std::printf("    ankle %c: the model's edge over her ring's line by at most %.4f (%zu of hers, %zu of its)\n", sd ? 'R' : 'L', worst, hers.size(), theirs.size());
+        }
+    }
     // the model's own shown skin, cut: each edge of its cut edge at the ankles (an edge of one of its shown triangles only)
     // that the strip's bottom doesn't run along is a gap between the strip and the model's skin (seen as a hairline)
     {
@@ -453,9 +523,9 @@ SeamBleed seamBleed(const M2Model& m, const EveResult& res, const char* name, co
         for (auto& [e, n] : uses) {
             if (n != 1 || strip.count(e)) continue;
             // (the model's other open edges: those far from the strip aren't the seam; only edges with a corner on the strip)
-            bool near = false;
-            for (auto& [f, k] : strip) if (f.first == e.first || f.second == e.first || f.first == e.second || f.second == e.second) { near = true; break; }
-            if (!near) continue;
+            bool touches = false;
+            for (auto& [f, k] : strip) if (f.first == e.first || f.second == e.first || f.first == e.second || f.second == e.second) { touches = true; break; }
+            if (!touches) continue;
             ++out.gaps; out.gapLen = std::max(out.gapLen, len[e]);
         }
     }
@@ -939,6 +1009,20 @@ int main(int argc, char** argv) {
                             std::printf("  %s: the ankle seams' texture as sampled (ΔE against the seam's colour, mean/worst) mip 0 %.1f/%.1f, 1 %.1f/%.1f, "
                                         "2 %.1f/%.1f, 3 %.1f/%.1f over %d UVs; open edges at the ankles %d (longest %.4f), gaps to the model's skin %d (longest %.4f)\n", row->name.c_str(), sb.mean[0], sb.worst[0],
                                         sb.mean[1], sb.worst[1], sb.mean[2], sb.worst[2], sb.mean[3], sb.worst[3], sb.samples, sb.open, sb.openLen, sb.gaps, sb.gapLen);
+                            std::printf("  %s: the ankles' seam strips: %d triangles, %d folded; the model's edge over the line of her ring by at most %.2f cm\n",
+                                        row->name.c_str(), sb.stripTris, sb.folded, sb.edgeOver * 100.0f / 1.15f);
+                            // the seam closed (her ring, the strip and the model's cut skin meet edge to edge), the strip not folded over itself
+                            // (before: its two loops paired off by up to half a turn, 19 of the human's 34 triangles folded and the model's
+                            // foot seen through it as a bright dashed hairline), the model's edge under her ring everywhere (its skin never
+                            // over her shin), and the island's edge padded (mip 3's worst ΔE at the ring 12.5 before, 6.0 after on the human)
+                            CHECK(sb.open == 0 && sb.gaps == 0, "%s: the ankle seams are open (%d of her edges, %d of the model's)", row->name.c_str(), sb.open, sb.gaps);
+                            CHECK(sb.stripTris > 0 && sb.folded * 10 <= sb.stripTris, "%s: %d of the ankle strips' %d triangles folded", row->name.c_str(), sb.folded, sb.stripTris);
+                            // (at most 0.3 cm: 0.1 cm under it on most models; the night elf's 0.23 cm over, where the skin above the
+                            // edge's highest point turns away and her ring, kept on the skin, can't rise over it)
+                            CHECK(sb.edgeOver <= 0.3f * 1.15f / 100.0f, "%s: the model's edge stands %.2f cm over her ankle ring's line", row->name.c_str(),
+                                  sb.edgeOver * 100.0f / 1.15f);
+                            CHECK(sb.worst[1] <= 7 && sb.worst[2] <= 7 && sb.worst[3] <= 7, "%s: the ankle ring's texture bleeds at the mip levels (worst ΔE %.1f/%.1f/%.1f)",
+                                  row->name.c_str(), sb.worst[1], sb.worst[2], sb.worst[3]);
                         }
                         // Keep undead bones (a row with "detail"): its details carried, the seams' colour as with them off (within 3)
                         if (row->detail > 0) {

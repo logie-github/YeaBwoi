@@ -109,7 +109,7 @@ object PairHeight {
 /**
  * Where a pair's two roles are raised (SceneSimulation.roleLifts and the audit, the same steps): each role's own lift for
  * its own flesh ([com.logie.wifecraft.anim.FleshLift]), shared when the bodies meet or the stage was made in water
- * ([PairLift.lifts], [PairWater]; a body on top of the other is raised with the one under it: [under]), then the hips
+ * ([PairLift.lifts], [PairWater]; a body on top of the other is raised with the one under it: [under], [underLift]), then the hips
  * matched ([PairHeight]) where neither stands. Pure.
  */
 object PairLifts {
@@ -134,17 +134,19 @@ object PairLifts {
     }
 
     /**
-     * [under], kept only where the one on top would not go into the surface by it: its own lift ([own], world units) past
-     * the one under's no more than its support is over the other's ([units]: each role's world units per body unit). A body
-     * whose flesh reaches the surface past its support (read on top, lying across the other onto the bed) is on the bed
-     * too: then the more either needs, as for two side by side (the audit: one stage 38 cm into the bed without this).
+     * How far (world units) the pair is raised when [u] is under the other ([under]): by the one under's own lift ([own]),
+     * or, where the one on top's own flesh reaches the surface past its support (its lift past the one under's more than its
+     * support is over the other's, [units]: each role's world units per body unit; read on top, lying across the other onto
+     * the bed), by as much more as keeps that flesh out of the surface, no more.
+     *
+     * Continuous in both bodies' flesh: before, a guard switched the pair between the one under's lift and the one on top's
+     * whole own lift (the two as side by side) at that threshold, so a body 3 cm slimmer at the chest (a woman in Eve under a
+     * man on all fours) moved the pair 5 to 14 cm, up in one stage and down in another (the audit's lying stages).
      */
-    fun under(r: Requirement, own: FloatArray, units: FloatArray): Int {
-        val u = under(r)
-        if (u < 0) return u
+    fun underLift(r: Requirement, u: Int, own: FloatArray, units: FloatArray): Float {
         val top = 1 - u
-        val room = (r.actors[top].heightUnits * units[top] - r.actors[u].heightUnits * units[u])
-        return if (own[top] - own[u] <= room + 1e-4f) u else -1
+        val room = r.actors[top].heightUnits * units[top] - r.actors[u].heightUnits * units[u]
+        return maxOf(own[u], own[top] - room)
     }
 
     /** The roles' lifts (world units, the pair's actor order), whether the stage was made in water, and the hips' part of the lifts. */
@@ -158,9 +160,10 @@ object PairLifts {
     fun of(r: Requirement, p: PartnerPair, own: FloatArray, authored: FloatArray, touching: Boolean, hipsA: PairHeight.Hips?, hipsB: PairHeight.Hips?,
            units: FloatArray): Placement {
         val water = PairWater.of(r, p)
-        val under = if (touching && !water) under(r, own, units) else -1
-        val lifts = if (under >= 0) floatArrayOf(own[under], own[under]) else PairLift.lifts(own[0], own[1], touching, water)
-        val gen = if (under >= 0) floatArrayOf(authored[under], authored[under]) else PairLift.lifts(authored[0], authored[1], touching, water)
+        // who is under whom by the two supports alone (the stage as authored: the same for every body), the lift continuous
+        val under = if (touching && !water) under(r) else -1
+        val lifts = if (under >= 0) underLift(r, under, own, units).let { floatArrayOf(it, it) } else PairLift.lifts(own[0], own[1], touching, water)
+        val gen = if (under >= 0) underLift(r, under, authored, units).let { floatArrayOf(it, it) } else PairLift.lifts(authored[0], authored[1], touching, water)
         val raise = if (hipsA != null && hipsB != null && touching && !water && PairHeight.eligible(r)) PairHeight.raise(lifts, gen, hipsA, hipsB)
             else floatArrayOf(0f, 0f)
         return Placement(floatArrayOf(lifts[0] + raise[0], lifts[1] + raise[1]), water, raise)

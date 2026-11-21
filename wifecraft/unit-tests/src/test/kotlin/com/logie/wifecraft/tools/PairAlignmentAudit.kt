@@ -227,6 +227,18 @@ class PairAlignmentAudit {
                 val unitA = SceneUnit.HUMAN * combo.scaleA; val unitB = SceneUnit.HUMAN * combo.scaleB
                 fun hipsOf(body: Body, anim: com.logie.wifecraft.anim.Anim, slot: PartnerSlot, unit: Double) =
                     PairHeight.hips(anim, slot.z, body.flesh, if (body.flesh.measured) body.pelvis.toFloat() else unit.toFloat(), unit.toFloat())
+                if (debug != null && c.name.contains(debug, true)) for ((i, role) in listOf(Triple(combo.a, spaced.slotA, anA), Triple(combo.b, spaced.slotB, anB)).withIndex()) {
+                    // ALIGN_DEBUG: what lifts each role (body units): each bearing part's need over its support, the deepest four
+                    val need = req.actors.getOrNull(i) ?: continue
+                    val (body, slot, anim) = role
+                    val ref = BodyGeometry.frames(anim, z = slot.z.toDouble())
+                    val fr = BodyGeometry.frames(anim, z = slot.z.toDouble(), flesh = body.flesh.takeIf { it.measured })
+                    val parts = FleshLift.bearing(need, ref)
+                    val per = parts.associateWith { pt -> fr.maxOf { f -> need.heightUnits - (body.flesh.lowestOver(f, listOf(pt)) ?: 9.0) } }
+                    dbg.println("lift ${combo.name} role $i ${need.posture} support ${String.format(locale, "%.3f", need.heightUnits)} classifier ${String.format(locale, "%.3f", need.liftUnits)} " +
+                        "rests(ref) ${com.logie.wifecraft.anim.RequirementClassifier.pelvisRests(ref, need.heightUnits.toDouble())} rests(own) ${com.logie.wifecraft.anim.RequirementClassifier.pelvisRests(fr, need.heightUnits.toDouble())}: " +
+                        per.entries.sortedByDescending { it.value }.take(4).joinToString { "${it.key} ${String.format(locale, "%.3f", it.value)}" })
+                }
                 val placed = PairLifts.of(req, pp, floatArrayOf(lift(0, combo.a, spaced.slotA, anA, unitA).toFloat(), lift(1, combo.b, spaced.slotB, anB, unitB).toFloat()),
                     floatArrayOf(authoredLift(0, unitA), authoredLift(1, unitB)), touching,
                     hipsOf(combo.a, anA, spaced.slotA, unitA), hipsOf(combo.b, anB, spaced.slotB, unitB), floatArrayOf(unitA.toFloat(), unitB.toFloat()))

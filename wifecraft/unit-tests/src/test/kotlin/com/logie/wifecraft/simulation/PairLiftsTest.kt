@@ -152,9 +152,17 @@ class PairLiftsTest {
         val placed = PairLifts.of(stack, pair("stack"), floatArrayOf(0.05f, 0.3f), floatArrayOf(0.05f, 0.3f), true, null, null, U)
         assertEquals(listOf(0.05f, 0.05f), placed.lifts.toList())
         // one on top whose own flesh reaches the bed past its support (it needs more lift than its support is over the
-        // other's): it lies on the bed too, the more either needs
-        assertEquals(-1, PairLifts.under(stack, floatArrayOf(0.05f, 0.5f), U))
-        assertEquals(listOf(0.5f, 0.5f), PairLifts.of(stack, pair("stack"), floatArrayOf(0.05f, 0.5f), floatArrayOf(0.05f, 0.5f), true, null, null, U).lifts.toList())
+        // other's: 0.5 against 0.3 x 1.17): raised by as much as keeps that flesh out of the bed, no more
+        val room = 0.3f * 1.17f
+        val reach = PairLifts.of(stack, pair("stack"), floatArrayOf(0.05f, 0.5f), floatArrayOf(0.05f, 0.5f), true, null, null, U).lifts.toList()
+        assertEquals(0.5f - room, reach[0], 1e-5f); assertEquals(reach[0], reach[1])
+        // continuous in the flesh: the one on top's lift a little past the room moves the pair a little, never by a stride
+        // (before, a guard switched to the whole of its own lift there: 3 cm less flesh under it moved the pair 5 to 14 cm)
+        for (top in listOf(room + 0.04f, room + 0.05f, room + 0.06f, room + 0.08f)) {
+            val a = PairLifts.of(stack, pair("stack"), floatArrayOf(0.05f, top), floatArrayOf(0.05f, top), true, null, null, U).lifts[0]
+            val b = PairLifts.of(stack, pair("stack"), floatArrayOf(0.02f, top), floatArrayOf(0.02f, top), true, null, null, U).lifts[0]
+            assertTrue(kotlin.math.abs(a - b) <= 0.03f + 1e-5f, "under's lift 3 cm apart moves the pair ${a - b}")
+        }
         // side by side on one support: the more either needs, as before; someone standing: no one is on top
         val side = Requirement(Surface.BED, listOf(actor(Posture.LIE_BACK, Surface.BED, 0.04f, heightUnits = 0.58f),
             actor(Posture.LIE_BACK, Surface.BED, 0.08f, heightUnits = 0.6f)), 0.9f, "", "geometry")
