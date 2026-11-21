@@ -24,10 +24,11 @@ import kotlin.math.sqrt
  * pivot to its aim's pivot) onto the Sims bind direction (bind position to the aim's, remapped): the Sims
  * bind pose lands on the WoW skeleton before the clip's motion. Per-bone flips negate rotation axis
  * components last (a fix for a bone that turns the wrong way, none by default). A position-flagged bone (the
- * root) moves by its world displacement from the bind, remapped and scaled to WoW units. A root-locked clip (its
- * ROOT_bind left at the bind, the body moved by the pelvis's own translation keys, as many pose packs are made) has
- * that translation folded into the root ([PELVIS]: the pelvis's local offset from its bind, turned by the root's pose),
- * since the WoW skeleton moves through its Root alone; a root-driven clip's pelvis keys sit at the bind and add nothing.
+ * root) moves as the Sims hip joints do ([THIGHS]: their midpoint's world displacement from the bind, remapped and
+ * scaled to WoW units), so a root-locked clip (its ROOT_bind left at the bind, the body moved by the pelvis's own keys, as
+ * many pose packs are made) and a root-driven one both move the body, since the WoW skeleton moves through its Root alone;
+ * and the WoW hips are kept on the Sims hips when the pelvis tilts ([HIPS]: the WoW Root turns above its hip joints, the
+ * Sims root level with them). A rig without hip joints folds the pelvis's translation in instead ([PELVIS]).
  *
  * Bones the profile leaves out still feed the hierarchy (ROOT, ROOT_bind, twists); only mapped bones present
  * in the rig become tracks. Dropped names ([Profile.drop]) are never mapped. Keys are taken at every time any
@@ -55,6 +56,10 @@ class Retargeter(private val profile: Profile, private val rig: SimsRig?) : Reta
         val rootIndex: Int
         val pelvis: Int
         val pelvisBind: DoubleArray
+        /** The rig's hip joints (left, right: [THIGHS]; null: it has none, and a root-locked clip's pelvis is folded in instead)
+         *  and the root's bind position less their bind midpoint (Sims world). */
+        val thighs: Pair<Int, Int>?
+        val hipsToRoot: DoubleArray
 
         init {
             for (i in order) {
@@ -94,6 +99,9 @@ class Retargeter(private val profile: Profile, private val rig: SimsRig?) : Reta
                 rig.bones[i].parent == rootIndex && rig.bones[i].name.equals(PELVIS, ignoreCase = true)
             } ?: -1
             pelvisBind = if (pelvis < 0) DoubleArray(3) else rig.bones[pelvis].bindPosition.map { it.toDouble() }.toDoubleArray()
+            val tl = byName[THIGHS.first.lowercase()]; val tr = byName[THIGHS.second.lowercase()]
+            thighs = if (rootIndex >= 0 && tl != null && tr != null) tl to tr else null
+            hipsToRoot = if (thighs == null) DoubleArray(3) else V.sub(bindPos[rootIndex], V.scale(V.add(bindPos[thighs.first], bindPos[thighs.second]), 0.5))
         }
 
         private fun topo(): IntArray {
@@ -263,6 +271,7 @@ class Retargeter(private val profile: Profile, private val rig: SimsRig?) : Reta
         val e = IdentityHashMap<Mapped, DoubleArray>()
         val prev = IdentityHashMap<Mapped, DoubleArray>()
         val bindRel = profile.trackSpace == "bindRelative"
+        val pelvisMapped = p.mapped.firstOrNull { it.rule.wow == "Pelvis" }
         for ((k, t) in times.withIndex()) {
             for (i in p.order) {
                 val b = p.rig.bones[i]
@@ -296,7 +305,13 @@ class Retargeter(private val profile: Profile, private val rig: SimsRig?) : Reta
                 if (m.rule.position) {
                     // horizontal by [hScale] (a pair's shared one), vertical by this skeleton's own
                     var world = w[m.index]
-                    if (m.index == p.rootIndex && p.pelvis >= 0) {
+                    val hips = m.index == p.rootIndex && p.thighs != null
+                    if (hips) {
+                        // the root's movement is its hip joints' (their midpoint, every key on the way to them counted: a
+                        // root-locked clip's pelvis translation, the pelvis's own turn), with the root's bind offset from them
+                        val (tl, tr) = p.thighs!!
+                        world = V.add(V.scale(V.add(w[tl], w[tr]), 0.5), p.hipsToRoot)
+                    } else if (m.index == p.rootIndex && p.pelvis >= 0) {
                         // a root-locked clip's body moves by its pelvis's own translation: folded into the root
                         val pelvisTrack = pos[p.pelvis]
                         if (pelvisTrack != null) {
@@ -306,6 +321,13 @@ class Retargeter(private val profile: Profile, private val rig: SimsRig?) : Reta
                     }
                     val raw = V.mat(p.axis, V.sub(world, p.bindPos[m.index]))
                     val disp = doubleArrayOf(raw[0] * hScale, raw[1] * hScale, raw[2] * p.scale)
+                    if (hips) {
+                        // the hips kept where the Sims hips are: the WoW Root turns [HIPS] above its hip joints, the
+                        // Sims root at theirs, so a tilted pelvis would swing the WoW hips away (lying, on all fours)
+                        val hipsTurn = e[pelvisMapped ?: m] ?: e.getValue(m)
+                        val turned = Q.rotate(hipsTurn, HIPS)
+                        for (c in 0 until 3) disp[c] += HIPS[c] - turned[c]
+                    }
                     val local = Q.rotate(Q.inv(parentE), disp)
                     val op = outPos.getValue(m)
                     for (c in 0 until 3) op[k * 3 + c] = local[c].toFloat()
@@ -374,11 +396,25 @@ class Retargeter(private val profile: Profile, private val rig: SimsRig?) : Reta
         /**
          * The conversion's version, stamped on every converted clip ([Anim.conversionRevision]; 0: written before it was).
          * Raised whenever a clip already in a library would convert differently: 4 folds a root-locked clip's pelvis
-         * movement into the root. The library replaces an older one when the same clip is imported again
-         * ([AnimLibrary.addResult]) and counts the older ones still there ([AnimLibrary.stale]).
+         * movement into the root; 5 moves the root as the Sims hip joints and keeps the WoW hips on them ([HIPS]). The library replaces an older
+         * one when the same clip is imported again ([AnimLibrary.addResult]) and counts the older ones still there
+         * ([AnimLibrary.stale]).
          */
-        const val CONVERSION_REVISION = 4
-        /** The Sims pelvis: a root-locked clip's movement is its translation. */
+        const val CONVERSION_REVISION = 5
+        /**
+         * The WoW hip joints' midpoint from the Root's pivot at rest (model units of the reference skeleton, [BodyGeometry.REF]:
+         * 0.14 below it). The Sims root (b__ROOT_bind__) is level with the Sims hip joints, and the Root now moves as they do
+         * ([THIGHS]); the WoW pelvis turns about a pivot this much higher, so a tilted pelvis (lying, on all fours, leaning
+         * back) would swing the WoW hips off the Sims hips by up to this much (about 11 cm at human scale), which the Root's
+         * movement takes back: with the pelvis turned by E, the Root moves by (I - E) times this. The alignment audit measured
+         * a rear-facing stage's two hips 15 cm off their authored placement without it, 4 cm with (README, Alignment audit).
+         */
+        val HIPS: DoubleArray = BodyGeometry.REF.let { r ->
+            DoubleArray(3) { (r.getValue("L_Thigh")[it] + r.getValue("R_Thigh")[it]) / 2 - r.getValue("Root")[it] }
+        }
+        /** The Sims hip joints: the root moves as their midpoint does. */
+        val THIGHS = "b__L_Thigh__" to "b__R_Thigh__"
+        /** The Sims pelvis: a root-locked clip's movement is its translation (a rig without [THIGHS]). */
         const val PELVIS = "b__Pelvis__"
         const val NEEDS_RIG = "Converting Sims animations needs your Sims 4 skeleton: in Options, \"Sims skeleton\", pick a package of your Sims 4 game (such as ClientFullBuild0.package) once, then import again"
     }

@@ -156,8 +156,14 @@ object PairAlignment {
                     g[i] = qnorm(qmul(g[b.parent]!!, lr)); w[i] = add(w[b.parent]!!, rotate(g[b.parent]!!, lp))
                 }
             }
+            // the Root as the retarget makes it: a root-locked clip's pelvis movement folded in (Retargeter.PELVIS)
+            val root = wanted.first { it.second == "Root" }.first
+            val pelvis = wanted.first { it.second == "Pelvis" }.first
+            val pb = rig.bones[pelvis]
+            val fold = if (pb.parent == root) sub(w[pelvis]!!, rotate(g[root]!!, DoubleArray(3) { pb.bindPosition[it].toDouble() }))
+                else w[root]!!
             Pose(wanted.associate { (i, name) ->
-                val v = w[i]!!
+                val v = if (i == root) fold else w[i]!!
                 // Sims (x left, y up, z forward) to WoW (x forward, y left, z up), turned by the facing, offset, in yards
                 val fx = v[2]; val fy = v[0]; val fz = v[1]
                 name to doubleArrayOf((ox + fx * c - fy * s) * yardsPerMetre, (oy + fx * s + fy * c) * yardsPerMetre, (oz + fz) * yardsPerMetre)
@@ -209,14 +215,17 @@ object PairAlignment {
     /** The lowest flesh of [p] over the floor (yards). */
     fun lowest(p: Pose): Double = (p.flesh.lowest(p.frame, CONTACT_PARTS + listOf(FleshPart.L_FOOT, FleshPart.R_FOOT)) ?: 0.0) * p.unit
 
-    /** Which way [p] faces (radians, the pair's frame): its trunk's way when the trunk lies flat, else its pelvis's front. */
+    /**
+     * Which way [p] faces (radians, the pair's frame): square to its hips (the right hip joint to the left one, turned a
+     * quarter right), the same way for a body standing, sitting, kneeling, on all fours or lying on its back or front; a body
+     * on its side (the hips one over the other) by its trunk's way.
+     */
     fun yaw(p: Pose): Double {
+        val l = p["L_Thigh"]!!; val rt = p["R_Thigh"]!!
+        val sx = l[0] - rt[0]; val sy = l[1] - rt[1]; val sz = l[2] - rt[2]
+        if (hypot(sx, sy) > 0.5 * abs(sz)) return atan2(-sx, sy)
         val r = p["Root"]!!; val n = p["Neck1"]!!
-        val ax = n[0] - r[0]; val ay = n[1] - r[1]; val az = n[2] - r[2]
-        val len = sqrt(ax * ax + ay * ay + az * az)
-        if (len > 1e-6 && abs(az) / len < 0.6) return atan2(ay, ax)
-        val f = p.flesh.frame(FleshPart.PELVIS, p.frame) ?: return atan2(ay, ax)
-        return atan2(f.n[1], f.n[0])
+        return atan2(n[1] - r[1], n[0] - r[0])
     }
 
     fun wrapDeg(d: Double): Double { var a = d % 360.0; if (a > 180) a -= 360.0; if (a <= -180) a += 360.0; return a }

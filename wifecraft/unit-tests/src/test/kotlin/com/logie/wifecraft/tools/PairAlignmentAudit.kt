@@ -18,6 +18,7 @@ import com.logie.wifecraft.sims.SimsHash
 import com.logie.wifecraft.sims.SimsReader
 import com.logie.wifecraft.simulation.FurnitureAnimation
 import com.logie.wifecraft.simulation.PairFit
+import com.logie.wifecraft.simulation.PairLift
 import com.logie.wifecraft.simulation.PairSpacing
 import com.logie.wifecraft.simulation.PartnerPair
 import com.logie.wifecraft.simulation.PartnerSlot
@@ -55,7 +56,7 @@ class PairAlignmentAudit {
     object Tol {
         const val RETARGET_CM = 2.0
         const val PLACE_CM = 3.0
-        const val CONTACT_CM = 5.0
+        const val HIPS_CM = 6.0
         const val PEN_CM = 4.0
         const val FACING_DEG = 15.0
         const val SINK_CM = 4.0
@@ -118,10 +119,15 @@ class PairAlignmentAudit {
         ArchiveImport.deleteTree(tmp)
 
         val debug = System.getenv("ALIGN_DEBUG")
+        // ALIGN_RENDER: stages (name parts or ids, "|"-separated) to write stills' plans for (ALIGN_FILES, ALIGN_LOOKS,
+        // ALIGN_LOCATIONS: engine-test/audit's game files, look files and locations.json)
+        val renders = System.getenv("ALIGN_RENDER")?.split('|')?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
         val dbg = File(out, "debug.txt").printWriter()
+        val table = File(out, "table.csv").printWriter()
+        table.println("pack,hash,class,hips_fwd_bu,hips_left_bu,hips_up_bu,retarget_hips_cm")
         val csv = File(out, "stages.csv").printWriter()
         csv.println("pack,id,hash,name,group,setting,class,postureA,postureB,surface,combo,way,frames,durA,durB," +
-            "retarget_cm,body_cm,place_cm,placeV_cm,push_yd,liftA_cm,liftB_cm,contact_auth_cm,contact_app_cm,contact_err_cm," +
+            "retarget_cm,retargetHips_cm,hips_cm,body_cm,place_cm,placeV_cm,push_yd,liftA_cm,liftB_cm,contact_auth_cm,contact_app_cm,contact_err_cm," +
             "pen_auth_cm,pen_app_cm,pen_extra_cm,facing_err_deg,sink_cm,float_cm,drift_err_cm,relAuth_x,relAuth_y,relAuth_z,flags")
         class Row(val cls: String, val combo: String, val way: String, val flags: List<String>, val score: Double, val line: String, val id: String, val name: String)
         val rows = ArrayList<Row>()
@@ -151,6 +157,7 @@ class PairAlignmentAudit {
             val genA = PairAlignment.played(anA, Body.GENERIC, times, ra.offset.x * k * HumanScale.PAIR, ra.offset.y * k * HumanScale.PAIR, ra.offset.z * k, Math.toDegrees(ra.facing.toDouble()))
             val genB = PairAlignment.played(anB, Body.GENERIC, times, rb.offset.x * k * HumanScale.PAIR, rb.offset.y * k * HumanScale.PAIR, rb.offset.z * k, Math.toDegrees(rb.facing.toDouble()))
             val retarget = times.indices.maxOf { i -> relErr(genA[i], genB[i], authA[i], authB[i]).first }
+            val retargetHips = times.indices.maxOf { i -> hipsErr(genA[i], genB[i], authA[i], authB[i]) }
 
             if (debug != null && c.name.contains(debug, true)) {
                 dbg.println("== ${c.name} id=${c.id} roles=${c.roles} scale=$k req=${req.surface} ${req.actors.map { it.posture }}")
@@ -162,6 +169,16 @@ class PairAlignmentAudit {
                 }
                 dbg.flush()
             }
+            // the table (numbers only): B's hips from A's as authored, body units in A's facing, at the middle moment
+            run {
+                fun hipsOf(x: Pose) = PairAlignment.lerp(x["L_Thigh"]!!, x["R_Thigh"]!!, 0.5)
+                val d = PairAlignment.sub(hipsOf(authB[mid]), hipsOf(authA[mid]))
+                val ya = PairAlignment.yaw(authA[mid]); val u = PairAlignment.AUTHORED_UNIT
+                table.println(listOf(q(label), hash, q(cls), String.format(locale, "%.4f", (d[0] * kotlin.math.cos(ya) + d[1] * kotlin.math.sin(ya)) / u),
+                    String.format(locale, "%.4f", (-d[0] * kotlin.math.sin(ya) + d[1] * kotlin.math.cos(ya)) / u), String.format(locale, "%.4f", d[2] / u),
+                    f(retargetHips * CM_PER_YARD)).joinToString(","))
+            }
+            val touching = PairSpacing.touching(pp)
             val authContact = times.indices.map { i -> PairAlignment.surface(authA[i], authB[i], PairAlignment.HIP_PARTS, PairAlignment.HIP_PARTS) }
             val authPen = times.indices.map { i -> PairAlignment.surface(authA[i], authB[i], skip = PairAlignment.mayTouch) }
 
@@ -174,22 +191,59 @@ class PairAlignmentAudit {
                 val spaced = PairSpacing.spaced(pp, combo.a.flesh, combo.b.flesh)
                 val push = PairAlignment.horiz(doubleArrayOf((spaced.slotB.x - pp.slotB.x).toDouble(), (spaced.slotB.y - pp.slotB.y).toDouble(), 0.0))
                 val (sA, sB) = PairFit.slots(spaced.slotA, spaced.slotB, combo.sizeA, combo.sizeB)
-                val unit = SceneUnit.HUMAN * (combo.scaleA + combo.scaleB) / 2.0
-                fun lift(i: Int, body: Body, slot: PartnerSlot, anim: com.logie.wifecraft.anim.Anim): Double {
+                fun lift(i: Int, body: Body, slot: PartnerSlot, anim: com.logie.wifecraft.anim.Anim, unit: Double): Double {
                     val need = req.actors.getOrNull(i) ?: return 0.0
                     val own = if (body.flesh.measured) FleshLift.adjusted(need, BodyGeometry.frames(anim, z = slot.z.toDouble(), flesh = body.flesh), body.flesh).liftUnits
                         else need.liftUnits
                     return ((own - if (floorLevel) 0f else need.liftUnits) * unit)
                 }
-                val la = lift(0, combo.a, spaced.slotA, anA); val lb = lift(1, combo.b, spaced.slotB, anB)
+                val shared = PairLift.shared(lift(0, combo.a, spaced.slotA, anA, SceneUnit.HUMAN * combo.scaleA).toFloat(),
+                    lift(1, combo.b, spaced.slotB, anB, SceneUnit.HUMAN * combo.scaleB).toFloat(), touching)
+                val la = shared[0].toDouble(); val lb = shared[1].toDouble()
                 val pairA = PairAlignment.played(anA, combo.a, times, sA.x.toDouble(), sA.y.toDouble(), sA.z.toDouble(), sA.yawDeg.toDouble(), la)
                 val pairB = PairAlignment.played(anB, combo.b, times, sB.x.toDouble(), sB.y.toDouble(), sB.z.toDouble(), sB.yawDeg.toDouble(), lb)
 
+                if (renders.isNotEmpty() && combo.name == "human_m+human_f" && renders.any { c.name.contains(it, true) || c.id == it }) {
+                    // stills for engine-test/audit: the pair way as the app places it, on the stage's floor (a bed's or seat's
+                    // height taken off, so the bodies rest on the floor plane as on the furniture), side and three-quarter
+                    val slug = (c.name.replace(Regex("[^A-Za-z0-9]+"), "_").trim('_').take(40) + "_" + hash).lowercase()
+                    val dir = File(out, "render/$slug").also { it.mkdirs() }
+                    File(dir, "a.anim").writeText(animText(lifted(anA.copy(loop = true), sA.z)))
+                    File(dir, "b.anim").writeText(animText(lifted(anB.copy(loop = true), sB.z)))
+                    val base = if (floorLevel) 0.0 else -(req.actors.getOrNull(req.primary)?.restUnits ?: 0f) * SceneUnit.HUMAN
+                    val sx = -1.2; val sy = -0.6; val floor = 1.72
+                    val cx = sx + (sA.x + sB.x) / 2.0; val cy = sy + (sA.y + sB.y) / 2.0
+                    val ang = kotlin.math.atan2((sB.y - sA.y).toDouble(), (sB.x - sA.x).toDouble())
+                    val apart = PairAlignment.horiz(doubleArrayOf((sB.x - sA.x).toDouble(), (sB.y - sA.y).toDouble(), 0.0))
+                    val across = if (apart > 0.05) ang + Math.PI / 2 else Math.toRadians(sA.yawDeg.toDouble()) + Math.PI / 2
+                    val chest = floor + 0.8
+                    val plan = StringBuilder()
+                    plan.append("files ${System.getenv("ALIGN_FILES")}\nlocation ${System.getenv("ALIGN_LOCATIONS")} embassy inside\nfloor $floor\n")
+                    plan.append("case $slug kind=pair\nclearsolids\nclearprops\n")
+                    plan.append("actor 0 ${System.getenv("ALIGN_LOOKS")}/human_m.look ${HumanScale.MALE_HEIGHT} ${HumanScale.PAIR}\n")
+                    plan.append(String.format(locale, "place 0 %.4f %.4f %.4f %.4f raw\n", sx + sA.x, sy + sA.y, floor + base + la, Math.toRadians(sA.yawDeg.toDouble())))
+                    plan.append("clip 0 ${File(dir, "a.anim").absolutePath}\n")
+                    plan.append("actor 1 ${System.getenv("ALIGN_LOOKS")}/human_f.look ${HumanScale.FEMALE_HEIGHT} ${HumanScale.PAIR}\n")
+                    plan.append(String.format(locale, "place 1 %.4f %.4f %.4f %.4f raw\n", sx + sB.x, sy + sB.y, floor + base + lb, Math.toRadians(sB.yawDeg.toDouble())))
+                    plan.append("clip 1 ${File(dir, "b.anim").absolutePath}\n")
+                    for ((view, turn) in listOf("side" to across, "3q" to across - Math.PI / 4)) {
+                        val ex = cx + kotlin.math.cos(turn) * 3.2; val ey = cy + kotlin.math.sin(turn) * 3.2
+                        plan.append(String.format(locale, "camera %.3f %.3f %.3f %.3f %.3f %.3f 40\n", ex, ey, chest + 0.5 + base * 0.5, cx, cy, chest - 0.35 + base * 0.5))
+                        for (frac in listOf(0.25, 0.5, 0.75)) {
+                            val ms = (max(anA.duration, anB.duration) * frac * 1000).toInt()
+                            plan.append("render ${File(dir, "${view}_${(frac * 100).toInt()}.png").absolutePath} 960 540 $ms\n")
+                        }
+                    }
+                    File(dir, "plan.txt").writeText(plan.toString())
+                    File(dir, "caption.txt").writeText("${c.name} | $cls | ${req.surface} ${pa}/${pb}\n")
+                }
                 for ((way, appA, appB) in listOf(Triple("order", orderA, orderB), Triple("pair", pairA, pairB))) {
+                    var hips = 0.0
                     var body = 0.0; var place = 0.0; var placeV = 0.0; var cErr = 0.0; var cApp = Double.MAX_VALUE; var cAuth = Double.MAX_VALUE
                     var penApp = 0.0; var penAuth = 0.0; var penExtra = 0.0; var facing = 0.0; var sink = 0.0; var float = Double.MAX_VALUE
                     for (i in times.indices) {
                         body = max(body, relErr(appA[i], appB[i], authA[i], authB[i]).first)
+                        hips = max(hips, hipsErr(appA[i], appB[i], authA[i], authB[i]))
                         val pe = relErr(appA[i], appB[i], orderA[i], orderB[i])
                         place = max(place, pe.first); placeV = max(placeV, pe.second)
                         val ca = authContact[i]
@@ -215,9 +269,9 @@ class PairAlignmentAudit {
                         PairAlignment.len(PairAlignment.sub(rel(authA[n], authB[n]), rel(authA[0], authB[0]))))
                     val cm = CM_PER_YARD
                     val flags = ArrayList<String>()
-                    if (retarget * cm > Tol.RETARGET_CM) flags += "RETARGET"
+                    if (retargetHips * cm > Tol.RETARGET_CM) flags += "RETARGET"
                     if (place * cm > Tol.PLACE_CM) flags += "PLACE"
-                    if (abs(cErr) * cm > Tol.CONTACT_CM) flags += if (cErr > 0) "GAP" else "TIGHT"
+                    if (hips * cm > Tol.HIPS_CM) flags += "HIPS"
                     if (penExtra * cm > Tol.PEN_CM) flags += "PEN"
                     if (facing > Tol.FACING_DEG) flags += "FACING"
                     if (sink * cm > Tol.SINK_CM) flags += "SINK"
@@ -226,23 +280,23 @@ class PairAlignmentAudit {
                     if (abs(sa.duration - sb.duration) > max(sa.tickLength, sb.tickLength) + 1e-4f) flags += "LENGTH"
                     val ra0 = rel(authA[mid], authB[mid])
                     val line = listOf(q(label), q(c.id), hash, q(c.name), q(c.group), q(c.setting), q(cls), pa, pb, req.surface, combo.name, way, times.size,
-                        f(anA.duration.toDouble()), f(anB.duration.toDouble()), f(retarget * cm), f(body * cm), f(place * cm), f(placeV * cm),
+                        f(anA.duration.toDouble()), f(anB.duration.toDouble()), f(retarget * cm), f(retargetHips * cm), f(hips * cm), f(body * cm), f(place * cm), f(placeV * cm),
                         String.format(locale, "%.3f", push), f(la * cm), f(lb * cm), f(cAuth * cm), f(cApp * cm), f(cErr * cm),
                         f(penAuth * cm), f(penApp * cm), f(penExtra * cm), f(facing), f(sink * cm), f(float * cm), f(drift * cm),
                         String.format(locale, "%.4f", ra0[0]), String.format(locale, "%.4f", ra0[1]), String.format(locale, "%.4f", ra0[2]),
                         flags.joinToString("|")).joinToString(",")
                     csv.println(line)
-                    val score = max(max(place, abs(cErr)), max(penExtra, sink)) * cm + facing / 5
+                    val score = max(max(place, hips), max(penExtra, sink)) * cm + facing / 5
                     rows += Row(cls, combo.name, way, flags, score, line, c.id, c.name)
                 }
             }
         }
-        csv.close(); dbg.close()
+        csv.close(); dbg.close(); table.close()
         log.println("stages measured ${two.size - skipped}; skipped (no Sims clip or joint) $skipped")
 
         // per class: count, failures (by flag), the worst
         val sum = File(out, "summary.txt").printWriter()
-        sum.println("PACK $label  (tolerances: retarget ${Tol.RETARGET_CM} cm, placement ${Tol.PLACE_CM} cm, hip contact ${Tol.CONTACT_CM} cm, " +
+        sum.println("PACK $label  (tolerances: retarget ${Tol.RETARGET_CM} cm, placement ${Tol.PLACE_CM} cm, hips ${Tol.HIPS_CM} cm, " +
             "extra penetration ${Tol.PEN_CM} cm, facing ${Tol.FACING_DEG} deg, sink ${Tol.SINK_CM} cm, float ${Tol.FLOAT_CM} cm, drift ${Tol.DRIFT_CM} cm)")
         for ((key, group) in rows.groupBy { Triple(it.combo, it.way, "") }.entries.sortedBy { it.key.first + it.key.second }) {
             sum.println("\n== ${key.first} / ${key.second}: ${group.size} stages, ${group.count { it.flags.isNotEmpty() }} flagged; by flag " +
@@ -271,6 +325,31 @@ class PairAlignmentAudit {
         val d = PairAlignment.sub(rel(a, b), rel(a0, b0))
         return PairAlignment.len(d) to abs(d[2])
     }
+
+    private fun animText(a: com.logie.wifecraft.anim.Anim): String = buildString {
+        append("# ${a.name}\nduration ${a.duration}\n")
+        if (a.loop) append("loop\n")
+        for (t in a.tracks) {
+            val per = if (t.channel == com.logie.wifecraft.sims.Channel.ROTATION) 4 else 3
+            for (k in t.times.indices) {
+                append(if (per == 4) "rot " else "pos ").append(t.bone).append(' ').append(t.times[k])
+                for (c in 0 until per) append(' ').append(t.values[k * per + c])
+                append('\n')
+            }
+        }
+    }
+
+    /** SceneSessionScreen's lifted(): a role's slot height carried in its Root track (reference units). */
+    private fun lifted(a: com.logie.wifecraft.anim.Anim, lift: Float): com.logie.wifecraft.anim.Anim = if (lift == 0f) a else a.copy(tracks = a.tracks.map { t ->
+        if (t.bone == "Root" && t.channel == com.logie.wifecraft.sims.Channel.POSITION) com.logie.wifecraft.anim.BoneTrack(t.bone, t.channel, t.times,
+            t.values.copyOf().also { v -> for (i in 2 until v.size step 3) v[i] += lift }) else t
+    })
+
+    private fun hips(p: Pose) = PairAlignment.lerp(p["L_Thigh"]!!, p["R_Thigh"]!!, 0.5)
+
+    /** How far B's hip joints are from where they should be against A's (yards). */
+    private fun hipsErr(a: Pose, b: Pose, a0: Pose, b0: Pose): Double =
+        PairAlignment.len(PairAlignment.sub(PairAlignment.sub(hips(b), hips(a)), PairAlignment.sub(hips(b0), hips(a0))))
 
     private fun q(s: String) = "\"" + s.replace('"', '\'') + "\""
 

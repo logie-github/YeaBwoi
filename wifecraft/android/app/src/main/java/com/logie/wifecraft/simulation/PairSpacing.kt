@@ -18,9 +18,9 @@ import kotlin.math.sqrt
  * thinner bodies, both roles given the same root, an arm through the other's chest on a couch) has its second role moved
  * away from the first, across the floor only (a slot's height is its clip's), along the line between the parts where they
  * come nearest (between the slots when they are on one axis; else to the first role's left), at most [MAX_PUSH]. Parts may
- * come [CONTACT_TOLERANCE] into each other first (stages made to touch keep their contact), and a stage made for contact (a
- * kiss, an embrace, a cuddle, a hug, a cradle) is moved at most [MAX_PUSH_CONTACT]. Pure; the
- * simulation caches one per pair.
+ * come [CONTACT_TOLERANCE] into each other first (stages made to touch keep their contact), measured bodies as far as the
+ * reference bodies come in the stage as authored and [EXTRA] more, and a stage made for contact (a kiss, an embrace, a
+ * cuddle, a hug, a cradle) is moved at most [MAX_PUSH_CONTACT]. Pure; the simulation caches one per pair.
  */
 object PairSpacing {
     /** A trunk's half-thickness in body units (a human's chest or hips, about 0.15 yards, over the 1.17-yard pelvis). */
@@ -38,6 +38,12 @@ object PairSpacing {
      * by what they come nearer than this.
      */
     const val CONTACT_TOLERANCE = 0.2
+    /**
+     * How much deeper than the reference bodies (the generic flesh on the reference skeleton, as the stage was authored) two
+     * measured bodies may come into each other at a moment before the second is moved (body units, about 3.5 cm): a stage
+     * whose author made the bodies meet keeps that meeting for thicker bodies too, moved only by what they add past it.
+     */
+    const val EXTRA = 0.03
     /** The farthest a stage made for contact (a kiss, an embrace, a cuddle, a hug, a cradle: [contact]) is moved (body units). */
     const val MAX_PUSH_CONTACT = 0.1
 
@@ -45,6 +51,39 @@ object PairSpacing {
 
     /** Whether [p] is a stage made for contact, by its name or id (a kiss, an embrace, a cuddle, a hug, a cradle). */
     fun contact(p: PartnerPair): Boolean = CONTACT_WORDS.containsMatchIn(p.name) || CONTACT_WORDS.containsMatchIn(p.id)
+
+    /**
+     * Two bodies whose parts come this near (body units of [RULES]' room: about 6 cm between their flesh) at some moment of
+     * the clip meet: a stage made for contact ([touching]).
+     */
+    const val TOUCH = 0.05
+
+    /**
+     * Whether [p]'s two bodies meet at some moment of its clip (the generic body's parts within [TOUCH] of each other, or a
+     * head or hand within [REACH_TOUCH] of the other's trunk, hips, thighs or head: a kiss, an embrace, one body on or behind
+     * the other), so the pair is one piece: raised together ([PairLift]) and never moved
+     * apart further than its author's contact allows.
+     */
+    fun touching(p: PartnerPair): Boolean {
+        val a = frames(p.slotA, p.a); val b = frames(p.slotB, p.b)
+        if (a.isEmpty() || b.isEmpty()) return false
+        for (i in 0 until max(a.size, b.size)) {
+            val fa = a[minOf(i, a.size - 1)]; val fb = b[minOf(i, b.size - 1)]
+            val s = slack(fa, fb)
+            if (s != null && s.first < TOUCH) return true
+            // a head or a hand at the other's body (a kiss, oral, a hand on the hips): the trunks may be far apart
+            for ((x, y) in listOf(fa to fb, fb to fa)) for (j in REACHING) {
+                val p = x[j] ?: continue
+                for (k in TOUCHED) { val q = y[k] ?: continue; if (dist(p, q) < REACH_TOUCH) return true }
+            }
+        }
+        return false
+    }
+
+    /** A head or a hand this near (body units, about 29 cm) one of the other's [TOUCHED] joints meets it ([touching]). */
+    const val REACH_TOUCH = 0.25
+    private val REACHING = listOf("Head", "L_Hand", "R_Hand")
+    private val TOUCHED = listOf("Root", "Pelvis", "Spine1", "Chest", "Neck1", "Head", "L_Thigh", "R_Thigh")
 
     /** The parts kept apart: a segment of the first body, one of the second, and how far apart their axes must stay. */
     private class Rule(val a0: String, val a1: String, val b0: String, val b1: String, val need: Double)
@@ -86,7 +125,22 @@ object PairSpacing {
         val b = frames(p.slotB, p.b, fleshB)
         if (a.isEmpty() || b.isEmpty()) return null
         val fallback = (p.slotB.x - p.slotA.x).toDouble() to (p.slotB.y - p.slotA.y).toDouble()
-        return push(a, b, fallback, fleshA, fleshB, if (contact(p)) MAX_PUSH_CONTACT else MAX_PUSH)
+        // measured bodies: each moment may come as deep as the reference bodies do there (the author's own contact) and
+        // [EXTRA] more, before the second is moved; the reference bodies keep the plain tolerance
+        val authored: DoubleArray? = if (!fleshA.measured && !fleshB.measured) null else {
+            val ga = frames(p.slotA, p.a); val gb = frames(p.slotB, p.b)
+            if (ga.isEmpty() || gb.isEmpty()) null else DoubleArray(max(a.size, b.size)) { i ->
+                slack(ga[minOf(i, ga.size - 1)], gb[minOf(i, gb.size - 1)])?.first ?: 0.0
+            }
+        }
+        val tolerance: (Int) -> Double = if (authored == null) { _ -> CONTACT_TOLERANCE }
+            else { i ->
+                // a moment the reference bodies already come deeper than the tolerance into (two clips on one spot) is moved
+                // as before; one they meet within it may take the measured bodies [EXTRA] deeper than they come
+                val deep = -authored[minOf(i, authored.size - 1)]
+                if (deep > CONTACT_TOLERANCE) CONTACT_TOLERANCE else max(CONTACT_TOLERANCE, deep + EXTRA)
+            }
+        return push(a, b, fallback, fleshA, fleshB, if (contact(p)) MAX_PUSH_CONTACT else MAX_PUSH, tolerance)
     }
 
     /** A role's body over its clip at its slot, on [flesh]'s own skeleton when measured. */
@@ -113,7 +167,7 @@ object PairSpacing {
      */
     fun push(a: List<BodyFrame>, b: List<BodyFrame>, toward: Pair<Double, Double> = 0.0 to 0.0,
              fleshA: FleshProfile = FleshProfile.GENERIC, fleshB: FleshProfile = FleshProfile.GENERIC,
-             maxPush: Double = MAX_PUSH): Pair<Double, Double>? {
+             maxPush: Double = MAX_PUSH, tolerance: (Int) -> Double = { CONTACT_TOLERANCE }): Pair<Double, Double>? {
         val measured = fleshA.measured || fleshB.measured
         // with measured flesh, each moment's parts placed once (moving the second body only shifts its parts)
         val partsA = if (measured) a.map { parts(it, fleshA) } else emptyList()
@@ -125,10 +179,12 @@ object PairSpacing {
             for (i in 0 until max(a.size, b.size)) {
                 val (s, x, y) = (if (measured) slack(partsA[minOf(i, a.size - 1)], partsB[minOf(i, b.size - 1)], fleshA, fleshB, ox, oy)
                     else slack(a[minOf(i, a.size - 1)], b[minOf(i, b.size - 1)], ox, oy)) ?: return null
-                if (s < worst) { worst = s; wx = x; wy = y }
+                // what this moment comes nearer than its tolerance
+                val over = s + tolerance(i)
+                if (over < worst) { worst = over; wx = x; wy = y }
             }
             // nearer than the contact tolerance: moved by what it comes nearer than that
-            if (worst >= -CONTACT_TOLERANCE - 1e-6) return if (ox == 0.0 && oy == 0.0) null else ox to oy
+            if (worst >= -1e-6) return if (ox == 0.0 && oy == 0.0) null else ox to oy
             var h = hypot(wx, wy)
             if (h < 1e-3) {
                 // on one axis: between the slots, else to the first body's left
@@ -139,7 +195,7 @@ object PairSpacing {
                     if (h < 1e-3) { wx = 0.0; wy = 1.0; h = 1.0 }
                 }
             }
-            val step = -worst - CONTACT_TOLERANCE + 1e-3
+            val step = -worst + 1e-3
             ox += wx / h * step; oy += wy / h * step
             val total = hypot(ox, oy)
             if (total > maxPush) return ox / total * maxPush to oy / total * maxPush
@@ -228,4 +284,16 @@ object PairSpacing {
         val t = if (l2 < 1e-12) 0.0 else ((0..2).sumOf { (p[it] - a[it]) * ab[it] } / l2).coerceIn(0.0, 1.0)
         return t to lerp(a, b, t)
     }
+}
+
+/**
+ * The lift of a pair's two roles (world units, the first role's then the second's), each worked out for its own body's flesh
+ * (SceneSimulation.roleLifts). Two bodies that meet are one piece made by their author: raising one and not the other moves
+ * their contact (a rear-facing pair's hips apart up and down by the difference), so they are raised together by the larger
+ * of the two (neither goes into its support; the other is lifted with it, its flesh as far over its support as the author
+ * had it at worst). Apart, each keeps its own. Pure.
+ */
+object PairLift {
+    fun shared(first: Float, second: Float, touching: Boolean): FloatArray =
+        if (touching) maxOf(first, second).let { floatArrayOf(it, it) } else floatArrayOf(first, second)
 }

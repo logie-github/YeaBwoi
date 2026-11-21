@@ -280,6 +280,24 @@ class RetargetTest {
     }
 
     @Test
+    fun aTiltedPelvisKeepsTheWowHipsOnTheSimsHips() {
+        // as the game's rig has it: the Sims hip joints level with the root (the WoW ones 0.14 below the Root's pivot)
+        val root = wow.getValue("b__ROOT_bind__").second
+        val b = rig({ n -> val w = wow.getValue(n).second
+            toSims(if (n == "b__L_Thigh__" || n == "b__R_Thigh__") doubleArrayOf(root[0], w[1], root[2]) else w) }, { Q.ID })
+        val restHips = DoubleArray(3) { (BodyGeometry.REF.getValue("L_Thigh")[it] + BodyGeometry.REF.getValue("R_Thigh")[it]) / 2 }
+        // pitched forward and back (on all fours, lying back) and rolled: the Sims hips stay where they were (they are on the
+        // turn's axis), and so must the WoW ones, not swing round the Root's higher pivot (14 cm at 90 degrees, before)
+        for ((axis, deg) in listOf(doubleArrayOf(1.0, 0.0, 0.0) to 90.0, doubleArrayOf(1.0, 0.0, 0.0) to -90.0, doubleArrayOf(0.0, 0.0, 1.0) to 60.0)) {
+            val a = Retargeter(profile, b.rig).convert(clip(mapOf("b__ROOT_bind__" to axisAngle(axis, deg))))
+            val f = BodyGeometry.frames(a).first()
+            val hips = DoubleArray(3) { (f["L_Thigh"]!![it] + f["R_Thigh"]!![it]) / 2 * BodyGeometry.REF_UNIT }
+            for (c in 0 until 3) assertEquals(restHips[c], hips[c], 3e-3, "turned $deg about ${axis.toList()}: hips ${hips.toList()}, axis $c")
+            assertTrue(Retargeter.HIPS[2] < -0.13, "the WoW hips are below the Root's pivot")
+        }
+    }
+
+    @Test
     fun aFlipNegatesTheAxis() {
         val flipped = Profile.load(File(assets, "sims_profile.json").readText()
             .replace("{\"sims\": \"b__Head__\", \"wow\": \"Head\", \"parent\": \"Neck1\"}", "{\"sims\": \"b__Head__\", \"wow\": \"Head\", \"parent\": \"Neck1\", \"flip\": \"z\"}"))
