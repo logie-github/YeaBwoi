@@ -16,7 +16,8 @@ enum class CinematicStyle(val label: String) {
 }
 
 /**
- * Options' Cinematic page: [lighting] the mood's strength 0..100 (the warm low-key light, the grade and the vignette), the
+ * Options' Cinematic page: [lighting] the look's strength 0..100 (the place's own cinematic light, its grade and vignette:
+ * engine/daylight.h's area profile, every difference from neutral times this), the
  * camera's [style], [letterbox] bars, film [grain], [hideWords] (names, speech and thought bubbles hidden while it runs), each
  * shot [shortest]..[longest] seconds, and [motion] the camera's speed in percent (50..150: how far each shot moves and how
  * quickly it travels between shots); while an animation plays, the shot library's [shotStyle], its [randomness] (0..100: how

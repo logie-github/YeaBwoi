@@ -14,7 +14,7 @@
     "END": {"WIDE": 1.2, "MEDIUM": 1.0, "CLOSE": 2.5, "DETAIL": 0.4}
   },
   "shots": {
-    "establish_wide":  {"size": "WIDE",   "anchor": "PAIR",   "type": "WIDE",          "azimuth": [50, 130], "pitch": [18, 30], "distance": [3.0, 3.8],  "fov": [50, 55], "orbit": [1, 2],   "push": [0.03, 0.06], "dwell": [4, 7], "transition": "ANY"},
+    "establish_wide":  {"size": "WIDE",   "anchor": "PAIR",   "type": "WIDE",          "azimuth": [50, 130], "pitch": [18, 30], "distance": [2.2, 3.4],  "fov": [50, 55], "orbit": [1, 2],   "push": [0.03, 0.06], "dwell": [4, 7], "transition": "ANY"},
     "high_wide":       {"size": "WIDE",   "anchor": "PAIR",   "type": "HIGH_ANGLE",    "azimuth": [30, 150], "pitch": [40, 55], "distance": [2.2, 2.8],  "fov": [50, 55], "orbit": [1, 2.5], "push": [0.0, 0.05],  "dwell": [4, 7], "transition": "ANY"},
     "profile_medium":  {"size": "MEDIUM", "anchor": "PAIR",   "type": "ORBIT",         "azimuth": [78, 102], "pitch": [8, 18],  "distance": [1.2, 1.6],  "fov": [45, 50], "orbit": [1.5, 3], "push": [0.04, 0.1],  "dwell": [5, 9], "transition": "BLEND"},
     "three_quarter_a": {"size": "MEDIUM", "anchor": "PAIR",   "type": "ORBIT",         "azimuth": [122, 150],"pitch": [12, 24], "distance": [1.2, 1.5],  "fov": [45, 50], "orbit": [1, 2.5], "push": [0.03, 0.08], "dwell": [5, 8], "transition": "ANY"},
@@ -37,17 +37,17 @@
     "hands_detail":    {"size": "DETAIL", "anchor": "PELVIS", "type": "HIGH_ANGLE",    "azimuth": [95, 140], "pitch": [25, 40], "distance": [0.5, 0.6],  "fov": [40, 45], "orbit": [0, 1],   "push": [0.02, 0.05], "dwell": [3, 6], "transition": "CUT"}
   },
   "sets": {
-    "KISS":         {"faces_close": 3, "profile_medium": 2, "face_a_close": 1.5, "face_b_close": 1.5, "over_shoulder_a": 1, "dolly_in": 1, "establish_wide": 1},
-    "FACING_LYING": {"profile_medium": 3, "top_down": 2, "over_shoulder_a": 1.5, "end_a_medium": 1.5, "pelvis_side": 1.5, "low_medium": 1, "establish_wide": 1},
-    "REAR":         {"profile_medium": 3, "end_a_medium": 2, "end_b_medium": 1.5, "face_b_close": 1.5, "pelvis_end_a": 1, "high_wide": 1, "establish_wide": 1},
-    "RIDING":       {"low_medium": 2.5, "profile_medium": 2, "three_quarter_a": 1.5, "three_quarter_b": 1.5, "face_b_close": 1, "pelvis_low": 1, "establish_wide": 1},
-    "SEATED":       {"three_quarter_a": 2, "three_quarter_b": 2, "profile_medium": 2, "faces_close": 1.5, "low_medium": 1, "pelvis_side": 1, "establish_wide": 1},
-    "STANDING":     {"profile_medium": 2.5, "low_medium": 2, "handheld_medium": 1.5, "faces_close": 1.5, "over_shoulder_a": 1, "pelvis_side": 1, "establish_wide": 1.5},
-    "SIDE_LYING":   {"three_quarter_b": 2, "top_down": 2, "faces_close": 2, "profile_medium": 1.5, "pelvis_side": 1, "high_wide": 1, "establish_wide": 1},
+    "KISS":         {"faces_close": 3, "profile_medium": 2, "face_a_close": 1.5, "face_b_close": 1.5, "dolly_in": 1, "establish_wide": 1},
+    "FACING_LYING": {"profile_medium": 3, "top_down": 2, "over_shoulder_a": 1.5, "end_a_medium": 1.5, "pelvis_side": 1.5, "establish_wide": 1},
+    "REAR":         {"profile_medium": 3, "end_a_medium": 2, "end_b_medium": 1.5, "face_b_close": 1.5, "pelvis_end_a": 1, "establish_wide": 1},
+    "RIDING":       {"low_medium": 2.5, "profile_medium": 2, "three_quarter_a": 1.5, "face_b_close": 1, "pelvis_low": 1, "establish_wide": 1},
+    "SEATED":       {"three_quarter_a": 2, "three_quarter_b": 2, "profile_medium": 2, "faces_close": 1.5, "pelvis_side": 1, "establish_wide": 1},
+    "STANDING":     {"profile_medium": 2.5, "low_medium": 2, "handheld_medium": 1.5, "faces_close": 1.5, "pelvis_side": 1, "establish_wide": 1.5},
+    "SIDE_LYING":   {"three_quarter_b": 2, "top_down": 2, "faces_close": 2, "profile_medium": 1.5, "pelvis_side": 1, "establish_wide": 1},
     "ORAL":         {"pov_high_a": 3, "profile_medium": 2.5, "face_b_close": 2, "three_quarter_a": 1.5, "low_medium": 1, "establish_wide": 1},
     "MANUAL":       {"hands_detail": 2.5, "faces_close": 2, "profile_medium": 2, "three_quarter_a": 1.5, "face_a_close": 1.5, "establish_wide": 1},
-    "PARTNER":      {"profile_medium": 2, "three_quarter_a": 1.5, "three_quarter_b": 1.5, "faces_close": 1.5, "high_wide": 1, "low_medium": 1, "dolly_in": 1, "establish_wide": 1},
-    "SOLO":         {"handheld_medium": 2, "low_medium": 2, "face_a_close": 1.5, "three_quarter_b": 1.5, "dolly_out": 1, "high_wide": 1, "establish_wide": 1}
+    "PARTNER":      {"profile_medium": 2, "three_quarter_a": 1.5, "faces_close": 1.5, "face_b_close": 1.5, "high_wide": 1, "establish_wide": 1},
+    "SOLO":         {"handheld_medium": 2, "low_medium": 2, "face_a_close": 1.5, "dolly_out": 1, "high_wide": 1, "establish_wide": 1}
   },
   "classOrder": ["ORAL", "MANUAL", "RIDING", "REAR", "SIDE_LYING", "FACING_LYING", "SEATED", "STANDING", "KISS"],
   "words": {

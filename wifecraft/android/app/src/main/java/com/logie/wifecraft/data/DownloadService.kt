@@ -118,14 +118,31 @@ object DownloadHub {
     fun setMobileData(on: Boolean) = change { it.copy(mobileData = on) }
     fun setPrebuild(on: Boolean) = change { it.copy(prebuild = on) }
 
-    /** Updates the free space shown (the page asks when it opens). */
-    fun refreshFree(c: Context) { _snapshot.value = _snapshot.value.copy(free = freeBytes(c), estimates = estimates(c)) }
+    /**
+     * Updates the free space and the basics' size shown (the page asks when it opens); the first launch's gathering counts
+     * as the basics' record until "Download everything" has run it.
+     */
+    fun refreshFree(c: Context) {
+        init(c)
+        val est = estimates(c)
+        val p = GameFiles.shared(c).progress.value
+        synchronized(lock) {
+            val s = _snapshot.value
+            val records = if (s.state.records[PackKey.BASICS] != null || p.files == 0) s.state.records
+                else s.state.records + (PackKey.BASICS to PackRecord(PackKey.BASICS, s.version, if (p.allDone) p.files else maxOf(p.filesTotal, p.files + 1), p.files, p.done))
+            _snapshot.value = s.copy(free = freeBytes(c), estimates = est, state = s.state.copy(records = records))
+        }
+    }
 
-    /** Whether [packs] fit (each one's bytes still to come against the free space). */
+    /** Whether [packs] fit (each one's bytes still to come against the free space; the basics' from GameFiles' own count). */
     fun check(c: Context, packs: Collection<PackKey>): SpaceCheck.Result {
         val s = _snapshot.value
         val est = estimates(c)
-        val needs = packs.associateWith { DownloadPlan.remaining(est[it], s.state.records[it], s.version) }
+        val files = GameFiles.shared(c)
+        val needs = packs.associateWith {
+            if (it == PackKey.BASICS) (files.totalBytes - files.progress.value.done).coerceAtLeast(0)
+            else DownloadPlan.remaining(est[it], s.state.records[it], s.version)
+        }
         return SpaceCheck.check(freeBytes(c), needs)
     }
 
@@ -240,7 +257,7 @@ object DownloadHub {
     // ---- the run -------------------------------------------------------------------------------------------------------
 
     private class Runner(private val c: Context) : Thread("download-everything") {
-        private val stop = AtomicBoolean(false)
+        private val halted = AtomicBoolean(false)
         private val files = GameFiles.shared(c)
         private val tables = CsvTables(files.tablesDir)
         private val settings = Settings(c)
@@ -259,7 +276,7 @@ object DownloadHub {
         private var wake: PowerManager.WakeLock? = null
 
         fun halt() {
-            stop.set(true)
+            halted.set(true)
             files.pause()   // the basics' gathering, if it is the pack being fetched
         }
 
@@ -272,7 +289,7 @@ object DownloadHub {
             try {
                 if (_snapshot.value.phase == Phase.VERIFYING) verifyAll() else downloadAll()
             } catch (e: Throwable) {
-                if (!stop.get()) event(DownloadEvent.ERROR, "The download stopped: ${e.message ?: e.javaClass.simpleName}")
+                if (!halted.get()) event(DownloadEvent.ERROR, "The download stopped: ${e.message ?: e.javaClass.simpleName}")
             } finally {
                 ticker.shutdownNow()
                 pool.shutdownNow()
@@ -282,7 +299,7 @@ object DownloadHub {
                 // resumed while this run was still stopping: the next one starts now
                 val again = synchronized(lock) {
                     if (runner === this) runner = null
-                    stop.get() && DownloadMachine.isActive(_snapshot.value.phase)
+                    halted.get() && DownloadMachine.isActive(_snapshot.value.phase)
                 }
                 if (again) attach(c) else onRunEnded?.invoke()
             }
@@ -308,16 +325,17 @@ object DownloadHub {
             val chosen = _snapshot.value.state.packs
             packCount = chosen.size
             for ((i, pack) in chosen.withIndex()) {
-                if (stop.get()) return
+                if (halted.get()) return
                 packNumber = i + 1
                 val record = _snapshot.value.state.records[pack]
-                if (record != null && record.version == version && record.complete && pack !in failedPacks()) continue
+                // a pack complete at this version, with its list of files for Verify, is passed over (Verify checks it)
+                if (record != null && record.version == version && record.complete && pack !in failedPacks() && idsFile(c, pack).isFile) continue
                 if (files.dir.usableSpace < SpaceCheck.RESERVE_BYTES) { outOfRoom(); return }
                 change { it.copy(current = pack) }
                 runPack(pack)
             }
             retryRounds()
-            if (stop.get()) return
+            if (halted.get()) return
             if (!failed.isEmpty()) {
                 event(DownloadEvent.FINISHED_WITH_FAILURES, "${ByteSize.count(failed.size)} files couldn't be downloaded. Retry failed tries them again.")
                 return
@@ -330,7 +348,7 @@ object DownloadHub {
 
         /** The failed files tried again as each one's wait is up, while some are left to try. */
         private fun retryRounds() {
-            while (!stop.get()) {
+            while (!halted.get()) {
                 val wait = failed.nextDueIn() ?: return
                 if (wait > 0) { sleepUnlessStopped(wait.coerceAtMost(5_000)); continue }
                 val dueIds = failed.due().toHashSet()
@@ -338,9 +356,9 @@ object DownloadHub {
                 if (due.isEmpty()) return
                 total.set(due.size); done.set(0)
                 for (batch in due.chunked(BATCH)) {
-                    if (stop.get()) return
+                    if (halted.get()) return
                     val tasks = batch.map { e ->
-                        pool.submit { get(e.id, e.pack, art = if (e.pack == PackKey.ART) artFiles[e.id] else null); done.incrementAndGet() }
+                        pool.submit(Runnable { get(e.id, e.pack, art = if (e.pack == PackKey.ART) artFiles[e.id] else null); done.incrementAndGet() })
                     }
                     waitAll(tasks)
                 }
@@ -370,7 +388,7 @@ object DownloadHub {
                 PackKey.ART -> art()
                 else -> {
                     ensureTables()
-                    if (stop.get()) return
+                    if (halted.get()) return
                     val work = planner.plan(pack) {
                         GameTables.fetch(files.tablesDir, names = TransmogCatalog.TABLES)
                         TransmogCatalog.load(tables)
@@ -378,12 +396,12 @@ object DownloadHub {
                     gate = gateFor(pack)
                     total.set(work.direct.size + work.models.size)
                     for (batch in work.direct.chunked(BATCH)) {
-                        if (stop.get()) break
-                        waitAll(batch.map { id -> pool.submit { get(id, pack); done.incrementAndGet() } })
+                        if (halted.get()) break
+                        waitAll(batch.map { id -> pool.submit(Runnable { get(id, pack); done.incrementAndGet() }) })
                     }
                     for (batch in work.models.chunked(BATCH)) {
-                        if (stop.get()) break
-                        waitAll(batch.map { id -> pool.submit { model(id, pack, work.closure); done.incrementAndGet() } })
+                        if (halted.get()) break
+                        waitAll(batch.map { id -> pool.submit(Runnable { model(id, pack, work.closure); done.incrementAndGet() }) })
                     }
                     record(pack, work.sizes)
                 }
@@ -394,7 +412,7 @@ object DownloadHub {
         private fun ensureTables() {
             if (files.tablesComplete) return
             awaitNetwork()
-            GameTables.fetch(files.tablesDir, stop = { stop.get() })
+            GameTables.fetch(files.tablesDir, stop = { halted.get() })
         }
 
         private fun basics() {
@@ -404,7 +422,7 @@ object DownloadHub {
             files.gatherBlocking()
             val p = files.progress.value
             for (id in p.failed) failed.failed(id, PackKey.BASICS, p.error ?: "wago.tools didn't give it")
-            if (p.error != null && !stop.get()) change { it.copy(message = p.error) }
+            if (p.error != null && !halted.get()) change { it.copy(message = p.error) }
             val list = files.basicsFiles()
             for ((id, _) in list) collected[id] = files.file(id).length().coerceAtLeast(0)
             done.set(1)
@@ -415,16 +433,16 @@ object DownloadHub {
             val list = artFiles.values.toList()
             total.set(list.size)
             for (batch in list.chunked(BATCH)) {
-                if (stop.get()) break
-                waitAll(batch.map { a -> pool.submit { get(a.id, PackKey.ART, art = a); done.incrementAndGet() } })
+                if (halted.get()) break
+                waitAll(batch.map { a -> pool.submit(Runnable { get(a.id, PackKey.ART, art = a); done.incrementAndGet() }) })
             }
             record(PackKey.ART, emptyMap())
         }
 
         /** A model and what it needs, by [closure]. */
         private fun model(id: Int, pack: PackKey, closure: AssetDownloads.Closure) {
-            if (stop.get()) return
-            val fetch = { ids: Collection<Int> -> for (x in ids) { if (stop.get()) break; get(x, pack) } }
+            if (halted.get()) return
+            val fetch = { ids: Collection<Int> -> for (x in ids) { if (halted.get()) break; get(x, pack) } }
             // the model itself at full speed; reading it for its needs a few at a time
             get(id, pack)
             if (closure == AssetDownloads.Closure.NONE || !files.has(id)) return
@@ -441,7 +459,7 @@ object DownloadHub {
                     }
                 }
             } catch (e: Exception) {
-                if (!stop.get()) failed.failed(id, pack, "file $id: ${e.message ?: e.javaClass.simpleName}", permanent = true)
+                if (!halted.get()) failed.failed(id, pack, "file $id: ${e.message ?: e.javaClass.simpleName}", permanent = true)
             } finally {
                 gate.release()
             }
@@ -449,32 +467,32 @@ object DownloadHub {
 
         /** One file: here already, or fetched (waiting for Wi-Fi when the player asked for it); a failure goes to the queue. */
         private fun get(id: Int, pack: PackKey?, art: AssetDownloads.ArtFile? = null) {
-            if (id !in 1 until ImportStore.FIRST_ID || stop.get()) return
+            if (id !in 1 until ImportStore.FIRST_ID || halted.get()) return
             val target = art?.target ?: files.file(id)
             val have = target.length()
             if (have > 0) { collected[id] = have; failed.succeeded(id); return }
             collected.putIfAbsent(id, 0L)
             if (!awaitNetwork()) return
             try {
-                if (art != null) files.fetchTo(id, art.build, art.target, stop) else files.fetchUnless(id, stop)
+                if (art != null) files.fetchTo(id, art.build, art.target, halted) else files.fetchUnless(id, halted)
                 val len = target.length()
                 if (len > 0) {
                     collected[id] = len
                     bytes.addAndGet(len)
                     if (fetched.incrementAndGet() % SPACE_EVERY == 0 && files.dir.usableSpace < SpaceCheck.RESERVE_BYTES) outOfRoom()
                     failed.succeeded(id)
-                } else if (!stop.get()) {
+                } else if (!halted.get()) {
                     failed.failed(id, pack, "file $id didn't come")
                 }
             } catch (e: GameFiles.NoSuchFile) {
                 failed.failed(id, pack, e.message ?: "wago.tools has no file $id", permanent = true)
             } catch (e: Exception) {
-                if (!stop.get()) failed.failed(id, pack, e.message ?: e.javaClass.simpleName)
+                if (!halted.get()) failed.failed(id, pack, e.message ?: e.javaClass.simpleName)
             }
         }
 
         private fun outOfRoom() {
-            if (stop.compareAndSet(false, true)) {
+            if (halted.compareAndSet(false, true)) {
                 event(DownloadEvent.ERROR, "The phone is nearly full (${ByteSize.format(SpaceCheck.RESERVE_BYTES)} is kept free). Free some space, then Resume.")
                 files.pause()
             }
@@ -483,7 +501,7 @@ object DownloadHub {
         /** True once files may be fetched on this connection; waits (saying so) while only Wi-Fi is allowed and there is none. */
         private fun awaitNetwork(): Boolean {
             var waiting = false
-            while (!stop.get()) {
+            while (!halted.get()) {
                 if (networkAllowed()) {
                     if (waiting) event(DownloadEvent.WIFI_BACK)
                     return true
@@ -504,7 +522,7 @@ object DownloadHub {
 
         private fun sleepUnlessStopped(ms: Long) {
             val end = System.currentTimeMillis() + ms
-            while (!stop.get() && System.currentTimeMillis() < end) Thread.sleep(minOf(200L, end - System.currentTimeMillis()).coerceAtLeast(1))
+            while (!halted.get() && System.currentTimeMillis() < end) Thread.sleep(minOf(200L, end - System.currentTimeMillis()).coerceAtLeast(1))
         }
 
         private fun waitAll(tasks: List<Future<*>>) {
@@ -515,7 +533,7 @@ object DownloadHub {
          * The pack's record and its files' list (for Verify) from what this run touched; [sizes]: the lengths the asset
          * lists give (the places'), checked against instead of the length on the phone.
          */
-        private fun record(pack: PackKey, sizes: Map<Int, Long>, complete: Boolean = !stop.get()) {
+        private fun record(pack: PackKey, sizes: Map<Int, Long>, complete: Boolean = !halted.get()) {
             val list = LinkedHashMap<Int, Long>()
             for ((id, len) in collected) list[id] = sizes[id]?.takeIf { it > 0 } ?: len
             runCatching { writeAtomic(idsFile(c, pack), PackFiles.encode(list)) }
@@ -532,7 +550,7 @@ object DownloadHub {
             var bad = 0
             val notHere = ArrayList<PackKey>()
             for ((i, pack) in packs.withIndex()) {
-                if (stop.get()) return
+                if (halted.get()) return
                 packNumber = i + 1
                 change { it.copy(current = pack) }
                 val list: Map<Int, Long> = when (pack) {
@@ -544,7 +562,7 @@ object DownloadHub {
                 total.set(list.size); done.set(0)
                 val damaged = ArrayList<Int>()
                 for ((id, exp) in list) {
-                    if (stop.get()) return
+                    if (halted.get()) return
                     if (!PackFiles.whole(length(id), exp)) damaged += id
                     done.incrementAndGet()
                 }
@@ -554,13 +572,13 @@ object DownloadHub {
                 if (damaged.isNotEmpty()) {
                     total.set(damaged.size); done.set(0)
                     for (batch in damaged.chunked(BATCH)) {
-                        if (stop.get()) return
+                        if (halted.get()) return
                         waitAll(batch.map { id ->
-                            pool.submit {
+                            pool.submit(Runnable {
                                 (art[id]?.target ?: files.file(id)).delete()
                                 get(id, pack, art[id])
                                 done.incrementAndGet()
-                            }
+                            })
                         })
                     }
                 }
@@ -568,7 +586,7 @@ object DownloadHub {
                 val rec = PackRecord(pack, version, list.size, have, collected.values.sum(), verified = have >= list.size)
                 change { s -> s.copy(records = s.records + (pack to rec)) }
             }
-            if (stop.get()) return
+            if (halted.get()) return
             val all = _snapshot.value.state.records.filterKeys { it in packs }.values
             val n = all.sumOf { it.have }
             val b = all.sumOf { it.bytes }

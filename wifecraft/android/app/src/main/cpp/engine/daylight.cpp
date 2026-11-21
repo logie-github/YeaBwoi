@@ -393,7 +393,7 @@ CineProfile cineProfile(const CineInput& in, const CineOverride* over) {
         // room keeps its cold key; a candle in it shows as a warm rim and a flicker)
         mixHue(area, prac, lights * (0.20f + 0.50f * warm), p.key);
         limitChroma(p.key, 0.42f);
-        p.keyGain = 1.0f;
+        p.keyGain = 0.85f;   // (raised below where the room is dark: its people stay readable)
         p.practicalBias = pr.hasAt ? 0.55f * lights : 0.0f;
         // the rim: a cold room's warm accent from its flames; otherwise the day's sky through the windows, by night the room
         float rimSrc[3];
@@ -454,6 +454,7 @@ CineProfile cineProfile(const CineInput& in, const CineOverride* over) {
     const float lit = in.interior ? cineLum(in.roomAmbient) + cineLum(in.roomLight) : cineLum(in.ambient) + 0.5f * cineLum(in.direct);
     const float dark = 1.0f - smooth01(0.18f, 0.50f, lit);
     p.contrast *= 1.0f - 0.6f * dark;
+    if (in.interior) p.keyGain += 0.15f * dark;
     p.gamma = 1.0f + (p.gamma - 1.0f) * (1.0f - dark) - 0.05f * dark;
     for (float* m : {p.sceneAmbient, p.room})
         for (int i = 0; i < 3; ++i) m[i] += (1.0f - m[i]) * 0.5f * dark;

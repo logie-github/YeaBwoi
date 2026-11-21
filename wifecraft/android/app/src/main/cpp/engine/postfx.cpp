@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 
@@ -89,9 +90,11 @@ void main() {
         vec3 s = viewPos(vUv + vec2(cos(a), sin(a)) * rUv * t);
         vec3 v = s - p;
         float vv = dot(v, v);
-        occ += max(dot(v, n) - 0.004 * z, 0.0) / (vv + 0.004) * max(1.0 - vv / r2, 0.0);
+        // (a horizon bias: a surface tilted less than about 12 degrees over this one doesn't occlude it, so a flat floor or
+        // wall stays clear whatever the depth's precision)
+        occ += max(dot(v, n) * inversesqrt(vv + 1e-6) - 0.2, 0.0) * max(1.0 - vv / r2, 0.0);
     }
-    float ao = pow(clamp(1.0 - uIntensity * uRadius * occ / float(uSamples), 0.0, 1.0), 1.5);
+    float ao = clamp(1.0 - uIntensity * 1.6 * occ / float(uSamples), 0.0, 1.0);
     float cs = 1.0;
     if (uContact > 0.0) {
         const float len = 0.35;
@@ -148,6 +151,7 @@ uniform float uShadowTexel;
 uniform float uShadowRange;
 uniform float uNormalOffset;
 uniform vec3 uFogColor;
+uniform int uDebug;
 const vec2 kDisk[12] = vec2[](vec2(-0.326, -0.406), vec2(-0.840, -0.074), vec2(-0.696, 0.457), vec2(-0.203, 0.621),
     vec2(0.962, -0.195), vec2(0.473, -0.480), vec2(0.519, 0.767), vec2(0.185, -0.893), vec2(0.507, 0.064),
     vec2(0.896, 0.412), vec2(-0.322, -0.933), vec2(-0.792, -0.598));
@@ -199,6 +203,7 @@ void main() {
     vis *= mix(1.0, contact, uContactK);
     float lit = max(share, 0.38 * smoothstep(0.0, 0.25, ndl));
     f *= 1.0 - clamp(lit, 0.0, 0.8) * (1.0 - vis);
+    if (uDebug > 0) { o = vec4(vec3(uDebug == 1 ? texture(uAo, vUv).r : uDebug == 2 ? contact : uDebug == 3 ? vis : f), 1.0); return; }
     c *= f;
     if (uHaze > 0.0) c = mix(c, uFogColor, uHaze * 0.55 * (1.0 - exp(-max(-p.z - 1.5, 0.0) * 0.045)));
     o = vec4(c, 1.0);
@@ -463,6 +468,10 @@ bool PostFx::ensure(Target& t, int w, int h, unsigned internalFormat, bool linea
     w = std::max(1, w); h = std::max(1, h);
     if (t.fbo && t.w == w && t.h == h && t.fmt == internalFormat) return true;
     if (!t.fbo) { glGenFramebuffers(1, &t.fbo); glGenTextures(1, &t.tex); }
+    // (made on a unit of its own: the passes' units keep what they have bound, the depth on unit 1 above all)
+    GLint unit = 0;
+    glGetIntegerv(GL_ACTIVE_TEXTURE, &unit);
+    glActiveTexture(GL_TEXTURE7);
     glBindTexture(GL_TEXTURE_2D, t.tex);
     GLenum format = GL_RGBA, type = GL_UNSIGNED_BYTE;
     if (internalFormat == GL_RGBA16F) type = GL_HALF_FLOAT;
@@ -475,6 +484,8 @@ bool PostFx::ensure(Target& t, int w, int h, unsigned internalFormat, bool linea
     glBindFramebuffer(GL_FRAMEBUFFER, t.fbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t.tex, 0);
     t.w = w; t.h = h; t.fmt = internalFormat;
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glActiveTexture(GLenum(unit));
     return glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
 }
 
@@ -517,6 +528,7 @@ void PostFx::quad() {
 
 void PostFx::cpuBegin() {
     cpuStart_ = nowMs();
+    if (syncTiming_) for (float& g : stats_.gpu) g = NAN;
     if (!s_.timers && !syncTiming_) return;
     if (!timersTried_) {
         timersTried_ = true;
@@ -750,7 +762,7 @@ void PostFx::end(int outW, int outH, const PostFrame& f) {
         static const int kSamples[3] = {6, 10, 16};
         glUniform2f(gl::loc(pAo_, "uTexel"), 1.0f / float(sw_), 1.0f / float(sh_));
         glUniform1f(gl::loc(pAo_, "uRadius"), 0.45f);
-        glUniform1f(gl::loc(pAo_, "uIntensity"), s.ao > 0 ? 0.55f : 0.0f);
+        glUniform1f(gl::loc(pAo_, "uIntensity"), s.ao > 0 ? 1.2f : 0.0f);
         glUniform1i(gl::loc(pAo_, "uSamples"), kSamples[std::clamp(s.aoQuality, 0, 2)]);
         glUniform3f(gl::loc(pAo_, "uLightV"), lightV.x, lightV.y, lightV.z);
         glUniform1f(gl::loc(pAo_, "uContact"), s.contact);
@@ -794,6 +806,9 @@ void PostFx::end(int outW, int outH, const PostFrame& f) {
             glUniform1f(gl::loc(p, "uAmbLum"), lum(f.ambient));
             glUniform1f(gl::loc(p, "uSunLum"), lum(f.sunColor));
             glUniform3fv(gl::loc(p, "uFogColor"), 1, f.fogColor);
+            // the harness: WC_POSTFX_DEBUG=1 AO, 2 contact, 3 shadow, 4 the factor (the lit picture replaced by it)
+            static const int debugView = [] { const char* e = std::getenv("WC_POSTFX_DEBUG"); return e ? std::atoi(e) : 0; }();
+            glUniform1i(gl::loc(p, "uDebug"), debugView);
             // texture units 3 and 4: the shadow map compared, and raw (PCSS-lite's blocker search); a 1x1 stand-in otherwise
             glActiveTexture(GL_TEXTURE3); glBindTexture(GL_TEXTURE_2D, shadowOn ? shadowTex_ : 0);
             glBindSampler(3, samplerCmp_);

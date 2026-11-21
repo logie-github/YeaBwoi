@@ -21,7 +21,8 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     -o "$here/build/bodyshape_test"
 echo "$here/build/bodyshape_test"
 # The time of day as light (engine/daylight.cpp: the game's day cycle sampled, continuous over the day, the sun's path, the
-# rooms' night): build/daylight_test [LOCATIONS_JSON], exit 0 when all pass.
+# rooms' night; cinematic mode's area profile: identity, limits, continuity, the blend, the JSON, every place at every half
+# hour): build/daylight_test [LOCATIONS_JSON], exit 0 when all pass.
 g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/daylight_test.cpp" "$engine/daylight.cpp" "$engine/json.cpp" \
     -o "$here/build/daylight_test"
@@ -67,7 +68,8 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/flesh_test.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" \
     -o "$here/build/flesh_test"
 echo "$here/build/flesh_test"
-# Cinematic mode's light (engine/daylight.h's mood: strength 0 changes nothing, lower and warmer, the slow flicker, the key's and
+# Cinematic mode's light (engine/daylight.h's profile on the light: strength 0 changes nothing, a warm room lower and warmer, the
+# slow flicker only where there is a flame, the key's and
 # rim's directions; grade.h's letterbox bars): build/mood_test, exit 0 when all pass. No GL context, no game files.
 g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/mood_test.cpp" "$engine"/*.cpp \

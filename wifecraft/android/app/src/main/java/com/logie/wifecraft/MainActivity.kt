@@ -6,6 +6,12 @@ import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -78,7 +84,9 @@ import com.logie.wifecraft.creator.Sex
 import com.logie.wifecraft.creator.GameTables
 import com.logie.wifecraft.creator.RaceBackdrop
 import com.logie.wifecraft.creator.TransmogCatalog
-import com.logie.wifecraft.data.AssetDownloads
+import com.logie.wifecraft.data.DownloadHub
+import com.logie.wifecraft.data.SpaceCheck
+import com.logie.wifecraft.ui.DownloadActions
 import com.logie.wifecraft.data.GameFiles
 import com.logie.wifecraft.data.Lights
 import com.logie.wifecraft.data.Settings
@@ -190,7 +198,8 @@ class MainActivity : ComponentActivity() {
             hide(WindowInsetsCompat.Type.systemBars())
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
-        files = GameFiles(applicationContext)
+        files = GameFiles.shared(applicationContext)
+        DownloadHub.init(applicationContext)
         settings = Settings(applicationContext)
         tables = CsvTables(files.tablesDir)
         // the first launch fetches every file the creator can draw: the plan from the tables, once they are here
@@ -231,6 +240,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // a "Download everything" the system stopped (the app closed, Android's background limit) carries on
+        DownloadHub.resumeIfInterrupted(this)
         scene?.onResume()
         audio?.resume()
         sceneAudio?.resume()
@@ -324,12 +335,32 @@ class MainActivity : ComponentActivity() {
         var wardrobe by remember { mutableStateOf<TransmogCatalog?>(null) }
         var wardrobeStatus by remember { mutableStateOf<String?>(null) }
         var wardrobeJob by remember { mutableStateOf<Job?>(null) }
-        // set from the download's threads once per file; read only by the Options panel's host, at most 4 times a second
-        val downloadProgress = remember { MutableStateFlow<AssetDownloads.Progress?>(null) }
         var speed by remember { mutableIntStateOf(settings.downloadSpeed) }
         var mixShown by remember { mutableStateOf(mix) }
-        var downloadStatus by remember { mutableStateOf<String?>(null) }
-        var downloadJob by remember { mutableStateOf<Job?>(null) }
+        // "Download everything": the free-space refusal shown on the Downloads page, and the packs that would fit
+        var spaceProblem by remember { mutableStateOf<String?>(null) }
+        var fitPacks by remember { mutableStateOf<Set<com.logie.wifecraft.data.PackKey>?>(null) }
+        // the download's notification needs the permission from Android 13 on (asked once, when a download starts)
+        val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+        fun askNotifications() {
+            if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED) runCatching { notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS) }
+        }
+        /** Starts [packs] (null: everything ticked) once they fit in the free space; else says why and what would fit. */
+        fun startDownload(packs: Set<com.logie.wifecraft.data.PackKey>?) {
+            val wanted = packs ?: com.logie.wifecraft.data.PackKey.selection(DownloadHub.snapshot.value.state.chosen).toSet()
+            when (val fit = DownloadHub.check(applicationContext, wanted)) {
+                is SpaceCheck.TooBig -> {
+                    spaceProblem = SpaceCheck.message(fit, wanted)
+                    fitPacks = fit.fits.takeIf { it.isNotEmpty() && packs == null }
+                }
+                SpaceCheck.Fits -> {
+                    spaceProblem = null; fitPacks = null
+                    askNotifications()
+                    DownloadHub.start(applicationContext, packs)
+                }
+            }
+        }
 
         fun loadTransmog() {
             if (wardrobe != null || wardrobeJob?.isActive == true) return
@@ -848,44 +879,44 @@ class MainActivity : ComponentActivity() {
                 BackHandler(panel != Panel.NONE || screen == Screen.GATHER) {
                     if (panel != Panel.NONE) panel = Panel.NONE else screen = Screen.TITLE
                 }
+                // the Downloads page's free space and the basics' size, counted again as Options opens
+                LaunchedEffect(panel) { if (panel == Panel.OPTIONS) withContext(Dispatchers.IO) { DownloadHub.refreshFree(applicationContext) } }
                 when (panel) {
                     Panel.NONE, Panel.UPDATE -> Unit
-                    Panel.OPTIONS -> Collected(downloadProgress.collectThrottled { old, new -> old?.pack != new?.pack }) { shownProgress -> DownloadOptions(
-                        progress = shownProgress,
-                        status = downloadStatus,
+                    Panel.OPTIONS -> Collected(DownloadHub.snapshot.collectThrottled { old, new -> old?.phase != new.phase || old?.state?.current != new.state.current }) { shown -> DownloadOptions(
+                        downloads = shown,
                         speed = speed,
                         onSpeed = {
                             speed = it
                             settings.downloadSpeed = it
                             files.setDownloadSpeed(it)
                         },
+                        wifiOnly = wifiOnly,
+                        actions = remember {
+                            DownloadActions(
+                                everything = { startDownload(null) },
+                                pack = { p -> startDownload(setOf(p)) },
+                                pause = { DownloadHub.pause() },
+                                resume = { askNotifications(); DownloadHub.resume(applicationContext) },
+                                cancel = { DownloadHub.cancel() },
+                                retryFailed = { askNotifications(); DownloadHub.retryFailed(applicationContext) },
+                                verify = { askNotifications(); DownloadHub.verify(applicationContext) },
+                                chosen = { DownloadHub.setChosen(it); spaceProblem = null; fitPacks = null },
+                                wifiOnly = { wifiOnly = it; settings.wifiOnly = it },
+                                mobileData = { DownloadHub.setMobileData(it) },
+                                prebuild = { DownloadHub.setPrebuild(it) },
+                                fit = { fitPacks?.let { fits -> DownloadHub.setChosen(fits); startDownload(null) } },
+                                dismissSpace = { spaceProblem = null; fitPacks = null },
+                            )
+                        },
+                        spaceProblem = spaceProblem,
+                        canFit = fitPacks != null,
                         mix = mixShown,
                         onMix = {
                             mixShown = it
                             applyMix(it)
                             mixSettings.save(it)
                         },
-                        downloading = downloadJob?.isActive == true,
-                        canDownload = catalog != null,
-                        onDownload = { packs ->
-                            if (downloadJob?.isActive != true) {
-                                downloadProgress.value = AssetDownloads.Progress(packs.first(), 1, packs.size)
-                                downloadStatus = null
-                                downloadJob = scope.launch {
-                                    try {
-                                        downloadStatus = AssetDownloads(files, tables, namedCast).download(packs, stages, catalog, ::loadWardrobe) { value -> downloadProgress.value = value }
-                                    } catch (failure: CancellationException) {
-                                        downloadStatus = "Download paused. Cached files are ready for the next download."
-                                        throw failure
-                                    } catch (failure: Exception) {
-                                        downloadStatus = failure.message ?: "The download failed."
-                                    } finally {
-                                        downloadJob = null
-                                    }
-                                }
-                            }
-                        },
-                        onPause = { downloadJob?.cancel() },
                         onClose = { panel = Panel.NONE },
                         clock = clockSettings,
                         onClock = { clockSettings = it; settings.clock = it },

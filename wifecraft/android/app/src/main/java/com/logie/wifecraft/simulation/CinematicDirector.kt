@@ -667,7 +667,21 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
             a != b && hypot(dx, dy) > 0.25f -> atan2(dy, dx)
             else -> lineYaw
         }
-        if (lineSide == 0f) lineSide = if (random.nextBoolean()) 1f else -1f
+        if (lineSide == 0f) {
+            // the side with more room: medium-distance eyes round each side tested; a tie is decided at random
+            val focus = rawFocus(stage)
+            val d = 1.3f * stage.bodyHeight.coerceIn(0.5f, 4f)
+            fun room(side: Float): Int = (0..6).count { k ->
+                val az = (30f + 20f * k) * (PI / 180).toFloat()
+                eyeGood(stage, focus, ShotFrame(lineYaw + side * az, 0.3f, d, Vec3(0f, 0f, 0f), 50f), emptyList())
+            }
+            val left = room(1f); val right = room(-1f)
+            lineSide = when {
+                left > right -> 1f
+                right > left -> -1f
+                else -> if (random.nextBoolean()) 1f else -1f
+            }
+        }
     }
 
     /**
@@ -695,7 +709,8 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
         val raw = FloatArray(cands.size) { k ->
             val (sp, w0) = cands[k]
             var w = w0 * lib.styleWeight(style, sp.size) * lib.stageWeight(act.part, sp.size)
-            if (style != ShotStyle.RANDOM && sp.size == want) w *= 1f + 3f * (1f - r)
+            // Classic follows the cadence throughout; the other styles (but Random) only open with the wide
+            if (sp.size == want && (style == ShotStyle.CLASSIC || (style != ShotStyle.RANDOM && cadenceAt == 0))) w *= 1f + 6f * (1f - r)
             if (sp.id == lastId) w = 0f
             else if (cands.size >= 4 && sp.id in ids) w *= 0.3f
             if (!still && (sp.size == ShotSize.CLOSE || sp.size == ShotSize.DETAIL)) w = 0f
@@ -722,8 +737,10 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
             val wantCut = st.style == CinematicStyle.CUTS || (cutsOk && when (sp.transition) {
                 ShotTransition.CUT -> true; ShotTransition.BLEND -> false; ShotTransition.ANY -> random.nextFloat() < 0.5f
             })
-            repeat(3) {
-                val built = buildLibrary(sp, stage, focus) ?: return@repeat
+            repeat(3) { attempt ->
+                // a wide or medium shot that doesn't fit the room is tried nearer (as wide as the room allows)
+                val nearer = when (sp.size) { ShotSize.WIDE -> 1f - 0.2f * attempt; ShotSize.MEDIUM -> 1f - 0.15f * attempt; else -> 1f }
+                val built = buildLibrary(sp, stage, focus, nearer) ?: return@repeat
                 val placed = place(built.shot, stage, focus, pts, from, cut = cutsOk, framed = built.framed, faces = built.faces,
                     overIdx = built.over, forceCut = wantCut) ?: return@repeat
                 spec = sp
@@ -741,7 +758,7 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
         if (preset.startsWith(LIBRARY)) preset.removePrefix(LIBRARY).substringBefore(':') else null
 
     /** [sp] made a shot with its random framing: round the line on the scene's side, its height, distance, lens and move. */
-    private fun buildLibrary(sp: ShotSpec, stage: CinematicStage, focus: Vec3): Built? {
+    private fun buildLibrary(sp: ShotSpec, stage: CinematicStage, focus: Vec3, nearer: Float = 1f): Built? {
         val a = roleA(stage); val b = roleB(stage)
         val m = settings.motionScale
         fun face(i: Int) = stage.head(i).let { Vec3(it.x, it.y, it.z - 0.08f) }
@@ -767,7 +784,7 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
         val az1 = (az0 + arc).coerceIn(edge, 180f - edge)
         val pitch = (sp.pitch.pick(random) * deg).coerceIn(MIN_PITCH + 0.01f, MAX_PITCH - 0.01f)
         val bh = stage.bodyHeight.coerceIn(0.5f, 4f)
-        val d0 = sp.distance.pick(random) * bh
+        val d0 = sp.distance.pick(random) * bh * nearer
         val d1 = (d0 * (1f - sp.push.pick(random) * m)).coerceAtLeast(0.5f)
         val fov = sp.fov.pick(random)
         val at = anchor - focus

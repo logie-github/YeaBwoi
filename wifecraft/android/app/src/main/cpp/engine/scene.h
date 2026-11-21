@@ -22,6 +22,7 @@
 #include "modelpart.h"
 #include "motionlayer.h"
 #include "particles.h"
+#include "postfx.h"
 #include "skin.h"
 #include "softbody.h"
 #include "wmath.h"
@@ -241,6 +242,12 @@ public:
     // candle-like flicker) with the picture's grade; `vignette`, `grain` 0..1; `bars` each letterbox bar's share of the
     // height (0..0.5). All 0: off, the frame drawn straight to the screen as before. Cheap; the caller eases them in and out.
     void setCinematic(float mood, float vignette, float grain, float bars);
+    // Options' Graphics page (graphics_settings.h: the array in its order; scene_gfx.cpp) and the last frame's timings
+    // (cpu ms, each pass's GPU ms, timers available, the scene's drawn width and height: PostStats::kStages + 4 floats).
+    void setGraphics(const float* values, int count);
+    void graphicsStats(float* out, int count) const;
+    // The harness: each pass timed with glFinish round it (software GL has no timer queries).
+    void setGraphicsSyncTiming(bool on) { postfx_.setSyncTiming(on); }
 
     // ---------------------------------------------------------------- body language and atmosphere (additive layers)
     // The body's additive motion (motionlayer.h) for everyone it is on: Options' breathing and idle shares, eye contact.
@@ -682,6 +689,13 @@ private:
     float cineFlicker_ = 0;
     GradeParams cineGrade_;
     Grade grade_;
+    // the graphics options (scene_gfx.cpp): the settings, the offscreen chain, the key light's shadow pass
+    GraphicsSettings gfx_;
+    PostFx postfx_;
+    V3 keyLightTravel() const;
+    void renderShadows(uint32_t nowMs);
+    bool gfxBegin(int& width, int& height, uint32_t nowMs);   // true: the scene is drawn into the chain at width x height
+    void gfxEnd(int outW, int outH, uint32_t nowMs);
     // the area's cinematic profile (daylight.h cineProfile): the one shown, eased toward the place's and hour's each frame
     // (updateCinematic, location.cpp), the light before it is laid on, the vignette option, the practicals of the side the
     // camera's target stands on

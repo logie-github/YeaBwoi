@@ -76,13 +76,21 @@ void Scene::renderShadows(uint32_t nowMs) {
     const M4 proj = ortho(-kShadowRadius, kShadowRadius, -kShadowRadius, kShadowRadius, nearZ, farZ);
     const M4 lvp = proj * view;
     if (!postfx_.shadowBegin()) return;
-    // the casters: the people, and the location's walls, furniture and ground inside the box (drawStatic culls to it)
+    // the casters: the people; outdoors also the location's walls, furniture and ground inside the box (drawStatic culls to
+    // it). In a room the place's own light is baked into it: only the people cast (onto the floor, the bed, the walls).
+    bool indoors = false;
+    if (location_)
+        for (const StaticGroup& g : location_->groups) {
+            const V3 p = centre + V3(0, 0, 0.5f);
+            if (g.interior && p.x >= g.boundsMin.x && p.y >= g.boundsMin.y && p.z >= g.boundsMin.z && p.x <= g.boundsMax.x &&
+                p.y <= g.boundsMax.y && p.z <= g.boundsMax.z) { indoors = true; break; }
+        }
     const M4 view0 = view_, proj0 = proj_;
     view_ = view; proj_ = proj;
     litSetup(m2Prog_, lvp);
     for (auto& [id, a] : actors_)
         if (a.visible && !a.ghost && !a.firstSkin && (a.position - centre).length() < kShadowRadius * 2) drawActor(a, nowMs, false);
-    drawStatic(false, lvp);
+    if (!indoors) drawStatic(false, lvp);
     view_ = view0; proj_ = proj0;
     postfx_.shadowEnd(lvp, centre, kShadowRadius, farZ - nearZ);
 }

@@ -835,7 +835,6 @@ void Scene::updateCinematic(uint32_t nowMs) {
         float dt = nowMs > cineClock_ ? std::min(0.1f, float(nowMs - cineClock_) / 1000.0f) : 0.0f;
         cineStep(cineNow_, target, dt, 1.0f);
     }
-    if (getenv("WC_CINE_DEBUG")) { float ah[3]; cineAreaHue(in, ah); fprintf(stderr, "CINE %s int=%d h=%.1f amb=%.3f,%.3f,%.3f dir=%.3f,%.3f,%.3f ra=%.3f,%.3f,%.3f rl=%.3f,%.3f,%.3f fl=%d li=%d area=%.2f,%.2f,%.2f key=%.2f,%.2f,%.2f rim=%.2f,%.2f,%.2f flick=%.2f\n", locDesc_.id.c_str(), int(in.interior), in.hour, in.ambient[0], in.ambient[1], in.ambient[2], in.direct[0], in.direct[1], in.direct[2], in.roomAmbient[0], in.roomAmbient[1], in.roomAmbient[2], in.roomLight[0], in.roomLight[1], in.roomLight[2], in.practicals.flames, in.practicals.lights, ah[0], ah[1], ah[2], target.key[0], target.key[1], target.key[2], target.rim[0], target.rim[1], target.rim[2], target.flicker); } // DEBUGCINE
     cineClock_ = nowMs;
     cineFlicker_ = moodFlicker(float(nowMs % 3600000u) / 1000.0f);
     applyTimeOfDay();

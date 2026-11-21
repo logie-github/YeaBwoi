@@ -118,7 +118,36 @@ uniform vec3 uEye;
 uniform vec4 uGhost;   // the placement editor's ghost: its colour mixed toward rgb by a (a 0: none)
 uniform vec3 uRimColor;   // cinematic mode's rim light on a person (0: none) and the way toward it
 uniform vec3 uRimDir;
+// Options' Graphics (scene_gfx.cpp): a person's skin (uSkinKind 1) and hair (2) shaded with uSkinFx (wrap, sheen, warm
+// scatter, hair's highlight); 0 everywhere else, and all 0 at Standard: the light as before
+uniform int uSkinKind;
+uniform vec4 uSkinFx;
 out vec4 fragColor;
+vec3 skinShade(vec3 albedo, vec3 lit, vec3 n, float d) {
+    vec3 v = normalize(uEye - vWorld);
+    vec3 l = -uSunDir;
+    float nl = dot(n, l);
+    if (uSkinKind == 1) {
+        float w = uSkinFx.x;
+        float wrap = max((nl + w) / (1.0 + w), 0.0);
+        vec3 c = albedo * (uAmbient + uSunColor * wrap);
+        c += albedo * uSunColor * vec3(0.85, 0.28, 0.14) * max(wrap - d, 0.0) * uSkinFx.z;
+        float fres = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 4.0);
+        c += (uAmbient * 0.6 + uSunColor * 0.4) * fres * uSkinFx.y * 0.12;
+        vec3 h = normalize(l + v);
+        c += uSunColor * pow(max(dot(n, h), 0.0), 28.0) * 0.05 * uSkinFx.y * d;
+        return c;
+    }
+    vec3 t = vec3(0.0, 0.0, 1.0) - n * n.z;
+    t = dot(t, t) > 1e-6 ? normalize(t) : vec3(1.0, 0.0, 0.0);
+    vec3 h = normalize(l + v);
+    float th = dot(t, h);
+    float s1 = pow(sqrt(max(1.0 - th * th, 0.0)), 90.0);
+    vec3 t2 = normalize(t + n * 0.3);
+    float th2 = dot(t2, h);
+    float s2 = pow(sqrt(max(1.0 - th2 * th2, 0.0)), 18.0);
+    return lit + uSunColor * (s1 * 0.10 + s2 * albedo * 0.22) * uSkinFx.w * smoothstep(-0.2, 0.3, nl);
+}
 void main() {
     vec4 c = texture(uTex, vUv) * uColor;
     if (c.a < uAlphaRef) discard;
@@ -127,6 +156,7 @@ void main() {
         vec3 n = normalize(vNormal);
         float d = max(dot(n, -uSunDir), 0.0);
         rgb *= uAmbient + uSunColor * d;
+        if (uSkinKind > 0) rgb = skinShade(c.rgb, rgb, n, d);
         if (dot(uRimColor, uRimColor) > 0.0) {
             float edge = 1.0 - clamp(dot(n, normalize(uEye - vWorld)), 0.0, 1.0);
             rgb += c.rgb * uRimColor * (edge * edge) * (0.35 + 0.65 * max(dot(n, uRimDir), 0.0));
@@ -281,6 +311,7 @@ bool Scene::initGl() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     compositor_.initGl();
     grade_.forget();
+    postfx_.forget();
     glReady_ = true;
     // A context that was lost takes everything with it: build again what the scene holds.
     for (auto& [id, m] : models_) if (m->ok) uploadModel(*m);
@@ -307,6 +338,7 @@ void Scene::releaseGl() {
     glReady_ = false;
     compositor_.releaseGl();
     grade_.forget();
+    postfx_.forget();
     particleDraw_.release();
     textures_.clear();
     for (auto& [id, m] : models_) { m->vao = m->vbo = m->ibo = m->boneTex = 0; }
@@ -329,6 +361,7 @@ void Scene::releaseGl() {
 }
 
 GlTexture Scene::texture(uint32_t fileId, int maxSize) {
+    maxSize = gfx_.textureCap(maxSize);   // (Options' Graphics: texture detail picks a larger mip of the file)
     uint64_t key = uint64_t(fileId) << 16 | uint32_t(maxSize);
     auto it = textures_.find(key);
     if (it != textures_.end()) return it->second;
@@ -360,6 +393,7 @@ GlTexture Scene::texture(uint32_t fileId, int maxSize) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        if (gfx_.anisotropy > 1) applyAnisotropy(gfx_.anisotropy);
         t.hasAlpha = img.hasAlpha;
     } else {
         t.id = white_;
@@ -1434,7 +1468,11 @@ void Scene::drawModel(ModelGl& mg, const M4& world, const std::map<uint32_t, uin
         // nearer the eye, it stays over the skin and the trousers there instead of fighting them in steps.
         const bool flap = geosets && sm.id / 100 == kTabardGroup;
         if (flap) { glEnable(GL_POLYGON_OFFSET_FILL); glPolygonOffset(kTabardOffsetFactor, kTabardOffsetUnits); }
+        // Options' Graphics: a person's skin (texture type 1) and hair (6) shaded as such (kLitFs's skinShade)
+        const int skinKind = gfx_.skin > 0 && tex.type == 1 ? 1 : gfx_.hair > 0 && tex.type == 6 ? 2 : 0;
+        if (skinKind) glUniform1i(loc(p, "uSkinKind"), skinKind);
         glDrawElements(GL_TRIANGLES, GLsizei(sm.indexCount), GL_UNSIGNED_INT, (void*)(size_t(sm.indexStart) * 4));
+        if (skinKind) glUniform1i(loc(p, "uSkinKind"), 0);
         if (flap) { glPolygonOffset(0, 0); glDisable(GL_POLYGON_OFFSET_FILL); }
         if (blend) glDisable(GL_BLEND);
         glDepthMask(GL_TRUE);
@@ -1552,6 +1590,10 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     if (cineMood_ > 0) updateCinematic(nowMs);
     cineGrade_.seconds = float(nowMs % 1000000u) / 1000.0f;
     const bool graded = cineGrade_.active() && grade_.begin(width, height);
+    // Options' Graphics (scene_gfx.cpp): the key light's shadow pass, and the scene drawn into the offscreen chain at the
+    // render scale's size (width and height become that size until the chain's last pass draws it at the view's)
+    const int outW = width, outH = height;
+    const bool post = gfxBegin(width, height, nowMs);
     glViewport(0, 0, width, height);
     glClearColor(light_.skyHorizon[0], light_.skyHorizon[1], light_.skyHorizon[2], 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1647,6 +1689,7 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     litUniforms(m2Prog_, light_, eye_, viewProj);
     drawGhost(viewProj, nowMs);
     drawGizmo();
+    if (post) { gfxEnd(outW, outH, nowMs); width = outW; height = outH; }
     if (graded) grade_.end(width, height, cineGrade_);
 }
 
