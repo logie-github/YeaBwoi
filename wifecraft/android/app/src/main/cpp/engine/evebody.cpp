@@ -866,6 +866,46 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         P[v] = tot > 0 ? acc * (1.0f / tot) : tp;
         N[v] = nacc.normalized();
     }
+    // ---- the shoulders' weights smoothed over the mesh (each place's weights toward its neighbours', most at the joint,
+    // none past kShoulderReach): the Sims rig's shoulder helpers fold onto the model's upper arm and clavicle in a narrow
+    // band, which pinched a ridge over the shoulder and a crease into the armpit with the arm raised (cheering, asleep
+    // with an arm under the head). UV copies of a place move together.
+    {
+        constexpr float kShoulderReach = 0.13f;   // Sims metres from the shoulder joint
+        constexpr int kPasses = 4;
+        std::unordered_map<int64_t, uint32_t> rep;
+        std::vector<uint32_t> grp(nv);
+        for (size_t v = 0; v < nv; ++v) grp[v] = rep.emplace(weldKey(P0[v], 1e-5f), uint32_t(v)).first->second;
+        std::vector<float> reach(nv, 0);
+        bool any = false;
+        for (size_t v = 0; v < nv; ++v) {
+            if (grp[v] != v) continue;
+            float d = std::min((P0[v] - S[0].shoulder).length(), (P0[v] - S[1].shoulder).length());
+            if (d < kShoulderReach) { float f = 1 - d / kShoulderReach; reach[v] = f * f; any = true; }
+        }
+        if (any) {
+            std::vector<std::vector<uint32_t>> nb(nv);
+            for (size_t t = 0; t + 2 < eve.idx.size(); t += 3)
+                for (int k = 0; k < 3; ++k) {
+                    uint32_t a = grp[eve.idx[t + size_t(k)]], b = grp[eve.idx[t + size_t((k + 1) % 3)]];
+                    if (a == b || (reach[a] <= 0 && reach[b] <= 0)) continue;
+                    if (std::find(nb[a].begin(), nb[a].end(), b) == nb[a].end()) nb[a].push_back(b);
+                    if (std::find(nb[b].begin(), nb[b].end(), a) == nb[b].end()) nb[b].push_back(a);
+                }
+            for (int pass = 0; pass < kPasses; ++pass) {
+                std::vector<WMap> next = WM;
+                for (size_t v = 0; v < nv; ++v) {
+                    if (reach[v] <= 0 || nb[v].empty()) continue;
+                    WMap avg;
+                    const float s = 1.0f / float(nb[v].size());
+                    for (uint32_t u : nb[v]) for (int i = 0; i < WM[u].n; ++i) avg.add(WM[u].e[size_t(i)].first, WM[u].e[size_t(i)].second * s);
+                    next[v] = blend(WM[v], avg, 0.6f * reach[v]);
+                }
+                WM.swap(next);
+            }
+            for (size_t v = 0; v < nv; ++v) if (grp[v] != v) WM[v] = WM[grp[v]];
+        }
+    }
     // ---- the neck onto the model's neck tube: its section scaled to the cut edge's, its top raised inside it
     {
         float nz1 = neckS.z, hwS = 0, x0 = 1e9f, x1 = -1e9f;
@@ -1866,9 +1906,13 @@ EveDetailLayer eveDetailLayer(const EveBody& eve, int w, int h, const std::vecto
     std::vector<std::pair<float, uint32_t>> order;
     for (size_t v = 0; v < ev; ++v) {
         V3 p = posOf(eve.verts[v]), n = nrmOf(eve.verts[v]).normalized();
-        gather(p, reach, cand);
-        float best = reach * reach; int bt = -1; V3 bb;
-        nearest(p, n, cand, best, bt, bb);
+        float best = 0; int bt = -1; V3 bb;
+        for (float rr : {0.35f * reach, reach}) {   // (most lie within a third of the reach: a small gather first)
+            gather(p, rr, cand);
+            best = rr * rr;
+            nearest(p, n, cand, best, bt, bb);
+            if (bt >= 0) break;
+        }
         if (bt >= 0) cornerD[v] = std::sqrt(best);
     }
     for (size_t t = 0; t + 2 < eve.indices.size(); t += 3) {
@@ -1936,45 +1980,64 @@ EveDetailLayer eveDetailLayer(const EveBody& eve, int w, int h, const std::vecto
                 if (d[3]) ++out.covered;
             }
     }
-    // her coverage's edges softened (3 x 3 over her own texels), then the layer grown 3 texels past her islands (mip levels)
+    // her coverage's edges softened (3 x 3 over her own texels: separable sums), then the layer grown 3 texels past her
+    // islands (a ring at a time from their edges: mip levels never read past them into nothing)
     {
-        std::vector<uint8_t> a(size_t(w) * h, 0);
-        for (size_t i = 0; i < a.size(); ++i) a[i] = out.rgba[i * 4 + 3];
-        for (int y = 0; y < h; ++y) for (int x = 0; x < w; ++x) {
-            size_t i = size_t(y) * w + x;
-            if (!done[i]) continue;
-            int s = 0, k = 0;
-            for (int dy = -1; dy <= 1; ++dy) for (int dx = -1; dx <= 1; ++dx) {
-                int xx = x + dx, yy = y + dy;
-                if (xx < 0 || yy < 0 || xx >= w || yy >= h || !done[size_t(yy) * w + xx]) continue;
-                s += a[size_t(yy) * w + xx]; ++k;
+        const size_t n = size_t(w) * h;
+        std::vector<uint32_t> rs(n, 0);
+        std::vector<uint8_t> rc(n, 0);
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x) {
+                uint32_t sum = 0; uint8_t k = 0;
+                for (int dx = -1; dx <= 1; ++dx) {
+                    int xx = x + dx;
+                    if (xx < 0 || xx >= w) continue;
+                    size_t j = size_t(y) * w + xx;
+                    if (done[j]) { sum += out.rgba[j * 4 + 3]; ++k; }
+                }
+                rs[size_t(y) * w + x] = sum; rc[size_t(y) * w + x] = k;
             }
-            out.rgba[i * 4 + 3] = uint8_t((s + k / 2) / k);
-        }
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x) {
+                size_t i = size_t(y) * w + x;
+                if (!done[i]) continue;
+                uint32_t sum = 0, k = 0;
+                for (int dy = -1; dy <= 1; ++dy) {
+                    int yy = y + dy;
+                    if (yy < 0 || yy >= h) continue;
+                    sum += rs[size_t(yy) * w + x]; k += rc[size_t(yy) * w + x];
+                }
+                out.rgba[i * 4 + 3] = uint8_t((sum + k / 2) / k);
+            }
     }
-    for (int pass = 0; pass < 3; ++pass) {
-        std::vector<uint8_t> grown;
-        std::vector<size_t> at;
-        for (int y = 0; y < h; ++y) for (int x = 0; x < w; ++x) {
-            size_t i = size_t(y) * w + x;
-            if (done[i]) continue;
-            int s[4] = {0, 0, 0, 0}, k = 0;
+    {
+        std::vector<size_t> ring, next;
+        std::vector<uint8_t> queued(size_t(w) * h, 0);
+        auto around = [&](size_t i, auto f) {
+            int x = int(i % size_t(w)), y = int(i / size_t(w));
             for (int dy = -1; dy <= 1; ++dy) for (int dx = -1; dx <= 1; ++dx) {
                 int xx = x + dx, yy = y + dy;
-                if (xx < 0 || yy < 0 || xx >= w || yy >= h || !done[size_t(yy) * w + xx]) continue;
-                const uint8_t* q = &out.rgba[(size_t(yy) * w + xx) * 4];
-                for (int c = 0; c < 4; ++c) s[c] += q[c];
-                ++k;
+                if ((dx || dy) && xx >= 0 && yy >= 0 && xx < w && yy < h) f(size_t(yy) * w + xx);
             }
-            if (!k) continue;
-            at.push_back(i);
-            for (int c = 0; c < 4; ++c) grown.push_back(uint8_t((s[c] + k / 2) / k));
+        };
+        for (size_t i = 0; i < done.size(); ++i)
+            if (done[i]) around(i, [&](size_t j) { if (!done[j] && !queued[j]) { queued[j] = 1; ring.push_back(j); } });
+        std::sort(ring.begin(), ring.end());
+        std::vector<uint8_t> grown;
+        for (int pass = 0; pass < 3 && !ring.empty(); ++pass) {
+            grown.assign(ring.size() * 4, 0);
+            for (size_t r2 = 0; r2 < ring.size(); ++r2) {
+                int sum[4] = {0, 0, 0, 0}, k = 0;
+                around(ring[r2], [&](size_t j) { if (done[j]) { for (int c = 0; c < 4; ++c) sum[c] += out.rgba[j * 4 + c]; ++k; } });
+                for (int c = 0; c < 4; ++c) grown[r2 * 4 + c] = uint8_t(k ? (sum[c] + k / 2) / k : 0);
+            }
+            next.clear();
+            for (size_t r2 = 0; r2 < ring.size(); ++r2) { std::memcpy(&out.rgba[ring[r2] * 4], &grown[r2 * 4], 4); done[ring[r2]] = 1; }
+            for (size_t i : ring) around(i, [&](size_t j) { if (!done[j] && !queued[j]) { queued[j] = 1; next.push_back(j); } });
+            std::sort(next.begin(), next.end());
+            out.grown += ring.size();
+            ring.swap(next);
         }
-        for (size_t j = 0; j < at.size(); ++j) {
-            std::memcpy(&out.rgba[at[j] * 4], &grown[j * 4], 4);
-            done[at[j]] = 1;
-        }
-        out.grown += at.size();
     }
     out.ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     return out;
