@@ -120,52 +120,298 @@ bool sculptActive(const float* values, size_t count) {
     return false;
 }
 
-size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std::vector<uint32_t>& indices,
-                   const float* values, size_t count, const SculptOptions& opt, SculptStats* stats) {
-    if (stats) *stats = SculptStats();
-    if (!rig.ok || verts.empty() || !sculptActive(values, count)) return 0;
-    float s0[kSculptCount] = {}, bal[kSculptCount] = {};
+namespace {
+
+// The spine's depth at a height: the Eve body's is upright (its waist), the game's bodies follow their own curve.
+float spineDepth(const SculptRig& rig, bool gameBody, float z) {
+    if (!gameBody) return rig.waist.x;
+    const V3 j[4] = {rig.pelvis, rig.waist, rig.chest, rig.neck};
+    if (z <= j[0].z) return j[0].x;
+    for (int i = 0; i < 3; ++i) {
+        if (j[i + 1].z <= j[i].z + 1e-5f) return rig.waist.x;   // (joints not climbing: upright)
+        if (z <= j[i + 1].z) return j[i].x + (j[i + 1].x - j[i].x) * (z - j[i].z) / (j[i + 1].z - j[i].z);
+    }
+    return j[3].x;
+}
+
+// A place's cell (a UV seam's or a geoset's copies at one point share it), `q` its size.
+uint64_t placeKey(const V3& p, float q) {
+    auto c = [&](float v) { return uint64_t(int64_t(std::floor(v / q)) & 0x1FFFFF); };
+    return c(p.x) << 42 | c(p.y) << 21 | c(p.z);
+}
+
+// Whether a slider moves the mesh itself (Height and Leg Length are the actor's and the skeleton's; Body Fat and Muscle add
+// shares of the others).
+bool isMove(int k) { return k != kSculptHeight && k != kSculptLegLength && k != kSculptBodyFat && k != kSculptMuscle; }
+
+// Body Fat's and Muscle's shares of the moves (the last: on the game's bodies only).
+struct Share { int slider; float share; bool gameOnly; };
+constexpr Share kFatShares[] = {{kSculptWaist, 0.6f, false}, {kSculptBelly, 0.7f, false}, {kSculptHips, 0.4f, false},
+                                {kSculptButt, 0.4f, false}, {kSculptThighs, 0.6f, false}, {kSculptUpperArms, 0.6f, false},
+                                {kSculptForearms, 0.35f, false}, {kSculptCalves, 0.4f, false}, {kSculptBust, 0.25f, false},
+                                {kSculptNeck, 0.4f, true}};
+constexpr Share kMuscleShares[] = {{kSculptShoulders, 0.4f, false}, {kSculptUpperArms, 0.7f, false}, {kSculptForearms, 0.5f, false},
+                                   {kSculptChest, 0.7f, false}, {kSculptThighs, 0.4f, false}, {kSculptCalves, 0.5f, false},
+                                   {kSculptWaist, -0.25f, false}, {kSculptBelly, -0.3f, false}, {kSculptNeck, 0.5f, true}};
+
+// The sliders (and their balances) read as applySculpt takes them: clamped to -1..1, Height's and Leg Length's balance none.
+// Returns whether any balance is set.
+bool readValues(const float* values, size_t count, float* s0, float* bal) {
     bool sided = false;
+    for (int i = 0; i < kSculptCount; ++i) s0[i] = bal[i] = 0;
     for (size_t i = 0; i < count && i < size_t(kSculptValues); ++i) {
         const float v = std::isfinite(values[i]) ? std::clamp(values[i], -1.0f, 1.0f) : 0.0f;
         if (i < size_t(kSculptCount)) s0[i] = v;
         else if (v != 0 && i - kSculptCount != size_t(kSculptHeight) && i - kSculptCount != size_t(kSculptLegLength)) { bal[i - kSculptCount] = v; sided = true; }
     }
-    // the values on one side (`side`: 1 the left, -1 the right, between them across the middle), with Body Fat and Muscle as
-    // shares of the other moves (the per-vertex cap below still bounds the sum)
-    float s[kSculptCount];
-    auto compose = [&](float side) {
-        for (int i = 0; i < kSculptCount; ++i) s[i] = std::clamp(s0[i] + side * bal[i], -1.0f, 1.0f);
-        const float fat = s[kSculptBodyFat], mus = s[kSculptMuscle];
-        auto add = [&s](int k, float v) { s[k] = std::clamp(s[k] + v, -1.5f, 1.5f); };
-        if (fat != 0) {
-            add(kSculptWaist, 0.6f * fat); add(kSculptBelly, 0.7f * fat); add(kSculptHips, 0.4f * fat); add(kSculptButt, 0.4f * fat);
-            add(kSculptThighs, 0.6f * fat); add(kSculptUpperArms, 0.6f * fat); add(kSculptForearms, 0.35f * fat);
-            add(kSculptCalves, 0.4f * fat); add(kSculptBust, 0.25f * fat);
-            if (opt.gameBody) add(kSculptNeck, 0.4f * fat);
+    return sided;
+}
+
+// The values on one side (`side`: 1 the left, -1 the right, between them across the middle), with Body Fat and Muscle as
+// shares of the other moves (the per-vertex cap still bounds the sum).
+void composeSide(const float* s0, const float* bal, float side, bool gameBody, float* s) {
+    for (int i = 0; i < kSculptCount; ++i) s[i] = std::clamp(s0[i] + side * bal[i], -1.0f, 1.0f);
+    const float fat = s[kSculptBodyFat], mus = s[kSculptMuscle];
+    auto add = [s](int k, float v) { s[k] = std::clamp(s[k] + v, -1.5f, 1.5f); };
+    if (fat != 0) for (const Share& x : kFatShares) if (gameBody || !x.gameOnly) add(x.slider, x.share * fat);
+    if (mus != 0) for (const Share& x : kMuscleShares) if (gameBody || !x.gameOnly) add(x.slider, x.share * mus);
+    if (!gameBody) s[kSculptNeck] = 0;   // (the Eve body's neck ring meets the Warcraft head: kept)
+}
+
+// One vertex's moves for every slider at 1 (D[k], model units; the sliders that aren't moves, or that `need` leaves out: zero).
+// `p` is its position before the sculpt. False: a vertex no move touches (the head, hands and feet, or no weights).
+bool vertexMoves(const SculptRig& rig, const SculptOptions& opt, const M2Vertex& v, const V3& p, const bool* need, V3* D) {
+    for (int k = 0; k < kSculptCount; ++k) D[k] = V3();
+    float W[kGroupCount] = {};
+    float total = 0;
+    for (int k = 0; k < 4; ++k) {
+        if (!v.weights[k]) continue;
+        uint8_t g = v.bones[k] < rig.group.size() ? rig.group[v.bones[k]] : uint8_t(kGroupOther);
+        float w = v.weights[k] / 255.0f;
+        W[g] += w; total += w;
+    }
+    if (total <= 0) return false;
+    for (float& w : W) w /= total;
+    if (W[kGroupOther] + W[kGroupHead] + W[kGroupFoot] > 0.999f) return false;   // (the head, hands and feet: no move)
+    const float U = rig.unit;
+    if (opt.gameBody) {
+        // at the body's middle line a side's groups are taken as both sides' mean (a model's weights there lean one way or
+        // the other; the mean keeps the moves mirror-symmetric where the vertex is its own mirror image)
+        const float a = smooth(0.0f, 0.03f * U, std::fabs(p.y));
+        if (a < 1) {
+            const uint8_t pairs[4][2] = {{kGroupBreastL, kGroupBreastR}, {kGroupThighL, kGroupThighR}, {kGroupUpperArmL, kGroupUpperArmR},
+                                         {kGroupForearmL, kGroupForearmR}};
+            for (const auto& pr : pairs) {
+                const float mean = 0.5f * (W[pr[0]] + W[pr[1]]);
+                W[pr[0]] = a * W[pr[0]] + (1 - a) * mean;
+                W[pr[1]] = a * W[pr[1]] + (1 - a) * mean;
+            }
         }
-        if (mus != 0) {
-            add(kSculptShoulders, 0.4f * mus); add(kSculptUpperArms, 0.7f * mus); add(kSculptForearms, 0.5f * mus);
-            add(kSculptChest, 0.7f * mus); add(kSculptThighs, 0.4f * mus); add(kSculptCalves, 0.5f * mus);
-            add(kSculptWaist, -0.25f * mus); add(kSculptBelly, -0.3f * mus);
-            if (opt.gameBody) add(kSculptNeck, 0.5f * mus);
+    }
+    auto on = [need](int k) { return !need || need[k]; };
+    const float spineX = spineDepth(rig, opt.gameBody, p.z);
+    const float front = smooth(-0.02f * U, 0.06f * U, p.x - spineX);
+    const float arms = W[kGroupUpperArmL] + W[kGroupUpperArmR] + W[kGroupForearmL] + W[kGroupForearmR];
+    const float armFree = 1 - std::min(arms, 1.0f);
+    const float ay = std::fabs(p.y), sgn = p.y >= 0 ? 1.0f : -1.0f;
+
+    // the bust: grows about a centre behind each breast (outward and forward), and lifts
+    float bust[2];
+    for (int k = 0; k < 2; ++k) {
+        if (rig.hasBreastBones) bust[k] = W[k == 0 ? kGroupBreastL : kGroupBreastR];
+        else {
+            float side = k == 0 ? smooth(-0.01f * U, 0.02f * U, p.y) : smooth(-0.01f * U, 0.02f * U, -p.y);
+            bust[k] = (W[kGroupChest] + W[kGroupBreastL] + W[kGroupBreastR]) * front * side *
+                      gauss(p.z - rig.breast[k].z, 0.07f * U) * gauss(std::fabs(p.y) - std::fabs(rig.breast[k].y), 0.07f * U);
         }
-        if (!opt.gameBody) s[kSculptNeck] = 0;   // (the Eve body's neck ring meets the Warcraft head: kept)
+        if (opt.gameBody) bust[k] *= armFree;   // (an arm's skin beside the chest stays an arm)
+    }
+    for (int k = 0; k < 2; ++k) {
+        if (bust[k] <= 0) continue;
+        const float side = k == 0 ? 1.0f : -1.0f;
+        const V3& b = rig.breast[k];
+        const V3 c = b - V3(0.05f * U, 0, 0);
+        if (on(kSculptBust)) {
+            V3 r = p - c;
+            r.y *= 0.6f;                                     // more forward than outward: the two never meet
+            D[kSculptBust] = D[kSculptBust] + r * (0.4f * bust[k]);
+        }
+        // the bust's width (each breast about its own centre, side to side) and spacing (both apart or together)
+        if (on(kSculptBustWidth)) D[kSculptBustWidth].y += (p.y - b.y) * 0.6f * bust[k];
+        if (on(kSculptBustSpacing)) D[kSculptBustSpacing].y += side * 0.04f * U * bust[k];
+        // the designer's shapes: how far forward of the chest wall (`out`), toward the tip (`tip`), below or above the breast's
+        // centre
+        const float out = std::max(0.0f, p.x - c.x);
+        const float tip = smooth(0.0f, 0.07f * U, p.x - c.x);
+        const float below = smooth(b.z + 0.02f * U, b.z - 0.05f * U, p.z);
+        const float above = smooth(b.z - 0.01f * U, b.z + 0.06f * U, p.z);
+        if (on(kSculptBustProjection)) D[kSculptBustProjection].x += out * 0.45f * bust[k];           // forward from the wall
+        if (on(kSculptBustDroop)) {                                                                    // down, the tip leading
+            D[kSculptBustDroop].z -= 0.04f * U * bust[k] * (0.35f + 0.65f * tip);
+            D[kSculptBustDroop].x += 0.012f * U * bust[k] * tip * below;
+        }
+        if (on(kSculptBustUpper)) D[kSculptBustUpper].x += out * 0.5f * bust[k] * above;             // the upper slope filled
+        if (on(kSculptBustRound)) {                                                                    // fuller round the tip
+            D[kSculptBustRound].y += (p.y - b.y) * 0.35f * bust[k] * tip;
+            D[kSculptBustRound].z += (p.z - b.z) * 0.35f * bust[k] * tip;
+        }
+        if (on(kSculptBustSide)) D[kSculptBustSide].y += side * 0.03f * U * bust[k] * (0.2f + 0.8f * smooth(0.0f, 0.05f * U, side * (p.y - b.y)));
+        if (on(kSculptUnderbust)) {                                                                    // the underside fuller
+            D[kSculptUnderbust].z -= 0.025f * U * bust[k] * below;
+            D[kSculptUnderbust].x += 0.02f * U * bust[k] * below * tip;
+        }
+    }
+    if (on(kSculptBustLift)) D[kSculptBustLift].z += 0.035f * U * (bust[0] + bust[1]) * std::max(front, 0.3f);
+
+    // the chest (the pectorals, a man's or a woman's above the bust): its front forward, a little wider
+    if (on(kSculptChest)) {
+        float m = (W[kGroupChest] + 0.5f * W[kGroupClavicle] + W[kGroupBreastL] + W[kGroupBreastR]) * front * armFree *
+                  gauss(p.z - (rig.chest.z + 0.02f * U), 0.09f * U);
+        D[kSculptChest].x += std::max(0.0f, p.x - spineX) * 0.35f * m;
+        D[kSculptChest].y += p.y * 0.06f * m;
+    }
+    // the pectorals' definition: their lower half forward, a narrower band than the chest's
+    if (on(kSculptPecs)) {
+        float m = (W[kGroupChest] + 0.5f * W[kGroupClavicle] + W[kGroupBreastL] + W[kGroupBreastR]) * front * armFree *
+                  gauss(p.z - (rig.chest.z - 0.03f * U), 0.05f * U) * gauss(ay - 0.08f * U, 0.05f * U);
+        D[kSculptPecs].x += 0.03f * U * m;
+    }
+
+    // the waist: wider or narrower about the spine
+    if (on(kSculptWaist)) {
+        float m = W[kGroupWaist] * (1 - arms) * (1 - 0.6f * (bust[0] + bust[1]));
+        D[kSculptWaist].x += (p.x - spineX) * 0.2f * m;
+        D[kSculptWaist].y += p.y * 0.2f * m;
+    }
+    // the belly: forward, a soft band round the navel (the front scaled out from the spine: never folds)
+    if (on(kSculptBelly)) {
+        float m = (W[kGroupWaist] + 0.6f * W[kGroupPelvis]) * gauss(p.z - (rig.waist.z - 0.04f * U), 0.1f * U);
+        if (opt.gameBody) m *= armFree;
+        D[kSculptBelly].x += std::max(0.0f, p.x - spineX) * 0.55f * m;
+    }
+    // the abdomen's definition: the belly's front flatter, the middle line drawn in, the two columns beside it kept
+    if (on(kSculptAbs)) {
+        float m = (W[kGroupWaist] + 0.5f * W[kGroupPelvis] + 0.3f * W[kGroupChest]) * front * armFree * gauss(p.z - rig.waist.z, 0.1f * U);
+        D[kSculptAbs].x += (-std::max(0.0f, p.x - spineX) * 0.12f - 0.006f * U * (1 - smooth(0.0f, 0.02f * U, ay)) +
+                            0.005f * U * gauss(ay - 0.035f * U, 0.015f * U)) * m;
+    }
+    // the hips: wider across, a band round the hip joints
+    const float thighs = W[kGroupThighL] + W[kGroupThighR];
+    if (on(kSculptHips)) {
+        float m = (W[kGroupPelvis] + thighs) * gauss(p.z - (rig.pelvis.z - 0.06f * U), 0.12f * U);
+        if (opt.gameBody) m *= armFree;   // (a hand hanging by the hip stays where it is)
+        D[kSculptHips].y += p.y * 0.18f * m;
+    }
+    // the butt: back, a band under the pelvis (the back scaled out from the spine); its lift: that band raised
+    float mb = (W[kGroupPelvis] + 0.7f * thighs) * gauss(p.z - (rig.pelvis.z - 0.07f * U), 0.09f * U);
+    if (opt.gameBody) mb *= armFree;
+    const float back = smooth(0.0f, 0.05f * U, spineX - p.x);
+    if (on(kSculptButt)) D[kSculptButt].x += std::min(0.0f, p.x - spineX) * 0.6f * mb;
+    if (on(kSculptButtLift)) D[kSculptButtLift].z += 0.045f * U * mb * back;
+    // the designer's butt shapes, about each cheek's centre (below the hip joints, behind)
+    const float cheekY = 0.85f * 0.5f * (std::fabs(rig.hip[0].y) + std::fabs(rig.hip[1].y));
+    const float cheekZ = rig.pelvis.z - 0.08f * U;
+    if (mb > 0 && back > 0) {
+        if (on(kSculptButtWidth)) D[kSculptButtWidth].y += p.y * 0.16f * mb * back;                 // the back half wider
+        if (on(kSculptButtProjection)) D[kSculptButtProjection].x -= 0.04f * U * mb * back * gauss(ay - cheekY, 0.07f * U);
+        if (on(kSculptButtRound)) {                                                                    // fuller round each cheek
+            D[kSculptButtRound].y += (p.y - sgn * cheekY) * 0.3f * mb * back * smooth(0.0f, 0.03f * U, ay);
+            D[kSculptButtRound].z += (p.z - cheekZ) * 0.3f * mb * back;
+        }
+        if (on(kSculptCheekGap)) D[kSculptCheekGap].x += 0.025f * U * mb * back * (1 - smooth(0.005f * U, 0.04f * U, ay));
+    }
+    // the hip dip: the side below the hip bone drawn in (by how much the skin there faces sideways)
+    if (on(kSculptHipDip)) {
+        float band = (W[kGroupPelvis] + thighs) * gauss(p.z - (rig.pelvis.z - 0.03f * U), 0.05f * U);
+        if (opt.gameBody) band *= armFree;
+        const V3 n(v.normal[0], v.normal[1], v.normal[2]);
+        const float nl = n.length();
+        const float lateral = nl > 1e-6f ? (n.y / nl) * (n.y / nl) : 0.0f;
+        D[kSculptHipDip].y -= sgn * 0.022f * U * band * lateral * smooth(0.04f * U, 0.1f * U, ay);
+    }
+    // the underbutt: the fold where the cheek meets the thigh, fuller (back and down)
+    if (on(kSculptUnderbutt)) {
+        float band = (W[kGroupPelvis] + thighs) * gauss(p.z - (rig.pelvis.z - 0.16f * U), 0.06f * U) * gauss(ay - cheekY, 0.08f * U);
+        if (opt.gameBody) band *= armFree;
+        const float behind = smooth(0.0f, 0.04f * U, spineX - p.x);
+        D[kSculptUnderbutt].x -= 0.03f * U * band * behind;
+        D[kSculptUnderbutt].z -= 0.012f * U * band * behind;
+    }
+    // the limbs: thicker or thinner about their bones' axes; on the game's bodies faded out before the wrists and
+    // ankles (`fade`: from that share of the bone on)
+    auto limb = [&](int slider, float scale, float w, const V3& a, const V3& b, float fade, float rise = 0) {
+        if (!on(slider) || w <= 0) return;
+        float t = 0;
+        V3 r = p - nearestOn(a, b, p, &t);
+        float k = fade < 1 ? 1 - smooth(fade, fade + 0.25f, t) : 1.0f;   // (nothing from 0.25 past it)
+        if (rise > 0) k *= smooth(0.0f, rise, t);                         // (and from nothing at the joint it starts at)
+        D[slider] = D[slider] + r * (0.3f * scale * w * k);
     };
-    compose(0);
+    const float wristFade = opt.gameBody ? 0.6f : 1.0f;
+    for (int k = 0; k < 2; ++k) {
+        const float thigh = W[k == 0 ? kGroupThighL : kGroupThighR];
+        const float upper = W[k == 0 ? kGroupUpperArmL : kGroupUpperArmR], fore = W[k == 0 ? kGroupForearmL : kGroupForearmR];
+        limb(kSculptThighs, 1, thigh, rig.hip[k], rig.knee[k], 1.0f);
+        limb(kSculptArms, 1, upper, rig.shoulder[k], rig.elbow[k], 1.0f);
+        limb(kSculptArms, 1, fore, rig.elbow[k], rig.wrist[k], wristFade);
+        limb(kSculptUpperArms, 1, upper, rig.shoulder[k], rig.elbow[k], opt.gameBody ? 0.75f : 1.0f);   // (the elbow kept)
+        limb(kSculptForearms, 1, fore, rig.elbow[k], rig.wrist[k], 0.6f, opt.gameBody ? 0.2f : 0.0f);
+        // the calves (one group for both: the side by where the vertex is, both halves at the middle line)
+        const float mine = smooth(-0.03f * U, 0.03f * U, k == 0 ? p.y : -p.y);
+        limb(kSculptCalves, 0.75f, W[kGroupCalf] * mine, rig.knee[k], rig.ankle[k], 0.6f, 0.35f);   // (the knee kept)
+    }
+    // the neck (the game's bodies): thicker or thinner about its axis, faded out before the head
+    if (on(kSculptNeck) && W[kGroupNeck] > 0) {
+        float t = 0;
+        V3 r = p - nearestOn(rig.neck, rig.head, p, &t);
+        D[kSculptNeck] = D[kSculptNeck] + r * (0.25f * W[kGroupNeck] * (1 - smooth(0.6f, 1.0f, t)));
+    }
+    // the shoulders: broader or narrower, nothing at the body's middle line
+    if (on(kSculptShoulders)) {
+        float upper = 0.8f;
+        if (opt.gameBody) {   // (the upper arm leans out from the shoulder, the elbow kept: no step where the forearm starts)
+            float t = 0;
+            nearestOn(rig.shoulder[p.y >= 0 ? 0 : 1], rig.elbow[p.y >= 0 ? 0 : 1], p, &t);
+            upper *= 1 - smooth(0.0f, 0.9f, t);
+        }
+        float m = W[kGroupClavicle] + upper * (W[kGroupUpperArmL] + W[kGroupUpperArmR]) +
+                  W[kGroupChest] * smooth(0.06f * U, 0.16f * U, std::fabs(p.y)) * smooth(rig.chest.z - 0.1f * U, rig.chest.z + 0.05f * U, p.z);
+        m = std::min(m, 1.0f) * smooth(0.0f, 0.04f * U, std::fabs(p.y));
+        D[kSculptShoulders].y += sgn * 0.04f * U * m;
+    }
+    // the shoulders' slope: their tops lowered (or squared up), the clavicles and the upper arm's top, not the middle
+    if (on(kSculptShoulderSlope)) {
+        const int k = p.y >= 0 ? 0 : 1;
+        float t = 0;
+        nearestOn(rig.shoulder[k], rig.elbow[k], p, &t);
+        float m = W[kGroupClavicle] + (W[kGroupUpperArmL] + W[kGroupUpperArmR]) * (1 - smooth(0.0f, 0.7f, t)) +
+                  W[kGroupChest] * smooth(0.05f * U, 0.15f * U, std::fabs(p.y)) * smooth(rig.chest.z - 0.05f * U, rig.chest.z + 0.08f * U, p.z);
+        m = std::min(m, 1.0f) * smooth(0.02f * U, 0.08f * U, std::fabs(p.y));
+        D[kSculptShoulderSlope].z -= 0.055f * U * m;
+    }
+    return true;
+}
+
+} // namespace
+
+size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std::vector<uint32_t>& indices,
+                   const float* values, size_t count, const SculptOptions& opt, SculptStats* stats) {
+    if (stats) *stats = SculptStats();
+    if (!rig.ok || verts.empty() || !sculptActive(values, count)) return 0;
+    float s0[kSculptCount], bal[kSculptCount];
+    const bool sided = readValues(values, count, s0, bal);
+    float s[kSculptCount];
+    composeSide(s0, bal, 0, opt.gameBody, s);
+    // the moves any vertex takes (a slider at 0 on both sides, with Body Fat's and Muscle's shares: not worked out)
+    bool need[kSculptCount];
+    {
+        float lo[kSculptCount], hi[kSculptCount];
+        composeSide(s0, bal, -1, opt.gameBody, lo);
+        composeSide(s0, bal, 1, opt.gameBody, hi);
+        for (int k = 0; k < kSculptCount; ++k) need[k] = isMove(k) && (s[k] != 0 || lo[k] != 0 || hi[k] != 0);
+    }
     const float U = rig.unit;
     const float maxMove = kSculptMaxShare * U;
-    // the spine's depth at a height: the Eve body's is upright (its waist), the game's bodies follow their own curve
-    auto spineAt = [&](float z) {
-        if (!opt.gameBody) return rig.waist.x;
-        const V3 j[4] = {rig.pelvis, rig.waist, rig.chest, rig.neck};
-        if (z <= j[0].z) return j[0].x;
-        for (int i = 0; i < 3; ++i) {
-            if (j[i + 1].z <= j[i].z + 1e-5f) return rig.waist.x;   // (joints not climbing: upright)
-            if (z <= j[i + 1].z) return j[i].x + (j[i + 1].x - j[i].x) * (z - j[i].z) / (j[i + 1].z - j[i].z);
-        }
-        return j[3].x;
-    };
 
     std::vector<V3> before(verts.size());
     for (size_t i = 0; i < verts.size(); ++i) before[i] = V3(verts[i].pos[0], verts[i].pos[1], verts[i].pos[2]);
@@ -174,156 +420,14 @@ size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std
 
     std::vector<V3> disp(verts.size());
     std::vector<uint8_t> moves(verts.size(), 0);
+    V3 D[kSculptCount];
     for (size_t vi = 0; vi < verts.size(); ++vi) {
         if (pinned[vi]) continue;
-        const M2Vertex& v = verts[vi];
-        float W[kGroupCount] = {};
-        float total = 0;
-        for (int k = 0; k < 4; ++k) {
-            if (!v.weights[k]) continue;
-            uint8_t g = v.bones[k] < rig.group.size() ? rig.group[v.bones[k]] : uint8_t(kGroupOther);
-            float w = v.weights[k] / 255.0f;
-            W[g] += w; total += w;
-        }
-        if (total <= 0) continue;
-        for (float& w : W) w /= total;
-        if (W[kGroupOther] + W[kGroupHead] + W[kGroupFoot] > 0.999f) continue;   // (the head, hands and feet: no move)
         const V3 p = before[vi];
-        if (opt.gameBody) {
-            // at the body's middle line a side's groups are taken as both sides' mean (a model's weights there lean one way or
-            // the other; the mean keeps the moves mirror-symmetric where the vertex is its own mirror image)
-            const float a = smooth(0.0f, 0.03f * U, std::fabs(p.y));
-            if (a < 1) {
-                const uint8_t pairs[4][2] = {{kGroupBreastL, kGroupBreastR}, {kGroupThighL, kGroupThighR}, {kGroupUpperArmL, kGroupUpperArmR},
-                                             {kGroupForearmL, kGroupForearmR}};
-                for (const auto& pr : pairs) {
-                    const float mean = 0.5f * (W[pr[0]] + W[pr[1]]);
-                    W[pr[0]] = a * W[pr[0]] + (1 - a) * mean;
-                    W[pr[1]] = a * W[pr[1]] + (1 - a) * mean;
-                }
-            }
-        }
-        if (sided) compose(2 * smooth(-0.015f * U, 0.015f * U, p.y) - 1);   // (this side's values: one or the other off the middle)
-        const float spineX = spineAt(p.z);
-        const float front = smooth(-0.02f * U, 0.06f * U, p.x - spineX);
-        const float arms = W[kGroupUpperArmL] + W[kGroupUpperArmR] + W[kGroupForearmL] + W[kGroupForearmR];
+        if (!vertexMoves(rig, opt, verts[vi], p, need, D)) continue;
+        if (sided) composeSide(s0, bal, 2 * smooth(-0.015f * U, 0.015f * U, p.y) - 1, opt.gameBody, s);   // (this side's values)
         V3 d;
-
-        // the bust: grows about a centre behind each breast (outward and forward), and lifts
-        float bust[2];
-        for (int k = 0; k < 2; ++k) {
-            if (rig.hasBreastBones) bust[k] = W[k == 0 ? kGroupBreastL : kGroupBreastR];
-            else {
-                float side = k == 0 ? smooth(-0.01f * U, 0.02f * U, p.y) : smooth(-0.01f * U, 0.02f * U, -p.y);
-                bust[k] = (W[kGroupChest] + W[kGroupBreastL] + W[kGroupBreastR]) * front * side *
-                          gauss(p.z - rig.breast[k].z, 0.07f * U) * gauss(std::fabs(p.y) - std::fabs(rig.breast[k].y), 0.07f * U);
-            }
-            if (opt.gameBody) bust[k] *= 1 - std::min(arms, 1.0f);   // (an arm's skin beside the chest stays an arm)
-        }
-        if (s[kSculptBust] != 0) {
-            for (int k = 0; k < 2; ++k) {
-                if (bust[k] <= 0) continue;
-                V3 c = rig.breast[k] - V3(0.05f * U, 0, 0);
-                V3 r = p - c;
-                r.y *= 0.6f;                                     // more forward than outward: the two never meet
-                d = d + r * (0.4f * s[kSculptBust] * bust[k]);
-            }
-        }
-        if (s[kSculptBustLift] != 0) d.z += 0.035f * U * s[kSculptBustLift] * (bust[0] + bust[1]) * std::max(front, 0.3f);
-        // the bust's width (each breast about its own centre, side to side) and spacing (both apart or together)
-        for (int k = 0; k < 2; ++k) {
-            if (bust[k] <= 0) continue;
-            const float side = k == 0 ? 1.0f : -1.0f;
-            if (s[kSculptBustWidth] != 0) d.y += (p.y - rig.breast[k].y) * 0.6f * s[kSculptBustWidth] * bust[k];
-            if (s[kSculptBustSpacing] != 0) d.y += side * 0.04f * U * s[kSculptBustSpacing] * bust[k];
-        }
-
-        // the chest (the pectorals, a man's or a woman's above the bust): its front forward, a little wider
-        if (s[kSculptChest] != 0) {
-            float m = (W[kGroupChest] + 0.5f * W[kGroupClavicle] + W[kGroupBreastL] + W[kGroupBreastR]) * front * (1 - std::min(arms, 1.0f)) *
-                      gauss(p.z - (rig.chest.z + 0.02f * U), 0.09f * U);
-            d.x += std::max(0.0f, p.x - spineX) * 0.35f * s[kSculptChest] * m;
-            d.y += p.y * 0.06f * s[kSculptChest] * m;
-        }
-
-        // the waist: wider or narrower about the spine
-        if (s[kSculptWaist] != 0) {
-            float m = W[kGroupWaist] * (1 - arms) * (1 - 0.6f * (bust[0] + bust[1]));
-            d.x += (p.x - spineX) * 0.2f * s[kSculptWaist] * m;
-            d.y += p.y * 0.2f * s[kSculptWaist] * m;
-        }
-        // the belly: forward, a soft band round the navel (the front scaled out from the spine: never folds)
-        if (s[kSculptBelly] != 0) {
-            float m = (W[kGroupWaist] + 0.6f * W[kGroupPelvis]) * gauss(p.z - (rig.waist.z - 0.04f * U), 0.1f * U);
-            if (opt.gameBody) m *= 1 - std::min(arms, 1.0f);
-            d.x += std::max(0.0f, p.x - spineX) * 0.55f * s[kSculptBelly] * m;
-        }
-        // the hips: wider across, a band round the hip joints
-        const float thighs = W[kGroupThighL] + W[kGroupThighR];
-        if (s[kSculptHips] != 0) {
-            float m = (W[kGroupPelvis] + thighs) * gauss(p.z - (rig.pelvis.z - 0.06f * U), 0.12f * U);
-            if (opt.gameBody) m *= 1 - std::min(arms, 1.0f);   // (a hand hanging by the hip stays where it is)
-            d.y += p.y * 0.18f * s[kSculptHips] * m;
-        }
-        // the butt: back, a band under the pelvis (the back scaled out from the spine); its lift: that band raised
-        if (s[kSculptButt] != 0 || s[kSculptButtLift] != 0) {
-            float m = (W[kGroupPelvis] + 0.7f * thighs) * gauss(p.z - (rig.pelvis.z - 0.07f * U), 0.09f * U);
-            if (opt.gameBody) m *= 1 - std::min(arms, 1.0f);
-            d.x += std::min(0.0f, p.x - spineX) * 0.6f * s[kSculptButt] * m;
-            if (s[kSculptButtLift] != 0) d.z += 0.045f * U * s[kSculptButtLift] * m * smooth(0.0f, 0.05f * U, spineX - p.x);
-        }
-        // the limbs: thicker or thinner about their bones' axes; on the game's bodies faded out before the wrists and
-        // ankles (`fade`: from that share of the bone on)
-        auto limb = [&](float value, float w, const V3& a, const V3& b, float fade, float rise = 0) {
-            if (value == 0 || w <= 0) return;
-            float t = 0;
-            V3 r = p - nearestOn(a, b, p, &t);
-            float k = fade < 1 ? 1 - smooth(fade, fade + 0.25f, t) : 1.0f;   // (nothing from 0.25 past it)
-            if (rise > 0) k *= smooth(0.0f, rise, t);                         // (and from nothing at the joint it starts at)
-            d = d + r * (0.3f * value * w * k);
-        };
-        const float wristFade = opt.gameBody ? 0.6f : 1.0f;
-        for (int k = 0; k < 2; ++k) {
-            const float thigh = W[k == 0 ? kGroupThighL : kGroupThighR];
-            const float upper = W[k == 0 ? kGroupUpperArmL : kGroupUpperArmR], fore = W[k == 0 ? kGroupForearmL : kGroupForearmR];
-            limb(s[kSculptThighs], thigh, rig.hip[k], rig.knee[k], 1.0f);
-            limb(s[kSculptArms], upper, rig.shoulder[k], rig.elbow[k], 1.0f);
-            limb(s[kSculptArms], fore, rig.elbow[k], rig.wrist[k], wristFade);
-            limb(s[kSculptUpperArms], upper, rig.shoulder[k], rig.elbow[k], opt.gameBody ? 0.75f : 1.0f);   // (the elbow kept)
-            limb(s[kSculptForearms], fore, rig.elbow[k], rig.wrist[k], 0.6f, opt.gameBody ? 0.2f : 0.0f);
-            // the calves (one group for both: the side by where the vertex is, both halves at the middle line)
-            const float mine = smooth(-0.03f * U, 0.03f * U, k == 0 ? p.y : -p.y);
-            limb(s[kSculptCalves] * 0.75f, W[kGroupCalf] * mine, rig.knee[k], rig.ankle[k], 0.6f, 0.35f);   // (the knee kept)
-        }
-        // the neck (the game's bodies): thicker or thinner about its axis, faded out before the head
-        if (s[kSculptNeck] != 0 && W[kGroupNeck] > 0) {
-            float t = 0;
-            V3 r = p - nearestOn(rig.neck, rig.head, p, &t);
-            d = d + r * (0.25f * s[kSculptNeck] * W[kGroupNeck] * (1 - smooth(0.6f, 1.0f, t)));
-        }
-        // the shoulders: broader or narrower, nothing at the body's middle line
-        if (s[kSculptShoulders] != 0) {
-            float upper = 0.8f;
-            if (opt.gameBody) {   // (the upper arm leans out from the shoulder, the elbow kept: no step where the forearm starts)
-                float t = 0;
-                nearestOn(rig.shoulder[p.y >= 0 ? 0 : 1], rig.elbow[p.y >= 0 ? 0 : 1], p, &t);
-                upper *= 1 - smooth(0.0f, 0.9f, t);
-            }
-            float m = W[kGroupClavicle] + upper * (W[kGroupUpperArmL] + W[kGroupUpperArmR]) +
-                      W[kGroupChest] * smooth(0.06f * U, 0.16f * U, std::fabs(p.y)) * smooth(rig.chest.z - 0.1f * U, rig.chest.z + 0.05f * U, p.z);
-            m = std::min(m, 1.0f) * smooth(0.0f, 0.04f * U, std::fabs(p.y));
-            d.y += (p.y >= 0 ? 1.0f : -1.0f) * 0.04f * U * s[kSculptShoulders] * m;
-        }
-        // the shoulders' slope: their tops lowered (or squared up), the clavicles and the upper arm's top, not the middle
-        if (s[kSculptShoulderSlope] != 0) {
-            const int k = p.y >= 0 ? 0 : 1;
-            float t = 0;
-            nearestOn(rig.shoulder[k], rig.elbow[k], p, &t);
-            float m = W[kGroupClavicle] + (W[kGroupUpperArmL] + W[kGroupUpperArmR]) * (1 - smooth(0.0f, 0.7f, t)) +
-                      W[kGroupChest] * smooth(0.05f * U, 0.15f * U, std::fabs(p.y)) * smooth(rig.chest.z - 0.05f * U, rig.chest.z + 0.08f * U, p.z);
-            m = std::min(m, 1.0f) * smooth(0.02f * U, 0.08f * U, std::fabs(p.y));
-            d.z -= 0.055f * U * s[kSculptShoulderSlope] * m;
-        }
+        for (int k = 0; k < kSculptCount; ++k) if (need[k] && s[k] != 0) d = d + D[k] * s[k];
 
         float len = d.length();
         if (len > maxMove) { d = d * (maxMove / len); len = maxMove; }
@@ -443,6 +547,114 @@ size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std
     }
     if (stats) { stats->moved = moved; stats->maxMove = most; stats->flipped = flipped; stats->eased = eased; }
     return moved;
+}
+
+// ---- the live sculpt's fields (sculpt.h SculptMorph) ----
+
+bool buildSculptMorph(const SculptRig& rig, const std::vector<M2Vertex>& verts, const SculptOptions& opt, SculptMorph& out) {
+    out = SculptMorph();
+    if (!rig.ok || verts.empty()) return false;
+    const size_t n = verts.size();
+    const float U = rig.unit;
+    const float tiny = kSculptMorphFloor * U;
+    std::vector<uint8_t> pinned(n, 0);
+    for (uint32_t i : opt.pinned) if (i < n) pinned[i] = 1;
+    bool need[kSculptCount];
+    for (int k = 0; k < kSculptCount; ++k) need[k] = isMove(k) && (opt.gameBody || k != kSculptNeck);
+    std::vector<uint32_t> first(n + 1, 0);
+    std::vector<uint8_t> channel;
+    std::vector<V3> delta;
+    std::vector<float> side(n, 0.0f);
+    channel.reserve(n * 4);
+    delta.reserve(n * 4);
+    V3 D[kSculptCount];
+    auto posOf = [&](size_t i) { return V3(verts[i].pos[0], verts[i].pos[1], verts[i].pos[2]); };
+    for (size_t vi = 0; vi < n; ++vi) {
+        first[vi] = uint32_t(delta.size());
+        const V3 p = posOf(vi);
+        side[vi] = 2 * smooth(-0.015f * U, 0.015f * U, p.y) - 1;
+        if (pinned[vi] || !vertexMoves(rig, opt, verts[vi], p, need, D)) continue;
+        for (int k = 0; k < kSculptCount; ++k)
+            if (need[k] && D[k].length() > tiny) { channel.push_back(uint8_t(k)); delta.push_back(D[k]); }
+    }
+    first[n] = uint32_t(delta.size());
+    if (opt.gameBody) {
+        // copies at one place (two geosets meeting, weighted differently) move as one, as applySculpt makes them: each copy's
+        // fields are the mean of every copy's there (a copy that would stay counting as nothing)
+        const float q = 1e-4f * U;
+        std::unordered_map<uint64_t, uint32_t> placeOf;
+        placeOf.reserve(n / 8 + 16);
+        constexpr uint32_t kNone = 0xFFFFFFFFu;
+        std::vector<uint32_t> place(n, kNone);
+        for (size_t i = 0; i < n; ++i)
+            if (first[i + 1] > first[i]) place[i] = placeOf.emplace(placeKey(posOf(i), q), uint32_t(placeOf.size())).first->second;
+        for (size_t i = 0; i < n; ++i) {
+            if (place[i] != kNone || pinned[i]) continue;
+            auto it = placeOf.find(placeKey(posOf(i), q));
+            if (it != placeOf.end()) place[i] = it->second;
+        }
+        std::vector<uint16_t> copies(placeOf.size(), 0);
+        for (size_t i = 0; i < n; ++i) if (place[i] != kNone && copies[place[i]] < 65535) ++copies[place[i]];
+        // the shared places' means (each its own row of kSculptCount moves)
+        std::vector<uint32_t> row(placeOf.size(), kNone);
+        std::vector<V3> mean;
+        for (size_t i = 0; i < n; ++i) {
+            if (place[i] == kNone || copies[place[i]] < 2) continue;
+            uint32_t& r = row[place[i]];
+            if (r == kNone) { r = uint32_t(mean.size() / kSculptCount); mean.resize(mean.size() + kSculptCount); }
+            const float w = 1.0f / copies[place[i]];
+            for (uint32_t e = first[i]; e < first[i + 1]; ++e) {
+                V3& m = mean[size_t(r) * kSculptCount + channel[e]];
+                m = m + delta[e] * w;
+            }
+        }
+        if (!mean.empty()) {
+            std::vector<uint32_t> first2(n + 1, 0);
+            std::vector<uint8_t> channel2;
+            std::vector<V3> delta2;
+            channel2.reserve(channel.size() + mean.size() / 4);
+            delta2.reserve(delta.size() + mean.size() / 4);
+            for (size_t i = 0; i < n; ++i) {
+                first2[i] = uint32_t(delta2.size());
+                if (place[i] != kNone && copies[place[i]] >= 2) {
+                    const V3* m = &mean[size_t(row[place[i]]) * kSculptCount];
+                    for (int k = 0; k < kSculptCount; ++k)
+                        if (m[k].length() > tiny) { channel2.push_back(uint8_t(k)); delta2.push_back(m[k]); }
+                } else {
+                    for (uint32_t e = first[i]; e < first[i + 1]; ++e) { channel2.push_back(channel[e]); delta2.push_back(delta[e]); }
+                }
+            }
+            first2[n] = uint32_t(delta2.size());
+            first.swap(first2); channel.swap(channel2); delta.swap(delta2);
+        }
+    }
+    out.first.swap(first);
+    out.side.swap(side);
+    out.channel.swap(channel);
+    out.delta.swap(delta);
+    out.unit = U;
+    return true;
+}
+
+void sculptMorphWeights(const float* values, size_t count, bool gameBody, float* sym, float* bal) {
+    float s0[kSculptCount], b0[kSculptCount];
+    if (values) readValues(values, count, s0, b0);
+    else for (int k = 0; k < kSculptCount; ++k) s0[k] = b0[k] = 0;
+    for (int k = 0; k < kSculptCount; ++k) { sym[k] = s0[k]; bal[k] = b0[k]; }
+    for (const Share& x : kFatShares)
+        if (gameBody || !x.gameOnly) { sym[x.slider] += x.share * s0[kSculptBodyFat]; bal[x.slider] += x.share * b0[kSculptBodyFat]; }
+    for (const Share& x : kMuscleShares)
+        if (gameBody || !x.gameOnly) { sym[x.slider] += x.share * s0[kSculptMuscle]; bal[x.slider] += x.share * b0[kSculptMuscle]; }
+    for (int k = 0; k < kSculptCount; ++k) if (!isMove(k) || (!gameBody && k == kSculptNeck)) sym[k] = bal[k] = 0;
+}
+
+void applySculptMorph(const SculptMorph& m, const float* sym, const float* bal, std::vector<V3>& positions) {
+    const size_t n = std::min(positions.size(), m.vertices());
+    for (size_t v = 0; v < n; ++v)
+        for (uint32_t e = m.first[v]; e < m.first[v + 1]; ++e) {
+            const int c = m.channel[e];
+            positions[v] = positions[v] + m.delta[e] * (sym[c] + m.side[v] * bal[c]);
+        }
 }
 
 } // namespace wc

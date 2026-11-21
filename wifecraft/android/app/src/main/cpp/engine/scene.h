@@ -327,8 +327,14 @@ public:
     // Off: every sculpt change is made on the next frame (the desktop harness's stills); on (the default) at most every
     // kSculptMinMs.
     void setSculptThrottle(bool on) { sculptThrottle_ = on; }
+    // On: while the live sculpt draws a change on the GPU, the CPU sculpt is not made again when the sliders rest (the desktop
+    // harness's stills of the GPU path; off, the default).
+    void setSculptRefitHold(bool hold) { sculptHold_ = hold; }
     // What the last sculpt of the game's body cost (ms) and how many vertices it moved (0: none).
     float sculptMs(int id) const;
+    // The live sculpt's fields on actor `id` (bodyrig.cpp): their GPU memory in bytes (0: none made), what making them cost (ms)
+    // and whether a change is being drawn by them now.
+    size_t sculptMorphBytes(int id, float* ms = nullptr, bool* drawing = nullptr) const;
     int locationObject(uint32_t model, V3 origin) const;
     bool walkSegment(V3 from, V3 to) const;
     // The floor under (x, y) nearest below z (a little above counts: a step up): the location's groups and WMO props,
@@ -443,6 +449,20 @@ private:
         const void* baseModel = nullptr;
         float sculptMs = 0;
         size_t sculptMoved = 0;
+        // The live sculpt (sculpt.h SculptMorph; bodyrig.cpp): the move fields of the body before the sculpt, uploaded as two
+        // float textures (the CPU copy dropped once they are), drawn on the GPU as the change from `sculpted` to `live` while
+        // the sliders move; the CPU sculpt made again once they rest.
+        unsigned morphIdxTex = 0, morphDataTex = 0;
+        size_t morphVertices = 0, morphBytes = 0;
+        uint32_t morphGen = 0;           // the body before the sculpt they were made from (baseGen; 0: none)
+        uint32_t baseGen = 1;            // counted up whenever the body before the sculpt is made from other inputs
+        const void* genModel = nullptr;  // what baseGen's body was made from (the model, its shape, its cut)
+        std::vector<float> genMorph;
+        std::vector<std::string> genCut;
+        uint32_t morphFailedGen = 0;     // the fields could not be made for that body (the CPU sculpt alone, throttled)
+        float morphMs = 0;               // what making them cost
+        std::vector<float> live;         // the mesh sliders drawn now (empty or equal to `sculpted`: nothing on the GPU)
+        uint64_t liveAtMs = 0, staleAtMs = 0;   // the last change; the first change the CPU sculpt hasn't made yet (0: none)
     };
     // A loaded part file: its data and, once a context has it, its buffers (M2Vertex, no bone weights: rigid, the positions
     // in the Sims body's frame, partSimsPoint).
@@ -788,6 +808,10 @@ private:
     void refreshBody(Actor& a);
     void sculptSync(Actor& a);                     // before eveCheck: the sculpt taken (bodyrig.cpp)
     bool sculptThrottle_ = true;
+    bool sculptHold_ = false;
+    bool sculptMorphReady(Actor& a);               // the live sculpt's fields made for the body as it is (bodyrig.cpp)
+    bool sculptMorphDraw(Actor& a);                // its uniforms set for the body's draw (false: nothing to draw)
+    void dropSculptMorph(Actor& a);
     void drawBodyLayer(Actor& a, const M4& world);
     void stepSoft(Actor& a, uint32_t now);
     // the tabard flap as cloth (scene.cpp): built for the look and shape, stepped after the bones, drawn after the body

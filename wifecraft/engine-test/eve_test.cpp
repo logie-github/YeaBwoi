@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -344,7 +345,22 @@ void posedSeams(M2Model& m, const FileLookup& look, const EveResult& res, size_t
 // the angle between her normals and the model's skin's there (degrees). `step`, `turn`: the worst of both sides; `mean`: the
 // mean |step|; `taper`: the same step at 3 and 5 cm (her shin eased from the model's back to her own over the band).
 struct AnkleStep { float step = 0, mean = 0, turn = 0, taper = 0; int samples = 0; };
-AnkleStep ankleStep(const M2Model& m, const EveResult& res, bool print, const char* name) {
+
+// A look's shown geosets from its groups, as the scene shows them (scene.cpp characterGeosets).
+std::vector<uint16_t> shownGeosets(const M2Model& m, const std::map<int, int>& groups) {
+    std::vector<uint16_t> out;
+    for (const M2Submesh& sm : m.submeshes) {
+        int id = sm.id, group = id < 100 ? 0 : id / 100, value = id < 100 ? id : id % 100;
+        bool show = id == 0 || (id >= 100 && value == 1) || group == 32;
+        if (group == 17 || group == 35) show = false;
+        auto it = groups.find(group);
+        if (id != 0 && it != groups.end()) show = value == it->second;
+        if (show && std::find(out.begin(), out.end(), sm.id) == out.end()) out.push_back(sm.id);
+    }
+    return out;
+}
+
+AnkleStep ankleStep(const M2Model& m, const EveResult& res, bool print, const char* name, const std::vector<uint16_t>& geosets) {
     AnkleStep out;
     const std::vector<M2Vertex>& ev = res.body.verts;
     const std::vector<uint32_t>& ei = res.body.indices;
@@ -355,7 +371,9 @@ AnkleStep ankleStep(const M2Model& m, const EveResult& res, bool print, const ch
     for (const M2Batch& bt : m.batches) {
         if (bt.submesh >= m.submeshes.size() || bt.textureCombo >= m.textureCombos.size()) continue;
         uint16_t ti = m.textureCombos[bt.textureCombo];
-        if (ti < m.textures.size() && m.textures[ti].type == 1 && m.submeshes[bt.submesh].id % 100 <= 1) skin[bt.submesh] = 1;
+        const uint16_t id = m.submeshes[bt.submesh].id;
+        if (ti < m.textures.size() && m.textures[ti].type == 1 &&
+            (geosets.empty() ? id % 100 <= 1 : std::find(geosets.begin(), geosets.end(), id) != geosets.end())) skin[bt.submesh] = 1;
     }
     // as drawn at rest: both skinned on her rig's bind (bodyrig.h; posedSeams' bindMats)
     LegEdit edit = res.body.rigPivots.empty() ? bodyEditOf(m, res.body.scale) : bodyEditFrom(m, res.body.rigPivots, res.body.scale);
@@ -384,12 +402,12 @@ AnkleStep ankleStep(const M2Model& m, const EveResult& res, bool print, const ch
             for (auto& [ea, ez] : edge) { float d = std::fabs(std::remainder(ea - a, 6.2831853f)); float w = 1.0f / (d * d + 1e-4f); wsum += w; z += ez * w; }
             return z / wsum;
         };
+        // the model's own skin round the ankle as it was (the removed lower leg and the kept foot: what her shin replaces and meets)
         std::vector<Tri> model, hers;
         for (size_t si = 0; si < m.submeshes.size(); ++si) if (skin[si])
             for (uint32_t t = m.submeshes[si].indexStart; t + 2 < m.submeshes[si].indexStart + m.submeshes[si].indexCount && t + 2 < m.indices.size(); t += 3) {
                 uint32_t i0 = m.indices[t], i1 = m.indices[t + 1], i2 = m.indices[t + 2];
                 if (i0 >= res.body.cut.size() || i1 >= res.body.cut.size() || i2 >= res.body.cut.size()) continue;
-                if (!res.body.cut[i0] && !res.body.cut[i1] && !res.body.cut[i2]) continue;
                 V3 A = skinned(m.vertices[i0], false), B = skinned(m.vertices[i1], false), C = skinned(m.vertices[i2], false);
                 if (!mine((A + B + C) * (1.0f / 3))) continue;
                 model.push_back({A, B, C, skinned(m.vertices[i0], true), skinned(m.vertices[i1], true), skinned(m.vertices[i2], true)});
@@ -447,24 +465,51 @@ AnkleStep ankleStep(const M2Model& m, const EveResult& res, bool print, const ch
                 std::printf("\n");
             }
         }
-        float worst = 0, wsgn = 0, wh = 0, wa = 0, sum = 0, turn = 0, taper = 0; int n = 0;
-        for (int k = 0; k < 48; ++k) {
-            float a = -3.14159265f + 6.2831853f * (k + 0.5f) / 48;
-            V3 d(std::cos(a), std::sin(a), 0);
-            float ez = edgeAt(a);
-            for (float h : {0.3f, 0.6f, 1.0f, 1.5f, 2.0f, 3.0f, 5.0f}) {
-                V3 org(o.x, o.y, ez + h / cm);
-                float rm, re; V3 nm, ne;
-                if (!cast(model, org, d, rm, nm) || !cast(hers, org, d, re, ne)) continue;
-                float st = (re - rm) * cm;
-                if (h > 2.5f) { taper = std::max(taper, std::fabs(st)); continue; }
-                sum += std::fabs(st); ++n;
-                if (std::fabs(st) > worst) { worst = std::fabs(st); wsgn = st; wh = h; wa = a * 57.2958f; }
-                turn = std::max(turn, std::acos(std::clamp(nm.dot(ne), -1.0f, 1.0f)) * 57.2958f);
+        // each of her vertices on this leg 0.2 to 2 cm over the model's edge (at its angle round the ankle joint): its distance
+        // from the model's removed skin along that skin's normal at the nearest point (the step), her normal against it
+        auto nearest = [&](const std::vector<Tri>& ts, V3 p, V3& at, V3& nn) {
+            float best = 1e30f; bool any = false;
+            for (const Tri& t : ts) {
+                // (the nearest point of a triangle: sampled finely enough for a check, 1 mm on these)
+                V3 e1 = t.b - t.a, e2 = t.c - t.a, nrm = e1.cross(e2);
+                float area = nrm.length(); if (area < 1e-12f) continue;
+                nrm = nrm * (1.0f / area);
+                V3 q = p - nrm * (p - t.a).dot(nrm);
+                // barycentric of the projection; outside: the nearest of the edges
+                V3 v2 = q - t.a; float d00 = e1.dot(e1), d01 = e1.dot(e2), d11 = e2.dot(e2), d20 = v2.dot(e1), d21 = v2.dot(e2);
+                float den = d00 * d11 - d01 * d01; if (std::fabs(den) < 1e-20f) continue;
+                float u = (d11 * d20 - d01 * d21) / den, w = (d00 * d21 - d01 * d20) / den;
+                if (u < 0 || w < 0 || u + w > 1) {
+                    float bu = 0, bw = 0, bd = 1e30f;
+                    for (int k = 0; k <= 20; ++k) for (int e = 0; e < 3; ++e) {
+                        float f = k / 20.0f, uu = e == 0 ? f : e == 1 ? 1 - f : 0, ww = e == 0 ? 0 : e == 1 ? f : f;
+                        V3 x = t.a + e1 * uu + e2 * ww; float d = (x - p).dot(x - p);
+                        if (d < bd) { bd = d; bu = uu; bw = ww; }
+                    }
+                    u = bu; w = bw; q = t.a + e1 * u + e2 * w;
+                }
+                float d = (q - p).dot(q - p);
+                if (d < best) { best = d; at = q; nn = (t.na * (1 - u - w) + t.nb * u + t.nc * w).normalized(); any = true; }
             }
+            return any;
+        };
+        float worst = 0, wsgn = 0, wh = 0, wa = 0, sum = 0, turn = 0, taper = 0; int n = 0;
+        for (size_t v = 0; v < eveVerts; ++v) {
+            V3 p = skinned(ev[v], false);
+            if (!mine(p)) continue;
+            float a = std::atan2(p.y - o.y, p.x - o.x), h = (p.z - edgeAt(a)) * cm;
+            if (h < 0.2f || h > 5.0f) continue;
+            V3 at, nn;
+            if (!nearest(model, p, at, nn) || (at - p).length() > 0.05f * H) continue;
+            float st = (p - at).dot(nn) * cm;
+            if (h > 2.5f) { taper = std::max(taper, std::fabs(st)); continue; }
+            sum += std::fabs(st); ++n;
+            if (std::fabs(st) > worst) { worst = std::fabs(st); wsgn = st; wh = h; wa = a * 57.2958f; }
+            if (getenv("ANKLE_WORST") && std::fabs(st) > 1.0f) std::printf("    worst-ish v %zu h %.2f a %.0f step %.2f at %.4f %.4f %.4f (nearest %.4f %.4f %.4f n %.2f %.2f %.2f)\n", v, h, a * 57.2958f, st, p.x, p.y, p.z, at.x, at.y, at.z, nn.x, nn.y, nn.z);
+            turn = std::max(turn, std::acos(std::clamp(skinned(ev[v], true).dot(nn), -1.0f, 1.0f)) * 57.2958f);
         }
-        if (print) std::printf("  %s ankle %s: step %.2f cm (%+.2f at %.1f cm up, %.0f deg), mean %.2f cm over %d rays (0.3-2 cm up); her normals within %.0f deg of the "
-                               "model's skin; at 3-5 cm %.2f cm\n", name, sd ? "R" : "L", worst, wsgn, wh, wa, n ? sum / n : 0.0f, n, turn, taper);
+        if (print) std::printf("  %s ankle %s: step %.2f cm (%+.2f at %.1f cm up, %.0f deg), mean %.2f cm over %d of her vertices 0.2-2 cm up; her normals within %.0f deg "
+                               "of the model's skin; 2.5-5 cm up %.2f cm\n", name, sd ? "R" : "L", worst, wsgn, wh, wa, n ? sum / n : 0.0f, n, turn, taper);
         out.step = std::max(out.step, worst); out.turn = std::max(out.turn, turn); out.taper = std::max(out.taper, taper);
         out.mean = std::max(out.mean, n ? sum / n : 0.0f); out.samples += n;
     }
@@ -702,12 +747,28 @@ int main(int argc, char** argv) {
             std::string arg = argv[i];
             uint32_t skinId = 0;
             std::string fitPath;
+            std::map<int, int> groupsArg;
             {
                 size_t c1 = arg.find(':');
                 if (c1 != std::string::npos) {
                     size_t c2 = arg.find(':', c1 + 1);
                     skinId = uint32_t(std::strtoul(arg.substr(c1 + 1, c2 == std::string::npos ? std::string::npos : c2 - c1 - 1).c_str(), nullptr, 10));
-                    if (c2 != std::string::npos) fitPath = arg.substr(c2 + 1);
+                    if (c2 != std::string::npos) {
+                        // MODEL:SKIN:FIT_JSON[:GEO]: GEO a look's geoset groups ("0=2,4=1,..."), shown as the scene shows them
+                        size_t c3 = arg.find(':', c2 + 1);
+                        fitPath = arg.substr(c2 + 1, c3 == std::string::npos ? std::string::npos : c3 - c2 - 1);
+                        if (c3 != std::string::npos) {
+                            std::string g = arg.substr(c3 + 1);
+                            size_t at = 0;
+                            while (at < g.size()) {
+                                size_t comma = g.find(',', at), eq = g.find('=', at);
+                                if (eq == std::string::npos || (comma != std::string::npos && eq > comma)) break;
+                                groupsArg[std::atoi(g.substr(at, eq - at).c_str())] = std::atoi(g.substr(eq + 1, comma == std::string::npos ? std::string::npos : comma - eq - 1).c_str());
+                                if (comma == std::string::npos) break;
+                                at = comma + 1;
+                            }
+                        }
+                    }
                 }
             }
             if (!m.load(uint32_t(std::atoi(argv[i])), look)) { std::printf("model %s: %s\n", argv[i], m.error.c_str()); continue; }
@@ -723,6 +784,7 @@ int main(int argc, char** argv) {
                     EveJob j;
                     j.serial = 1; j.key = 1; j.model = &m; j.set = set; j.mesh = std::make_shared<EveMesh>(e); j.fit = *row;
                     j.indices = m.indices; j.subs = m.submeshes;
+                    if (!groupsArg.empty()) j.geosets = shownGeosets(m, groupsArg);
                     j.skinPath = look(skinId);
                     EveResult res = eveCompute(j);
                     CHECK(res.ok, "model %u: %s", m.fileId, res.status.c_str());
@@ -767,7 +829,7 @@ int main(int argc, char** argv) {
                         }
                         CHECK(added > 0 && off == 0, "%s: %zu stitch vertices, %zu off the model's edge", row->name.c_str(), added, off);
                         posedSeams(m, look, res, res.body.stats.eveVerts, row->name, *row);
-                        if (row->rig > 0) ankleStep(m, res, true, row->name.c_str());
+                        if (row->rig > 0) ankleStep(m, res, true, row->name.c_str(), j.geosets);
                         // Keep undead bones (a row with "detail"): its details carried, the seams' colour as with them off (within 3)
                         if (row->detail > 0) {
                             EveJob off = j;
