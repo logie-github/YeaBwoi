@@ -26,9 +26,12 @@ enum class ToneCurve(val label: String, val native: Int) {
 
 /**
  * Options' Graphics page. Percentages are 0..100 (0: off); [renderScale] is a percentage of the view's size (60..125, above
- * 100 supersampled); [exposure] tenths of a stop (-20..20); [msaa] 0, 2 or 4; [anisotropy] 1..16; [textureDetail] 1 or 2;
- * [aoQuality] 0..2 and [shadowQuality] 0..1; [targetFps] 60, 90 or 120. [adaptive]: the governor may lower effects (never
- * the target); [overlay]: the performance readout over the scene.
+ * 100 supersampled); [exposure] tenths of a stop (-20..20); [msaa] 0, 2 or 4; [anisotropy] 1..16; [textureDetail] 1, 2
+ * or 4 (each kind of thing's biggest texture times this: a larger mip of the game's file, see [TEXTURE_DETAIL]); [aoQuality]
+ * 0..2 and [shadowQuality] 0..1; [targetFps] 60, 90 or 120. [adaptive]: the governor may lower effects (never the target);
+ * [overlay]: the performance readout over the scene. [eyes]: the eyes' catchlight and wet sheen; [thinSkin]: ears, nose,
+ * lips and fingers lit through, warm; [sheenFollows]: the people's skin grows a wet sheen with the moment's intensity
+ * (simulation/Immersion.kt IntensityModel, eased: [SkinSheen]), up to [sheenMax].
  */
 data class GraphicsSettings(
     val preset: GraphicsPreset = GraphicsPreset.STANDARD,
@@ -58,6 +61,10 @@ data class GraphicsSettings(
     val grain: Int = 0,
     val chroma: Int = 0,
     val sharpen: Int = 0,
+    val eyes: Int = 0,
+    val thinSkin: Int = 0,
+    val sheenFollows: Boolean = false,
+    val sheenMax: Int = 40,
 ) {
     /** Within limits (a hand-edited or old file can't break the renderer). */
     fun clamped(): GraphicsSettings = copy(
@@ -65,14 +72,15 @@ data class GraphicsSettings(
         renderScale = renderScale.coerceIn(SCALE_MIN, SCALE_MAX),
         msaa = when { msaa >= 4 -> 4; msaa >= 2 -> 2; else -> 0 },
         anisotropy = ANISOTROPY.lastOrNull { it <= anisotropy } ?: 1,
-        textureDetail = textureDetail.coerceIn(1, 2),
+        textureDetail = when { textureDetail >= 4 -> 4; textureDetail >= 2 -> 2; else -> 1 },
         exposure = exposure.coerceIn(-20, 20),
         bloom = bloom.coerceIn(0, 100), dof = dof.coerceIn(0, 100), aperture = aperture.coerceIn(0, 100),
         ao = ao.coerceIn(0, 100), aoQuality = aoQuality.coerceIn(0, 2), contact = contact.coerceIn(0, 100),
         shadows = shadows.coerceIn(0, 100), shadowQuality = shadowQuality.coerceIn(0, 1),
         skin = skin.coerceIn(0, 100), hair = hair.coerceIn(0, 100), shafts = shafts.coerceIn(0, 100), haze = haze.coerceIn(0, 100),
         vignette = vignette.coerceIn(0, 100), grain = grain.coerceIn(0, 100), chroma = chroma.coerceIn(0, 100),
-        sharpen = sharpen.coerceIn(0, 100),
+        sharpen = sharpen.coerceIn(0, 100), eyes = eyes.coerceIn(0, 100), thinSkin = thinSkin.coerceIn(0, 100),
+        sheenMax = sheenMax.coerceIn(0, 100),
     )
 
     /** The effects alone (the preset, the target, the switches about the page itself left out): what a preset sets. */
@@ -128,6 +136,8 @@ data class GraphicsSettings(
         v[21] = c.chroma / 100f
         v[22] = c.sharpen / 100f
         v[23] = if (timers) 1f else 0f
+        v[24] = c.eyes / 100f
+        v[25] = c.thinSkin / 100f
         return v
     }
 
@@ -138,15 +148,23 @@ data class GraphicsSettings(
         .put("dofInEditor", dofInEditor).put("ao", ao).put("aoQuality", aoQuality).put("contact", contact)
         .put("shadows", shadows).put("shadowQuality", shadowQuality).put("skin", skin).put("hair", hair)
         .put("shafts", shafts).put("haze", haze).put("vignette", vignette).put("grain", grain).put("chroma", chroma)
-        .put("sharpen", sharpen)
+        .put("sharpen", sharpen).put("eyes", eyes).put("thinSkin", thinSkin).put("sheenFollows", sheenFollows)
+        .put("sheenMax", sheenMax)
 
     companion object {
         /** engine/graphics_settings.h's kCount. */
-        const val NATIVE_COUNT = 24
+        const val NATIVE_COUNT = 26
         const val SCALE_MIN = 60
         const val SCALE_MAX = 125
         val TARGETS = listOf(60, 90, 120)
         val ANISOTROPY = listOf(1, 2, 4, 8, 16)
+        /**
+         * Texture detail's choices: the biggest texture kept for places, props and people (512, 256 and 1024 at 1; composed
+         * skins are 2048 whatever this is) times the factor, so a larger mip of the game's file where it has one. Each
+         * doubling takes up to four times the memory of what it enlarges (the Lion's Pride bedroom with two people: see the
+         * manual's Graphics and performance); it applies to what is loaded after the change.
+         */
+        val TEXTURE_DETAIL = listOf(1 to "Standard", 2 to "High", 4 to "Full")
         val DEFAULT = GraphicsSettings()
 
         /**
@@ -160,12 +178,13 @@ data class GraphicsSettings(
             GraphicsPreset.HIGH -> GraphicsSettings(
                 renderScale = 100, msaa = 2, anisotropy = 8, textureDetail = 1, tone = ToneCurve.FILMIC, bloom = 35,
                 dof = 50, aperture = 40, ao = 60, aoQuality = 1, contact = 50, shadows = 60, shadowQuality = 0,
-                skin = 60, hair = 50, vignette = 25,
+                skin = 60, hair = 50, vignette = 25, eyes = 60, thinSkin = 50, sheenFollows = true, sheenMax = 40,
             )
             GraphicsPreset.ULTRA -> GraphicsSettings(
                 renderScale = 125, msaa = 4, anisotropy = 16, textureDetail = 2, tone = ToneCurve.FILMIC, bloom = 45,
                 dof = 70, aperture = 55, ao = 80, aoQuality = 2, contact = 70, shadows = 75, shadowQuality = 1,
-                skin = 80, hair = 70, shafts = 50, haze = 30, vignette = 30, sharpen = 25,
+                skin = 80, hair = 70, shafts = 50, haze = 30, vignette = 30, sharpen = 25, eyes = 80, thinSkin = 70,
+                sheenFollows = true, sheenMax = 60,
             )
         }
 
@@ -203,6 +222,10 @@ data class GraphicsSettings(
                     grain = o.optInt("grain", d.grain),
                     chroma = o.optInt("chroma", d.chroma),
                     sharpen = o.optInt("sharpen", d.sharpen),
+                    eyes = o.optInt("eyes", d.eyes),
+                    thinSkin = o.optInt("thinSkin", d.thinSkin),
+                    sheenFollows = o.optBoolean("sheenFollows", d.sheenFollows),
+                    sheenMax = o.optInt("sheenMax", d.sheenMax),
                 ).clamped()
             } catch (e: Exception) { DEFAULT }
         }
@@ -212,7 +235,9 @@ data class GraphicsSettings(
 /**
  * What the governor lowers, in the order it lowers them (and raises them back in reverse): the render scale first, then
  * the AO's and shadows' quality, bloom, depth of field, MSAA, the Ultra extras, the render scale further, AO and shadows
- * altogether, the skin and hair shading last. A step that changes nothing for the settings is skipped.
+ * altogether, the thin-skin tint, the skin, hair and sheen shading, and the eyes' highlights last (they cover a few pixels:
+ * the cheapest). A step that changes nothing for the settings is skipped. Texture detail is memory, not frame time: never
+ * the governor's.
  */
 enum class QualityStep(val label: String) {
     RENDER_SCALE("Render scale to 85%"),
@@ -223,7 +248,9 @@ enum class QualityStep(val label: String) {
     SHAFTS_HAZE("Light shafts and haze off"),
     RENDER_SCALE_LOW("Render scale to 70%"),
     AO_SHADOWS("AO and shadows off"),
-    SKIN("Skin and hair shading off");
+    THIN_SKIN("Thin-skin tint off"),
+    SKIN("Skin, hair and sheen shading off"),
+    EYES("Eye highlights off");
 
     fun appliesTo(s: GraphicsSettings): Boolean = when (this) {
         RENDER_SCALE -> s.renderScale > 85
@@ -234,7 +261,9 @@ enum class QualityStep(val label: String) {
         SHAFTS_HAZE -> s.shafts > 0 || s.haze > 0
         RENDER_SCALE_LOW -> s.renderScale > 70
         AO_SHADOWS -> s.ao > 0 || s.contact > 0 || s.shadows > 0
-        SKIN -> s.skin > 0 || s.hair > 0
+        THIN_SKIN -> s.thinSkin > 0
+        SKIN -> s.skin > 0 || s.hair > 0 || (s.sheenFollows && s.sheenMax > 0)
+        EYES -> s.eyes > 0
     }
 
     fun apply(s: GraphicsSettings): GraphicsSettings = when (this) {
@@ -246,6 +275,41 @@ enum class QualityStep(val label: String) {
         SHAFTS_HAZE -> s.copy(shafts = 0, haze = 0)
         RENDER_SCALE_LOW -> s.copy(renderScale = minOf(s.renderScale, 70))
         AO_SHADOWS -> s.copy(ao = 0, contact = 0, shadows = 0)
-        SKIN -> s.copy(skin = 0, hair = 0)
+        THIN_SKIN -> s.copy(thinSkin = 0)
+        SKIN -> s.copy(skin = 0, hair = 0, sheenMax = 0)
+        EYES -> s.copy(eyes = 0)
+    }
+}
+
+/**
+ * The skin's wet sheen from the moment's intensity (simulation/Immersion.kt: IntensityModel, already eased by IntensityEase):
+ * none at rest or idle, rising from [START] to the Graphics page's maximum at [FULL]; 0 while Skin sheen follows intensity is
+ * off. [Ease] smooths it again, slower than the intensity (it builds over several seconds and lingers after), so a change of
+ * stage never jumps the skin's look.
+ */
+object SkinSheen {
+    const val START = 0.35f
+    const val FULL = 0.9f
+
+    fun target(intensity: Float, s: GraphicsSettings): Float {
+        if (!s.sheenFollows || s.sheenMax <= 0 || !intensity.isFinite()) return 0f
+        val t = ((intensity - START) / (FULL - START)).coerceIn(0f, 1f)
+        return s.sheenMax.coerceIn(0, 100) / 100f * t * t * (3f - 2f * t)
+    }
+
+    /** The sheen eased toward its goal: rising with a time constant of [RISE_S], falling over [FALL_S]. [step] by real seconds. */
+    class Ease(var value: Float = 0f) {
+        companion object {
+            const val RISE_S = 6f
+            const val FALL_S = 12f
+        }
+
+        fun step(goal: Float, dt: Float): Float {
+            val g = if (goal.isFinite()) goal.coerceIn(0f, 1f) else 0f
+            val d = if (dt.isFinite()) dt.coerceIn(0f, 0.5f) else 0f
+            val tau = if (g > value) RISE_S else FALL_S
+            value = g + (value - g) * kotlin.math.exp(-d / tau)
+            return value
+        }
     }
 }

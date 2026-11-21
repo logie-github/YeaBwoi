@@ -150,6 +150,12 @@ object Graphics {
 
     // ---------------------------------------------------------------- the GL thread, once a frame (SceneView)
 
+    /**
+     * The settings as last sent to the renderer: the page's with the governor's steps laid on (GL thread; the scene's frame
+     * driver reads the skin sheen's maximum from it, so the SKIN step turns the sheen off too).
+     */
+    @Volatile var effective: GraphicsSettings = GraphicsSettings.DEFAULT
+        private set
     private val governor = Governor()
     private val stats = FloatArray(12)
     private var lastNs = 0L
@@ -189,7 +195,9 @@ object Graphics {
         val level = if (s.adaptive) governor.level else 0
         val timers = s.overlay || s.adaptive
         if (s !== sentFor || level != sentLevel || timers != sentTimers) {
-            Native.graphics(handle, s.lowered(level).toNative(timers))
+            val lowered = s.lowered(level)
+            effective = lowered
+            Native.graphics(handle, lowered.toNative(timers))
             sentFor = s; sentLevel = level; sentTimers = timers
         }
         // the 10-second test

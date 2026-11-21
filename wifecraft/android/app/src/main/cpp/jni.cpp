@@ -351,6 +351,9 @@ JNIEXPORT void JNICALL FN(graphicsStats)(JNIEnv* env, jclass, jlong h, jfloatArr
     env->SetFloatArrayRegion(out, 0, n, v);
 }
 
+// One actor's skin sheen 0..1 (Scene::setSheen).
+JNIEXPORT void JNICALL FN(sheen)(JNIEnv*, jclass, jlong h, jint id, jfloat value) { scene(h)->setSheen(id, value); }
+
 // ---- locations and the editor's props (Native.kt documents them)
 
 JNIEXPORT jboolean JNICALL FN(loadLocation)(JNIEnv* env, jclass, jlong h, jstring json, jstring id, jstring view) {

@@ -37,13 +37,13 @@ is held, in seconds.
 | Kissing and foreplay (`KISS`) | Two faces in profile, single face close-ups and reactions, one establishing wide | Eye level to slightly above | 0.6 to 0.8 close, 1.2 to 1.6 medium | Square to the line. Faces taken from in front | Slow push-in, dolly in | 3 to 7 |
 | Partner-facing, one lying (`FACING_LYING`) | Profile medium, top-down, the lying face from above, the hips from above, from behind the partner on top | 8 to 63 degrees above (high for faces and hips) | 0.5 to 1.6 | Profile side, one end | Slow orbit, small push | 3 to 9 |
 | From behind (`REAR`) | Profile medium (the main shot), high from behind, the front partner's face from in front, a low three-quarter detail | 4 to 42 degrees | 0.55 to 1.5 | Both ends of the line, on one side | Slow orbit | 3 to 8 |
-| On top (`RIDING`) | Low medium from the lying partner's side, profile, three-quarter, the top partner's face, a low detail | -12 to 24 degrees | 0.5 to 1.6 | Three-quarter front | Slow orbit, push | 3 to 8 |
+| On top (`RIDING`) | Low medium from the lying partner's side, profile, three-quarter, the top partner's face, a low detail (just over the bed or couch; never on the floor) | -12 to 24 degrees | 0.5 to 1.6 | Three-quarter front | Slow orbit, push | 3 to 8 |
 | Seated (`SEATED`) | Both three-quarters, profile, two faces, a hip detail | 0 to 24 degrees | 0.45 to 1.5 | The side the pair faces | Slow orbit | 3 to 8 |
 | Standing (`STANDING`) | Profile medium, low medium, handheld medium, two faces, a hip detail, a wide | -12 to 22 degrees | 0.45 to 1.6 | Profile | Handheld sway, orbit | 3 to 8 |
 | Side by side, lying (`SIDE_LYING`) | Three-quarter front, top-down, the faces from above, profile, the hips from above | 12 to 63 degrees | 0.5 to 1.6 | The side the pair faces | Slow orbit | 3 to 8 |
 | Oral (`ORAL`) | A high view over the standing partner's shoulder (POV), profile, the kneeling partner's face, three-quarter, low medium | -12 to 58 degrees | 0.55 to 1.6 | Over the receiving partner's shoulder | Handheld sway | 3 to 9 |
 | Manual (`MANUAL`) | Hands from above (insert), two faces, profile, three-quarter, a face | 0 to 40 degrees | 0.5 to 1.6 | Profile or three-quarter | Slow push | 3 to 8 |
-| Two people, nothing more known (`PARTNER`) | Profile, three-quarter, two faces, over the shoulder, high wide, establishing wide | -12 to 55 degrees | 0.6 to 3.4 | Profile | Orbit | 3 to 9 |
+| Two people, nothing more known (`PARTNER`) | Profile, three-quarter, two faces, over the shoulder, high wide (a corner high shot in a small room), establishing wide | -12 to 55 degrees | 0.6 to 3.4 | Profile | Orbit | 3 to 9 |
 | One person (`SOLO`) | Handheld medium, low medium, face, pull-out, high wide, establishing wide | -12 to 55 degrees | 0.6 to 3.4 | Front three-quarter | Sway, pull-out | 4 to 9 |
 
 ## What decides which shot
@@ -60,6 +60,25 @@ running. It picks the line's side once per scene, preferring the side the pair f
 Each shot then drifts on a seeded random walk: round, up and in. The drift stays within half the shot's own range,
 scaled by Randomness. Every eye must pass the director's clearance tests: walls, furniture boxes, the floor and ceiling,
 nobody blocking a face, and no furniture between the camera and the action.
+
+## Placement rules
+
+- **Furniture at its real shape** (`PropSolids`, from the measured extent): a piece's base up to its surface, its solid
+  parts from the floor to their tops, and on a piece more than 1.4 yards taller than its surface (a canopy bed) the canopy:
+  a slab over the whole footprint and 0.3 yards past it, 35% of the rise deep (0.45 to 1.2 yards). The eye never stands in
+  any of them or in a piece's full-height box, no sight line to what a shot looks at or to a framed face passes through
+  them (the furniture in use included), and a canopy may cover at most 12% of the picture in front of the action.
+- **Over the shoulder.** The near person's body (bounding spheres at the head, shoulders, chest and hips) may cover at most
+  25% of the picture; a steep point of view looking down past them, 40%. `over_shoulder_a` sits 124 to 144 degrees round,
+  12 to 22 up, 0.95 to 1.15 body heights from the face.
+- **Set by the surface.** A shot with `eyeOverSurface` (the low hip detail, `pelvis_low`) puts its eye that many yards
+  over the bed or seat the pair is on, its pitch made to fit, and is never picked on the floor.
+- **Wide shots fit the room.** A wide shot of the pair is brought in to the floor's clear reach that way (less 0.3 yards)
+  and under the ceiling. Where that leaves less than 0.9 body heights, it moves to the azimuth on the scene's side with the
+  most room, as high as the ceiling allows and looking down at least 15 degrees (a corner high shot), or is dropped.
+- **Hip and head points.** From the playing pair clip's reading (anim/Requirements: the pelvis and the head over the
+  ground in the pair's shared frame, the posture, the support's height), placed at the pair's anchor and heading; the
+  heights over the support by posture (`CinematicAnchors`). Without a reading: the activity's rough points.
 
 ## Sources
 

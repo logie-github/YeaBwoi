@@ -210,6 +210,11 @@ object Native {
      * height). Nothing is allocated.
      */
     @JvmStatic external fun graphicsStats(scene: Long, out: FloatArray)
+    /**
+     * Actor [actor]'s skin sheen 0..1 (cpp Scene::setSheen: wet skin, glossier and a little darker; 0 as before). The scene
+     * drives it from the moment's intensity while Options' Graphics has Skin sheen follows intensity on (graphics/SkinSheen).
+     */
+    @JvmStatic external fun sheen(scene: Long, actor: Int, value: Float)
 
     // ---- locations and the editor's props (cpp engine/location.h, location.cpp, terrain.cpp)
 

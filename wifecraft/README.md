@@ -168,7 +168,16 @@ taken from in front of the face.
 
 Each shot drifts on a seeded random walk round, up and in, within its own range. Every eye passes the director's
 clearance tests: walls, furniture boxes, the floor and ceiling, no one blocking a face, and no furniture between the camera
-and the action. With nothing playing, the director uses its own mix of shots, as before.
+and the action. The furniture is taken at its real measured shape: a piece's base up to its surface, its solid parts (a
+headboard, posts, a chair's back) and, on a canopy bed, the canopy with its valance, a little wider than the bed. No camera
+sits under a canopy or inside a piece's box, no sight line passes through a canopy or a solid part, and a canopy may take
+no more than a sliver of the picture. An over-the-shoulder shot sits back and to the side of the near person, and is turned
+down when their body would cover more than a quarter of the picture. The low hip detail of a partner on top is set just
+over the bed or couch the pair is on, and is never used on the floor. A wide shot is brought in to fit the room (its walls
+and ceiling); where the room is too small that way, it moves to the corner with the most room, as high as the ceiling
+allows. The people's hip and head points come from the playing pair clip's own skeleton as the animation reader measured
+it (its pelvis, where its head is, its posture), placed where the pair is played. With nothing playing, the director uses its
+own mix of shots, as before.
 
 Options > Cinematic adds three settings under **Shots during animations**:
 
@@ -178,16 +187,23 @@ Options > Cinematic adds three settings under **Shots during animations**:
 
 The existing settings keep working. Slow orbit only still orbits, and Cuts still cuts everything.
 
-Tested on the desktop only. JVM tests (`ShotLibraryTest`) cover the classification, each class's shots, the style
-weights, no repeats, the side kept, clearance, the drift's bounds and determinism. Preview stills were rendered with the
-desktop engine in the Lion's Pride Inn room, using synthetic clothed poses on the floor (`tools/ShotPreviewRecorder.kt`).
+Tested on the desktop only. JVM tests (`ShotLibraryTest`, `CinematicShotRulesTest`) cover the classification, each class's
+shots, the style weights, no repeats, the side kept, clearance, the drift's bounds, determinism, the canopy bed, the shoulder's
+share of the picture, the low hip detail's height, the wide shots in small rooms and the hip and head points. Preview stills
+were rendered with the desktop engine in the Lion's Pride Inn room, using synthetic clothed poses on the floor and on its
+canopy bed (`tools/ShotPreviewRecorder.kt`).
 
 Not yet checked:
 
 - No phone test.
-- No real animation packs. The app's head and hip points for a playing animation are estimates, so close-ups of lying
-  poses may sit off-centre.
-- Bed canopies and drapes are unknown to the clearance tests. Only furniture boxes and the walls along the floor are known.
+- No real animation packs. The hip and head points come from the animation reader's summary of a pair clip (one pelvis
+  and head position for the whole clip, not each frame), and the head's height is an estimate by posture. Single clips,
+  emotes and pairs the reader could not measure keep the rough points by activity; a body resting on a bed is taken to lie
+  toward its facing.
+- The canopy's drapes are not measured on their own: the canopy is taken as a slab over the whole bed, about a third of its
+  rise deep, and its long sides as open where the measure found no solid part. On the Lion's Pride's canopy bed this
+  leaves only wide and medium shots from beside the bed: close-ups and the low hip detail would need a camera under the
+  canopy.
 
 ## Life simulation
 

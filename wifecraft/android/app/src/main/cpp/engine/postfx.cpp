@@ -305,8 +305,8 @@ uniform float uThreshold;
 float mask(vec2 uv) {
     vec3 c = texture(uSrc, uv).rgb;
     vec2 d = (uv - uSun) * vec2(uProj.x / uProj.y, 1.0);
-    float glow = exp(-dot(d, d) * 14.0);
-    if (texture(uDepth, uv).r >= 0.99999) return 0.12 + glow;
+    float glow = exp(-dot(d, d) * 24.0);
+    if (texture(uDepth, uv).r >= 0.99999) return 0.22 + 0.8 * glow;
     return max(max(c.r, max(c.g, c.b)) - uThreshold, 0.0) * 0.3;
 }
 void main() {
