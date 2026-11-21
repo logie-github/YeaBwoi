@@ -816,6 +816,7 @@ fun LiveSceneScreen(
             }
             cineLook.frame(now)
             view.glCinematic(cineLook.mood(), cineLook.vignette(), cineLook.grain(), cineLook.letterbox())
+            view.glZoneMood(cineLook.zoneMood(), cineLook.moodBoost())
             live.frame(now, sink, emit)
             // the body language (cpp engine/motionlayer.h) and the atmosphere, after the frame's placements
             val imm = feed.settings

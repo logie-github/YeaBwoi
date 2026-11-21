@@ -441,7 +441,7 @@ struct ZoneTargets {
 ZoneTargets zoneTargets(const CineInput& in) {
     ZoneTargets t;
     const ZoneKey& z = in.zone;
-    const float push = in.zoneBoost ? 1.35f : 1.0f;
+    const float push = in.zoneBoost ? 1.5f : 1.0f;
     auto make = [&](const float src[3], const float cur[3], float keep, float lo, float hi, float limit, float out[3],
                     float hue[3]) {
         float h[3];
@@ -586,12 +586,12 @@ CineProfile cineProfile(const CineInput& in0, const CineOverride* over) {
         for (int i = 0; i < 3; ++i) {
             // (split: the shadows mostly the sky's colour, a little of the fog's: Tirisfal's teal under its mauve mid-tones)
             const float shadow = 0.3f * zt.fogHue[i] + 0.7f * zt.skyHue[i];
-            p.lift[i] += za * ((0.050f + 0.025f * b) * (shadow - 1.0f) + 0.008f);
-            p.mid[i] = 1.0f + za * (0.10f + 0.08f * b) * (zt.ambHue[i] - 1.0f);
+            p.lift[i] += za * ((0.050f + 0.012f * b) * (shadow - 1.0f) + 0.008f);
+            p.mid[i] = 1.0f + za * (0.10f + 0.05f * b) * (zt.ambHue[i] - 1.0f);
             p.gain[i] += za * 0.03f * (zt.skyHue[i] - 1.0f);
         }
-        p.saturation *= 1.0f + za * (0.03f + 0.15f * b);
-        p.contrast += za * (0.03f + 0.10f * b);
+        p.saturation *= 1.0f + za * (0.03f + 0.14f * b);
+        p.contrast += za * (0.03f + 0.14f * b);
         // the location's light pulled toward the zone's (cineZoneLight), its fog nearer where the zone's is thick
         p.zoneMix = 0.9f * za;
         std::copy(zt.amb, zt.amb + 3, p.zoneAmbient);
@@ -760,6 +760,17 @@ MoodActorLight cineActor(const CineProfile& p, float strength, float flicker, co
         out.key[i] = lerpf(direct[i], key, s);
         out.rim[i] = p.rim[i] * bright * 1.2f * p.rimGain * s;
     }
+    // under a zone mood, skin stays skin: the light on a person keeps its brightness, its colour within a chroma limit (a
+    // Tirisfal face is touched by the mauve, never turned purple), eased in with the mood (continuous; 0: as before)
+    const float zk = std::min(1.0f, 1.5f * s * clamp01(p.zoneMix));
+    if (zk > 0)
+        for (float* c : {out.ambient, out.key, out.rim}) {
+            float l = cineLum(c), h[3];
+            if (!(l > 1e-4f)) continue;
+            cineHue(c, h);
+            limitChroma(h, 0.18f);
+            for (int i = 0; i < 3; ++i) c[i] = lerpf(c[i], h[i] * l, zk);
+        }
     // the ceiling: the ambient and the key together never past it (a daylit face isn't blown out)
     float total = cineLum(out.ambient) + cineLum(out.key);
     float before = cineLum(ambient) + cineLum(direct);

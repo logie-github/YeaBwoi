@@ -329,6 +329,16 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         Native.cinematic(handle, mood, vignette, grain, bars)
     }
 
+    private var zoneSent = -1f
+    private var boostSent = false
+
+    /** GL thread, a [FrameDriver] only: cinematic mode's zone mood (Native.zoneMood), sent only when it changed. */
+    fun glZoneMood(strength: Float, boost: Boolean) {
+        if (strength == zoneSent && boost == boostSent) return
+        zoneSent = strength; boostSent = boost
+        Native.zoneMood(handle, strength, boost)
+    }
+
     /** Cinematic mode's look off at once (a scene ending: the next screen is drawn as before). Any thread. */
     fun clearCinematic() = post { h, _ ->
         cineSent.fill(0f)

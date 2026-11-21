@@ -283,6 +283,10 @@ fun CinematicPage(settings: CinematicSettings, onChange: (CinematicSettings) -> 
     WifeSectionHeader("Lighting")
     WifeSliderRow("Mood lighting", settings.lighting, { onChange(settings.copy(lighting = it)) })
     WifeNote("A warm, low light over the time of day's: less ambient light, a warm key from the side, a soft rim from behind, a slow candle-like flicker, a gentle grade and darker corners.")
+    WifeSliderRow("Zone mood", settings.zoneMood, { onChange(settings.copy(zoneMood = it)) })
+    WifeSwitchRow("Mood boost", settings.moodBoost, { onChange(settings.copy(moodBoost = it)) },
+        detail = "Exaggerates the zone's colours: more saturation and contrast, for a stylised look.")
+    WifeNote("The zone's own light from the game: Tirisfal's mauve and teal gloom over Brill, Teldrassil's violet, Durotar's dusty red. Its ambient, sun, sky and fog colour the place, its fog comes closer, and the grade takes its colours; candles and hearths stay the warm part.")
     WifeSectionHeader("Camera")
     val styles = CinematicStyle.entries
     WifeTabs(styles.map { it.label }, styles.indexOf(settings.style).coerceAtLeast(0), { onChange(settings.copy(style = styles[it])) })

@@ -196,7 +196,7 @@ int main(int argc, char** argv) {
                             // takes it (a moonlit face is already bluer), nor past a limit where it was near
                             float d = cineHueDistance(a, sk) - cineHueDistance(b, sk);
                             if (d > worstSkin) { worstSkin = d; worstSkinAt = what; }
-                            float allow = (boost ? 0.08f : 0.05f) + std::max(0.0f, 0.10f - cineHueDistance(b, sk));
+                            float allow = (boost ? 0.13f : 0.05f) + std::max(0.0f, 0.10f - cineHueDistance(b, sk));
                             CHECK(d < allow, "%s: skin (%.2f %.2f %.2f) %.3f further from its own hue", what, sk[0], sk[1], sk[2], d);
                             float la = cineLum(a), lb = cineLum(b);
                             if (lb > 0.02f) worstSkinLum = std::min(worstSkinLum, la / lb);

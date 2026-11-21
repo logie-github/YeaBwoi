@@ -112,3 +112,10 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/eve_test.cpp" "$engine/evebody.cpp" "$engine/softbody.cpp" "$engine/modelpart.cpp" "$engine/bodypart.cpp" "$engine/blp.cpp" \
     "$engine/json.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" "$engine/sculpt.cpp" -lGLESv2 -lz -lpthread -o "$here/build/eve_test"
 echo "$here/build/eve_test"
+# Cinematic mode's zone mood (engine/daylight.h ZoneLight, cineProfile's zone part: the zone's own light from the game's
+# ZoneLight/LightData, tools/zone_light.py): every place's zone read and continuous, zone mood 0 changing nothing, the limits,
+# skin kept skin, Tirisfal's mauve and teal: build/zonelight_test LOCATIONS_JSON [ZONE_LIGHT_JSON], exit 0 when all pass.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/zonelight_test.cpp" "$engine/daylight.cpp" "$engine/json.cpp" \
+    -o "$here/build/zonelight_test"
+echo "$here/build/zonelight_test"

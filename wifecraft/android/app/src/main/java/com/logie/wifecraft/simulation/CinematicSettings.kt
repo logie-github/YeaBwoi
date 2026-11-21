@@ -64,13 +64,17 @@ data class CinematicSettings(
     val showMovement: Boolean = false,
     val pace: Int = 50,
     val frame: CinematicFrame = CinematicFrame.AUTO,
+    /** 0..100: how far the zone's own light (engine/daylight.h ZoneLight: the game's for the place) colours the look. */
+    val zoneMood: Int = 70,
+    /** The zone's colours exaggerated (more saturation and contrast). */
+    val moodBoost: Boolean = false,
 ) {
     /** The settings brought within their limits (a hand-edited or old file can't break the director). */
     fun clamped(): CinematicSettings {
         val lo = shortest.coerceIn(SHOT_MIN, SHOT_MAX)
         return copy(lighting = lighting.coerceIn(0, 100), shortest = lo, longest = longest.coerceIn(lo, SHOT_MAX),
             motion = motion.coerceIn(MOTION_MIN, MOTION_MAX), randomness = randomness.coerceIn(0, 100),
-            pace = pace.coerceIn(0, 100))
+            pace = pace.coerceIn(0, 100), zoneMood = zoneMood.coerceIn(0, 100))
     }
 
     /** The motion as a factor (1: as designed). */
@@ -80,7 +84,7 @@ data class CinematicSettings(
         .put("grain", grain).put("hideWords", hideWords).put("shortest", shortest).put("longest", longest).put("motion", motion)
         .put("shotStyle", shotStyle.name).put("randomness", randomness).put("allowCuts", allowCuts)
         .put("autoplay", autoplay).put("cutStyle", cutStyle.name).put("showMovement", showMovement).put("pace", pace)
-        .put("frame", frame.name)
+        .put("frame", frame.name).put("zoneMood", zoneMood).put("moodBoost", moodBoost)
 
     companion object {
         const val SHOT_MIN = 3
@@ -111,6 +115,8 @@ data class CinematicSettings(
                     showMovement = o.optBoolean("showMovement", DEFAULT.showMovement),
                     pace = o.optInt("pace", DEFAULT.pace),
                     frame = CinematicFrame.of(o.optString("frame", DEFAULT.frame.name)),
+                    zoneMood = o.optInt("zoneMood", DEFAULT.zoneMood),
+                    moodBoost = o.optBoolean("moodBoost", DEFAULT.moodBoost),
                 ).clamped()
             } catch (e: Exception) { DEFAULT }
         }
@@ -175,6 +181,9 @@ class CinematicLook {
 
     fun mood(): Float = eased * settings.clamped().lighting / 100f
     fun vignette(): Float = mood()
+    /** The zone mood's strength 0..1 (Native.zoneMood; the engine scales it by [mood]). */
+    fun zoneMood(): Float = settings.clamped().zoneMood / 100f
+    fun moodBoost(): Boolean = settings.moodBoost
     fun grain(): Float = if (settings.grain) eased * GRAIN else 0f
     /** 0..1: how far the letterbox bars are in (the engine sizes them for the view: grade.h letterboxBars). */
     fun letterbox(): Float {
