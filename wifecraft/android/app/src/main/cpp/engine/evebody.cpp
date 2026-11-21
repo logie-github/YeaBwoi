@@ -642,6 +642,67 @@ void measureRing(const std::vector<M2Vertex>& verts, RingEdges& r) {
     r.zmin = lo.z; r.zmax = hi.z; r.zmean = (sum * (1.0f / float(n))).z;
 }
 
+// The model's cut edge as one loop in its own order (walked edge to edge), turning as the angles about `c` grow; false (and
+// empty) when the edge isn't one simple loop.
+bool edgeLoopOf(const std::vector<M2Vertex>& verts, const RingEdges& we, V3 c, std::vector<uint32_t>& loop) {
+    loop.clear();
+    std::map<uint32_t, std::vector<uint32_t>> adj;
+    for (const auto& e : we.e) { adj[e.first].push_back(e.second); adj[e.second].push_back(e.first); }
+    if (adj.size() < 3) return false;
+    for (const auto& kv : adj) if (kv.second.size() != 2 || kv.second[0] == kv.second[1]) return false;
+    uint32_t prev = UINT32_MAX, cur = adj.begin()->first;
+    for (size_t guard = 0; guard <= adj.size(); ++guard) {
+        loop.push_back(cur);
+        const auto& nb = adj[cur];
+        const uint32_t nx = nb[0] != prev ? nb[0] : nb[1];
+        prev = cur; cur = nx;
+        if (cur == loop[0]) break;
+    }
+    if (loop.size() != adj.size()) { loop.clear(); return false; }
+    float turn = 0;
+    for (size_t k = 0; k < loop.size(); ++k) {
+        const V3 p = posOf(verts[loop[k]]), q = posOf(verts[loop[(k + 1) % loop.size()]]);
+        turn += std::remainder(std::atan2(q.y - c.y, q.x - c.x) - std::atan2(p.y - c.y, p.x - c.x), 6.2831853f);
+    }
+    if (turn < 0) std::reverse(loop.begin(), loop.end());
+    return true;
+}
+
+// Each of `a` (angles, ascending round one turn) given its own one of `b` (the same, at least as many), in order round the
+// turn, the sum of the squared angle gaps the least: per `a` the index into `b` (empty when `b` has fewer). Every start of `a`
+// against every one of `b`, the rest by a running minimum: |a| x |b|^2 steps.
+std::vector<int> pairInOrder(const std::vector<float>& a, const std::vector<float>& b) {
+    const size_t na = a.size(), nb = b.size();
+    std::vector<int> best;
+    if (na == 0 || nb < na) return best;
+    const float twoPi = 6.2831853f;
+    auto gap = [&](size_t i, size_t j) { const float d = std::remainder(a[i] - b[j], twoPi); return d * d; };
+    float bestCost = 1e30f;
+    std::vector<float> dp(na * nb), run(nb);
+    std::vector<int> from(na * nb);
+    for (size_t r = 0; r < nb; ++r) {   // a[0] on b[r]; b read from r round
+        auto at = [&](size_t t) { return (r + t) % nb; };
+        std::fill(dp.begin(), dp.end(), 1e30f);
+        dp[0] = gap(0, at(0));
+        for (size_t i = 1; i < na; ++i) {
+            // the cheapest place of a[i - 1] before each t
+            float m = 1e30f; int mt = -1;
+            for (size_t t = 0; t < nb; ++t) {
+                run[t] = m; from[i * nb + t] = mt;
+                if (dp[(i - 1) * nb + t] < m) { m = dp[(i - 1) * nb + t]; mt = int(t); }
+            }
+            for (size_t t = i; t + (na - i) <= nb; ++t) if (run[t] < 1e29f) dp[i * nb + t] = run[t] + gap(i, at(t));
+        }
+        size_t bt = 0; float c = 1e30f;
+        for (size_t t = na - 1; t < nb; ++t) if (dp[(na - 1) * nb + t] < c) { c = dp[(na - 1) * nb + t]; bt = t; }
+        if (c >= bestCost) continue;
+        bestCost = c;
+        best.assign(na, 0);
+        for (size_t i = na; i-- > 0;) { best[i] = int(at(bt)); if (i) bt = size_t(from[i * nb + bt]); }
+    }
+    return best;
+}
+
 } // namespace
 
 // Her proportions (EveRaceFit::heads ...) as factors on the skeleton: the model's head measured (its kept skin: the lowest
@@ -1519,12 +1580,31 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         if (hwS > 1e-4f && hdS > 1e-4f && nz1 > neckS.z + 1e-3f) {
             float sy = neckR.ry * 0.97f / hwS, sx = neckR.rx * 0.97f / hdS;
             float cS = (x0 + x1) * 0.5f;
-            float tz0 = neckBaseW, tz1 = neckR.zmax;
+            // the top at the cut edge's own height at each angle (its vertices', read between them), not its highest all
+            // round: a V-necked model's edge dips 2 to 3 cm at the front, and her round top, snapped down onto it there, left
+            // the neck strip folded over itself (up to 2.4 cm tall on the undead and the Zandalari)
+            std::vector<std::pair<float, float>> edgeAt;
+            for (const auto& e : neckR.e) for (uint32_t v : {e.first, e.second})
+                edgeAt.push_back({std::atan2(verts[v].pos[1] - neckR.centre.y, verts[v].pos[0] - neckR.centre.x), verts[v].pos[2]});
+            std::sort(edgeAt.begin(), edgeAt.end());
+            auto topAt = [&](float ang) {
+                if (edgeAt.empty()) return neckR.zmax;
+                size_t k = size_t(std::lower_bound(edgeAt.begin(), edgeAt.end(), std::make_pair(ang, -1e30f)) - edgeAt.begin());
+                const auto& hi = edgeAt[k % edgeAt.size()];
+                const auto& lo = edgeAt[(k + edgeAt.size() - 1) % edgeAt.size()];
+                float span = hi.first - lo.first, d = ang - lo.first;
+                if (span <= 0) span += 6.2831853f;
+                if (d < 0) d += 6.2831853f;
+                return span > 1e-6f ? lo.second + (hi.second - lo.second) * std::clamp(d / span, 0.0f, 1.0f) : hi.second;
+            };
+            const float tz0 = neckBaseW;
             for (size_t v = 0; v < nv; ++v) {
                 float a = std::clamp(neckW8[v], 0.0f, 1.0f);
                 if (a <= 0) continue;
                 float u = std::clamp((P0[v].z - neckS.z) / (nz1 - neckS.z), 0.0f, 1.0f);
-                V3 q(neckR.centre.x + (P0[v].x - cS) * sx, neckR.centre.y + P0[v].y * sy, tz0 + u * (tz1 - tz0));
+                const float qx = neckR.centre.x + (P0[v].x - cS) * sx, qy = neckR.centre.y + P0[v].y * sy;
+                const float tz1 = topAt(std::atan2(qy - neckR.centre.y, qx - neckR.centre.x));
+                V3 q(qx, qy, tz0 + u * (tz1 - tz0));
                 P[v] = P[v] * (1 - a) + q * a;
             }
         }
@@ -1607,7 +1687,102 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         std::vector<WMap> wm(gs.size());
         std::vector<uint8_t> isRing(nv, 0);
         float sum = 0, mx = 0;
-        for (size_t gi = 0; gi < gs.size(); ++gi) {
+        // Her places onto the model's edge loop in order round it: every one of the edge's corners given its own place
+        // (nearest by angle, the order of both kept: pairInOrder), the places between two corners spread along the edge
+        // between them by her own spacing; where the edge has more corners than she has places, each place takes its own
+        // corner (the rest are cleared below). Each place snapped to its nearest point of the edge instead (as before, and
+        // still where the edge isn't one loop whose angle grows all the way round) put several places on one side of a V or
+        // a slant and none at its corner: the strip between the two loops folded over itself there (4 to 13 of the neck's
+        // 30 to 40 triangles, up to 2.4 cm tall), and an orc's 8 corners a side fell between her places at the ankles.
+        std::vector<V3> pinAt(gs.size());
+        std::vector<WMap> pinW(gs.size());
+        std::vector<V3> pinN(gs.size());
+        bool pinned = false;
+        {
+            std::vector<uint32_t> loop;
+            V3 c;
+            {
+                std::set<uint32_t> wv;
+                for (const auto& e : we.e) { wv.insert(e.first); wv.insert(e.second); }
+                for (uint32_t v : wv) c = c + posOf(verts[v]);
+                c = c * (1.0f / float(std::max<size_t>(wv.size(), 1)));
+            }
+            auto angOf = [&](V3 p) { return std::atan2(p.y - c.y, p.x - c.x); };
+            bool ok = gs.size() >= 3 && edgeLoopOf(verts, we, c, loop);
+            if (ok) {   // (its angle grows at every step, once round)
+                float acc = 0;
+                for (size_t k = 0; k < loop.size() && ok; ++k) {
+                    const float d = std::remainder(angOf(posOf(verts[loop[(k + 1) % loop.size()]])) - angOf(posOf(verts[loop[k]])), 6.2831853f);
+                    if (d <= 0) ok = false;
+                    acc += d;
+                }
+                ok = ok && std::fabs(acc - 6.2831853f) < 0.01f;
+            }
+            if (ok) {
+                // both lists ascending round one turn from their lowest angle
+                std::vector<size_t> po(gs.size());
+                for (size_t gi = 0; gi < gs.size(); ++gi) po[gi] = gi;
+                std::vector<float> pAng(gs.size());
+                for (size_t gi = 0; gi < gs.size(); ++gi) pAng[gi] = angOf(P[gs[gi][0]]);
+                std::sort(po.begin(), po.end(), [&](size_t x, size_t y) { return pAng[x] < pAng[y]; });
+                size_t k0 = 0;
+                for (size_t k = 1; k < loop.size(); ++k) if (angOf(posOf(verts[loop[k]])) < angOf(posOf(verts[loop[k0]]))) k0 = k;
+                std::rotate(loop.begin(), loop.begin() + long(k0), loop.end());
+                std::vector<float> pa(po.size()), ca(loop.size());
+                for (size_t k = 0; k < po.size(); ++k) pa[k] = pAng[po[k]];
+                for (size_t k = 0; k < loop.size(); ++k) ca[k] = angOf(posOf(verts[loop[k]]));
+                const size_t np = po.size(), nc = loop.size();
+                auto cornerW = [&](uint32_t mv) { WMap w; for (int k = 0; k < 4; ++k) w.add(verts[mv].bones[k], verts[mv].weights[k] / 255.0f); return w; };
+                auto cornerN = [&](uint32_t mv) { return V3(verts[mv].normal[0], verts[mv].normal[1], verts[mv].normal[2]).normalized(); };
+                if (nc <= np) {
+                    const std::vector<int> at = pairInOrder(ca, pa);   // per corner, its place (in po's order)
+                    if (at.size() == nc) {
+                        std::vector<int> cornerOf(np, -1);
+                        for (size_t k = 0; k < nc; ++k) cornerOf[size_t(at[k])] = int(k);
+                        for (size_t k = 0; k < nc; ++k) {
+                            // corner k on its place, the places up to corner k + 1's along the edge between them
+                            const size_t t0 = size_t(at[k]), t1 = size_t(at[(k + 1) % nc]);
+                            const uint32_t ma = loop[k], mb = loop[(k + 1) % nc];
+                            std::vector<size_t> run;
+                            for (size_t t = t0; ; t = (t + 1) % np) { run.push_back(t); if (run.size() > 1 && t == t1) break; if (run.size() > np) break; }
+                            std::vector<float> len(run.size(), 0);
+                            for (size_t q = 1; q < run.size(); ++q) len[q] = len[q - 1] + (P[gs[po[run[q]]][0]] - P[gs[po[run[q - 1]]][0]]).length();
+                            for (size_t q = 0; q + 1 < run.size(); ++q) {
+                                const float f = len.back() > 1e-9f ? len[q] / len.back() : float(q) / float(run.size() - 1);
+                                const size_t gi = po[run[q]];
+                                pinAt[gi] = posOf(verts[ma]) * (1 - f) + posOf(verts[mb]) * f;
+                                pinW[gi] = blend(cornerW(ma), cornerW(mb), f);
+                                pinN[gi] = (cornerN(ma) * (1 - f) + cornerN(mb) * f).normalized();
+                            }
+                        }
+                        pinned = true;
+                    }
+                } else {
+                    const std::vector<int> at = pairInOrder(pa, ca);   // per place, its corner
+                    if (at.size() == np) {
+                        for (size_t k = 0; k < np; ++k) {
+                            const uint32_t mv = loop[size_t(at[k])];
+                            pinAt[po[k]] = posOf(verts[mv]); pinW[po[k]] = cornerW(mv); pinN[po[k]] = cornerN(mv);
+                        }
+                        pinned = true;
+                    }
+                }
+            }
+        }
+        out.stats.ringPinned[r] = pinned;
+        if (std::getenv("EVE_DIAG")) {
+            std::vector<uint32_t> lp; V3 c0 = we.centre;
+            const bool simple = edgeLoopOf(verts, we, c0, lp);
+            std::printf("    ring %s: %zu places, %zu edges, loop %s (%zu), pinned %d\n", ringNames[r], gs.size(), we.e.size(), simple ? "simple" : "not simple", lp.size(), int(pinned));
+        }
+        for (size_t gi = 0; gi < gs.size() && pinned; ++gi) {
+            const V3 p = P[gs[gi][0]];
+            disp[gi] = pinAt[gi] - p; wm[gi] = pinW[gi]; nn[gi] = pinN[gi];
+            const float d = disp[gi].length();
+            sum += d; mx = std::max(mx, d);
+            for (uint32_t cc : gs[gi]) isRing[cc] = 1;
+        }
+        for (size_t gi = 0; gi < gs.size() && !pinned; ++gi) {
             V3 p = P[gs[gi][0]];
             float best = 1e30f; V3 bq; size_t be = 0; float bt = 0;
             for (size_t ei = 0; ei < we.e.size(); ++ei) {
@@ -1655,6 +1830,82 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
                 V3 rr = P[c] - cc; rr.z = 0;
                 P[c] = P[c] - rr * tuck + lift;
             }
+        }
+    }
+    // ---- her neck ring clear under the model's edge (as the ankles' are over it, below): each of her ring's places is lowered
+    // along the skin the cut took (the model's throat and nape under its edge) by what the edge's corners stand under the line
+    // from it to its neighbours, and kRingClear more, so the strip always runs up from her ring to the edge, never back over
+    // itself, and the model's skin always ends over hers
+    if (const std::vector<uint32_t>* rr = eve.ring("neck"); rr && neckR.e.size() >= 3) {
+        std::vector<uint32_t> wv;
+        for (auto& e : neckR.e) for (uint32_t v : {e.first, e.second}) if (std::find(wv.begin(), wv.end(), v) == wv.end()) wv.push_back(v);
+        V3 wc;
+        for (uint32_t v : wv) wc = wc + posOf(verts[v]);
+        wc = wc * (1.0f / float(wv.size()));
+        const float reach = std::max(neckR.rx, neckR.ry) * 1.8f + 0.02f * unit;
+        std::vector<std::array<uint32_t, 3>> tris;   // the removed skin round the neck, under its edge
+        for (size_t sI = 0; sI < subs.size(); ++sI) {
+            if (!skinSub[sI]) continue;
+            if (!all && std::find(geosets.begin(), geosets.end(), subs[sI].id) == geosets.end()) continue;
+            for (uint32_t t = subs[sI].indexStart; t + 2 < subs[sI].indexStart + subs[sI].indexCount && t + 2 < indices.size(); t += 3) {
+                const uint32_t i0 = indices[t], i1 = indices[t + 1], i2 = indices[t + 2];
+                if (i0 >= verts.size() || i1 >= verts.size() || i2 >= verts.size()) continue;
+                if (!out.cut[i0] && !out.cut[i1] && !out.cut[i2]) continue;
+                const V3 g = (posOf(verts[i0]) + posOf(verts[i1]) + posOf(verts[i2])) * (1.0f / 3);
+                if (V3(g.x - wc.x, g.y - wc.y, 0).length() > reach) continue;
+                if (g.z < neckR.zmin - 0.08f * unit || g.z > neckR.zmax + 0.01f * unit) continue;
+                tris.push_back({i0, i1, i2});
+            }
+        }
+        auto turnOf = [&](V3 p) { return std::atan2(p.y - wc.y, p.x - wc.x); };
+        std::vector<std::pair<float, float>> edge;
+        for (uint32_t v : wv) edge.push_back({turnOf(posOf(verts[v])), verts[v].pos[2]});
+        std::map<int64_t, std::vector<uint32_t>> groups;
+        for (uint32_t v : *rr) if (v < nv) groups[weldKey(P0[v], 1e-5f)].push_back(v);
+        struct Place { float a; std::vector<uint32_t> copies; };
+        std::vector<Place> pl;
+        for (auto& [k, g] : groups) pl.push_back({turnOf(P[g[0]]), g});
+        std::sort(pl.begin(), pl.end(), [](const Place& x, const Place& y) { return x.a < y.a; });
+        const size_t np = pl.size();
+        const float clear = kRingClear * unit, twoPi = 6.2831853f;
+        for (int pass = 0; pass < 8 && np >= 3 && !tris.empty(); ++pass) {
+            std::vector<float> lower(np, 0.0f);
+            for (size_t i = 0; i < np; ++i) {
+                const size_t j = (i + 1) % np;
+                float span = pl[j].a - pl[i].a;
+                if (span <= 0) span += twoPi;
+                const float z0 = P[pl[i].copies[0]].z, z1 = P[pl[j].copies[0]].z;
+                for (const auto& [eAng, eZ] : edge) {
+                    float d = std::remainder(eAng - pl[i].a, twoPi);
+                    if (d < -1e-4f || d > span + 1e-4f) continue;
+                    d = std::clamp(d, 0.0f, span);
+                    const float under = (z0 + (z1 - z0) * (d / span)) - eZ + clear;
+                    if (under > 0) { lower[i] = std::max(lower[i], under); lower[j] = std::max(lower[j], under); }
+                }
+            }
+            bool moved = false;
+            for (size_t i = 0; i < np; ++i) {
+                if (!(lower[i] > 1e-6f)) continue;
+                const V3 p = P[pl[i].copies[0]], q = p - V3(0, 0, lower[i]);
+                // (onto the removed skin there, down it; where none of it is lower, left)
+                float best = (0.05f * unit) * (0.05f * unit);
+                bool any = false; V3 at;
+                for (const auto& t : tris) {
+                    float u, s;
+                    const V3 x = nearestOnTriangle(q, posOf(verts[t[0]]), posOf(verts[t[1]]), posOf(verts[t[2]]), u, s);
+                    const float d2 = (x - q).dot(x - q);
+                    if (d2 >= best) continue;
+                    best = d2; at = x; any = true;
+                }
+                if (!any || !(at.z < p.z - 1e-6f)) continue;
+                // (its weights and normal stay the edge's, given by the snap: the removed skin's own vertices there are often
+                // the body's copies, weighted to the chest)
+                for (uint32_t cp : pl[i].copies) P[cp] = at;
+                ++out.stats.neckCleared;
+                out.stats.neckClearMax = std::max(out.stats.neckClearMax, p.z - at.z);
+                moved = true;
+            }
+            if (!moved) break;
         }
     }
     // ---- the shins' last centimetres onto the model's own lower leg (the skin Eve's cut took), once her rings are on its cut
@@ -1766,8 +2017,10 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
                     if (span <= 0) span += twoPi;
                     const float z0 = P[pl[i].copies[0]].z, z1 = P[pl[j].copies[0]].z;
                     for (const auto& [eAng, eZ] : edge) {
-                        float d = std::fmod(eAng - pl[i].a + 2 * twoPi, twoPi);
-                        if (d <= 0 || d >= span) continue;
+                        // (a corner on one of her places counts too: her ring set onto the edge's corners, kRingClear over them)
+                        float d = std::remainder(eAng - pl[i].a, twoPi);
+                        if (d < -1e-4f || d > span + 1e-4f) continue;
+                        d = std::clamp(d, 0.0f, span);
                         const float over = eZ - (z0 + (z1 - z0) * (d / span)) + clear;
                         if (over > 0) { raise[i] = std::max(raise[i], over); raise[j] = std::max(raise[j], over); }
                     }
@@ -1947,6 +2200,7 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         auto aAt = [&](size_t k) { return ea[k % ea.size()].a + (k >= ea.size() ? two : 0.0f) - start; };
         auto bAt = [&](size_t k) { return wb[k % wb.size()].a + (k >= wb.size() ? two : 0.0f) - start; };
         uint32_t ca = ea[0].copies[0];
+        const size_t seamFirst = XI.size();
         while (i < ea.size() || j < wb.size()) {
             const A& a0 = ea[i % ea.size()];
             const B& b0 = wb[j % wb.size()];
@@ -1982,6 +2236,22 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
                 XI.insert(XI.end(), {c0, w0, w1});
                 ca = c0;
                 ++j;
+            }
+        }
+        // the strip's way round: the walk winds it facing out where her ring is over the model's edge (the ankles); where it is
+        // under it (the neck) the same walk winds it facing in. Its triangles' faces against their corners' normals, by area:
+        // turned round when most face in.
+        {
+            auto pOf = [&](uint32_t k) { return k < nv ? P[k] : XP[k - nv]; };
+            auto nOf = [&](uint32_t k) { return k < nv ? N[k] : XN[k - nv]; };
+            double facing = 0;
+            for (size_t t = seamFirst; t + 2 < XI.size(); t += 3) {
+                const V3 fn = (pOf(XI[t + 1]) - pOf(XI[t])).cross(pOf(XI[t + 2]) - pOf(XI[t]));
+                facing += fn.dot(nOf(XI[t]) + nOf(XI[t + 1]) + nOf(XI[t + 2]));
+            }
+            if (facing < 0) {
+                for (size_t t = seamFirst; t + 2 < XI.size(); t += 3) std::swap(XI[t + 1], XI[t + 2]);
+                ++out.stats.stripFlipped;
             }
         }
         ++out.stats.stitched;

@@ -1102,9 +1102,10 @@ int main(int argc, char** argv) {
                                         "2 %.1f/%.1f, 3 %.1f/%.1f over %d UVs; open edges at the ankles %d (longest %.4f), gaps to the model's skin %d (longest %.4f)\n", row->name.c_str(), sb.mean[0], sb.worst[0],
                                         sb.mean[1], sb.worst[1], sb.mean[2], sb.worst[2], sb.mean[3], sb.worst[3], sb.samples, sb.open, sb.openLen, sb.gaps, sb.gapLen);
                             std::printf("  %s: the ankles' seam strips: %d triangles, %d folded; the neck's: %d, %d folded (of those over 0.5 mm tall; the tallest %.2f cm, the tallest folded %.2f cm); "
-                                        "the model's edge over the line of her ring by at most %.2f cm\n",
+                                        "the model's edge over the line of her ring by at most %.2f cm; rings pinned %d%d%d, strips turned %d, neck places lowered %zu (at most %.2f cm)\n",
                                         row->name.c_str(), sb.stripTris, sb.folded, sb.neckTris, sb.neckFolded, sb.neckTall * 100.0f / 1.15f, sb.neckFoldTall * 100.0f / 1.15f,
-                                        sb.edgeOver * 100.0f / 1.15f);
+                                        sb.edgeOver * 100.0f / 1.15f, int(res.body.stats.ringPinned[0]), int(res.body.stats.ringPinned[1]), int(res.body.stats.ringPinned[2]),
+                                        res.body.stats.stripFlipped, res.body.stats.neckCleared, res.body.stats.neckClearMax * 100.0f / 1.15f);
                             // (the neck's strip isn't raised clear of the model's edge as the ankles' are: 4 to 13 of its 30 to 40
                             // triangles over half a millimetre tall fold, up to 2.4 cm tall where a V-necked model's edge dips under her
                             // round ring (the undead, the Zandalari); held here so it gets no worse: README, "Her own rig", the seams)
