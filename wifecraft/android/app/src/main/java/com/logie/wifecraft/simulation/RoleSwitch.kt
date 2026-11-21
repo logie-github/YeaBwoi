@@ -178,3 +178,6 @@ object PreviewFraming {
         return CameraPose(pick, at, fov)
     }
 }
+
+/** What the scene previews ([LiveScene.preview]): [order] led by [lead] (role A), on [item] when it is played there. */
+class StagePreview(val lead: String, val order: PerformanceOrder, val item: SceneObject? = null)

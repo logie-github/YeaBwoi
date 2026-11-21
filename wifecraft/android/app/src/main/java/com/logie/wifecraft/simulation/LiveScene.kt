@@ -214,6 +214,17 @@ class LiveScene(
 
     /** Whether the simulation runs (the scene is loaded and not being ended). Any thread. */
     @Volatile var running = false
+    /**
+     * The preview before a two-person animation plays ([StagePreview]; null: none): the simulation held, the two people drawn
+     * where the order would start them, in their roles' first frames ([PreviewKeys.hold]), the camera framing them
+     * ([PreviewFraming]; the director paused). Nothing is started. Any thread.
+     */
+    @Volatile var preview: StagePreview? = null
+    // the preview shown (GL thread): what it was made for, its places by cast index, its camera, the command its clips carry
+    private var previewFor: StagePreview? = null
+    private var held: List<PreviewPlace> = emptyList()
+    private var heldCamera: CameraPose? = null
+    private var holdCommand = 0L
     /** The selected person's index, -1 none. Any thread. */
     @Volatile var selected = -1
 
@@ -341,7 +352,7 @@ class LiveScene(
      */
     private fun directFrame(dt: Float) {
         val dir = director
-        val on = directing && dir != null
+        val on = directing && dir != null && previewFor == null
         camera.setDirecting(on)
         if (dir == null || (!on && camera.directAmount <= 0f)) { cineWas = false; return }
         if (on && !cineWas && camera.directAmount <= 0f) dir.restart()
@@ -535,7 +546,9 @@ class LiveScene(
         val due = clock.begin(nowNanos)
         val dt = clock.frameSeconds
         frameSink = sink
-        if (running) {
+        holdPreview(sink)
+        val ticking = running && previewFor == null
+        if (ticking) {
             for (s in 0 until due) {
                 for (i in 0 until n) { prevX[i] = curX[i]; prevY[i] = curY[i]; prevZ[i] = curZ[i] }
                 simulation.tick(clock.step)
@@ -546,12 +559,20 @@ class LiveScene(
                 }
             }
         }
-        val a = if (running) clock.alpha else 1f
+        val a = if (ticking) clock.alpha else 1f
         val turn = 1f - exp(-TURN_RATE * dt)
         val sel = selected
         var hasFocus = false
         var fx = 0f; var fy = 0f; var fz = 0f
         for (i in 0 until n) {
+            val h = held.firstOrNull { it.index == i }
+            if (h != null) {
+                // the preview: at the order's start place, its clip held at the first frame
+                shownFacing[i] = h.facing
+                val sx = stageX(h.x, h.y); val sy = stageY(h.x, h.y)
+                sink.place(i, sx, sy, oz + h.z, h.facing + rotation, null, sx, sy, oz + h.floor)
+                continue
+            }
             simulation.pose(i, pose)
             val x = if (pose.playback != null) pose.x else prevX[i] + (curX[i] - prevX[i]) * a
             val y = if (pose.playback != null) pose.y else prevY[i] + (curY[i] - prevY[i]) * a
@@ -608,7 +629,8 @@ class LiveScene(
             lastPairStarts = starts
             simulation.lastPairName?.let { name -> notice = "Partner animation: $name"; noticeChanged = true }
         }
-        val wantRoom = cameraRoom(sel, castRoom(nowNanos, dt))
+        val wantRoom = heldCamera ?: cameraRoom(sel, castRoom(nowNanos, dt))
+        if (heldCamera != null) hasFocus = false
         if (camera.room !== wantRoom) camera.room = wantRoom
         directFrame(dt)
         camera.update(dt, hasFocus, fx, fy, fz)
@@ -623,6 +645,39 @@ class LiveScene(
             noticeChanged = false
             lastEmitNanos = nowNanos
             emit(snapshot())
+        }
+    }
+
+    /**
+     * The preview (GL thread, at the frame's start): a new one placed ([SceneSimulation.previewPlaces]) and its held clips sent;
+     * one ended: the people's own clips sent again (whatever they played before it, from the simulation as it is).
+     */
+    private fun holdPreview(sink: Sink) {
+        val want = preview
+        if (want === previewFor) return
+        val was = held
+        previewFor = want
+        held = want?.let { simulation.previewPlaces(it.lead, it.order, it.item) }.orEmpty()
+        heldCamera = null
+        if (want != null && held.isEmpty()) { notice = "Nothing near them fits that to preview."; noticeChanged = true }
+        if (held.size == 2) {
+            val (pa, pb) = held
+            heldCamera = PreviewFraming.frame(stageX(pa.x, pa.y), stageY(pa.x, pa.y), stageX(pb.x, pb.y), stageY(pb.x, pb.y),
+                oz + minOf(pa.floor, pb.floor), pa.facing + rotation, camera.room.fov, clearance)
+            holdCommand++
+            for (h in held) {
+                val clip = ClipPlayback(PreviewKeys.hold(h.clip), -holdCommand)
+                lastPlayback[h.index] = clip
+                sink.playback(h.index, clip)
+            }
+        }
+        // the people no longer held: back to what the simulation has them play (nothing: their activity's animation)
+        for (h in was) if (held.none { it.index == h.index }) {
+            simulation.pose(h.index, pose)
+            lastPlayback[h.index] = pose.playback
+            sink.playback(h.index, pose.playback)
+            sink.activity(h.index, pose.activity)
+            lastActivity[h.index] = pose.activity
         }
     }
 
