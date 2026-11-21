@@ -24,9 +24,9 @@ class NamedCastTest {
 
     private fun keys(id: String) = cast.choices(assertNotNull(cast.character(id))).map { it.key }
 
-    @Test fun theTenCharactersAreRosterNpcs() {
+    @Test fun theTwelveCharactersAreRosterNpcs() {
         val actors = cast.actors()
-        assertEquals(listOf("sylvanas", "calia", "lilian", "jaina", "alexstrasza", "chromie", "valeera", "alleria", "whitemane", "xalatath"),
+        assertEquals(listOf("sylvanas", "calia", "lilian", "jaina", "alexstrasza", "chromie", "valeera", "alleria", "whitemane", "xalatath", "tess", "lyssabel"),
             actors.map { it.id.removePrefix(NamedCast.PREFIX) })
         assertTrue(actors.all { NamedCast.isNamed(it.id) && it.appearance.named != null && it.appearance.sex == Sex.FEMALE })
         // each in her first look until one is chosen
@@ -85,6 +85,48 @@ class NamedCastTest {
         assertEquals(7, cast.appearance(chromie, cast.choice(chromie, null)!!).raceId)
         // what Options downloads for them
         assertTrue(95032 in cast.displays() && 28227 in cast.displays())
+    }
+
+    /**
+     * Tess Greymane (display 116131, a human woman) and Lyssabel Dawnpetal (an assembled night elf woman: her display isn't
+     * in the client's tables): each an outfit on her race's body, its nude look, underwear and bare; no partial (no model of
+     * her own); Gear on wears the outfit, Gear off her bare look.
+     */
+    @Test fun tessAndLyssabelAreBodyCharactersWithTheUsualLooks() {
+        assertEquals(listOf("gilneas", "gilneas_nude", "underwear", "bare"), keys("tess"))
+        assertEquals(listOf("steward", "steward_nude", "underwear", "bare"), keys("lyssabel"))
+        val tess = assertNotNull(cast.character("tess"))
+        assertEquals("Tess Greymane", tess.name)
+        val gilneas = assertNotNull(tess.variant("gilneas"))
+        assertEquals(116131, gilneas.sourceDisplay)
+        assertEquals(1, gilneas.raceId)
+        assertEquals(Sex.FEMALE, gilneas.sex)
+        assertTrue(gilneas.equipment.isNotEmpty() && !gilneas.isDisplay)
+        assertEquals(1, tess.presets.size)
+        val lyssabel = assertNotNull(cast.character("lyssabel"))
+        assertEquals("Lyssabel Dawnpetal", lyssabel.name)
+        val steward = assertNotNull(lyssabel.variant("steward"))
+        assertEquals(4, steward.raceId)
+        assertEquals(Sex.FEMALE, steward.sex)
+        assertTrue(steward.era.startsWith("assembled"))
+        // her spectacles (head) stay on in her nude look; the robe, belt and boots come off
+        val nude = assertNotNull(lyssabel.variant("steward_nude"))
+        assertEquals(steward.equipment[1], nude.equipment[1])
+        assertTrue(nude.equipment.keys.none { it in CharacterLooks.NUDE_REMOVED })
+        assertTrue(lyssabel.presets.isEmpty())
+        for (c in listOf(tess, lyssabel)) {
+            val outfit = cast.choices(c).first()
+            assertEquals(NamedCast.Kind.OUTFIT, outfit.kind)
+            assertEquals(0, outfit.display, "${c.id}: drawn as her race's body, not a display")
+            assertTrue(cast.choices(c).none { it.kind == NamedCast.Kind.PARTIAL || it.kind == NamedCast.Kind.TABARD })
+            assertEquals("bare", GearSwitch.choiceFor(cast, c, false, outfit.key)?.key)
+            assertEquals(outfit.key, GearSwitch.choiceFor(cast, c, true, "bare")?.key)
+            assertTrue(GearSwitch.isOn(cast.appearance(c, outfit), cast))
+            assertFalse(GearSwitch.isOn(cast.appearance(c, cast.choice(c, "underwear")!!), cast))
+            // undressed, her own face, hair and skin
+            assertEquals(outfit.variant.picks, assertNotNull(c.variant("bare")).picks)
+            assertTrue(assertNotNull(cast.choice(c, "bare")).bare)
+        }
     }
 
     @Test fun anAppearanceKeepsItsNamedLookAndPartsAndOldOnesLoad() {
