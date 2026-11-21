@@ -62,7 +62,9 @@ std::vector<uint8_t> writeEve(const EveMesh& m);
 EveMesh eveSplitMesh(const EveMesh& m, float t);
 // Two more loops of vertices above each ankle ring, at `t` of the way from the ring to the vertices above it and `t` of that
 // again (attributes interpolated; the rings and the other vertices unchanged, the new ones appended), the variant named
-// "<variant>|ankles<t>": what fitEve's ankleMatch draws onto the model's lower leg.
+// "<variant>|ankles<t>": what fitEve's ankleMatch draws onto the model's lower leg. Then the neck's and the ankles' rings
+// have their edges halved (a vertex at each edge's middle, added to the ring), so each ring has a place for every corner
+// of the models' cut edges (fitEve sets her rings onto them corner by corner).
 EveMesh eveRefineAnkles(const EveMesh& m, float t);
 uint32_t eveCrc32(const uint8_t* data, size_t n);
 
@@ -186,7 +188,11 @@ struct EveFitStats {
     float ringMoveMean[3] = {0, 0, 0}, ringMoveMax[3] = {0, 0, 0};
     size_t ankleRaised[2] = {0, 0};          // her ankle ring's places raised over the model's edge between them (ankleMatch)
     float ankleRaiseMax[2] = {0, 0};
-    float unit = 1;                 // model units per Sims metre (the hip height ratio)
+    bool ringPinned[3] = {false, false, false};   // the ring set onto the edge's loop corner by corner (else snapped to its nearest)
+    size_t neckCleared = 0;                  // her neck ring's places lowered clear under the model's edge
+    float neckClearMax = 0;
+    int stripFlipped = 0;                    // seams whose strip was wound the other way round (the model's side above hers)
+    float unit = 1;                // model units per Sims metre (the hip height ratio)
     float head = 0, height = 0, heightAfter = 0;   // the model's head (chin to crown), its height, hers with the proportions
     int stitched = 0;               // seams stitched to the model's edge
     size_t rezoned = 0;             // trunk vertices that took the model's weights
