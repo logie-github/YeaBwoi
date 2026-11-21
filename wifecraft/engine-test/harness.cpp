@@ -42,7 +42,7 @@
 //   ghost MODEL X Y Z YAW SCALE | ghostlook LOOKFILE X Y Z YAW   the ghost of what is about to be placed (a prop, a look)
 //   ghostmove X Y Z YAW | ghostclear
 //   thumb prop FILE_ID|look LOOKFILE SIZE OUT.png   a library thumbnail (Scene::thumbnail), drawn between frames
-//   thumbeve ON [BOTTOM TONE SLOT SHADE OPACITY]   the Eve body on the look pictures that follow (ThumbLook::eve)
+//   thumbeve ON [BOTTOM TONE SLOT SHADE OPACITY [BONES]]   the Eve body on the look pictures that follow (ThumbLook::eve)
 //   card LOOKFILE W H LO HI AZ EL FITWIDTH CLEAR OUT.png   a Transmog card (Scene::ThumbFrame; RGBA PNG when CLEAR), timed
 //   camerainfo                                 prints the camera as last drawn (Scene::cameraInfo)
 //   timing on|off                              prints how long each later command took (what the GL thread would stall)
