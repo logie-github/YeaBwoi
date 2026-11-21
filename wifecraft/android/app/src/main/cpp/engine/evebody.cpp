@@ -195,7 +195,7 @@ bool parseEveFitTable(const std::string& json, EveFitTable& out, std::string& er
         num("neckBase", f.neckBase); num("ankleLift", f.ankleLift); num("ankleTuck", f.ankleTuck); num("ankleSink", f.ankleSink);
         num("heads", f.heads); num("hipRatio", f.hipRatio); num("armRatio", f.armRatio); num("handHeads", f.handHeads); num("spread", f.spread);
         num("split", f.split); num("transfer", f.transfer); num("stitch", f.stitch); num("detail", f.detail);
-        num("rezone", f.rezone); num("limbs", f.limbs); num("rig", f.rig); num("lengths", f.lengths); num("spine", f.spine);
+        num("rezone", f.rezone); num("limbs", f.limbs); num("rig", f.rig); num("lengths", f.lengths); num("spine", f.spine); num("ankleMatch", f.ankleMatch);
         if (k.has("bulk")) {
             const Json& b = k["bulk"];
             auto bn = [&](const char* key, float& v) { if (b.has(key)) v = float(b[key].num(v)); };
@@ -1448,6 +1448,67 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
             V3 f(ankleR[s].centre.x + (q.x - cs.x) * ankleR[s].rx * 0.97f / rxs, ankleR[s].centre.y + (q.y - cs.y) * ankleR[s].ry * 0.97f / rys, zt + (q.z - cs.z));
             P[v] = q * (1 - t) + f * t;
         }
+    }
+    // ---- the shins' last centimetres onto the model's own lower leg (the skin Eve's cut took: its radius round the ankle's
+    // centre at each angle and height above its cut edge, which slants over the foot's top): her shin meets the foot as the
+    // model's own leg did, with no lip where the foot's edge flares out under a slimmer shin (a step of up to 1 cm on the
+    // night elf before). Full at the edge, none `kAnkleBand` above it.
+    if (fit.ankleMatch > 0) for (int s = 0; s < 2 && !split; ++s) {
+        if (ankleR[s].e.empty()) continue;
+        constexpr int kAng = 24, kRows = 6;
+        const float band = 0.09f * unit, share = std::min(fit.ankleMatch, 1.0f);
+        const V3 c = ankleR[s].centre;
+        auto bin = [&](V3 p) { float a = std::atan2(p.y - c.y, p.x - c.x); int k = int(std::floor((a + 3.14159265f) / 6.2831853f * kAng)); return (k % kAng + kAng) % kAng; };
+        // the cut edge's height per angle (its vertices'), the gaps filled from the neighbours
+        float edgeZ[kAng], ez[kAng]; int en[kAng] = {0};
+        for (int k = 0; k < kAng; ++k) { edgeZ[k] = 0; ez[k] = 0; }
+        for (auto& e : ankleR[s].e) for (uint32_t v : {e.first, e.second}) { int k = bin(posOf(verts[v])); ez[k] += verts[v].pos[2]; en[k]++; }
+        bool anyEdge = false;
+        for (int k = 0; k < kAng; ++k) if (en[k]) { edgeZ[k] = ez[k] / float(en[k]); anyEdge = true; }
+        if (!anyEdge) continue;
+        for (int pass = 0; pass < kAng; ++pass) for (int k = 0; k < kAng; ++k) if (!en[k]) {
+            int a = (k + kAng - 1) % kAng, b = (k + 1) % kAng;
+            if (en[a]) { edgeZ[k] = edgeZ[a]; en[k] = -1; } else if (en[b]) { edgeZ[k] = edgeZ[b]; en[k] = -1; }
+        }
+        // the model's removed lower leg: its widest radius per angle and height above the edge
+        float rad[kAng][kRows]; bool has[kAng][kRows];
+        for (int k = 0; k < kAng; ++k) for (int r = 0; r < kRows; ++r) { rad[k][r] = 0; has[k][r] = false; }
+        std::vector<uint8_t> onRing(nv, 0);
+        if (const std::vector<uint32_t>* rr = eve.ring(s ? "R_ankle" : "L_ankle")) for (uint32_t v : *rr) if (v < nv) onRing[v] = 1;
+        const V3 other = ankleR[s ^ 1].e.empty() ? W[s ^ 1].ankle : ankleR[s ^ 1].centre;
+        for (size_t i = 0; i < verts.size(); ++i) {
+            if (!out.cut[i]) continue;
+            V3 p = posOf(verts[i]);
+            float dm = V3(p.x - c.x, p.y - c.y, 0).length();
+            if (dm > 0.2f * unit || dm >= V3(p.x - other.x, p.y - other.y, 0).length()) continue;   // (this leg's own skin)
+            int k = bin(p);
+            float dz = p.z - edgeZ[k];
+            if (dz < 0 || dz >= band) continue;
+            int r = std::min(kRows - 1, int(dz / band * kRows));
+            rad[k][r] = std::max(rad[k][r], V3(p.x - c.x, p.y - c.y, 0).length());
+            has[k][r] = true;
+        }
+        int dbgN = 0; float dbgMax = 0;
+        if (getenv("EVE_ANKDBG")) { int h = 0; for (int k = 0; k < kAng; ++k) for (int r = 0; r < kRows; ++r) h += has[k][r]; fprintf(stderr, "ankle %d: bins %d edgeZ0 %.3f c %.3f %.3f\n", s, h, edgeZ[0], c.x, c.y); }
+        for (size_t v = 0; v < nv; ++v) {
+            if (calfW[s][v] < 0.3f || onRing[v]) continue;   // (the ring itself is snapped onto the edge below)
+            V3 q = P[v];
+            int k = bin(q);
+            float dz = q.z - edgeZ[k];
+            if (dz < 0 || dz >= band) continue;
+            int r = std::min(kRows - 1, int(dz / band * kRows));
+            if (!has[k][r]) continue;
+            V3 d(q.x - c.x, q.y - c.y, 0);
+            float rl = d.length();
+            if (rl < 1e-5f) continue;
+            float t = 1 - dz / band;
+            t = share * t * t * (3 - 2 * t);
+            float want = rad[k][r] * 0.99f;
+            float nr = rl + (want - rl) * t;
+            P[v] = V3(c.x + d.x * nr / rl, c.y + d.y * nr / rl, q.z);
+            ++dbgN; dbgMax = std::max(dbgMax, std::fabs(nr - rl));
+        }
+        if (getenv("EVE_ANKDBG")) fprintf(stderr, "ankle %d: moved %d, most %.4f\n", s, dbgN, dbgMax);
     }
     // ---- the split fit: each thigh's last 25% above the cut drawn onto the model's cut section (its centre and radii), so the
     // rings meet without a step

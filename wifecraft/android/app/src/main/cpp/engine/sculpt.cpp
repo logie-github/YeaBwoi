@@ -236,11 +236,11 @@ size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std
             limb(s[kSculptThighs], thigh, rig.hip[k], rig.knee[k], 1.0f);
             limb(s[kSculptArms], upper, rig.shoulder[k], rig.elbow[k], 1.0f);
             limb(s[kSculptArms], fore, rig.elbow[k], rig.wrist[k], wristFade);
-            limb(s[kSculptUpperArms], upper, rig.shoulder[k], rig.elbow[k], 1.0f);
-            limb(s[kSculptForearms], fore, rig.elbow[k], rig.wrist[k], 0.6f);
+            limb(s[kSculptUpperArms], upper, rig.shoulder[k], rig.elbow[k], opt.gameBody ? 0.75f : 1.0f);   // (the elbow kept)
+            limb(s[kSculptForearms], fore, rig.elbow[k], rig.wrist[k], 0.6f, opt.gameBody ? 0.2f : 0.0f);
             // the calves (one group for both: the side by where the vertex is)
             const bool mine = k == 0 ? p.y >= 0 : p.y < 0;
-            if (mine) limb(s[kSculptCalves], W[kGroupCalf], rig.knee[k], rig.ankle[k], 0.6f, 0.35f);   // (the knee kept)
+            if (mine) limb(s[kSculptCalves] * 0.75f, W[kGroupCalf], rig.knee[k], rig.ankle[k], 0.6f, 0.35f);   // (the knee kept)
         }
         // the neck (the game's bodies): thicker or thinner about its axis, faded out before the head
         if (s[kSculptNeck] != 0 && W[kGroupNeck] > 0) {
@@ -250,7 +250,13 @@ size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std
         }
         // the shoulders: broader or narrower, nothing at the body's middle line
         if (s[kSculptShoulders] != 0) {
-            float m = W[kGroupClavicle] + 0.8f * (W[kGroupUpperArmL] + W[kGroupUpperArmR]) +
+            float upper = 0.8f;
+            if (opt.gameBody) {   // (the upper arm leans out from the shoulder, the elbow kept: no step where the forearm starts)
+                float t = 0;
+                nearestOn(rig.shoulder[p.y >= 0 ? 0 : 1], rig.elbow[p.y >= 0 ? 0 : 1], p, &t);
+                upper *= 1 - smooth(0.0f, 0.9f, t);
+            }
+            float m = W[kGroupClavicle] + upper * (W[kGroupUpperArmL] + W[kGroupUpperArmR]) +
                       W[kGroupChest] * smooth(0.06f * U, 0.16f * U, std::fabs(p.y)) * smooth(rig.chest.z - 0.1f * U, rig.chest.z + 0.05f * U, p.z);
             m = std::min(m, 1.0f) * smooth(0.0f, 0.04f * U, std::fabs(p.y));
             d.y += (p.y >= 0 ? 1.0f : -1.0f) * 0.04f * U * s[kSculptShoulders] * m;

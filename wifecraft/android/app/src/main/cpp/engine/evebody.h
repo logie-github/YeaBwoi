@@ -123,6 +123,9 @@ struct EveRaceFit {
     // On her rig: her spine's joints (Spine1, Spine2, Chest) moved this share of the way to the model's own (1: her trunk bends
     // where the model's does, so her head and shoulders follow the model's in every pose).
     float spine = 0;
+    // Her shins' last 9 cm drawn onto the model's own lower leg round the ankle (the skin her cut takes), this share (1: her
+    // shin meets the foot's slanted edge as the model's leg did).
+    float ankleMatch = 0;
     EveBulk bulk;   // her build on her rig
 };
 struct EveFitTable {
