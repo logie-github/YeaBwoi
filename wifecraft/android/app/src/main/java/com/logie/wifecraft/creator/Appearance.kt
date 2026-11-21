@@ -77,6 +77,11 @@ data class Appearance(
     val eve: EveOptions? = null,
     /** The class whose default clothing Gear on wears (ChrClasses id; [ClassOutfits.CIVILIAN] 0: none). */
     val classId: Int = 0,
+    /**
+     * The HD figure's choices (bodyparts/HdModels: hair, eyes, marks, tints, jewellery, an outfit of her own); null: the set's
+     * defaults. Saved as `"hd":{...}` only when set: older saves load as null and are written back the same.
+     */
+    val hd: com.logie.wifecraft.bodyparts.HdOptions? = null,
 ) {
     fun toJson(): JSONObject {
         val p = JSONObject()
@@ -94,6 +99,7 @@ data class Appearance(
             .also { json -> sculpt?.takeIf { !it.isNeutral }?.let { json.put("sculpt", it.toJson()) } }
             .also { json -> personality?.takeIf { !it.isDefault }?.let { json.put("personality", it.toJson()) } }
             .also { json -> eve?.let { json.put("eve", it.toJson()) } }
+            .also { json -> hd?.let { json.put("hd", it.toJson()) } }
     }
 
     companion object {
@@ -115,7 +121,8 @@ data class Appearance(
                 o.optBoolean("undead", false), o.optInt("undeadSkin", 0).coerceAtLeast(0),
                 named = named, parts = PartOptions.fromJson(o.optJSONObject("parts")),
                 sculpt = BodySculpt.fromJson(o.optJSONObject("sculpt")), personality = CasPersonality.fromJson(o.optJSONObject("personality")),
-                eve = o.optJSONObject("eve")?.let { EveOptions.fromJson(it) }, classId = o.optInt("class", 0).coerceAtLeast(0))
+                eve = o.optJSONObject("eve")?.let { EveOptions.fromJson(it) }, classId = o.optInt("class", 0).coerceAtLeast(0),
+                hd = o.optJSONObject("hd")?.let { com.logie.wifecraft.bodyparts.HdOptions.fromJson(it) })
         }
     }
 }

@@ -140,6 +140,12 @@ class PairAlignmentAudit {
         val renders = System.getenv("ALIGN_RENDER")?.split('|')?.map { nameKey(it) }?.filter { it.isNotEmpty() }.orEmpty()
         // ALIGN_RENDER_COMBO: the body pair the stills are of (default the human man and woman)
         val renderCombo = System.getenv("ALIGN_RENDER_COMBO") ?: "human_m+human_f"
+        // ALIGN_BED (a location id, e.g. brill_house): the bed mode (PairBedPlan): the stages ALIGN_BED_STAGES names ("|"-separated
+        // name keys; default all), at most ALIGN_BED_PER_CLASS a pose class, played on that location's bed as the app plays them
+        // there, for the render combo's bodies; written to OUT/bed for engine-test/audit (tools/align/bed.sh)
+        val bedLocation = System.getenv("ALIGN_BED")
+        val bedStages = System.getenv("ALIGN_BED_STAGES")?.split('|')?.map { nameKey(it) }?.filter { it.isNotEmpty() }.orEmpty()
+        val bedCases = ArrayList<PairBedPlan.Case>()
         val dbg = File(out, "debug.txt").printWriter()
         val table = File(out, "table.csv").printWriter()
         table.println("pack,hash,class,hips_fwd_bu,hips_left_bu,hips_up_bu,retarget_hips_cm")
@@ -205,6 +211,14 @@ class PairAlignmentAudit {
             val authContact = times.indices.map { i -> PairAlignment.surface(authA[i], authB[i], PairAlignment.HIP_PARTS, PairAlignment.HIP_PARTS) }
             val authPen = times.indices.map { i -> PairAlignment.surface(authA[i], authB[i], skip = PairAlignment.mayTouch) }
 
+            if (bedLocation != null && (bedStages.isEmpty() || bedStages.any { nameKey(c.name).contains(it) || nameKey(c.id) == it }))
+                combos.firstOrNull { it.name == renderCombo }?.let { combo ->
+                    val pick = times.indices.filter { it > 0 && it % max(1, times.size / 8) == 0 }.take(8)
+                    bedCases += PairBedPlan.Case((c.name.replace(Regex("[^A-Za-z0-9]+"), "_").trim('_').take(40) + "_" + hash).lowercase(), c.name, cls,
+                        pp, req, combo.a.flesh.takeIf { it.measured }, combo.b.flesh.takeIf { it.measured }, pick.map { (times[it] * 1000).toInt() },
+                        pick.map { PairAlignment.len(PairAlignment.sub(hips(authB[it]), hips(authA[it]))) },
+                        pick.map { hips(authB[it])[2] - hips(authA[it])[2] })
+                }
             for (combo in combos) {
                 // order: offsets as they are, fitted to the bodies' sizes
                 val (fa, fb) = PairFit.slots(pp.slotA, pp.slotB, combo.sizeA, combo.sizeB)
@@ -377,6 +391,9 @@ class PairAlignmentAudit {
             }
         }
         csv.close(); dbg.close(); table.close()
+        if (bedLocation != null) PairBedPlan.write(bedCases, File(out, "bed").also { it.mkdirs() }, bedLocation,
+            File(System.getenv("ALIGN_LOCATIONS") ?: File(assets, "locations.json").path), System.getenv("ALIGN_FILES") ?: "", System.getenv("ALIGN_LOOKS") ?: "",
+            renders, System.getenv("ALIGN_BED_PER_CLASS")?.toIntOrNull() ?: Int.MAX_VALUE)
         log.println("stages measured ${two.size - skipped}; skipped (no Sims clip or joint) $skipped")
 
         // per class: count, failures (by flag), the worst

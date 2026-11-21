@@ -231,6 +231,27 @@ class SceneCamera(room: CameraPose) {
         directHas = true
     }
 
+    // ---- build mode: the orbit turns round a pivot (the selected thing or marker) instead of the room's point
+    @Volatile private var pivotWanted: FloatArray? = null
+    private var pivotShown: FloatArray? = null
+
+    /**
+     * Build mode's orbit pivot: the orbit ([CameraMode.ORBIT]) turns round ([x], [y], [z]) from now on; a new pivot glides
+     * there and the player's pan starts again from it (tap an object: it is the centre). Any thread.
+     */
+    fun setPivot(x: Float, y: Float, z: Float) {
+        if (!x.isFinite() || !y.isFinite() || !z.isFinite()) return
+        val was = pivotWanted
+        if (was != null && was[0] == x && was[1] == y && was[2] == z) return
+        pivotWanted = floatArrayOf(x, y, z)
+    }
+
+    /** No pivot: the orbit turns round the room's point again, the view held where it is. Any thread. */
+    fun clearPivot() { pivotWanted = null }
+
+    /** The pivot the orbit turns round (null: the room's point). */
+    val pivot: FloatArray? get() = pivotWanted
+
     /** Whether anything is still moving (a transition, a spring, a flick): false once the camera rests. */
     var moving = false; private set
 
@@ -372,7 +393,25 @@ class SceneCamera(room: CameraPose) {
         distance.update(goalDistance, step)
 
         // the base: the room's point for an orbit, the NPC for Follow (it glides after them; a new NPC: it glides there too)
-        if (orbitKind == CameraMode.ORBIT) {
+        val pv = pivotWanted
+        if (pv !== pivotShown) {
+            if (pv != null) {
+                // a new pivot: the player's offset starts again from it (the sum glides there on the springs)
+                goalPanX = 0f; goalPanY = 0f; goalLift = 0f
+            } else if (orbitKind == CameraMode.ORBIT) {
+                // the pivot let go: the view stays, held as the room's point plus an offset
+                val offX = tx.value + px.value - r.at.x
+                val offY = ty.value + py.value - r.at.y
+                val offZ = tz.value + pz.value - r.at.z
+                tx.snap(r.at.x); ty.snap(r.at.y); tz.snap(r.at.z)
+                px.value = offX; py.value = offY; pz.value = offZ
+                goalPanX = offX; goalPanY = offY; goalLift = offZ
+            }
+            pivotShown = pv
+        }
+        if (orbitKind == CameraMode.ORBIT && pv != null) {
+            tx.update(pv[0], step); ty.update(pv[1], step); tz.update(pv[2], step)
+        } else if (orbitKind == CameraMode.ORBIT) {
             tx.update(r.at.x, step); ty.update(r.at.y, step); tz.update(r.at.z, step)
         } else if (hasFocus) {
             if (!hasTarget || snap) { tx.snap(fx); ty.snap(fy); tz.snap(fz); hasTarget = true }
@@ -391,7 +430,7 @@ class SceneCamera(room: CameraPose) {
         goalLift += lift
         val s = OrbitMath.panScale(goalPanX, goalPanY, MAX_PAN)
         goalPanX *= s; goalPanY *= s
-        val baseZ = if (orbitKind == CameraMode.ORBIT) r.at.z else if (hasFocus) fz else tz.value
+        val baseZ = if (orbitKind == CameraMode.ORBIT) (pv?.get(2) ?: r.at.z) else if (hasFocus) fz else tz.value
         val floor = floorZ
         goalLift = goalLift.coerceIn(OrbitMath.liftLow(baseZ, floor), OrbitMath.liftHigh(baseZ, floor))
         px.update(goalPanX, step); py.update(goalPanY, step); pz.update(goalLift, step)

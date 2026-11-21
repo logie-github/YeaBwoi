@@ -140,17 +140,18 @@ object ItemReports {
     private val BLOCK = Regex("```json\\s*\\n(.*?)\\n```", RegexOption.DOT_MATCHES_ALL)
 
     /** The issue for [report] on [repo] ("owner/name") with [token]. */
-    fun request(repo: String, token: String, title: String, body: String, appVersion: String, api: String = API): IssueRequest =
+    fun request(repo: String, token: String, title: String, body: String, appVersion: String, api: String = API, label: String = LABEL): IssueRequest =
         IssueRequest("$api/repos/$repo/issues", mapOf(
             "Authorization" to "Bearer $token",
             "Accept" to "application/vnd.github+json",
             "X-GitHub-Api-Version" to "2022-11-28",
             "Content-Type" to "application/json",
             "User-Agent" to "Wifecraft-Android/$appVersion",
-        ), payload(title, body))
+        ), payload(title, body, label))
 
-    fun payload(title: String, body: String): String =
-        JSONObject().put("title", title.take(250)).put("body", body.take(60_000)).put("labels", JSONArray(listOf(LABEL))).toString()
+    /** The issue's JSON: its title, body and [label] (item reports' own, or build mode's: BuildReports.LABEL). */
+    fun payload(title: String, body: String, label: String = LABEL): String =
+        JSONObject().put("title", title.take(250)).put("body", body.take(60_000)).put("labels", JSONArray(listOf(label))).toString()
 
     /** What GitHub's answer means for the report: gone, again later (no connection, too many at once), never with this build, or dropped. */
     fun classify(h: HttpReply): SendResult {
@@ -168,9 +169,10 @@ object ItemReports {
     }
 
     /** One issue sent: [repo] and [token] empty mean this build has no report token (nothing is tried). */
-    fun send(repo: String, token: String, title: String, body: String, appVersion: String, http: HttpTransport, api: String = API): SendResult {
+    fun send(repo: String, token: String, title: String, body: String, appVersion: String, http: HttpTransport, api: String = API,
+             label: String = LABEL): SendResult {
         if (repo.isBlank() || token.isBlank()) return SendResult(SendOutcome.NOT_CONFIGURED, 0, "this build has no report token")
-        val q = request(repo, token, title, body, appVersion, api)
+        val q = request(repo, token, title, body, appVersion, api, label)
         return classify(http.post(q.url, q.headers, q.body))
     }
 
@@ -214,10 +216,14 @@ object ItemReports {
 class ReportQueue(private val dir: File) {
     data class Entry(val file: File, val reportId: String, val key: String, val title: String, val body: String, val tries: Int, val lastError: String?)
 
-    fun enqueue(report: ItemReport, now: Long = System.currentTimeMillis()): File {
+    fun enqueue(report: ItemReport, now: Long = System.currentTimeMillis()): File =
+        enqueue(report.id, report.target.key, report.title(), report.body(), now)
+
+    /** Any issue to send later (build mode's reports use their own queue's folder): its id, key, title and body. */
+    fun enqueue(reportId: String, key: String, title: String, body: String, now: Long = System.currentTimeMillis()): File {
         dir.mkdirs()
-        val f = File(dir, "item-$now-${report.id}.json")
-        val o = JSONObject().put("report", report.id).put("key", report.target.key).put("title", report.title()).put("body", report.body())
+        val f = File(dir, "item-$now-$reportId.json")
+        val o = JSONObject().put("report", reportId).put("key", key).put("title", title).put("body", body)
             .put("tries", 0).put("created", now)
         val tmp = File(dir, f.name + ".tmp")
         tmp.writeText(o.toString())

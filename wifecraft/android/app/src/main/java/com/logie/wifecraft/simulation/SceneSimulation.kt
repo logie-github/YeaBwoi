@@ -286,6 +286,40 @@ class SceneSimulation(
     var requirements: Map<String, Requirement> = emptyMap()
     var classifyPairs = true
 
+    /**
+     * The player's "Treat as" per partner pair id ([TreatAs], kept by the screen's [TreatAsMemory]): what each is played as
+     * (on a bed, a seat, a table, the floor, standing where they are) instead of what its bodies were read as.
+     */
+    var treatAs: Map<String, TreatAs> = emptyMap()
+    private val floorDrops = HashMap<String, Float>()
+
+    /** How far [pair] may be lowered for a floor play (body units, its two bodies as spaced and played; cached). */
+    private fun floorDropOf(pair: PartnerPair): Float = floorDrops.getOrPut(pair.id) { FurnitureAnimation.floorDrop(spaced(pair)) }
+
+    /** What [pair] is played as: the player's [treatAs] over what its bodies were read as ([requirementOf]); null: not read yet. */
+    private fun needOf(pair: PartnerPair): Requirement? = requirementOf(pair)?.let { FurnitureAvailability.applied(it, treatAs[pair.id]) }
+
+    /**
+     * Whether [pair] played on the open floor is lowered onto it ([floorLifts]): read from its bodies as needing furniture ([r]
+     * its reading), or treated as Floor; never one treated as Standing (played where they are, as made).
+     */
+    private fun floorFallback(pair: PartnerPair, r: Requirement): Boolean = when (treatAs[pair.id]) {
+        TreatAs.STANDING -> false
+        TreatAs.FLOOR -> true
+        else -> placed(r) && r.surface !in Requirement.FLOOR_LEVEL
+    }
+
+    /**
+     * Each role's lift (world units, the pair's actor order: [first] its actor 0) for [pair] played on the floor in place of the
+     * furniture it needs: lowered until its lowest flesh meets the floor ([floorDropOf]), each body's own flesh then as on
+     * furniture ([roleLifts]).
+     */
+    private fun floorLifts(r: Requirement, pair: PartnerPair, first: Actor, second: Actor): FloatArray {
+        val own = roleLifts(r, pair, first, second, onFurniture = true)
+        val drop = floorDropOf(pair) * bodyUnit(first, second)
+        return floatArrayOf((own?.getOrNull(0) ?: 0f) - drop, (own?.getOrNull(1) ?: 0f) - drop)
+    }
+
     private val pieces = HashMap<SceneObject, Furniture>()
     private val furnitureMade = HashMap<SceneObject, Furniture>()
     private val classified = HashMap<String, Requirement>()
@@ -355,7 +389,7 @@ class SceneSimulation(
      */
     private class Performance(
         val lead: Actor, val other: Actor?, var roles: List<PlaybackRole>, var seconds: Float,
-        val anchor: Vec3, val heading: Float, var repeat: Boolean, cycles: Int,
+        var anchor: Vec3, var heading: Float, var repeat: Boolean, cycles: Int,
         val directed: Boolean = true, val name: String = "", val sounds: List<PartnerSound> = emptyList(),
         val partnerActivity: Boolean = false, val initiator: Actor? = null, val furniture: SceneObject? = null,
         val emote: Int = -1,
@@ -380,6 +414,10 @@ class SceneSimulation(
             seconds = s.seconds.coerceIn(0.25f, 3600f)
         }
         var started = false
+        /** Build mode: the origin and heading it was computed with, once it was moved (null: never moved), and each role's nudge. */
+        var baseAnchor: Vec3? = null
+        var baseHeading = 0f
+        val extra = arrayOf(RoleDelta.ZERO, RoleDelta.ZERO)
         /** The life simulation's interaction this is (an [InteractionId] ordinal: a hug, a dance), or -1. */
         var lifeKind = -1
         /** Seconds played since the first cycle started, and cycles finished: one clock for both. */
@@ -694,12 +732,21 @@ class SceneSimulation(
     private fun startPlacedOrder(lead: Actor, request: PerformanceOrder, previous: Performance?): Boolean? {
         val plan = planPlaced(lead, request, previous) ?: return null
         val setup = plan.setup ?: return refuse(plan.refusal ?: "That can't be played here.")
-        return startPerformance(lead, plan.request, previous?.takeIf { it.other === plan.other && it.furniture != null && it.fit != null }, setup) ||
-            refuse("They can't reach the ${plan.item?.label?.lowercase() ?: "furniture"} from where they stand.")
+        val started = startPerformance(lead, plan.request, previous?.takeIf { it.other === plan.other && it.furniture != null && it.fit != null }, setup)
+        if (!started) return refuse(if (plan.item == null) "They can't reach their places from where they stand."
+            else "They can't reach the ${plan.item.label.lowercase()} from where they stand.")
+        // on the floor in place of furniture: kept for a next stage, and the player told ("No bed here: playing on the floor.")
+        if (plan.item == null) lead.performance?.let { floorPlays += it }
+        plan.notice?.let { queueNotice = it }
+        return true
     }
 
-    /** A placed order's plan ([planPlaced]): the order as played and its setup on [item], or why not ([refusal], [setup] null). */
-    private class PlacedPlan(val request: PerformanceOrder, val setup: Setup?, val item: SceneObject?, val other: Actor?, val refusal: String? = null)
+    /**
+     * A placed order's plan ([planPlaced]): the order as played and its setup on [item] (null: on the floor in its place, with
+     * [notice]), or why not ([refusal], [setup] null).
+     */
+    private class PlacedPlan(val request: PerformanceOrder, val setup: Setup?, val item: SceneObject?, val other: Actor?, val refusal: String? = null,
+                             val notice: String? = null)
 
     /** [startPlacedOrder]'s choice, made without starting anything (the preview reads it too). Null: not a placed order. */
     private fun planPlaced(lead: Actor, request: PerformanceOrder, previous: Performance?): PlacedPlan? {
@@ -708,39 +755,58 @@ class SceneSimulation(
         if (request.roles.size != 2 || other === lead) return null
         val pair = pairs.firstOrNull { it.id == pairId } ?: return null
         val r = requirementOf(pair) ?: return null
-        if (!placed(r) || r.surface in Requirement.FLOOR_LEVEL) return null
+        // what it is played as (the player's Treat as over the reading): standing or read as needing no furniture, as before
+        val need = FurnitureAvailability.applied(r, treatAs[pair.id])
+        val onFloor = treatAs[pair.id] == TreatAs.FLOOR
+        if (!floorFallback(pair, r)) return null
+        if (!onFloor && need.surface in Requirement.FLOOR_LEVEL) return null
         val unit = bodyUnit(lead, other)
         val before = previous?.takeIf { it.other === other && it.furniture != null && it.fit != null }
         var item: SceneObject? = null
         var fit: FurnitureFit? = null
-        if (before != null) {
+        if (before != null && !onFloor) {
             item = before.furniture
             val f = item?.let { furniture(it) }
-            fit = f?.let { fitFor(r, it, unit, pair, lead, other) } ?: before.fit
-        } else {
-            var best = Float.MAX_VALUE
-            for (candidate in SceneObject.entries) {
-                if (candidate !in objects || !freeFor(candidate, lead, other)) continue
-                val f = furniture(candidate) ?: continue
-                val d = hypot(f.x - lead.x, f.y - lead.y)
-                if (d > FURNITURE_RANGE || d >= best) continue
-                val fits = fitFor(r, f, unit, pair, lead, other) ?: continue
-                best = d; item = candidate; fit = fits
+            fit = f?.let { fitFor(need, it, unit, pair, lead, other) ?: FurnitureFit.fit(need, it, unit, relaxed = true) } ?: before.fit
+        } else if (!onFloor) {
+            // the nearest free piece in reach it fits; else the nearest it nearly fits (a taller bed, a couch for a bed)
+            for (relaxed in listOf(false, true)) {
+                var best = Float.MAX_VALUE
+                for (candidate in SceneObject.entries) {
+                    if (candidate !in objects || !freeFor(candidate, lead, other)) continue
+                    val f = furniture(candidate) ?: continue
+                    val d = hypot(f.x - lead.x, f.y - lead.y)
+                    if (d > FURNITURE_RANGE || d >= best) continue
+                    val fits = (if (relaxed) FurnitureFit.fit(need, f, unit, relaxed = true) else fitFor(need, f, unit, pair, lead, other)) ?: continue
+                    best = d; item = candidate; fit = fits
+                }
+                if (fit != null) break
             }
         }
-        if (item == null || fit == null)
-            return PlacedPlan(request, null, null, other, "Nothing free here fits ${request.name.ifBlank { "that" }}: it needs ${placeName(r.surface)}.")
-        val floorZ = furniture(item)?.z ?: spots[item]?.entry?.z ?: fit.z
         // the pair's own slots, kept apart for these two bodies and fitted to their sizes (as startPartner's)
         val spacedPair = spaced(pair, lead, other)
         val (slotA, slotB) = PairFit.slots(spacedPair.slotA, spacedPair.slotB, size(lead), size(other))
         // (the pair's own two clips: a placed order plays its loop alone)
         val placedRequest = request.copy(roles = listOf(role(PlaybackKeys.pair(pair.id, 0), slotA), role(PlaybackKeys.pair(pair.id, 1), slotB)),
             segments = emptyList())
+        if (item == null || fit == null) {
+            // nothing here takes it: played on the floor where they are, lowered onto it, with a notice (never refused); a
+            // stage right after a floor stage with the same two keeps its spot
+            val chained = previous?.takeIf { it.other === other && it.furniture == null && it in floorPlays }
+            val setup = Setup(chained?.anchor ?: movementOrigin(lead), chained?.heading ?: lead.facing, null, -1, lead, true,
+                partner = false, lifts = floorLifts(r, pair, lead, other))
+            val surface = if (onFloor) Surface.FLOOR else need.surface
+            return PlacedPlan(placedRequest, setup, null, other, notice = if (onFloor) null
+                else FurnitureAvailability.notice(surface, SceneObject.entries.any { it in objects && furniture(it) != null }))
+        }
+        val floorZ = furniture(item)?.z ?: spots[item]?.entry?.z ?: fit.z
         val setup = Setup(before?.anchor ?: Vec3(fit.x, fit.y, fit.z), before?.heading ?: fit.yaw, item, -1, lead, true,
             partner = false, floorZ = floorZ, fit = fit, lifts = roleLifts(r, pair, lead, other, onFurniture = true))
         return PlacedPlan(placedRequest, setup, item, other)
     }
+
+    /** The performances played on the floor in place of furniture ([planPlaced]): a next stage with the same two keeps their spot. */
+    private val floorPlays = java.util.Collections.newSetFromMap(java.util.WeakHashMap<Performance, Boolean>())
 
     /** "a bed", "a seat"... for a placed order's refusal. */
     private fun placeName(surface: Surface): String = when (surface) {
@@ -947,6 +1013,73 @@ class SceneSimulation(
         return false
     }
 
+    /**
+     * Build mode's remembered placements (ui/BuildModeUi.kt sets it): the correction for [role] of the animation named
+     * [animation] played by [actorId] (with [otherId], on [furniture]), or null. Laid on the computed place of every role as it
+     * starts (a switch of positions included: by role) and on the Ready-to-play preview's. Read on the GL thread.
+     */
+    @Volatile var placement: ((animation: String, role: Int, actorId: String, otherId: String?, furniture: SceneObject?) -> RoleDelta?)? = null
+
+    private fun remembered(animation: String, role: Int, actor: Actor, other: Actor?, furniture: SceneObject?): RoleDelta? =
+        runCatching { placement?.invoke(animation, role, actor.id, other?.id, furniture) }.getOrNull()
+
+    /** The remembered correction and build mode's live nudge of role [index] of [p] (its z raises the body: [placed] can't). */
+    private fun deltaOf(p: Performance, index: Int): RoleDelta {
+        val actor = (if (index == 0) p.lead else p.other) ?: return RoleDelta.ZERO
+        val other = if (index == 0) p.other else p.lead
+        return (remembered(p.name, index, actor, other, p.furniture) ?: RoleDelta.ZERO) + p.extra.getOrElse(index) { RoleDelta.ZERO }
+    }
+
+    /** Role [index] of [p] as it is placed: the computed one with [deltaOf] on it (its place and facing; the raise: [deltaOf]'s dz). */
+    private fun placed(p: Performance, index: Int): PlaybackRole = deltaOf(p, index).applyTo(p.roles[index])
+
+    /** Build mode: what [id] plays now (its pair's origin and heading now and as computed), or null. */
+    fun playingOf(id: String): PlayingPair? {
+        val a = actors[id] ?: return null
+        val p = a.performance?.takeIf { a.playback != null } ?: return null
+        return PlayingPair(p.name, p.lead.id, p.other?.id, p.anchor, p.heading, p.baseAnchor ?: p.anchor,
+            if (p.baseAnchor != null) p.baseHeading else p.heading, p.furniture, p.roles, p.extra.toList())
+    }
+
+    /**
+     * Build mode: [id]'s performance moved while it plays, its shared origin to [anchor] and turned to [heading] (both keep
+     * playing on their clock; their contact and lifts are the clip's, kept), each role nudged by [extra] (its own frame) when
+     * given. False: not playing.
+     */
+    fun movePlaying(id: String, anchor: Vec3, heading: Float, extra: List<RoleDelta>? = null): Boolean {
+        val a = actors[id] ?: return false
+        val p = a.performance?.takeIf { a.playback != null } ?: return false
+        if (!anchor.x.isFinite() || !anchor.y.isFinite() || !anchor.z.isFinite() || !heading.isFinite()) return false
+        if (p.baseAnchor == null) { p.baseAnchor = p.anchor; p.baseHeading = p.heading }
+        p.anchor = anchor
+        p.heading = heading
+        extra?.forEachIndexed { i, d -> if (i < p.extra.size) p.extra[i] = d }
+        replace(p)
+        return true
+    }
+
+    /** Build mode's Reset: [id]'s performance back on its computed origin, the nudges gone. */
+    fun resetPlaying(id: String): Boolean {
+        val a = actors[id] ?: return false
+        val p = a.performance?.takeIf { a.playback != null } ?: return false
+        p.baseAnchor?.let { p.anchor = it; p.heading = p.baseHeading }
+        p.baseAnchor = null
+        p.extra.fill(RoleDelta.ZERO)
+        replace(p)
+        return true
+    }
+
+    /** [p]'s people put on their places at once (their clips go on: a drag of the gizmo shows while it plays). */
+    private fun replace(p: Performance) {
+        for ((index, actor) in listOfNotNull(p.lead, p.other).withIndex()) {
+            if (actor.performance !== p) continue
+            val role = placed(p, index)
+            actor.position = rolePosition(p, role) + Vec3(0f, 0f, (p.lifts?.getOrNull(index) ?: 0f) + deltaOf(p, index).dz)
+            actor.facing = p.heading + role.facing
+        }
+        version++
+    }
+
     private fun rolePosition(performance: Performance, role: PlaybackRole): Vec3 {
         val x = role.offset.x
         val y = role.offset.y
@@ -960,11 +1093,11 @@ class SceneSimulation(
         performance.started = true
         val command = ++version
         for ((index, actor) in listOfNotNull(performance.lead, performance.other).withIndex()) {
-            val role = performance.roles[index]
+            val role = placed(performance, index)
             // from where they were drawn: a join (another part, another stage) or onto their place from where they walked
             val x0 = actor.drawnX; val y0 = actor.drawnY; val z0 = actor.drawnZ; val f0 = actor.drawnFacing
             val joining = actor.playback != null
-            actor.position = rolePosition(performance, role) + Vec3(0f, 0f, performance.lifts?.getOrNull(index) ?: 0f)
+            actor.position = rolePosition(performance, role) + Vec3(0f, 0f, (performance.lifts?.getOrNull(index) ?: 0f) + deltaOf(performance, index).dz)
             actor.facing = performance.heading + role.facing
             actor.easeFrom(x0, y0, z0, f0, if (joining) JoinEase.JOIN else JoinEase.SETTLE)
             actor.performance = performance
@@ -1639,13 +1772,27 @@ class SceneSimulation(
                 if (place !== NO_PLACE) options += Option(p, place as SceneObject?, null)
                 continue
             }
-            if (r.surface in Requirement.FLOOR_LEVEL) options += Option(p, null, null)
-            for (item in SceneObject.entries) {
-                if (item !in objects || !freeFor(item, a, b)) continue
-                val f = furniture(item) ?: continue
-                if (hypot(f.x - a.x, f.y - a.y) > FURNITURE_RANGE && hypot(f.x - b.x, f.y - b.y) > FURNITURE_RANGE) continue
-                FurnitureFit.fit(r, f, unit)?.let { options += Option(p, item, it) }
+            // the player's Treat as: standing where they are, or the floor, whatever was read
+            when (treatAs[p.id]) {
+                TreatAs.STANDING -> { options += Option(p, null, null); continue }
+                TreatAs.FLOOR -> { options += Option(p, null, null); continue }
+                else -> Unit
             }
+            val need = FurnitureAvailability.applied(r, treatAs[p.id])
+            if (need.surface in Requirement.FLOOR_LEVEL) options += Option(p, null, null)
+            val before = options.size
+            // where it fits, else where it nearly fits (a taller bed, a couch for a bed), else the floor when lowered it rests there
+            for (relaxed in if (need.surface in Requirement.FLOOR_LEVEL) listOf(false) else listOf(false, true)) {
+                for (item in SceneObject.entries) {
+                    if (item !in objects || !freeFor(item, a, b)) continue
+                    val f = furniture(item) ?: continue
+                    if (hypot(f.x - a.x, f.y - a.y) > FURNITURE_RANGE && hypot(f.x - b.x, f.y - b.y) > FURNITURE_RANGE) continue
+                    FurnitureFit.fit(need, f, unit, relaxed)?.let { options += Option(p, item, it) }
+                }
+                if (options.size > before) break
+            }
+            if (options.size == before && need.surface !in Requirement.FLOOR_LEVEL && FurnitureAvailability.floorRests(r, floorDropOf(p)))
+                options += Option(p, null, null)
         }
         picked = null; pickedEmote = null; pickedFurniture = null; pickedFit = null
         if (options.isNotEmpty()) {
@@ -1689,8 +1836,10 @@ class SceneSimulation(
         val what = item.label.lowercase()
         if (item !in objects || !freeFor(item, actor, other)) return refuse("The $what is in use.")
         val f = furniture(item) ?: return refuse("The $what isn't ready yet.")
-        val r = requirementOf(pair) ?: return refuse("That animation is still being read.")
-        val fit = FurnitureFit.fit(r, f, bodyUnit(actor, other)) ?: return refuse("That doesn't fit on the $what.")
+        val r = needOf(pair) ?: return refuse("That animation is still being read.")
+        // where it fits on it, else where it nearly fits (a bed taller than the clip's)
+        val fit = FurnitureFit.fit(r, f, bodyUnit(actor, other)) ?: FurnitureFit.fit(r, f, bodyUnit(actor, other), relaxed = true)
+            ?: return refuse("That doesn't fit on the $what.")
         release(actor)
         release(other)
         picked = pair; pickedEmote = null; pickedFurniture = item; pickedFit = fit; pickedFixed = fixedRoles
@@ -1788,16 +1937,21 @@ class SceneSimulation(
             val y = anchor.y + role.offset.x * s + role.offset.y * c
             return PreviewPlace(actor.index, x, y, anchor.z + lift, floor, heading + role.facing, role.clip)
         }
-        fun places(anchor: Vec3, heading: Float, roles: List<PlaybackRole>, lifts: FloatArray?, floorZ: Float): List<PreviewPlace> {
+        fun places(anchor: Vec3, heading: Float, computed: List<PlaybackRole>, lifts: FloatArray?, floorZ: Float,
+                   on: SceneObject? = item): List<PreviewPlace> {
             val floor = if (floorZ.isNaN()) anchor.z else floorZ
-            return listOf(place(lead, anchor, heading, roles[0], lifts?.getOrNull(0) ?: 0f, floor),
-                place(other, anchor, heading, roles[1], lifts?.getOrNull(1) ?: 0f, floor))
+            // build mode's remembered placements, as play() lays them on
+            val dA = remembered(request.name, 0, lead, other, on) ?: RoleDelta.ZERO
+            val dB = remembered(request.name, 1, other, lead, on) ?: RoleDelta.ZERO
+            return listOf(place(lead, anchor, heading, dA.applyTo(computed[0]), (lifts?.getOrNull(0) ?: 0f) + dA.dz, floor),
+                place(other, anchor, heading, dB.applyTo(computed[1]), (lifts?.getOrNull(1) ?: 0f) + dB.dz, floor))
         }
         if (item != null) {
             val pair = pairs.firstOrNull { it.id == request.pairId } ?: return null
             val f = furniture(item) ?: return null
             val r = requirementOf(pair) ?: return null
-            val fit = FurnitureFit.fit(r, f, bodyUnit(lead, other)) ?: return null
+            val need = FurnitureAvailability.applied(r, treatAs[pair.id])
+            val fit = FurnitureFit.fit(need, f, bodyUnit(lead, other)) ?: FurnitureFit.fit(need, f, bodyUnit(lead, other), relaxed = true) ?: return null
             val spacedPair = spaced(pair, lead, other)
             val (slotA, slotB) = PairFit.slots(spacedPair.slotA, spacedPair.slotB, size(lead), size(other))
             val roles = listOf(role(PlaybackKeys.pair(pair.id, 0), slotA), role(PlaybackKeys.pair(pair.id, 1), slotB))
@@ -1806,7 +1960,7 @@ class SceneSimulation(
         }
         planPlaced(lead, request, null)?.let { plan ->
             val setup = plan.setup ?: return null
-            return places(setup.anchor, setup.heading, plan.request.roles, setup.lifts, setup.floorZ)
+            return places(setup.anchor, setup.heading, plan.request.roles, setup.lifts, setup.floorZ, setup.furniture)
         }
         // as startPerformance: its first part (a staged one's start), fitted to the two bodies, from the lead's spot
         val firstRoles = request.segments.firstOrNull { it.kind == SegmentKind.START }?.roles
@@ -1938,8 +2092,11 @@ class SceneSimulation(
             cycles.coerceIn(1, 100), pair?.name ?: emote!!.name, sounds)
         // on the floor, each role raised where its clip's flesh would reach under the floor (role order: playB's, playA's); on
         // furniture, by what each body's own flesh changes of the fit's lift (roleLifts)
-        val lifts = if (pair != null) requirementOf(pair)?.let { roleLifts(it, pair, playA, playB, onFurniture = fit != null) }
-            ?.let { floatArrayOf(it[1], it[0]) } else null
+        // (one that needs furniture played on the open floor in its place: lowered onto the floor, floorLifts)
+        val lifts = if (pair != null) requirementOf(pair)?.let { r ->
+            if (fit == null && furniture == null && floorFallback(pair, r)) floorLifts(r, pair, playA, playB)
+            else roleLifts(r, pair, playA, playB, onFurniture = fit != null)
+        }?.let { floatArrayOf(it[1], it[0]) } else null
         return startPerformance(playB, request, null,
             Setup(anchor, heading, furniture, emote?.anim ?: -1, playA, directed, floorZ = floorZ, fit = fit, lifts = lifts))
     }

@@ -58,6 +58,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -107,11 +108,17 @@ import com.logie.wifecraft.simulation.ShotLibrary
 import com.logie.wifecraft.simulation.CinematicLook
 import com.logie.wifecraft.simulation.CinematicSettings
 import com.logie.wifecraft.simulation.Furniture
+import com.logie.wifecraft.simulation.Availability
+import com.logie.wifecraft.simulation.FurnitureAvailability
+import com.logie.wifecraft.simulation.TreatAs
+import com.logie.wifecraft.simulation.TreatAsMemory
 import com.logie.wifecraft.simulation.FurnitureAnimation
 import com.logie.wifecraft.simulation.FurnitureSelection
 import com.logie.wifecraft.simulation.SceneSimulation
 import com.logie.wifecraft.simulation.Activity
 import com.logie.wifecraft.simulation.CameraMode
+import com.logie.wifecraft.simulation.BuildGizmo
+import com.logie.wifecraft.simulation.RoleActor
 import com.logie.wifecraft.simulation.InteractionSpot
 import com.logie.wifecraft.simulation.ItemOverrides
 import com.logie.wifecraft.simulation.LiveScene
@@ -456,13 +463,33 @@ fun LiveSceneScreen(
     // Move mode (ui/ItemMapperUi.kt): the player's item mappings (files/reports) and the shipped ones (assets/item_overrides.json)
     // override each piece's class and places; the measured shape stays what a report describes
     val mapper = rememberItemMapper(live, locationName)
-    val furnitureAt = remember(furnitureMeasured, mapper.local, mapper.shipped, mapper.placeId) { mapper.overridden(furnitureMeasured) }
+    // Build mode (ui/BuildModeUi.kt): items given an interaction there override the furniture too (any prop can be a bed)
+    val build = rememberBuildController(live, view)
+    build.toStage = toStage; build.toLocal = toLocal; build.stageRotation = stageRotation; build.keyOf = mapper::keyOf
+    LaunchedEffect(build, mapper.placeId) { if (mapper.placeId.isNotEmpty()) build.load(locationName, mapper.placeId) }
+    LaunchedEffect(build, cast) {
+        build.cast = cast.associate { it.id to RoleActor(it.appearance.raceId, it.appearance.sex == Sex.FEMALE) }
+        build.names = cast.associate { it.id to it.name }
+    }
+    val furnitureAt = remember(furnitureMeasured, mapper.local, mapper.shipped, mapper.placeId, build.items) {
+        build.overlay(mapper.overridden(furnitureMeasured))
+    }
+    build.furnitureOf = { furnitureAt[it] }
     // the clips every playback key names (GL thread reads it): the orders' (request) and the partner pairs' roles
     val playback = remember(live) { ConcurrentHashMap<String, Anim>() }
+    // what each playback key's stage does to a man wearing the body parts (bodyparts/Arousal: assets/arousal_map.json)
+    val arousalMap = remember {
+        runCatching { com.logie.wifecraft.bodyparts.ArousalMap.parse(context.assets.open("arousal_map.json").bufferedReader().use { it.readText() }) }.getOrNull()
+    }
+    val stageClasses = remember(live) { ConcurrentHashMap<String, com.logie.wifecraft.bodyparts.StageClass>() }
     LaunchedEffect(live, partnerPairs, partner, emotes, chatter) {
         for (p in partnerPairs) {
             playback[PlaybackKeys.pair(p.id, 0)] = lifted(p.a.copy(loop = false), p.slotA.z)
             playback[PlaybackKeys.pair(p.id, 1)] = lifted(p.b.copy(loop = false), p.slotB.z)
+            arousalMap?.classify(com.logie.wifecraft.bodyparts.StageHints(listOf(p.name, p.a.name, p.a.sourceName, p.b.sourceName), p.kind, 2))?.let { cls ->
+                stageClasses[PlaybackKeys.pair(p.id, 0)] = cls
+                stageClasses[PlaybackKeys.pair(p.id, 1)] = cls
+            }
         }
         live.command { sim ->
             sim.pairs = partnerPairs; sim.partnerChance = partner.chance; sim.emotes = emotes; sim.chatterChance = chatter.chance
@@ -471,6 +498,31 @@ fun LiveSceneScreen(
         }
     }
     LaunchedEffect(live, needs) { val known = needs.pairs; live.command { it.requirements = known } }
+    // the player's "Treat as" per animation (a long press in the animation window), kept; the scene plays each as that
+    val treatPrefs = remember(context) { context.getSharedPreferences(TreatAsMemory.PREFS, android.content.Context.MODE_PRIVATE) }
+    var treatAs by remember(treatPrefs) {
+        mutableStateOf(TreatAsMemory.decode(try { treatPrefs.getString(TreatAsMemory.KEY, null) } catch (e: Exception) { null }).all.toMap())
+    }
+    fun treat(choice: AnimationChoice, t: TreatAs?) {
+        val memory = TreatAsMemory(treatAs)
+        if (!memory.set(choice.id.removePrefix(PairAnim.CHOICE_PREFIX), t)) return
+        treatAs = memory.all.toMap()
+        try { treatPrefs.edit().putString(TreatAsMemory.KEY, memory.encode()).apply() } catch (e: Exception) { }
+    }
+    LaunchedEffect(live, treatAs) { val known = treatAs; live.command { it.treatAs = known } }
+    // how each animation plays here (its chip in the animation window: Ready, on the bed, on the floor in its place), off the main thread
+    val availability by produceState(emptyMap<String, Availability>(), choices, needs, furnitureAt, treatAs) {
+        value = withContext(Dispatchers.Default) {
+            val here = furnitureAt.values.toList()
+            val out = HashMap<String, Availability>()
+            for (c in choices) {
+                val r = needs.choices[c.id] ?: continue
+                out[c.id] = try { FurnitureAvailability.of(r, here, SceneSimulation.HUMAN_BODY_UNIT, treatAs[c.id.removePrefix(PairAnim.CHOICE_PREFIX)]) }
+                    catch (e: Exception) { continue }
+            }
+            out
+        }
+    }
     // each one's own flesh as the engine measured their dressed model (anim/FleshProfile: how far a clip is raised off the
     // floor, a seat or a bed for them, how far apart a pair's bodies are kept), again whenever someone is redressed; and the
     // single clips the orders name, for a single clip's lift on furniture
@@ -607,6 +659,8 @@ fun LiveSceneScreen(
                 val key = "${c.id}:$index"
                 val scale = c.roleScale
                 playback[key] = lifted(animation, role.offset.z * scale)
+                arousalMap?.classify(com.logie.wifecraft.bodyparts.StageHints(listOf(c.name, c.group, c.stage) + c.clips.map { it.clip.sourceName.ifEmpty { it.clip.name } },
+                    c.kind, c.participantCount))?.let { stageClasses[key] = it }
                 PlaybackRole(key, Vec3(role.offset.x * scale * HumanScale.PAIR, role.offset.y * scale * HumanScale.PAIR, role.offset.z * scale), role.facing)
             }
             return roles to (animations.maxOf { it.duration }.takeIf { it > 0f } ?: 12f)
@@ -732,6 +786,9 @@ fun LiveSceneScreen(
         val eases = Array(live.count) { IntensityEase() }
         val sheens = Array(live.count) { SkinSheen.Ease() }   // the skin's wet sheen from the intensity (Options' Graphics)
         val goals = FloatArray(live.count) { IntensityModel.IDLE }
+        // GL thread: each person's playing key (a partner stage's role), and their arousal (bodyparts/Arousal)
+        val playingKeys = arrayOfNulls<String>(live.count)
+        val arousal = Array(live.count) { com.logie.wifecraft.bodyparts.ArousalTracker() }
         val lookAt = arrayOfNulls<String>(live.count)
         val keyOf = ids.indices.associate { ids[it] to keys[it] }
         var momentNanos = 0L
@@ -771,6 +828,7 @@ fun LiveSceneScreen(
             override fun playback(index: Int, clip: ClipPlayback?) {
                 val key = keys[index]
                 val emote = clip?.let { PlaybackKeys.emoteOf(it.clip) }
+                playingKeys[index] = clip?.clip?.takeIf { emote == null }
                 val wasEmote = emoting[index]
                 emoting[index] = emote != null
                 if (emote != null) {
@@ -847,6 +905,18 @@ fun LiveSceneScreen(
                 if (v > most) most = v
                 view.glMotion(keys[i], v, lookAt[i]?.let { keyOf[it] })
                 view.glSheen(keys[i], sheens[i].step(SkinSheen.target(v, Graphics.effective), step))
+            }
+            // the body parts: each wearer's arousal from the stage they play and the intensity, and the partner whose entry the
+            // erect shaft goes into (the engine draws nothing for someone without the parts)
+            val partners = com.logie.wifecraft.bodyparts.StageKeys.partners(playingKeys)
+            for (i in 0 until live.count) {
+                val cls = playingKeys[i]?.let { stageClasses[it] } ?: com.logie.wifecraft.bodyparts.StageClass.NONE
+                val tracker = arousal[i]
+                val level = tracker.step(cls, eases[i].value, com.logie.wifecraft.bodyparts.ArousalControl.mode,
+                    com.logie.wifecraft.bodyparts.ArousalControl.override(ids[i]), step)
+                val p = partners[i]
+                val entry = if (p >= 0 && cls.intimate) tracker.entryFor(cls) else com.logie.wifecraft.bodyparts.PartEntryKind.NONE
+                view.glPartDrive(keys[i], level, if (p >= 0) keys[p] else null, entry.engine.coerceAtLeast(0), cls.rest)
             }
             val cine = feed.cinematic
             view.glParticles(if (imm.particlesOn(cine)) MOTES else 0, if (cine) 0.9f else 0.6f)
@@ -965,14 +1035,18 @@ fun LiveSceneScreen(
         val known = needs.choices
         val byId = choices.associateBy { it.id }
         val library = choices.mapNotNull { c ->
-            val r = known[c.id]?.takeIf(::placedNeed) ?: return@mapNotNull null
+            // (as the player classed it: Treat as)
+            val r = known[c.id]?.takeIf(::placedNeed)?.let { FurnitureAvailability.applied(it, treatAs[c.id.removePrefix(PairAnim.CHOICE_PREFIX)]) }
+                ?: return@mapNotNull null
             if (c.participantCount == 2 && cast.size < 2 || c.participantCount !in 1..2 || !c.playable) null
             else FurnitureAnimation(c.id, c.name, r)
         }
         val unit = SceneSimulation.HUMAN_BODY_UNIT * listOfNotNull(id, with).map { bodyScales[it] ?: 1f }.average().toFloat()
         // a piece the player classified (Move mode) offers only what belongs on its class
         val mappedAs = mapper.classOf(item)
-        val offered = if (mappedAs == null) library else library.filter { ItemOverrides.compatible(mappedAs, it.requirement) }
+        val builtAs = build.overrideOf(item)
+        val offered = if (builtAs != null) library.filter { ItemOverrides.compatible(builtAs, it.requirement) }
+            else if (mappedAs == null) library else library.filter { ItemOverrides.compatible(mappedAs, it.requirement) }
         val listed = if (f == null) emptyList() else FurnitureSelection.listFor(f, offered, unit)
             .flatMap { (group, entries) -> entries.mapNotNull { e -> byId[e.animation.id]?.copy(group = group) } }
         if (listed.isEmpty()) use(id, item) else furnitureMenu = FurnitureMenu(id, item, listed)
@@ -1053,6 +1127,11 @@ fun LiveSceneScreen(
             val wasUp = hudUp
             revealHud()
             if (!wasUp) return@rememberUpdatedState
+        }
+        // build mode: a tap selects what is under it and centres the orbit on it (ui/BuildModeUi.kt)
+        if (build.on && !mapper.on) {
+            if (ready) build.onTap(hit, objectHits) { key -> cast.firstOrNull { actorKey(it.id) == key }?.id }
+            return@rememberUpdatedState
         }
         // Move mode: a tap on a piece asks what it is, on open floor holds the NPC there (ui/ItemMapperUi.kt)
         if (mapper.on) {
@@ -1136,7 +1215,7 @@ fun LiveSceneScreen(
 
     // immersive mode's HUD: up after a tap for Options' time, kept while a window or menu is open
     val windowOpen = choosingAnimation != null || furnitureMenu != null || saying != null || chatting != null ||
-        choosingPartner != null || pairPlay != null || menu || ending || mapper.on
+        choosingPartner != null || pairPlay != null || menu || ending || mapper.on || build.on
     LaunchedEffect(revealTick, windowOpen, immersive.hudSeconds, immersiveHud) {
         if (!immersiveHud) { hudUp = true; return@LaunchedEffect }
         hudReveal.holdMs = immersive.clamped().hudSeconds * 1000L
@@ -1261,6 +1340,9 @@ fun LiveSceneScreen(
                 }
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
+                    // build mode: a finger down on a gizmo handle drags it along its axis (not the camera)
+                    build.viewSize(size.width.toFloat(), size.height.toFloat())
+                    val gizmoGrab = build.on && build.grab(down.position.x, down.position.y, BuildGizmo.TOUCH_DP.dp.toPx())
                     val gesture = TouchGesture(slop)
                     gesture.down(down.position.x, down.position.y, down.uptimeMillis)
                     var last = down.position
@@ -1276,7 +1358,7 @@ fun LiveSceneScreen(
                     var held = false
                     while (true) {
                         val wait = LONG_PRESS_MS - (SystemClock.uptimeMillis() - down.uptimeMillis)
-                        val event = if (longPressOn && !held && !twoFingers && gesture.kind == TouchGesture.Kind.PENDING && wait > 0)
+                        val event = if (longPressOn && !build.on && !held && !twoFingers && gesture.kind == TouchGesture.Kind.PENDING && wait > 0)
                             withTimeoutOrNull(wait) { awaitPointerEvent() } else awaitPointerEvent()
                         if (event == null) {
                             held = true
@@ -1320,16 +1402,20 @@ fun LiveSceneScreen(
                                 val finger = pressed.firstOrNull { it.id == down.id } ?: pressed[0]
                                 last = finger.position
                                 if (gesture.move(last.x, last.y, finger.uptimeMillis)) {
-                                    beginOrbit()
-                                    live.camera.dragBy(gesture.dx, gesture.dy, size.height.toFloat())
+                                    if (gizmoGrab) build.dragTo(last.x, last.y) else {
+                                        beginOrbit()
+                                        live.camera.dragBy(gesture.dx, gesture.dy, size.height.toFloat())
+                                    }
                                     finger.consume()
                                 }
                             }
                         }
                     }
                     when {
+                        gizmoGrab -> build.endDrag()
                         held -> Unit   // the long press opened the radial menu: no tap, no fling
-                        gesture.up(lastTime) -> view.pick(last.x, last.y, size.width, size.height) { onTap(it) }
+                        gesture.up(lastTime) -> if (!(build.on && build.tapMarker(last.x, last.y, 32.dp.toPx())))
+                            view.pick(last.x, last.y, size.width, size.height) { onTap(it) }
                         gesture.kind == TouchGesture.Kind.DRAG -> {
                             gesture.velocity(lastTime, velocity)
                             live.camera.release(velocity[0], velocity[1], size.height.toFloat())
@@ -1363,7 +1449,7 @@ fun LiveSceneScreen(
                 face = clockNow?.takeIf { lifeOn }?.let { LifeHud.clockFace(it.hour, it.day, it.speed, h24) },
                 onClock = { speedOpen = !speedOpen; feedOpen = false },
                 unseen = if (lifeOn) unseen else -1, feedOpen = feedOpen,
-                onFeed = { feedOpen = !feedOpen; speedOpen = false })
+                onFeed = { feedOpen = !feedOpen; speedOpen = false }, reserveEnd = (CINEMATIC_SLOT_W + 2 * CINEMATIC_GAP).dp)
             if (shown > 0f) {
                 val people = snapshot.people
                 val castModifier = Modifier.graphicsLayer { alpha = shown }
@@ -1399,7 +1485,10 @@ fun LiveSceneScreen(
                         .padding(end = SceneHud.MARGIN.dp, top = SceneHud.cameraTop(hud).dp))
                 // the line of help (or the last refusal) with the partner chip, and the action bar: a fixed height, so
                 // choosing someone or a longer line never moves anything
-                Column(
+                // build mode: its bar in the action bar's place
+                if (build.on) BuildBar(build, Modifier.align(Alignment.BottomCenter).graphicsLayer { alpha = shown }
+                    .padding(bottom = SceneHud.MARGIN.dp, start = SceneHud.MARGIN.dp, end = SceneHud.MARGIN.dp))
+                else Column(
                     Modifier.align(Alignment.BottomCenter).graphicsLayer { alpha = shown }.padding(bottom = SceneHud.MARGIN.dp)
                         .width(hud.barW.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -1414,12 +1503,18 @@ fun LiveSceneScreen(
                         val partControl = LocalPartControl.current
                         val partNpc = active?.id?.takeIf { partControl?.has(it) == true }
                         if (partControl != null && partNpc != null) {
-                            WifeChip(if (partControl.isOn(partNpc)) "Off" else "On", { partControl.toggle(partNpc) }, trailing = null)
+                            WifeChip(partControl.label(partNpc), { partControl.toggle(partNpc) }, trailing = null)
                         }
                         // Move mode (ui/ItemMapperUi.kt): the controlled NPC put on a tapped item and held, then reported
-                        val moveNpc = active?.id
-                        if (moveNpc != null) WifeChip(if (mapper.on) "Done moving" else "Move",
-                            { if (mapper.on) mapper.leave() else mapper.start(moveNpc) }, trailing = null)
+                        // Build mode (ui/BuildModeUi.kt): markers, item interactions, live moves, reports; Move mode (the item
+                        // mapper, ui/ItemMapperUi.kt) is part of it (a selected object's Hold NPC here)
+                        if (mapper.on) WifeChip("Done moving", { mapper.leave() }, trailing = null)
+                        else WifeChip("Build", {
+                            if (cinematic) cinematic = false
+                            build.enter()
+                            cameraMode = CameraMode.ORBIT; furnitureView = -1
+                            live.camera.setMode(CameraMode.ORBIT)
+                        }, trailing = null)
                         // the Gear switch (ui/GearUi.kt): the selected NPC's, and everyone's in the scene
                         val gearControl = LocalGearControl.current
                         if (gearControl != null) {
@@ -1469,12 +1564,20 @@ fun LiveSceneScreen(
                 Modifier.align(Alignment.TopEnd).padding(end = SceneHud.MARGIN.dp, top = SceneHud.TOP_H.dp, start = SceneHud.MARGIN.dp))
             // Move mode's panel: what is held, the nudges, Report… and Done
             if (revealed && !hudHidden) MovePanel(mapper, view, Modifier.align(Alignment.CenterEnd).padding(end = SceneHud.MARGIN.dp))
+            // build mode's panel: under the camera's buttons at the side (the gizmo stays in the middle, uncovered)
+            if (revealed && !hudHidden && !mapper.on) BuildPanel(build, active?.id?.let { npc -> { obj: SceneObject ->
+                    mapper.start(npc)
+                    mapper.tapItem(obj, furnitureMeasured[obj] ?: spots[obj]?.let { Furniture.of(obj, it) }, toStage, stageRotation)
+                } },
+                Modifier.align(Alignment.TopEnd).padding(end = SceneHud.MARGIN.dp, top = (SceneHud.cameraTop(hud) + CAMERA_BLOCK_H).dp,
+                    bottom = (SceneHud.SLOT_H + 3 * SceneHud.MARGIN).dp))
             // Switch positions while a two-person animation plays (started again with the roles turned round)
             val playingWith = active?.takeIf { it.performing }?.partner
             if (revealed && !hudHidden && !feedOpen && pairPlay == null && active != null && playingWith != null) {
+                // left of the camera's buttons, on their row (it never covers them; Cinematic sits in the top bar)
                 WifeButton("Switch positions", { switchPlaying(active.id, playingWith) },
                     Modifier.align(Alignment.TopEnd)
-                        .padding(top = (SceneHud.TOP_H + if (hud.castSide) 8f else hud.castH + 12f).dp, end = SceneHud.MARGIN.dp))
+                        .padding(top = SceneHud.cameraTop(hud).dp, end = (SceneHud.MARGIN + SceneHud.CAMERA_W + 2 * SceneHud.CAMERA_GAP).dp))
             }
         }
         // the soft controls: with a partner chosen or a flow under way, while the HUD is up
@@ -1486,11 +1589,13 @@ fun LiveSceneScreen(
         // cinematic auto-play: the pair's animations one after another, each change under a cut (CinematicUi, CinematicAutoplay)
         CinematicAutoplayHost(cinematic && cinematicSettings.autoplay, live, cineDirector, cinematicSettings,
             selected ?: flow?.a, partnerId ?: flow?.b, cast.map { it.id }, partnerPairs, needs.pairs, furnitureAt, bodyScales,
-            controls = cinematic && !cineHidden && revealed)
-        CinematicLayer(cinematic, cineHidden, revealed && shown > 0f && (cinematic || !immersiveHud || hudUp), {
+            controls = cinematic && !cineHidden && revealed, treatAs = treatAs)
+        CinematicLayer(cinematic, cineHidden, revealed && shown > 0f && (cinematic || !immersiveHud || hudUp) && !build.on, {
             cinematic = !cinematic
-            if (cinematic) { radial = null; speedOpen = false; feedOpen = false; menu = false }
-        }, { cinePeek = true }, { live.aspect = it; cineLook.viewAspect = it }, frame = cinematicSettings.frame)
+            if (cinematic) { radial = null; speedOpen = false; feedOpen = false; menu = false; build.leave() }
+        }, { cinePeek = true }, { live.aspect = it; cineLook.viewAspect = it }, frame = cinematicSettings.frame,
+            // in the top bar, left of the feed and the gear (the bar keeps the room free: SceneTopBar's reserveEnd)
+            topBarEnd = SceneHud.MARGIN + TOP_ICON_W * (if (lifeOn) 2 else 1) + CINEMATIC_GAP)
     }
     choosingAnimation?.let { owner ->
         // with a partner chosen, the two-person animations come first and play with them (solo ones still play alone)
@@ -1516,6 +1621,9 @@ fun LiveSceneScreen(
             actorName = names[owner],
             options = playOptions,
             onOptions = { choosePlayOptions(it) },
+            availability = availability,
+            onTreatAs = { choice, t -> treat(choice, t) },
+            treatedAs = treatAs,
         )
     }
     furnitureMenu?.let { menuOf ->
@@ -1533,10 +1641,13 @@ fun LiveSceneScreen(
             actorName = names[menuOf.owner],
             options = playOptions,
             onOptions = { choosePlayOptions(it) },
+            onTreatAs = { choice, t -> treat(choice, t) },
+            treatedAs = treatAs,
         )
     }
     // Move mode's windows: what is this (the class picker), the one-time question, the report
     MoveWindows(mapper) { cast.firstOrNull { it.id == mapper.npc }?.let(::npcInfoOf) }
+    BuildWindows(build)
     val sayFor = rememberHeld(saying)
     if (sayFor != null) {
         val said = remember(words, sayFor) { words.sayings(sayFor) }
@@ -1640,6 +1751,8 @@ private fun SceneTopBar(
     unseen: Int = -1,
     feedOpen: Boolean = false,
     onFeed: () -> Unit = {},
+    /** Room kept free left of the feed and the gear (the Cinematic button is drawn there, over the bar). */
+    reserveEnd: Dp = 0.dp,
 ) {
     val context = LocalContext.current
     val h24 = remember(context) { android.text.format.DateFormat.is24HourFormat(context) }
@@ -1667,9 +1780,12 @@ private fun SceneTopBar(
                     Text(time, Modifier.width(72.dp), style = WifeTheme.bodyStyle(WifeTheme.text), maxLines = 1, textAlign = TextAlign.End)
                 }
             }
-            Spacer(Modifier.width(WifeTheme.gapS))
-            if (unseen >= 0) FeedButton(unseen, feedOpen, onFeed)
-            HudIconButton(HudGlyph.GEAR, onMenu, "Scene menu")
+            Spacer(Modifier.width(WifeTheme.gapS + reserveEnd))
+            // together at the end (the Cinematic button is placed from the bar's end by their width)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (unseen >= 0) FeedButton(unseen, feedOpen, onFeed)
+                HudIconButton(HudGlyph.GEAR, onMenu, "Scene menu")
+            }
         }
     }
 }
@@ -2261,3 +2377,10 @@ private class ImmersionFeed {
     @Volatile var flow: FlowNow? = null
     @Volatile var cinematic = false
 }
+
+/** The camera's buttons' height under cameraTop: the mode button, then two rows of 48 dp buttons (build mode's panel goes under). */
+private const val CAMERA_BLOCK_H = 48f + 4f + 2 * 48f + 4f + 8f
+/** The top bar's feed and gear buttons (48 dp each), the Cinematic button's slot in the bar and its gap. */
+private const val TOP_ICON_W = 48f
+private const val CINEMATIC_SLOT_W = 96f
+private const val CINEMATIC_GAP = 8f

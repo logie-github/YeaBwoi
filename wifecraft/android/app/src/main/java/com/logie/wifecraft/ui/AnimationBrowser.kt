@@ -9,6 +9,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.SolidColor
@@ -32,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.logie.wifecraft.anim.CheckedAnimation
 import com.logie.wifecraft.anim.AnimationChoice
+import com.logie.wifecraft.anim.PairAnim
 import com.logie.wifecraft.anim.StagePart
 import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.Catalog
@@ -40,6 +43,10 @@ import com.logie.wifecraft.engine.Dresser
 import com.logie.wifecraft.engine.Placement
 import com.logie.wifecraft.engine.SceneView
 import com.logie.wifecraft.sims.Channel
+import com.logie.wifecraft.simulation.Availability
+import com.logie.wifecraft.simulation.FurnitureAvailability
+import com.logie.wifecraft.simulation.PlayState
+import com.logie.wifecraft.simulation.TreatAs
 import com.logie.wifecraft.story.Vec3
 import java.util.UUID
 import kotlin.math.PI
@@ -69,8 +76,17 @@ internal fun AnimationBrowser(
     /** How it repeats and how the queue plays ([PlayOptions], kept per scene by the caller); null: not offered (the library). */
     options: PlayOptions? = null,
     onOptions: (PlayOptions) -> Unit = {},
+    /** How each choice plays in this scene, by its id ([FurnitureAvailability]: its chip, the counter); empty: not known. */
+    availability: Map<String, Availability> = emptyMap(),
+    /** A long press on a row: the player's "Treat as" for it (null: as read); null: not offered. */
+    onTreatAs: ((AnimationChoice, TreatAs?) -> Unit)? = null,
+    /** The player's Treat as by animation id (a pair's without its choice prefix), to light the current one. */
+    treatedAs: Map<String, TreatAs> = emptyMap(),
 ) {
     var query by remember { mutableStateOf("") }
+    // every animation is listed with its chip; this hides those that would play on the floor in place of their furniture
+    var onlyPlayable by remember { mutableStateOf(false) }
+    var treating by remember { mutableStateOf<AnimationChoice?>(null) }
     var selection by remember { mutableStateOf<String?>(null) }
     var mode by remember { mutableStateOf(AnimationOrderMode.PLAY) }
     val tabs = remember(choices, partnerName) {
@@ -79,10 +95,11 @@ internal fun AnimationBrowser(
     var tab by remember(tabs) { mutableIntStateOf(0) }
     val tabName = tabs.getOrElse(tab) { SceneHud.ALL_TAB }
     val selected = choices.firstOrNull { it.id == selection }
-    val grouped = remember(choices, query, tabName) {
+    val grouped = remember(choices, query, tabName, onlyPlayable, availability) {
         val search = query.trim()
         choices.filter {
-            SceneHud.inTab(tabName, it.group, it.participantCount) && (it.name.contains(search, ignoreCase = true) ||
+            SceneHud.inTab(tabName, it.group, it.participantCount) && FurnitureAvailability.shown(availability[it.id], onlyPlayable) &&
+                (it.name.contains(search, ignoreCase = true) ||
                 it.group.contains(search, ignoreCase = true) || it.preview.clip.category.contains(search, ignoreCase = true) ||
                 it.setting.contains(search, ignoreCase = true))
         }.groupBy { it.group }
@@ -114,6 +131,11 @@ internal fun AnimationBrowser(
                 Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapM)) {
                     Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
                         SceneSearchField(query, { query = it.take(40) }, "Find animations", Modifier.fillMaxWidth())
+                        if (availability.isNotEmpty()) {
+                            Text(FurnitureAvailability.counter(choices.map { availability[it.id]?.state ?: PlayState.READY }),
+                                style = WifeTheme.captionStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            WifeSwitchRow("Show only playable here", onlyPlayable, { onlyPlayable = it }, Modifier.fillMaxWidth())
+                        }
                         if (!split && onPlay != null) OrderModes(mode) { mode = it }
                         if (!split && onPlay != null && options != null) RepeatControls(options, onOptions)
                         LazyColumn(Modifier.weight(1f).fillMaxWidth().warScrollbar(list), list,
@@ -125,7 +147,8 @@ internal fun AnimationBrowser(
                             for ((group, entries) in grouped) {
                                 if (tabName != group) item(key = "group:$group") { WifeSectionHeader("$group  ${entries.size}") }
                                 items(entries, key = { it.id }) { choice ->
-                                    AnimRow(choice, choice.id == selection, { selection = choice.id }, Modifier.padding(end = 10.dp))
+                                    AnimRow(choice, choice.id == selection, { selection = choice.id }, Modifier.padding(end = 10.dp),
+                                        availability[choice.id], onTreatAs?.let { { treating = choice } })
                                 }
                             }
                         }
@@ -150,6 +173,8 @@ internal fun AnimationBrowser(
                             WifeNote(details(selected), color = WifeTheme.text)
                             if (selected.participantCount == 2) WifeNote(partnerName?.let { "Plays with $it." } ?: "Asks for a second NPC.", color = PairRose)
                             if (!selected.playable) WifeNote(selected.preview.inspection.reason ?: "A required actor track is missing.", color = WifeTheme.danger)
+                            availability[selected.id]?.let { a -> WifeNote(FurnitureAvailability.describe(a) +
+                                (if (onTreatAs != null) " Long press to treat it as a bed, a seat, the floor..." else ""), color = WifeTheme.text) }
                             if (preview != null && selected.preview.inspection.reason == null) {
                                 Box(Modifier.weight(1f).fillMaxWidth()) { preview(selected.preview) }
                             }
@@ -157,6 +182,30 @@ internal fun AnimationBrowser(
                         if (notice != null) WifeNote(notice)
                     }
                 }
+            }
+            treating?.let { t -> TreatAsWindow(t, treatedAs[t.id.removePrefix(PairAnim.CHOICE_PREFIX)] ?: availability[t.id]?.treatedAs, { treating = null }) { choice ->
+                treating = null
+                onTreatAs?.invoke(t, choice)
+            } }
+        }
+    }
+}
+
+/**
+ * The long press's "Treat as" window: what [choice] is played as here (Bed, Seat, Floor, Standing, Table, or As read), [current]
+ * lit; [onPick] with the class (null: as its bodies were read).
+ */
+@Composable
+private fun TreatAsWindow(choice: AnimationChoice, current: TreatAs?, onClose: () -> Unit, onPick: (TreatAs?) -> Unit) {
+    Box(Modifier.fillMaxSize().background(Color(0x99000000)).warPress(sound = "close", onClick = onClose), contentAlignment = Alignment.Center) {
+        WifeWindow("Treat as", onClose, Modifier.widthIn(max = 420.dp).fillMaxWidth(0.9f).pointerInput(Unit) { detectTapGestures { } },
+            subtitle = choice.name) {
+            Column(Modifier.fillMaxWidth().padding(end = WifeTheme.gapS), verticalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
+                WifeNote("Where this animation is played in every scene, whatever its bodies were read as.", color = WifeTheme.text)
+                for (t in TreatAs.entries) WifeButton(t.label + if (t == current) "  ✓" else "", { onPick(t) }, Modifier.fillMaxWidth(),
+                    kind = if (t == current) WifeButtonKind.PRIMARY else WifeButtonKind.SECONDARY)
+                WifeButton("As read" + if (current == null) "  ✓" else "", { onPick(null) }, Modifier.fillMaxWidth(),
+                    kind = if (current == null) WifeButtonKind.PRIMARY else WifeButtonKind.SECONDARY)
             }
         }
     }
@@ -208,9 +257,13 @@ private fun OrderModes(mode: AnimationOrderMode, onMode: (AnimationOrderMode) ->
     WifeTabs(AnimationOrderMode.entries.map { it.label }, mode.ordinal, { onMode(AnimationOrderMode.entries[it]) })
 }
 
-/** One animation: its name, what it is, a rose "2 NPCs" mark on partner ones; 56 dp high, lit gold when picked. */
+/**
+ * One animation: its name, what it is, a rose "2 NPCs" mark on partner ones, its chip here ([availability]: Ready, Bed, Needs a
+ * bed: floor...); 56 dp high, lit gold when picked; [onLongPress]: its Treat as.
+ */
 @Composable
-private fun AnimRow(choice: AnimationChoice, picked: Boolean, onClick: () -> Unit, modifier: Modifier) {
+private fun AnimRow(choice: AnimationChoice, picked: Boolean, onClick: () -> Unit, modifier: Modifier,
+                    availability: Availability? = null, onLongPress: (() -> Unit)? = null) {
     val reduced = reduceMotion()
     val edge by animateColorAsState(if (picked) WifeTheme.gold else WifeTheme.trimSoft, tween(MenuMotion.duration(FrontMotion.GLOW_MS, reduced)), label = "row")
     val shape = RoundedCornerShape(WifeTheme.buttonRadius)
@@ -219,7 +272,7 @@ private fun AnimRow(choice: AnimationChoice, picked: Boolean, onClick: () -> Uni
             .background(if (picked) Color(0x26FFD37A) else WifeTheme.slateRaised.copy(alpha = 0.55f))
             .border(if (picked) 1.5.dp else WifeTheme.trimWidth, edge, shape)
             .semantics { this.selected = picked }
-            .warPress(sound = "select", onClick = onClick)
+            .warPress(sound = "select", onLongPress = onLongPress, onClick = onClick)
             .padding(horizontal = WifeTheme.gapM, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS),
     ) {
@@ -227,6 +280,17 @@ private fun AnimRow(choice: AnimationChoice, picked: Boolean, onClick: () -> Uni
             Text(choice.name, style = frizStyle(WifeTheme.label, if (!choice.playable) WifeTheme.textDim else if (picked) Color.White else WifeTheme.gold),
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(details(choice), style = WifeTheme.captionStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        if (availability != null) {
+            val pill = RoundedCornerShape(50)
+            val tint = when (availability.state) {
+                PlayState.READY -> WifeTheme.gold
+                PlayState.ON_FURNITURE -> PlaceBlue
+                PlayState.FLOOR -> WifeTheme.textDim
+            }
+            Text(availability.chip + if (availability.treatedAs != null) " *" else "",
+                Modifier.widthIn(max = 150.dp).clip(pill).border(1.dp, tint, pill).padding(horizontal = WifeTheme.gapS, vertical = 2.dp),
+                style = WifeTheme.captionStyle(tint), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         if (choice.participantCount == 2) {
             val pill = RoundedCornerShape(50)
@@ -271,6 +335,7 @@ internal fun SceneSearchField(value: String, onChange: (String) -> Unit, hint: S
 }
 
 private val PairRose = Color(0xFFE88AA8)
+private val PlaceBlue = Color(0xFF8FC4E8)
 
 @Composable
 internal fun AnimationViewport(

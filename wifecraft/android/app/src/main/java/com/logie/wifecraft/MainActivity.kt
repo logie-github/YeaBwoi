@@ -56,6 +56,10 @@ import com.logie.wifecraft.bodyparts.EveFitTable
 import com.logie.wifecraft.bodyparts.EveImportRunner
 import com.logie.wifecraft.bodyparts.EveOptionsEditor
 import com.logie.wifecraft.bodyparts.EveStore
+import com.logie.wifecraft.bodyparts.HdContext
+import com.logie.wifecraft.bodyparts.HdImportRunner
+import com.logie.wifecraft.bodyparts.HdSetInfo
+import com.logie.wifecraft.bodyparts.HdStore
 import com.logie.wifecraft.bodyparts.ModelParts
 import com.logie.wifecraft.bodyparts.PartChoice
 import com.logie.wifecraft.bodyparts.PartStates
@@ -76,6 +80,7 @@ import com.logie.wifecraft.ui.LocalGearControl
 import com.logie.wifecraft.ui.classOutfits
 import com.logie.wifecraft.ui.PartImportSection
 import com.logie.wifecraft.ui.EveImportSection
+import com.logie.wifecraft.ui.HdModelsSection
 import com.logie.wifecraft.ui.casEveBinding
 import com.logie.wifecraft.creator.Catalog
 import com.logie.wifecraft.creator.CreatorModel
@@ -179,6 +184,22 @@ class MainActivity : ComponentActivity() {
         eveLoaded = true
         view.loadEveSet(eveStore.dir.path, eveFitJson) { why -> if (why.isNotEmpty()) { eveLoaded = false; android.util.Log.w("Wifecraft", "Eve set: $why") } }
     }
+    // ---- HD Models (bodyparts/HdModels): the sets in files/bodyparts/hd, imported in Options, loaded into the 3D view
+    private val hdStore by lazy { HdStore(partsRoot) }
+    private val hdRunner by lazy { HdImportRunner(hdStore) }
+    @Volatile private var hdOn = true
+    /** The sets as last loaded into the 3D view (by race * 10 + sex); every dressing path asks [hdContext]. */
+    @Volatile private var hdSets: Map<Int, HdSetInfo> = emptyMap()
+
+    private fun hdContext(): HdContext = HdContext(hdOn, hdSets, hdStore.signature())
+
+    /** The imported sets loaded into [view] (none: every figure back to the game's model). Main thread. */
+    private fun loadHd(view: SceneView) {
+        val sets = hdStore.sets()
+        hdSets = sets.associateBy { it.key }
+        view.loadHdSets(sets.map { it.file.path }) { why -> if (why.isNotEmpty()) android.util.Log.w("Wifecraft", "HD sets: $why") }
+    }
+
     /** The named characters (assets/characters.json) with their partial looks (assets/model_parts.json). */
     private val namedCast by lazy { NamedCast.parse(assetText("characters.json"), assetText(ModelParts.ASSET)) }
 
@@ -208,10 +229,15 @@ class MainActivity : ComponentActivity() {
         listfile = ListfileNames(File(filesDir, "cache/listfile-character.csv"))
         imports = ImportStore(filesDir, listfile, supportedKinds = setOf(ImportKind.RALIA, ImportKind.BODY, ImportKind.UNDEAD))
         eveDefaultOn = settings.eveDefault
+        hdOn = settings.hdModels
+        com.logie.wifecraft.bodyparts.ArousalControl.mode = settings.partArousal
+        // a finished HD import or a Remove: the sets (re)loaded into the 3D view
+        hdRunner.listen { st -> if (st is HdImportRunner.State.Done) runOnUiThread { scene?.let { loadHd(it) } ?: run { hdSets = hdStore.sets().associateBy { it.key } } } }
         // a finished import or a Remove: the set (re)loaded into the 3D view, if there is one
         eveRunner.listen { st -> if (st is EveImportRunner.State.Done) runOnUiThread { scene?.let { loadEve(it) } ?: run { eveLoaded = eveStore.installed() } } }
         dresser = Dresser(files, tables, imports, lifecycleScope).apply {
             eve = { eveContext() }
+            hd = { hdContext() }
             named = namedCast
             manifestJson = assetText(ModelParts.ASSET)
             partsRoot = this@MainActivity.partsRoot
@@ -262,7 +288,7 @@ class MainActivity : ComponentActivity() {
         sceneAudio?.volumes = Mixer.sceneVolumes(m)
     }
 
-    private fun sceneView(): SceneView = scene ?: SceneView(this, files.dir.path).also { scene = it; it.softBody(Settings(this).softBody); loadEve(it) }
+    private fun sceneView(): SceneView = scene ?: SceneView(this, files.dir.path).also { scene = it; it.softBody(Settings(this).softBody); loadEve(it); loadHd(it) }
 
     private fun readText(file: AtomicFile): String? = if (file.baseFile.exists()) file.readFully().decodeToString() else null
 
@@ -493,7 +519,7 @@ class MainActivity : ComponentActivity() {
                     Screen.SETUP -> {
                         val previewView = if (step == SetupStep.OBJECTS) null else sceneView()
                         val portraits = if (step == SetupStep.CAST) {
-                            remember { Thumbs(applicationContext, files, previewView, tables, { imports }, { namedCast }, { eveContext() }) }.also { source ->
+                            remember { Thumbs(applicationContext, files, previewView, tables, { imports }, { namedCast }, { eveContext() }, { hdContext() }) }.also { source ->
                                 DisposableEffect(source) { onDispose { source.close() } }
                             }
                         } else null
@@ -544,7 +570,7 @@ class MainActivity : ComponentActivity() {
                         val view = sceneView()
                         val model = remember { CreatorModel(c, checkNotNull(defaultAppearance(c))) }
                         val key = "npc-preview"
-                        val portraits = remember(view) { Thumbs(applicationContext, files, view, tables, { imports }, { namedCast }, { eveContext() }) }
+                        val portraits = remember(view) { Thumbs(applicationContext, files, view, tables, { imports }, { namedCast }, { eveContext() }, { hdContext() }) }
                         var backdropRace by remember { mutableStateOf<Int?>(null) }
                         var backdropStatus by remember { mutableStateOf<String?>(null) }
                         var backdropRetry by remember { mutableIntStateOf(0) }
@@ -597,6 +623,12 @@ class MainActivity : ComponentActivity() {
                         }
                         BackHandler { screen = Screen.SETUP }
                         AndroidView({ (view.parent as? ViewGroup)?.removeView(view); view }, Modifier.fillMaxSize())
+                        // HD Models in the creator (ui/CasPanels.kt LocalCasHd): the figure's own rows for a race and sex with a set
+                        val hdBinding = remember(hdSets, hdOn) {
+                            if (!hdOn || hdSets.isEmpty()) null
+                            else com.logie.wifecraft.ui.CasHdBinding(setFor = { a -> hdSets[a.raceId * 10 + if (a.sex == com.logie.wifecraft.creator.Sex.FEMALE) 1 else 0] })
+                        }
+                        androidx.compose.runtime.CompositionLocalProvider(com.logie.wifecraft.ui.LocalCasHd provides hdBinding) {
                         CreatorScreen(
                             model, checkNotNull(art), view, tables,
                             actorKey = key,
@@ -620,6 +652,7 @@ class MainActivity : ComponentActivity() {
                                 casEveBinding(eveStore.index()?.takeIf { eveLoaded }?.let { EveOptionsEditor(it, eveFit) }, eveDefaultOn)
                             },
                         )
+                        }
                         backdropStatus?.let { message ->
                             if (message.endsWith("Tap to retry.")) {
                                 TextButton({ backdropRetry++ }, Modifier.align(Alignment.TopCenter).padding(top = 40.dp)) { Text(message) }
@@ -735,6 +768,8 @@ class MainActivity : ComponentActivity() {
                             partStates = chosen.fold(partStates) { states, actor ->
                                 if (actorKey(actor.id) in partKeys) states.register(actor.id) else states.remove(actor.id)
                             }
+                            // (each NPC's arousal override as saved: bodyparts/ArousalControl, read by the scene's frame)
+                            for (actor in chosen) com.logie.wifecraft.bodyparts.ArousalControl.setOverride(actor.id, settings.partOverride(actor.id))
                         }
                         val gearControl = remember(session) {
                             object : GearControl {
@@ -750,14 +785,25 @@ class MainActivity : ComponentActivity() {
                                 override fun setAll(on: Boolean) { for (a in chosenNow) set(a.id, on) }
                             }
                         }
+                        // the switch is each NPC's arousal override (bodyparts/Arousal: Auto, On, Off; kept per NPC in the
+                        // settings); the arousal itself is the scene's (SceneSessionScreen: the stage played, the intensity)
+                        var partOverrides by remember(session) {
+                            mutableStateOf(chosen.associate { it.id to settings.partOverride(it.id) }.also { m ->
+                                for ((id, o) in m) com.logie.wifecraft.bodyparts.ArousalControl.setOverride(id, o)
+                            })
+                        }
                         val partControl = remember(session) {
                             object : PartControl {
                                 override fun has(npcId: String): Boolean = partStates.has(npcId)
-                                override fun isOn(npcId: String): Boolean = partStates.isOn(npcId)
+                                override fun isOn(npcId: String): Boolean = partOverrides[npcId] == com.logie.wifecraft.bodyparts.PartOverride.ON
+                                override fun label(npcId: String): String =
+                                    "Arousal: " + (partOverrides[npcId] ?: com.logie.wifecraft.bodyparts.PartOverride.AUTO).label
                                 override fun toggle(npcId: String) {
                                     if (!partStates.has(npcId)) return
-                                    partStates = partStates.toggle(npcId)
-                                    dresser.showParts(view, actorKey(npcId), partStates.state(npcId))
+                                    val next = (partOverrides[npcId] ?: com.logie.wifecraft.bodyparts.PartOverride.AUTO).next()
+                                    partOverrides = partOverrides + (npcId to next)
+                                    com.logie.wifecraft.bodyparts.ArousalControl.setOverride(npcId, next)
+                                    settings.setPartOverride(npcId, next)
                                 }
                             }
                         }
@@ -903,13 +949,22 @@ class MainActivity : ComponentActivity() {
                                 EveImportSection(eveRunner, eveStore, eveDefault, onDefault = { on ->
                                     eveDefault = on; settings.eveDefault = on; eveDefaultOn = on
                                 }, raliaOn = imports.hasRalia())
+                                var hdSwitch by remember { mutableStateOf(settings.hdModels) }
+                                HdModelsSection(hdRunner, hdStore, hdSwitch, onSwitch = { on ->
+                                    hdSwitch = on; settings.hdModels = on; hdOn = on
+                                })
                                 PartImportSection(partsRoot, partSet, profileJson = { assetText("sims_profile.json").orEmpty() }, onChanged = { set ->
                                     partSet = set
                                     settings.partSet = set
                                     dresser.partSet = set
                                 })
+                                var arousalMode by remember { mutableStateOf(settings.partArousal) }
+                                com.logie.wifecraft.ui.PartArousalSection(arousalMode, onMode = { m ->
+                                    arousalMode = m; settings.partArousal = m; com.logie.wifecraft.bodyparts.ArousalControl.mode = m
+                                })
                                 // Move mode's item mappings: what was classified and where its report is (ui/ItemMapperUi.kt)
                                 com.logie.wifecraft.ui.MappedItemsSection()
+                                com.logie.wifecraft.ui.RaceOffsetsSection()
                             }
                         },
                         sound = {

@@ -82,7 +82,9 @@ class CameraInfo(
 interface LookSource {
     class Prepared(val call: DressCall? = null, val body: BodyCall = BodyCall.NONE, val character: Boolean = false, val error: String? = null,
         /** The Eve body on the look (bodyparts/EveDress); null: her own body. */
-        val eve: EveOptions? = null)
+        val eve: EveOptions? = null,
+        /** The HD figure on the look (bodyparts/HdDress's decision); null or not `on`: the game's model. */
+        val hd: com.logie.wifecraft.bodyparts.HdDress.Decision? = null)
     /** A prop's files ([model]); null when they are here, else why not. */
     fun prepareProp(model: Int, onDone: (String?) -> Unit)
     /** A creature's ([PlaceKind.CREATURE], [asset] its display) or an NPC's ([PlaceKind.NPC], its [appearance]) look. */
@@ -374,6 +376,23 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
      * GL thread, a [FrameDriver] only: actor [key]'s skin sheen 0..1 (cpp Scene::setSheen; graphics/SkinSheen), sent when it
      * moved by more than a little. An actor not on stage yet: nothing.
      */
+    /**
+     * GL thread: the body parts' arousal [level] (0..1; < 0 not driven) on [key]'s actor and, during a partner stage, the
+     * [partnerKey] whose [entry] (bodyparts/PartEntryKind.engine) the erect shaft goes into at [rest] depth (cpp
+     * Scene::setPartDrive). Sent only when it changed.
+     */
+    fun glPartDrive(key: String, level: Float, partnerKey: String?, entry: Int, rest: Float) {
+        val id = ids[key] ?: return
+        val partner = partnerKey?.let { ids[it] } ?: 0
+        val v = if (level.isFinite()) level.coerceAtMost(1f) else -1f
+        val last = driveSent[id]
+        if (last != null && kotlin.math.abs(last.level - v) < 0.003f && last.partner == partner && last.entry == entry && last.rest == rest) return
+        driveSent[id] = DriveSent(v, partner, entry, rest)
+        Native.partDrive(handle, id, v, partner, entry, rest)
+    }
+    private class DriveSent(val level: Float, val partner: Int, val entry: Int, val rest: Float)
+    private val driveSent = HashMap<Int, DriveSent>()
+
     fun glSheen(key: String, value: Float) {
         val id = ids[key] ?: return
         val v = if (value.isFinite()) value.coerceIn(0f, 1f) else 0f
@@ -396,6 +415,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         Native.particles(h, 0, 0f)
         for (id in ids.values) { Native.clearMotion(h, id); Native.sheen(h, id, 0f) }
         sheenSent.clear()
+        driveSent.clear()
     }
 
     override fun showCity(shown: Boolean) = post { h, _ -> Native.showCity(h, shown) }
@@ -454,6 +474,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
             applyParts(h, key, added)
             applyModelSet(h, key, added)
             applyEve(h, key, added)
+            applyHd(h, key, added)
         }
         Native.character(h, id, character)
         Native.dress(h, id, call.geosetKeys, call.geosetValues, call.layerFiles, call.layerMeta, call.tintColours, call.extraModels)
@@ -462,7 +483,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         if (onReady != null) main.post { onReady() }
     }
 
-    override fun removeActor(key: String) = post { h, ids -> ids.remove(key)?.let { Native.removeActor(h, it) }; bodies.remove(key); fleshWanted.remove(key); if (fleshes.remove(key) != null) fleshVersion++; sizes.remove(key); humanScales.remove(key); bodyRatios.remove(key); requestedAnimations.remove(key); actorParts.remove(key); partRaces.remove(key); modelSets.remove(key); eveOptions.remove(key) }
+    override fun removeActor(key: String) = post { h, ids -> ids.remove(key)?.let { Native.removeActor(h, it) }; bodies.remove(key); fleshWanted.remove(key); if (fleshes.remove(key) != null) fleshVersion++; sizes.remove(key); humanScales.remove(key); bodyRatios.remove(key); requestedAnimations.remove(key); actorParts.remove(key); partRaces.remove(key); modelSets.remove(key); eveOptions.remove(key); hdBodies.remove(key) }
 
     /**
      * The actor [key]'s size over a human's of its sex as the live scene draws it (1 at human scale, a dwarf's or gnome's own:
@@ -497,6 +518,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         partRaces.clear()
         modelSets.clear()
         eveOptions.clear()
+        hdBodies.clear()
     }
 
     // ---- body parts (cpp engine/bodypart.h; bodyparts/: the files, PartFits, PartSkin, PartDraw)
@@ -630,6 +652,64 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     /** What became of the actor's Eve body (Native.eveStatus's "on|NECK|ANKLE|SHADE|MS|why"); [onResult] on the main thread. */
     fun eveStatus(actorKey: String, onResult: (String) -> Unit) = post { h, ids ->
         val st = ids[actorKey]?.let { Native.eveStatus(h, it) } ?: "no such actor"
+        main.post { onResult(st) }
+    }
+
+    // ---- HD Models (cpp engine/hdbody.h, hdscene.cpp; bodyparts/HdModels: HdStore, HdDress)
+
+    /** GL thread: each key's HD figure (race, sex, options as the engine takes them), put on again when the actor is made anew. */
+    private class HdBody(val race: Int, val sex: Int, val o: com.logie.wifecraft.bodyparts.HdOptions, val outfit: Int)
+    private val hdBodies = mutableMapOf<String, HdBody>()
+    /** GL thread: the sets given ([loadHdSets]) and the scene they were loaded into (a new scene loads them again). */
+    private var hdPaths: List<String> = emptyList()
+    private var hdLoadedInto = 0L
+
+    private fun ensureHdSets(h: Long): String {
+        if (hdLoadedInto == h) return ""
+        Native.clearHdSets(h)
+        val problems = hdPaths.mapNotNull { p -> Native.loadHdSet(h, p).takeIf { it.isNotEmpty() }?.let { "${java.io.File(p).name}: $it" } }
+        hdLoadedInto = h
+        if (problems.isNotEmpty()) android.util.Log.w("Wifecraft", "HD sets: " + problems.joinToString("; "))
+        return problems.joinToString("; ")
+    }
+
+    private fun applyHd(h: Long, key: String, id: Int) {
+        val b = hdBodies[key] ?: return
+        ensureHdSets(h)
+        Native.setHdBody(h, id, b.race, b.sex, true, b.o.hair, b.outfit, b.o.eyes, b.o.faceMark, if (b.o.bodyMarks) 1 else 0,
+            b.o.tint, b.o.hairTint, b.o.jewelry.toIntArray())
+    }
+
+    /** The imported HD sets' files (files/bodyparts/hd/<race>_<sex>.whd) for every actor from now on; [onResult] (main thread) "" or what failed. */
+    fun loadHdSets(paths: List<String>, onResult: (String) -> Unit = {}) = post { h, ids ->
+        hdPaths = paths
+        hdLoadedInto = 0L
+        val why = ensureHdSets(h)
+        for ((key, id) in ids) applyHd(h, key, id)
+        main.post { onResult(why) }
+    }
+
+    /** The actor [actorKey] drawn as its HD figure ([d]: bodyparts/HdDress's decision, `on`). Kept for a new model of the key. */
+    fun setHdBody(actorKey: String, d: com.logie.wifecraft.bodyparts.HdDress.Decision) {
+        val set = d.set ?: return
+        val o = d.options ?: return
+        post { h, ids ->
+            hdBodies[actorKey] = HdBody(set.race, set.sex, o, d.outfit)
+            ids[actorKey]?.let { applyHd(h, actorKey, it) }
+            if (actorKey != GHOST_KEY) fleshWanted[actorKey] = 0   // (her flesh measured again on the body she shows)
+        }
+    }
+
+    /** The actor [actorKey] back on the game's model. */
+    fun clearHdBody(actorKey: String) = post { h, ids ->
+        hdBodies.remove(actorKey)
+        ids[actorKey]?.let { Native.clearHdBody(h, it) }
+        if (actorKey != GHOST_KEY) fleshWanted[actorKey] = 0
+    }
+
+    /** What became of the actor's HD figure (Native.hdStatus); [onResult] on the main thread. */
+    fun hdStatus(actorKey: String, onResult: (String) -> Unit) = post { h, ids ->
+        val st = ids[actorKey]?.let { Native.hdStatus(h, it) } ?: "no such actor"
         main.post { onResult(st) }
     }
 
@@ -915,6 +995,41 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
             actor != null -> Native.gizmo(handle, mode.ordinal, Native.PICK_ACTOR, actor, gizmoAxis)
             else -> Native.gizmo(handle, Native.GIZMO_OFF, 0, 0, -1)
         }
+        applyBuild()
+    }
+
+    // ---- the live scene's build mode overlay (cpp engine/buildview.cpp; ui/BuildModeUi.kt sets it)
+
+    private class BuildOverlay(val flags: Int, val x: Float, val y: Float, val z: Float, val yaw: Float, val axis: Int,
+                               val markers: FloatArray?, val box: FloatArray?)
+    @Volatile private var buildOverlay: BuildOverlay? = null
+    private var buildApplied: BuildOverlay? = null
+
+    /**
+     * Build mode's overlay, drawn from the next frame on until changed: the axis gizmo ([flags] Native.BUILD_ARROWS /
+     * BUILD_RING at [x], [y], [z] turned [yaw], [axis] lit), the markers (8 floats each) and the selected item's box (7 floats).
+     * [clearBuild] takes it all away. Any thread.
+     */
+    fun setBuild(flags: Int, x: Float, y: Float, z: Float, yaw: Float, axis: Int, markers: FloatArray?, box: FloatArray?) {
+        buildOverlay = BuildOverlay(flags, x, y, z, yaw, axis, markers, box)
+    }
+
+    fun clearBuild() { buildOverlay = BuildOverlay(0, 0f, 0f, 0f, 0f, -1, null, null) }
+
+    /** GL thread, each frame: the overlay given to the renderer when it changed. */
+    private fun applyBuild() {
+        val b = buildOverlay ?: return
+        if (b === buildApplied) return
+        buildApplied = b
+        Native.buildGizmo(handle, b.flags, b.x, b.y, b.z, b.yaw, b.axis)
+        Native.buildMarkers(handle, b.markers)
+        Native.buildBox(handle, b.box)
+    }
+
+    /** A location doodad's description by its pick id ([Hit] key "location:N"), to [onResult] on the main thread (null: none). */
+    fun locationObjectInfo(index: Int, onResult: (FloatArray?) -> Unit) = post { h, _ ->
+        val v = Native.locationObjectInfo(h, index)
+        main.post { onResult(v) }
     }
 
     /**
@@ -1044,6 +1159,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
             val sex = if (kind == PlaceKind.NPC) appearance?.sex else null
             // the Eve body as the scene would draw her (set before the dress: fitted once)
             p.eve.let { e -> if (e != null) setEveBody(GHOST_KEY, e) else clearEveBody(GHOST_KEY) }
+            p.hd.let { d -> if (d != null && d.on) setHdBody(GHOST_KEY, d) else clearHdBody(GHOST_KEY) }
             dress(GHOST_KEY, call, p.body, p.character, sex = sex, raceId = appearance?.raceId ?: 0) { why -> done(false, why) }
             post { h, ids ->
                 val id = ids[GHOST_KEY] ?: return@post

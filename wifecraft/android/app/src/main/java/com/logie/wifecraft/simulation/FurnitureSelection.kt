@@ -1,6 +1,7 @@
 package com.logie.wifecraft.simulation
 
 import com.logie.wifecraft.anim.Anim
+import com.logie.wifecraft.anim.BodyFrame
 import com.logie.wifecraft.anim.BodyGeometry
 import com.logie.wifecraft.anim.Hints
 import com.logie.wifecraft.anim.HumanScale
@@ -25,9 +26,14 @@ data class FurnitureAnimation(val id: String, val name: String, val requirement:
          * Its slots are at human scale across the floor (yards: [PartnerSlot.human]); the clips' frame is the reference
          * body's, so they are taken back by [HumanScale.PAIR] (up and down a slot is the clip's own already).
          */
-        fun of(p: PartnerPair): FurnitureAnimation = FurnitureAnimation(p.id, p.name, RequirementClassifier.classify(listOf(
-            frames(p.a, p.slotA), frames(p.b, p.slotB),
-        ), Hints(listOf(p.name, p.a.sourceName, p.b.sourceName), p.locations)), p)
+        fun of(p: PartnerPair): FurnitureAnimation = FurnitureAnimation(p.id, p.name, RequirementClassifier.classify(bodies(p),
+            Hints(listOf(p.name, p.a.sourceName, p.b.sourceName), p.locations)), p)
+
+        /** [p]'s two bodies over the clip at their slots, in the pair's shared frame (body units), as [of] reads them. */
+        fun bodies(p: PartnerPair): List<List<BodyFrame>> = listOf(frames(p.a, p.slotA), frames(p.b, p.slotB))
+
+        /** How far [p] may be lowered for a floor play (body units: [FurnitureAvailability.floorDrop]). */
+        fun floorDrop(p: PartnerPair): Float = FurnitureAvailability.floorDrop(bodies(p))
 
         private fun frames(a: Anim, s: PartnerSlot) = BodyGeometry.frames(a, (s.x / HumanScale.PAIR).toDouble(),
             (s.y / HumanScale.PAIR).toDouble(), s.z.toDouble(), s.yawDeg.toDouble())
@@ -54,9 +60,12 @@ object FurnitureSelection {
     /** The order the window's groups come in. */
     private val GROUPS = listOf("Lying", "Sitting", "Kneeling", "On all fours", "Leaning", "Crouching", "Standing", "Unsorted")
 
-    /** The animations [f] allows, grouped by the posture of the actor on it (Lying, Sitting...), each group by name. */
+    /**
+     * The animations [f] allows (where they fit, else where they nearly fit: [fitOrNear]), grouped by the posture of the actor
+     * on it (Lying, Sitting...), each group by name.
+     */
     fun listFor(f: Furniture, library: List<FurnitureAnimation>, bodyUnit: Float = FurnitureFit.DEFAULT_BODY_UNIT): Map<String, List<FurnitureEntry>> {
-        val entries = library.mapNotNull { a -> FurnitureFit.fit(a.requirement, f, bodyUnit)?.let { FurnitureEntry(a, it) } }
+        val entries = library.mapNotNull { a -> fitOrNear(a.requirement, f, bodyUnit)?.let { FurnitureEntry(a, it) } }
         val grouped = entries.groupBy { it.animation.posture.group }
         val out = LinkedHashMap<String, List<FurnitureEntry>>()
         for (g in GROUPS + grouped.keys.filter { it !in GROUPS }) grouped[g]?.let { list -> out[g] = list.sortedBy { it.animation.name.lowercase() } }
@@ -71,11 +80,18 @@ object FurnitureSelection {
                 bodyUnit: Float = FurnitureFit.DEFAULT_BODY_UNIT, busy: Set<String> = emptySet()): FurniturePick? {
         val free = nearby.filter { it.id !in busy }
         val usable = library.filter { it.participants in 1..free.size }
-            .mapNotNull { a -> FurnitureFit.fit(a.requirement, f, bodyUnit)?.let { a to it } }
+            .mapNotNull { a -> fitOrNear(a.requirement, f, bodyUnit)?.let { a to it } }
         if (usable.isEmpty()) return null
         val (animation, fit) = usable[random.nextInt(usable.size)]
         return FurniturePick(animation, fit, cast(fit, free) ?: return null)
     }
+
+    /**
+     * Where [r] plays on [f]: where it fits ([FurnitureFit.fit]), else, needing furniture, where it nearly fits (relaxed: a bed
+     * taller than the clip's, a couch for a bed), as the scene plays it ([FurnitureAvailability]); null: neither.
+     */
+    fun fitOrNear(r: Requirement, f: Furniture, bodyUnit: Float = FurnitureFit.DEFAULT_BODY_UNIT): FurnitureFit? =
+        FurnitureFit.fit(r, f, bodyUnit) ?: if (r.surface in Requirement.FLOOR_LEVEL) null else FurnitureFit.fit(r, f, bodyUnit, relaxed = true)
 
     /** The people (one per role) whose walks to [fit]'s positions add up shortest; null without enough. */
     fun cast(fit: FurnitureFit, people: List<NearbyNpc>): List<String>? {

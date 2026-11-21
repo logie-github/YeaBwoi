@@ -191,6 +191,7 @@ object PairAssembly {
             locations = PairLocations.normalize(def?.locations.orEmpty()), sounds = sounds,
             source = PairAnim.sourceOf(animA.source.ifBlank { a.sourceKey }, animB.source.ifBlank { b.sourceKey }),
             importedAt = System.currentTimeMillis(),
+            kind = def?.kind.orEmpty(),
         )
     }
 

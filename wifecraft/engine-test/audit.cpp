@@ -739,6 +739,15 @@ int main(int argc, char** argv) {
                                  b[s].lowBone >= 0 ? m.bones[size_t(b[s].lowBone)].parent : -9, sub,
                                  b[s].joint.count("Pelvis") ? b[s].joint["Pelvis"].z - floorZ : -9.0f);
                 }
+            // AUDIT_JOINTS: each body's hip joints (the thighs' middle) and Root in the world, and its lowest vertex (stderr)
+            if (std::getenv("AUDIT_JOINTS"))
+                for (int s = 0; s < 2; ++s) if (have[s]) {
+                    auto l = b[s].joint.find("L_Thigh"), r = b[s].joint.find("R_Thigh"), rt = b[s].joint.find("Root");
+                    if (l == b[s].joint.end() || r == b[s].joint.end() || rt == b[s].joint.end()) continue;
+                    V3 h = (l->second + r->second) * 0.5f;
+                    std::fprintf(stderr, "joints %s %u %d %.4f %.4f %.4f %.4f %.4f %.4f %.4f\n", caseId.c_str(), t, s, h.x, h.y, h.z,
+                                 rt->second.x, rt->second.y, rt->second.z, b[s].minBodyZ);
+                }
             float aaBody = 0, aaFrac = 0, aaHand = 0, pelvis = NAN, trunk = NAN; int same = 0;
             if (have[0] && have[1]) {
                 size_t inside = 0, total = 0;

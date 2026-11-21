@@ -136,11 +136,39 @@ float bodyFrontX(const M2Model& m, const std::vector<uint16_t>& geosets, float z
     return best > -1e8f ? best : fallback;
 }
 
+std::vector<uint8_t> legBones(const M2Model& m) {
+    std::vector<uint8_t> leg(m.bones.size(), 0);
+    int roots[2] = {m.findWowBone("L_Thigh"), m.findWowBone("R_Thigh")};
+    for (size_t i = 0; i < m.bones.size(); ++i) {
+        // a thigh, or under one (parents come before their children in the files, but walk up to be sure)
+        int b = int(i);
+        for (int guard = 0; b >= 0 && guard < 64; ++guard) {
+            if (b == roots[0] || b == roots[1]) { leg[i] = 1; break; }
+            b = m.bones[size_t(b)].parent;
+        }
+    }
+    return leg;
+}
+
+float legWeight(const M2Vertex& v, const std::vector<uint8_t>& leg) {
+    int sum = 0, all = 0;
+    for (int k = 0; k < 4; ++k) {
+        all += v.weights[k];
+        if (v.weights[k] && v.bones[k] < leg.size() && leg[v.bones[k]]) sum += v.weights[k];
+    }
+    return all ? float(sum) / float(all) : 0.0f;
+}
+
 float bodyCrotchZ(const M2Model& m, const std::vector<uint16_t>& geosets, float halfWidth, float above, float below, float minX) {
+    // the lowest midline vertex the legs don't carry (most of its weight off the thighs and below): where the legs part. Knees
+    // that touch (a woman's stance) are on the midline too, but carried by the legs; a body without thighs takes any vertex.
+    std::vector<uint8_t> leg = legBones(m);
+    bool hasLegs = std::find(leg.begin(), leg.end(), 1) != leg.end();
     float best = 1e9f;
     eachBodyVertex(m, geosets, [&](const M2Vertex& v) {
         const float* p = v.pos;
-        if (std::fabs(p[1]) <= halfWidth && p[0] >= minX && p[2] > above && p[2] < below && p[2] < best) best = p[2];
+        if (std::fabs(p[1]) <= halfWidth && p[0] >= minX && p[2] > above && p[2] < below && p[2] < best &&
+            (!hasLegs || legWeight(v, leg) < kCrotchLegShare)) best = p[2];
     });
     return best < 1e8f ? best : -1.0f;
 }
@@ -155,7 +183,11 @@ PartPlacement placeParts(const M2Model& m, const std::vector<uint16_t>& geosets,
     pl.scale = h / kPartReferenceHeight * (fit.scale > 0 ? fit.scale : 1.0f);
     pl.crotch = bodyCrotchZ(m, geosets, 0.03f * h, 0.25f * h, 1.05f * h, pl.pivot.x - 0.12f * h);   // (not a tail behind)
     if (pl.crotch < 0) pl.crotch = pl.pivot.z - 0.25f * h;
-    float z = pl.crotch + kPartRootAboveCrotch * pl.scale + fit.dz * h;
+    // the root: kPartRootShare of the way from where the legs part up to the hip joints (the thighs' pivots), on the body's
+    // front: the body's own proportions, whatever its race and build; without thighs, kPartRootAboveCrotch (scaled) above
+    int lt = m.findWowBone("L_Thigh"), rt = m.findWowBone("R_Thigh");
+    float hip = lt >= 0 && rt >= 0 ? 0.5f * (m.bones[size_t(lt)].pivot.z + m.bones[size_t(rt)].pivot.z) : -1.0f;
+    float z = (hip > pl.crotch ? pl.crotch + kPartRootShare * (hip - pl.crotch) : pl.crotch + kPartRootAboveCrotch * pl.scale) + fit.dz * h;
     float front = bodyFrontX(m, geosets, z, 0.03f * h, 0.025f * h, pl.pivot.x + 0.12f * h);
     pl.root = V3(front + fit.dx * h, 0.0f, z);
     pl.ok = std::isfinite(pl.root.x) && std::isfinite(pl.root.z) && std::isfinite(pl.scale);
@@ -172,6 +204,273 @@ std::vector<float> bodySkinUvs(const M2Model& m, const std::vector<uint16_t>& ge
     size_t step = near.size() > maxPoints && maxPoints ? (near.size() + maxPoints - 1) / maxPoints : 1;
     for (size_t i = 0; i < near.size(); i += step) { out.push_back(near[i]->uv[0]); out.push_back(near[i]->uv[1]); }
     return out;
+}
+
+// ------------------------------------------------------------------------------------------------ the shaft, arousal, insertion
+
+Quat quatMul(const Quat& a, const Quat& b) {
+    return Quat(a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+                a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+                a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
+                a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z);
+}
+
+V3 quatRotate(const Quat& q, const V3& v) {
+    V3 u(q.x, q.y, q.z);
+    V3 t = u.cross(v) * 2.0f;
+    return v + t * q.w + u.cross(t);
+}
+
+Quat quatAxisAngle(const V3& axis, float radians) {
+    V3 a = axis.normalized();
+    float s = std::sin(radians * 0.5f);
+    return Quat(a.x * s, a.y * s, a.z * s, std::cos(radians * 0.5f));
+}
+
+Quat quatFromTo(const V3& from, const V3& to) {
+    V3 f = from.normalized(), t = to.normalized();
+    float d = f.dot(t);
+    if (d > 0.999999f) return Quat();
+    if (d < -0.999999f) {
+        V3 side = std::fabs(f.x) < 0.9f ? V3(1, 0, 0).cross(f) : V3(0, 1, 0).cross(f);
+        return quatAxisAngle(side, 3.14159265f);
+    }
+    V3 c = f.cross(t);
+    return Quat(c.x, c.y, c.z, 1.0f + d).normalized();
+}
+
+float quatAngle(const Quat& q) {
+    float w = std::min(1.0f, std::fabs(q.w));
+    return 2.0f * std::acos(w);
+}
+
+M4 affineInverse(const M4& m) {
+    // the 3x3 inverse by cofactors, then the translation
+    float a = m.at(0, 0), b = m.at(0, 1), c = m.at(0, 2);
+    float d = m.at(1, 0), e = m.at(1, 1), f = m.at(1, 2);
+    float g = m.at(2, 0), h = m.at(2, 1), i = m.at(2, 2);
+    float A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g;
+    float det = a * A + b * B + c * C;
+    M4 r;
+    if (std::fabs(det) < 1e-12f) return r;
+    float k = 1.0f / det;
+    r.at(0, 0) = A * k;                 r.at(0, 1) = -(b * i - c * h) * k; r.at(0, 2) = (b * f - c * e) * k;
+    r.at(1, 0) = B * k;                 r.at(1, 1) = (a * i - c * g) * k;  r.at(1, 2) = -(a * f - c * d) * k;
+    r.at(2, 0) = C * k;                 r.at(2, 1) = -(a * h - b * g) * k; r.at(2, 2) = (a * e - b * d) * k;
+    V3 t(m.at(0, 3), m.at(1, 3), m.at(2, 3));
+    for (int row = 0; row < 3; ++row) r.at(row, 3) = -(r.at(row, 0) * t.x + r.at(row, 1) * t.y + r.at(row, 2) * t.z);
+    return r;
+}
+
+namespace {
+float smooth01(float e0, float e1, float x) {
+    float t = std::clamp((x - e0) / (e1 - e0), 0.0f, 1.0f);
+    return t * t * (3 - 2 * t);
+}
+} // namespace
+
+PartShaft measureShaft(const PartData& d, const PartData* other) {
+    PartShaft s;
+    size_t n = d.vertexCount();
+    if (!n || d.modelFrame()) return s;
+    s.root = V3(kPartRootX, 0.0f, kPartRootZ);
+    // the base and scrotum: the vertices the other state's mesh has too (to half a millimetre)
+    std::vector<uint8_t> shared(n, 0);
+    if (other && other->vertexCount() && !other->modelFrame()) {
+        auto key = [](const V3& p) {
+            auto q = [](float v) { return int64_t(std::llround(v * 2000.0)) & 0x1FFFFF; };
+            return q(p.x) << 42 | q(p.y) << 21 | q(p.z);
+        };
+        std::vector<int64_t> keys;
+        keys.reserve(other->vertexCount());
+        for (size_t v = 0; v < other->vertexCount(); ++v) keys.push_back(key(partSimsPoint(*other, v)));
+        std::sort(keys.begin(), keys.end());
+        for (size_t v = 0; v < n; ++v) shared[v] = std::binary_search(keys.begin(), keys.end(), key(partSimsPoint(d, v))) ? 1 : 0;
+    } else {
+        // no other mesh: the shaft is what stands in front of the root
+        for (size_t v = 0; v < n; ++v) shared[v] = partSimsPoint(d, v).x < s.root.x - 0.002f ? 1 : 0;
+    }
+    float best = -1;
+    V3 tip;
+    for (size_t v = 0; v < n; ++v) {
+        if (shared[v]) continue;
+        V3 p = partSimsPoint(d, v);
+        if (std::fabs(p.y) > 0.03f) continue;
+        float l = (p - s.root).length();
+        if (l > best) { best = l; tip = p; }
+    }
+    if (best < 0.02f) return s;
+    s.axis = (tip - s.root).normalized();
+    s.length = best;
+    s.weights.assign(n, 0.0f);
+    for (size_t v = 0; v < n; ++v) {
+        if (shared[v]) continue;
+        float t = (partSimsPoint(d, v) - s.root).dot(s.axis);
+        s.weights[v] = smooth01(0.004f, 0.028f, t);
+    }
+    s.ok = true;
+    return s;
+}
+
+void posePart(const PartData& d, const PartShaft& s, const PartBend& b, std::vector<M2Vertex>& out) {
+    size_t n = d.vertexCount();
+    out.resize(n);
+    bool bend = s.ok && s.weights.size() == n;
+    V3 axisNow = bend ? quatRotate(b.turn, s.axis) : V3(1, 0, 0);
+    for (size_t i = 0; i < n; ++i) {
+        M2Vertex& o = out[i];
+        std::memset(&o, 0, sizeof o);
+        V3 p = partSimsPoint(d, i);
+        V3 nn = d.normals.size() >= (i + 1) * 3 ? V3(d.normals[i * 3], d.normals[i * 3 + 1], d.normals[i * 3 + 2]) : V3(0, 0, 1);
+        if (bend && s.weights[i] > 0) {
+            float w = s.weights[i];
+            Quat q = slerp(Quat(), b.turn, w);
+            V3 r = quatRotate(q, p - s.root);
+            float along = r.dot(axisNow);
+            if (along > 0) r = r + axisNow * (along * (b.stretch - 1.0f) * w);
+            p = s.root + r;
+            nn = quatRotate(q, nn);
+        }
+        o.pos[0] = p.x; o.pos[1] = p.y; o.pos[2] = p.z;
+        o.normal[0] = nn.x; o.normal[1] = nn.y; o.normal[2] = nn.z;
+        if (d.uvs.size() >= (i + 1) * 2) { o.uv[0] = d.uvs[i * 2]; o.uv[1] = d.uvs[i * 2 + 1]; }
+    }
+}
+
+float easeLevel(float level) {
+    float t = std::clamp(std::isfinite(level) ? level : 0.0f, 0.0f, 1.0f);
+    return t * t * (3 - 2 * t);
+}
+
+bool levelSlotOn(float level, bool wasOn) {
+    return wasOn ? level > kPartSwapDown : level >= kPartSwapUp;
+}
+
+namespace {
+// the pitch and length the level draws
+void levelShape(float level, const PartShaft& flaccid, const PartShaft& erect, float hang, float& pitch, float& length) {
+    float u = easeLevel(level);
+    float pf = flaccid.ok ? flaccid.pitch() : -1.2f, pe = erect.ok ? erect.pitch() : 0.05f;
+    float lf = flaccid.ok ? flaccid.length : 0.1f, le = erect.ok ? erect.length : lf * 1.5f;
+    pitch = pf + (pe - pf) * u + hang * (1.0f - u);
+    length = lf + (le - lf) * u;
+}
+} // namespace
+
+PartBend levelBend(float level, bool slotOn, const PartShaft& flaccid, const PartShaft& erect, float hang) {
+    PartBend b;
+    const PartShaft& mesh = slotOn ? erect : flaccid;
+    if (!mesh.ok) return b;
+    float pitch, length;
+    levelShape(level, flaccid, erect, hang, pitch, length);
+    // a turn about y by -delta raises the pitch (atan2(z, x)) by delta
+    b.turn = quatAxisAngle(V3(0, 1, 0), -(pitch - mesh.pitch()));
+    b.stretch = mesh.length > 1e-4f ? std::clamp(length / mesh.length, 0.5f, 2.0f) : 1.0f;
+    return b;
+}
+
+V3 levelAxis(float level, const PartShaft& flaccid, const PartShaft& erect, float hang) {
+    float pitch, length;
+    levelShape(level, flaccid, erect, hang, pitch, length);
+    return V3(std::cos(pitch), 0.0f, std::sin(pitch));
+}
+
+float insertionDepth(float length, float distance, float rest) {
+    if (!(length > 0) || !std::isfinite(distance)) return 0.0f;
+    return std::clamp(length - distance + rest, 0.0f, length);
+}
+
+Quat stepAim(const Quat& current, const Quat& target, float maxRadians) {
+    Quat inv(-current.x, -current.y, -current.z, current.w);
+    float gap = quatAngle(quatMul(inv, target));
+    if (gap <= maxRadians || gap < 1e-5f) return target;
+    return slerp(current, target, std::clamp(maxRadians / gap, 0.0f, 1.0f));
+}
+
+float thighPitch(const M2Model& m, const std::vector<M4>& mats, int pelvis) {
+    if (pelvis < 0 || size_t(pelvis) >= mats.size() || size_t(pelvis) >= m.bones.size()) return 0.0f;
+    M4 back = affineInverse(mats[size_t(pelvis)]);
+    float sum = 0;
+    int count = 0;
+    const char* names[2][2] = {{"L_Thigh", "L_Calf"}, {"R_Thigh", "R_Calf"}};
+    for (auto& leg : names) {
+        int t = m.findWowBone(leg[0]), c = m.findWowBone(leg[1]);
+        if (t < 0 || c < 0 || size_t(t) >= mats.size() || size_t(c) >= mats.size()) continue;
+        V3 bt = m.bones[size_t(t)].pivot, bc = m.bones[size_t(c)].pivot;
+        V3 pt = back.point(mats[size_t(t)].point(bt)), pc = back.point(mats[size_t(c)].point(bc));
+        V3 bind = bc - bt, now = pc - pt;
+        float a0 = std::atan2(bind.z, bind.x), a1 = std::atan2(now.z, now.x);
+        float d = a1 - a0;
+        while (d > 3.14159265f) d -= 6.2831853f;
+        while (d < -3.14159265f) d += 6.2831853f;
+        sum += d;
+        ++count;
+    }
+    return count ? sum / float(count) : 0.0f;
+}
+
+float bodyBackX(const M2Model& m, const std::vector<uint16_t>& geosets, float z, float halfWidth, float band, float fallback) {
+    float best = 1e9f;
+    eachBodyVertex(m, geosets, [&](const M2Vertex& v) {
+        const float* p = v.pos;
+        if (std::fabs(p[1]) <= halfWidth && std::fabs(p[2] - z) <= band && p[0] < best) best = p[0];
+    });
+    return best < 1e8f ? best : fallback;
+}
+
+EntryAnchors measureEntries(const M2Model& m, const std::vector<uint16_t>& geosets, bool female) {
+    EntryAnchors e;
+    e.measured = true;
+    int pelvis = m.findWowBone("Pelvis");
+    if (pelvis < 0) pelvis = m.findWowBone("Root");
+    if (pelvis < 0 || size_t(pelvis) >= m.bones.size()) return e;
+    V3 pv = m.bones[size_t(pelvis)].pivot;
+    float h = pv.z > 0.05f ? pv.z : 1.0f;
+    // where the legs part on the midline, and that vertex's depth
+    float crotch = 1e9f, crotchX = pv.x;
+    float minX = pv.x - 0.12f * h;
+    std::vector<uint8_t> leg = legBones(m);
+    bool hasLegs = std::find(leg.begin(), leg.end(), 1) != leg.end();
+    eachBodyVertex(m, geosets, [&](const M2Vertex& v) {
+        const float* p = v.pos;
+        if (std::fabs(p[1]) <= 0.03f * h && p[0] >= minX && p[2] > 0.25f * h && p[2] < 1.05f * h && p[2] < crotch &&
+            (!hasLegs || legWeight(v, leg) < kCrotchLegShare)) { crotch = p[2]; crotchX = p[0]; }
+    });
+    if (crotch > 1e8f) { crotch = pv.z - 0.25f * h; crotchX = pv.x; }
+    e.crotch = crotch;
+    e.front = bodyFrontX(m, geosets, crotch + 0.05f * h, 0.03f * h, 0.025f * h, pv.x + 0.12f * h);
+    e.back = bodyBackX(m, geosets, crotch + 0.07f * h, 0.03f * h, 0.025f * h, pv.x - 0.12f * h);
+    auto set = [&](int k, int bone, V3 p, V3 in, float r) {
+        EntryAnchor& a = e.at[k];
+        a.ok = true; a.bone = bone; a.point = p; a.inward = in.normalized(); a.radius = r;
+    };
+    if (female) set(kEntryVaginal, pelvis, V3(crotchX + (e.front - crotchX) * 0.45f, 0.0f, crotch + 0.025f * h), V3(-0.35f, 0, 1), 0.02f * h);
+    set(kEntryAnal, pelvis, V3(crotchX + (e.back - crotchX) * 0.55f, 0.0f, crotch + 0.05f * h), V3(0.45f, 0, 0.9f), 0.015f * h);
+    set(kEntryThigh, pelvis, V3(crotchX + 0.02f * h, 0.0f, crotch - 0.06f * h), V3(-1, 0, 0), 0.03f * h);
+    // between the breasts: the front surface on the midline at the breasts' height (their bones, else below the chest's)
+    int chest = m.findWowBone("Chest");
+    if (chest < 0) chest = m.findWowBone("Spine2");
+    if (chest >= 0) {
+        int lb = m.findWowBone("L_Breast"), rb = m.findWowBone("R_Breast");
+        float z = lb >= 0 && rb >= 0 ? 0.5f * (m.bones[size_t(lb)].pivot.z + m.bones[size_t(rb)].pivot.z) : m.bones[size_t(chest)].pivot.z - 0.05f * h;
+        float fx = -1e9f;
+        for (const M2Vertex& v : m.vertices) if (std::fabs(v.pos[1]) <= 0.015f * h && std::fabs(v.pos[2] - z) <= 0.03f * h && v.pos[0] > fx) fx = v.pos[0];
+        if (fx > -1e8f) set(kEntryChest, chest, V3(fx, 0.0f, z), V3(0, 0, -1), 0.04f * h);
+    }
+    // the mouth: the Breath attachment (17) where the model has it, else in front of the head
+    int breath = 17;
+    int at = breath < int(m.attachmentLookup.size()) ? m.attachmentLookup[size_t(breath)] : -1;
+    if (at >= 0 && size_t(at) < m.attachments.size() && m.attachments[size_t(at)].bone < m.bones.size()) {
+        const M2Attachment& a = m.attachments[size_t(at)];
+        set(kEntryOral, int(a.bone), a.position, V3(-1, 0, 0), 0.012f * h);
+    } else {
+        int head = m.findWowBone("Head");
+        if (head >= 0) {
+            V3 hp = m.bones[size_t(head)].pivot;
+            set(kEntryOral, head, V3(hp.x + 0.08f * h, 0.0f, hp.z - 0.02f * h), V3(-1, 0, 0), 0.012f * h);
+        }
+    }
+    return e;
 }
 
 M4 partMatrix(const M4& pelvisBone, const PartPlacement& pl) {

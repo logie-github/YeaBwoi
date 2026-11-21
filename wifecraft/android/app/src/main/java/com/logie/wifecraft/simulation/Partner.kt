@@ -50,6 +50,8 @@ class PartnerPair(
     val loops: Boolean,
     val locations: Set<String> = emptySet(),
     val sounds: List<PartnerSound> = emptyList(),
+    /** The pack's category for the stage (PairAnim.kind, bodyparts/Arousal); empty: none. */
+    val kind: String = "",
 ) {
     /** One cycle (both clips are made the same length; the longer wins if not). */
     val duration: Float = max(a.duration, b.duration).let { if (it.isFinite() && it > 0f) it else 0f }
@@ -62,7 +64,7 @@ class PartnerPair(
             p.id, p.name, a, b,
             PartnerSlot.human(p.offsetA.x, p.offsetA.y, p.offsetA.z, p.offsetA.yawDeg),
             PartnerSlot.human(p.offsetB.x, p.offsetB.y, p.offsetB.z, p.offsetB.yawDeg),
-            p.loops, p.locations, p.sounds.map { PartnerSound(it.timeSec, it.name, it.actor) },
+            p.loops, p.locations, p.sounds.map { PartnerSound(it.timeSec, it.name, it.actor) }, p.kind,
         ) }
 
         /** The library's enabled pairs ([com.logie.wifecraft.anim.AnimLibrary.pairs]), for the live scene. */
@@ -85,7 +87,7 @@ class PartnerPair(
             val loops = choice.clips.any { it.inspection.type == ClipType.LOOP }
             val place = choice.setting.trim().uppercase().replace(' ', '_')
             return PartnerPair(choice.id, choice.name, a, b, slot(ra), slot(rb), loops,
-                if (place.isEmpty()) emptySet() else setOf(place))
+                if (place.isEmpty()) emptySet() else setOf(place), kind = choice.kind)
         }
     }
 }

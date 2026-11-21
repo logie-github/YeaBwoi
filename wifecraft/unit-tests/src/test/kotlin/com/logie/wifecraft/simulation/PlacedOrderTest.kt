@@ -96,15 +96,42 @@ class PlacedOrderTest {
         assertEquals("pair:lie2b:0", clipOf(sim, "a"))
     }
 
-    @Test fun aBedStageWithNoBedIsRefusedPlainly() {
+    @Test fun aBedStageWithNoBedPlaysOnTheFloorWithANotice() {
+        // (it was refused: "Nothing free here fits ...: it needs a bed")
         val p = pair("lie2", F.lyingBack(0.55), F.lyingBack(0.55), dy = 0.6)
         val sim = SceneSimulation(listOf("a", "b"), emptySet(), Random(1), pairs = listOf(p))
-        assertFalse(sim.perform("a", order(p)))
-        val why = sim.takeRefusal()
-        assertNotNull(why)
-        assertTrue("a bed" in why, why)
-        // an order with no pair named (an older caller) plays as before
-        assertTrue(sim.perform("a", order(p).copy(pairId = null)))
+        assertTrue(sim.perform("a", order(p)))
+        assertNull(sim.takeRefusal())
+        assertEquals("No bed here: playing on the floor.", sim.takeQueueNotice())
         assertNull(sim.partnerOf("a")!!.furniture)
+        until(sim) { sim.partnerOf("a")?.stage == "PLAY" }
+        // lowered onto the floor: its lowest flesh on it (the bed's 0.55 m taken off), not hanging at the bed's height
+        val r = sim.requirementOf(p)!!
+        val drop = FurnitureAnimation.floorDrop(sim.spaced(p)) * SceneSimulation.HUMAN_BODY_UNIT
+        assertTrue(drop > 0.4f * FurnitureSpec.YARDS_PER_METRE, "lowered by $drop yards")
+        for ((i, id) in listOf("a", "b").withIndex()) {
+            val pose = Pose().also { sim.pose(i, it) }
+            assertEquals(-drop, pose.z, 0.02f, "$id at the floor")
+            val support = pose.z + r.actors[i].restUnits * SceneSimulation.HUMAN_BODY_UNIT
+            assertTrue(abs(support) < 0.15f * SceneSimulation.HUMAN_BODY_UNIT, "$id rests on the floor: $support")
+        }
+        // an order with no pair named (an older caller) plays as before
+        sim.stopAll("a")
+        val other = SceneSimulation(listOf("a", "b"), emptySet(), Random(1), pairs = listOf(p))
+        assertTrue(other.perform("a", order(p).copy(pairId = null)))
+        assertNull(other.partnerOf("a")!!.furniture)
+    }
+
+    @Test fun treatedAsFloorItPlaysOnTheFloorBesideTheBed() {
+        val p = pair("lie2", F.lyingBack(0.55), F.lyingBack(0.55), dy = 0.6)
+        val sim = SceneSimulation(listOf("a", "b"), setOf(SceneObject.BED), Random(1), pairs = listOf(p))
+        sim.treatAs = mapOf(p.id to TreatAs.FLOOR)
+        assertTrue(sim.perform("a", order(p)))
+        assertNull(sim.partnerOf("a")!!.furniture, "the player's class wins over the bed")
+        // as the bodies were read again: the bed
+        val again = SceneSimulation(listOf("a", "b"), setOf(SceneObject.BED), Random(1), pairs = listOf(p))
+        again.treatAs = emptyMap()
+        assertTrue(again.perform("a", order(p)))
+        assertEquals(SceneObject.BED, again.partnerOf("a")!!.furniture)
     }
 }
