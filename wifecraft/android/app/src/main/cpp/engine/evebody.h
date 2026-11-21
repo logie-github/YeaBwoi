@@ -192,6 +192,7 @@ struct EveFitStats {
     size_t neckCleared = 0;                  // her neck ring's places lowered clear under the model's edge
     float neckClearMax = 0;
     int stripFlipped = 0;                    // seams whose strip was wound the other way round (the model's side above hers)
+    int uvSplits = 0;                        // the strips split where her ring crosses her UV seam (a place on two islands)
     float unit = 1;                // model units per Sims metre (the hip height ratio)
     float head = 0, height = 0, heightAfter = 0;   // the model's head (chin to crown), its height, hers with the proportions
     int stitched = 0;               // seams stitched to the model's edge
