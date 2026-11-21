@@ -195,6 +195,7 @@ bool parseEveFitTable(const std::string& json, EveFitTable& out, std::string& er
         num("neckBase", f.neckBase); num("ankleLift", f.ankleLift); num("ankleTuck", f.ankleTuck); num("ankleSink", f.ankleSink);
         num("heads", f.heads); num("hipRatio", f.hipRatio); num("armRatio", f.armRatio); num("handHeads", f.handHeads); num("spread", f.spread);
         num("split", f.split); num("transfer", f.transfer); num("stitch", f.stitch); num("detail", f.detail);
+        num("rezone", f.rezone); num("limbs", f.limbs);
     };
     if (j.has("defaults")) readFit(j["defaults"]["fit"], defaults);
     for (const Json& r : rows.a) {
@@ -865,6 +866,142 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         }
         P[v] = tot > 0 ? acc * (1.0f / tot) : tp;
         N[v] = nacc.normalized();
+    }
+    // the model's bones by their nearest ancestor among `named` (-1: none)
+    auto ancestorIn = [&](int b, const std::vector<int>& named) {
+        for (int c = b, g = 0; c >= 0 && size_t(c) < m.bones.size() && g < 256; c = m.bones[size_t(c)].parent, ++g)
+            for (int n : named) if (n == c) return n;
+        return -1;
+    };
+    auto mainBone = [](const M2Vertex& v) { int k = 0; for (int i = 1; i < 4; ++i) if (v.weights[i] > v.weights[k]) k = i; return int(v.bones[k]); };
+    // ---- the limbs' girth toward the model's own: each segment's median radius (its middle 60%) on the body Eve replaces
+    // against hers as fitted, both sides together; her vertices moved across the bone by their weight on it
+    if (fit.limbs > 0) {
+        const char* segBone[4] = {"UpperArm", "Forearm", "Thigh", "Calf"};
+        const int segRegion[4] = {kUpperArm, kForearm, kThigh, kCalf};
+        std::vector<int> limbBones;
+        int lb[2][4];
+        for (int sd = 0; sd < 2; ++sd) for (int k = 0; k < 4; ++k) {
+            lb[sd][k] = m.findWowBone(std::string(sd ? "R_" : "L_") + segBone[k]);
+            if (lb[sd][k] >= 0) limbBones.push_back(lb[sd][k]);
+        }
+        for (const char* n : {"L_Hand", "R_Hand", "L_Foot", "R_Foot", "L_Ankle", "R_Ankle", "Pelvis", "Chest", "L_Clavicle", "R_Clavicle"}) {
+            int b = m.findWowBone(n); if (b >= 0) limbBones.push_back(b);
+        }
+        auto ends = [&](int sd, int k, V3& a, V3& b) {
+            const Side& w = W[sd];
+            switch (k) { case 0: a = w.shoulder; b = w.elbow; break; case 1: a = w.elbow; b = w.wrist; break;
+                         case 2: a = w.hip; b = w.knee; break; default: a = w.knee; b = w.ankle; }
+        };
+        auto radial = [](V3 p, V3 a, V3 b, float& t) {
+            V3 ab = b - a; t = (p - a).dot(ab) / std::max(ab.dot(ab), 1e-8f);
+            return p - (a + ab * t);
+        };
+        for (int k = 0; k < 4; ++k) {
+            std::vector<float> rm, re;
+            for (int sd = 0; sd < 2; ++sd) {
+                if (lb[sd][k] < 0) continue;
+                V3 a, b; ends(sd, k, a, b);
+                for (size_t i = 0; i < verts.size(); ++i) {
+                    if (!out.cut[i] || ancestorIn(mainBone(verts[i]), limbBones) != lb[sd][k]) continue;
+                    float t; V3 r = radial(posOf(verts[i]), a, b, t);
+                    if (t > 0.2f && t < 0.8f) rm.push_back(r.length());
+                }
+                for (size_t v = 0; v < nv; ++v) {
+                    int best = 0;
+                    for (int q = 1; q < 4; ++q) if (eve.bw[v * 4 + q] > eve.bw[v * 4 + best]) best = q;
+                    if (regOf[eve.bi[v * 4 + best]] != sd * kRegionsPerSide + segRegion[k]) continue;
+                    float t; V3 r = radial(P[v], a, b, t);
+                    if (t > 0.2f && t < 0.8f) re.push_back(r.length());
+                }
+            }
+            if (rm.size() < 8 || re.size() < 8) continue;
+            std::nth_element(rm.begin(), rm.begin() + long(rm.size() / 2), rm.end());
+            std::nth_element(re.begin(), re.begin() + long(re.size() / 2), re.end());
+            float f = std::clamp(1 + fit.limbs * (rm[rm.size() / 2] / std::max(re[re.size() / 2], 1e-4f) - 1), 0.75f, 1.6f);
+            out.stats.limbScale[k] = f;
+            if (std::fabs(f - 1) < 1e-3f) continue;
+            for (int sd = 0; sd < 2; ++sd) {
+                V3 a, b; ends(sd, k, a, b);
+                for (size_t v = 0; v < nv; ++v) {
+                    float w = 0;
+                    for (int q = 0; q < 4; ++q) if (regOf[eve.bi[v * 4 + q]] == sd * kRegionsPerSide + segRegion[k]) w += eve.bw[v * 4 + q] / 255.0f;
+                    if (w <= 0) continue;
+                    float t; V3 r = radial(P[v], a, b, t);
+                    if (t < -0.15f || t > 1.15f) continue;
+                    // (at the joints the move fades: the segment's ends are shared with its neighbours)
+                    float edge = std::clamp(std::min(t + 0.15f, 1.15f - t) / 0.3f, 0.0f, 1.0f);
+                    P[v] = P[v] + r * ((f - 1) * w * edge);
+                }
+            }
+        }
+    }
+    // ---- the trunk's weights from the model's own body: each trunk vertex takes the bone weights of the model's skin around
+    // it (Gaussian over 5 cm, facing the same way), blended in by how much of it the trunk drives (and, round the hips, the
+    // thighs above the hip joints); arms, hands and legs below the hips keep Eve's
+    if (fit.rezone > 0) {
+        std::vector<int> trunkNamed;
+        for (const char* n : {"Root", "Pelvis", "Waist", "Spine1", "Spine2", "Chest", "L_Breast", "R_Breast", "L_Clavicle", "R_Clavicle"}) {
+            int b = m.findWowBone(n); if (b >= 0) trunkNamed.push_back(b);
+        }
+        std::vector<int> stops = trunkNamed;   // (a limb's bones end the trunk's reach)
+        for (const char* n : {"L_UpperArm", "R_UpperArm", "L_Thigh", "R_Thigh", "Neck1", "Head"}) { int b = m.findWowBone(n); if (b >= 0) stops.push_back(b); }
+        std::vector<uint8_t> trunk(m.bones.size(), 0), thigh(m.bones.size(), 0);
+        const int thighs[2] = {m.findWowBone("L_Thigh"), m.findWowBone("R_Thigh")};
+        for (size_t b = 0; b < m.bones.size(); ++b) {
+            int a = ancestorIn(int(b), stops);
+            if (a < 0) continue;
+            if (std::find(trunkNamed.begin(), trunkNamed.end(), a) != trunkNamed.end()) trunk[b] = 1;
+            if (a == thighs[0] || a == thighs[1]) thigh[b] = 1;
+        }
+        const float r = 0.05f * unit, sig2 = r * r * 0.25f;
+        std::map<std::array<int, 3>, std::vector<uint32_t>> grid;
+        auto cell = [&](V3 p) { return std::array<int, 3>{int(std::floor(p.x / r)), int(std::floor(p.y / r)), int(std::floor(p.z / r))}; };
+        for (size_t i = 0; i < verts.size(); ++i) if (out.cut[i]) grid[cell(posOf(verts[i]))].push_back(uint32_t(i));
+        const float hipZ = (W[0].hip.z + W[1].hip.z) * 0.5f;
+        for (size_t v = 0; v < nv; ++v) {
+            float tw = 0, th = 0;
+            for (int i = 0; i < WM[v].n; ++i) {
+                int b = WM[v].e[size_t(i)].first;
+                if (b < 0 || size_t(b) >= m.bones.size()) continue;
+                if (trunk[size_t(b)]) tw += WM[v].e[size_t(i)].second;
+                else if (thigh[size_t(b)]) th += WM[v].e[size_t(i)].second;
+            }
+            float tot = 0;
+            for (int i = 0; i < WM[v].n; ++i) tot += WM[v].e[size_t(i)].second;
+            if (tot <= 0) continue;
+            // the thighs' share counts round the hips: fully above the hip joints, none 12 cm below them
+            float hipBand = std::clamp((P[v].z - (hipZ - 0.12f * unit)) / (0.12f * unit), 0.0f, 1.0f);
+            hipBand = hipBand * hipBand * (3 - 2 * hipBand);
+            float alpha = std::clamp((tw + th * hipBand) / tot, 0.0f, 1.0f) * std::clamp(fit.rezone, 0.0f, 1.0f);
+            if (alpha < 0.02f) continue;
+            WMap game; float wsum = 0, best = 1e30f; uint32_t nearest = UINT32_MAX;
+            auto c0 = cell(P[v]);
+            for (int dx = -1; dx <= 1; ++dx) for (int dy = -1; dy <= 1; ++dy) for (int dz = -1; dz <= 1; ++dz) {
+                auto it = grid.find({c0[0] + dx, c0[1] + dy, c0[2] + dz});
+                if (it == grid.end()) continue;
+                for (uint32_t i : it->second) {
+                    V3 q = posOf(verts[i]);
+                    float d2 = (q - P[v]).dot(q - P[v]);
+                    V3 nq(verts[i].normal[0], verts[i].normal[1], verts[i].normal[2]);
+                    float facing = nq.normalized().dot(N[v]);
+                    if (facing > 0.0f && d2 < best) { best = d2; nearest = i; }
+                    if (d2 > r * r || facing <= 0.2f) continue;
+                    float wt = std::exp(-d2 / (2 * sig2)) * facing;
+                    for (int k = 0; k < 4; ++k) if (verts[i].weights[k]) game.add(verts[i].bones[k], verts[i].weights[k] / 255.0f * wt);
+                    wsum += wt;
+                }
+            }
+            if (wsum <= 1e-6f) {
+                if (nearest == UINT32_MAX) continue;
+                game = WMap();
+                for (int k = 0; k < 4; ++k) if (verts[nearest].weights[k]) game.add(verts[nearest].bones[k], verts[nearest].weights[k] / 255.0f);
+                wsum = 1;
+            }
+            WMap own = WM[v].scaled(1.0f / tot);
+            WM[v] = blend(own, game.scaled(1.0f / wsum), alpha);
+            ++out.stats.rezoned;
+        }
     }
     // ---- the shoulders' weights smoothed over the mesh (each place's weights toward its neighbours', most at the joint,
     // none past kShoulderReach): the Sims rig's shoulder helpers fold onto the model's upper arm and clavicle in a narrow

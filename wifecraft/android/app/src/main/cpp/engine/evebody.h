@@ -91,6 +91,15 @@ struct EveRaceFit {
     // stitches and torn rims baked into her skin (eveDetailLayer); 2 the bone pieces also kept as the model's own geometry
     // (they stick out of her as they stick out of its body); 0 none.
     float detail = 0;
+    // The trunk's weights taken from the model's own body (1) or kept as Eve's Sims rig had them (0): the Sims spine maps onto
+    // the model's spine bones at the wrong heights (her ribcage on Spine2, her belly on the pelvis, the thighs pulling skin
+    // above the hips); each trunk vertex takes the bone weights of the model's own skin around it, blended by how much of
+    // it the trunk drives, the arms', hands' and legs' below the hips kept.
+    float rezone = 0;
+    // The limbs' girth from the model's own (0..1): each upper arm, forearm, thigh and calf scaled across its bone so its
+    // median radius moves this share of the way to the model's own limb's (measured on the body Eve replaces, after the
+    // factors above), so a bigger race keeps its arms and legs.
+    float limbs = 0;
 };
 struct EveFitTable {
     std::vector<EveRaceFit> rows;
@@ -144,6 +153,8 @@ struct EveFitStats {
     float unit = 1;                 // model units per Sims metre (the hip height ratio)
     float head = 0, height = 0, heightAfter = 0;   // the model's head (chin to crown), its height, hers with the proportions
     int stitched = 0;               // seams stitched to the model's edge
+    size_t rezoned = 0;             // trunk vertices that took the model's weights
+    float limbScale[4] = {1, 1, 1, 1};   // the limbs' girth correction: upper arm, forearm, thigh, calf (left)
     float kHip = 1, kShoulder = 1;  // the measured width ratios
     double ms = 0;
 };
