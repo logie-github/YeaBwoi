@@ -3,7 +3,11 @@
 // pass. Checks: nothing moves at zero; every slider at both ends stays within its reach, keeps the body symmetric, turns no
 // triangle over, leaves the neck and ankle rings where they are and changes what it says it does; pinned vertices stay;
 // the bone regions, a triangle's region and the ray pick.
+#include <chrono>
 #include <cmath>
+#include <cstdlib>
+#include <string>
+#include <tuple>
 #include <cstdio>
 #include <cstring>
 #include <map>
@@ -189,7 +193,113 @@ static float most(const std::vector<M2Vertex>& vs, const Body& B, F in, M measur
     return m;
 }
 
-int main() {
+// One of the game's default bodies: every slider at both ends on the model's whole vertex list (skin and clothing geosets), the
+// game's way. Checks: bounded; no triangle of the body turned over; the same twice; symmetric where the model is (each vertex
+// with a mirror image within 0.1 mm); the head, hands and feet (vertices weighted to them alone) unmoved and the wrists' and
+// ankles' seams (weighted to them in part) within 1 mm; a robe's or trousers' geoset (13xx) following the skin under it.
+static void realBody(uint32_t id, const FileLookup& look, const char* const* names) {
+    M2Model m;
+    if (!m.load(id, look)) { std::printf("  (model %u isn't here: %s)\n", id, m.error.c_str()); return; }
+    SculptRig rig = sculptRigOf(m);
+    CHECK(rig.ok, "model %u: a rig", id);
+    if (!rig.ok) return;
+    const float U = rig.unit;
+    const auto& base = m.vertices;
+    // each vertex's geoset (from its triangles) and its mirror image
+    std::vector<int> geo(base.size(), -1);
+    for (const M2Submesh& sm : m.submeshes)
+        for (uint32_t t = sm.indexStart; t < sm.indexStart + sm.indexCount && t < m.indices.size(); ++t) if (m.indices[t] < geo.size()) geo[m.indices[t]] = sm.id;
+    std::map<std::tuple<long, long, long, int>, int> at;
+    auto keyOf = [&](float x, float y, float z, int g) { return std::make_tuple(std::lround(x * 1e4f), std::lround(y * 1e4f), std::lround(z * 1e4f), g); };
+    for (size_t i = 0; i < base.size(); ++i) at[keyOf(base[i].pos[0], base[i].pos[1], base[i].pos[2], geo[i])] = int(i);
+    std::vector<int> mirror(base.size(), -1);
+    size_t paired = 0;
+    for (size_t i = 0; i < base.size(); ++i) {
+        if (geo[i] < 0) continue;   // (a vertex no triangle uses)
+        auto it = at.find(keyOf(base[i].pos[0], -base[i].pos[1], base[i].pos[2], geo[i]));
+        if (it != at.end()) { mirror[i] = it->second; ++paired; }
+    }
+    // each used vertex's twin at the same place (a UV seam's or another geoset's copy), to see that no seam opens
+    std::vector<int> same(base.size(), -1);
+    {
+        std::map<std::tuple<long, long, long>, int> place;
+        for (size_t i = 0; i < base.size(); ++i) {
+            if (geo[i] < 0) continue;
+            auto ins = place.emplace(std::make_tuple(std::lround(base[i].pos[0] * 1e5f), std::lround(base[i].pos[1] * 1e5f), std::lround(base[i].pos[2] * 1e5f)), int(i));
+            if (!ins.second) same[i] = ins.first->second;
+        }
+    }
+    // the parts no move may touch (by the rig's groups: the head, the hands and fingers, the feet)
+    std::vector<float> still(base.size(), 0.0f);
+    for (size_t i = 0; i < base.size(); ++i) {
+        float w = 0, t = 0;
+        for (int k = 0; k < 4; ++k) {
+            if (!base[i].weights[k]) continue;
+            uint8_t g = base[i].bones[k] < rig.group.size() ? rig.group[base[i].bones[k]] : uint8_t(kGroupOther);
+            t += base[i].weights[k];
+            if (g == kGroupOther || g == kGroupHead || g == kGroupFoot) w += base[i].weights[k];
+        }
+        still[i] = t > 0 ? w / t : 0;
+    }
+    SculptOptions game; game.gameBody = true;
+    double totalMs = 0; int runs = 0; size_t eased = 0;
+    float worstSeam = 0, worstAsym = 0;
+    for (int k = 1; k < kSculptCount; ++k) {
+        if (k == kSculptLegLength) continue;
+        for (float sg : {-1.0f, 1.0f}) {
+            auto v = base, w = base;
+            float vals[kSculptCount] = {}; vals[k] = sg;
+            SculptStats st;
+            auto t0 = std::chrono::steady_clock::now();
+            applySculpt(rig, v, m.indices, vals, kSculptCount, game, &st);
+            totalMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count(); ++runs;
+            applySculpt(rig, w, m.indices, vals, kSculptCount, game);
+            eased += st.eased;
+            CHECK(st.maxMove <= kSculptMaxShare * U + 1e-5f, "model %u %s %+.0f bounded (%f)", id, names[k], sg, st.maxMove);
+            CHECK(st.flipped == 0, "model %u %s %+.0f none turned over (%zu)", id, names[k], sg, st.flipped);
+            CHECK(std::memcmp(v.data(), w.data(), v.size() * sizeof(M2Vertex)) == 0, "model %u %s %+.0f the same twice", id, names[k], sg);
+            float asym = 0, seam = 0, frozen = 0;
+            for (size_t i = 0; i < v.size(); ++i) {
+                V3 di = P(v[i]) - P(base[i]);
+                if (still[i] > 0.999f) frozen = std::max(frozen, di.length());
+                if (geo[i] >= 0 && same[i] >= 0) seam = std::max(seam, (di - (P(v[size_t(same[i])]) - P(base[size_t(same[i])]))).length());
+                int mi = mirror[i];
+                if (mi >= 0) {
+                    V3 dm = P(v[size_t(mi)]) - P(base[size_t(mi)]);
+                    asym = std::max(asym, std::max(std::fabs(di.x - dm.x), std::max(std::fabs(di.y + dm.y), std::fabs(di.z - dm.z))));
+                }
+            }
+            worstSeam = std::max(worstSeam, seam); worstAsym = std::max(worstAsym, asym);
+            CHECK(frozen == 0, "model %u %s %+.0f: the head, hands and feet unmoved (%g)", id, names[k], sg, frozen);
+            CHECK(seam < 1e-3f * U, "model %u %s %+.0f: no seam opens (copies at one place move alike: %g)", id, names[k], sg, seam);
+            CHECK(asym < 1e-3f * U, "model %u %s %+.0f symmetric (%g)", id, names[k], sg, asym);
+        }
+    }
+    // a clothing geoset (a robe's or trousers', 13xx) follows the skin under it: each of its vertices moves as its nearest skin
+    // vertex (geoset 0) does, within a quarter of that move (bust and hips +1, every slider at +1)
+    float vals[kSculptCount] = {}; vals[kSculptHips] = 1; vals[kSculptButt] = 1; vals[kSculptThighs] = 1;
+    auto v = base; applySculpt(rig, v, m.indices, vals, kSculptCount, game);
+    double off = 0, ref = 0; size_t cloth = 0;
+    for (size_t i = 0; i < base.size(); ++i) {
+        if (geo[i] < 1300 || geo[i] >= 1400) continue;
+        float best = 1e9f; size_t bi = 0;
+        for (size_t j = 0; j < base.size(); ++j) {
+            if (geo[j] != 0) continue;
+            float d = (P(base[j]) - P(base[i])).length();
+            if (d < best) { best = d; bi = j; }
+        }
+        if (best > 0.03f * U) continue;   // (a skirt's hem far from the legs: not on the skin)
+        V3 dc = P(v[i]) - P(base[i]), ds = P(v[bi]) - P(base[bi]);
+        off += (dc - ds).length(); ref += ds.length(); ++cloth;
+    }
+    if (cloth && ref > 0) CHECK(off < 0.35 * ref, "model %u: its 13xx geosets follow the skin (%zu vertices, mean off %.4f of mean move %.4f)", id, cloth, off / cloth, ref / cloth);
+    std::printf("  model %u: %zu vertices (%zu mirrored), %zu triangles, unit %.3f, breast bones %s; %d runs, %.1f ms each, %zu eased; "
+                "worst seam %.4f, worst asymmetry %.5f; 13xx near the skin %zu (off %.4f of %.4f)\n",
+                id, base.size(), paired, m.indices.size() / 3, U, rig.hasBreastBones ? "yes" : "no", runs, totalMs / std::max(runs, 1), eased,
+                worstSeam, worstAsym, cloth, cloth ? off / cloth : 0.0, cloth ? ref / cloth : 0.0);
+}
+
+int main(int argc, char** argv) {
     Body B = makeBody();
     SculptRig rig = sculptRig(B.pivots, B.parents, namedBones());
     CHECK(rig.ok, "rig");
@@ -228,8 +338,6 @@ int main() {
                 asym = std::max(asym, std::max(std::fabs(di.x - dm.x), std::max(std::fabs(di.y + dm.y), std::fabs(di.z - dm.z))));
             }
             CHECK(asym < 2e-5f, "%s %+.0f symmetric (%g)", names[k], s, asym);
-            if (asym >= 2e-5f) for (size_t i = 0; i < v.size(); ++i) { int m = B.mirror[i]; V3 di = P(v[i]) - P(B.verts[i]), dm = P(v[size_t(m)]) - P(B.verts[size_t(m)]);
-                if (std::fabs(di.x - dm.x) + std::fabs(di.y + dm.y) + std::fabs(di.z - dm.z) > 5e-4f) { std::printf("  v%zu g%d (%f %f %f) d(%f %f %f) m(%f %f %f)\n", i, B.group[i], B.verts[i].pos[0], B.verts[i].pos[1], B.verts[i].pos[2], di.x, di.y, di.z, dm.x, dm.y, dm.z); break; } }
             float seam = 0;
             for (size_t i = 0; i < v.size(); ++i) if (B.group[i] == 4 || B.group[i] == 5) seam = std::max(seam, (P(v[i]) - P(B.verts[i])).length());
             CHECK(seam == 0, "%s %+.0f keeps the neck and ankle rings (%g)", names[k], s, seam);
@@ -478,6 +586,76 @@ int main() {
         legEditMatrices(bones, pose, other, a1);
         V3 dOwn = a2[16].point(piv[16]) - a2[14].point(piv[14]), dRig = a1[16].point(other.pivots[16]) - a1[14].point(other.pivots[14]);
         CHECK(std::fabs(dOwn.normalized().dot(dRig.normalized()) - 1) < 1e-5f, "a rig's upper arm points as the model's");
+    }
+
+    // ---- the game's bodies' path (SculptOptions::gameBody) on the made-up body: every slider (the neck's too) at both ends
+    //      bounded, symmetric, nothing turned over, the ankle rings kept; the same input the same output; one side alone
+    {
+        SculptOptions game; game.gameBody = true;
+        for (int k = 1; k < kSculptCount; ++k) {
+            if (k == kSculptLegLength) continue;
+            for (float sg : {-1.0f, 1.0f}) {
+                auto v = B.verts, w = B.verts;
+                float vals[kSculptCount] = {}; vals[k] = sg;
+                SculptStats st;
+                size_t moved = applySculpt(rig, v, B.indices, vals, kSculptCount, game, &st);
+                applySculpt(rig, w, B.indices, vals, kSculptCount, game);
+                CHECK(moved > 0, "game %s %+.0f moves something", names[k], sg);
+                CHECK(st.maxMove <= kSculptMaxShare * rig.unit + 1e-5f && st.flipped == 0, "game %s %+.0f bounded, none turned over (%f, %zu)", names[k], sg, st.maxMove, st.flipped);
+                CHECK(std::memcmp(v.data(), w.data(), v.size() * sizeof(M2Vertex)) == 0, "game %s %+.0f the same twice", names[k], sg);
+                float asym = 0, ankle = 0;
+                for (size_t i = 0; i < v.size(); ++i) {
+                    int m = B.mirror[i];
+                    V3 di = P(v[i]) - P(B.verts[i]), dm = P(v[size_t(m)]) - P(B.verts[size_t(m)]);
+                    asym = std::max(asym, std::max(std::fabs(di.x - dm.x), std::max(std::fabs(di.y + dm.y), std::fabs(di.z - dm.z))));
+                    if (B.group[i] == 5) ankle = std::max(ankle, di.length());
+                }
+                CHECK(asym < 2e-5f, "game %s %+.0f symmetric (%g)", names[k], sg, asym);
+                CHECK(ankle == 0, "game %s %+.0f keeps the ankle rings (%g)", names[k], sg, ankle);
+            }
+        }
+        // the neck: thicker on the game's bodies, never on the Eve body (its ring meets the Warcraft head)
+        {
+            auto v = B.verts; float vals[kSculptCount] = {}; vals[kSculptNeck] = 1;
+            applySculpt(rig, v, B.indices, vals, kSculptCount, game);
+            float r1 = 0, r0 = 0;
+            for (size_t i = 0; i < v.size(); ++i) if (B.group[i] == 4) { r1 = std::max(r1, std::hypot(v[i].pos[0], v[i].pos[1])); r0 = std::max(r0, std::hypot(B.verts[i].pos[0], B.verts[i].pos[1])); }
+            CHECK(r1 > r0 + 1e-3f, "game neck + thickens the neck (%f > %f)", r1, r0);
+            auto e = B.verts;
+            CHECK(applySculpt(rig, e, B.indices, vals, kSculptCount) == 0, "the Eve body's neck is kept");
+        }
+        // one side: the hips' balance (the left +1, the right 0 when the slider is 0.5 and the balance 0.5)
+        {
+            float vals[kSculptValues] = {}; vals[kSculptHips] = 0.5f; vals[kSculptCount + kSculptHips] = 0.5f;
+            auto v = B.verts; applySculpt(rig, v, B.indices, vals, kSculptValues, game);
+            float left = 0, right = 0;
+            for (size_t i = 0; i < v.size(); ++i) {
+                float d = (P(v[i]) - P(B.verts[i])).length();
+                if (B.verts[i].pos[1] > 0.03f) left = std::max(left, d); else if (B.verts[i].pos[1] < -0.03f) right = std::max(right, d);
+            }
+            CHECK(left > 0.01f && right < 1e-4f, "a balance moves one side alone (left %f, right %f)", left, right);
+            CHECK(sculptActive(vals + 0, kSculptValues), "a balance is active");
+            float only[kSculptValues] = {}; only[kSculptCount + kSculptHeight] = 1;
+            CHECK(!sculptActive(only, kSculptValues), "height's balance is no move");
+            float bal[kSculptValues] = {}; bal[kSculptCount + kSculptThighs] = -1;
+            auto t = B.verts; SculptStats st;
+            applySculpt(rig, t, B.indices, bal, kSculptValues, game, &st);
+            CHECK(st.flipped == 0 && st.maxMove <= kSculptMaxShare * rig.unit + 1e-5f, "a balance alone: bounded, none turned over");
+        }
+        // every slider at once at both ends, the game's way
+        for (float sg : {-1.0f, 1.0f}) {
+            auto v = B.verts; float vals[kSculptCount];
+            for (float& x : vals) x = sg;
+            SculptStats st; applySculpt(rig, v, B.indices, vals, kSculptCount, game, &st);
+            CHECK(st.maxMove <= kSculptMaxShare + 1e-5f && st.flipped == 0, "game all at %+.0f: move %f flips %zu", sg, st.maxMove, st.flipped);
+        }
+    }
+
+    // ---- the game's own default bodies (optional): FILES_DIR MODEL... (the playable races' models by file id)
+    if (argc >= 3) {
+        std::string files = argv[1];
+        FileLookup look = [&](uint32_t id) { std::string p = files + "/" + std::to_string(id); FILE* f = std::fopen(p.c_str(), "rb"); if (!f) return std::string(); std::fclose(f); return p; };
+        for (int ai = 2; ai < argc; ++ai) realBody(uint32_t(std::strtoul(argv[ai], nullptr, 10)), look, names);
     }
 
     if (failures) { std::printf("%d failed\n", failures); return 1; }

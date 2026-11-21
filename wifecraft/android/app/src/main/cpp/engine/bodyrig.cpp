@@ -35,32 +35,6 @@ std::vector<uint8_t> boneRegionsOf(const M2Model& m) {
     return boneRegionsFrom(parents, seeds);
 }
 
-SculptRig sculptRigOf(const M2Model& m) {
-    SculptBones b;
-    auto find = [&](const char* a, const char* alt = nullptr) { int i = m.findWowBone(a); return i >= 0 || !alt ? i : m.findWowBone(alt); };
-    b.pelvis = find("Pelvis", "Root");
-    b.waist = find("Spine1", "Waist");
-    b.chest = find("Chest", "Spine2");
-    b.neck = find("Neck1");
-    b.head = find("Head");
-    const char* side[2] = {"L_", "R_"};
-    for (int k = 0; k < 2; ++k) {
-        std::string s = side[k];
-        b.breast[k] = m.findWowBone(s + "Breast");
-        b.clavicle[k] = m.findWowBone(s + "Clavicle");
-        b.upperArm[k] = m.findWowBone(s + "UpperArm");
-        b.forearm[k] = m.findWowBone(s + "Forearm");
-        b.hand[k] = m.findWowBone(s + "Hand");
-        b.thigh[k] = m.findWowBone(s + "Thigh");
-        b.calf[k] = m.findWowBone(s + "Calf");
-        b.ankle[k] = m.findWowBone(s + "Ankle");
-    }
-    std::vector<V3> pivots(m.bones.size());
-    std::vector<int16_t> parents(m.bones.size());
-    for (size_t i = 0; i < m.bones.size(); ++i) { pivots[i] = m.bones[i].pivot; parents[i] = m.bones[i].parent; }
-    return sculptRig(pivots, parents, b);
-}
-
 int Scene::pickBodyRegion(int id, float sx, float sy, int width, int height) const {
     auto it = actors_.find(id);
     if (it == actors_.end() || width <= 0 || height <= 0) return kRegionNone;
@@ -103,13 +77,20 @@ int Scene::pickBodyRegion(int id, float sx, float sy, int width, int height) con
             if (along > 0 && miss < 0.2f * unit) return kRegionHair;
         }
     }
+    // the side of her body it landed on (bits 8-9: 1 her left, 2 her right, 0 the middle), for the creator's one-sided sculpt
+    if (hit.region != kRegionNone && hit.region != kRegionHair) {
+        const int pelvis = m.findWowBone("Pelvis");
+        const float unit = std::max(pelvis >= 0 ? m.bones[size_t(pelvis)].pivot.z : 1.0f, 0.1f);
+        if (hit.point.y > 0.03f * unit) return int(hit.region) | (1 << 8);
+        if (hit.point.y < -0.03f * unit) return int(hit.region) | (2 << 8);
+    }
     return hit.region;
 }
 
 void Scene::setSculpt(int id, const float* values, size_t count) {
     auto it = actors_.find(id);
     if (it == actors_.end() || (!values && count)) return;
-    it->second.sculptWant.assign(values, values + std::min(count, size_t(kSculptCount)));
+    it->second.sculptWant.assign(values, values + std::min(count, size_t(kSculptValues)));
     // taken on the next frame (sculptSync): the Eve body fitted again with it (evescene.cpp: eveCheck mixes it into the key),
     // the game's own body sculpted again (refreshBody)
 }
@@ -134,8 +115,8 @@ void Scene::sculptSync(Actor& a) {
     std::vector<float> want;
     if (!eve && sculptActive(a.sculpt.data(), a.sculpt.size())) {
         want = a.sculpt;
-        if (want.size() > size_t(kSculptHeight)) want[size_t(kSculptHeight)] = 0;
-        if (want.size() > size_t(kSculptLegLength)) want[size_t(kSculptLegLength)] = 0;
+        for (size_t i = 0; i < want.size(); ++i)   // (the skeleton's sliders, and their sides: not the mesh's)
+            if (i % size_t(kSculptCount) == size_t(kSculptHeight) || i % size_t(kSculptCount) == size_t(kSculptLegLength)) want[i] = 0;
     }
     BodyGl& b = a.body;
     if (want == b.sculpted) return;

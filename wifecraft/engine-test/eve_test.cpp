@@ -616,7 +616,7 @@ int main(int argc, char** argv) {
                         }
                         // the stitch: every vertex added past Eve's own sits exactly on a model vertex with its weights (no gap in any pose)
                         size_t added = 0, off = 0;
-                        for (size_t v = e.vertexCount(); v < res.body.verts.size(); ++v) {
+                        for (size_t v = res.body.stats.eveVerts; v < res.body.verts.size(); ++v) {
                             ++added;
                             const M2Vertex& x = res.body.verts[v];
                             bool on = false;
@@ -631,7 +631,7 @@ int main(int argc, char** argv) {
                             if (!on) ++off;
                         }
                         CHECK(added > 0 && off == 0, "%s: %zu stitch vertices, %zu off the model's edge", row->name.c_str(), added, off);
-                        posedSeams(m, look, res, e.vertexCount(), row->name, *row);
+                        posedSeams(m, look, res, res.body.stats.eveVerts, row->name, *row);
                         // Keep undead bones (a row with "detail"): its details carried, the seams' colour as with them off (within 3)
                         if (row->detail > 0) {
                             EveJob off = j;

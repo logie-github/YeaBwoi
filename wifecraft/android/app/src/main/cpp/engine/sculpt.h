@@ -41,6 +41,9 @@ enum SculptSlider {
     kSculptNeck, kSculptChest, kSculptBustWidth, kSculptBustSpacing, kSculptShoulderSlope, kSculptUpperArms, kSculptForearms,
     kSculptCalves, kSculptButtLift, kSculptBodyFat, kSculptMuscle, kSculptCount
 };
+// The values array: the kSculptCount sliders, then (optional) each one's side balance (the body's left side takes the slider
+// plus it, the right the slider minus it; 0: both alike, as the creator's Symmetry keeps them). Height and Leg Length have none.
+constexpr int kSculptValues = 2 * kSculptCount;
 
 enum SculptGroup : uint8_t {
     kGroupOther = 0, kGroupBreastL, kGroupBreastR, kGroupChest, kGroupWaist, kGroupPelvis, kGroupThighL, kGroupThighR,
@@ -70,7 +73,7 @@ struct SculptBones {
     int thigh[2] = {-1, -1}, calf[2] = {-1, -1}, ankle[2] = {-1, -1};
 };
 SculptRig sculptRig(const std::vector<V3>& pivots, const std::vector<int16_t>& parents, const SculptBones& b);
-SculptRig sculptRigOf(const M2Model& m);   // bodyrig.cpp
+SculptRig sculptRigOf(const M2Model& m);   // by the model's WoW-side bone names
 
 struct SculptOptions {
     std::vector<uint32_t> pinned;   // vertices never moved
@@ -84,7 +87,7 @@ struct SculptStats {
     size_t eased = 0;               // triangles eased back so as not to turn over or collapse
 };
 
-// The sliders (kSculptCount values, -1..1; fewer: the rest 0) on `verts` (bind pose, the rig's bone indices). `indices`:
+// The sliders (up to kSculptValues values, -1..1; fewer: the rest 0) on `verts` (bind pose, the rig's bone indices). `indices`:
 // the triangles (for the normals and the flip count; may be empty). Returns how many vertices moved.
 size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std::vector<uint32_t>& indices,
                    const float* values, size_t count, const SculptOptions& opt = {}, SculptStats* stats = nullptr);

@@ -60,6 +60,10 @@ std::vector<uint8_t> writeEve(const EveMesh& m);
 // left there her new "L_ankle" and "R_ankle" rings (so the fit, the seam feather and the tint treat it as the ankles were),
 // the variant named "<variant>|split<t>". Vertices are kept (unused below the cut).
 EveMesh eveSplitMesh(const EveMesh& m, float t);
+// Two more loops of vertices above each ankle ring, at `t` of the way from the ring to the vertices above it and `t` of that
+// again (attributes interpolated; the rings and the other vertices unchanged, the new ones appended), the variant named
+// "<variant>|ankles<t>": what fitEve's ankleMatch draws onto the model's lower leg.
+EveMesh eveRefineAnkles(const EveMesh& m, float t);
 uint32_t eveCrc32(const uint8_t* data, size_t n);
 
 // Her build on her own rig (EveRaceFit::rig; the row's "bulk"): a bigger race's woman from the standard body's own measured
@@ -181,6 +185,7 @@ struct EveFitStats {
     float head = 0, height = 0, heightAfter = 0;   // the model's head (chin to crown), its height, hers with the proportions
     int stitched = 0;               // seams stitched to the model's edge
     size_t rezoned = 0;             // trunk vertices that took the model's weights
+    size_t eveVerts = 0;            // Eve's own vertices (the first of EveBody::verts; the stitches' after them)
     float rigScale = 0;             // the Eve rig's scale (model units per Sims metre; 0: no rig)
     float limbScale[4] = {1, 1, 1, 1};   // the limbs' girth correction: upper arm, forearm, thigh, calf (left)
     float kHip = 1, kShoulder = 1;  // the measured width ratios

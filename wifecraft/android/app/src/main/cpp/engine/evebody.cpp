@@ -7,6 +7,8 @@
 #include <cstdio>
 #include <cstring>
 #include <map>
+#include <set>
+#include <tuple>
 #include <unordered_map>
 
 #include <zlib.h>
@@ -20,6 +22,82 @@
 namespace wc {
 
 // ================================================================================================ the .weve file
+
+// Two more loops of vertices above each ankle ring (at `t` of the way to the next vertices up, then `t` again of that):
+// Eve's shin has none for 10 cm above the ring, so it ran straight from the ring to there and couldn't follow the foot's
+// edge flaring out (fitEve's ankleMatch). Each edge from a ring vertex to a vertex off the ring is split, its attributes
+// (place, normal, both UV sets, bone weights) interpolated; the rings' indices and every other vertex are unchanged, the new
+// vertices appended.
+EveMesh eveRefineAnkles(const EveMesh& m, float t) {
+    EveMesh o = m;
+    char tag[32];
+    std::snprintf(tag, sizeof tag, "|ankles%.2f", t);
+    o.variant = m.variant + tag;
+    auto key = [&](const EveMesh& e, uint32_t v) {
+        return std::make_tuple(std::lround(e.pos[v * 3] * 1e5), std::lround(e.pos[v * 3 + 1] * 1e5), std::lround(e.pos[v * 3 + 2] * 1e5));
+    };
+    std::vector<uint32_t> ringIdx;
+    for (const char* rn : {"L_ankle", "R_ankle"}) if (const std::vector<uint32_t>* r = m.ring(rn)) ringIdx.insert(ringIdx.end(), r->begin(), r->end());
+    if (ringIdx.empty()) return o;
+    std::vector<uint8_t> band(m.vertexCount(), 0);   // 1: the ring (by place, its UV copies too)
+    {
+        std::set<std::tuple<long, long, long>> places;
+        for (uint32_t v : ringIdx) if (v < m.vertexCount()) places.insert(key(m, v));
+        for (size_t v = 0; v < m.vertexCount(); ++v) if (places.count(key(m, uint32_t(v)))) band[v] = 1;
+    }
+    for (int pass = 0; pass < 2; ++pass) {
+        std::map<std::pair<uint32_t, uint32_t>, uint32_t> made;
+        auto split = [&](uint32_t a, uint32_t b) {   // a on the band's lower edge, b above
+            auto it = made.find({a, b});
+            if (it != made.end()) return it->second;
+            uint32_t n = uint32_t(o.vertexCount());
+            for (int k = 0; k < 3; ++k) o.pos.push_back(o.pos[a * 3 + k] + (o.pos[b * 3 + k] - o.pos[a * 3 + k]) * t);
+            float nn[3], len = 0;
+            for (int k = 0; k < 3; ++k) { nn[k] = o.nrm[a * 3 + k] + (o.nrm[b * 3 + k] - o.nrm[a * 3 + k]) * t; len += nn[k] * nn[k]; }
+            len = std::sqrt(std::max(len, 1e-12f));
+            for (int k = 0; k < 3; ++k) o.nrm.push_back(nn[k] / len);
+            for (int k = 0; k < 2; ++k) o.uv.push_back(o.uv[a * 2 + k] + (o.uv[b * 2 + k] - o.uv[a * 2 + k]) * t);
+            for (int k = 0; k < 2; ++k) o.uv2.push_back(o.uv2.size() >= size_t(b) * 2 + 2 ? o.uv2[a * 2 + k] + (o.uv2[b * 2 + k] - o.uv2[a * 2 + k]) * t : 0.0f);
+            std::map<uint8_t, float> w;
+            for (int k = 0; k < 4; ++k) { w[o.bi[a * 4 + k]] += o.bw[a * 4 + k] * (1 - t); w[o.bi[b * 4 + k]] += o.bw[b * 4 + k] * t; }
+            std::vector<std::pair<float, uint8_t>> ws;
+            for (auto& [bone, x] : w) if (x > 0) ws.push_back({x, bone});
+            std::sort(ws.rbegin(), ws.rend());
+            ws.resize(std::min<size_t>(ws.size(), 4));
+            float tot = 0; for (auto& x : ws) tot += x.first;
+            int given = 0;
+            for (int k = 0; k < 4; ++k) {
+                uint8_t bone = k < int(ws.size()) ? ws[size_t(k)].second : 0;
+                int wv = k < int(ws.size()) && tot > 0 ? int(std::lround(ws[size_t(k)].first / tot * 255)) : 0;
+                if (k == int(ws.size()) - 1) wv = 255 - given;
+                given += wv;
+                o.bi.push_back(bone); o.bw.push_back(uint8_t(std::clamp(wv, 0, 255)));
+            }
+            made[{a, b}] = n;
+            return n;
+        };
+        std::vector<uint32_t> idx;
+        for (size_t i = 0; i + 2 < o.idx.size(); i += 3) {
+            uint32_t v[3] = {o.idx[i], o.idx[i + 1], o.idx[i + 2]};
+            int on = band[v[0]] + band[v[1]] + band[v[2]];
+            if (on == 0 || on == 3) { idx.insert(idx.end(), v, v + 3); continue; }
+            // rotated so the odd one out is last: two on the band (a, b) and c above, or one (a) and b, c above
+            int r = 0;
+            if (on == 2) { while (band[v[(r + 2) % 3]]) ++r; } else { while (!band[v[r]]) ++r; }
+            uint32_t a = v[r], b = v[(r + 1) % 3], c = v[(r + 2) % 3];
+            if (on == 2) {
+                uint32_t p = split(a, c), q = split(b, c);
+                for (uint32_t x : {a, b, q, a, q, p, p, q, c}) idx.push_back(x);
+            } else {
+                uint32_t p = split(a, b), q = split(a, c);
+                for (uint32_t x : {a, p, q, p, b, c, p, c, q}) idx.push_back(x);
+            }
+        }
+        o.idx.swap(idx);
+        band.resize(o.vertexCount(), 0);   // (the next pass: the ring again, its band now up to the new loop)
+    }
+    return o;
+}
 
 EveMesh eveSplitMesh(const EveMesh& m, float t) {
     EveMesh o = m;
@@ -630,6 +708,7 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
     auto t0 = std::chrono::steady_clock::now();
     EveBody out;
     const size_t nv = eve.vertexCount();
+    out.stats.eveVerts = nv;
     if (!nv || eve.idx.empty()) { out.error = "the Eve mesh is empty"; return out; }
     // ---- the model's joints (bind pose)
     auto piv = [&](const char* name, V3& p) { int b = m.findWowBone(name); if (b < 0 || size_t(b) >= m.bones.size()) return false; p = m.bones[size_t(b)].pivot; return true; };
@@ -1476,8 +1555,16 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         std::vector<uint8_t> onRing(nv, 0);
         if (const std::vector<uint32_t>* rr = eve.ring(s ? "R_ankle" : "L_ankle")) for (uint32_t v : *rr) if (v < nv) onRing[v] = 1;
         const V3 other = ankleR[s ^ 1].e.empty() ? W[s ^ 1].ankle : ankleR[s ^ 1].centre;
+        // (the shown skin's own: a hidden geoset's boot or trouser leg is skin too; all shown, the bare ones: 0 and NN01)
+        std::vector<uint8_t> shown(verts.size(), 0);
+        for (size_t sI = 0; sI < subs.size(); ++sI) {
+            if (!skinSub[sI]) continue;
+            if (all ? (subs[sI].id % 100 > 1) : std::find(geosets.begin(), geosets.end(), subs[sI].id) == geosets.end()) continue;
+            for (uint32_t t = subs[sI].indexStart; t < subs[sI].indexStart + subs[sI].indexCount && t < indices.size(); ++t)
+                if (indices[t] < verts.size()) shown[indices[t]] = 1;
+        }
         for (size_t i = 0; i < verts.size(); ++i) {
-            if (!out.cut[i]) continue;
+            if (!out.cut[i] || !shown[i]) continue;
             V3 p = posOf(verts[i]);
             float dm = V3(p.x - c.x, p.y - c.y, 0).length();
             if (dm > 0.2f * unit || dm >= V3(p.x - other.x, p.y - other.y, 0).length()) continue;   // (this leg's own skin)
@@ -1488,8 +1575,6 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
             rad[k][r] = std::max(rad[k][r], V3(p.x - c.x, p.y - c.y, 0).length());
             has[k][r] = true;
         }
-        int dbgN = 0; float dbgMax = 0;
-        if (getenv("EVE_ANKDBG")) { int h = 0; for (int k = 0; k < kAng; ++k) for (int r = 0; r < kRows; ++r) h += has[k][r]; fprintf(stderr, "ankle %d: bins %d edgeZ0 %.3f c %.3f %.3f\n", s, h, edgeZ[0], c.x, c.y); }
         for (size_t v = 0; v < nv; ++v) {
             if (calfW[s][v] < 0.3f || onRing[v]) continue;   // (the ring itself is snapped onto the edge below)
             V3 q = P[v];
@@ -1506,9 +1591,7 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
             float want = rad[k][r] * 0.99f;
             float nr = rl + (want - rl) * t;
             P[v] = V3(c.x + d.x * nr / rl, c.y + d.y * nr / rl, q.z);
-            ++dbgN; dbgMax = std::max(dbgMax, std::fabs(nr - rl));
         }
-        if (getenv("EVE_ANKDBG")) fprintf(stderr, "ankle %d: moved %d, most %.4f\n", s, dbgN, dbgMax);
     }
     // ---- the split fit: each thigh's last 25% above the cut drawn onto the model's cut section (its centre and radii), so the
     // rings meet without a step
@@ -2715,6 +2798,19 @@ EveResult eveCompute(const EveJob& job) {
         }
         if (!splitMesh) {
             splitMesh = std::make_shared<EveMesh>(eveSplitMesh(*job.mesh, job.fit.split));
+            std::lock_guard<std::mutex> lock(set.cacheMutex);
+            set.splits.push_back({key, splitMesh});
+            if (set.splits.size() > 4) set.splits.erase(set.splits.begin());
+        }
+    }
+    if (!splitMesh && job.fit.ankleMatch > 0) {   // two more loops above the ankle rings (made once per set)
+        const std::string key = job.mesh->variant + "|ankles0.30";
+        {
+            std::lock_guard<std::mutex> lock(set.cacheMutex);
+            for (auto& sp : set.splits) if (sp.first == key) splitMesh = sp.second;
+        }
+        if (!splitMesh) {
+            splitMesh = std::make_shared<EveMesh>(eveRefineAnkles(*job.mesh, 0.3f));
             std::lock_guard<std::mutex> lock(set.cacheMutex);
             set.splits.push_back({key, splitMesh});
             if (set.splits.size() > 4) set.splits.erase(set.splits.begin());

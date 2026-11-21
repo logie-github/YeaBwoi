@@ -318,7 +318,8 @@ public:
     // location (a floor facing up is the ground) or the plain ground.
     PickHit pick(float sx, float sy, int width, int height) const;
     // The part of actor `id`'s body the screen point lands on (bodypick.h's BodyRegion; 0: none): its shown triangles as
-    // posed this frame, the region of the bones the triangle hit is weighted to most (bodyrig.cpp).
+    // posed this frame, the region of the bones the triangle hit is weighted to most (bodyrig.cpp). Bits 8-9: the side
+    // (1 her left, 2 her right, 0 the middle or not told).
     int pickBodyRegion(int id, float sx, float sy, int width, int height) const;
     // The creator's sculpt sliders (sculpt.h's order, -1..1) on actor `id`: the Eve body is fitted again with them, the
     // game's own body sculpted again (bodyrig.cpp sculptSync: at most every kSculptMinMs while they change).

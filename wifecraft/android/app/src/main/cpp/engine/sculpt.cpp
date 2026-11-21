@@ -84,10 +84,39 @@ SculptRig sculptRig(const std::vector<V3>& pivots, const std::vector<int16_t>& p
     return r;
 }
 
+// The rig of a model by its WoW-side bone names (M2Model::findWowBone): the game's own models and the Eve rig alike.
+SculptRig sculptRigOf(const M2Model& m) {
+    SculptBones b;
+    auto find = [&](const char* a, const char* alt = nullptr) { int i = m.findWowBone(a); return i >= 0 || !alt ? i : m.findWowBone(alt); };
+    b.pelvis = find("Pelvis", "Root");
+    b.waist = find("Spine1", "Waist");
+    b.chest = find("Chest", "Spine2");
+    b.neck = find("Neck1");
+    b.head = find("Head");
+    const char* side[2] = {"L_", "R_"};
+    for (int k = 0; k < 2; ++k) {
+        std::string s = side[k];
+        b.breast[k] = m.findWowBone(s + "Breast");
+        b.clavicle[k] = m.findWowBone(s + "Clavicle");
+        b.upperArm[k] = m.findWowBone(s + "UpperArm");
+        b.forearm[k] = m.findWowBone(s + "Forearm");
+        b.hand[k] = m.findWowBone(s + "Hand");
+        b.thigh[k] = m.findWowBone(s + "Thigh");
+        b.calf[k] = m.findWowBone(s + "Calf");
+        b.ankle[k] = m.findWowBone(s + "Ankle");
+    }
+    std::vector<V3> pivots(m.bones.size());
+    std::vector<int16_t> parents(m.bones.size());
+    for (size_t i = 0; i < m.bones.size(); ++i) { pivots[i] = m.bones[i].pivot; parents[i] = m.bones[i].parent; }
+    return sculptRig(pivots, parents, b);
+}
+
 bool sculptActive(const float* values, size_t count) {
     if (!values) return false;
-    for (size_t i = 0; i < count && i < size_t(kSculptCount); ++i)
-        if (i != kSculptHeight && i != kSculptLegLength && std::fabs(values[i]) > 1e-4f) return true;
+    for (size_t i = 0; i < count && i < size_t(kSculptValues); ++i) {
+        const size_t k = i % size_t(kSculptCount);
+        if (k != kSculptHeight && k != kSculptLegLength && std::fabs(values[i]) > 1e-4f) return true;
+    }
     return false;
 }
 
@@ -95,10 +124,18 @@ size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std
                    const float* values, size_t count, const SculptOptions& opt, SculptStats* stats) {
     if (stats) *stats = SculptStats();
     if (!rig.ok || verts.empty() || !sculptActive(values, count)) return 0;
-    float s[kSculptCount] = {};
-    for (size_t i = 0; i < count && i < size_t(kSculptCount); ++i) s[i] = std::isfinite(values[i]) ? std::clamp(values[i], -1.0f, 1.0f) : 0.0f;
-    // Body Fat and Muscle: shares of the other moves (the per-vertex cap below still bounds the sum)
-    {
+    float s0[kSculptCount] = {}, bal[kSculptCount] = {};
+    bool sided = false;
+    for (size_t i = 0; i < count && i < size_t(kSculptValues); ++i) {
+        const float v = std::isfinite(values[i]) ? std::clamp(values[i], -1.0f, 1.0f) : 0.0f;
+        if (i < size_t(kSculptCount)) s0[i] = v;
+        else if (v != 0 && i - kSculptCount != size_t(kSculptHeight) && i - kSculptCount != size_t(kSculptLegLength)) { bal[i - kSculptCount] = v; sided = true; }
+    }
+    // the values on one side (`side`: 1 the left, -1 the right, between them across the middle), with Body Fat and Muscle as
+    // shares of the other moves (the per-vertex cap below still bounds the sum)
+    float s[kSculptCount];
+    auto compose = [&](float side) {
+        for (int i = 0; i < kSculptCount; ++i) s[i] = std::clamp(s0[i] + side * bal[i], -1.0f, 1.0f);
         const float fat = s[kSculptBodyFat], mus = s[kSculptMuscle];
         auto add = [&s](int k, float v) { s[k] = std::clamp(s[k] + v, -1.5f, 1.5f); };
         if (fat != 0) {
@@ -113,8 +150,9 @@ size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std
             add(kSculptWaist, -0.25f * mus); add(kSculptBelly, -0.3f * mus);
             if (opt.gameBody) add(kSculptNeck, 0.5f * mus);
         }
-    }
-    if (!opt.gameBody) s[kSculptNeck] = 0;   // (the Eve body's neck ring meets the Warcraft head: kept)
+        if (!opt.gameBody) s[kSculptNeck] = 0;   // (the Eve body's neck ring meets the Warcraft head: kept)
+    };
+    compose(0);
     const float U = rig.unit;
     const float maxMove = kSculptMaxShare * U;
     // the spine's depth at a height: the Eve body's is upright (its waist), the game's bodies follow their own curve
@@ -151,6 +189,21 @@ size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std
         for (float& w : W) w /= total;
         if (W[kGroupOther] + W[kGroupHead] + W[kGroupFoot] > 0.999f) continue;   // (the head, hands and feet: no move)
         const V3 p = before[vi];
+        if (opt.gameBody) {
+            // at the body's middle line a side's groups are taken as both sides' mean (a model's weights there lean one way or
+            // the other; the mean keeps the moves mirror-symmetric where the vertex is its own mirror image)
+            const float a = smooth(0.0f, 0.03f * U, std::fabs(p.y));
+            if (a < 1) {
+                const uint8_t pairs[4][2] = {{kGroupBreastL, kGroupBreastR}, {kGroupThighL, kGroupThighR}, {kGroupUpperArmL, kGroupUpperArmR},
+                                             {kGroupForearmL, kGroupForearmR}};
+                for (const auto& pr : pairs) {
+                    const float mean = 0.5f * (W[pr[0]] + W[pr[1]]);
+                    W[pr[0]] = a * W[pr[0]] + (1 - a) * mean;
+                    W[pr[1]] = a * W[pr[1]] + (1 - a) * mean;
+                }
+            }
+        }
+        if (sided) compose(2 * smooth(-0.015f * U, 0.015f * U, p.y) - 1);   // (this side's values: one or the other off the middle)
         const float spineX = spineAt(p.z);
         const float front = smooth(-0.02f * U, 0.06f * U, p.x - spineX);
         const float arms = W[kGroupUpperArmL] + W[kGroupUpperArmR] + W[kGroupForearmL] + W[kGroupForearmR];
@@ -238,9 +291,9 @@ size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std
             limb(s[kSculptArms], fore, rig.elbow[k], rig.wrist[k], wristFade);
             limb(s[kSculptUpperArms], upper, rig.shoulder[k], rig.elbow[k], opt.gameBody ? 0.75f : 1.0f);   // (the elbow kept)
             limb(s[kSculptForearms], fore, rig.elbow[k], rig.wrist[k], 0.6f, opt.gameBody ? 0.2f : 0.0f);
-            // the calves (one group for both: the side by where the vertex is)
-            const bool mine = k == 0 ? p.y >= 0 : p.y < 0;
-            if (mine) limb(s[kSculptCalves] * 0.75f, W[kGroupCalf], rig.knee[k], rig.ankle[k], 0.6f, 0.35f);   // (the knee kept)
+            // the calves (one group for both: the side by where the vertex is, both halves at the middle line)
+            const float mine = smooth(-0.03f * U, 0.03f * U, k == 0 ? p.y : -p.y);
+            limb(s[kSculptCalves] * 0.75f, W[kGroupCalf] * mine, rig.knee[k], rig.ankle[k], 0.6f, 0.35f);   // (the knee kept)
         }
         // the neck (the game's bodies): thicker or thinner about its axis, faded out before the head
         if (s[kSculptNeck] != 0 && W[kGroupNeck] > 0) {
