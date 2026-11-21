@@ -87,6 +87,10 @@ struct EveRaceFit {
     float transfer = 0.06f;
     // The seams stitched to the model's own cut-edge vertices (1) or only snapped onto them (0).
     float stitch = 1;
+    // The model's own painted details carried onto Eve (Keep undead bones, EveOptions::bones): 1 its bone pieces, wounds,
+    // stitches and torn rims baked into her skin (eveDetailLayer); 2 the bone pieces also kept as the model's own geometry
+    // (they stick out of her as they stick out of its body); 0 none.
+    float detail = 0;
 };
 struct EveFitTable {
     std::vector<EveRaceFit> rows;
@@ -130,6 +134,7 @@ struct EveOptions {
     int overlaySlot = -1;           // -1: no overlay
     int overlayShade = -1;          // -1: the shade nearest the skin (Lab)
     float opacity = 0.6f;
+    bool bones = true;              // Keep undead bones: the model's details on her where its fit row has them (EveRaceFit::detail)
 };
 
 struct EveFitStats {
@@ -198,10 +203,11 @@ void eveFrontBack(const EveMesh& m, const std::vector<uint8_t>& rgba, int w, int
 // overlay `ov` (ow x oh at rect x, y) blended at `opacity` after its colour is scaled by `ovGain` (linear, per channel), then the
 // seams faded to `neckRgb` / `ankleRgb` (0xRRGGBB; tinted space, as drawn). `ov` may be null.
 // A gain per texel (linear, per channel) over the texture, held coarse (gw x gh cells, bilinear): eveTransferMap's.
+struct EveDetailLayer;   // (below: the model's own details, Keep undead bones)
 struct EveGainMap { int gw = 0, gh = 0; std::vector<float> rgb; bool empty() const { return rgb.empty(); } };
 void eveCompose(const std::vector<uint8_t>& base, int w, int h, V3 gain, const uint8_t* ov, int ow, int oh, int ox, int oy,
                 float opacity, V3 ovGain, const EvePrep& prep, uint32_t neckRgb, uint32_t ankleRgb, std::vector<uint8_t>& out,
-                const EveGainMap* map = nullptr);
+                const EveGainMap* map = nullptr, const EveDetailLayer* detail = nullptr);   // (detail: over the overlay, under the seams)
 
 // The skin's colour taken from her own Warcraft body (the colour transfer): each fitted Eve vertex gets the colour of the
 // model's skin around the same place (its shown skin vertices within `radius` model units whose normals face the same way,
@@ -218,6 +224,39 @@ EveGainMap eveTransferMap(const EveBody& eve, const std::vector<uint8_t>& base, 
 
 // The mean colour (0xRRGGBB, averaged in linear light) of `rgba` around each (u, v) of `uvs` (radius 2 px); -1 when none is opaque.
 int eveSampleAt(const uint8_t* rgba, int w, int h, const std::vector<float>& uvs);
+
+// ---- the model's own details on Eve (Keep undead bones)
+// The model's skin texture (sw x sh RGBA) under its body's triangles (`tris`: vertex triples of `wow`) sorted into skin and
+// detail: its skin tone (the commonest chroma of those texels, the lightness there), each texel's distance from it (darker
+// counts more than lighter: painted shading is no detail), and whole islands (triangles joined by their vertices) mostly off
+// the tone taken as detail pieces (a Forsaken's bone pieces: knees, spine, spurs), with their vertices (`piece`).
+struct EveDetailMask {
+    int w = 0, h = 0;
+    std::vector<uint8_t> a;        // per texel: how much of it is detail (0..255)
+    uint32_t tone = 0;             // the skin's tone (0xRRGGBB)
+    std::vector<uint8_t> piece;    // per vertex of `wow`: on a detail piece
+    size_t pieces = 0, texels = 0, detailTexels = 0;
+    bool empty() const { return a.empty(); }
+};
+EveDetailMask eveDetailMask(const std::vector<M2Vertex>& wow, const std::vector<uint32_t>& tris, const uint8_t* skin, int sw, int sh);
+// The details over Eve's texture (w x h): each of her texels (its point on the fitted body, its normal) takes the nearest
+// point of the model's body (`tris`) facing her way within `reach` (model units), that point's texel of `skin` as it is (no
+// blur: the nearest texel) tinted by `tint` (linear), its coverage the mask's there, fading out from half the reach to the reach;
+// then grown 3 texels past her islands' edges (no mip bleed) and its coverage's edges softened (3 x 3).
+struct EveDetailLayer {
+    int w = 0, h = 0;
+    std::vector<uint8_t> rgba;     // the detail's colour (sRGB) and its coverage (alpha)
+    size_t texels = 0, covered = 0, grown = 0;
+    double ms = 0;
+    bool empty() const { return rgba.empty(); }
+};
+EveDetailLayer eveDetailLayer(const EveBody& eve, int w, int h, const std::vector<M2Vertex>& wow, const std::vector<uint32_t>& tris,
+                              const uint8_t* skin, int sw, int sh, const EveDetailMask& mask, const float tint[3], float reach);
+// `layer` over `rgba` (w x h, its own size) in linear light by its coverage.
+void eveApplyDetail(const EveDetailLayer& layer, std::vector<uint8_t>& rgba);
+// The skin (sw x sh, any size: the mask scaled onto it) with its details eased to the tone by the mask: what the colour
+// transfer reads, so a bone's tan no longer browns her skin around it.
+void eveDetailClean(uint8_t* skin, int sw, int sh, const EveDetailMask& mask);
 
 // ------------------------------------------------------------------------------------------------ the scene's state
 // The loaded set (Scene::loadEveSet): its index, the fit table, its meshes and the textures decoded so far (corrected once).
@@ -274,6 +313,10 @@ struct EveResult {
     double composeMs = 0, totalMs = 0;
     float seamDE[3] = {-1, -1, -1};            // the skin's colour across the neck and ankle seams (CIE76 ΔE: Eve 2 to 5 cm from
                                                // the ring against the model's skin as far on its side; -1: not measured)
+    // Keep undead bones (EveRaceFit::detail with EveOptions::bones): the details carried over, the pieces kept, the time
+    bool detail = false;
+    size_t detailPieces = 0, detailKept = 0, detailCovered = 0;
+    double detailMs = 0;
 };
 // The texture's mip levels below `rgba` (w x h): each the 2 x 2 mean of the one above, down to 1 x 1.
 std::vector<std::vector<uint8_t>> eveMips(const std::vector<uint8_t>& rgba, int w, int h);

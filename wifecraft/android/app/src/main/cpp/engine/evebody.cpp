@@ -194,7 +194,7 @@ bool parseEveFitTable(const std::string& json, EveFitTable& out, std::string& er
         num("calf", f.calf); num("arm", f.arm); num("forearm", f.forearm); num("neckTuck", f.neckTuck); num("neckLift", f.neckLift);
         num("neckBase", f.neckBase); num("ankleLift", f.ankleLift); num("ankleTuck", f.ankleTuck); num("ankleSink", f.ankleSink);
         num("heads", f.heads); num("hipRatio", f.hipRatio); num("armRatio", f.armRatio); num("handHeads", f.handHeads); num("spread", f.spread);
-        num("split", f.split); num("transfer", f.transfer); num("stitch", f.stitch);
+        num("split", f.split); num("transfer", f.transfer); num("stitch", f.stitch); num("detail", f.detail);
     };
     if (j.has("defaults")) readFit(j["defaults"]["fit"], defaults);
     for (const Json& r : rows.a) {
@@ -1427,7 +1427,7 @@ void eveApplyCorrection(const EvePrep& p, std::vector<uint8_t>& rgba) {
 
 void eveCompose(const std::vector<uint8_t>& base, int w, int h, V3 gain, const uint8_t* ov, int ow, int oh, int ox, int oy,
                 float opacity, V3 ovGain, const EvePrep& prep, uint32_t neckRgb, uint32_t ankleRgb, std::vector<uint8_t>& out,
-                const EveGainMap* map) {
+                const EveGainMap* map, const EveDetailLayer* detail) {
     const Lut& L = lut();
     out.resize(size_t(w) * h * 4);
     uint8_t tab[3][256];
@@ -1477,6 +1477,7 @@ void eveCompose(const std::vector<uint8_t>& base, int w, int h, V3 gain, const u
             }
         }
     }
+    if (detail && detail->w == w && detail->h == h) eveApplyDetail(*detail, out);   // (Keep undead bones: under the seams' fade)
     V3 tl[2] = {eveLinear(neckRgb), eveLinear(ankleRgb)};
     for (const EveSeamTexel& t : prep.seam) {
         if (t.texel >= n) continue;
