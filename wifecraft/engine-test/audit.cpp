@@ -20,6 +20,9 @@
 //   place SLOT X Y Z FACING [raw]          where the app put them (the engine's floor pose; raw: Scene::kRaised, not stood on the floor)
 //   clip SLOT PATH | emote SLOT ANIM LOOP | still SLOT     what they play (from the case's clock 0)
 //   hide SLOT
+//   eveset DIR FIT_JSON                    the converted Eve set and the fit table (Scene::loadEveSet, as the harness's)
+//   eve SLOT 0|1                           person SLOT in the Eve body on her own rig (Scene::setEveBody; the fit at once):
+//                                          `flesh` then measures her as the app does (her skin, her rig's joints)
 //   flesh SLOT OUT                         writes the person's flesh as the app reads it (Scene::actorFlesh, engine/flesh.h):
 //                                          the packed floats on one line, then a line per segment; and how long it took
 //   case ID key=value...                   starts a case: its keys go into every CSV row (rest0=, rest1=: sit|lie|kneel|floor|stand)
@@ -247,9 +250,11 @@ static bool bodyOf(const Scene& scene, int id, Body& out) {
     const ModelInfo& info = infoOf(m);
     const M4 world = M4::translation(a.position) * M4::rotationZ(a.facing) * M4::scaling(V3(a.scale, a.scale, a.scale));
     const bool shaped = !a.body.shaped.empty() && !a.body.indices.empty();
-    const std::vector<M2Vertex>& verts = shaped ? a.body.shaped : m.vertices;
-    const std::vector<uint32_t>& idx = shaped ? a.body.indices : m.indices;
-    const std::vector<M2Submesh>& subs = shaped && !a.body.submeshes.empty() ? a.body.submeshes : m.submeshes;
+    // in the Eve body: her skin and the model's cut body as one (the flesh measure's mesh), skinned on her rig (a.mats)
+    const bool eve = a.eve.active && a.eve.measure.host >= 0;
+    const std::vector<M2Vertex>& verts = eve ? a.eve.measure.verts : shaped ? a.body.shaped : m.vertices;
+    const std::vector<uint32_t>& idx = eve ? a.eve.measure.indices : shaped ? a.body.indices : m.indices;
+    const std::vector<M2Submesh>& subs = eve ? a.eve.measure.subs : shaped && !a.body.submeshes.empty() ? a.body.submeshes : m.submeshes;
     std::vector<uint8_t> used(verts.size(), 0);
     for (const M2Batch& b : m.batches) {
         if (b.submesh >= subs.size()) continue;
@@ -459,6 +464,7 @@ int main(int argc, char** argv) {
     Scene scene(lookup);
     scene.initGl();
     scene.setSoftBody(kSoftOff);
+    scene.setEveAsync(false);   // (the Eve fit at once: each measure and picture shows the body asked for)
 
     // one framebuffer for the measure's poses (tiny) and one per picture size
     auto target = [](int w, int h) {
@@ -624,6 +630,19 @@ int main(int argc, char** argv) {
             } else std::fprintf(f, "# not measured\n");
             std::fclose(f);
             std::fprintf(stderr, "flesh slot %d: %s in %.2f ms\n", slot, ok ? "measured" : "NOT measured", ms);
+        } else if (cmd == "eveset") {
+            std::string d, fitPath, err; ss >> d >> fitPath;
+            std::ifstream fin(fitPath);
+            std::string fj((std::istreambuf_iterator<char>(fin)), std::istreambuf_iterator<char>());
+            bool ok = scene.loadEveSet(d, fj, err);
+            std::fprintf(stderr, "eveset %s: %s\n", d.c_str(), ok ? "ok" : err.c_str());
+        } else if (cmd == "eve") {
+            int slot, on = 0; ss >> slot >> on;
+            if (!slotKey.count(slot)) continue;
+            EveOptions o; o.on = on != 0;
+            scene.setEveBody(cache[slotKey[slot]].id, o);
+            target(32, 32);
+            scene.render(32, 32, clock0);   // the fit is made on the next frame
         } else if (cmd == "hide") {
             int slot; ss >> slot;
             if (slotKey.count(slot)) { Person& p = cache[slotKey[slot]]; scene.showActor(p.id, false); p.shown = false; }
