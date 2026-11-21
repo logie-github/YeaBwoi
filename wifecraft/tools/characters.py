@@ -205,6 +205,16 @@ CHARACTERS = [
         "identity": 123612,
         "override": {"Skin Color": 802, "Hair Color": 864},
     },
+    {
+        # a creature, not a person (characters/CreatureNpc.kt): Wrath's frost wyrm, creature 36853's display 30362 (model file
+        # 124093, creature/frostwurmnorthrend, with its own skeleton and animations); her size, footprint and the rest of how
+        # she stands in a partner stage are CreatureNpcs.SINDRAGOSA's. No stand-in body: she has no human form in Wrath.
+        "id": "sindragosa", "name": "Sindragosa",
+        "outfits": [
+            (30362, "wrath", "Frost wyrm (Wrath, Icecrown Citadel)", "Wrath of the Lich King: display 30362 (creature 36853), model file 124093 (creature/frostwurmnorthrend), skeleton and animations its own"),
+        ],
+        "undressed": False,
+    },
 ]
 
 

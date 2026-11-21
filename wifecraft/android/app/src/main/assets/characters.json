@@ -1503,6 +1503,21 @@
      "note": "her own choices from display 123612; Skin Color, Hair Color set by hand"
     }
    ]
+  },
+  {
+   "id": "sindragosa",
+   "name": "Sindragosa",
+   "variants": [
+    {
+     "key": "wrath",
+     "label": "Frost wyrm (Wrath, Icecrown Citadel)",
+     "kind": "outfit",
+     "sourceDisplay": 30362,
+     "sourceCreatures": [],
+     "era": "Wrath of the Lich King: display 30362 (creature 36853), model file 124093 (creature/frostwurmnorthrend), skeleton and animations its own",
+     "display": 30362
+    }
+   ]
   }
  ]
 }
