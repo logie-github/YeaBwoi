@@ -2209,7 +2209,9 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         struct A { float a; std::vector<uint32_t> copies; };
         std::vector<A> ea;
         for (auto& [k, g] : groups) ea.push_back({angle(P[g[0]]), g});
-        struct B { float a; uint32_t v; };
+        // (a model corner: its vertex; a split point at her UV seam (below): split, her place there, and when no corner is on
+        // it, the point of the model's edge under her place, v UINT32_MAX)
+        struct B { float a; uint32_t v; int split = -1; V3 p = V3(), n = V3(); WMap w = WMap(); };
         std::vector<B> wb;
         std::sort(ea.begin(), ea.end(), [](const A& x, const A& y) { return x.a < y.a; });
         if (ea.size() < 3) continue;
@@ -2296,14 +2298,18 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
             if (wb.size() < 3) continue;
             if (simple) { for (B& b : wb) b.a *= 6.2831853f; for (A& x : ea) x.a *= 6.2831853f; }   // (the walk below counts in turns of 2 pi)
         }
-        auto addW = [&](uint32_t mv, float u, float v, float u2, float v2) {
-            const M2Vertex& w = verts[mv];
-            XP.push_back(posOf(w));
-            out.stripSource.push_back(mv);
-            XN.push_back(V3(w.normal[0], w.normal[1], w.normal[2]).normalized());
-            WMap m4;
-            for (int k = 0; k < 4; ++k) m4.add(w.bones[k], w.weights[k] / 255.0f);
-            XW.push_back(m4);
+        auto addW = [&](const B& b, float u, float v, float u2, float v2) {
+            out.stripSource.push_back(b.v);
+            if (b.v == UINT32_MAX) {   // (a split point on the model's edge between two of its corners)
+                XP.push_back(b.p); XN.push_back(b.n); XW.push_back(b.w);
+            } else {
+                const M2Vertex& w = verts[b.v];
+                XP.push_back(posOf(w));
+                XN.push_back(V3(w.normal[0], w.normal[1], w.normal[2]).normalized());
+                WMap m4;
+                for (int k = 0; k < 4; ++k) m4.add(w.bones[k], w.weights[k] / 255.0f);
+                XW.push_back(m4);
+            }
             XUV.insert(XUV.end(), {u, v}); XUV2.insert(XUV2.end(), {u2, v2});
             return uint32_t(nv + XP.size() - 1);
         };
@@ -2351,6 +2357,56 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
                 for (int k = 0; k < 2; ++k) q[2 + k] = has2 ? eve.uv2[ref * 2 + k] : 0.0f;
             }
         };
+        // Her UV seam split. Where her ring crosses her UV seam (a place whose copy toward the place before and whose copy
+        // toward the place after lie on two islands), the model's edge gets a split point under that place (its corner there,
+        // or the point of the edge between two corners, as her place is set on it), a hair before her place by angle so the
+        // walk steps to it first: the strip's triangles before it read her island on one side, those after it the other's,
+        // and the split point takes her place's copy on each triangle's own side (splitUv). Without it a triangle spanning the
+        // seam either read her texture right across it (black slivers at the back of the neck) or gave the corner past the
+        // seam the seam's own place's colour, a place away (an orc's ankle strip ΔE up to 18 against the model's skin).
+        if (!ringLoop[r].empty()) {
+            const size_t n = ea.size(), nc = ringLoop[r].size();
+            const float per = 6.2831853f / float(nc), eps = 1e-4f * per;
+            auto cornerW = [&](uint32_t mv) { WMap w; for (int k = 0; k < 4; ++k) w.add(verts[mv].bones[k], verts[mv].weights[k] / 255.0f); return w; };
+            auto cornerN = [&](uint32_t mv) { return V3(verts[mv].normal[0], verts[mv].normal[1], verts[mv].normal[2]).normalized(); };
+            for (size_t s = 0; s < n; ++s) {
+                uint32_t xa, ya, xb, yb;
+                pairNear(s + n - 1, xa, ya);   // ya: her place s's copy toward the place before
+                pairNear(s, xb, yb);           // xb: toward the place after
+                const float du = eve.uv[ya * 2] - eve.uv[xb * 2], dv = eve.uv[ya * 2 + 1] - eve.uv[xb * 2 + 1];
+                if (ya == xb || du * du + dv * dv < 1e-8f) continue;
+                const float at = ea[s].a / per, fl = std::floor(at), f = at - fl;
+                const size_t k = size_t(fl) % nc;
+                if (f < 1e-3f || f > 1 - 1e-3f) {   // her place on a corner: the corner splits
+                    const uint32_t cv = ringLoop[r][f < 0.5f ? k : (k + 1) % nc];
+                    for (B& b : wb) if (b.v == cv && b.split < 0) {
+                        b.split = int(s);
+                        b.a = ea[s].a - eps - (f >= 0.5f && k + 1 == nc ? 6.2831853f : 0.0f);
+                        break;
+                    }
+                } else {
+                    const uint32_t ma = ringLoop[r][k], mb = ringLoop[r][(k + 1) % nc];
+                    B b{ea[s].a - eps, UINT32_MAX};
+                    b.split = int(s);
+                    b.p = posOf(verts[ma]) * (1 - f) + posOf(verts[mb]) * f;
+                    b.n = (cornerN(ma) * (1 - f) + cornerN(mb) * f).normalized();
+                    b.w = blend(cornerW(ma), cornerW(mb), f);
+                    wb.push_back(b);
+                }
+                ++out.stats.uvSplits;
+            }
+            std::stable_sort(wb.begin(), wb.end(), [](const B& x, const B& y) { return x.a < y.a; });
+            start = std::min(ea[0].a, wb[0].a);
+        }
+        // a split point's UVs in a triangle stepped from her place i: her place's copy on the triangle's side of the seam (the
+        // place before it: the copy toward that one; her place itself or one after it: the copy toward the next)
+        auto splitUv = [&](const B& b, size_t i, float* q) {
+            const size_t n = ea.size(), s = size_t(b.split);
+            uint32_t x, y, c;
+            if (i % n != (s + n - 1) % n) { pairNear(s, x, y); c = x; } else { pairNear(s + n - 1, x, y); c = y; }
+            const bool has2 = eve.uv2.size() > size_t(c) * 2 + 1;
+            for (int k = 0; k < 2; ++k) { q[k] = eve.uv[c * 2 + k]; q[2 + k] = has2 ? eve.uv2[c * 2 + k] : 0.0f; }
+        };
         const size_t seamFirst = XI.size();
         while (i < ea.size() || j < wb.size()) {
             const B& b0 = wb[j % wb.size()];
@@ -2360,8 +2416,8 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
                 pairNear(i, c0, c1);
                 // the model's vertex takes the UV of her ring's edge at its own place along it (uvOn)
                 float q[4];
-                uvOn(bAt(j), i, c0, q);
-                uint32_t bw = addW(b0.v, q[0], q[1], q[2], q[3]);
+                if (b0.split >= 0) splitUv(b0, i, q); else uvOn(bAt(j), i, c0, q);
+                uint32_t bw = addW(b0, q[0], q[1], q[2], q[3]);
                 XI.insert(XI.end(), {c0, bw, c1});
                 ++i;
             } else {
@@ -2373,13 +2429,30 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
                 uint32_t c0, c1;
                 pairNear(i, c0, c1);
                 float q0[4], q1[4];
-                uvOn(bAt(j), i, c0, q0);
-                uvOn(bAt(j + 1), i, c0, q1);
-                uint32_t w0 = addW(b0.v, q0[0], q0[1], q0[2], q0[3]);
-                uint32_t w1 = addW(b1.v, q1[0], q1[1], q1[2], q1[3]);
+                if (b0.split >= 0) splitUv(b0, i, q0); else uvOn(bAt(j), i, c0, q0);
+                if (b1.split >= 0) splitUv(b1, i, q1); else uvOn(bAt(j + 1), i, c0, q1);
+                uint32_t w0 = addW(b0, q0[0], q0[1], q0[2], q0[3]);
+                uint32_t w1 = addW(b1, q1[0], q1[1], q1[2], q1[3]);
                 XI.insert(XI.end(), {c0, w0, w1});
                 ++j;
             }
+        }
+        // each split point between two corners closed against the model's edge: skinned with the corners' weights blended, it
+        // leaves the straight edge between them a hair in a pose (up to 2 mm in the ten models' lie-dead), so a sliver from it
+        // to the two corners, no area at rest, fills that edge (wound as the walk's triangles are; read in one island: her
+        // place's copy before the seam)
+        for (size_t q = 0; q < wb.size(); ++q) {
+            const B& m0 = wb[q];
+            if (m0.v != UINT32_MAX) continue;
+            const B& bp = wb[(q + wb.size() - 1) % wb.size()];
+            const B& bn = wb[(q + 1) % wb.size()];
+            if (bp.v == UINT32_MAX || bn.v == UINT32_MAX) continue;
+            float uq[4];
+            splitUv(m0, size_t(m0.split) + ea.size() - 1, uq);
+            const uint32_t a0 = addW(m0, uq[0], uq[1], uq[2], uq[3]);
+            const uint32_t a1 = addW(bp, uq[0], uq[1], uq[2], uq[3]);
+            const uint32_t a2 = addW(bn, uq[0], uq[1], uq[2], uq[3]);
+            XI.insert(XI.end(), {a0, a1, a2});
         }
         // the strip's way round: the walk winds it facing out where her ring is over the model's edge (the ankles); where it is
         // under it (the neck) the same walk winds it facing in. Its triangles' faces against their corners' normals, by area:
@@ -3430,7 +3503,13 @@ EveDetailLayer eveSeamLayer(const EveBody& eve, const EveMesh& mesh, int w, int 
                 float kb2 = reach * reach; V3 kb;
                 nearest(keptNear, candK, p, n, kb2, kt, kb);
                 if (kt >= 0) {
-                    kb = kb * 0.8f + V3(1.0f, 1.0f, 1.0f) * (0.2f / 3.0f);
+                    // (a fifth of the way in, but no more than 3 mm: in a long triangle a fifth reached well past the edge, into
+                    // the lighter middle of the undead's throat, a light patch along the V-neck's side)
+                    const Tri& q = keptNear[size_t(kt)];
+                    const V3 at = posOf(wow[q.v[0]]) * kb.x + posOf(wow[q.v[1]]) * kb.y + posOf(wow[q.v[2]]) * kb.z;
+                    const float toMid = (q.c - at).length();
+                    const float in = toMid > 1e-9f ? std::min(0.2f, 0.1f * reach / toMid) : 0.0f;
+                    kb = kb * (1 - in) + V3(1.0f, 1.0f, 1.0f) * (in / 3.0f);
                     colourOf(keptNear, kt, kb, kc);
                 }
             }
