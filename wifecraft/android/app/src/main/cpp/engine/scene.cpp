@@ -3,6 +3,7 @@
 #include <GLES3/gl3.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -911,6 +912,7 @@ bool Scene::actorFlesh(int id, std::vector<float>& out) {
     mix(shaped ? a.body.indices.size() : 0);
     for (size_t i = 0; i < a.body.morph.size(); i += 97) { uint32_t bits; std::memcpy(&bits, &a.body.morph[i], 4); mix(bits); }
     mix(a.eve.active ? a.eve.key : 0);   // (the Eve body: measured on its own skin)
+    for (float f : a.body.sculpted) { uint32_t bits; std::memcpy(&bits, &f, 4); mix(bits); }   // (the game's body sculpted)
     // the skeleton as she is drawn (bodyrig.h: Eve's proportions, Leg Length)
     BodyScale legK = a.eve.active ? a.eve.body.scale : BodyScale();
     if (a.sculpt.size() > size_t(kSculptLegLength)) legK.legs *= legLengthFactor(a.sculpt[size_t(kSculptLegLength)]);
@@ -1646,6 +1648,7 @@ void Scene::render(int width, int height, uint32_t nowMs) {
         if (!a.skinDirty) a.firstSkin = false;
         if (!a.body.dirty && !a.body.missing.empty())
             for (uint32_t f : a.body.missing) if (!files_(f).empty()) { a.body.dirty = true; break; }
+        sculptSync(a); // (the creator's sculpt taken: bodyrig.cpp)
         eveCheck(a);   // (the Eve body's look or options changed: the body is cut and fitted again)
         if (a.body.dirty) refreshBody(a);
         bool arrived = false;
@@ -2001,38 +2004,69 @@ void Scene::refreshBody(Actor& a) {
     dropBodyGl(a);
     const M2Model& m = *a.mesh->model;
     if (b.shapeDirty) {
-        b.shaped.clear();
-        b.indices.clear();
-        b.submeshes.clear();
-        b.moved = 0;
-        if (b.morph.size() >= kBodyMorphStride) {
-            // the skin's sections (texture type 1) are split where the shape moves them: its curve has vertices to show on
-            std::vector<bool> splittable(m.submeshes.size(), false);
-            for (const M2Batch& bt : m.batches) {
-                if (bt.submesh >= m.submeshes.size() || bt.textureCombo >= m.textureCombos.size()) continue;
-                uint16_t ti = m.textureCombos[bt.textureCombo];
-                if (ti < m.textures.size() && m.textures[ti].type == 1) splittable[bt.submesh] = true;
+        // a sculpt-only change (bodyrig.cpp sculptSync) starts from the body as it was before the sculpt, if nothing else changed
+        const bool sculptOnly = b.sculptOnly && !b.sculptBase.empty() && b.baseModel == static_cast<const void*>(&m) &&
+                                b.baseMorph == b.morph && b.baseCut == a.parts.cut;
+        b.sculptOnly = false;
+        if (sculptOnly) {
+            b.shaped = b.sculptBase;
+        } else {
+            b.sculptBase.clear();
+            b.shaped.clear();
+            b.indices.clear();
+            b.submeshes.clear();
+            b.moved = 0;
+            if (b.morph.size() >= kBodyMorphStride) {
+                // the skin's sections (texture type 1) are split where the shape moves them: its curve has vertices to show on
+                std::vector<bool> splittable(m.submeshes.size(), false);
+                for (const M2Batch& bt : m.batches) {
+                    if (bt.submesh >= m.submeshes.size() || bt.textureCombo >= m.textureCombos.size()) continue;
+                    uint16_t ti = m.textureCombos[bt.textureCombo];
+                    if (ti < m.textures.size() && m.textures[ti].type == 1) splittable[bt.submesh] = true;
+                }
+                ShapedBody sb;
+                if (shapeBody(m, splittable, b.morph.data(), b.morph.size() / kBodyMorphStride, kBodySplitLevels, sb)) {
+                    b.shaped.swap(sb.vertices);
+                    b.indices.swap(sb.indices);
+                    b.submeshes.swap(sb.submeshes);
+                    b.moved = sb.moved;
+                }
+                std::fprintf(stderr, "body shape: %zu of %zu vertices moved (%zu at a looks vertex, %zu texture coordinates), %zu triangles split, %zu vertices added\n",
+                             sb.moved, m.vertices.size(), sb.exact, sb.uvs, sb.split, sb.added);
             }
-            ShapedBody sb;
-            if (shapeBody(m, splittable, b.morph.data(), b.morph.size() / kBodyMorphStride, kBodySplitLevels, sb)) {
-                b.shaped.swap(sb.vertices);
-                b.indices.swap(sb.indices);
-                b.submeshes.swap(sb.submeshes);
-                b.moved = sb.moved;
+            // the stand-in's cut (setBodyCut): its own head under a model part's, from the shaped body or the model's own
+            if (!a.parts.cut.empty()) {
+                PartRegion r;
+                r.roots = a.parts.cut;
+                r.attach = a.parts.cut[0];
+                if (b.shaped.empty()) { b.shaped = m.vertices; b.indices = m.indices; b.submeshes = m.submeshes; }
+                std::vector<bool> mask = regionVertices(m, r, 0, &b.shaped);
+                size_t before = b.indices.size();
+                b.indices = cutTriangles(b.indices, b.submeshes, mask, 3);
+                std::fprintf(stderr, "body cut: %zu of %zu triangles left out\n", (before - b.indices.size()) / 3, before / 3);
             }
-            std::fprintf(stderr, "body shape: %zu of %zu vertices moved (%zu at a looks vertex, %zu texture coordinates), %zu triangles split, %zu vertices added\n",
-                         sb.moved, m.vertices.size(), sb.exact, sb.uvs, sb.split, sb.added);
         }
-        // the stand-in's cut (setBodyCut): its own head under a model part's, from the shaped body or the model's own
-        if (!a.parts.cut.empty()) {
-            PartRegion r;
-            r.roots = a.parts.cut;
-            r.attach = a.parts.cut[0];
+        // the creator's sculpt (sculpt.h) on the game's own body: every vertex of the model (the skin and the clothing geosets
+        // on it), in the bind pose, so it bends with its bones as before; the body before it kept for the next change
+        b.sculptMs = 0;
+        b.sculptMoved = 0;
+        if (sculptActive(b.sculpted.data(), b.sculpted.size())) {
+            auto t0 = std::chrono::steady_clock::now();
             if (b.shaped.empty()) { b.shaped = m.vertices; b.indices = m.indices; b.submeshes = m.submeshes; }
-            std::vector<bool> mask = regionVertices(m, r, 0, &b.shaped);
-            size_t before = b.indices.size();
-            b.indices = cutTriangles(b.indices, b.submeshes, mask, 3);
-            std::fprintf(stderr, "body cut: %zu of %zu triangles left out\n", (before - b.indices.size()) / 3, before / 3);
+            if (!sculptOnly) {
+                b.sculptBase = b.shaped;
+                b.baseMorph = b.morph;
+                b.baseCut = a.parts.cut;
+                b.baseModel = &m;
+            }
+            SculptOptions opt;
+            opt.gameBody = true;
+            SculptStats st;
+            applySculpt(sculptRigOf(m), b.shaped, b.indices, b.sculpted.data(), b.sculpted.size(), opt, &st);
+            b.sculptMoved = st.moved;
+            b.sculptMs = float(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
+            std::fprintf(stderr, "body sculpt: %zu of %zu vertices moved (most %.4f), %zu triangles eased, %zu turned over, %.1f ms\n",
+                         st.moved, b.shaped.size(), st.maxMove, st.eased, st.flipped, b.sculptMs);
         }
         eveRefit(a);   // the Eve body (evescene.cpp): fitted to the body as shaped, the body under it cut
         b.shapeDirty = false;

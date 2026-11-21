@@ -7,6 +7,8 @@
 #include <cstdio>
 #include <cstring>
 #include <map>
+#include <set>
+#include <tuple>
 #include <unordered_map>
 
 #include <zlib.h>
@@ -20,6 +22,82 @@
 namespace wc {
 
 // ================================================================================================ the .weve file
+
+// Two more loops of vertices above each ankle ring (at `t` of the way to the next vertices up, then `t` again of that):
+// Eve's shin has none for 10 cm above the ring, so it ran straight from the ring to there and couldn't follow the foot's
+// edge flaring out (fitEve's ankleMatch). Each edge from a ring vertex to a vertex off the ring is split, its attributes
+// (place, normal, both UV sets, bone weights) interpolated; the rings' indices and every other vertex are unchanged, the new
+// vertices appended.
+EveMesh eveRefineAnkles(const EveMesh& m, float t) {
+    EveMesh o = m;
+    char tag[32];
+    std::snprintf(tag, sizeof tag, "|ankles%.2f", t);
+    o.variant = m.variant + tag;
+    auto key = [&](const EveMesh& e, uint32_t v) {
+        return std::make_tuple(std::lround(e.pos[v * 3] * 1e5), std::lround(e.pos[v * 3 + 1] * 1e5), std::lround(e.pos[v * 3 + 2] * 1e5));
+    };
+    std::vector<uint32_t> ringIdx;
+    for (const char* rn : {"L_ankle", "R_ankle"}) if (const std::vector<uint32_t>* r = m.ring(rn)) ringIdx.insert(ringIdx.end(), r->begin(), r->end());
+    if (ringIdx.empty()) return o;
+    std::vector<uint8_t> band(m.vertexCount(), 0);   // 1: the ring (by place, its UV copies too)
+    {
+        std::set<std::tuple<long, long, long>> places;
+        for (uint32_t v : ringIdx) if (v < m.vertexCount()) places.insert(key(m, v));
+        for (size_t v = 0; v < m.vertexCount(); ++v) if (places.count(key(m, uint32_t(v)))) band[v] = 1;
+    }
+    for (int pass = 0; pass < 2; ++pass) {
+        std::map<std::pair<uint32_t, uint32_t>, uint32_t> made;
+        auto split = [&](uint32_t a, uint32_t b) {   // a on the band's lower edge, b above
+            auto it = made.find({a, b});
+            if (it != made.end()) return it->second;
+            uint32_t n = uint32_t(o.vertexCount());
+            for (int k = 0; k < 3; ++k) o.pos.push_back(o.pos[a * 3 + k] + (o.pos[b * 3 + k] - o.pos[a * 3 + k]) * t);
+            float nn[3], len = 0;
+            for (int k = 0; k < 3; ++k) { nn[k] = o.nrm[a * 3 + k] + (o.nrm[b * 3 + k] - o.nrm[a * 3 + k]) * t; len += nn[k] * nn[k]; }
+            len = std::sqrt(std::max(len, 1e-12f));
+            for (int k = 0; k < 3; ++k) o.nrm.push_back(nn[k] / len);
+            for (int k = 0; k < 2; ++k) o.uv.push_back(o.uv[a * 2 + k] + (o.uv[b * 2 + k] - o.uv[a * 2 + k]) * t);
+            for (int k = 0; k < 2; ++k) o.uv2.push_back(o.uv2.size() >= size_t(b) * 2 + 2 ? o.uv2[a * 2 + k] + (o.uv2[b * 2 + k] - o.uv2[a * 2 + k]) * t : 0.0f);
+            std::map<uint8_t, float> w;
+            for (int k = 0; k < 4; ++k) { w[o.bi[a * 4 + k]] += o.bw[a * 4 + k] * (1 - t); w[o.bi[b * 4 + k]] += o.bw[b * 4 + k] * t; }
+            std::vector<std::pair<float, uint8_t>> ws;
+            for (auto& [bone, x] : w) if (x > 0) ws.push_back({x, bone});
+            std::sort(ws.rbegin(), ws.rend());
+            ws.resize(std::min<size_t>(ws.size(), 4));
+            float tot = 0; for (auto& x : ws) tot += x.first;
+            int given = 0;
+            for (int k = 0; k < 4; ++k) {
+                uint8_t bone = k < int(ws.size()) ? ws[size_t(k)].second : 0;
+                int wv = k < int(ws.size()) && tot > 0 ? int(std::lround(ws[size_t(k)].first / tot * 255)) : 0;
+                if (k == int(ws.size()) - 1) wv = 255 - given;
+                given += wv;
+                o.bi.push_back(bone); o.bw.push_back(uint8_t(std::clamp(wv, 0, 255)));
+            }
+            made[{a, b}] = n;
+            return n;
+        };
+        std::vector<uint32_t> idx;
+        for (size_t i = 0; i + 2 < o.idx.size(); i += 3) {
+            uint32_t v[3] = {o.idx[i], o.idx[i + 1], o.idx[i + 2]};
+            int on = band[v[0]] + band[v[1]] + band[v[2]];
+            if (on == 0 || on == 3) { idx.insert(idx.end(), v, v + 3); continue; }
+            // rotated so the odd one out is last: two on the band (a, b) and c above, or one (a) and b, c above
+            int r = 0;
+            if (on == 2) { while (band[v[(r + 2) % 3]]) ++r; } else { while (!band[v[r]]) ++r; }
+            uint32_t a = v[r], b = v[(r + 1) % 3], c = v[(r + 2) % 3];
+            if (on == 2) {
+                uint32_t p = split(a, c), q = split(b, c);
+                for (uint32_t x : {a, b, q, a, q, p, p, q, c}) idx.push_back(x);
+            } else {
+                uint32_t p = split(a, b), q = split(a, c);
+                for (uint32_t x : {a, p, q, p, b, c, p, c, q}) idx.push_back(x);
+            }
+        }
+        o.idx.swap(idx);
+        band.resize(o.vertexCount(), 0);   // (the next pass: the ring again, its band now up to the new loop)
+    }
+    return o;
+}
 
 EveMesh eveSplitMesh(const EveMesh& m, float t) {
     EveMesh o = m;
@@ -195,7 +273,14 @@ bool parseEveFitTable(const std::string& json, EveFitTable& out, std::string& er
         num("neckBase", f.neckBase); num("ankleLift", f.ankleLift); num("ankleTuck", f.ankleTuck); num("ankleSink", f.ankleSink);
         num("heads", f.heads); num("hipRatio", f.hipRatio); num("armRatio", f.armRatio); num("handHeads", f.handHeads); num("spread", f.spread);
         num("split", f.split); num("transfer", f.transfer); num("stitch", f.stitch); num("detail", f.detail);
-        num("rezone", f.rezone); num("limbs", f.limbs); num("rig", f.rig);
+        num("rezone", f.rezone); num("limbs", f.limbs); num("rig", f.rig); num("lengths", f.lengths); num("spine", f.spine); num("ankleMatch", f.ankleMatch);
+        if (k.has("bulk")) {
+            const Json& b = k["bulk"];
+            auto bn = [&](const char* key, float& v) { if (b.has(key)) v = float(b[key].num(v)); };
+            bn("arm", f.bulk.arm); bn("forearm", f.bulk.forearm); bn("thigh", f.bulk.thigh); bn("calf", f.bulk.calf);
+            bn("shoulders", f.bulk.shoulders); bn("chest", f.bulk.chest); bn("waist", f.bulk.waist); bn("hips", f.bulk.hips);
+            bn("chestDepth", f.bulk.chestDepth); bn("waistDepth", f.bulk.waistDepth); bn("hipDepth", f.bulk.hipDepth); bn("follow", f.bulk.follow); bn("inset", f.bulk.inset);
+        }
     };
     if (j.has("defaults")) readFit(j["defaults"]["fit"], defaults);
     for (const Json& r : rows.a) {
@@ -623,6 +708,7 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
     auto t0 = std::chrono::steady_clock::now();
     EveBody out;
     const size_t nv = eve.vertexCount();
+    out.stats.eveVerts = nv;
     if (!nv || eve.idx.empty()) { out.error = "the Eve mesh is empty"; return out; }
     // ---- the model's joints (bind pose)
     auto piv = [&](const char* name, V3& p) { int b = m.findWowBone(name); if (b < 0 || size_t(b) >= m.bones.size()) return false; p = m.bones[size_t(b)].pivot; return true; };
@@ -914,13 +1000,59 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         }
         // ---- her arms and legs turned to the model's rest pose (each segment along the model's own: the model's animations
         // are turns from its rest, so her rest must point as its does), skinned by her own weights about her own joints: as a
-        // Sims body is posed in the Sims. Parent first; helpers and fingers ride their limb's turn.
-        struct Turn { V3 from, to; M3 R; bool ok = false; };   // x -> to + R (x - from)
+        // Sims body is posed in the Sims. Parent first; helpers and fingers ride their limb's turn. Each upper arm, forearm,
+        // thigh and shin is also stretched along itself toward the model's own length (`lengths`: her knees, elbows, hands
+        // and hips where the model's are, so a kneel or a lie puts them where the model's would be; her cross-section kept),
+        // and each clavicle along itself by the shoulders' width (`bulk.shoulders`).
+        struct Turn { V3 from, to; M3 R, M; bool ok = false; };   // x -> to + M (x - from); R: M's turn alone (normals, children)
+        auto stretchAlong = [](V3 d, float k) {   // I + (k - 1) d d^T
+            d = d.normalized();
+            M3 s;
+            const float a[3] = {d.x, d.y, d.z};
+            for (int r = 0; r < 3; ++r) for (int c = 0; c < 3; ++c) s.m[r * 3 + c] = (r == c ? 1.0f : 0.0f) + (k - 1.0f) * a[r] * a[c];
+            return s;
+        };
+        const float lenShare = std::clamp(fit.lengths, 0.0f, 1.0f);
+        auto lengthTo = [&](float eveLen, float modelLen) { return eveLen < 1e-5f || modelLen < 1e-5f ? 1.0f : 1.0f + lenShare * (modelLen / eveLen - 1.0f); };
         std::map<int, Turn> turn;   // by model bone
         std::map<std::string, V3> A = J;   // her joints as turned
         auto wowPiv = [&](const std::string& n, V3& p) { int b = m.findWowBone(n); if (b < 0) return false; p = m.bones[size_t(b)].pivot; return true; };
+        // the legs exactly along the model's (its feet stay on its own ankles): her shin's length up from the model's ankle along
+        // its shin, her thigh's up from there along its thigh (each toward the model's own by `lengths`); the hip moves with it
+        // (her thigh's skin by its weight), and her trunk below the neck with the hips' height (`trunkZ` below)
+        float hipDz = 0; int hipN = 0;
+        V3 hipOwn[2], hipNew[2];
+        bool legDone[2] = {false, false};
+        for (int sd = 0; sd < 2; ++sd) {
+            const std::string px = sd ? "R_" : "L_";
+            V3 hipW, kneeW, ankW;
+            const std::string tn = px + "Thigh", cn = px + "Calf", fn = px + "Foot";
+            int tb = m.findWowBone(tn), cb = m.findWowBone(cn);
+            if (tb < 0 || cb < 0 || !J.count(tn) || !J.count(cn) || !J.count(fn) || !wowPiv(tn, hipW) || !wowPiv(cn, kneeW) || !wowPiv(fn, ankW)) continue;
+            V3 dT = (kneeW - hipW).normalized(), dC = (ankW - kneeW).normalized();
+            float lT = (J[cn] - J[tn]).length(), lC = (J[fn] - J[cn]).length();
+            float sT = lengthTo(lT, (kneeW - hipW).length()), sC = lengthTo(lC, (ankW - kneeW).length());
+            V3 knee2 = ankW - dC * (lC * sC), hip2 = knee2 - dT * (lT * sT);
+            Turn tt; tt.from = J[tn]; tt.to = hip2; tt.R = rotBetween(J[cn] - J[tn], dT); tt.M = tt.R * stretchAlong(J[cn] - J[tn], sT); tt.ok = true;
+            Turn tc; tc.from = J[cn]; tc.to = knee2; tc.R = rotBetween(J[fn] - J[cn], dC); tc.M = tc.R * stretchAlong(J[fn] - J[cn], sC); tc.ok = true;
+            turn[tb] = tt; turn[cb] = tc;
+            A[tn] = hip2; A[cn] = knee2; A[fn] = ankW;
+            hipOwn[sd] = J[tn]; hipNew[sd] = hip2; legDone[sd] = true;
+            hipDz += hip2.z - J[tn].z; ++hipN;
+        }
+        if (hipN && lenShare > 0) hipDz /= float(hipN); else hipDz = 0;   // (lengths 0: her trunk as before, the hips where her legs end)
+        // her trunk's height map: the hips' rise (or drop) in full at and below the hip joints, none at the neck (it meets the
+        // model's neck there), linear between: her trunk keeps its shape, a little longer or shorter
+        const float zHip0 = (J["L_Thigh"].z + J["R_Thigh"].z) * 0.5f, zNeck0 = J["Neck1"].z;
+        auto trunkZ = [&](V3 p) {
+            float w = std::clamp((zNeck0 - p.z) / std::max(zNeck0 - zHip0, 1e-4f), 0.0f, 1.0f);
+            return V3(p.x, p.y, p.z + hipDz * w);
+        };
+        for (const char* n : {"Pelvis", "Spine1", "Spine2", "Chest", "L_Breast", "R_Breast"}) if (A.count(n)) A[n] = trunkZ(J[n]);
+        // the shoulders' width: each clavicle stretched so her shoulder joint stands `bulk.shoulders` as far from her middle
+        const float shoulderK = std::clamp(fit.bulk.shoulders, 0.7f, 1.6f);
         const char* chain[][3] = {{"Clavicle", "UpperArm", ""}, {"UpperArm", "Forearm", "Clavicle"}, {"Forearm", "Hand", "UpperArm"},
-                                  {"Hand", "Middle1", "Forearm"}, {"Thigh", "Calf", ""}, {"Calf", "Foot", "Thigh"}};
+                                  {"Hand", "Middle1", "Forearm"}};
         for (int sd = 0; sd < 2; ++sd) {
             const std::string px = sd ? "R_" : "L_";
             for (const auto& c : chain) {
@@ -928,33 +1060,26 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
                 int b = resolveBone(m, bn);
                 if (b < 0 || m.findWowBone(bn) != b || !J.count(bn) || !J.count(cn)) continue;
                 const Turn* par = !pn.empty() ? (turn.count(m.findWowBone(pn)) ? &turn[m.findWowBone(pn)] : nullptr) : nullptr;
-                // where her joint and her child's are once the parent has turned
-                auto viaParent = [&](V3 x) { return par && par->ok ? par->to + par->R * (x - par->from) : x; };
-                V3 jb = viaParent(J[bn]), jc = viaParent(J[cn]);
+                // where her joint and her child's are once the parent has turned (a clavicle: with her trunk)
+                auto viaParent = [&](V3 x) { return par && par->ok ? par->to + par->M * (x - par->from) : trunkZ(x); };
+                V3 jb = viaParent(J[bn]);
                 V3 wb, wc;
                 Turn t;
                 t.from = J[bn]; t.to = jb;
                 M3 G = par && par->ok ? par->R : M3();
-                if (wowPiv(bn, wb) && wowPiv(cn, wc) && (wc - wb).length() > 1e-4f && (jc - jb).length() > 1e-4f) G = rotBetween(jc - jb, wc - wb) * G;
-                t.R = G; t.ok = true;
-                turn[b] = t;
-                A[bn] = jb; A[cn] = t.to + t.R * (J[cn] - t.from);
-            }
-            // the legs exactly along the model's (its feet stay on its own ankles): her shin's length up from the model's ankle along
-            // its shin, her thigh's up from there along its thigh; the hip moves with it (her thigh's skin by its weight)
-            {
-                V3 hipW, kneeW, ankW;
-                const std::string tn = px + "Thigh", cn = px + "Calf", fn = px + "Foot";
-                int tb = m.findWowBone(tn), cb = m.findWowBone(cn);
-                if (tb >= 0 && cb >= 0 && J.count(tn) && J.count(cn) && J.count(fn) && wowPiv(tn, hipW) && wowPiv(cn, kneeW) && wowPiv(fn, ankW)) {
-                    V3 dT = (kneeW - hipW).normalized(), dC = (ankW - kneeW).normalized();
-                    float lT = (J[cn] - J[tn]).length(), lC = (J[fn] - J[cn]).length();
-                    V3 knee2 = ankW - dC * lC, hip2 = knee2 - dT * lT;
-                    Turn tt; tt.from = J[tn]; tt.to = hip2; tt.R = rotBetween(J[cn] - J[tn], dT); tt.ok = true;
-                    Turn tc; tc.from = J[cn]; tc.to = knee2; tc.R = rotBetween(J[fn] - J[cn], dC); tc.ok = true;
-                    turn[tb] = tt; turn[cb] = tc;
-                    A[tn] = hip2; A[cn] = knee2; A[fn] = ankW;
+                V3 rest = J[cn] - J[bn];
+                const bool aimed = wowPiv(bn, wb) && wowPiv(cn, wc) && (wc - wb).length() > 1e-4f && rest.length() > 1e-4f;
+                if (aimed) G = rotBetween(G * rest, wc - wb) * G;
+                float k = 1;
+                if (std::string(c[0]) == "UpperArm" || std::string(c[0]) == "Forearm") { if (aimed) k = lengthTo(rest.length(), (wc - wb).length()); }
+                else if (std::string(c[0]) == "Clavicle" && std::fabs(shoulderK - 1) > 1e-4f) {
+                    V3 v = G * rest;   // the clavicle as turned: her shoulder's distance from her middle line times shoulderK
+                    float y0 = jb.y - off.y, want = (jb.y + v.y - off.y) * shoulderK;
+                    if (std::fabs(v.y) > 1e-4f) k = std::clamp((want - y0) / v.y, 0.5f, 3.0f);
                 }
+                t.R = G; t.M = G * stretchAlong(rest, k); t.ok = true;
+                turn[b] = t;
+                A[bn] = jb; A[cn] = t.to + t.M * rest;
             }
             // helpers and fingers: their limb's turn
             const std::pair<const char*, const char*> ride[] = {{"UpperArmTwist", "UpperArm"}, {"ForearmTwist", "Forearm"}, {"ElbowHelper", "Forearm"},
@@ -966,10 +1091,173 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
                 const Turn& t = turn[limb];
                 std::string hn = px + rd.first;
                 int b = resolveBone(m, hn);
-                if (J.count(hn)) A[hn] = t.to + t.R * (J[hn] - t.from);
+                if (J.count(hn)) A[hn] = t.to + t.M * (J[hn] - t.from);
                 if (b >= 0 && !turn.count(b)) turn[b] = t;
             }
         }
+        // ---- her build (`bulk`, rig 1): a bigger race's woman, from the standard body's own measured girths (wifecraft/README.md,
+        // Her own rig): each limb segment's skin scaled across its bone about her joints (the axis through them stays, so the
+        // joints stay centred), the trunk's width and depth per height (hips, waist, chest, shoulders) about her middle, and the
+        // hips' sides following the hip joints where a race's legs are set wide (`follow`: no ledge where the thigh meets the
+        // pelvis). Applied per bone and blended by her weights, as her skinning is: the seams and joints stay joined. Hands, feet,
+        // the neck and the head keep their size.
+        const EveBulk& bk = fit.bulk;
+        auto cl = [](float v, float lo, float hi) { return std::isfinite(v) ? std::clamp(v, lo, hi) : 1.0f; };
+        const float kArm = cl(bk.arm, 0.7f, 2.0f), kFore = cl(bk.forearm, 0.7f, 2.0f), kThigh = cl(bk.thigh, 0.7f, 2.0f), kCalf = cl(bk.calf, 0.7f, 2.0f);
+        const float wHip = cl(bk.hips, 0.7f, 1.8f), wWaist = cl(bk.waist, 0.7f, 1.8f), wChest = cl(bk.chest, 0.7f, 1.8f);
+        const float dHip = cl(bk.hipDepth, 0.7f, 1.8f), dWaist = cl(bk.waistDepth, 0.7f, 1.8f), dChest = cl(bk.chestDepth, 0.7f, 1.8f);
+        const float follow = std::isfinite(bk.follow) ? std::clamp(bk.follow, 0.0f, 1.0f) : 0.0f;
+        const float inset = std::isfinite(bk.inset) ? std::clamp(bk.inset, 0.0f, 1.0f) : 0.0f;
+        const float zHip = (A["L_Thigh"].z + A["R_Thigh"].z) * 0.5f, zSh = (A["L_UpperArm"].z + A["R_UpperArm"].z) * 0.5f;
+        auto smooth = [](float t) { t = std::clamp(t, 0.0f, 1.0f); return t * t * (3 - 2 * t); };
+        // the trunk's factors by height (0 the hip joints, 1 the shoulder joints): hips to 0.1, waist at 0.45, chest at 0.75,
+        // the shoulders' width from 0.95
+        auto trunkK = [&](float z, float& kw, float& kd) {
+            float f = (z - zHip) / std::max(zSh - zHip, 1e-4f);
+            const float fs[4] = {0.1f, 0.45f, 0.75f, 0.95f};
+            const float ws[4] = {wHip, wWaist, wChest, shoulderK}, ds[4] = {dHip, dWaist, dChest, dChest};
+            if (f <= fs[0]) { kw = ws[0]; kd = ds[0]; return; }
+            if (f >= fs[3]) { kw = ws[3]; kd = ds[3]; return; }
+            int i = f < fs[1] ? 0 : f < fs[2] ? 1 : 2;
+            float t = smooth((f - fs[i]) / (fs[i + 1] - fs[i]));
+            kw = ws[i] + (ws[i + 1] - ws[i]) * t; kd = ds[i] + (ds[i + 1] - ds[i]) * t;
+        };
+        const bool bulky = std::fabs(kArm - 1) + std::fabs(kFore - 1) + std::fabs(kThigh - 1) + std::fabs(kCalf - 1) + std::fabs(wHip - 1) + std::fabs(wWaist - 1) +
+                           std::fabs(wChest - 1) + std::fabs(dHip - 1) + std::fabs(dWaist - 1) + std::fabs(dChest - 1) + std::fabs(shoulderK - 1) + follow + inset > 1e-4f;
+        // her trunk's middle (front to back) by height: the mid of its depth in 2 cm bands of the Sims body (her trunk as she stands)
+        std::vector<float> midX;
+        const float band = 0.02f * sr, zLo = zHip - 0.5f * sr;
+        if (bulky) {
+            std::vector<float> lo(80, 1e9f), hi(80, -1e9f);
+            std::vector<uint8_t> trunkBone(m.bones.size(), 0);
+            for (const char* n : {"Root", "Pelvis", "Waist", "Spine1", "Spine2", "Chest"}) { int b = m.findWowBone(n); if (b >= 0) trunkBone[size_t(b)] = 1; }
+            for (size_t v = 0; v < nv; ++v) {
+                float tw = 0;
+                for (int i = 0; i < WM[v].n; ++i) if (trunkBone[size_t(WM[v].e[size_t(i)].first)]) tw += WM[v].e[size_t(i)].second;
+                if (tw < 0.5f || std::fabs(P[v].y - off.y) > 0.06f * sr) continue;
+                V3 q = trunkZ(P[v]);
+                int k = int((q.z - zLo) / band);
+                if (k < 0 || k >= 80) continue;
+                lo[size_t(k)] = std::min(lo[size_t(k)], q.x); hi[size_t(k)] = std::max(hi[size_t(k)], q.x);
+            }
+            midX.assign(80, off.x);
+            for (int k = 0; k < 80; ++k) {   // (a band with none: its nearest filled band's)
+                float s = 0; int c = 0;
+                for (int d = -2; d <= 2; ++d) { int q = k + d; if (q >= 0 && q < 80 && hi[size_t(q)] > lo[size_t(q)]) { s += (lo[size_t(q)] + hi[size_t(q)]) * 0.5f; ++c; } }
+                if (c) midX[size_t(k)] = s / float(c);
+                else if (k > 0) midX[size_t(k)] = midX[size_t(k - 1)];
+            }
+        }
+        auto midAt = [&](float z) { if (midX.empty()) return off.x; int k = std::clamp(int((z - zLo) / band), 0, 79); return midX[size_t(k)]; };
+        // what each model bone carries: 0 the trunk's map, 1..4 a limb segment (upper arm, forearm, thigh, calf) | side << 4
+        std::vector<uint8_t> limbOf(m.bones.size(), 0);
+        std::vector<uint8_t> trunkOf(m.bones.size(), 0);
+        for (const char* n : {"Root", "Pelvis", "Waist", "Spine1", "Spine2", "Chest", "L_Breast", "R_Breast", "L_Clavicle", "R_Clavicle"}) {
+            int b = m.findWowBone(n); if (b >= 0) trunkOf[size_t(b)] = 1;
+        }
+        for (int sd = 0; sd < 2; ++sd) {
+            const std::string px = sd ? "R_" : "L_";
+            const std::pair<const char*, int> segOf[] = {{"UpperArm", 1}, {"UpperArmTwist", 1}, {"Forearm", 2}, {"ForearmTwist", 2}, {"ElbowHelper", 2},
+                                                         {"Thigh", 3}, {"Calf", 4}};
+            for (const auto& so : segOf) {
+                int b = resolveBone(m, px + so.first);
+                if (b < 0) continue;
+                bool own = m.findWowBone(px + so.first) == b;
+                for (const Helper& h : kHelpers) if (px + so.first == h.name) own = m.bones[size_t(b)].keyBoneId == h.key;
+                if (own) limbOf[size_t(b)] = uint8_t(so.second | (sd << 4));
+            }
+        }
+        const char* segA[5] = {"", "UpperArm", "Forearm", "Thigh", "Calf"};
+        const char* segB[5] = {"", "Forearm", "Hand", "Calf", "Foot"};
+        // each segment's median radius as she stands (its middle 60%, the skin mostly its bone's)
+        float limbR[2][5] = {{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}};
+        if (bulky) {
+            std::vector<float> rs[2][5];
+            for (size_t v = 0; v < nv; ++v) {
+                int best = -1; float bw = 0;
+                for (int i = 0; i < WM[v].n; ++i) if (WM[v].e[size_t(i)].second > bw) { bw = WM[v].e[size_t(i)].second; best = WM[v].e[size_t(i)].first; }
+                if (best < 0 || !limbOf[size_t(best)]) continue;
+                int seg = limbOf[size_t(best)] & 15, sd = limbOf[size_t(best)] >> 4;
+                const std::string px = sd ? "R_" : "L_";
+                auto it = turn.find(best);
+                auto ia = A.find(px + segA[seg]), ib = A.find(px + segB[seg]);
+                if (it == turn.end() || ia == A.end() || ib == A.end()) continue;
+                V3 q = it->second.to + it->second.M * (P[v] - it->second.from), d = ib->second - ia->second;
+                float L = d.length();
+                if (L < 1e-5f) continue;
+                d = d * (1.0f / L);
+                float a = (q - ia->second).dot(d);
+                if (a < 0.2f * L || a > 0.8f * L) continue;
+                rs[sd][seg].push_back(((q - ia->second) - d * a).length());
+            }
+            for (int sd = 0; sd < 2; ++sd) for (int sg = 1; sg < 5; ++sg) {
+                std::vector<float>& r = rs[sd][sg];
+                if (r.empty()) continue;
+                std::nth_element(r.begin(), r.begin() + long(r.size() / 2), r.end());
+                limbR[sd][sg] = r[r.size() / 2];
+            }
+        }
+        // a limb's factor along it (0 at its first joint, 1 at its next): an arm's and a thigh's half of the change toward the next
+        // segment's factor made over the last quarter; a thigh's growth eased in from the hip crease (her own hips' curve is
+        // there: no ledge), a forearm's partly kept to the wrist, a shin's halfway back over its last 30% (the ankle
+        // is then drawn onto the model's own foot top)
+        auto limbK = [&](int seg, float t) {
+            switch (seg) {
+                case 1: return kArm + (0.5f * (kArm + kFore) - kArm) * smooth((t - 0.75f) / 0.35f);
+                case 2: return kFore + (0.5f * (kArm + kFore) - kFore) * smooth((0.25f - t) / 0.35f) + (1 + 0.6f * (kFore - 1) - kFore) * smooth((t - 0.7f) / 0.35f);
+                case 3: {
+                    float top = 0.5f * (wHip + 1 + 0.4f * (kThigh - 1));   // (at the hip crease little more than the hips: no ledge there)
+                    return top + (kThigh - top) * smooth(t / 0.35f) + (0.5f * (kThigh + kCalf) - kThigh) * smooth((t - 0.75f) / 0.35f);
+                }
+                case 4: return kCalf + (0.5f * (kThigh + kCalf) - kCalf) * smooth((0.25f - t) / 0.35f) + (0.5f * (1 - kCalf)) * smooth((t - 0.7f) / 0.3f);
+                default: return 1.0f;
+            }
+        };
+        auto bulkOf = [&](int b, V3 q, V3 n, V3& qo, V3& no) {
+            qo = q; no = n;
+            if (!bulky || b < 0 || size_t(b) >= m.bones.size()) return;
+            if (uint8_t l = limbOf[size_t(b)]) {
+                int seg = l & 15, sd = l >> 4;
+                const std::string px = sd ? "R_" : "L_";
+                auto ia = A.find(px + segA[seg]), ib = A.find(px + segB[seg]);
+                if (ia == A.end() || ib == A.end()) return;
+                V3 d = ib->second - ia->second;
+                float L = d.length();
+                if (L < 1e-5f) return;
+                d = d * (1.0f / L);
+                V3 r = q - ia->second;
+                float a = r.dot(d);
+                // thickened by the same depth all round (her median radius there times the factor's growth): a muscular
+                // limb is hers with more on it, not her own taper magnified (a balloon thigh over a thin knee)
+                float k = limbK(seg, a / L);
+                V3 rad = r - d * a;
+                float rl = rad.length(), add = (k - 1) * limbR[sd][seg];
+                float kk = rl > 1e-5f ? std::clamp((rl + add) / rl, 0.5f, 2.5f) : 1.0f;   // (a crease near the bone: no more than 2.5 times)
+                qo = ia->second + d * a + rad * kk;
+                if (seg == 3 && inset > 0 && legDone[sd]) {   // the thigh's flesh drawn in toward her middle by her hip joint's move out
+                    float dy = std::max(0.0f, (hipNew[sd].y - hipOwn[sd].y) * (sd ? -1.0f : 1.0f));
+                    float in = inset * dy * (1 - smooth((a / L - 0.1f) / 0.6f));
+                    qo.y += sd ? in : -in;
+                }
+                return;   // (an even thickening keeps the surface's normals)
+            }
+            if (!trunkOf[size_t(b)]) return;
+            float kw, kd;
+            trunkK(q.z, kw, kd);
+            float cx = midAt(q.z), y = q.y - off.y;
+            float fy = 0;
+            if (follow > 0) {   // the hips' sides toward the hip joint's move: none in her middle, all of it past her hip joint
+                const int sd = y < 0 ? 1 : 0;
+                if (legDone[sd]) {
+                    float dy = (hipNew[sd].y - hipOwn[sd].y) * (sd ? -1.0f : 1.0f);
+                    float reach = std::max(std::fabs(hipOwn[sd].y - off.y), 1e-4f);
+                    float f = (q.z - zHip) / std::max(zSh - zHip, 1e-4f);
+                    fy = follow * dy * smooth(std::fabs(y) / (1.2f * reach)) * (1 - smooth((f - 0.05f) / 0.35f));
+                }
+            }
+            qo = V3(cx + (q.x - cx) * kd, off.y + y * kw + (y < 0 ? -fy : fy), q.z);
+            no = V3(n.x / kd, n.y / kw, n.z).normalized();
+        };
         // her vertices by her own weights
         for (size_t v = 0; v < nv; ++v) {
             V3 acc, nacc; float tot = 0;
@@ -977,17 +1265,37 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
                 int b = WM[v].e[size_t(i)].first;
                 float w = WM[v].e[size_t(i)].second;
                 auto it = turn.find(b);
-                if (it == turn.end()) { acc = acc + P[v] * w; nacc = nacc + N[v] * w; }
-                else { acc = acc + (it->second.to + it->second.R * (P[v] - it->second.from)) * w; nacc = nacc + (it->second.R * N[v]) * w; }
+                V3 q, n, qo, no;
+                if (it == turn.end()) { q = trunkZ(P[v]); n = N[v]; }
+                else { q = it->second.to + it->second.M * (P[v] - it->second.from); n = it->second.R * N[v]; }
+                bulkOf(b, q, n, qo, no);
+                acc = acc + qo * w; nacc = nacc + no * w;
                 tot += w;
             }
             if (tot > 0) { P[v] = acc * (1.0f / tot); N[v] = nacc.normalized(); }
+        }
+        // her spine's bends at the model's own spine joints (`spine` of the way): the model's bows, kneels and lies bend its spine
+        // there, and the head, the shoulders and the hands land where the model's do (her trunk is one piece of flesh round
+        // them: her weights blend over 10 to 20 cm, a few centimetres' move of the pivot doesn't show)
+        if (fit.spine > 0) {
+            const float k = std::min(fit.spine, 1.0f);
+            for (const char* n : {"Spine1", "Spine2", "Chest"}) { V3 w; if (A.count(n) && wowPiv(n, w)) A[n] = A[n] + (w - A[n]) * k; }
+        }
+        // the breasts' joints with the trunk's build (they sit in its flesh)
+        for (const char* n : {"L_Breast", "R_Breast"}) {
+            int b = m.findWowBone(n);
+            if (b < 0 || !A.count(n)) continue;
+            V3 qo, no;
+            bulkOf(b, A[n], V3(1, 0, 0), qo, no);
+            A[n] = qo;
         }
         out.rigPivots.resize(m.bones.size());
         std::vector<int8_t> moved(m.bones.size(), 0);   // 1 placed from the rig, -1 kept (head and feet chains)
         for (size_t b = 0; b < m.bones.size(); ++b) out.rigPivots[b] = m.bones[b].pivot;
         for (const auto& [name, p] : A) {
-            if (name == "Neck1" || name == "L_Foot" || name == "R_Foot") continue;   // (the neck and feet are the model's)
+            // (the neck and feet are the model's; so is the pelvis's pivot: it bends nothing of hers, the spine and the hips
+            // do, and on the model's own point her whole body follows the model's pelvis in every pose)
+            if (name == "Neck1" || name == "L_Foot" || name == "R_Foot" || (name == "Pelvis" && fit.lengths > 0)) continue;
             int b = resolveBone(m, name);
             bool own = m.findWowBone(name) == b;
             for (const Helper& h : kHelpers) if (name == h.name) own = b >= 0 && m.bones[size_t(b)].keyBoneId == h.key;
@@ -996,6 +1304,7 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
             moved[size_t(b)] = 1;
         }
         for (const char* n : {"Root", "Neck1", "L_Foot", "R_Foot", "L_Ankle", "R_Ankle"}) { int b = m.findWowBone(n); if (b >= 0 && !moved[size_t(b)]) moved[size_t(b)] = -1; }
+        if (fit.lengths > 0) { int b = m.findWowBone("Pelvis"); if (b >= 0 && !moved[size_t(b)]) moved[size_t(b)] = -1; }
         // the rest: by their nearest decided ancestor (moved: carried by its offset; kept, or none: as the model has them)
         for (size_t b = 0; b < m.bones.size(); ++b) {
             if (moved[b]) continue;
@@ -1217,6 +1526,71 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
             V3 q = P[v];
             V3 f(ankleR[s].centre.x + (q.x - cs.x) * ankleR[s].rx * 0.97f / rxs, ankleR[s].centre.y + (q.y - cs.y) * ankleR[s].ry * 0.97f / rys, zt + (q.z - cs.z));
             P[v] = q * (1 - t) + f * t;
+        }
+    }
+    // ---- the shins' last centimetres onto the model's own lower leg (the skin Eve's cut took: its radius round the ankle's
+    // centre at each angle and height above its cut edge, which slants over the foot's top): her shin meets the foot as the
+    // model's own leg did, with no lip where the foot's edge flares out under a slimmer shin (a step of up to 1 cm on the
+    // night elf before). Full at the edge, none `kAnkleBand` above it.
+    if (fit.ankleMatch > 0) for (int s = 0; s < 2 && !split; ++s) {
+        if (ankleR[s].e.empty()) continue;
+        constexpr int kAng = 24, kRows = 6;
+        const float band = 0.09f * unit, share = std::min(fit.ankleMatch, 1.0f);
+        const V3 c = ankleR[s].centre;
+        auto bin = [&](V3 p) { float a = std::atan2(p.y - c.y, p.x - c.x); int k = int(std::floor((a + 3.14159265f) / 6.2831853f * kAng)); return (k % kAng + kAng) % kAng; };
+        // the cut edge's height per angle (its vertices'), the gaps filled from the neighbours
+        float edgeZ[kAng], ez[kAng]; int en[kAng] = {0};
+        for (int k = 0; k < kAng; ++k) { edgeZ[k] = 0; ez[k] = 0; }
+        for (auto& e : ankleR[s].e) for (uint32_t v : {e.first, e.second}) { int k = bin(posOf(verts[v])); ez[k] += verts[v].pos[2]; en[k]++; }
+        bool anyEdge = false;
+        for (int k = 0; k < kAng; ++k) if (en[k]) { edgeZ[k] = ez[k] / float(en[k]); anyEdge = true; }
+        if (!anyEdge) continue;
+        for (int pass = 0; pass < kAng; ++pass) for (int k = 0; k < kAng; ++k) if (!en[k]) {
+            int a = (k + kAng - 1) % kAng, b = (k + 1) % kAng;
+            if (en[a]) { edgeZ[k] = edgeZ[a]; en[k] = -1; } else if (en[b]) { edgeZ[k] = edgeZ[b]; en[k] = -1; }
+        }
+        // the model's removed lower leg: its widest radius per angle and height above the edge
+        float rad[kAng][kRows]; bool has[kAng][kRows];
+        for (int k = 0; k < kAng; ++k) for (int r = 0; r < kRows; ++r) { rad[k][r] = 0; has[k][r] = false; }
+        std::vector<uint8_t> onRing(nv, 0);
+        if (const std::vector<uint32_t>* rr = eve.ring(s ? "R_ankle" : "L_ankle")) for (uint32_t v : *rr) if (v < nv) onRing[v] = 1;
+        const V3 other = ankleR[s ^ 1].e.empty() ? W[s ^ 1].ankle : ankleR[s ^ 1].centre;
+        // (the shown skin's own: a hidden geoset's boot or trouser leg is skin too; all shown, the bare ones: 0 and NN01)
+        std::vector<uint8_t> shown(verts.size(), 0);
+        for (size_t sI = 0; sI < subs.size(); ++sI) {
+            if (!skinSub[sI]) continue;
+            if (all ? (subs[sI].id % 100 > 1) : std::find(geosets.begin(), geosets.end(), subs[sI].id) == geosets.end()) continue;
+            for (uint32_t t = subs[sI].indexStart; t < subs[sI].indexStart + subs[sI].indexCount && t < indices.size(); ++t)
+                if (indices[t] < verts.size()) shown[indices[t]] = 1;
+        }
+        for (size_t i = 0; i < verts.size(); ++i) {
+            if (!out.cut[i] || !shown[i]) continue;
+            V3 p = posOf(verts[i]);
+            float dm = V3(p.x - c.x, p.y - c.y, 0).length();
+            if (dm > 0.2f * unit || dm >= V3(p.x - other.x, p.y - other.y, 0).length()) continue;   // (this leg's own skin)
+            int k = bin(p);
+            float dz = p.z - edgeZ[k];
+            if (dz < 0 || dz >= band) continue;
+            int r = std::min(kRows - 1, int(dz / band * kRows));
+            rad[k][r] = std::max(rad[k][r], V3(p.x - c.x, p.y - c.y, 0).length());
+            has[k][r] = true;
+        }
+        for (size_t v = 0; v < nv; ++v) {
+            if (calfW[s][v] < 0.3f || onRing[v]) continue;   // (the ring itself is snapped onto the edge below)
+            V3 q = P[v];
+            int k = bin(q);
+            float dz = q.z - edgeZ[k];
+            if (dz < 0 || dz >= band) continue;
+            int r = std::min(kRows - 1, int(dz / band * kRows));
+            if (!has[k][r]) continue;
+            V3 d(q.x - c.x, q.y - c.y, 0);
+            float rl = d.length();
+            if (rl < 1e-5f) continue;
+            float t = 1 - dz / band;
+            t = share * t * t * (3 - 2 * t);
+            float want = rad[k][r] * 0.99f;
+            float nr = rl + (want - rl) * t;
+            P[v] = V3(c.x + d.x * nr / rl, c.y + d.y * nr / rl, q.z);
         }
     }
     // ---- the split fit: each thigh's last 25% above the cut drawn onto the model's cut section (its centre and radii), so the
@@ -2424,6 +2798,19 @@ EveResult eveCompute(const EveJob& job) {
         }
         if (!splitMesh) {
             splitMesh = std::make_shared<EveMesh>(eveSplitMesh(*job.mesh, job.fit.split));
+            std::lock_guard<std::mutex> lock(set.cacheMutex);
+            set.splits.push_back({key, splitMesh});
+            if (set.splits.size() > 4) set.splits.erase(set.splits.begin());
+        }
+    }
+    if (!splitMesh && job.fit.ankleMatch > 0) {   // two more loops above the ankle rings (made once per set)
+        const std::string key = job.mesh->variant + "|ankles0.30";
+        {
+            std::lock_guard<std::mutex> lock(set.cacheMutex);
+            for (auto& sp : set.splits) if (sp.first == key) splitMesh = sp.second;
+        }
+        if (!splitMesh) {
+            splitMesh = std::make_shared<EveMesh>(eveRefineAnkles(*job.mesh, 0.3f));
             std::lock_guard<std::mutex> lock(set.cacheMutex);
             set.splits.push_back({key, splitMesh});
             if (set.splits.size() > 4) set.splits.erase(set.splits.begin());

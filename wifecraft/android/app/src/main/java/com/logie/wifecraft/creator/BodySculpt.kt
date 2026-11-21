@@ -4,65 +4,153 @@ import org.json.JSONObject
 import kotlin.random.Random
 
 /**
- * The Body tab's sculpt sliders, each from -1 to 1 (0: the body as made). Height works on every body (the actor's scale), and
- * so does Leg Length (the actor's skeleton: thighs and shins lengthened, the feet kept on the floor; cpp/engine/bodyrig.h,
- * [legFactor]); the others change the Eve body's mesh (cpp/engine/sculpt.h: smooth regions from its bone weights, scaled
- * about the joints' axes and pushed along the normals), so on a Warcraft body they are shown greyed ([eveOnly]). The engine
- * takes them in this order ([BodySculpt.toArray]; sculpt.h's SculptSlider).
+ * The parts of the body the Body tab's Sculpt groups its sliders by (its part selector), each the place a tap or a drag on her
+ * body lands on ([of]: the tap-to-edit's [BodyRegion]).
  */
-enum class SculptSlider(val key: String, val label: String, val eveOnly: Boolean, val drawn: Boolean = true) {
-    HEIGHT("height", "Height", false),
-    SHOULDERS("shoulders", "Shoulders", true),
-    ARMS("arms", "Arms", true),
-    BUST_SIZE("bust", "Bust Size", true),
-    BUST_LIFT("bustLift", "Bust Lift", true),
-    WAIST("waist", "Waist", true),
-    BELLY("belly", "Belly", true),
-    HIPS("hips", "Hips", true),
-    BUTT("butt", "Butt", true),
-    THIGHS("thighs", "Thighs", true),
-    /** The skeleton's legs (engine/bodyrig.h): on every body, Eve's or the game's own. */
-    LEG_LENGTH("legLength", "Leg Length", false),
+enum class SculptPart(val label: String) {
+    OVERALL("Overall"), NECK("Neck"), SHOULDERS("Shoulders"), CHEST("Chest"), ARMS("Arms"), WAIST("Waist"), HIPS("Hips"), LEGS("Legs");
+
+    /** Its sliders in the engine's order; on a man the chest's own slider first (the bust's work on his chest too). */
+    fun sliders(female: Boolean = true): List<SculptSlider> {
+        val all = SculptSlider.entries.filter { it.part == this }
+        return if (this == CHEST && !female) all.sortedBy { if (it == SculptSlider.CHEST) 0 else 1 } else all
+    }
+
+    companion object {
+        /** The part a tapped region of her body is (null: a region the sculpt has no part for: the head, hair, hands, feet). */
+        fun of(region: BodyRegion): SculptPart? = when (region) {
+            BodyRegion.NECK -> NECK
+            BodyRegion.CHEST -> CHEST
+            BodyRegion.WAIST -> WAIST
+            BodyRegion.HIPS -> HIPS
+            BodyRegion.LEGS -> LEGS
+            BodyRegion.ARMS -> ARMS
+            else -> null
+        }
+    }
 }
 
 /**
- * A body's sculpt: a value for each [SculptSlider] (missing: 0), clamped to -1..1 and kept to two decimals so that a saved
- * look reads back equal. Saved in [Appearance] as `"sculpt":{"bust":0.35,"hips":0.4}`, the zeros left out; a body at all
- * zeros is not saved at all ([isNeutral]), so every look saved before reads back as it was.
+ * The Body tab's sculpt sliders, each from -1 to 1 (0: the body as made), on every body: the game's own (every race's default
+ * model, both sexes: cpp/engine/sculpt.h on its whole vertex list, bind pose, so it bends with its bones as before; the robe's
+ * and sleeves' geosets on it follow) and the Eve body alike. Height is the actor's scale and Leg Length the skeleton's
+ * (cpp/engine/bodyrig.h, [legFactor]); the others move the mesh ([mesh]). [sided] sliders can differ left and right
+ * ([BodySculpt.sides], the creator's Symmetry off). The engine takes them in this order ([BodySculpt.toArray]; sculpt.h's
+ * SculptSlider): the first eleven as they always were, the rest added after them, so older saves read back unchanged.
  */
-data class BodySculpt(val values: Map<SculptSlider, Float> = emptyMap()) {
+enum class SculptSlider(val key: String, val label: String, val part: SculptPart, val mesh: Boolean = true, val sided: Boolean = true,
+                        val drawn: Boolean = true) {
+    HEIGHT("height", "Height", SculptPart.OVERALL, mesh = false, sided = false),
+    SHOULDERS("shoulders", "Shoulders", SculptPart.SHOULDERS),
+    ARMS("arms", "Arms", SculptPart.ARMS),
+    BUST_SIZE("bust", "Bust Size", SculptPart.CHEST),
+    BUST_LIFT("bustLift", "Bust Lift", SculptPart.CHEST),
+    WAIST("waist", "Waist", SculptPart.WAIST),
+    BELLY("belly", "Belly", SculptPart.WAIST, sided = false),
+    HIPS("hips", "Hips", SculptPart.HIPS),
+    BUTT("butt", "Butt", SculptPart.HIPS),
+    THIGHS("thighs", "Thighs", SculptPart.LEGS),
+    /** The skeleton's legs (engine/bodyrig.h): on every body, Eve's or the game's own. */
+    LEG_LENGTH("legLength", "Leg Length", SculptPart.LEGS, mesh = false, sided = false),
+    NECK("neck", "Neck", SculptPart.NECK, sided = false),
+    CHEST("chest", "Chest", SculptPart.CHEST),
+    BUST_WIDTH("bustWidth", "Bust Width", SculptPart.CHEST),
+    BUST_SPACING("bustSpacing", "Bust Spacing", SculptPart.CHEST, sided = false),
+    SHOULDER_SLOPE("shoulderSlope", "Shoulder Slope", SculptPart.SHOULDERS),
+    UPPER_ARMS("upperArms", "Upper Arms", SculptPart.ARMS),
+    FOREARMS("forearms", "Forearms", SculptPart.ARMS),
+    CALVES("calves", "Calves", SculptPart.LEGS),
+    BUTT_LIFT("buttLift", "Butt Lift", SculptPart.HIPS),
+    /** Overall softness: shares of the waist, belly, hips, butt, thighs, arms, calves, bust and neck (sculpt.h). */
+    BODY_FAT("bodyFat", "Body Fat", SculptPart.OVERALL, sided = false),
+    /** Overall muscle: shares of the shoulders, arms, chest, thighs, calves and neck, the waist and belly a little less. */
+    MUSCLE("muscle", "Muscle", SculptPart.OVERALL, sided = false),
+}
+
+/** A side of her body (her own left and right, as the engine's model space has them). */
+enum class BodySide { LEFT, RIGHT }
+
+/**
+ * A body's sculpt: a value for each [SculptSlider] (missing: 0) and, for a [SculptSlider.sided] one, how far her left side
+ * is above it and her right below ([sides]: left = value + side, right = value - side, each kept within -1..1). Clamped and
+ * kept to two decimals so that a saved look reads back equal. Saved in [Appearance] as
+ * `"sculpt":{"bust":0.35,"hips":0.4,"sides":{"hips":0.1}}`, the zeros left out; a body at all zeros is not saved at all
+ * ([isNeutral]), so every look saved before reads back as it was.
+ */
+data class BodySculpt(val values: Map<SculptSlider, Float> = emptyMap(), val sides: Map<SculptSlider, Float> = emptyMap()) {
     operator fun get(s: SculptSlider): Float = values[s] ?: 0f
 
+    /** The side balance of [s] (0: both sides alike). */
+    fun side(s: SculptSlider): Float = sides[s] ?: 0f
+
+    /** [s] on one side of her body. */
+    fun on(s: SculptSlider, side: BodySide): Float =
+        (this[s] + if (side == BodySide.LEFT) side(s) else -side(s)).coerceIn(-1f, 1f)
+
+    /** [s] set to [v] on both sides (a side's balance kept, as far as both sides stay within -1..1). */
     fun with(s: SculptSlider, v: Float): BodySculpt {
         val q = quantize(v)
-        return BodySculpt(if (q == 0f) values - s else values + (s to q))
+        val next = copy(values = if (q == 0f) values - s else values + (s to q))
+        return next.withBalance(s, next.side(s))
     }
 
-    val isNeutral: Boolean get() = values.values.all { it == 0f }
+    /** [s] set to [v] on one side alone (the other side kept); a slider that isn't [SculptSlider.sided]: on both. */
+    fun withSide(s: SculptSlider, side: BodySide, v: Float): BodySculpt {
+        if (!s.sided) return with(s, v)
+        val x = quantize(v)
+        val other = on(s, if (side == BodySide.LEFT) BodySide.RIGHT else BodySide.LEFT)
+        val mean = quantize((x + other) / 2f)
+        val half = (x - other) / 2f
+        val b = if (side == BodySide.LEFT) half else -half
+        val next = copy(values = if (mean == 0f) values - s else values + (s to mean))
+        return next.withBalance(s, b)
+    }
+
+    /** Both sides of [s] made alike again. */
+    fun even(s: SculptSlider): BodySculpt = copy(sides = sides - s)
+
+    private fun withBalance(s: SculptSlider, b: Float): BodySculpt {
+        if (!s.sided) return copy(sides = sides - s)
+        // as far as both sides stay within -1..1
+        val v = this[s]
+        val room = 1f - kotlin.math.abs(v)
+        val q = quantize(b.coerceIn(-room, room))
+        return copy(sides = if (q == 0f) sides - s else sides + (s to q))
+    }
+
+    /** Every slider of [part] back to 0 (both sides). */
+    fun reset(part: SculptPart): BodySculpt =
+        BodySculpt(values.filterKeys { it.part != part }, sides.filterKeys { it.part != part })
+
+    val isNeutral: Boolean get() = values.values.all { it == 0f } && sides.values.all { it == 0f }
+
+    /** Whether any slider's two sides differ. */
+    val isSided: Boolean get() = sides.values.any { it != 0f }
 
     /** The actor's scale for [SculptSlider.HEIGHT]: 6% taller or shorter at the ends. */
     val heightScale: Float get() = 1f + HEIGHT_REACH * this[SculptSlider.HEIGHT]
 
-    /** The values in [SculptSlider]'s order (the engine's). */
-    fun toArray(): FloatArray = FloatArray(SculptSlider.entries.size) { this[SculptSlider.entries[it]] }
+    /** The values in [SculptSlider]'s order (the engine's), then each one's side balance (sculpt.h kSculptValues). */
+    fun toArray(): FloatArray {
+        val n = SculptSlider.entries.size
+        return FloatArray(2 * n) { i -> if (i < n) this[SculptSlider.entries[i]] else side(SculptSlider.entries[i - n]) }
+    }
 
     /** The legs' length over the body as made ([legFactor] of [SculptSlider.LEG_LENGTH]). */
     val legScale: Float get() = legFactor(this[SculptSlider.LEG_LENGTH])
 
-    /** What a body that isn't Eve's can show: the height and the legs' length. */
-    fun forWarcraftBody(): BodySculpt {
-        var s = BodySculpt()
-        for (k in SculptSlider.entries) if (!k.eveOnly) s = s.with(k, this[k])
-        return s
+    fun toJson(): JSONObject = JSONObject().also { j ->
+        for (s in SculptSlider.entries) this[s].takeIf { it != 0f }?.let { j.put(s.key, it.toDouble()) }
+        if (isSided) j.put(SIDES_KEY, JSONObject().also { o -> for (s in SculptSlider.entries) side(s).takeIf { it != 0f }?.let { o.put(s.key, it.toDouble()) } })
     }
-
-    fun toJson(): JSONObject = JSONObject().also { j -> for (s in SculptSlider.entries) this[s].takeIf { it != 0f }?.let { j.put(s.key, it.toDouble()) } }
 
     companion object {
         const val HEIGHT_REACH = 0.06f
         /** Leg Length's ends: the thighs and shins this many times as long at -1 and at +1 (engine/bodyrig.h kLegShortest, kLegLongest). */
         const val LEG_SHORTEST = 0.85f
         const val LEG_LONGEST = 1.2f
+        /** The JSON key of the sides' balances (not a slider's key). */
+        const val SIDES_KEY = "sides"
 
         /** The slider (-1..1) as the legs' factor, as the engine maps it (bodyrig.h legLengthFactor): linear on each side of 0. */
         fun legFactor(v: Float): Float {
@@ -81,15 +169,18 @@ data class BodySculpt(val values: Map<SculptSlider, Float> = emptyMap()) {
             if (o == null) return null
             var s = BodySculpt()
             for (k in SculptSlider.entries) if (o.has(k.key)) s = s.with(k, o.optDouble(k.key, 0.0).toFloat())
+            o.optJSONObject(SIDES_KEY)?.let { sides ->
+                for (k in SculptSlider.entries) if (sides.has(k.key)) s = s.withBalance(k, sides.optDouble(k.key, 0.0).toFloat())
+            }
             return s.takeIf { !it.isNeutral }
         }
 
-        /** A plausible body: each drawn Eve slider within ±[reach], the hips and the butt leaning together. */
+        /** A plausible body: each mesh slider within ±[reach], the hips and the butt leaning together; both sides alike. */
         fun random(random: Random, reach: Float): BodySculpt {
             fun r() = (random.nextFloat() * 2f - 1f) * reach
             val curve = r()
             var s = BodySculpt()
-            for (k in SculptSlider.entries) if (k.eveOnly && k.drawn) s = s.with(k, r())
+            for (k in SculptSlider.entries) if (k.mesh && k.drawn) s = s.with(k, r())
             s = s.with(SculptSlider.HIPS, (curve + s[SculptSlider.HIPS]) / 2f).with(SculptSlider.BUTT, (curve + s[SculptSlider.BUTT]) / 2f)
             return s
         }
@@ -97,29 +188,21 @@ data class BodySculpt(val values: Map<SculptSlider, Float> = emptyMap()) {
 }
 
 /**
- * Who changes the body as the sliders say: the engine for the Eve body (engine/SceneView.setSculpt, cpp/engine/sculpt.h), a
- * recording fake in the tests. [supports] says which sliders show live; the others are greyed on the Body tab with
- * [NEEDS_EVE].
+ * Who changes the body as the sliders say: the engine (engine/SceneView.setSculpt, cpp/engine/sculpt.h: the game's own body
+ * or the Eve body), a recording fake in the tests. [supports] says which sliders show live: every one on every body now.
  */
 interface BodySculptApplier {
     fun supports(slider: SculptSlider): Boolean
     fun apply(actorKey: String, sculpt: BodySculpt)
-
-    companion object {
-        const val NEEDS_EVE = "Needs the Eve body"
-    }
 }
 
-/** What each kind of body takes: a Warcraft body the height and the legs' length, the Eve body every slider. */
+/** What each kind of body takes: every drawn slider, the game's own body and the Eve body alike. */
 object SculptSupport {
-    fun supports(slider: SculptSlider, eveBody: Boolean): Boolean = slider.drawn && (eveBody || !slider.eveOnly)
+    @Suppress("UNUSED_PARAMETER")
+    fun supports(slider: SculptSlider, eveBody: Boolean): Boolean = slider.drawn
 
     /** Why a slider is greyed (null: it isn't). */
-    fun why(slider: SculptSlider, eveBody: Boolean): String? = when {
-        !slider.drawn -> NOT_DRAWN
-        !supports(slider, eveBody) -> BodySculptApplier.NEEDS_EVE
-        else -> null
-    }
+    fun why(slider: SculptSlider, eveBody: Boolean): String? = if (!supports(slider, eveBody)) NOT_DRAWN else null
 
     /** (No slider is undrawn now; kept for a slider added before the engine draws it.) */
     const val NOT_DRAWN = "Not drawn yet"
@@ -129,5 +212,5 @@ object SculptSupport {
 class RecordingSculptApplier(private val eveBody: Boolean) : BodySculptApplier {
     val applied = ArrayList<Pair<String, BodySculpt>>()
     override fun supports(slider: SculptSlider) = SculptSupport.supports(slider, eveBody)
-    override fun apply(actorKey: String, sculpt: BodySculpt) { applied += actorKey to (if (eveBody) sculpt else sculpt.forWarcraftBody()) }
+    override fun apply(actorKey: String, sculpt: BodySculpt) { applied += actorKey to sculpt }
 }

@@ -33,7 +33,8 @@ enum class BodyRegion(val code: Int, val label: String) {
     LEGS(7, "Legs"), ARMS(8, "Arms"), HANDS(9, "Hands"), FEET(10, "Feet");
 
     companion object {
-        fun of(code: Int): BodyRegion = entries.firstOrNull { it.code == code } ?: NONE
+        /** The region of a pick's code (Native.pickBodyRegion; its bits 8-9 are the side: [SculptDrag.sideOf]). */
+        fun of(code: Int): BodyRegion = entries.firstOrNull { it.code == (code and 0xFF) } ?: NONE
     }
 }
 
@@ -127,16 +128,8 @@ object CasTabs {
         BodyRegion.NONE -> CasCamera.FULL
     }
 
-    /** The sculpt sliders a tapped part of the body is about (shown first, glowing, on the Body tab). */
-    fun slidersFor(region: BodyRegion): List<SculptSlider> = when (region) {
-        BodyRegion.NECK -> listOf(SculptSlider.SHOULDERS)
-        BodyRegion.CHEST -> listOf(SculptSlider.BUST_SIZE, SculptSlider.BUST_LIFT, SculptSlider.SHOULDERS)
-        BodyRegion.WAIST -> listOf(SculptSlider.WAIST, SculptSlider.BELLY)
-        BodyRegion.HIPS -> listOf(SculptSlider.HIPS, SculptSlider.BUTT)
-        BodyRegion.LEGS -> listOf(SculptSlider.THIGHS, SculptSlider.LEG_LENGTH)
-        BodyRegion.ARMS -> listOf(SculptSlider.ARMS)
-        else -> emptyList()
-    }
+    /** The sculpt sliders a tapped part of the body is about (its [SculptPart]'s, shown on the Body tab's Sculpt, glowing). */
+    fun slidersFor(region: BodyRegion, female: Boolean = true): List<SculptSlider> = SculptPart.of(region)?.sliders(female) ?: emptyList()
 
     /** The camera each tab starts on as it is chosen. */
     fun cameraOf(tab: CasTab): CasCamera = when (tab) {
@@ -179,7 +172,7 @@ class CasHistory<T>(initial: T, val limit: Int = 100) {
 /**
  * Randomize with locks: every option of an unlocked tab a choice at random (kept right with each other as the dice's are:
  * [CreatorModel.randomize]), a locked tab's left as it is; on an unlocked Body the body options where she can have them and
- * the sculpt (only where the Eve body takes it: [sculptable]) a moderate value; on unlocked Personality three traits that go
+ * the sculpt ([sculptable]: every body takes it now) a moderate value; on unlocked Personality three traits that go
  * together. A locked Outfit keeps the Gear switch and the class.
  */
 object CasRandomizer {
@@ -203,6 +196,7 @@ object CasRandomizer {
             }
             val height = (random.nextFloat() * 2f - 1f) * 0.3f
             val s = if (sculptable) BodySculpt.random(random, SCULPT_REACH).with(SculptSlider.HEIGHT, height) else BodySculpt().with(SculptSlider.HEIGHT, height)
+            // (every body takes the sculpt now, the game's own and the Eve body: the screen passes sculptable = true)
             model.setSculpt(s)
         }
         if (CasTab.PERSONALITY !in locks && traits.isNotEmpty()) {

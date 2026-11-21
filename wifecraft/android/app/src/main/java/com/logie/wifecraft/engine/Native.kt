@@ -265,10 +265,11 @@ object Native {
     /**
      * The part of [actor]'s body the screen point (sx, sy) of a [width] x [height] view lands on: its shown triangles as posed
      * this frame, the region of the bones the hit is weighted to most (cpp engine/bodypick.h; creator/CasTabs.kt BodyRegion's
-     * codes: 0 none, 1 head, 2 hair, 3 neck, 4 chest, 5 waist, 6 hips, 7 legs, 8 arms, 9 hands, 10 feet).
+     * codes: 0 none, 1 head, 2 hair, 3 neck, 4 chest, 5 waist, 6 hips, 7 legs, 8 arms, 9 hands, 10 feet; bits 8-9 the side
+     * touched: 1 her left, 2 her right, 0 the middle).
      */
     @JvmStatic external fun pickBodyRegion(scene: Long, actor: Int, sx: Float, sy: Float, width: Int, height: Int): Int
-    /** The creator's sculpt sliders on [actor] (creator/BodySculpt.kt's order, -1..1): the Eve body is fitted again with them (engine/sculpt.h). */
+    /** The creator's sculpt sliders on [actor] (creator/BodySculpt.kt's order, -1..1, then their sides): the game's own body sculpted again, the Eve body fitted again with them (engine/sculpt.h). */
     @JvmStatic external fun setSculpt(scene: Long, actor: Int, values: FloatArray)
 
     const val PICK_NONE = 0

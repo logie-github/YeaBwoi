@@ -175,7 +175,7 @@ std::vector<uint8_t> pngOf(int w, int h, const std::vector<uint8_t>& rgba) {
 // 99.9th percentile within 1.5 times the model's and 1 cm more; her coarser mesh spans a joint with fewer, longer
 // triangles; her collapsed triangles, area under 5 % of the bind pose's, at most 0.2 % of them). A pose whose sequence or .anim isn't
 // here is skipped and said.
-void posedSeams(M2Model& m, const FileLookup& look, const EveResult& res, size_t eveVerts, const std::string& name) {
+void posedSeams(M2Model& m, const FileLookup& look, const EveResult& res, size_t eveVerts, const std::string& name, const EveRaceFit& fit) {
     struct Pose { const char* what; uint16_t anim; };
     const Pose poses[] = {{"sit on a chair", 103}, {"kneel", 115}, {"lie dead", 1}, {"lie asleep", 100},
                           {"cheer, arms up", 68}, {"bow", 66}};
@@ -286,7 +286,7 @@ void posedSeams(M2Model& m, const FileLookup& look, const EveResult& res, size_t
         // the rig against the model's own skeleton in the same pose: where the head, hands and feet end up (the scene places her by
         // them: furniture, partners); the worst moment
         if (!res.body.rigPivots.empty()) {
-            float worst[3] = {0, 0, 0}, turn = 0;   // (turn: the most a limb segment points away from the model's, degrees)
+            float worst[5] = {0, 0, 0, 0, 0}, turn = 0;   // head, hands, feet, pelvis, hips; (turn: the most a limb segment points away from the model's, degrees)
             for (float f : {0.2f, 0.5f, 0.8f}) {
                 uint32_t t = uint32_t(f * float(dur));
                 std::vector<BonePose> bp; m.pose(seq, t, t, bp, false);
@@ -305,18 +305,27 @@ void posedSeams(M2Model& m, const FileLookup& look, const EveResult& res, size_t
                     turn = std::max(turn, std::acos(c) * 57.2958f);
                     if (getenv("EVE_DIAG")) std::printf("    %s %.1f deg\n", sg[0], std::acos(c) * 57.2958f);
                 }
-                const char* ends[3][2] = {{"Head", ""}, {"L_Hand", "R_Hand"}, {"L_Foot", "R_Foot"}};
-                for (int k = 0; k < 3; ++k) for (const char* n : ends[k]) {
+                const char* ends[5][2] = {{"Head", ""}, {"L_Hand", "R_Hand"}, {"L_Foot", "R_Foot"}, {"Pelvis", ""}, {"L_Thigh", "R_Thigh"}};
+                for (int k = 0; k < 5; ++k) for (const char* n : ends[k]) {
                     if (!n[0]) continue;
                     int b = m.findWowBone(n); if (b < 0) continue;
                     worst[k] = std::max(worst[k], (em[size_t(b)].point(edit.pivots[size_t(b)]) - mm[size_t(b)].point(m.bones[size_t(b)].pivot)).length());
                 }
             }
             const float h = m.bones[size_t(m.findWowBone("Head"))].pivot.z;
-            std::printf("  %s, %s: the Eve rig against the model's: limbs point within %.1f deg; head %.3f, hands %.3f, feet %.3f apart (%.1f%% / %.1f%% / %.1f%% of the "
-                        "head's height: her own lengths)\n", name.c_str(), p.what, turn, worst[0], worst[1], worst[2], 100 * worst[0] / h, 100 * worst[1] / h, 100 * worst[2] / h);
+            std::printf("  %s, %s: the Eve rig against the model's: limbs point within %.1f deg; head %.3f, hands %.3f, feet %.3f, pelvis %.3f, hips %.3f apart "
+                        "(%.1f%% / %.1f%% / %.1f%% / %.1f%% / %.1f%% of the head's height)\n", name.c_str(), p.what, turn, worst[0], worst[1], worst[2], worst[3], worst[4],
+                        100 * worst[0] / h, 100 * worst[1] / h, 100 * worst[2] / h, 100 * worst[3] / h, 100 * worst[4] / h);
             CHECK(turn < 3.0f, "%s, %s: a limb of the Eve rig points %.1f degrees off the model's", name.c_str(), p.what, turn);
             CHECK(worst[0] <= 0.12f * h && worst[2] <= 0.12f * h, "%s, %s: the head or the feet stray from the model's (%.3f, %.3f)", name.c_str(), p.what, worst[0], worst[2]);
+            // with her limbs at the model's lengths and her spine bending at its joints (the table's defaults): the pelvis, the
+            // hips, the feet and the head where the model's are (the scene places partners and furniture by them), the hands
+            // within 6% of her height (her clavicles and shoulders are hers)
+            if (fit.lengths >= 1 && fit.spine >= 1) {
+                CHECK(worst[0] <= 0.01f * h && worst[2] <= 0.01f * h && worst[3] <= 0.01f * h && worst[4] <= 0.01f * h,
+                      "%s, %s: head %.3f, feet %.3f, pelvis %.3f, hips %.3f off the model's", name.c_str(), p.what, worst[0], worst[2], worst[3], worst[4]);
+                CHECK(worst[1] <= 0.06f * h, "%s, %s: the hands %.3f off the model's", name.c_str(), p.what, worst[1]);
+            }
         }
         std::printf("  %s, %s: seam gap %.5f, strip's edges grown %.4f (the model's cut edge %.4f), edges grown p99 %.3f p99.9 %.3f max %.3f (the model's %.3f %.3f %.3f), "
                     "collapsed %zu/%zu (the model's %zu/%zu)\n", name.c_str(), p.what, gap, strip, modelEdge, e99, e999, eMax, m99, m999, mMax, ec, en, mc, mn);
@@ -607,7 +616,7 @@ int main(int argc, char** argv) {
                         }
                         // the stitch: every vertex added past Eve's own sits exactly on a model vertex with its weights (no gap in any pose)
                         size_t added = 0, off = 0;
-                        for (size_t v = e.vertexCount(); v < res.body.verts.size(); ++v) {
+                        for (size_t v = res.body.stats.eveVerts; v < res.body.verts.size(); ++v) {
                             ++added;
                             const M2Vertex& x = res.body.verts[v];
                             bool on = false;
@@ -622,7 +631,7 @@ int main(int argc, char** argv) {
                             if (!on) ++off;
                         }
                         CHECK(added > 0 && off == 0, "%s: %zu stitch vertices, %zu off the model's edge", row->name.c_str(), added, off);
-                        posedSeams(m, look, res, e.vertexCount(), row->name);
+                        posedSeams(m, look, res, res.body.stats.eveVerts, row->name, *row);
                         // Keep undead bones (a row with "detail"): its details carried, the seams' colour as with them off (within 3)
                         if (row->detail > 0) {
                             EveJob off = j;

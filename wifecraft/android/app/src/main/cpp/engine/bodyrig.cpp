@@ -2,6 +2,7 @@
 // sculpt's rig, the tap's ray against the actor as posed, and the sculpt kept on the actor (the Eve body takes it as it is
 // fitted: evescene.cpp).
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 
 #include "bodypick.h"
@@ -32,32 +33,6 @@ std::vector<uint8_t> boneRegionsOf(const M2Model& m) {
     std::vector<int16_t> parents(m.bones.size());
     for (size_t i = 0; i < m.bones.size(); ++i) parents[i] = m.bones[i].parent;
     return boneRegionsFrom(parents, seeds);
-}
-
-SculptRig sculptRigOf(const M2Model& m) {
-    SculptBones b;
-    auto find = [&](const char* a, const char* alt = nullptr) { int i = m.findWowBone(a); return i >= 0 || !alt ? i : m.findWowBone(alt); };
-    b.pelvis = find("Pelvis", "Root");
-    b.waist = find("Spine1", "Waist");
-    b.chest = find("Chest", "Spine2");
-    b.neck = find("Neck1");
-    b.head = find("Head");
-    const char* side[2] = {"L_", "R_"};
-    for (int k = 0; k < 2; ++k) {
-        std::string s = side[k];
-        b.breast[k] = m.findWowBone(s + "Breast");
-        b.clavicle[k] = m.findWowBone(s + "Clavicle");
-        b.upperArm[k] = m.findWowBone(s + "UpperArm");
-        b.forearm[k] = m.findWowBone(s + "Forearm");
-        b.hand[k] = m.findWowBone(s + "Hand");
-        b.thigh[k] = m.findWowBone(s + "Thigh");
-        b.calf[k] = m.findWowBone(s + "Calf");
-        b.ankle[k] = m.findWowBone(s + "Ankle");
-    }
-    std::vector<V3> pivots(m.bones.size());
-    std::vector<int16_t> parents(m.bones.size());
-    for (size_t i = 0; i < m.bones.size(); ++i) { pivots[i] = m.bones[i].pivot; parents[i] = m.bones[i].parent; }
-    return sculptRig(pivots, parents, b);
 }
 
 int Scene::pickBodyRegion(int id, float sx, float sy, int width, int height) const {
@@ -102,16 +77,60 @@ int Scene::pickBodyRegion(int id, float sx, float sy, int width, int height) con
             if (along > 0 && miss < 0.2f * unit) return kRegionHair;
         }
     }
+    // the side of her body it landed on (bits 8-9: 1 her left, 2 her right, 0 the middle), for the creator's one-sided sculpt
+    if (hit.region != kRegionNone && hit.region != kRegionHair) {
+        const int pelvis = m.findWowBone("Pelvis");
+        const float unit = std::max(pelvis >= 0 ? m.bones[size_t(pelvis)].pivot.z : 1.0f, 0.1f);
+        if (hit.point.y > 0.03f * unit) return int(hit.region) | (1 << 8);
+        if (hit.point.y < -0.03f * unit) return int(hit.region) | (2 << 8);
+    }
     return hit.region;
 }
 
 void Scene::setSculpt(int id, const float* values, size_t count) {
     auto it = actors_.find(id);
-    if (it == actors_.end()) return;
-    std::vector<float> v(values, values + std::min(count, size_t(kSculptCount)));
-    if (v == it->second.sculpt) return;
-    it->second.sculpt = std::move(v);
-    // the Eve body is fitted again with it (evescene.cpp: eveCheck mixes it into the key)
+    if (it == actors_.end() || (!values && count)) return;
+    it->second.sculptWant.assign(values, values + std::min(count, size_t(kSculptValues)));
+    // taken on the next frame (sculptSync): the Eve body fitted again with it (evescene.cpp: eveCheck mixes it into the key),
+    // the game's own body sculpted again (refreshBody)
+}
+
+namespace {
+constexpr uint64_t kSculptMinMs = 166;   // the game's body sculpted again at most six times a second while a slider moves
+
+uint64_t steadyMs() {
+    return uint64_t(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
+}
+} // namespace
+
+void Scene::sculptSync(Actor& a) {
+    // the Eve body on her: asked for and offered for this model (else the game's body carries the sculpt)
+    bool eve = a.eve.requested && eveSet_ && a.mesh && a.mesh->model;
+    if (eve) { const EveRaceFit* fit = eveSet_->fits.forModel(a.mesh->model->fileId); eve = fit && fit->enabled; }
+    if (a.sculptWant != a.sculpt) {
+        const uint64_t t = steadyMs();
+        if (eve || !sculptThrottle_ || a.sculptAtMs == 0 || t - a.sculptAtMs >= kSculptMinMs) { a.sculpt = a.sculptWant; a.sculptAtMs = t ? t : 1; }
+    }
+    // what the game's body carries: the mesh sliders while Eve is off (under Eve the body is cut and Eve takes them)
+    std::vector<float> want;
+    if (!eve && sculptActive(a.sculpt.data(), a.sculpt.size())) {
+        want = a.sculpt;
+        for (size_t i = 0; i < want.size(); ++i)   // (the skeleton's sliders, and their sides: not the mesh's)
+            if (i % size_t(kSculptCount) == size_t(kSculptHeight) || i % size_t(kSculptCount) == size_t(kSculptLegLength)) want[i] = 0;
+    }
+    BodyGl& b = a.body;
+    if (want == b.sculpted) return;
+    b.sculpted = std::move(want);
+    if (!b.shapeDirty) b.sculptOnly = true;   // (a change of shape, cut or model already waiting makes the body whole again)
+    b.shapeDirty = true;
+    b.dirty = true;
+    a.soft.dirty = true;
+    a.cloth.dirty = true;
+}
+
+float Scene::sculptMs(int id) const {
+    auto it = actors_.find(id);
+    return it == actors_.end() ? 0.0f : it->second.body.sculptMs;
 }
 
 } // namespace wc

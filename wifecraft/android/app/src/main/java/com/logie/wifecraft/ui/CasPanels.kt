@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.BodyRegion
 import com.logie.wifecraft.creator.BodySculpt
+import com.logie.wifecraft.creator.BodySide
 import com.logie.wifecraft.creator.CasCamera
 import com.logie.wifecraft.creator.CasPersonality
 import com.logie.wifecraft.creator.CasPreset
@@ -70,6 +71,7 @@ import com.logie.wifecraft.creator.CreatorModel
 import com.logie.wifecraft.creator.Initiation
 import com.logie.wifecraft.creator.Pace
 import com.logie.wifecraft.creator.Preferences
+import com.logie.wifecraft.creator.SculptPart
 import com.logie.wifecraft.creator.SculptSlider
 import com.logie.wifecraft.creator.SculptSupport
 import com.logie.wifecraft.creator.Sex
@@ -93,6 +95,7 @@ fun CasPanel(
     tab: CasTab, model: CreatorModel, rev: Int, atlas: ArtAtlas, icons: GameIcons?, portraits: Thumbs?,
     eveBody: Boolean, focus: BodyRegion, onChanged: (look: Boolean) -> Unit, onSculpt: (send: Boolean, done: Boolean) -> Unit, sculptRateMs: Long,
     eve: CasEveBinding? = null,
+    sculptUi: CasSculptState = remember { CasSculptState() },
 ) {
     Column(Modifier.fillMaxSize().wifeSurface().padding(start = 12.dp, end = 6.dp, top = 6.dp, bottom = 8.dp)) {
         Row(Modifier.fillMaxWidth().heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -112,7 +115,7 @@ fun CasPanel(
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll).padding(end = 6.dp)) {
             when (tab) {
                 CasTab.RACE -> CasRaceSection(model, rev, atlas, onChanged)
-                CasTab.BODY -> CasBodySection(model, rev, atlas, eveBody, focus, onChanged, onSculpt, sculptRateMs, eve)
+                CasTab.BODY -> CasBodySection(model, rev, atlas, eveBody, focus, onChanged, onSculpt, sculptRateMs, eve, sculptUi)
                 CasTab.PERSONALITY -> CasPersonalitySection(model, rev, icons, onChanged)
                 CasTab.OUTFIT -> CasGearSection(model, rev, onChanged)
                 else -> CasRows(remember(rev, tab, model.appearance.raceId, model.appearance.sex) { CasTabs.rows(model, tab) }, model, atlas, onChanged)
@@ -228,9 +231,10 @@ fun rgbColour(v: Int) = Color(0xFF000000.toInt() or (v and 0xFFFFFF))
 private fun CasBodySection(
     model: CreatorModel, rev: Int, atlas: ArtAtlas, eveBody: Boolean, focus: BodyRegion,
     onChanged: (Boolean) -> Unit, onSculpt: (send: Boolean, done: Boolean) -> Unit, rateMs: Long, eve: CasEveBinding?,
+    sculptUi: CasSculptState,
 ) {
     var part by remember { mutableStateOf(0) }
-    val focused = CasTabs.slidersFor(focus)
+    val focused = CasTabs.slidersFor(focus, model.appearance.sex == Sex.FEMALE)
     LaunchedEffect(focus) { if (focused.isNotEmpty()) part = 1 }
     WifeTabs(listOf("Skin & Shape", "Sculpt"), part, { part = it }, Modifier.padding(bottom = 6.dp))
     if (part == 0) {
@@ -238,27 +242,54 @@ private fun CasBodySection(
         CasRows(remember(rev, model.appearance.raceId, model.appearance.sex) { CasTabs.rows(model, CasTab.BODY) }, model, atlas, onChanged)
         return
     }
-    if (!eveBody) WifeNote("Height and Leg Length work on every body. The others shape the Eve body (Options → Mods → Eve body): on a Warcraft body they wait, greyed.",
-        Modifier.padding(vertical = 6.dp))
-    val order = focused + SculptSlider.entries.filter { it !in focused }
+    // the part chosen (a tap or a held press on her picks it too: ui/CasScreen.kt), its sliders, Symmetry and Lift for the drags
+    val female = rev.let { model.appearance.sex == Sex.FEMALE }
+    LaunchedEffect(focus) { SculptPart.of(focus)?.let { sculptUi.part = it } }
+    WifeTabs(SculptPart.entries.map { it.label }, sculptUi.part.ordinal, { sculptUi.part = SculptPart.entries[it] }, Modifier.padding(bottom = 4.dp))
+    WifeNote("Hold a part of her body, then drag on her: up and down its size, left and right its width. Lift (or a second finger) lifts and spaces it instead.",
+        Modifier.padding(vertical = 4.dp))
+    WifeSwitchRow("Symmetry", sculptUi.symmetry, { sculptUi.symmetry = it }, detail = "Off: a drag on her changes the side you hold")
+    WifeSwitchRow("Lift", sculptUi.lift, { sculptUi.lift = it }, detail = "Drags lift and space the part instead of sizing it")
     val sculpt = rev.let { model.appearance.sculpt ?: BodySculpt() }
     var lastSent by remember { mutableLongStateOf(0L) }
-    for (s in order) {
+    for (s in sculptUi.part.sliders(female)) {
         val why = SculptSupport.why(s, eveBody)
         CasSculptRow(s, sculpt[s], enabled = why == null, glow = s in focused, why = why,
             onChange = { v ->
                 model.setSculpt((model.appearance.sculpt ?: BodySculpt()).with(s, v))
-                // the panel shows every move; the engine fits the Eve body again at most every rateMs while dragging
+                // the panel shows every move; the engine sculpts the body again at most every rateMs while dragging
                 val now = System.currentTimeMillis()
                 val send = now - lastSent >= rateMs
                 if (send) lastSent = now
                 onSculpt(send, false)
             },
             onDone = { onSculpt(true, true) })
+        if (sculpt.side(s) != 0f) {
+            // Symmetry off left the two sides apart: what each has, and a way to make them alike
+            Row(Modifier.fillMaxWidth().padding(start = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                val l = (sculpt.on(s, BodySide.LEFT) * 100).roundToInt(); val r = (sculpt.on(s, BodySide.RIGHT) * 100).roundToInt()
+                WifeNote("Left ${if (l > 0) "+$l" else "$l"} · Right ${if (r > 0) "+$r" else "$r"}", Modifier.weight(1f))
+                WifeChip("Even", { model.setSculpt((model.appearance.sculpt ?: BodySculpt()).even(s)); onSculpt(true, true) }, trailing = null)
+            }
+        }
     }
-    Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
-        WifeButton("Reset sculpt", { model.setSculpt(null); onSculpt(true, true) }, kind = WifeButtonKind.QUIET)
+    Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+        WifeButton("Reset ${sculptUi.part.label}", {
+            model.setSculpt((model.appearance.sculpt ?: BodySculpt()).reset(sculptUi.part)); onSculpt(true, true)
+        }, kind = WifeButtonKind.QUIET)
+        WifeButton("Reset all", { model.setSculpt(null); onSculpt(true, true) }, kind = WifeButtonKind.QUIET)
     }
+}
+
+/**
+ * The Sculpt's own choices, shared by the panel and the stage's drag handles (ui/CasScreen.kt): the part chosen, Symmetry,
+ * Lift, and what a drag on her shows by the finger.
+ */
+class CasSculptState {
+    var part by mutableStateOf(SculptPart.OVERALL)
+    var symmetry by mutableStateOf(true)
+    var lift by mutableStateOf(false)
+    var dragLabel by mutableStateOf<String?>(null)
 }
 
 /**
@@ -338,7 +369,7 @@ private fun CasSculptRow(s: SculptSlider, value: Float, enabled: Boolean, glow: 
             Text(if (shown > 0) "+$shown" else "$shown", style = WifeTheme.bodyStyle(if (enabled) WifeTheme.gold else WifeTheme.textDim),
                 textAlign = TextAlign.End, maxLines = 1, modifier = Modifier.width(44.dp))
         }
-        if (why != null && s.eveOnly && !s.drawn) WifeNote(why, Modifier.padding(start = 4.dp, bottom = 4.dp))
+        if (why != null && !s.drawn) WifeNote(why, Modifier.padding(start = 4.dp, bottom = 4.dp))
     }
 }
 
