@@ -121,7 +121,8 @@ class PairAlignmentAudit {
         val debug = System.getenv("ALIGN_DEBUG")
         // ALIGN_RENDER: stages (name parts or ids, "|"-separated) to write stills' plans for (ALIGN_FILES, ALIGN_LOOKS,
         // ALIGN_LOCATIONS: engine-test/audit's game files, look files and locations.json)
-        val renders = System.getenv("ALIGN_RENDER")?.split('|')?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
+        // (matched by [nameKey]: letters and digits only, so "Stage 5 · Cowgirl", "stage 5 cowgirl" and "Stage5-Cowgirl" are one)
+        val renders = System.getenv("ALIGN_RENDER")?.split('|')?.map { nameKey(it) }?.filter { it.isNotEmpty() }.orEmpty()
         val dbg = File(out, "debug.txt").printWriter()
         val table = File(out, "table.csv").printWriter()
         table.println("pack,hash,class,hips_fwd_bu,hips_left_bu,hips_up_bu,retarget_hips_cm")
@@ -203,7 +204,7 @@ class PairAlignmentAudit {
                 val pairA = PairAlignment.played(anA, combo.a, times, sA.x.toDouble(), sA.y.toDouble(), sA.z.toDouble(), sA.yawDeg.toDouble(), la)
                 val pairB = PairAlignment.played(anB, combo.b, times, sB.x.toDouble(), sB.y.toDouble(), sB.z.toDouble(), sB.yawDeg.toDouble(), lb)
 
-                if (renders.isNotEmpty() && combo.name == "human_m+human_f" && renders.any { c.name.contains(it, true) || c.id == it }) {
+                if (renders.isNotEmpty() && combo.name == "human_m+human_f" && renders.any { nameKey(c.name).contains(it) || nameKey(c.id) == it }) {
                     // stills for engine-test/audit: the pair way as the app places it, on the stage's floor (a bed's or seat's
                     // height taken off, so the bodies rest on the floor plane as on the furniture), side and three-quarter
                     val slug = (c.name.replace(Regex("[^A-Za-z0-9]+"), "_").trim('_').take(40) + "_" + hash).lowercase()
@@ -352,6 +353,14 @@ class PairAlignmentAudit {
         PairAlignment.len(PairAlignment.sub(PairAlignment.sub(hips(b), hips(a)), PairAlignment.sub(hips(b0), hips(a0))))
 
     private fun q(s: String) = "\"" + s.replace('"', '\'') + "\""
+
+    companion object {
+        /**
+         * A stage name or id as ALIGN_RENDER matches it: lower case, letters and digits only (the packs' names carry a middle
+         * dot, "Stage 5 · Cowgirl", that a shell or a terminal may pass as another character or not at all).
+         */
+        fun nameKey(s: String): String = s.lowercase(Locale.ROOT).filter { it.isLetterOrDigit() && it.code < 128 }
+    }
 
     /** SceneSimulation's HUMAN_BODY_UNIT (private there): one body unit of a human-scale body in yards. */
     object SceneUnit { val HUMAN = BodyGeometry.REF_UNIT * HumanScale.PAIR }

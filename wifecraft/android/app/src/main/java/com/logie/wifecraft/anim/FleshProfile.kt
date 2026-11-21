@@ -67,6 +67,36 @@ class FleshProfile(
     /** The body's lowest vertex standing in the clips' stance over its soles (body units): the engine's check. */
     val lowestStanding: Float = 0f,
 ) {
+    /**
+     * How far (body units) the segments' model of the feet reaches under the soles of this body standing in the clips'
+     * stance, past what the engine measured on the dressed model ([lowestStanding]): the foot's capsule from the ankle to
+     * the toe joint reaches under the sole by its flesh round the axis and its rounded ends (the human man's 0.07, about
+     * 8 cm; the woman's 0.04; a dwarf's or a gnome's 0.12), which raised every standing clip by that much. The feet's lowest
+     * flesh is read this much higher wherever a support is measured ([lowestOver]); 0 for the generic body.
+     */
+    val footBias: Double by lazy {
+        if (!measured) 0.0 else {
+            val r = rest ?: BodyGeometry.REF
+            val f = BodyFrame(r.mapValues { (_, v) -> DoubleArray(3) { v[it] / BodyGeometry.REF_UNIT } }, r.keys)
+            val low = listOfNotNull(lowest(FleshPart.L_FOOT, f), lowest(FleshPart.R_FOOT, f)).minOrNull()
+            if (low == null || !lowestStanding.isFinite()) 0.0 else (lowestStanding - low).coerceIn(0.0, MAX_FOOT_BIAS)
+        }
+    }
+
+    /**
+     * The lowest flesh of [parts] on [f] as [lowest] reads it ([half], [bare] the same), the feet raised by [footBias]: what
+     * rests on a floor, a seat or a bed.
+     */
+    fun lowestOver(f: BodyFrame, parts: Collection<FleshPart>, half: Collection<FleshPart> = emptySet(), bare: Collection<FleshPart> = emptySet()): Double? {
+        var low: Double? = null
+        for (p in parts) {
+            val z0 = lowest(p, f, if (p in half) 0.5 else 1.0, p !in bare) ?: continue
+            val z = if (p == FleshPart.L_FOOT || p == FleshPart.R_FOOT) z0 + footBias else z0
+            if (low == null || z < low) low = z
+        }
+        return low
+    }
+
     /** [part]'s flesh, or the generic one's where this body's wasn't measured. */
     fun segment(part: FleshPart): FleshSegment = segments[part] ?: GENERIC_SEGMENTS.getValue(part)
 
@@ -113,6 +143,9 @@ class FleshProfile(
             // round, its ends rounded as a capsule's
             FleshSegment(r, r, r, r, r, if (p.extend != null) 0.08 else 0.0)
         }
+
+        /** The most [footBias] is taken to be (body units): a profile reading more is damaged. */
+        const val MAX_FOOT_BIAS = 0.2
 
         /** The reference body's: the rules exactly as before ([measured] false). */
         val GENERIC = FleshProfile(GENERIC_SEGMENTS, null, 0f, measured = false)
@@ -219,30 +252,41 @@ class FleshProfile(
 /**
  * The flesh-under-joint lift ([ActorRequirement.liftUnits], [RequirementClassifier.groundLift]) for one person: how far
  * (body units) a clip must be raised for none of its resting flesh to come nearer its support than that person's own
- * flesh lets it. The generic profile gives the classifier's own lift unchanged.
+ * flesh lets it. The generic profile gives the classifier's own lift unchanged. What rests is the classifier's own rule
+ * ([RequirementClassifier.bearing]): a body lying with its pelvis on the surface rests on its trunk, head, arms and thighs
+ * (its shins and feet may hang off a bed's edge, as their authors made them: they raised the whole body by up to 50 cm);
+ * the hands never (their fingers, read as a long tip along the forearm, pointed into the support); the feet by their own
+ * soles ([FleshProfile.footBias]).
  */
 object FleshLift {
     /**
      * For [need] (an actor's requirement, read from the clip) played on a body with [flesh], [frames] the clip's body on that
-     * body's skeleton ([BodyGeometry.frames] with [flesh]): standing, leaning, crouching: everything over the floor; on a
-     * seat (hips more than [RequirementClassifier.FLOOR_SIT_MAX] up): the pelvis and the thighs' first half over the seat;
-     * otherwise (lying, kneeling, a floor sit) everything over the support.
+     * body's skeleton ([BodyGeometry.frames] with [flesh]): standing, leaning, crouching: everything but the hands over the
+     * floor; on a seat (hips more than [RequirementClassifier.FLOOR_SIT_MAX] up): the pelvis and the thighs' first half over
+     * the seat; lying with the pelvis on the surface: the trunk, head, arms and thighs over it; otherwise (kneeling, a floor
+     * sit, lying with the hips raised) everything but the hands over the support.
      */
     fun liftUnits(need: ActorRequirement, frames: List<BodyFrame>, flesh: FleshProfile): Double {
         if (!flesh.measured || frames.isEmpty()) return need.liftUnits.toDouble()
         val stand = need.posture == Posture.STAND || need.posture == Posture.LEAN || need.posture == Posture.CROUCH
         val support = if (stand) 0.0 else need.heightUnits.toDouble()
         val seat = !stand && need.posture.seated && need.height >= RequirementClassifier.FLOOR_SIT_MAX
-        return if (seat) groundLift(frames, flesh, support, FleshProfile.SEAT, FleshProfile.HALF, FleshProfile.SEAT_BARE)
-        else groundLift(frames, flesh, support)
+        if (seat) return groundLift(frames, flesh, support, FleshProfile.SEAT, FleshProfile.HALF, FleshProfile.SEAT_BARE)
+        val lying = need.posture.lying && RequirementClassifier.pelvisRests(frames, support)
+        return groundLift(frames, flesh, support, if (lying) LYING else BEARING)
     }
+
+    /** What bears a body that is not lying on its trunk (standing, kneeling, a floor sit): everything but the hands. */
+    val BEARING: List<FleshPart> = FleshPart.entries.filter { it != FleshPart.L_HAND && it != FleshPart.R_HAND }
+    /** What bears a body lying with its pelvis on the surface: the trunk, the head, the arms and the thighs. */
+    val LYING: List<FleshPart> = FleshPart.TRUNK + FleshPart.HEAD + FleshPart.ARMS + FleshPart.THIGHS
 
     /** How far [frames] must be raised for [parts]' flesh ([half]: their first half; [bare]: without their ends) to stay over [support] (body units). */
     fun groundLift(frames: List<BodyFrame>, flesh: FleshProfile, support: Double = 0.0, parts: Collection<FleshPart> = FleshPart.entries,
                    half: Collection<FleshPart> = emptySet(), bare: Collection<FleshPart> = emptySet()): Double {
         var lift = 0.0
         for (f in frames) {
-            val low = flesh.lowest(f, parts, half, bare) ?: continue
+            val low = flesh.lowestOver(f, parts, half, bare) ?: continue
             if (support - low > lift) lift = support - low
         }
         return lift

@@ -5,6 +5,7 @@ import com.logie.wifecraft.anim.AnimationChoice
 import com.logie.wifecraft.anim.ClipType
 import com.logie.wifecraft.anim.HumanScale
 import com.logie.wifecraft.anim.PairAnim
+import com.logie.wifecraft.anim.PairSync
 import com.logie.wifecraft.story.Vec3
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -57,12 +58,12 @@ class PartnerPair(
 
     companion object {
         /** The library's pair as the simulation takes it (its slots at human scale: [PartnerSlot.human]). */
-        fun of(p: PairAnim) = PartnerPair(
-            p.id, p.name, p.a, p.b,
+        fun of(p: PairAnim) = PairSync.synced(p.a, p.b).let { (a, b) -> PartnerPair(
+            p.id, p.name, a, b,
             PartnerSlot.human(p.offsetA.x, p.offsetA.y, p.offsetA.z, p.offsetA.yawDeg),
             PartnerSlot.human(p.offsetB.x, p.offsetB.y, p.offsetB.z, p.offsetB.yawDeg),
             p.loops, p.locations, p.sounds.map { PartnerSound(it.timeSec, it.name, it.actor) },
-        )
+        ) }
 
         /** The library's enabled pairs ([com.logie.wifecraft.anim.AnimLibrary.pairs]), for the live scene. */
         fun enabled(all: List<PairAnim>): List<PartnerPair> = all.filter { it.enabled }.map(::of)
@@ -75,8 +76,8 @@ class PartnerPair(
          */
         fun of(choice: AnimationChoice): PartnerPair? {
             if (choice.participantCount != 2 || !choice.playable || choice.id.startsWith(PairAnim.CHOICE_PREFIX)) return null
-            val a = choice.clips[0].forPlayback() ?: return null
-            val b = choice.clips[1].forPlayback() ?: return null
+            // the two clips on one clock where their lengths differ (anim/PairSync: the shorter looped or held to the end)
+            val (a, b) = PairSync.synced(choice.clips[0].forPlayback() ?: return null, choice.clips[1].forPlayback() ?: return null)
             val scale = choice.roleScale
             val (ra, rb) = choice.roles
             fun slot(r: com.logie.wifecraft.anim.PerformanceRole) =

@@ -68,6 +68,7 @@ import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.anim.AnimationChoice
 import com.logie.wifecraft.anim.BoneTrack
 import com.logie.wifecraft.anim.PairAnim
+import com.logie.wifecraft.anim.PairSync
 import com.logie.wifecraft.anim.Requirement
 import com.logie.wifecraft.anim.RequirementStore
 import com.logie.wifecraft.anim.Surface
@@ -593,7 +594,8 @@ fun LiveSceneScreen(
     fun request(other: String?, choice: AnimationChoice, options: PlayOptions): PerformanceOrder {
         // one choice's roles for the scene (its clips kept under their keys) and one play's seconds
         fun rolesOf(c: AnimationChoice): Pair<List<PlaybackRole>, Float> {
-            val animations = c.clips.map { checkNotNull(it.forPlayback()) }
+            // the roles' clips on one clock where their lengths differ (anim/PairSync: the shorter looped or held to the end)
+            val animations = PairSync.synced(c.clips.map { checkNotNull(it.forPlayback()) })
             val roles = c.roles.mapIndexed { index, role ->
                 val animation = animations[index].copy(loop = false)
                 val key = "${c.id}:$index"
