@@ -113,6 +113,7 @@ import com.logie.wifecraft.simulation.SceneSimulation
 import com.logie.wifecraft.simulation.Activity
 import com.logie.wifecraft.simulation.CameraMode
 import com.logie.wifecraft.simulation.InteractionSpot
+import com.logie.wifecraft.simulation.ItemOverrides
 import com.logie.wifecraft.simulation.LiveScene
 import com.logie.wifecraft.simulation.ModelEmotes
 import com.logie.wifecraft.simulation.PartnerEmotes
@@ -445,13 +446,17 @@ fun LiveSceneScreen(
         }
     }
     LaunchedEffect(live, lifeProps) { live.life.setProps(lifeProps) }
-    val furnitureAt = remember(pieces, objects) {
+    val furnitureMeasured = remember(pieces, objects) {
         val out = HashMap<SceneObject, Furniture>()
         for (item in objects) pieces.firstOrNull { it.item == item.name }?.let { piece ->
             Furniture.of(piece, toLocal, -stageRotation)?.let { out[item] = it }
         }
         out
     }
+    // Move mode (ui/ItemMapperUi.kt): the player's item mappings (files/reports) and the shipped ones (assets/item_overrides.json)
+    // override each piece's class and places; the measured shape stays what a report describes
+    val mapper = rememberItemMapper(live, locationName)
+    val furnitureAt = remember(furnitureMeasured, mapper.local, mapper.shipped, mapper.placeId) { mapper.overridden(furnitureMeasured) }
     // the clips every playback key names (GL thread reads it): the orders' (request) and the partner pairs' roles
     val playback = remember(live) { ConcurrentHashMap<String, Anim>() }
     LaunchedEffect(live, partnerPairs, partner, emotes, chatter) {
@@ -582,6 +587,7 @@ fun LiveSceneScreen(
         else if (choosingPartner != null) choosingPartner = null
         else if (choosingAnimation != null) choosingAnimation = null
         else if (menu) menu = false
+        else if (mapper.on) mapper.back()
         else if (furnitureMenu != null) furnitureMenu = null
         else if (walking) walking = false
         else if (furnitureView >= 0) furnitureView = -1
@@ -924,6 +930,7 @@ fun LiveSceneScreen(
         live.selected = selected?.let { id -> cast.indexOfFirst { it.id == id } } ?: -1
     }
     LaunchedEffect(selected) {
+        if (mapper.on && mapper.npc != selected) mapper.leave()
         if (selected == null) walking = false
         cameraMode = SceneHud.cameraAfterRelease(cameraMode, selected != null)
         furnitureView = -1
@@ -963,7 +970,10 @@ fun LiveSceneScreen(
             else FurnitureAnimation(c.id, c.name, r)
         }
         val unit = SceneSimulation.HUMAN_BODY_UNIT * listOfNotNull(id, with).map { bodyScales[it] ?: 1f }.average().toFloat()
-        val listed = if (f == null) emptyList() else FurnitureSelection.listFor(f, library, unit)
+        // a piece the player classified (Move mode) offers only what belongs on its class
+        val mappedAs = mapper.classOf(item)
+        val offered = if (mappedAs == null) library else library.filter { ItemOverrides.compatible(mappedAs, it.requirement) }
+        val listed = if (f == null) emptyList() else FurnitureSelection.listFor(f, offered, unit)
             .flatMap { (group, entries) -> entries.mapNotNull { e -> byId[e.animation.id]?.copy(group = group) } }
         if (listed.isEmpty()) use(id, item) else furnitureMenu = FurnitureMenu(id, item, listed)
     }
@@ -1044,6 +1054,18 @@ fun LiveSceneScreen(
             revealHud()
             if (!wasUp) return@rememberUpdatedState
         }
+        // Move mode: a tap on a piece asks what it is, on open floor holds the NPC there (ui/ItemMapperUi.kt)
+        if (mapper.on) {
+            if (!ready) return@rememberUpdatedState
+            when (hit?.kind) {
+                Hit.Kind.LOCATION, Hit.Kind.PROP -> hit.key?.let(objectHits::get)?.let { item ->
+                    mapper.tapItem(item, furnitureMeasured[item] ?: spots[item]?.let { Furniture.of(item, it) }, toStage, stageRotation)
+                }
+                Hit.Kind.GROUND -> mapper.tapFloor(toLocal(Vec3(hit.x, hit.y, hit.z)), active?.position, toStage, stageRotation)
+                else -> Unit
+            }
+            return@rememberUpdatedState
+        }
         when (hit?.kind) {
             // nobody controlled: take control; one controlled: the tapped NPC becomes (or, tapped again, stops being) its partner
             Hit.Kind.ACTOR -> cast.firstOrNull { actorKey(it.id) == hit.key }?.let { other -> control = control.tapNpc(other.id) }
@@ -1114,7 +1136,7 @@ fun LiveSceneScreen(
 
     // immersive mode's HUD: up after a tap for Options' time, kept while a window or menu is open
     val windowOpen = choosingAnimation != null || furnitureMenu != null || saying != null || chatting != null ||
-        choosingPartner != null || pairPlay != null || menu || ending
+        choosingPartner != null || pairPlay != null || menu || ending || mapper.on
     LaunchedEffect(revealTick, windowOpen, immersive.hudSeconds, immersiveHud) {
         if (!immersiveHud) { hudUp = true; return@LaunchedEffect }
         hudReveal.holdMs = immersive.clamped().hudSeconds * 1000L
@@ -1394,6 +1416,10 @@ fun LiveSceneScreen(
                         if (partControl != null && partNpc != null) {
                             WifeChip(if (partControl.isOn(partNpc)) "Off" else "On", { partControl.toggle(partNpc) }, trailing = null)
                         }
+                        // Move mode (ui/ItemMapperUi.kt): the controlled NPC put on a tapped item and held, then reported
+                        val moveNpc = active?.id
+                        if (moveNpc != null) WifeChip(if (mapper.on) "Done moving" else "Move",
+                            { if (mapper.on) mapper.leave() else mapper.start(moveNpc) }, trailing = null)
                         // the Gear switch (ui/GearUi.kt): the selected NPC's, and everyone's in the scene
                         val gearControl = LocalGearControl.current
                         if (gearControl != null) {
@@ -1441,6 +1467,8 @@ fun LiveSceneScreen(
                 Modifier.align(Alignment.TopStart).padding(start = SceneHud.MARGIN.dp, top = SceneHud.TOP_H.dp))
             FeedPanel(feedOpen, lifeShown?.events.orEmpty(), icons, { feedOpen = false },
                 Modifier.align(Alignment.TopEnd).padding(end = SceneHud.MARGIN.dp, top = SceneHud.TOP_H.dp, start = SceneHud.MARGIN.dp))
+            // Move mode's panel: what is held, the nudges, Report… and Done
+            if (revealed && !hudHidden) MovePanel(mapper, view, Modifier.align(Alignment.CenterEnd).padding(end = SceneHud.MARGIN.dp))
             // Switch positions while a two-person animation plays (started again with the roles turned round)
             val playingWith = active?.takeIf { it.performing }?.partner
             if (revealed && !hudHidden && !feedOpen && pairPlay == null && active != null && playingWith != null) {
@@ -1450,7 +1478,7 @@ fun LiveSceneScreen(
             }
         }
         // the soft controls: with a partner chosen or a flow under way, while the HUD is up
-        if (revealed && !hudHidden && (flow != null || (active != null && mate != null))) {
+        if (revealed && !hudHidden && !mapper.on && (flow != null || (active != null && mate != null))) {
             Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).graphicsLayer { alpha = hudAlpha }) {
                 SoftRadial(SoftControl.offered(flowPhase), { soft(it) }, Modifier.align(Alignment.CenterEnd).padding(end = SceneHud.MARGIN.dp))
             }
@@ -1507,6 +1535,8 @@ fun LiveSceneScreen(
             onOptions = { choosePlayOptions(it) },
         )
     }
+    // Move mode's windows: what is this (the class picker), the one-time question, the report
+    MoveWindows(mapper) { cast.firstOrNull { it.id == mapper.npc }?.let(::npcInfoOf) }
     val sayFor = rememberHeld(saying)
     if (sayFor != null) {
         val said = remember(words, sayFor) { words.sayings(sayFor) }

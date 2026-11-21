@@ -990,6 +990,13 @@ int main(int argc, char** argv) {
             // is this machine's CPU too).
             int name, n, k; ss >> name >> n >> k;
             if (!actors.count(name) || n < 1 || k < 0 || k >= 64) continue;
+            unsigned fbo, rb[2];   // (an off-screen target as renderTo's)
+            glGenFramebuffers(1, &fbo); glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+            glGenRenderbuffers(2, rb);
+            glBindRenderbuffer(GL_RENDERBUFFER, rb[0]); glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, 320, 540);
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rb[0]);
+            glBindRenderbuffer(GL_RENDERBUFFER, rb[1]); glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 320, 540);
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rb[1]);
             auto run = [&](bool live, bool still) {
                 scene.setSculptThrottle(live);
                 scene.setSculptRefitHold(live);
@@ -1009,6 +1016,8 @@ int main(int argc, char** argv) {
             run(true, false);
             run(false, false);
             run(false, true);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glDeleteFramebuffers(1, &fbo); glDeleteRenderbuffers(2, rb);
             scene.setSculptThrottle(false);
             scene.setSculptRefitHold(false);
         } else if (cmd == "bodypick") {

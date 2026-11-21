@@ -100,8 +100,11 @@ import kotlin.random.Random
  * it. Not run on a phone or a desktop: Compose can't be run here.
  */
 
-/** The live sculpt's rate while a slider or a part of her is dragged: the body is sculpted again at most this often (ms). */
-private const val SCULPT_SEND_MS = 160L
+/**
+ * The live sculpt's rate while a slider or a part of her is dragged: a change is sent at most this often (ms). The engine draws each
+ * at once on the GPU (cpp/engine/sculpt.h SculptMorph) and sculpts the body again on the CPU once the sliders rest, so every frame.
+ */
+private const val SCULPT_SEND_MS = 16L
 
 /** The turntable's speed (degrees a second). */
 private const val TURNTABLE_DPS = 14f
@@ -184,6 +187,15 @@ fun CasScreen(
         model.restore(a)
         lookRev++; rev++
         sendSculpt()
+    }
+
+    // the Bust & Butt designer's camera presets (turned and framed as the view's buttons do) and its Undo and Redo
+    val sculptActions = remember {
+        CasSculptActions(
+            onView = { v, g -> view.view = null; view.spin = 0f; view.setZoom(v.zoom(g), v.focus(g)); view.facing = v.facing },
+            onUndo = { restore(history.undo()) }, onRedo = { restore(history.redo()) },
+            canUndo = { history.canUndo }, canRedo = { history.canRedo },
+        )
     }
 
     val previewRace = remember(rev) { model.appearance.raceId }
@@ -273,7 +285,7 @@ fun CasScreen(
                                     focusRegion = region
                                     sculptUi.part = part
                                     session = SculptDragSession(model.appearance.sculpt ?: BodySculpt(), part, model.appearance.sex == Sex.FEMALE,
-                                        sculptUi.lift, if (sculptUi.symmetry) null else SculptDrag.sideOf(code), hPx, slop)
+                                        sculptUi.lift, if (sculptUi.symmetry) null else SculptDrag.sideOf(code), hPx, slop, project = sculptUi.project)
                                     rev++
                                 }
                             }
@@ -405,6 +417,7 @@ fun CasScreen(
                     sculptRateMs = SCULPT_SEND_MS,
                     eve = eve,
                     sculptUi = sculptUi,
+                    sculptActions = sculptActions,
                 )
             }
         }

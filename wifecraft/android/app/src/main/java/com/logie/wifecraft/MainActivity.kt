@@ -908,6 +908,8 @@ class MainActivity : ComponentActivity() {
                                     settings.partSet = set
                                     dresser.partSet = set
                                 })
+                                // Move mode's item mappings: what was classified and where its report is (ui/ItemMapperUi.kt)
+                                com.logie.wifecraft.ui.MappedItemsSection()
                             }
                         },
                         sound = {

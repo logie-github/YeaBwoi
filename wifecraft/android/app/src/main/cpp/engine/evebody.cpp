@@ -1657,7 +1657,7 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
     // edge (which slants over the foot's top): each of her shin's vertices within `band` over her ring (her own height over it
     // before the snap, at its angle) is set that high over the model's edge, then onto the nearest point of the model's
     // removed skin (its triangles: over the slanted instep that is the foot's top, not a radius), fully up to 2 cm over the
-    // edge, eased to none at `band`; her normals turn to the model's skin's there by as much. Before, her loops were drawn onto the model's leg before the snap: where the edge stood higher than her ring they
+    // edge, eased to none at `band`; her normals and weights turn to the model's skin's there by as much. Before, her loops were drawn onto the model's leg before the snap: where the edge stood higher than her ring they
     // were left below it, and the snap's spread lifted them only partly, so her ring stood over its own next loop as a cuff (up
     // to 1 cm on the night elf, a fold of shading on the human); and the model's legs are low in vertices, so a profile read
     // from them alone (the widest per 1.5 cm row) missed most of hers. Her shin now meets the foot as the model's own leg did.
@@ -1707,7 +1707,7 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         }
         if (tris.empty()) continue;
         // the nearest point of that skin to p (and the skin's normal there); false: none within a tenth of a Sims metre
-        auto nearest = [&](V3 p, V3& at, V3& n) {
+        auto nearest = [&](V3 p, V3& at, V3& n, WMap& wm) {
             float best = (0.1f * unit) * (0.1f * unit);
             bool any = false;
             for (const auto& t : tris) {
@@ -1720,6 +1720,10 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
                 n = (V3(verts[t[0]].normal[0], verts[t[0]].normal[1], verts[t[0]].normal[2]) * (1 - u - w) +
                      V3(verts[t[1]].normal[0], verts[t[1]].normal[1], verts[t[1]].normal[2]) * u +
                      V3(verts[t[2]].normal[0], verts[t[2]].normal[1], verts[t[2]].normal[2]) * w).normalized();
+                wm = WMap();
+                const float bw[3] = {1 - u - w, u, w};
+                for (int c3 = 0; c3 < 3; ++c3) for (int k = 0; k < 4; ++k)
+                    wm.add(verts[t[size_t(c3)]].bones[k], verts[t[size_t(c3)]].weights[k] / 255.0f * bw[c3]);
             }
             return any;
         };
@@ -1746,10 +1750,11 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
             const float t = share * (1 - u * u * (3 - 2 * u));
             V3 q = P[v];
             q.z = q.z + (edgeAt(q) + h - q.z) * t;   // that high over the model's edge
-            V3 at, n;
-            if (nearest(q, at, n)) {
+            V3 at, n; WMap wm;
+            if (nearest(q, at, n, wm)) {
                 q = q + (at - q) * t;
                 N[v] = (N[v] * (1 - t) + n * t).normalized();
+                WM[v] = blend(WM[v], wm, t);   // (and bends as the model's own leg there: no lip in a pose either)
             }
             P[v] = q;
         }

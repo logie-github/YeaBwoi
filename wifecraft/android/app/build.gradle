@@ -30,6 +30,8 @@ android {
 		buildConfigField "String", "WC_UPDATE_REPO", "\"${wcProperty("wcUpdateRepo", "")}\""
 		buildConfigField "String", "WC_RELEASE_TAG_PREFIX", "\"${wcProperty("wcReleaseTagPrefix", "")}\""
 		buildConfigField "String", "WC_UPDATE_TOKEN", "\"${wcProperty("wcUpdateToken", "")}\""
+		// Move mode's item reports open issues on WC_UPDATE_REPO with this token (CI's WIFECRAFT_REPORT_TOKEN secret; empty: kept on the phone)
+		buildConfigField "String", "WC_REPORT_TOKEN", "\"${wcProperty("wcReportToken", "")}\""
 
 		ndk {
 			abiFilters "arm64-v8a"

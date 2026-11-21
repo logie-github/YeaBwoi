@@ -98,6 +98,9 @@ jobs:
           # The app checks this repository's releases for updates. A private repository needs a
           # read-only token (see "Updates" in the README); a public one doesn't.
           WC_UPDATE_TOKEN: ${{ secrets.DOLPHINXD_UPDATE_TOKEN }}
+          # Move mode's item reports open issues here with this token (a fine-grained PAT, Issues: read and write on
+          # this repository only); unset, the app keeps the reports on the phone (see "Move mode and item reports" in the README).
+          WC_REPORT_TOKEN: ${{ secrets.WIFECRAFT_REPORT_TOKEN }}
         run: |
           ./gradlew --no-daemon --stacktrace :app:assembleRelease \
             -Pkeystore="$WC_KEYSTORE" \
@@ -109,7 +112,8 @@ jobs:
             -PwcApplicationId="$APP_ID" \
             -PwcUpdateRepo="$GITHUB_REPOSITORY" \
             -PwcReleaseTagPrefix="$RELEASE_TAG_PREFIX" \
-            -PwcUpdateToken="$WC_UPDATE_TOKEN"
+            -PwcUpdateToken="$WC_UPDATE_TOKEN" \
+            -PwcReportToken="$WC_REPORT_TOKEN"
 
       - name: Collect APK
         run: |

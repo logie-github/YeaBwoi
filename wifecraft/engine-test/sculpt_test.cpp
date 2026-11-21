@@ -194,6 +194,83 @@ static float most(const std::vector<M2Vertex>& vs, const Body& B, F in, M measur
     return m;
 }
 
+// The live sculpt (sculpt.h SculptMorph) against the CPU sculpt on one body: each move slider alone at +-0.5 and +-1, a drag's
+// step (from a mixed sculpt, one slider 0.2 further), three mixed sculpts; the largest difference of any vertex (model units)
+// and how many differ by more than `limit` (where the CPU sculpt eased a triangle that would have collapsed, or capped a move: the
+// fields are linear, the CPU sculpt made when the sliders rest puts those back). The fields are made twice (the same), and the
+// vertices in `kept` have none.
+struct MorphReport { float single = 0, singleEnds = 0, step = 0, mixed = 0; size_t over = 0, results = 0; double mb = 0, ms = 0; };
+static MorphReport morphCheck(const char* what, const SculptRig& rig, const std::vector<M2Vertex>& base, const std::vector<uint32_t>& indices,
+                              const SculptOptions& opt, const std::vector<uint8_t>& kept, float limit, const char* const* names) {
+    MorphReport r;
+    SculptMorph f, g;
+    auto t0 = std::chrono::steady_clock::now();
+    CHECK(buildSculptMorph(rig, base, opt, f), "%s: the live sculpt's fields made", what);
+    r.ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    buildSculptMorph(rig, base, opt, g);
+    CHECK(f.first == g.first && f.channel == g.channel && f.side == g.side && f.delta.size() == g.delta.size() &&
+          std::memcmp(f.delta.data(), g.delta.data(), f.delta.size() * sizeof(V3)) == 0, "%s: the fields the same twice", what);
+    CHECK(f.vertices() == base.size(), "%s: a field row per vertex", what);
+    r.mb = 16.0 * (f.vertices() + f.entries()) / 1048576.0;
+    size_t keptWith = 0;
+    for (size_t v = 0; v < kept.size() && v < f.vertices(); ++v) if (kept[v] && f.first[v + 1] > f.first[v]) ++keptWith;
+    CHECK(keptWith == 0, "%s: no field on the kept vertices (seams, head, hands, feet: %zu)", what, keptWith);
+    auto cpu = [&](const float* vals, size_t n) { auto v = base; applySculpt(rig, v, indices, vals, n, opt); return v; };
+    // `from` sculpted on the CPU, then the change to `to` on the fields; against `to` on the CPU
+    auto worst = [&](const float* from, const float* to, size_t n) {
+        std::vector<M2Vertex> a = from ? cpu(from, n) : base, b = cpu(to, n);
+        float ws[kSculptCount], bs[kSculptCount], w0[kSculptCount], b0[kSculptCount];
+        sculptMorphWeights(to, n, opt.gameBody, ws, bs);
+        sculptMorphWeights(from, from ? n : 0, opt.gameBody, w0, b0);
+        for (int k = 0; k < kSculptCount; ++k) { ws[k] -= w0[k]; bs[k] -= b0[k]; }
+        std::vector<V3> p(a.size());
+        for (size_t i = 0; i < a.size(); ++i) p[i] = P(a[i]);
+        applySculptMorph(f, ws, bs, p);
+        float most = 0;
+        for (size_t i = 0; i < p.size(); ++i) {
+            const float d = (p[i] - P(b[i])).length();
+            most = std::max(most, d);
+            if (d > limit) ++r.over;
+            ++r.results;
+        }
+        return most;
+    };
+    for (int k = 1; k < kSculptCount; ++k) {
+        if (k == kSculptLegLength || (k == kSculptNeck && !opt.gameBody)) continue;
+        for (float sg : {-0.5f, 0.5f, -1.0f, 1.0f}) {
+            float vals[kSculptCount] = {}; vals[k] = sg;
+            const float w = worst(nullptr, vals, kSculptCount);
+            if (std::fabs(sg) < 1) r.single = std::max(r.single, w); else r.singleEnds = std::max(r.singleEnds, w);
+            if (w > limit && std::fabs(sg) < 1) std::printf("  %s: %s %+.1f differs by %.3g\n", what, names[k], sg, w);
+        }
+    }
+    // a drag's step: from a mixed sculpt (both sides, one balance), each designer slider 0.2 further
+    float mix[kSculptValues] = {};
+    mix[kSculptBust] = 0.4f; mix[kSculptHips] = 0.3f; mix[kSculptButt] = 0.5f; mix[kSculptBodyFat] = 0.2f; mix[kSculptWaist] = -0.3f;
+    mix[kSculptCount + kSculptBust] = 0.1f;
+    for (int k : {kSculptBust, kSculptBustProjection, kSculptBustDroop, kSculptBustRound, kSculptButt, kSculptButtWidth, kSculptButtRound,
+                  kSculptHipDip, kSculptThighs, kSculptMuscle}) {
+        float to[kSculptValues];
+        std::memcpy(to, mix, sizeof(mix));
+        to[k] += 0.2f;
+        r.step = std::max(r.step, worst(mix, to, kSculptValues));
+    }
+    // mixed sculpts from the body as made
+    float m2[kSculptValues] = {};
+    m2[kSculptBustProjection] = 0.6f; m2[kSculptBustDroop] = 0.3f; m2[kSculptButtRound] = 0.5f; m2[kSculptCheekGap] = 0.4f;
+    m2[kSculptHipDip] = -0.4f; m2[kSculptMuscle] = 0.3f; m2[kSculptCount + kSculptButtRound] = 0.2f;
+    r.mixed = std::max({worst(nullptr, mix, kSculptValues), worst(nullptr, m2, kSculptValues)});
+    // the weights' cost (the CPU's whole share of a live frame: twice per frame)
+    float ws[kSculptCount], bs[kSculptCount];
+    auto t1 = std::chrono::steady_clock::now();
+    for (int i = 0; i < 10000; ++i) { mix[kSculptBust] = 0.4f + 1e-5f * i; sculptMorphWeights(mix, kSculptValues, opt.gameBody, ws, bs); }
+    const double us = std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - t1).count() / 10000;
+    std::printf("  %s live sculpt: %zu vertices, %zu field entries, %.1f MB on the GPU, made in %.1f ms; differs from the CPU sculpt by at "
+                "most %.4f (one slider +-0.5), %.4f (+-1), %.4f (a drag's 0.2 step), %.4f (mixed); %zu vertex results over %.4f; the "
+                "weights %.2f us\n", what, f.vertices(), f.entries(), r.mb, r.ms, r.single, r.singleEnds, r.step, r.mixed, r.over, limit, us);
+    return r;
+}
+
 // One of the game's default bodies: every slider at both ends on the model's whole vertex list (skin and clothing geosets), the
 // game's way. Checks: bounded; no triangle of the body turned over; the same twice; symmetric where the model is (each vertex
 // with a mirror image within 0.1 mm, on the skin); the head, hands and feet (vertices weighted to them alone) unmoved (but
@@ -309,6 +386,19 @@ static void realBody(uint32_t id, const FileLookup& look, const char* const* nam
                 "worst seam %.4f, worst asymmetry %.5f; robe near the skin %zu (off %.4f of %.4f)\n",
                 id, base.size(), paired, m.indices.size() / 3, U, rig.hasBreastBones ? "yes" : "no", runs, totalMs / std::max(runs, 1), eased,
                 worstSeam, worstAsym, cloth, cloth ? off / cloth : 0.0, cloth ? ref / cloth : 0.0);
+    // the live sculpt (the GPU's fields) against the CPU sculpt on this body; the head, hands and feet (but where a copy of the
+    // moving skin lies on them) without fields
+    std::vector<uint8_t> kept(base.size(), 0);
+    for (size_t i = 0; i < base.size(); ++i) kept[i] = still[i] > 0.999f && !shared[i];
+    const float limit = 0.001f / 0.9144f;   // (0.1 cm in yards, the model's units)
+    char what[32];
+    std::snprintf(what, sizeof what, "model %u", id);
+    MorphReport mr = morphCheck(what, rig, base, m.indices, game, kept, limit, names);
+    CHECK(mr.over * 2000 < mr.results, "model %u: the live sculpt within 0.1 cm of the CPU sculpt but for under 0.05%% of the vertices "
+          "(the eased triangles': %zu of %zu)", id, mr.over, mr.results);
+    CHECK(mr.step < limit, "model %u: a drag's 0.2 step, within 0.1 cm (%.3f cm)", id, mr.step * 91.44f);
+    std::printf("  model %u live sculpt in cm: +-0.5 %.3f, +-1 %.3f, a step %.3f, mixed %.3f (%zu of %zu vertex results over 0.1 cm)\n", id,
+                mr.single * 91.44f, mr.singleEnds * 91.44f, mr.step * 91.44f, mr.mixed * 91.44f, mr.over, mr.results);
 }
 
 int main(int argc, char** argv) {
@@ -331,7 +421,9 @@ int main(int argc, char** argv) {
 
     const char* names[kSculptCount] = {"height", "shoulders", "arms", "bust", "bustLift", "waist", "belly", "hips", "butt", "thighs", "legLength",
                                        "neck", "chest", "bustWidth", "bustSpacing", "shoulderSlope", "upperArms", "forearms", "calves",
-                                       "buttLift", "bodyFat", "muscle"};
+                                       "buttLift", "bodyFat", "muscle", "bustProjection", "bustDroop", "bustUpper", "bustRound",
+                                       "bustSide", "underbust", "buttWidth", "buttProjection", "buttRound", "cheekGap", "hipDip",
+                                       "underbutt", "pecs", "abs"};
     for (int k = 1; k < kSculptCount; ++k) {
         if (k == kSculptLegLength || k == kSculptNeck) continue;   // (the neck: the game's bodies only, below)
         for (float s : {-1.0f, 1.0f}) {
@@ -394,6 +486,46 @@ int main(int argc, char** argv) {
         for (size_t i = 0; i < s1.size(); ++i)
             if (B.group[i] == 3 && std::fabs(B.verts[i].pos[1]) < 0.24f) out = std::max(out, std::fabs(s1[i].pos[1]) - std::fabs(B.verts[i].pos[1]));
         CHECK(out > 0.01f, "the shoulders broaden (%f)", out);
+        // the bust and butt designer's shapes
+        auto fz = [](V3 p) { return p.z; };
+        auto mean = [&](const std::vector<M2Vertex>& v, auto pick, auto f) {
+            double s = 0; size_t n = 0;
+            for (size_t i = 0; i < v.size(); ++i) if (pick(i, P(B.verts[i]))) { s += f(P(v[i])); ++n; }
+            return n ? float(s / n) : 0.0f;
+        };
+        auto pr = run(kSculptBustProjection, 1);
+        CHECK(most(pr, B, kind(1), fx) > most(B.verts, B, kind(1), fx) + 0.01f, "bust projection + comes forward");
+        auto dr = run(kSculptBustDroop, 1);
+        CHECK(mean(dr, kind(1), fz) < mean(B.verts, kind(1), fz) - 0.01f, "bust droop + lowers it");
+        auto upp = run(kSculptBustUpper, 1);
+        CHECK(mean(upp, [&](size_t i, V3 p) { return B.group[i] == 1 && p.z > 1.33f; }, fx) >
+              mean(B.verts, [&](size_t i, V3 p) { return B.group[i] == 1 && p.z > 1.33f; }, fx) + 0.002f, "upper fullness fills the top");
+        auto sd = run(kSculptBustSide, 1);
+        CHECK(most(sd, B, kind(1), fay) > most(B.verts, B, kind(1), fay) + 0.005f, "side fullness widens the bust");
+        auto ub = run(kSculptUnderbust, 1);
+        CHECK(most(ub, B, kind(1), fnx) <= most(B.verts, B, kind(1), fnx) + 1e-4f && mean(ub, kind(1), fz) < mean(B.verts, kind(1), fz),
+              "underbust + fills the underside");
+        auto bw = run(kSculptButtWidth, 1), bw0 = run(kSculptButtWidth, -1);
+        auto backHalf = [&](size_t i, V3 p) { return (B.group[i] == 0 || B.group[i] == 2) && p.x < -0.02f && p.z > 0.8f && p.z < 1.0f; };
+        CHECK(mean(bw, backHalf, fay) > mean(bw0, backHalf, fay) + 0.002f, "butt width widens the back");
+        auto bp = run(kSculptButtProjection, 1);
+        CHECK(mean(bp, backHalf, fx) < mean(B.verts, backHalf, fx) - 0.001f, "butt projection + goes back");
+        auto cg = run(kSculptCheekGap, 1);
+        auto cleft = [&](size_t i, V3 p) { return backHalf(i, p) && std::fabs(p.y) < 0.02f; };
+        CHECK(mean(cg, cleft, fx) > mean(B.verts, cleft, fx) + 0.002f, "cheek gap + draws the middle in");
+        auto hd = run(kSculptHipDip, 1);
+        auto hipSide = [&](size_t i, V3 p) { return (B.group[i] == 0 || B.group[i] == 2) && std::fabs(p.y) > 0.1f && p.z > 0.88f && p.z < 1.0f; };
+        CHECK(mean(hd, hipSide, fay) < mean(B.verts, hipSide, fay) - 1e-3f, "hip dip + draws the side in");
+        auto pc = run(kSculptPecs, 1);
+        CHECK(mean(pc, [&](size_t i, V3 p) { return B.group[i] == 0 && p.x > 0.05f && p.z > 1.3f && p.z < 1.42f; }, fx) >
+              mean(B.verts, [&](size_t i, V3 p) { return B.group[i] == 0 && p.x > 0.05f && p.z > 1.3f && p.z < 1.42f; }, fx), "pecs + come forward");
+        auto ab = run(kSculptAbs, 1);
+        CHECK(most(ab, B, band(0, 1.05f, 1.2f), fx) < most(B.verts, B, band(0, 1.05f, 1.2f), fx), "abs + flatten the belly");
+        for (int k : {kSculptButtRound, kSculptUnderbutt, kSculptBustRound}) {
+            auto r1 = run(k, 1);
+            float most1 = 0; for (size_t i = 0; i < r1.size(); ++i) most1 = std::max(most1, (P(r1[i]) - P(B.verts[i])).length());
+            CHECK(most1 > 0.002f, "%s + moves the body (%f)", names[k], most1);
+        }
     }
     // a pinned vertex stays
     {
@@ -411,6 +543,20 @@ int main(int argc, char** argv) {
         for (float& x : vals) x = s;
         SculptStats st; applySculpt(rig, v, B.indices, vals, kSculptCount, {}, &st);
         CHECK(st.maxMove <= kSculptMaxShare + 1e-5f && st.flipped == 0, "all at %+.0f: move %f flips %zu", s, st.maxMove, st.flipped);
+    }
+
+    // the live sculpt against the CPU sculpt on the made-up body (the Eve way and the game's), the rings kept
+    {
+        std::vector<uint8_t> kept(B.verts.size(), 0);
+        for (size_t i = 0; i < kept.size(); ++i) kept[i] = B.group[i] == 4 || B.group[i] == 5;
+        SculptOptions game; game.gameBody = true;
+        const float limit = 0.001f / 0.9144f;   // (0.1 cm of a 1-yard hip height)
+        MorphReport e = morphCheck("made-up (Eve way)", rig, B.verts, B.indices, {}, kept, limit, names);
+        std::vector<uint8_t> ankles(B.verts.size(), 0);   // (the game's way: the neck ring's copies at the torso's top move with it)
+        for (size_t i = 0; i < ankles.size(); ++i) ankles[i] = B.group[i] == 5;
+        MorphReport g = morphCheck("made-up (game's way)", rig, B.verts, B.indices, game, ankles, limit, names);
+        CHECK(e.single < limit && g.single < limit, "one slider at +-0.5: the live sculpt within 0.1 cm of the CPU's (%g, %g)", e.single, g.single);
+        CHECK(e.step < limit && g.step < limit, "a drag's step: within 0.1 cm (%g, %g)", e.step, g.step);
     }
 
     // ---- the body pick
@@ -622,7 +768,9 @@ int main(int argc, char** argv) {
                     asym = std::max(asym, std::max(std::fabs(di.x - dm.x), std::max(std::fabs(di.y + dm.y), std::fabs(di.z - dm.z))));
                     if (B.group[i] == 5) ankle = std::max(ankle, di.length());
                 }
-                CHECK(asym < 2e-5f, "game %s %+.0f symmetric (%g)", names[k], sg, asym);
+                // (the made-up bust is two tubes that meet nowhere: at -1 a triangle or two where they crowd is eased, and the
+                // easing's halving needn't land alike on both sides; the game's bodies are held to it strictly, realBody)
+                CHECK(asym < 2e-5f || (st.eased > 0 && st.eased < 4 && asym < 0.02f), "game %s %+.0f symmetric (%g; %zu eased)", names[k], sg, asym, st.eased);
                 CHECK(ankle == 0, "game %s %+.0f keeps the ankle rings (%g)", names[k], sg, ankle);
             }
         }

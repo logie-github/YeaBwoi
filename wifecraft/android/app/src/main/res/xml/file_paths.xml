@@ -2,4 +2,6 @@
 <!-- Downloaded updates, handed to Android's installer. -->
 <paths>
     <cache-path name="updates" path="updates/" />
+    <!-- Move mode's report screenshots, shared from the share sheet when the player chooses. -->
+    <files-path name="report_shots" path="reports/shots/" />
 </paths>

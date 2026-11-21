@@ -1,0 +1,5 @@
+{
+ "schema": 1,
+ "comment": "Made by wifecraft/tools/item_reports.py from the open item-report issues (Move mode's reports). Keys: place/object/model. Do not edit by hand: run the tool again.",
+ "items": {}
+}

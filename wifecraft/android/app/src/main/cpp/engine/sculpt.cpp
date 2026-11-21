@@ -218,7 +218,15 @@ bool vertexMoves(const SculptRig& rig, const SculptOptions& opt, const M2Vertex&
     // the bust: grows about a centre behind each breast (outward and forward), and lifts
     float bust[2];
     for (int k = 0; k < 2; ++k) {
-        if (rig.hasBreastBones) bust[k] = W[k == 0 ? kGroupBreastL : kGroupBreastR];
+        if (rig.hasBreastBones && opt.gameBody) {
+            // the game's women: their breast bones' weights are light and patchy (most of a breast's skin weighted under a tenth to
+            // them), so their bust is a soft mound round each breast bone by place, on the chest's front, as far as it is the chest's
+            const V3& b = rig.breast[k];
+            const float torso = std::min(1.0f, W[kGroupChest] + W[kGroupBreastL] + W[kGroupBreastR] + 0.6f * W[kGroupClavicle] + 0.5f * W[kGroupWaist]);
+            const float ry = (p.y - b.y) / (0.085f * U), rz = (p.z - b.z) / (0.085f * U);
+            const float q = ry * ry + rz * rz;
+            bust[k] = q < 1 ? torso * smooth(0.0f, 1.0f, 1 - q) * smooth(b.x - 0.04f * U, b.x + 0.01f * U, p.x) : 0.0f;
+        } else if (rig.hasBreastBones) bust[k] = W[k == 0 ? kGroupBreastL : kGroupBreastR];
         else {
             float side = k == 0 ? smooth(-0.01f * U, 0.02f * U, p.y) : smooth(-0.01f * U, 0.02f * U, -p.y);
             bust[k] = (W[kGroupChest] + W[kGroupBreastL] + W[kGroupBreastR]) * front * side *
@@ -226,31 +234,39 @@ bool vertexMoves(const SculptRig& rig, const SculptOptions& opt, const M2Vertex&
         }
         if (opt.gameBody) bust[k] *= armFree;   // (an arm's skin beside the chest stays an arm)
     }
+    const bool mound = rig.hasBreastBones && opt.gameBody;   // (the game's women's bust by place, above)
     for (int k = 0; k < 2; ++k) {
         if (bust[k] <= 0) continue;
         const float side = k == 0 ? 1.0f : -1.0f;
         const V3& b = rig.breast[k];
         const V3 c = b - V3(0.05f * U, 0, 0);
+        const float tip = smooth(0.0f, 0.07f * U, p.x - c.x);   // (toward the tip)
         if (on(kSculptBust)) {
             V3 r = p - c;
             r.y *= 0.6f;                                     // more forward than outward: the two never meet
-            D[kSculptBust] = D[kSculptBust] + r * (0.4f * bust[k]);
+            // the mound grows round, as if filled (a share of its size outward from the centre and the same depth all over),
+            // not drawn out to a point
+            if (mound) D[kSculptBust] = D[kSculptBust] + (r.normalized() * (0.022f * U) + r * 0.14f) * bust[k];
+            else D[kSculptBust] = D[kSculptBust] + r * (0.4f * bust[k]);
         }
+        if (on(kSculptBustLift)) D[kSculptBustLift].z += 0.035f * U * bust[k] * std::max(front, 0.3f) * (mound ? 0.4f + 0.6f * tip : 1.0f);
         // the bust's width (each breast about its own centre, side to side) and spacing (both apart or together)
         if (on(kSculptBustWidth)) D[kSculptBustWidth].y += (p.y - b.y) * 0.6f * bust[k];
-        if (on(kSculptBustSpacing)) D[kSculptBustSpacing].y += side * 0.04f * U * bust[k];
+        if (on(kSculptBustSpacing))   // (the game's women: the cleavage's middle kept, so the two never cross it)
+            D[kSculptBustSpacing].y += side * 0.04f * U * bust[k] * (mound ? smooth(0.0f, 0.04f * U, side * p.y) : 1.0f);
         // the designer's shapes: how far forward of the chest wall (`out`), toward the tip (`tip`), below or above the breast's
         // centre
         const float out = std::max(0.0f, p.x - c.x);
-        const float tip = smooth(0.0f, 0.07f * U, p.x - c.x);
         const float below = smooth(b.z + 0.02f * U, b.z - 0.05f * U, p.z);
         const float above = smooth(b.z - 0.01f * U, b.z + 0.06f * U, p.z);
-        if (on(kSculptBustProjection)) D[kSculptBustProjection].x += out * 0.45f * bust[k];           // forward from the wall
+        if (on(kSculptBustProjection))                                                                 // forward from the wall
+            D[kSculptBustProjection].x += mound ? 0.032f * U * bust[k] * (0.25f + 0.75f * tip) : out * 0.45f * bust[k];
         if (on(kSculptBustDroop)) {                                                                    // down, the tip leading
-            D[kSculptBustDroop].z -= 0.04f * U * bust[k] * (0.35f + 0.65f * tip);
-            D[kSculptBustDroop].x += 0.012f * U * bust[k] * tip * below;
+            D[kSculptBustDroop].z -= 0.04f * U * bust[k] * tip;
+            D[kSculptBustDroop].x += 0.015f * U * bust[k] * tip * below;   // (the underside rolls out over the fold)
         }
-        if (on(kSculptBustUpper)) D[kSculptBustUpper].x += out * 0.5f * bust[k] * above;             // the upper slope filled
+        if (on(kSculptBustUpper))                                                                      // the upper slope filled
+            D[kSculptBustUpper].x += mound ? 0.03f * U * bust[k] * above * (1 - 0.7f * tip) : out * 0.5f * bust[k] * above;
         if (on(kSculptBustRound)) {                                                                    // fuller round the tip
             D[kSculptBustRound].y += (p.y - b.y) * 0.35f * bust[k] * tip;
             D[kSculptBustRound].z += (p.z - b.z) * 0.35f * bust[k] * tip;
@@ -261,7 +277,6 @@ bool vertexMoves(const SculptRig& rig, const SculptOptions& opt, const M2Vertex&
             D[kSculptUnderbust].x += 0.02f * U * bust[k] * below * tip;
         }
     }
-    if (on(kSculptBustLift)) D[kSculptBustLift].z += 0.035f * U * (bust[0] + bust[1]) * std::max(front, 0.3f);
 
     // the chest (the pectorals, a man's or a woman's above the bust): its front forward, a little wider
     if (on(kSculptChest)) {
@@ -274,7 +289,7 @@ bool vertexMoves(const SculptRig& rig, const SculptOptions& opt, const M2Vertex&
     if (on(kSculptPecs)) {
         float m = (W[kGroupChest] + 0.5f * W[kGroupClavicle] + W[kGroupBreastL] + W[kGroupBreastR]) * front * armFree *
                   gauss(p.z - (rig.chest.z - 0.03f * U), 0.05f * U) * gauss(ay - 0.08f * U, 0.05f * U);
-        D[kSculptPecs].x += 0.03f * U * m;
+        D[kSculptPecs].x += 0.045f * U * m;
     }
 
     // the waist: wider or narrower about the spine
@@ -292,7 +307,7 @@ bool vertexMoves(const SculptRig& rig, const SculptOptions& opt, const M2Vertex&
     // the abdomen's definition: the belly's front flatter, the middle line drawn in, the two columns beside it kept
     if (on(kSculptAbs)) {
         float m = (W[kGroupWaist] + 0.5f * W[kGroupPelvis] + 0.3f * W[kGroupChest]) * front * armFree * gauss(p.z - rig.waist.z, 0.1f * U);
-        D[kSculptAbs].x += (-std::max(0.0f, p.x - spineX) * 0.12f - 0.006f * U * (1 - smooth(0.0f, 0.02f * U, ay)) +
+        D[kSculptAbs].x += (-std::max(0.0f, p.x - spineX) * 0.2f - 0.006f * U * (1 - smooth(0.0f, 0.02f * U, ay)) +
                             0.005f * U * gauss(ay - 0.035f * U, 0.015f * U)) * m;
     }
     // the hips: wider across, a band round the hip joints
@@ -315,27 +330,26 @@ bool vertexMoves(const SculptRig& rig, const SculptOptions& opt, const M2Vertex&
         if (on(kSculptButtWidth)) D[kSculptButtWidth].y += p.y * 0.16f * mb * back;                 // the back half wider
         if (on(kSculptButtProjection)) D[kSculptButtProjection].x -= 0.04f * U * mb * back * gauss(ay - cheekY, 0.07f * U);
         if (on(kSculptButtRound)) {                                                                    // fuller round each cheek
-            D[kSculptButtRound].y += (p.y - sgn * cheekY) * 0.3f * mb * back * smooth(0.0f, 0.03f * U, ay);
-            D[kSculptButtRound].z += (p.z - cheekZ) * 0.3f * mb * back;
+            D[kSculptButtRound].y += (p.y - sgn * cheekY) * 0.22f * mb * back * smooth(0.0f, 0.03f * U, ay);
+            D[kSculptButtRound].z += (p.z - cheekZ) * (p.z < cheekZ ? 0.22f : 0.08f) * mb * back;   // (mostly down: the waist above kept)
         }
         if (on(kSculptCheekGap)) D[kSculptCheekGap].x += 0.025f * U * mb * back * (1 - smooth(0.005f * U, 0.04f * U, ay));
     }
-    // the hip dip: the side below the hip bone drawn in (by how much the skin there faces sideways)
+    // the hip dip: the side below the hip bone drawn in (by how far round to the side of the spine the skin lies)
     if (on(kSculptHipDip)) {
         float band = (W[kGroupPelvis] + thighs) * gauss(p.z - (rig.pelvis.z - 0.03f * U), 0.05f * U);
         if (opt.gameBody) band *= armFree;
-        const V3 n(v.normal[0], v.normal[1], v.normal[2]);
-        const float nl = n.length();
-        const float lateral = nl > 1e-6f ? (n.y / nl) * (n.y / nl) : 0.0f;
-        D[kSculptHipDip].y -= sgn * 0.022f * U * band * lateral * smooth(0.04f * U, 0.1f * U, ay);
+        const float dx = p.x - spineX, r2 = dx * dx + ay * ay;
+        const float lateral = r2 > 1e-12f ? ay * ay / r2 : 0.0f;
+        D[kSculptHipDip].y -= sgn * 0.035f * U * band * lateral * lateral * smooth(0.04f * U, 0.1f * U, ay);
     }
     // the underbutt: the fold where the cheek meets the thigh, fuller (back and down)
     if (on(kSculptUnderbutt)) {
         float band = (W[kGroupPelvis] + thighs) * gauss(p.z - (rig.pelvis.z - 0.16f * U), 0.06f * U) * gauss(ay - cheekY, 0.08f * U);
         if (opt.gameBody) band *= armFree;
         const float behind = smooth(0.0f, 0.04f * U, spineX - p.x);
-        D[kSculptUnderbutt].x -= 0.03f * U * band * behind;
-        D[kSculptUnderbutt].z -= 0.012f * U * band * behind;
+        D[kSculptUnderbutt].x -= 0.04f * U * band * behind;
+        D[kSculptUnderbutt].z -= 0.015f * U * band * behind;
     }
     // the limbs: thicker or thinner about their bones' axes; on the game's bodies faded out before the wrists and
     // ankles (`fade`: from that share of the bone on)

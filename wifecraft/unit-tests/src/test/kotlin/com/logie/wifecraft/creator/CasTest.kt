@@ -59,7 +59,8 @@ class CasTest {
         assertEquals(CasCamera.UPPER, CasTabs.cameraFor(BodyRegion.CHEST)); assertEquals(CasCamera.UPPER, CasTabs.cameraFor(BodyRegion.WAIST))
         assertEquals(CasCamera.LEGS, CasTabs.cameraFor(BodyRegion.HIPS)); assertEquals(CasCamera.LEGS, CasTabs.cameraFor(BodyRegion.LEGS))
         assertNull(CasTabs.tabFor(BodyRegion.NONE))
-        assertEquals(listOf(SculptSlider.HIPS, SculptSlider.BUTT, SculptSlider.BUTT_LIFT), CasTabs.slidersFor(BodyRegion.HIPS))
+        assertEquals(listOf(SculptSlider.HIPS, SculptSlider.BUTT, SculptSlider.BUTT_LIFT, SculptSlider.BUTT_WIDTH, SculptSlider.BUTT_PROJECTION,
+            SculptSlider.BUTT_ROUND, SculptSlider.CHEEK_GAP, SculptSlider.HIP_DIP, SculptSlider.UNDERBUTT), CasTabs.slidersFor(BodyRegion.HIPS))
         assertEquals(SculptSlider.BUST_SIZE, CasTabs.slidersFor(BodyRegion.CHEST).first())
         // the engine's codes (bodypick.h) both ways
         for (r in BodyRegion.entries) assertEquals(r, BodyRegion.of(r.code))

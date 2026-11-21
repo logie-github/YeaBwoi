@@ -8,6 +8,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -35,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -59,6 +61,10 @@ import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.BodyRegion
 import com.logie.wifecraft.creator.BodySculpt
 import com.logie.wifecraft.creator.BodySide
+import com.logie.wifecraft.creator.BustButtDesigner
+import com.logie.wifecraft.creator.DesignerGroup
+import com.logie.wifecraft.creator.DesignerView
+import com.logie.wifecraft.creator.ShapePreset
 import com.logie.wifecraft.creator.CasCamera
 import com.logie.wifecraft.creator.CasPersonality
 import com.logie.wifecraft.creator.CasPreset
@@ -82,6 +88,10 @@ import com.logie.wifecraft.simulation.Traits
 import java.io.File
 import kotlin.math.max
 import kotlin.math.roundToInt
+import kotlin.random.Random
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /*
  * The Create-a-Character shell's panel (ui/CasScreen.kt): each tab's controls in the Warcraft look. Option rows with the
@@ -96,6 +106,7 @@ fun CasPanel(
     eveBody: Boolean, focus: BodyRegion, onChanged: (look: Boolean) -> Unit, onSculpt: (send: Boolean, done: Boolean) -> Unit, sculptRateMs: Long,
     eve: CasEveBinding? = null,
     sculptUi: CasSculptState = remember { CasSculptState() },
+    sculptActions: CasSculptActions? = null,
 ) {
     Column(Modifier.fillMaxSize().wifeSurface().padding(start = 12.dp, end = 6.dp, top = 6.dp, bottom = 8.dp)) {
         Row(Modifier.fillMaxWidth().heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -115,7 +126,7 @@ fun CasPanel(
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll).padding(end = 6.dp)) {
             when (tab) {
                 CasTab.RACE -> CasRaceSection(model, rev, atlas, onChanged)
-                CasTab.BODY -> CasBodySection(model, rev, atlas, eveBody, focus, onChanged, onSculpt, sculptRateMs, eve, sculptUi)
+                CasTab.BODY -> CasBodySection(model, rev, atlas, eveBody, focus, onChanged, onSculpt, sculptRateMs, eve, sculptUi, sculptActions)
                 CasTab.PERSONALITY -> CasPersonalitySection(model, rev, icons, onChanged)
                 CasTab.OUTFIT -> CasGearSection(model, rev, onChanged)
                 else -> CasRows(remember(rev, tab, model.appearance.raceId, model.appearance.sex) { CasTabs.rows(model, tab) }, model, atlas, onChanged)
@@ -231,17 +242,27 @@ fun rgbColour(v: Int) = Color(0xFF000000.toInt() or (v and 0xFFFFFF))
 private fun CasBodySection(
     model: CreatorModel, rev: Int, atlas: ArtAtlas, eveBody: Boolean, focus: BodyRegion,
     onChanged: (Boolean) -> Unit, onSculpt: (send: Boolean, done: Boolean) -> Unit, rateMs: Long, eve: CasEveBinding?,
-    sculptUi: CasSculptState,
+    sculptUi: CasSculptState, actions: CasSculptActions?,
 ) {
     var part by remember { mutableStateOf(0) }
     val focused = CasTabs.slidersFor(focus, model.appearance.sex == Sex.FEMALE)
-    LaunchedEffect(focus) { if (focused.isNotEmpty()) part = 1 }
-    WifeTabs(listOf("Skin & Shape", "Sculpt"), part, { part = it }, Modifier.padding(bottom = 6.dp))
+    LaunchedEffect(focus) { if (focused.isNotEmpty() && part == 0) part = 1 }
+    WifeTabs(listOf("Skin & Shape", "Sculpt", if (rev.let { model.appearance.sex == Sex.FEMALE }) "Bust & Butt" else "Chest & Glutes"), part, { next ->
+        part = next
+        if (next == 2) {   // (the designer opens on its group's own view: the bust from the side, the butt from behind)
+            val groups = DesignerGroup.of(model.appearance.sex == Sex.FEMALE)
+            val g = sculptUi.group?.takeIf { it in groups } ?: groups.first()
+            sculptUi.group = g
+            sculptUi.view = DesignerView.first(g)
+            actions?.onView?.invoke(sculptUi.view, g)
+        }
+    }, Modifier.padding(bottom = 6.dp))
     if (part == 0) {
         CasEveSection(model, rev, eve, onChanged)
         CasRows(remember(rev, model.appearance.raceId, model.appearance.sex) { CasTabs.rows(model, CasTab.BODY) }, model, atlas, onChanged)
         return
     }
+    if (part == 2) { CasDesignerSection(model, rev, onSculpt, rateMs, sculptUi, actions); return }
     // the part chosen (a tap or a held press on her picks it too: ui/CasScreen.kt), its sliders, Symmetry and Lift for the drags
     val female = rev.let { model.appearance.sex == Sex.FEMALE }
     LaunchedEffect(focus) { SculptPart.of(focus)?.let { sculptUi.part = it } }
@@ -254,7 +275,7 @@ private fun CasBodySection(
     var lastSent by remember { mutableLongStateOf(0L) }
     for (s in sculptUi.part.sliders(female)) {
         val why = SculptSupport.why(s, eveBody)
-        CasSculptRow(s, sculpt[s], enabled = why == null, glow = s in focused, why = why,
+        CasSculptRow(s, sculpt[s], enabled = why == null, glow = s in focused, why = why, label = s.labelFor(female),
             onChange = { v ->
                 model.setSculpt((model.appearance.sculpt ?: BodySculpt()).with(s, v))
                 // the panel shows every move; the engine sculpts the body again at most every rateMs while dragging
@@ -289,7 +310,125 @@ class CasSculptState {
     var part by mutableStateOf(SculptPart.OVERALL)
     var symmetry by mutableStateOf(true)
     var lift by mutableStateOf(false)
+    /** The designer's Projection drag mode (creator/SculptDrag.kt axes: the bust's or butt's projection and roundness). */
+    var project by mutableStateOf(false)
     var dragLabel by mutableStateOf<String?>(null)
+    /** The Bust & Butt designer's group and camera preset (null: the first for her sex). */
+    var group by mutableStateOf<DesignerGroup?>(null)
+    var view by mutableStateOf(DesignerView.SIDE)
+}
+
+/** What the Bust & Butt designer asks of the screen (ui/CasScreen.kt): the camera to a preset, and Undo and Redo. */
+class CasSculptActions(
+    val onView: (DesignerView, DesignerGroup) -> Unit = { _, _ -> },
+    val onUndo: () -> Unit = {},
+    val onRedo: () -> Unit = {},
+    val canUndo: () -> Boolean = { false },
+    val canRedo: () -> Boolean = { false },
+)
+
+/**
+ * The Bust & Butt designer (a man's Chest & Glutes): its group, the camera's presets (Front, 3/4, Side, Back), the drag's mode on
+ * her body (Size, Lift, Projection), Mirror, the quick shapes (gliding the sliders there), the group's big sliders drawn live
+ * as they move (the engine's live sculpt), each side's balance with Mirror off, Randomize, Reset, Undo and Redo.
+ */
+@Composable
+private fun CasDesignerSection(
+    model: CreatorModel, rev: Int, onSculpt: (send: Boolean, done: Boolean) -> Unit, rateMs: Long, sculptUi: CasSculptState,
+    actions: CasSculptActions?,
+) {
+    val female = rev.let { model.appearance.sex == Sex.FEMALE }
+    val groups = DesignerGroup.of(female)
+    val group = sculptUi.group?.takeIf { it in groups } ?: groups.first()
+    val scope = rememberCoroutineScope()
+    var glide by remember { mutableStateOf<Job?>(null) }
+    var lastSent by remember { mutableLongStateOf(0L) }
+    fun current() = model.appearance.sculpt ?: BodySculpt()
+    fun look(v: DesignerView, g: DesignerGroup) { sculptUi.view = v; actions?.onView?.invoke(v, g) }
+    // a glide to a new shape (a preset, Randomize, Reset): the sliders move there over ANIM_MS, sent each frame; one Undo step
+    fun glideTo(target: BodySculpt) {
+        glide?.cancel()
+        val from = current()
+        val sliders = group.sliders
+        glide = scope.launch {
+            val t0 = System.currentTimeMillis()
+            while (true) {
+                val t = (System.currentTimeMillis() - t0).toFloat() / BustButtDesigner.ANIM_MS
+                if (t >= 1f) break
+                model.setSculpt(BustButtDesigner.tween(from, target, t, sliders).takeIf { !it.isNeutral })
+                onSculpt(true, false)
+                delay(16)
+            }
+            model.setSculpt(BustButtDesigner.tween(from, target, 1f, sliders).takeIf { !it.isNeutral })
+            onSculpt(true, true)
+        }
+    }
+    fun moved(next: BodySculpt) {
+        glide?.cancel()
+        model.setSculpt(next.takeIf { !it.isNeutral })
+        val now = System.currentTimeMillis()
+        val send = now - lastSent >= rateMs
+        if (send) lastSent = now
+        onSculpt(send, false)
+    }
+    WifeTabs(groups.map { it.label }, groups.indexOf(group), { i -> sculptUi.group = groups[i]; look(DesignerView.first(groups[i]), groups[i]) },
+        Modifier.padding(bottom = 4.dp))
+    // the camera's presets
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        for (v in DesignerView.entries) WifeChip(v.label, { look(v, group) }, trailing = if (sculptUi.view == v) "•" else null)
+    }
+    // the drag on her body: hold the bust or the butt, then drag (a second finger: Lift)
+    val mode = when { sculptUi.project -> 2; sculptUi.lift -> 1; else -> 0 }
+    WifeTabs(listOf("Drag: Size", "Lift", "Projection"), mode, { m -> sculptUi.lift = m == 1; sculptUi.project = m == 2 },
+        Modifier.padding(top = 6.dp, bottom = 2.dp))
+    WifeNote(when (mode) {
+        1 -> "Hold her ${group.label.lowercase()}, then drag: up and down lifts it, left and right spaces it."
+        2 -> "Hold her ${group.label.lowercase()}, then drag: up and down its projection, left and right its roundness."
+        else -> "Hold her ${group.label.lowercase()}, then drag: up and down its size, left and right its width."
+    }, Modifier.padding(bottom = 2.dp))
+    WifeSwitchRow("Mirror", sculptUi.symmetry, { on ->
+        sculptUi.symmetry = on
+        if (on && current().isSided) { model.setSculpt(BustButtDesigner.mirror(current(), group).takeIf { !it.isNeutral }); onSculpt(true, true) }
+    }, detail = "Off: each side has its own balance (and a drag changes the side you hold)")
+    // the quick shapes
+    WifeSectionHeader("Shapes")
+    val sculpt = rev.let { current() }
+    val at = BustButtDesigner.presetOf(sculpt, group)
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        for (p in ShapePreset.entries) WifeChip(p.label, { glideTo(BustButtDesigner.applyPreset(current(), p, group)) }, trailing = if (at == p) "•" else null)
+    }
+    WifeSectionHeader(group.label)
+    for (s in group.sliders) {
+        CasSculptRow(s, sculpt[s], enabled = true, glow = false, why = null, label = group.labelOf(s, female), tall = true,
+            onChange = { v -> moved(current().with(s, v)) }, onDone = { onSculpt(true, true) })
+        if (!sculptUi.symmetry && s.sided) {
+            // each side's balance: her left above the value, her right below
+            Row(Modifier.fillMaxWidth().padding(start = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val l = (sculpt.on(s, BodySide.LEFT) * 100).roundToInt(); val r = (sculpt.on(s, BodySide.RIGHT) * 100).roundToInt()
+                WifeNote("L ${if (l > 0) "+$l" else "$l"}", Modifier.width(44.dp))
+                Box(Modifier.weight(1f)) {
+                    WifeSlider((sculpt.side(s) + 1f) / 2f, { f -> moved(current().balanced(s, f * 2f - 1f)) }, Modifier.fillMaxWidth(),
+                        onFinished = { onSculpt(true, true) })
+                }
+                WifeNote("R ${if (r > 0) "+$r" else "$r"}", Modifier.width(44.dp))
+            }
+        }
+    }
+    Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+        verticalAlignment = Alignment.CenterVertically) {
+        WifeButton("Randomize", { glideTo(BustButtDesigner.randomize(current(), Random(System.nanoTime()), group)) }, kind = WifeButtonKind.QUIET)
+        WifeButton("Reset", { glideTo(BustButtDesigner.reset(current(), group)) }, kind = WifeButtonKind.QUIET)
+    }
+    Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+        verticalAlignment = Alignment.CenterVertically) {
+        WifeButton("Undo", { glide?.cancel(); actions?.onUndo?.invoke() }, kind = WifeButtonKind.QUIET,
+            enabled = rev.let { actions?.canUndo?.invoke() ?: false })
+        WifeButton("Redo", { glide?.cancel(); actions?.onRedo?.invoke() }, kind = WifeButtonKind.QUIET,
+            enabled = rev.let { actions?.canRedo?.invoke() ?: false })
+    }
 }
 
 /**
@@ -351,13 +490,15 @@ private fun CasEveSection(model: CreatorModel, rev: Int, eve: CasEveBinding?, on
 
 /** A sculpt slider: its name (a long press puts it back to 0), the slider from -1 to 1 with its middle marked, the value. */
 @Composable
-private fun CasSculptRow(s: SculptSlider, value: Float, enabled: Boolean, glow: Boolean, why: String?, onChange: (Float) -> Unit, onDone: () -> Unit) {
+private fun CasSculptRow(s: SculptSlider, value: Float, enabled: Boolean, glow: Boolean, why: String?, onChange: (Float) -> Unit, onDone: () -> Unit,
+                         label: String = s.label, tall: Boolean = false) {
     val shape = RoundedCornerShape(10.dp)
     Column(Modifier.fillMaxWidth().clip(shape).then(if (glow) Modifier.background(WifeTheme.glow.copy(alpha = 0.10f)).border(1.dp, WifeTheme.glow.copy(alpha = 0.6f), shape) else Modifier)
         .padding(horizontal = 4.dp)) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(s.label, style = WifeTheme.labelStyle(if (enabled) WifeTheme.text else WifeTheme.textDim), maxLines = 1,
-                modifier = Modifier.width(96.dp).warPress(enabled = enabled, onLongPress = { onChange(0f); onDone() }) { })
+        Row(Modifier.fillMaxWidth().heightIn(min = if (tall) 56.dp else 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(label, style = WifeTheme.labelStyle(if (enabled) WifeTheme.text else WifeTheme.textDim), maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.width(if (tall) 104.dp else 96.dp).warPress(enabled = enabled, onLongPress = { onChange(0f); onDone() }) { })
             Box(Modifier.weight(1f)) {
                 WifeSlider((value + 1f) / 2f, { f -> onChange(f * 2f - 1f) }, Modifier.fillMaxWidth(), enabled, onFinished = onDone)
                 Canvas(Modifier.fillMaxWidth().height(48.dp)) {
