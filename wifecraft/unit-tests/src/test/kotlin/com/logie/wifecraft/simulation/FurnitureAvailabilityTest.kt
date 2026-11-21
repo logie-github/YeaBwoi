@@ -69,21 +69,45 @@ class FurnitureAvailabilityTest {
         assertEquals(PlayState.READY, FurnitureAvailability.of(blank, emptyList(), unit).state)
     }
 
-    @Test fun aBedTallerThanTheClipsIsANearFitNotARefusal() {
-        // one standing at the bed's side, one lying on its edge at 0.55 m: a 0.77 m bed (Brill's) is 22 cm too tall for the
-        // standing one's feet to stay on the floor within the usual 16 cm, so it fitted nowhere before
-        val pair = req(F.standing, moved(F.lyingBack(0.55), -0.7, 0.0))
-        val mixed = pair.actors.any { it.feetOnFloor } && pair.actors.any { it.surface == Surface.BED }
-        assertTrue(mixed, pair.reason)
-        val brill = piece(FurnitureKind.BED_DOUBLE, 0.77f * FurnitureSpec.YARDS_PER_METRE)
-        val low = piece(FurnitureKind.BED_DOUBLE, 0.55f * FurnitureSpec.YARDS_PER_METRE)
-        assertNotNull(FurnitureFit.fit(pair, low, unit), "a bed of the clip's height takes it")
-        assertNull(FurnitureFit.fit(pair, brill, unit), "the tall bed doesn't, strictly")
-        val near = FurnitureAvailability.of(pair, listOf(brill), unit)
+    @Test fun aRiderAstrideRestsOnThePartnerNotOnTheBed() {
+        // one lying on her back on the bed, one kneeling astride over her hips (his support 0.2 m over hers): he rests on her,
+        // not on the mattress, so every bed takes it at its own height (each place's measured bed: the tall ones refused it)
+        val pair = req(F.lyingBack(0.55), F.kneeling(0.75))
+        assertTrue(FurnitureFit.onPartner(pair, 1)); assertFalse(FurnitureFit.onPartner(pair, 0))
+        val assets = File(System.getProperty("wifecraft.assets") ?: "../android/app/src/main/assets")
+        var beds = 0
+        for (loc in LocationInfo.parseAll(File(assets, "locations.json").readText())) for (p in loc.furniture) {
+            val f = Furniture.of(p) ?: continue
+            if (!f.kind.bed) continue
+            beds++
+            val a = FurnitureAvailability.of(pair, listOf(f), unit)
+            assertEquals(PlayState.ON_FURNITURE, a.state, "${loc.id}: ${a.notice}")
+            assertFalse(a.relaxed, loc.id)
+        }
+        assertEquals(10, beds)
+    }
+
+    @Test fun aBedClipGoesToACouchItNearlyFitsAndNeverOntoATable() {
+        // one lying on a bed (0.55 m) where there is only a couch (0.45 m): a near fit on its seat
+        val one = req(F.lyingBack(0.55))
+        val couch = piece(FurnitureKind.COUCH)
+        assertNull(FurnitureFit.fit(one, couch, unit), "not a bed")
+        val near = FurnitureAvailability.of(one, listOf(couch), unit)
         assertEquals(PlayState.ON_FURNITURE, near.state)
         assertTrue(near.relaxed)
-        // the feet still on the floor: the clip isn't lifted past the usual tolerance
-        assertTrue(kotlin.math.abs(near.fit!!.lift) <= FurnitureFit.HEIGHT_TOLERANCE_M * FurnitureSpec.YARDS_PER_METRE + 1e-4f, "${near.fit!!.lift}")
+        assertEquals("Plays on the couch, the nearest fit (its height differs from the animation's).", FurnitureAvailability.describe(near))
+        // the Embassy has only its study table: a bed's pair is never laid on it, it plays on the floor, lowered
+        val assets = File(System.getProperty("wifecraft.assets") ?: "../android/app/src/main/assets")
+        val table = Furniture.of(LocationInfo.parseAll(File(assets, "locations.json").readText()).first { it.id == "embassy" }.furniture.single())!!
+        val onFloor = FurnitureAvailability.of(bedPair, listOf(table), unit, drop = FurnitureAvailability.floorDrop(bodies(*lying)))
+        assertEquals(PlayState.FLOOR, onFloor.state); assertTrue(onFloor.floorRests)
+        assertEquals("Nothing here fits it as a bed: playing on the floor.", onFloor.notice)
+        // one with a partner standing beside it: lowered, it wouldn't rest on the floor; played where they stand, as made
+        val edge = arrayOf(F.standing, moved(F.lyingBack(0.55), -0.7, 0.0))
+        val a = FurnitureAvailability.of(req(*edge), emptyList(), unit, drop = FurnitureAvailability.floorDrop(bodies(*edge)))
+        assertEquals(PlayState.FLOOR, a.state)
+        assertFalse(a.floorRests)
+        assertEquals("No bed here: playing it where they stand, as made.", a.notice)
     }
 
     @Test fun theFloorPlayLowersTheBodiesOntoTheFloor() {
@@ -111,7 +135,8 @@ class FurnitureAvailabilityTest {
         val asBed = FurnitureAvailability.of(floorPair, listOf(table, bed), unit, TreatAs.BED)
         assertEquals(PlayState.ON_FURNITURE, asBed.state); assertSame(bed, asBed.furniture); assertEquals(TreatAs.BED, asBed.treatedAs)
         assertEquals(Surface.BED, FurnitureAvailability.applied(floorPair, TreatAs.BED).surface)
-        assertSame(bedPair.actors, FurnitureAvailability.applied(bedPair, TreatAs.TABLE).actors, "the bodies' reading is kept")
+        val read = bedPair
+        assertSame(read.actors, FurnitureAvailability.applied(read, TreatAs.TABLE).actors, "the bodies' reading is kept")
         // kept per animation id, as one string; damaged or unknown: nothing
         val m = TreatAsMemory()
         assertTrue(m.set("pairA", TreatAs.BED)); assertFalse(m.set("pairA", TreatAs.BED))
@@ -150,15 +175,17 @@ class FurnitureAvailabilityTest {
         assertEquals(setOf("BED"), AutoplayPlanner.options(listOf(bed, floor), listOf(resting), unit).map { it.place.key }.toSet())
     }
 
-    @Test fun everyPlacesBedTakesALyingPair() {
-        // the measured beds of every place (assets/locations.json): a side-by-side lying pair is on the bed in each
+    @Test fun everyPlacesBedTakesALyingPairOrItsNarrowOnesPlayItOnTheFloor() {
+        // two side by side: on every measured bed wide enough for two (Sen'jin's hut's bed, 1.2 yards across, isn't)
         val assets = File(System.getProperty("wifecraft.assets") ?: "../android/app/src/main/assets")
-        val all = LocationInfo.parseAll(File(assets, "locations.json").readText())
-        for (loc in all) for (p in loc.furniture) {
+        val drop = FurnitureAvailability.floorDrop(bodies(*lying))
+        for (loc in LocationInfo.parseAll(File(assets, "locations.json").readText())) for (p in loc.furniture) {
             val f = Furniture.of(p) ?: continue
             if (!f.kind.bed) continue
-            val a = FurnitureAvailability.of(bedPair, listOf(f), unit)
-            assertEquals(PlayState.ON_FURNITURE, a.state, "${loc.id}: ${a.notice}")
+            val wide = (p.extent?.surface?.widthY ?: 2f) >= FurnitureSpec.DOUBLE_WIDTH_YARDS
+            val a = FurnitureAvailability.of(bedPair, listOf(f), unit, drop = drop)
+            if (wide) assertEquals(PlayState.ON_FURNITURE, a.state, "${loc.id}: ${a.notice}")
+            else { assertEquals(PlayState.FLOOR, a.state, loc.id); assertTrue(a.floorRests); assertEquals("Nothing here fits it as a bed: playing on the floor.", a.notice) }
         }
     }
 }

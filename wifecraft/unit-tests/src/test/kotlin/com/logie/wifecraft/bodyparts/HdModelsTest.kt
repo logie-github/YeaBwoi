@@ -53,6 +53,7 @@ class HdModelsTest {
             .put("overlays", JSONArray().put(JSONObject().put("id", "f1").put("label", "Mark").put("slot", "face").put("onto", 0).put("blob", 0)))
             .put("tints", JSONArray().put(JSONObject().put("id", "own").put("label", "Her own").put("rgb", "FFFFFF")))
             .put("triangles", JSONObject().put("body", 1).put("max", 1)).put("gpuBytes", 1000)
+            .put("credit", "Model by Someone (example.org)")
         val js = meta.toString().toByteArray()
         val out = ByteArrayOutputStream()
         val head = ByteBuffer.allocate(16).order(ByteOrder.LITTLE_ENDIAN)
@@ -83,6 +84,7 @@ class HdModelsTest {
         assertEquals(listOf("Swimsuit", "Druid", "Plate"), info.outfits.map { it.label })
         assertEquals(listOf("Mark"), info.faceMarks)
         assertFalse(info.bodyMarks)
+        assertEquals("Model by Someone (example.org)", info.credit)
         // not a set, cut short, newer, no body
         assertFailsWith<BodyPartFormatException> { HdSetInfo.read(File(d, "x.whd").apply { writeBytes(ByteArray(40)) }) }
         assertFailsWith<BodyPartFormatException> { HdSetInfo.read(File(d, "y.whd").apply { writeBytes(whd(4, 1).copyOf(200)) }) }

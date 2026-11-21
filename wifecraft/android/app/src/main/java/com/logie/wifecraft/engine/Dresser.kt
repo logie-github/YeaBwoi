@@ -257,8 +257,11 @@ class Dresser(
         val uvs = kotlinx.coroutines.CompletableDeferred<FloatArray>()
         scene.partSkinUvs(key) { uvs.complete(it) }
         val at = uvs.await()
+        // the skin's colour where the parts meet the body: the parts' roots are blended to it by the engine
+        var skinColour = -1
         val textures = withContext(Dispatchers.IO) {
             val skinImage = skinImage(skin)
+            if (skinImage != null && at.isNotEmpty()) skinColour = PartSkin.sampleAt(skinImage, at) ?: -1
             entries.mapNotNull { e ->
                 runCatching {
                     val part = PartFile.read(File(dir, "${e.id}.wcbp").readBytes())
@@ -269,6 +272,7 @@ class Dresser(
             }
         }
         if (textures.isEmpty()) return
+        scene.setPartSkin(key, skinColour)
         for ((id, t) in textures) scene.attachPart(key, "$set/$id", t.rgba, t.width, t.height)
         synchronized(_withParts) { _withParts.value = _withParts.value + key }
         scene.setPartState(key, PartDraw.visible(PartDraw.DEFAULT, true))

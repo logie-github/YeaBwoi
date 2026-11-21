@@ -1,0 +1,24 @@
+{
+  "extends": "liard_rig.json",
+  "id": "liard_human_male",
+  "label": "Human man (HD)",
+  "source": "Human Male 3.0 (HumanMale3.0.fbx and its Textures folder; the eyes' textures from Human Female 4.0's)",
+  "body": {"object": "Skin3_0_NewEyes"},
+  "weights": {"M_Spine01_Jnt": "Spine1", "M_Spine02_Jnt": "Spine1", "M_Spine03_Jnt": "Spine2", "M_Neck01_Jnt": "Neck1", "M_Neck02_Jnt": "Neck2"},
+  "joints": {"Root": "M_Pelvis_Jnt", "Pelvis": "M_Pelvis_Jnt", "Spine1": "M_Spine01_Jnt", "Spine2": "M_Spine03_Jnt", "Chest": "M_Chest_Jnt",
+             "Neck1": "M_Neck01_Jnt", "Neck2": "M_Neck02_Jnt"},
+  "materialImages": {"M_skin": "HumanMale3_0Skin.png", "M_Eyes1": "eyes00_00_3484643.png", "M_Eyes": "eyes00_00_3484643.png",
+                     "Hairstyle": "humanmale_hd_hair_style_3846455.png"},
+  "skinImage": "HumanMale3_0Skin.png",
+  "textureSize": {"HumanMale3_0Skin.png": 2048},
+  "always": [{"id": "brows", "objects": ["Eyebrows"], "kind": "brows"}],
+  "eyeTextures": {"glob": "eyes00_*_3484*.png", "label": "Eyes {n}"},
+  "hair": [],
+  "outfits": [],
+  "jewelry": [],
+  "variants": [
+    {"file": "Human_M.whd", "race": 1, "sex": 0, "label": "Human man (HD)",
+     "tints": [{"id": "own", "label": "His own", "image": "HumanMale3_0Skin.png"}, {"id": "light", "label": "Lighter", "image": "HumanMale3_0Skin.png", "rgb": "FFF2E8"},
+               {"id": "tan", "label": "Tanned", "image": "HumanMale3_0Skin.png", "rgb": "E2C6A6"}, {"id": "brown", "label": "Brown", "image": "HumanMale3_0Skin.png", "rgb": "B48C6C"}]}
+  ]
+}

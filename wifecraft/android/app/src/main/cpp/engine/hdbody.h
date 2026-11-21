@@ -19,7 +19,7 @@
 // outfit covers), the eyes and brows, the chosen hair, outfit and jewellery, each part with its texture: the skin tinted by
 // the chosen tint, the face and body marks laid over it, the hair recoloured by its tint.
 //
-// The .whd layout (tools/hd/WHD.md): "WHD1", u32 version, u32 JSON length, u32 blob count; the JSON; padding to 16; the
+// The .whd layout (README "HD Models": the set): "WHD1", u32 version, u32 JSON length, u32 blob count; the JSON; padding to 16; the
 // blob table (u64 offset, u64 size per blob); the blobs. Vertices are 40 bytes: position f32 x3 (metres, Warcraft axes,
 // feet at z 0), normal f32 x3, uv f32 x2 (top-left origin, repeating), four bone indices into the JSON's "bones" and four
 // weights u8 (summing to 255); indices u32; textures PNG.
@@ -61,7 +61,9 @@ struct HdChoice {
 };
 struct HdEyeTex { std::string id, label; int texture = -1; };
 struct HdOverlay { std::string id, label, slot; int onto = -1; int blob = -1; };
-struct HdTint { std::string id, label; uint32_t rgb = 0xFFFFFF; float lift = 0; };
+// A tint preset: a colour gain (`rgb`), for hair a lift toward white, and optionally a texture of its own that replaces the
+// set's base skin (a skin tint) or base hair texture (a hair tint): the model's own other skin tones and hair colours.
+struct HdTint { std::string id, label; uint32_t rgb = 0xFFFFFF; float lift = 0; int texture = -1; };
 
 struct HdSet {
     std::string id, label;
@@ -75,6 +77,8 @@ struct HdSet {
     std::vector<HdChoice> hair, outfits, jewelry;
     std::vector<HdOverlay> overlays;
     std::vector<HdTint> tints, hairTints;
+    int skinTexture = -1, hairTexture = -1;   // the textures a tint with a texture of its own replaces (-1: none)
+    std::string credit;                       // who made the model (shown with it)
     uint64_t gpuBytes = 0;
     std::vector<uint8_t> file;             // the whole file (the textures' PNGs are decoded from it when first drawn)
     std::vector<std::pair<uint64_t, uint64_t>> blobs;

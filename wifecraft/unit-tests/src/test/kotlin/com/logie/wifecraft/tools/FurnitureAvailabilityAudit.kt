@@ -194,7 +194,8 @@ class FurnitureAvailabilityAudit {
                 val female = i == 1
                 plan.append("actor $i ${File(looks, if (female) "human_f.look" else "human_m.look").absolutePath} " +
                     "${f(HumanScale.target(female))} ${f(HumanScale.PAIR * HumanScale.pairScale(1, female))}\n")
-                plan.append("place $i ${f(w.x)} ${f(w.y)} ${f(w.z)} ${f(p.facing)}${if (kotlin.math.abs(p.lift) > 0.01f) " raw" else ""}\n")
+                // (raw: at its height, as the screen's sink places a clip lowered under its floor)
+                plan.append("place $i ${f(w.x)} ${f(w.y)} ${f(w.z)} ${f(p.facing)} raw\n")
                 plan.append("clip $i ${file.absolutePath}\n")
                 notes.append("   actor $i role $role z ${f(p.z)} lift ${f(p.lift)}\n")
             }

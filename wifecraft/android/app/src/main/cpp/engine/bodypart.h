@@ -44,6 +44,14 @@ constexpr float kPartRootAboveCrotch = 0.164f;
 // Where kPartRoot sits between where the legs part (0) and the hip joints' height (1): the pubic root on the body's front,
 // fitted on the human man (desktop harness, engine-test/bodypart_test's races) and used for every race's men.
 constexpr float kPartRootShare = 0.87f;
+// The base and scrotum's half width in the Sims frame (the user's set: 3.5 cm), narrowed to the gap between the inner thighs.
+constexpr float kPartBaseHalfWidth = 0.035f;
+constexpr float kPartSqueezeMin = 0.45f;
+// How far the root sits inside the body's front surface (Sims metres, scaled with the part): the base ring under the skin,
+// so the body's own skin hides the seam and the shaft emerges from it.
+constexpr float kPartSink = 0.023f;
+// The erect shaft's least pitch above the pelvis' forward (radians, 30 degrees): forward and up, never level or down at rest.
+constexpr float kErectPitchMin = 0.5236f;
 
 struct PartData {
     uint32_t flags = 0;                 // 1 normals, 2 UVs, 4 skin
@@ -102,6 +110,8 @@ struct PartPlacement {
     V3 root;                  // where kPartRoot lands (model units, bind pose)
     float crotch = 0;         // where the legs part on the midline (model units; bodyCrotchZ)
     float scale = 1;          // model units per Sims metre
+    float squeeze = 1;        // the base and scrotum's width as drawn (kPartSqueezeMin..1): narrowed to the gap between the inner thighs
+    float front = 0;          // the body's front surface on the midline at the root's height (the root sits kPartSink inside it)
 };
 
 // The lower body as shown (`geosets`: the actor's drawn submesh ids; empty: all): its vertices of the body geoset (id 0)
@@ -172,9 +182,25 @@ PartShaft measureShaft(const PartData& d, const PartData* other);
 struct PartBend {
     Quat turn;
     float stretch = 1;
+    float squeeze = 1;   // across (y), on the base and scrotum only (1 - weight): PartPlacement::squeeze
 };
 // The part's vertices posed by `b` (Sims frame, as uploadPart writes them: positions and normals; uvs kept).
 void posePart(const PartData& d, const PartShaft& s, const PartBend& b, std::vector<M2Vertex>& out);
+
+// The part's texture (`rgba`, w x h, top row first) blended toward the body's skin colour `rgb` (0xRRGGBB, sampled where the
+// part meets the body) at its root: each texel by its triangles' vertices' distance from kPartRoot (Sims frame): all skin
+// within kRootSkinFull, the part's own colour from kRootSkinEnd; and a soft contact shade (kRootShade darker at most) on the
+// ring where the shaft leaves the skin (kPartSink from the root). So the root is the body's colour and lit as it is, and the
+// part comes out of the skin rather than standing on it. Returns how many texels changed.
+constexpr float kRootSkinFull = 0.026f, kRootSkinEnd = 0.05f, kRootShade = 0.12f;
+size_t blendRootToSkin(const PartData& d, uint8_t* rgba, int w, int h, uint32_t rgb);
+// The blend's weight toward the skin and the shade at a point (Sims frame).
+float rootSkinWeight(const V3& p);
+float rootShade(const V3& p);
+
+// A triangle list (`indices`, 3 per triangle) without the triangles that touch a masked vertex (`mask`: vertex indices, any
+// order): an HD body's own genitals left out where the parts are drawn instead.
+std::vector<uint32_t> maskTriangles(const std::vector<uint32_t>& indices, const std::vector<uint32_t>& mask);
 
 // Quaternion helpers (unit quaternions; the turn taking unit `from` onto unit `to`, the shortest; a turn about an axis).
 Quat quatFromTo(const V3& from, const V3& to);

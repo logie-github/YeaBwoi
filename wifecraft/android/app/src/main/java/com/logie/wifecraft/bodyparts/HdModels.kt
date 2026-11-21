@@ -62,6 +62,8 @@ class HdSetInfo(
     val jewelry: List<String>,
     val triangles: Int,
     val gpuBytes: Long,
+    /** Who made the model, as its recipe says ("Model by Liard's Art (liardart.com)"); shown with the set. "" when unsaid. */
+    val credit: String = "",
 ) {
     class Outfit(val label: String, val classes: List<Int>)
 
@@ -132,7 +134,7 @@ class HdSetInfo(
             }
             return HdSetInfo(f, race, sex, o.optString("label", f.nameWithoutExtension), labels("hair"), outfits, labels("eyeTextures"),
                 faces, bodyMarks, labels("tints"), labels("hairTints"), labels("jewelry"),
-                o.optJSONObject("triangles")?.optInt("max", 0) ?: 0, o.optLong("gpuBytes", 0))
+                o.optJSONObject("triangles")?.optInt("max", 0) ?: 0, o.optLong("gpuBytes", 0), o.optString("credit", ""))
         }
     }
 }

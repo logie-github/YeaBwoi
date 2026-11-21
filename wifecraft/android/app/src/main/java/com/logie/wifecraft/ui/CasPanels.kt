@@ -551,30 +551,30 @@ private fun CasHdStepper(label: String, names: List<String>, at: Int, onAt: (Int
 private fun CasHdSection(model: CreatorModel, rev: Int, hd: CasHdBinding?, onChanged: (Boolean) -> Unit, tab: CasTab) {
     val set = rev.let { hd?.setFor?.invoke(model.appearance) } ?: return
     val o = rev.let { model.appearance.hd ?: com.logie.wifecraft.bodyparts.HdOptions() }
-    fun set(next: com.logie.wifecraft.bodyparts.HdOptions) { model.edit { it.copy(hd = next) }; onChanged(true) }
+    fun put(next: com.logie.wifecraft.bodyparts.HdOptions) { model.edit { it.copy(hd = next) }; onChanged(true) }
     WifeSectionHeader("HD figure")
     WifeNote("${set.label}: drawn instead of the game's model. The game's own ${tab.label.lowercase()} choices don't apply to it.",
         Modifier.padding(bottom = 6.dp))
     when (tab) {
         CasTab.BODY -> {
-            if (set.tints.isNotEmpty()) CasHdStepper("Skin", set.tints, o.tint.coerceIn(0, set.tints.size - 1)) { set(o.copy(tint = it)) }
-            if (set.bodyMarks) WifeSwitchRow("Body marks", o.bodyMarks, { set(o.copy(bodyMarks = it)) })
+            if (set.tints.isNotEmpty()) CasHdStepper("Skin", set.tints, o.tint.coerceIn(0, set.tints.size - 1)) { put(o.copy(tint = it)) }
+            if (set.bodyMarks) WifeSwitchRow("Body marks", o.bodyMarks, { put(o.copy(bodyMarks = it)) })
             WifeNote("The sculpt sliders and Bust & Butt shape the HD figure too.", Modifier.padding(top = 4.dp))
         }
         CasTab.FACE, CasTab.MAKEUP -> {
-            if (set.eyes.isNotEmpty()) CasHdStepper("Eyes", set.eyes, o.eyes.coerceIn(0, set.eyes.size - 1)) { set(o.copy(eyes = it)) }
+            if (set.eyes.isNotEmpty()) CasHdStepper("Eyes", set.eyes, o.eyes.coerceIn(0, set.eyes.size - 1)) { put(o.copy(eyes = it)) }
             val marks = listOf("None") + set.faceMarks
-            if (set.faceMarks.isNotEmpty()) CasHdStepper("Face marks", marks, (o.faceMark + 1).coerceIn(0, marks.size - 1)) { set(o.copy(faceMark = it - 1)) }
+            if (set.faceMarks.isNotEmpty()) CasHdStepper("Face marks", marks, (o.faceMark + 1).coerceIn(0, marks.size - 1)) { put(o.copy(faceMark = it - 1)) }
         }
         CasTab.HAIR -> {
             val styles = set.hair + "None"
             val at = if (o.hair == -2) styles.size - 1 else o.hair.coerceIn(0, styles.size - 1)
-            CasHdStepper("Style", styles, at) { set(o.copy(hair = if (it == styles.size - 1) -2 else it)) }
-            if (set.hairTints.isNotEmpty()) CasHdStepper("Colour", set.hairTints, o.hairTint.coerceIn(0, set.hairTints.size - 1)) { set(o.copy(hairTint = it)) }
+            CasHdStepper("Style", styles, at) { put(o.copy(hair = if (it == styles.size - 1) -2 else it)) }
+            if (set.hairTints.isNotEmpty()) CasHdStepper("Colour", set.hairTints, o.hairTint.coerceIn(0, set.hairTints.size - 1)) { put(o.copy(hairTint = it)) }
         }
         CasTab.ACCESSORIES -> {
             set.jewelry.forEachIndexed { i, name ->
-                WifeSwitchRow(name, i in o.jewelry, { on -> set(o.copy(jewelry = if (on) (o.jewelry + i).distinct().sorted() else o.jewelry - i)) })
+                WifeSwitchRow(name, i in o.jewelry, { on -> put(o.copy(jewelry = if (on) (o.jewelry + i).distinct().sorted() else o.jewelry - i)) })
             }
             if (set.jewelry.isEmpty()) WifeNote("The set has no jewellery.")
         }

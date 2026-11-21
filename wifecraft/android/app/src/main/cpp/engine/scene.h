@@ -223,6 +223,14 @@ public:
     // An actor's entry anchor `entry` as posed (world), and its way in (unit, world) when asked; measured on its model as
     // shown; false when it has none.
     bool entryWorld(int id, int entry, V3& out, V3* inward = nullptr);
+    // The body's skin colour where the parts meet it (0xRRGGBB, sampled by the caller: bodyparts/PartSkin; < 0 none): the
+    // parts' roots are blended to it (bodypart.h blendRootToSkin). Their textures are made again.
+    void setPartSkin(int id, int rgb);
+    // An HD body's own genital vertices (indices into its body mesh, from the HD set's 'genital_mask': tools/hd), hidden while
+    // the parts are drawn in their place; empty: the HD body as it is, no parts. hdscene.cpp's index buffers are to leave
+    // these triangles out (bodypart.h maskTriangles): NOT wired there yet.
+    void setHdGenitalMask(int id, const std::vector<uint32_t>& vertices);
+    const std::vector<uint32_t>* hdGenitalMask(int id) const;
     // Where to sample the actor's skin colour for its parts' tint: the skin texture coordinates (u, v pairs, v 0 at the top)
     // of its shown lower body around the parts' root (bodySkinUvs: within 0.12 pelvis heights, at most 256). Empty: no actor,
     // or a model without a Pelvis.
@@ -560,6 +568,8 @@ private:
         V3 lastEntry, lastRoot;  // the last frame's entry (world) and shaft root (world)
         V3 lastForward;          // the pelvis' forward as last drawn (world, unit)
         EntryAnchors entries;    // this actor as a partner: its entry anchors (measured once per look)
+        int skinRgb = -1;        // setPartSkin: the body's skin colour where the parts meet it (0xRRGGBB; -1 none)
+        std::vector<uint32_t> hdGenitalMask;   // setHdGenitalMask: the HD body's own genital vertices (hidden, the parts drawn)
     };
     // A tabard flap hung as cloth (cloth.h): its rig for the look, the sim, this frame's inputs and what is drawn.
     struct ClothGl {
@@ -889,7 +899,7 @@ private:
     std::string partError_;
     void uploadPart(PartGl& p);
     void dropPartGl(ActorParts& ap);
-    void drawParts(Actor& a, const M4& world, bool transparent, uint32_t nowMs);
+    void drawParts(Actor& a, const M4& world, bool transparent, uint32_t nowMs, const float tint[4]);
     void drawBoneParts(Actor& a, const M4& world, bool transparent);
     // HD Models (hdscene.cpp)
     std::map<int, std::shared_ptr<const HdSet>> hdSets_;    // by race * 10 + sex

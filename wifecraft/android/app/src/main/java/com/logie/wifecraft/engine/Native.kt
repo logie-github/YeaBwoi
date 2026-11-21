@@ -132,6 +132,8 @@ object Native {
     @JvmStatic external fun partFit(scene: Long, actor: Int, dx: Float, dz: Float, scale: Float)
     /** Arousal 0..1 (< 0: not driven) and the insertion: [partner] an actor id (0 none), [entry] bodyparts/PartEntryKind.engine, [rest] Sims metres (cpp Scene::setPartDrive). */
     @JvmStatic external fun partDrive(scene: Long, actor: Int, level: Float, partner: Int, entry: Int, rest: Float)
+    /** The body's skin colour where the parts meet it (0xRRGGBB; -1 none): the parts' roots blended to it (cpp Scene::setPartSkin). */
+    @JvmStatic external fun partSkin(scene: Long, actor: Int, rgb: Int)
     @JvmStatic external fun detachParts(scene: Long, actor: Int)
     /** Where to sample the actor's skin for the parts' tint: skin texture (u, v) pairs, v 0 at the top (empty: can't say). */
     @JvmStatic external fun partSkinUvs(scene: Long, actor: Int): FloatArray

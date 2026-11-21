@@ -1643,6 +1643,9 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     if (a.hd.active) {
         // the HD figure instead of the game's model, its clothing and parts (hdscene.cpp); what it holds still hangs on it
         if (!transparent) drawHd(a, w, bodyTint);   // (with the soft body's uniforms still set)
+        // an HD body whose own genitals are hidden (setHdGenitalMask): the parts drawn in their place, on the game skeleton
+        // the HD figure is fitted to (hdscene.cpp's index buffers must leave the masked triangles out: bodypart.h maskTriangles)
+        if (!a.parts.hdGenitalMask.empty()) drawParts(a, w, transparent, nowMs, bodyTint);
         softBodyDraw_ = false;
         if (soft) SoftDraw::off(m2Prog_);
         std::fill(drawSkin_, drawSkin_ + 4, 0.0f);
@@ -1668,10 +1671,11 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
         if (soft) a.soft.uniforms(m2Prog_, a.soft.skinnedGate(i, e.mesh, e.boneMap));
         drawModel(*e.mesh, w, &tex, &e.geosets, e.boneTex, -1, 0, nowMs, bodyTint, transparent, kActorTex, &a.composed);
     }
+    // the body parts with the body's own tint and skin shading (drawSkin_ still the person's)
+    drawParts(a, w, transparent, nowMs, bodyTint);
     if (soft) SoftDraw::off(m2Prog_);
     std::fill(drawSkin_, drawSkin_ + 4, 0.0f);
     drawAttached(a, w, nowMs, transparent);
-    drawParts(a, w, transparent, nowMs);
 }
 
 bool Scene::creatorBackdrop(uint32_t fileId) {
@@ -2379,6 +2383,26 @@ void Scene::setPartDrive(int id, float level, int partner, int entry, float rest
     ap.rest = std::isfinite(rest) ? std::clamp(rest, -0.1f, 0.2f) : 0.0f;
 }
 
+void Scene::setPartSkin(int id, int rgb) {
+    auto it = actors_.find(id);
+    if (it == actors_.end()) return;
+    ActorParts& ap = it->second.parts;
+    int v = rgb < 0 ? -1 : (rgb & 0xFFFFFF);
+    if (v == ap.skinRgb) return;
+    ap.skinRgb = v;
+    for (PartSlot& s : ap.slots) { if (s.tex && glReady_) glDeleteTextures(1, &s.tex); s.tex = 0; }
+}
+
+void Scene::setHdGenitalMask(int id, const std::vector<uint32_t>& vertices) {
+    auto it = actors_.find(id);
+    if (it != actors_.end()) it->second.parts.hdGenitalMask = vertices;
+}
+
+const std::vector<uint32_t>* Scene::hdGenitalMask(int id) const {
+    auto it = actors_.find(id);
+    return it == actors_.end() ? nullptr : &it->second.parts.hdGenitalMask;
+}
+
 bool Scene::partDriveInfo(int id, PartDriveInfo& out) const {
     auto it = actors_.find(id);
     if (it == actors_.end()) return false;
@@ -2436,7 +2460,7 @@ bool Scene::partPose(int id, int slot, M4& matrix, PartPlacement& placement) con
 
 // The slot the actor's state picks, rigid on its Pelvis as animated this frame (bodypart.h), lit and opaque as the body
 // is (no culling: the body's isn't either). Drawn in the opaque pass, after the soft body's uniforms are off.
-void Scene::drawParts(Actor& a, const M4& world, bool transparent, uint32_t nowMs) {
+void Scene::drawParts(Actor& a, const M4& world, bool transparent, uint32_t nowMs, const float tint[4]) {
     ActorParts& ap = a.parts;
     drawBoneParts(a, world, transparent);
     if (transparent || ap.state < 1 || ap.state > 2) return;
@@ -2467,9 +2491,12 @@ void Scene::drawParts(Actor& a, const M4& world, bool transparent, uint32_t nowM
     const PartData& d = pt->second->data;
     if (!s.tex) {
         if (s.rgba.empty()) return;
+        // the root blended to the body's skin colour with its contact shade (blendRootToSkin), on a copy: the kept pixels stay
+        std::vector<uint8_t> px = s.rgba;
+        if (ap.skinRgb >= 0) blendRootToSkin(d, px.data(), s.w, s.h, uint32_t(ap.skinRgb));
         glGenTextures(1, &s.tex);
         glBindTexture(GL_TEXTURE_2D, s.tex);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, s.w, s.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, s.rgba.data());
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, s.w, s.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
         glGenerateMipmap(GL_TEXTURE_2D);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -2483,6 +2510,7 @@ void Scene::drawParts(Actor& a, const M4& world, bool transparent, uint32_t nowM
     const PartShaft& erect = ap.slots[1].shaftMeasured && ap.slots[1].shaft.ok ? ap.slots[1].shaft : flaccid;
     float hang = std::clamp(thighPitch(*a.mesh->model, a.mats, ap.place.pelvis), -0.35f, 1.75f) * kFlaccidThighShare;
     PartBend bend = levelBend(level, slot == 1, flaccid.ok ? flaccid : erect, erect, hang);
+    bend.squeeze = ap.place.squeeze;
     Quat aimTarget;
     bool aiming = false;
     ap.distance = -1;
@@ -2553,11 +2581,22 @@ void Scene::drawParts(Actor& a, const M4& world, bool transparent, uint32_t nowM
     glUniform1i(loc(p, "uBones"), 1);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, s.tex);
-    glUniform4fv(loc(p, "uColor"), 1, ghostTint_);
+    glUniform4fv(loc(p, "uColor"), 1, tint);
     glUniform1f(loc(p, "uAlphaRef"), -1.0f);
     glUniform1i(loc(p, "uOpaque"), 1);
     glUniform1i(loc(p, "uUnlit"), 0);
+    // shaded as the body's skin is (drawModel's skin kind 1: the same sheen and light), so the part reads as his
+    const bool skinFx = gfx_.skin > 0 || (drawSkin_[3] > 0.5f && gfx_.thinSkin > 0) || drawSkin_[0] > 0;
+    if (skinFx) {
+        glUniform4fv(loc(p, "uSkinActor"), 1, drawSkin_);
+        if (drawSkin_[3] > 0.5f) {
+            glUniformMatrix4fv(loc(p, "uThinHead"), 1, GL_FALSE, drawThin_);
+            glUniform4fv(loc(p, "uThinHands"), 2, drawThin_ + 16);
+        }
+        glUniform1i(loc(p, "uSkinKind"), 1);
+    }
     glDrawElements(GL_TRIANGLES, GLsizei(d.indices.size()), GL_UNSIGNED_INT, nullptr);
+    if (skinFx) glUniform1i(loc(p, "uSkinKind"), 0);
     glBindVertexArray(0);
 }
 

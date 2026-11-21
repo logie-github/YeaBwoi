@@ -439,7 +439,7 @@ fun HdModelsSection(
         if (s is com.logie.wifecraft.bodyparts.HdImportRunner.State.Running) Text(s.line, style = frizStyle(12.sp, WowColors.white))
         Text("Your own high-detail characters replace the game's models: a race and sex with an imported set is drawn as its HD " +
             "figure everywhere (its body, face, ears, eyes, hair and its own clothing for her class with Gear on). Convert the " +
-            "character's .blend on a computer with the app's tools/hd converter, copy the zip it makes (Wifecraft-HD-*.zip) to the " +
+            "character's FBX zip (or .blend) on a computer with the app's tools/hd converter, copy the zip it makes (Wifecraft-HD-*.zip) to the " +
             "phone and pick it here. The first picture of each figure takes a moment while its textures are read.",
             style = frizStyle(11.sp, WowColors.grey))
         WowCheckRow("Use HD Models", on, onSwitch, enabled = !busy,
@@ -458,10 +458,13 @@ fun HdModelsSection(
                         "${set.tints.size} skin tints, ${set.jewelry.size} jewellery; up to ${set.triangles / 1000}k triangles, " +
                         "about ${set.gpuBytes / 1_000_000} MB of textures",
                         style = frizStyle(11.sp, WowColors.grey))
+                    if (set.credit.isNotEmpty()) Text(set.credit, style = frizStyle(11.sp, WowColors.grey))
                 }
                 WowButton("Remove", { Thread { runner.remove(set.race, set.sex) }.start() }, enabled = !busy, width = 100.dp, height = 34.dp)
             }
         }
+        Text("Credits: the HD models converted from Liard's Art's edited World of Warcraft models are Liard's Art's work " +
+            "(liardart.com), used with credit as the site asks; they are not part of this app.", style = frizStyle(11.sp, WowColors.grey))
         when (s) {
             is com.logie.wifecraft.bodyparts.HdImportRunner.State.Failed -> Text(s.message, style = frizStyle(12.sp, androidx.compose.ui.graphics.Color(0xFFFF6A5A)))
             is com.logie.wifecraft.bodyparts.HdImportRunner.State.Done -> Text(s.message, style = frizStyle(12.sp, WowColors.white))

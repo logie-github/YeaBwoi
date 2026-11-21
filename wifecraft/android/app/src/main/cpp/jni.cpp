@@ -209,6 +209,7 @@ JNIEXPORT void JNICALL FN(partFit)(JNIEnv*, jclass, jlong h, jint id, jfloat dx,
 JNIEXPORT void JNICALL FN(partDrive)(JNIEnv*, jclass, jlong h, jint id, jfloat level, jint partner, jint entry, jfloat rest) {
     scene(h)->setPartDrive(id, level, partner, entry, rest);
 }
+JNIEXPORT void JNICALL FN(partSkin)(JNIEnv*, jclass, jlong h, jint id, jint rgb) { scene(h)->setPartSkin(id, rgb); }
 JNIEXPORT void JNICALL FN(detachParts)(JNIEnv*, jclass, jlong h, jint id) { scene(h)->detachParts(id); }
 JNIEXPORT jfloatArray JNICALL FN(partSkinUvs)(JNIEnv* env, jclass, jlong h, jint id) {
     std::vector<float> uv = scene(h)->partSkinUvs(id);

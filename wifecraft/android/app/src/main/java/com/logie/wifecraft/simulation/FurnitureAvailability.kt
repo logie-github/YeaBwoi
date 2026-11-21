@@ -81,7 +81,7 @@ object FurnitureAvailability {
         for (f in ordered) FurnitureFit.fit(need, f, bodyUnit, relaxed = true)?.let {
             return Availability(PlayState.ON_FURNITURE, need.surface, f, it, relaxed = true, treatedAs = treatAs)
         }
-        return Availability(PlayState.FLOOR, need.surface, notice = notice(need.surface, pieces.isNotEmpty()), treatedAs = treatAs,
+        return Availability(PlayState.FLOOR, need.surface, notice = notice(need.surface, pieces.isNotEmpty(), rests), treatedAs = treatAs,
             floorRests = rests)
     }
 
@@ -116,10 +116,15 @@ object FurnitureAvailability {
         else -> "a seat"
     }
 
-    /** The one-line notice of a floor play: "No bed here: playing on the floor." (a piece there that it doesn't fit: says so). */
-    fun notice(surface: Surface, furnitureHere: Boolean = false): String {
+    /**
+     * The one-line notice of a floor play: "No bed here: playing on the floor." ([furnitureHere]: a piece there it doesn't fit,
+     * "Nothing here fits it as a bed: ..."); one that, lowered, wouldn't rest on the floor ([rests] false: a partner standing
+     * beside the bed holds it up) is played where they stand as it was made: "... playing it where they stand, as made."
+     */
+    fun notice(surface: Surface, furnitureHere: Boolean = false, rests: Boolean = true): String {
         val noun = placeName(surface).removePrefix("a ").removePrefix("the ")
-        return if (furnitureHere) "Nothing here fits it as ${placeName(surface)}: playing on the floor." else "No $noun here: playing on the floor."
+        val how = if (rests) "playing on the floor." else "playing it where they stand, as made."
+        return if (furnitureHere) "Nothing here fits it as ${placeName(surface)}: $how" else "No $noun here: $how"
     }
 
     /**

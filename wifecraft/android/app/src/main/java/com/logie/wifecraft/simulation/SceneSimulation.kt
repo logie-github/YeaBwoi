@@ -539,7 +539,9 @@ class SceneSimulation(
         if (entry != null) { out.ex = entry.x; out.ey = entry.y; out.ez = entry.z } else { out.ex = a.x; out.ey = a.y; out.ez = a.z }
         val playing = a.performance?.takeIf { a.phase == Phase.ACTING && a.playback != null }
         out.floor = playing?.let { p -> if (p.floorZ.isNaN()) p.anchor.z else p.floorZ } ?: a.z
-        out.lift = (out.z - out.floor).coerceAtLeast(0f)
+        // (a clip played under its floor, lowered onto the floor in place of furniture it needs or let down onto a bed lower
+        // than its own: a lift under 0, drawn at its height, not stood up on the floor)
+        out.lift = (out.z - out.floor).let { d -> if (playing != null) d else d.coerceAtLeast(0f) }
         out.speech = a.spoken?.takeIf { time < a.spokenUntil }
         out.speechId = a.spokenId
         out.gesture = gestureOf(a)
@@ -797,10 +799,12 @@ class SceneSimulation(
                 partner = false, lifts = floorLifts(r, pair, lead, other))
             val surface = if (onFloor) Surface.FLOOR else need.surface
             return PlacedPlan(placedRequest, setup, null, other, notice = if (onFloor) null
-                else FurnitureAvailability.notice(surface, SceneObject.entries.any { it in objects && furniture(it) != null }))
+                else FurnitureAvailability.notice(surface, SceneObject.entries.any { it in objects && furniture(it) != null },
+                    FurnitureAvailability.floorRests(r, floorDropOf(pair))))
         }
         val floorZ = furniture(item)?.z ?: spots[item]?.entry?.z ?: fit.z
-        val setup = Setup(before?.anchor ?: Vec3(fit.x, fit.y, fit.z), before?.heading ?: fit.yaw, item, -1, lead, true,
+        // (a stage after a stage keeps its origin across the piece, at this stage's own height: [continuedAnchor])
+        val setup = Setup(before?.anchor?.let { continuedAnchor(it, fit.z) } ?: Vec3(fit.x, fit.y, fit.z), before?.heading ?: fit.yaw, item, -1, lead, true,
             partner = false, floorZ = floorZ, fit = fit, lifts = roleLifts(r, pair, lead, other, onFurniture = true))
         return PlacedPlan(placedRequest, setup, item, other)
     }
@@ -903,7 +907,8 @@ class SceneSimulation(
     private fun startPerformance(lead: Actor, request: PerformanceOrder, continuation: Performance? = null, setup: Setup? = null): Boolean {
         val other = request.partnerId?.let(actors::get)
         val previous = continuation?.takeIf { it.other === other }
-        val anchor = previous?.anchor ?: setup?.anchor ?: movementOrigin(lead)
+        val anchor = previous?.anchor?.let { p -> setup?.takeIf { it.fit != null }?.let { continuedAnchor(p, it.anchor.z) } ?: p }
+            ?: setup?.anchor ?: movementOrigin(lead)
         val heading = previous?.heading ?: setup?.heading ?: lead.facing
         val directed = setup?.directed ?: true
         val furniture = setup?.furniture
@@ -953,6 +958,15 @@ class SceneSimulation(
         if (other == null || previous != null) play(performance)
         return true
     }
+
+    /**
+     * A stage's origin after a stage on the same furniture: the first one's across the piece ([previous]'s x, y: the author's
+     * one origin for a sequence) at this stage's own height [z] (its fit's: the piece's surface less where this stage's
+     * clips have their support). The height was kept from the first stage too, so a stage made lower than the one before it
+     * floated over the bed by the difference (on the phone, a lying man 0.2 to 0.3 m over the mattress) and one made higher
+     * sank into it.
+     */
+    private fun continuedAnchor(previous: Vec3, z: Float): Vec3 = Vec3(previous.x, previous.y, z)
 
     private fun startQueuedPerformance(actor: Actor) {
         if (actor.performance != null || actor.directed) return
@@ -2093,12 +2107,15 @@ class SceneSimulation(
         // on the floor, each role raised where its clip's flesh would reach under the floor (role order: playB's, playA's); on
         // furniture, by what each body's own flesh changes of the fit's lift (roleLifts)
         // (one that needs furniture played on the open floor in its place: lowered onto the floor, floorLifts)
+        val lowered = pair != null && fit == null && furniture == null && requirementOf(pair)?.let { floorFallback(pair, it) } == true
         val lifts = if (pair != null) requirementOf(pair)?.let { r ->
-            if (fit == null && furniture == null && floorFallback(pair, r)) floorLifts(r, pair, playA, playB)
+            if (lowered) floorLifts(r, pair, playA, playB)
             else roleLifts(r, pair, playA, playB, onFurniture = fit != null)
         }?.let { floatArrayOf(it[1], it[0]) } else null
-        return startPerformance(playB, request, null,
+        val started = startPerformance(playB, request, null,
             Setup(anchor, heading, furniture, emote?.anim ?: -1, playA, directed, floorZ = floorZ, fit = fit, lifts = lifts))
+        if (started && lowered) playB.performance?.let { floorPlays += it }
+        return started
     }
 
     private fun role(key: String, slot: PartnerSlot) = PlaybackRole(key, Vec3(slot.x, slot.y, slot.z), slot.yawDeg * DEG)

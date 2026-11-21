@@ -189,7 +189,40 @@ PartPlacement placeParts(const M2Model& m, const std::vector<uint16_t>& geosets,
     float hip = lt >= 0 && rt >= 0 ? 0.5f * (m.bones[size_t(lt)].pivot.z + m.bones[size_t(rt)].pivot.z) : -1.0f;
     float z = (hip > pl.crotch ? pl.crotch + kPartRootShare * (hip - pl.crotch) : pl.crotch + kPartRootAboveCrotch * pl.scale) + fit.dz * h;
     float front = bodyFrontX(m, geosets, z, 0.03f * h, 0.025f * h, pl.pivot.x + 0.12f * h);
-    pl.root = V3(front + fit.dx * h, 0.0f, z);
+    // no front there (the midline at that height only the back's: a tauren's belly hangs lower): the highest height below it,
+    // down to where the legs part, whose midline front stands before the pelvis
+    for (float zz = z; front <= pl.pivot.x && zz > pl.crotch; zz -= 0.01f * h) {
+        float f = bodyFrontX(m, geosets, zz, 0.03f * h, 0.012f * h, -1e9f);
+        if (f > pl.pivot.x) { front = f; z = zz; }
+    }
+    // the gap between the inner thighs (bind, 15 to 40% down from the hips): the base and scrotum narrowed to fit it
+    if (lt >= 0 && rt >= 0) {
+        int calves[2] = {m.findWowBone("L_Calf"), m.findWowBone("R_Calf")};
+        int thighs[2] = {lt, rt};
+        float half = 0;
+        int legs = 0;
+        for (int side = 0; side < 2; ++side) {
+            if (calves[side] < 0) continue;
+            V3 hp = m.bones[size_t(thighs[side])].pivot, kp = m.bones[size_t(calves[side])].pivot, ax = (kp - hp).normalized();
+            float len = (kp - hp).length(), sum = 0;
+            int n = 0;
+            for (const M2Vertex& v : m.vertices) {
+                int best = -1, bw = 0;
+                for (int q = 0; q < 4; ++q) if (v.weights[q] > bw) { bw = v.weights[q]; best = v.bones[q]; }
+                if (best != thighs[side]) continue;
+                V3 p(v.pos[0], v.pos[1], v.pos[2]);
+                float along = (p - hp).dot(ax);
+                if (along < 0.15f * len || along > 0.4f * len) continue;
+                V3 out = p - hp - ax * along;
+                if (out.normalized().y * (hp.y > 0 ? -1.0f : 1.0f) < 0.7f) continue;   // the side toward the other thigh
+                sum += out.length(); ++n;
+            }
+            if (n) { half += std::fabs(hp.y) - sum / float(n); ++legs; }
+        }
+        if (legs) pl.squeeze = std::clamp((half / float(legs)) / (kPartBaseHalfWidth * pl.scale), kPartSqueezeMin, 1.0f);
+    }
+    pl.root = V3(front - kPartSink * pl.scale + fit.dx * h, 0.0f, z);
+    pl.front = front;
     pl.ok = std::isfinite(pl.root.x) && std::isfinite(pl.root.z) && std::isfinite(pl.scale);
     return pl;
 }
@@ -322,6 +355,7 @@ void posePart(const PartData& d, const PartShaft& s, const PartBend& b, std::vec
         std::memset(&o, 0, sizeof o);
         V3 p = partSimsPoint(d, i);
         V3 nn = d.normals.size() >= (i + 1) * 3 ? V3(d.normals[i * 3], d.normals[i * 3 + 1], d.normals[i * 3 + 2]) : V3(0, 0, 1);
+        if (b.squeeze < 1.0f) p.y *= b.squeeze + (1.0f - b.squeeze) * (bend ? s.weights[i] : 0.0f);
         if (bend && s.weights[i] > 0) {
             float w = s.weights[i];
             Quat q = slerp(Quat(), b.turn, w);
@@ -337,6 +371,73 @@ void posePart(const PartData& d, const PartShaft& s, const PartBend& b, std::vec
     }
 }
 
+std::vector<uint32_t> maskTriangles(const std::vector<uint32_t>& indices, const std::vector<uint32_t>& mask) {
+    if (mask.empty()) return indices;
+    std::vector<uint32_t> sorted = mask;
+    std::sort(sorted.begin(), sorted.end());
+    auto hidden = [&](uint32_t v) { return std::binary_search(sorted.begin(), sorted.end(), v); };
+    std::vector<uint32_t> out;
+    out.reserve(indices.size());
+    for (size_t t = 0; t + 2 < indices.size(); t += 3)
+        if (!hidden(indices[t]) && !hidden(indices[t + 1]) && !hidden(indices[t + 2])) out.insert(out.end(), indices.begin() + long(t), indices.begin() + long(t) + 3);
+    return out;
+}
+
+float rootSkinWeight(const V3& p) {
+    float d = (p - V3(kPartRootX, 0.0f, kPartRootZ)).length();
+    return 1.0f - smooth01(kRootSkinFull, kRootSkinEnd, d);
+}
+
+float rootShade(const V3& p) {
+    float d = (p - V3(kPartRootX, 0.0f, kPartRootZ)).length();
+    float x = (d - (kPartSink + 0.008f)) / 0.006f;   // a ring just outside where the shaft leaves the skin
+    return 1.0f - kRootShade * std::exp(-x * x);
+}
+
+size_t blendRootToSkin(const PartData& d, uint8_t* rgba, int w, int h, uint32_t rgb) {
+    size_t n = d.vertexCount();
+    if (!rgba || w <= 0 || h <= 0 || d.uvs.size() < n * 2 || d.modelFrame()) return 0;
+    std::vector<float> weight(size_t(w) * size_t(h), -1.0f), shade(size_t(w) * size_t(h), 1.0f);
+    std::vector<float> vw(n), vs(n);
+    for (size_t v = 0; v < n; ++v) { V3 p = partSimsPoint(d, v); vw[v] = rootSkinWeight(p); vs[v] = rootShade(p); }
+    for (size_t t = 0; t + 2 < d.indices.size(); t += 3) {
+        uint32_t i0 = d.indices[t], i1 = d.indices[t + 1], i2 = d.indices[t + 2];
+        if (vw[i0] <= 0 && vw[i1] <= 0 && vw[i2] <= 0 && vs[i0] >= 0.999f && vs[i1] >= 0.999f && vs[i2] >= 0.999f) continue;
+        float x0 = d.uvs[i0 * 2] * w - 0.5f, y0 = d.uvs[i0 * 2 + 1] * h - 0.5f;
+        float x1 = d.uvs[i1 * 2] * w - 0.5f, y1 = d.uvs[i1 * 2 + 1] * h - 0.5f;
+        float x2 = d.uvs[i2 * 2] * w - 0.5f, y2 = d.uvs[i2 * 2 + 1] * h - 0.5f;
+        float den = (y1 - y2) * (x0 - x2) + (x2 - x1) * (y0 - y2);
+        if (std::fabs(den) < 1e-9f) continue;
+        int minX = std::max(0, int(std::floor(std::min({x0, x1, x2}))) - 1), maxX = std::min(w - 1, int(std::ceil(std::max({x0, x1, x2}))) + 1);
+        int minY = std::max(0, int(std::floor(std::min({y0, y1, y2}))) - 1), maxY = std::min(h - 1, int(std::ceil(std::max({y0, y1, y2}))) + 1);
+        const float eps = 1.0f / std::max(1.0f, std::fabs(den));   // about a texel round the edges: no seams
+        for (int y = minY; y <= maxY; ++y)
+            for (int x = minX; x <= maxX; ++x) {
+                float a = ((y1 - y2) * (x - x2) + (x2 - x1) * (y - y2)) / den;
+                float b = ((y2 - y0) * (x - x2) + (x0 - x2) * (y - y2)) / den;
+                float c = 1.0f - a - b;
+                if (a < -eps || b < -eps || c < -eps) continue;
+                a = std::max(a, 0.0f); b = std::max(b, 0.0f); c = std::max(c, 0.0f);
+                float s = a + b + c;
+                float wt = (a * vw[i0] + b * vw[i1] + c * vw[i2]) / s, sh = (a * vs[i0] + b * vs[i1] + c * vs[i2]) / s;
+                size_t k = size_t(y) * size_t(w) + size_t(x);
+                if (wt > weight[k]) weight[k] = wt;
+                if (sh < shade[k]) shade[k] = sh;
+            }
+    }
+    float tr = float((rgb >> 16) & 255), tg = float((rgb >> 8) & 255), tb = float(rgb & 255);
+    size_t changed = 0;
+    for (size_t k = 0; k < weight.size(); ++k) {
+        if (weight[k] < 0) continue;
+        float wt = std::clamp(weight[k], 0.0f, 1.0f), sh = shade[k];
+        uint8_t* px = rgba + k * 4;
+        float o[3] = {float(px[0]), float(px[1]), float(px[2])}, t3[3] = {tr, tg, tb};
+        for (int c = 0; c < 3; ++c) px[c] = uint8_t(std::clamp((o[c] + (t3[c] - o[c]) * wt) * sh + 0.5f, 0.0f, 255.0f));
+        ++changed;
+    }
+    return changed;
+}
+
 float easeLevel(float level) {
     float t = std::clamp(std::isfinite(level) ? level : 0.0f, 0.0f, 1.0f);
     return t * t * (3 - 2 * t);
@@ -350,7 +451,7 @@ namespace {
 // the pitch and length the level draws
 void levelShape(float level, const PartShaft& flaccid, const PartShaft& erect, float hang, float& pitch, float& length) {
     float u = easeLevel(level);
-    float pf = flaccid.ok ? flaccid.pitch() : -1.2f, pe = erect.ok ? erect.pitch() : 0.05f;
+    float pf = flaccid.ok ? flaccid.pitch() : -1.2f, pe = std::max(erect.ok ? erect.pitch() : 0.05f, kErectPitchMin);
     float lf = flaccid.ok ? flaccid.length : 0.1f, le = erect.ok ? erect.length : lf * 1.5f;
     pitch = pf + (pe - pf) * u + hang * (1.0f - u);
     length = lf + (le - lf) * u;

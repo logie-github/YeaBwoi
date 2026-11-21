@@ -393,7 +393,9 @@ class PairAlignmentAudit {
         csv.close(); dbg.close(); table.close()
         if (bedLocation != null) PairBedPlan.write(bedCases, File(out, "bed").also { it.mkdirs() }, bedLocation,
             File(System.getenv("ALIGN_LOCATIONS") ?: File(assets, "locations.json").path), System.getenv("ALIGN_FILES") ?: "", System.getenv("ALIGN_LOOKS") ?: "",
-            renders, System.getenv("ALIGN_BED_PER_CLASS")?.toIntOrNull() ?: Int.MAX_VALUE)
+            renders, System.getenv("ALIGN_BED_PER_CLASS")?.toIntOrNull() ?: Int.MAX_VALUE,
+            // ALIGN_BED_CHAIN ("first>next|..."): a next stage played after a first on the bed (a queue, an author's chain)
+            System.getenv("ALIGN_BED_CHAIN")?.split('|')?.mapNotNull { c -> c.split('>').takeIf { it.size == 2 }?.let { nameKey(it[0]) to nameKey(it[1]) } }.orEmpty())
         log.println("stages measured ${two.size - skipped}; skipped (no Sims clip or joint) $skipped")
 
         // per class: count, failures (by flag), the worst

@@ -526,7 +526,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     /** GL thread: a part's texture as given to [attachPart]. */
     private class PartTexture(val part: String, val rgba: ByteArray, val width: Int, val height: Int)
     /** GL thread: what each key's actor wears ([attachPart], by slot: its file's state) and shows ([setPartState]), put on again when the actor is made anew. */
-    private class ActorParts(val textures: MutableMap<String, PartTexture> = mutableMapOf(), var state: Int = PartDraw.NONE)
+    private class ActorParts(val textures: MutableMap<String, PartTexture> = mutableMapOf(), var state: Int = PartDraw.NONE, var skin: Int = -1)
     private val actorParts = mutableMapOf<String, ActorParts>()
     /** GL thread: each key's race as last dressed (its parts' fit, [PartFits]). */
     private val partRaces = mutableMapOf<String, Int>()
@@ -548,6 +548,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         val ap = actorParts[key] ?: return
         val fit = PartFits.forRace(partRaces[key] ?: 0)
         Native.partFit(h, id, fit.dx, fit.dz, fit.scale)
+        Native.partSkin(h, id, ap.skin)
         for (t in ap.textures.values) {
             val handle = partHandle(h, t.part)
             if (handle != 0) Native.attachPart(h, id, handle, t.rgba, t.width, t.height)
@@ -574,6 +575,16 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         val ap = actorParts.getOrPut(actorKey) { ActorParts() }
         ap.textures[slotOf(part)] = PartTexture(part, rgba, width, height)
         ids[actorKey]?.let { applyParts(h, actorKey, it) }
+    }
+
+    /**
+     * The body's skin colour where the parts meet it on [actorKey] (0xRRGGBB, [PartSkin.sampleAt]; -1 none): the parts' roots are
+     * blended to it in the engine (cpp bodypart.h blendRootToSkin). Kept with the key like its parts.
+     */
+    fun setPartSkin(actorKey: String, rgb: Int) = post { h, ids ->
+        val ap = actorParts.getOrPut(actorKey) { ActorParts() }
+        ap.skin = rgb
+        ids[actorKey]?.let { Native.partSkin(h, it, rgb) }
     }
 
     /** Which part the actor [actorKey] shows: [PartDraw.NONE], [PartDraw.DEFAULT] or [PartDraw.ON] ([PartDraw.visible]: none unless bare). */

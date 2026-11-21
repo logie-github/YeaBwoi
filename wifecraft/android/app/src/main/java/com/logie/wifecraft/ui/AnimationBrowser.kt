@@ -197,7 +197,7 @@ internal fun AnimationBrowser(
  */
 @Composable
 private fun TreatAsWindow(choice: AnimationChoice, current: TreatAs?, onClose: () -> Unit, onPick: (TreatAs?) -> Unit) {
-    Box(Modifier.fillMaxSize().background(Color(0x99000000)).warPress(sound = "close", onClick = onClose), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().background(Color(0x99000000)).pointerInput(Unit) { detectTapGestures { onClose() } }, contentAlignment = Alignment.Center) {
         WifeWindow("Treat as", onClose, Modifier.widthIn(max = 420.dp).fillMaxWidth(0.9f).pointerInput(Unit) { detectTapGestures { } },
             subtitle = choice.name) {
             Column(Modifier.fillMaxWidth().padding(end = WifeTheme.gapS), verticalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {

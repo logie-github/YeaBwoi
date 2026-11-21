@@ -1,0 +1,34 @@
+{
+  "_doc": "The shared rig of Liard's Art's edited WoW models (liardart.com; the user's own downloaded FBX zips, never committed): their Maya-style joints ('*_Jnt', L_/R_/M_) mapped onto the game's skeleton. Each model's recipe extends this and overrides what its own rig names differently. {S} is each side (L, R).",
+  "input": "fbx",
+  "forward": "+x",
+  "uvLayer": "DiffuseUV",
+  "credit": "Model by Liard's Art (liardart.com)",
+  "skipModifiers": ["SUBSURF", "MASK", "CORRECTIVE_SMOOTH", "NODES", "SOLIDIFY", "ARMATURE"],
+  "textureMax": 1024,
+  "alphaMaterials": ["Hair", "hair", "Lashes", "Brow", "brow", "Leaf", "Accessor", "necklace", "Hairstyle"],
+  "weights": {
+    "M_Pelvis_Jnt": "Pelvis", "M_Waist_Jnt": "Pelvis", "M_Spine01_Jnt": "Pelvis", "M_Spine02_Jnt": "Spine1", "M_Spine03_Jnt": "Spine1",
+    "M_Spine04_Jnt": "Spine2", "M_Spine05_Jnt": "Chest", "M_Spine06_Jnt": "Chest", "M_Chest_Jnt": "Chest",
+    "M_Neck_Lower_Jnt": "Neck1", "M_Neck01_Jnt": "Neck1", "M_Neck_Jnt": "Neck2", "M_Neck_Upper_Jnt": "Neck2", "M_Neck02_Jnt": "Neck2",
+    "M_Head_Jnt": "Head", "M_Jaw_Jnt": "Jaw",
+    "{S}_Eye_Jnt": "{S}_Eye", "{S}_Breast01_Jnt": "{S}_Breast", "{S}_Breast_01_Jnt": "{S}_Breast",
+    "{S}_Shoulder_Jnt": "{S}_Clavicle", "{S}_Bicep_Jnt": "{S}_UpperArm", "{S}_Elbow_Jnt": "{S}_Forearm", "{S}_Wrist_Jnt": "{S}_Hand",
+    "{S}_Thumb_01_Jnt": "{S}_Thumb1", "{S}_Thumb_02_Jnt": "{S}_Thumb2",
+    "{S}_IndexFinger_01_Jnt": "{S}_Index1", "{S}_IndexFinger_02_Jnt": "{S}_Index2",
+    "{S}_MiddleFinger_01_Jnt": "{S}_Middle1", "{S}_MiddleFinger_02_Jnt": "{S}_Middle2",
+    "{S}_RingFinger_01_Jnt": "{S}_Ring1", "{S}_RingFinger_02_Jnt": "{S}_Ring2",
+    "{S}_PinkyFinger_01_Jnt": "{S}_Pinky1", "{S}_PinkyFinger_02_Jnt": "{S}_Pinky2",
+    "{S}_Thigh_Jnt": "{S}_Thigh", "{S}_Knee_Jnt": "{S}_Calf", "{S}_Ankle_Jnt": "{S}_Foot", "{S}_Toes_Jnt": "{S}_Toe"
+  },
+  "joints": {
+    "Root": "M_Spine01_Jnt", "Pelvis": "M_Spine01_Jnt", "Spine1": "M_Spine02_Jnt", "Spine2": "M_Spine04_Jnt", "Chest": "M_Spine05_Jnt",
+    "Neck1": "M_Neck_Lower_Jnt", "Neck2": "M_Neck_Jnt", "Head": "M_Head_Jnt", "Jaw": "M_Jaw_Jnt",
+    "{S}_Eye": "{S}_Eye_Jnt", "{S}_Breast": "{S}_Breast01_Jnt",
+    "{S}_Clavicle": "{S}_Shoulder_Jnt", "{S}_UpperArm": "{S}_Bicep_Jnt", "{S}_Forearm": "{S}_Elbow_Jnt", "{S}_Hand": "{S}_Wrist_Jnt",
+    "{S}_Thumb1": "{S}_Thumb_01_Jnt", "{S}_Thumb2": "{S}_Thumb_02_Jnt", "{S}_Index1": "{S}_IndexFinger_01_Jnt", "{S}_Index2": "{S}_IndexFinger_02_Jnt",
+    "{S}_Middle1": "{S}_MiddleFinger_01_Jnt", "{S}_Middle2": "{S}_MiddleFinger_02_Jnt", "{S}_Ring1": "{S}_RingFinger_01_Jnt", "{S}_Ring2": "{S}_RingFinger_02_Jnt",
+    "{S}_Pinky1": "{S}_PinkyFinger_01_Jnt", "{S}_Pinky2": "{S}_PinkyFinger_02_Jnt",
+    "{S}_Thigh": "{S}_Thigh_Jnt", "{S}_Calf": "{S}_Knee_Jnt", "{S}_Ankle": "{S}_Ankle_Jnt", "{S}_Foot": "{S}_Ankle_Jnt", "{S}_Toe": "{S}_Toes_Jnt"
+  }
+}

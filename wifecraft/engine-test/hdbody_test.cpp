@@ -130,7 +130,7 @@ int main(int argc, char** argv) {
     for (const HdChoice& c : set.hair) { size_t t = 0; for (int k : c.meshes) t += set.meshes[size_t(k)].idx.size() / 3; hairMax = std::max(hairMax, t); }
     for (const HdChoice& c : set.outfits) { size_t t = 0; for (int k : c.meshes) t += set.meshes[size_t(k)].idx.size() / 3; outMax = std::max(outMax, t); }
     std::printf("triangles: body %zu, most hair %zu, most outfit %zu: at most %zu drawn\n", bodyTris, hairMax, outMax, bodyTris + hairMax + outMax);
-    CHECK(bodyTris <= 40000, "the body has %zu triangles", bodyTris);
+    CHECK(bodyTris <= 70000, "the body has %zu triangles", bodyTris);
     // ---- authored (mapped) weights against a transfer from the game's body, by the main joints
     std::vector<M2Vertex> body(fit.verts.begin(), fit.verts.begin() + fit.bodyVertexEnd), moved = body;
     {

@@ -804,8 +804,9 @@ fun LiveSceneScreen(
                 val pose = when {
                     furniture?.action == Activity.SIT -> FurniturePose.SIT
                     furniture?.action == Activity.REST -> FurniturePose.REST
-                    // a clip raised over its floor (onto a bed or seat): drawn at its height, not stood on the floor
-                    furniture == null && z > sz + 0.01f -> FurniturePose.RAISED
+                    // a clip raised over its floor (onto a bed or seat), or lowered onto it in place of a bed (SceneSimulation's
+                    // floor plays: under sz): drawn at its height, not stood on the floor
+                    furniture == null && kotlin.math.abs(z - sz) > 0.01f -> FurniturePose.RAISED
                     else -> FurniturePose.FLOOR
                 }
                 view.glPlace(keys[index], x, y, z, facing, pose, sx, sy, sz)

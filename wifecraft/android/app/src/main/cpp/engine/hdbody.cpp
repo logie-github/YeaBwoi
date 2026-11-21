@@ -99,6 +99,7 @@ bool parseWhd(const uint8_t* d, size_t size, HdSet& out, std::string& error) {
     out.id = j["id"].str(); out.label = j["label"].str();
     out.race = int(j["race"].num()); out.sex = int(j["sex"].num());
     out.gpuBytes = uint64_t(j["gpuBytes"].num());
+    out.credit = j["credit"].str();
     for (size_t i = 0; i < j["bones"].size(); ++i) out.bones.push_back(j["bones"][i].str());
     if (out.bones.empty() || out.bones.size() > 255) { error = "no bones"; return false; }
     for (const auto& [name, v] : j["joints"].o) out.joints.push_back({name, V3(float(v[0].num()), float(v[1].num()), float(v[2].num()))});
@@ -168,8 +169,16 @@ bool parseWhd(const uint8_t* d, size_t size, HdSet& out, std::string& error) {
         out.overlays.push_back({o["id"].str(), o["label"].str(), o["slot"].str(), int(o["onto"].num(-1)), int(o["blob"].num(-1))});
     }
     auto tints = [&](const Json& a, std::vector<HdTint>& dst) {
-        for (size_t i = 0; i < a.size(); ++i) dst.push_back({a[i]["id"].str(), a[i]["label"].str(), hexRgb(a[i]["rgb"].str("FFFFFF")), float(a[i]["lift"].num(0))});
+        for (size_t i = 0; i < a.size(); ++i) {
+            int tex = int(a[i]["texture"].num(-1));
+            if (tex >= int(out.textures.size())) tex = -1;
+            dst.push_back({a[i]["id"].str(), a[i]["label"].str(), hexRgb(a[i]["rgb"].str("FFFFFF")), float(a[i]["lift"].num(0)), tex});
+        }
     };
+    out.skinTexture = int(j["skinTexture"].num(-1));
+    out.hairTexture = int(j["hairTexture"].num(-1));
+    if (out.skinTexture >= int(out.textures.size())) out.skinTexture = -1;
+    if (out.hairTexture >= int(out.textures.size())) out.hairTexture = -1;
     tints(j["tints"], out.tints);
     tints(j["hairTints"], out.hairTints);
     return true;
@@ -191,7 +200,8 @@ std::vector<uint8_t> writeWhd(const HdSet& s) {
     std::ostringstream js;
     js.imbue(std::locale::classic());
     js << "{\"format\":\"whd\",\"version\":" << kWhdVersion << ",\"id\":" << jsonStr(s.id) << ",\"label\":" << jsonStr(s.label)
-       << ",\"race\":" << s.race << ",\"sex\":" << s.sex << ",\"gpuBytes\":" << s.gpuBytes << ",\"bones\":[";
+       << ",\"race\":" << s.race << ",\"sex\":" << s.sex << ",\"gpuBytes\":" << s.gpuBytes << ",\"skinTexture\":" << s.skinTexture
+       << ",\"hairTexture\":" << s.hairTexture << ",\"credit\":" << jsonStr(s.credit) << ",\"bones\":[";
     for (size_t i = 0; i < s.bones.size(); ++i) js << (i ? "," : "") << jsonStr(s.bones[i]);
     js << "],\"joints\":{";
     for (size_t i = 0; i < s.joints.size(); ++i)
@@ -255,7 +265,7 @@ std::vector<uint8_t> writeWhd(const HdSet& s) {
         char hex[8];
         for (size_t i = 0; i < ts.size(); ++i) {
             std::snprintf(hex, sizeof hex, "%06X", ts[i].rgb & 0xFFFFFF);
-            js << (i ? "," : "") << "{\"id\":" << jsonStr(ts[i].id) << ",\"label\":" << jsonStr(ts[i].label) << ",\"rgb\":\"" << hex << "\",\"lift\":" << ts[i].lift << "}";
+            js << (i ? "," : "") << "{\"id\":" << jsonStr(ts[i].id) << ",\"label\":" << jsonStr(ts[i].label) << ",\"rgb\":\"" << hex << "\",\"lift\":" << ts[i].lift << ",\"texture\":" << ts[i].texture << "}";
         }
         js << "]";
     };
@@ -431,6 +441,9 @@ HdFit fitHd(const M2Model& m, const HdSet& set, const HdOptions& o, std::string&
     const int hairIdx = o.hair == -2 ? -1 : o.hair < 0 ? (set.hair.empty() ? -1 : 0) : o.hair;
     const HdChoice* hair = hairIdx >= 0 && size_t(hairIdx) < set.hair.size() ? &set.hair[size_t(hairIdx)] : nullptr;
     const int eyeTex = set.eyeTextures.empty() ? -1 : set.eyeTextures[size_t(std::clamp(o.eyes < 0 ? 0 : o.eyes, 0, int(set.eyeTextures.size()) - 1))].texture;
+    const int tintIdx = std::clamp(o.tint, 0, std::max(0, int(set.tints.size()) - 1));
+    const int skinSwap = set.tints.empty() ? -1 : set.tints[size_t(tintIdx)].texture;
+    const int hairSwap = o.hairTint >= 0 && size_t(o.hairTint) < set.hairTints.size() ? set.hairTints[size_t(o.hairTint)].texture : -1;
     struct Use { int mesh; uint8_t role; };
     std::vector<Use> uses{{set.body, 0}};
     for (int k : set.always) uses.push_back({k, uint8_t(set.meshes[size_t(k)].kind == "brows" ? 1 : 2)});   // (the brows take the hair's tint)
@@ -482,6 +495,11 @@ HdFit fitHd(const M2Model& m, const HdSet& set, const HdOptions& o, std::string&
             HdDrawPart dp;
             dp.start = uint32_t(fit.indices.size());
             dp.texture = hm.kind == "eyes" && eyeTex >= 0 ? eyeTex : part.texture;
+            // a skin tone or hair colour that is a texture of its own: in place of the set's base skin or hair texture
+            if (skinSwap >= 0 && dp.texture == set.skinTexture) dp.texture = skinSwap;
+            if (hairSwap >= 0 && dp.texture == set.hairTexture && u.role == 1) dp.texture = hairSwap;
+            // (a model whose eyes are part of its body mesh: its eye texture as chosen)
+            if (eyeTex >= 0 && hm.kind == "body" && !set.eyeTextures.empty() && part.texture == set.eyeTextures[0].texture) dp.texture = eyeTex;
             dp.alphaTest = part.alphaTest;
             dp.role = u.role;
             for (uint32_t i = part.start; i + 2 < part.start + part.count && i + 2 < hm.idx.size(); i += 3) {

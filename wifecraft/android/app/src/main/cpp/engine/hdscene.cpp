@@ -169,6 +169,7 @@ void Scene::drawHd(Actor& a, const M4& world, const float tint[4]) {
         int hairTint = h.opt.hairTint >= 0 && size_t(h.opt.hairTint) < set.hairTints.size() ? h.opt.hairTint : -1;
         // (a tint of white with no lift is the hair as made: not recoloured)
         if (hairTint >= 0 && set.hairTints[size_t(hairTint)].rgb == 0xFFFFFF && set.hairTints[size_t(hairTint)].lift <= 0) hairTint = -1;
+        if (hairTint >= 0 && set.hairTints[size_t(hairTint)].texture >= 0) hairTint = -1;   // (a colour of its own: its texture, as made)
         for (size_t i = 0; i < h.fit.parts.size(); ++i) {
             const HdDrawPart& p = h.fit.parts[i];
             if (p.texture < 0) continue;

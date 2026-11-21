@@ -904,6 +904,7 @@ int main(int argc, char** argv) {
                 target = int(std::strtol(skin.c_str(), nullptr, 16));
             }
             if (target >= 0) partpaint::recolor(img, target, partpaint::uvMask(pd, img.w, img.h));
+            if (target >= 0) scene.setPartSkin(actors[name], target);   // (the root blended to it: bodypart.h blendRootToSkin)
             bool ok = scene.attachPart(actors[name], part, img.px.data(), img.w, img.h);
             std::fprintf(stderr, "part %d %s (%s %s): %s, skin %06X\n", name, pd.id.c_str(), pd.state.c_str(), pd.variant.c_str(), ok ? "ok" : "FAILED", target < 0 ? 0 : target);
         } else if (cmd == "eveset") {

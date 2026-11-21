@@ -105,6 +105,7 @@ class PlacedOrderTest {
         assertEquals("No bed here: playing on the floor.", sim.takeQueueNotice())
         assertNull(sim.partnerOf("a")!!.furniture)
         until(sim) { sim.partnerOf("a")?.stage == "PLAY" }
+        repeat(90) { sim.tick(step) }   // (their settle into place eased out)
         // lowered onto the floor: its lowest flesh on it (the bed's 0.55 m taken off), not hanging at the bed's height
         val r = sim.requirementOf(p)!!
         val drop = FurnitureAnimation.floorDrop(sim.spaced(p)) * SceneSimulation.HUMAN_BODY_UNIT
@@ -112,6 +113,8 @@ class PlacedOrderTest {
         for ((i, id) in listOf("a", "b").withIndex()) {
             val pose = Pose().also { sim.pose(i, it) }
             assertEquals(-drop, pose.z, 0.02f, "$id at the floor")
+            // drawn at that height (the screen places it raised, not stood up on the floor: Pose.lift under 0)
+            assertEquals(-drop, pose.lift, 0.02f, "$id's lift")
             val support = pose.z + r.actors[i].restUnits * SceneSimulation.HUMAN_BODY_UNIT
             assertTrue(abs(support) < 0.15f * SceneSimulation.HUMAN_BODY_UNIT, "$id rests on the floor: $support")
         }

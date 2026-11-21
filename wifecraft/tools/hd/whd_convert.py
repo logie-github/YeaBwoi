@@ -8,7 +8,7 @@ The .blend and its textures are the user's own downloads (third-party art): they
 committed or shipped. Nothing in the .blend is executed (its drivers and scripts stay off: Blender's Python runs only this file;
 autoexec is off in the bpy module unless asked for).
 
-What it does, per variant (README "HD Models", the .whd layout in tools/hd/WHD.md):
+What it does, per variant (README "HD Models", the .whd layout: README "HD Models"):
   - every object the recipe names (the body, eyes, brows, hair styles, outfits, jewellery), evaluated at the rig's REST pose
     with only shape keys and hooks (the armature, subdivision, masks and smoothing modifiers off), decimated to its triangle
     budget, in Warcraft axes (x forward, y left, z up; metres, feet at z = 0);
@@ -67,13 +67,21 @@ def open_blend(path, texdir):
             except Exception as e: log("find_missing_files", d, e)
 
 
-def bone_chain_map(arm, table):
-    """Every bone of the rig -> the game bone of itself or its nearest mapped ancestor (None: none)."""
+def norm(name):
+    """A rig bone's name as the recipes match it: case and underscores ignored (M_Neck_01 is M_Neck01, M_spine_01 M_Spine01)."""
+    return name.lower().replace('_', '')
+
+
+def bone_chain_map(arms, table):
+    """Every bone of the rigs -> the game bone of itself or its nearest mapped ancestor (None: none). Names are matched
+    without case or underscores (norm)."""
+    t = {norm(k): v for k, v in table.items()}
     out = {}
-    for b in arm.data.bones:
-        c = b
-        while c is not None and c.name not in table: c = c.parent
-        out[b.name] = table[c.name] if c is not None else None
+    for arm in arms:
+        for b in arm.data.bones:
+            c = b
+            while c is not None and norm(c.name) not in t: c = c.parent
+            out[b.name] = t[norm(c.name)] if c is not None else None
     return out
 
 
@@ -141,7 +149,8 @@ def evaluate(obj, recipe, keys, max_tris):
     pos = np.array([tuple(mw @ v.co) for v in me.vertices], dtype=np.float64)
     names = [g.name for g in obj.vertex_groups]
     groups = [[(names[g.group], g.weight) for g in v.groups if g.group < len(names) and g.weight > 1e-4] for v in me.vertices]
-    uvl = me.uv_layers.active
+    # the recipe's UV map by name where the mesh has it (an FBX's active map can be a leftover one), else the active one
+    uvl = me.uv_layers.get(recipe.get('uvLayer', '')) or me.uv_layers.active
     nrm3 = mw.to_3x3().inverted_safe().transposed()
     cn = me.corner_normals
     tris = []
@@ -301,15 +310,17 @@ class MeshOut:
     def __init__(self, mid, kind):
         self.id, self.kind = mid, kind
         self.pos, self.nrm, self.uv, self.bi, self.bw, self.idx, self.parts = [], [], [], [], [], [], []
-        self.src = []   # per output vertex: the source vertex (the body's hidden-triangle test)
+        self.src = []   # per output vertex: the source vertex (the body's hidden-triangle test, the shape keys)
+        self.genital = []   # output vertices of the body's own genitals (genitalMask)
 
 
 def build_mesh(mid, kind, objs, recipe, keys, bone_names, chain, textures, tex_of_image, forward, max_tris=None, rigid=None,
-               body_kd=None, body_weights=None, ear_fix=None):
+               body_kd=None, body_weights=None, ear_fix=None, image_for=None, genital=None):
     m = MeshOut(mid, kind)
     alpha_mats = recipe.get('alphaMaterials', [])
     ignore = recipe.get('ignoreImages', [])
     budget = max_tris or recipe.get('maxTris', {}).get(mid)
+    if image_for is None: image_for = lambda mt: image_of(mt, ignore)
     for obj in objs:
         n_obj_tris = sum(len(p.vertices) - 2 for p in obj.data.polygons)
         share = int(budget * n_obj_tris / max(1, sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in objs))) if budget else None
@@ -334,7 +345,13 @@ def build_mesh(mid, kind, objs, recipe, keys, bone_names, chain, textures, tex_o
             tot = sum(w for _, w in top)
             if tot <= 0: top, tot = [('Root', 1.0)], 1.0
             W.append([(bone_names.setdefault(n, len(bone_names)), w / tot) for n, w in top])
-        img = [image_of(mt, ignore) for mt in mats]
+        img = [image_for(mt) for mt in mats]
+        # the body's own genitals (`genital`: a vertex-group name pattern and the least weight on them): their vertices kept
+        gflag = None
+        if genital:
+            import re as _re
+            pat = _re.compile(genital[0], _re.I)
+            gflag = [sum(w for n, w in g if pat.search(n)) >= genital[1] for g in groups]
         alpha = [bool(mt and any(s in mt.name for s in alpha_mats)) for mt in mats]
         verts = {}
         by_part = {}
@@ -357,6 +374,7 @@ def build_mesh(mid, kind, objs, recipe, keys, bone_names, chain, textures, tex_o
                     q[0] += 255 - sum(q)
                     m.bi.append([b for b, _ in ww]); m.bw.append(q)
                     m.src.append((obj.name, v))
+                    if gflag is not None and gflag[v]: m.genital.append(o)
                 tri.append(o)
             lst.append(tri)
         for (path, a), lst in by_part.items():
@@ -423,18 +441,51 @@ def write_whd(path, meta, blobs):
     return os.path.getsize(path)
 
 
+def load_recipe(path):
+    """A recipe, on top of the one it `extends` (its tables merged: the model's own entries win), with every "{S}" in the
+    `weights` and `joints` tables expanded for both sides (L and R)."""
+    r = json.load(open(path))
+    base = r.get('extends')
+    if base:
+        b = load_recipe(os.path.join(os.path.dirname(path), base))
+        for k, v in r.items():
+            if isinstance(v, dict) and isinstance(b.get(k), dict): b[k] = {**b[k], **v}
+            else: b[k] = v
+        r = b
+    for table in ('weights', 'joints'):
+        t = {}
+        for k, v in r.get(table, {}).items():
+            if '{S}' in k or '{S}' in v:
+                for sd in ('L', 'R'): t[k.replace('{S}', sd)] = v.replace('{S}', sd)
+            else: t[k] = v
+        r[table] = t
+    return r
+
+
+def open_source(path, texdir):
+    """The user's model: a .blend opened, or an .fbx imported into an empty scene (Blender's own FBX importer)."""
+    if path.lower().endswith('.fbx'):
+        bpy.ops.wm.read_factory_settings(use_empty=True)
+        bpy.ops.import_scene.fbx(filepath=path)
+    else:
+        open_blend(path, texdir)
+
+
 def convert(recipe_path, blend, texdir, out, opt):
-    recipe = json.load(open(recipe_path))
-    open_blend(blend, texdir)
-    arm = bpy.data.objects[recipe['armature']]
+    recipe = load_recipe(recipe_path)
+    open_source(blend, texdir)
+    arms = [o for o in bpy.data.objects if o.type == 'ARMATURE']
+    arm = bpy.data.objects.get(recipe.get('armature', '')) or (arms[0] if arms else None)
+    if arm is None: raise SystemExit('no armature in ' + blend)
     arm.data.pose_position = 'REST'
     for o in bpy.data.objects:
         if o.type == 'ARMATURE': o.data.pose_position = 'REST'
     bpy.context.view_layer.update()
     fwd = recipe.get('forward', '-y')
-    chain = bone_chain_map(arm, recipe['weights'])
+    chain = bone_chain_map([arm] + [a for a in arms if a is not arm], recipe['weights'])
     joints_b = {b.name: tuple(arm.matrix_world @ b.head_local) for b in arm.data.bones}
     joints_b.update({b.name + '#tail': tuple(arm.matrix_world @ b.tail_local) for b in arm.data.bones})
+    joints_n = {norm(b.name): tuple(arm.matrix_world @ b.head_local) for b in arm.data.bones}
     os.makedirs(out, exist_ok=True)
     written = []
     for var in recipe['variants']:
@@ -471,18 +522,70 @@ def convert(recipe_path, blend, texdir, out, opt):
             return tex_index[path]
 
         def find_image(name):
-            for root, _, files in os.walk(texdir):
-                if name in files: return os.path.join(root, name)
+            # (TEXTURE_DIR may list several folders, ':'-separated: a model's own first, then shared ones)
+            for d in texdir.split(os.pathsep):
+                for root, _, files in os.walk(d):
+                    if name in files: return os.path.join(root, name)
             return None
+
+        def image_for(mt):
+            # the recipe's own image for a material (an FBX's materials name none), else its Base Color's
+            name = (recipe.get('materialImages') or {}).get(mt.name if mt else '')
+            if name: return find_image(name)
+            return image_of(mt, recipe.get('ignoreImages', []))
+
+        def images(spec):
+            """A list of {label, image} or a {glob, label} pattern ("{n}" numbered) as [(label, path)]."""
+            import fnmatch
+            out_ = []
+            if isinstance(spec, dict):
+                found = sorted(os.path.join(r_, f) for d in texdir.split(os.pathsep) for r_, _, fs in os.walk(d) for f in fs if fnmatch.fnmatch(f, spec['glob']))
+                for i, f in enumerate(found): out_.append((spec.get('label', '{n}').replace('{n}', str(i + 1)), f))
+            else:
+                for e in spec or []:
+                    pth = find_image(e['image']) if e.get('image') else None
+                    out_.append((e['label'], pth, e))
+            return [x if len(x) == 3 else (x[0], x[1], {}) for x in out_]
 
         keys = dict(recipe.get('shapeKeys', {}))
         ear_fix = None
         if var.get('ears') == 'human':
             keys['EarsSmall'] = 1.0
             ear_fix = lambda p, g: human_ears(p, g, joints_b)
-        body_obj = bpy.data.objects[recipe['body']['object']]
+        bdef = var.get('body', recipe['body'])
+        body_obj = bpy.data.objects[bdef['object']]
+        gm = recipe.get('genitalMask')
+        genital = (gm['groups'], gm.get('min', 0.5)) if gm else None
         body = build_mesh('body', 'body', [body_obj], recipe, keys, bone_names, chain, textures, tex_of_image, fwd,
-                          max_tris=recipe['body'].get('maxTris'), ear_fix=ear_fix)
+                          max_tris=bdef.get('maxTris'), ear_fix=ear_fix, image_for=image_for, genital=genital)
+        # the other bodies the figure can have (a tail's length, bones showing, male parts: one choice), and the shape keys
+        # as morphs (each key's change per vertex, sparse: the creator's sliders)
+        alt_bodies = [body]
+        for i, b in enumerate(var.get('bodies', recipe.get('bodies', []))):
+            o = bpy.data.objects.get(b['object'])
+            if o is None: log('missing body', b['object']); continue
+            alt_bodies.append(build_mesh('body%d' % (i + 2), 'bodyalt', [o], recipe, keys, bone_names, chain, textures, tex_of_image, fwd,
+                                         ear_fix=ear_fix, image_for=image_for, genital=genital))
+        body_labels = [bdef.get('label', 'Body')] + [b.get('label', b['object']) for b in var.get('bodies', recipe.get('bodies', []))
+                                                     if bpy.data.objects.get(b['object'])]
+
+        def shape_blob(ms, key):
+            obj = bpy.data.objects[ms.src[0][0]]
+            if not obj.data.shape_keys or key not in obj.data.shape_keys.key_blocks: return None
+            base, _, _, _ = evaluate(obj, recipe, dict(keys, **{key: 0.0}), None)
+            moved, _, _, _ = evaluate(obj, recipe, dict(keys, **{key: 1.0}), None)
+            out_ = bytearray(struct.pack('<I', 0))
+            n = 0
+            for i, (_, v) in enumerate(ms.src):
+                d = moved[v] - base[v]
+                if abs(d[0]) + abs(d[1]) + abs(d[2]) < 1e-6: continue
+                out_ += struct.pack('<Ifff', i, *to_wow(d, fwd))
+                n += 1
+            out_[0:4] = struct.pack('<I', n)
+            return bytes(out_), n
+
+        shapes = [sh for sh in recipe.get('shapes', [])]
+        bodies_meta = []
         # the body's weights by position, for objects that have none
         kd = KDTree(len(body.pos))
         bw = []
@@ -491,7 +594,19 @@ def convert(recipe_path, blend, texdir, out, opt):
             kd.insert(Vector(from_wow(p, fwd)), i)
             bw.append([(inv[b], w / 255.0) for b, w in zip(body.bi[i], body.bw[i]) if w > 0])
         kd.balance()
-        meshes = [body]
+        meshes = list(alt_bodies)
+        for ms, label in zip(alt_bodies, body_labels):
+            entry = {'label': label, 'mesh': ms.id, 'shapes': []}
+            if ms.genital:
+                blobs.append(np.array(sorted(ms.genital), dtype='<u4').tobytes())
+                entry['genitalBlob'] = len(blobs) - 1
+                log(ms.id, 'genitals: %d vertices' % len(ms.genital))
+            for sh in shapes:
+                r_ = shape_blob(ms, sh['key'])
+                if not r_: entry['shapes'].append(-1); continue
+                blobs.append(r_[0]); entry['shapes'].append(len(blobs) - 1)
+                log(ms.id, 'shape', sh['key'], '%d vertices' % r_[1])
+            bodies_meta.append(entry)
 
         def objs_of(names):
             got = []
@@ -505,15 +620,30 @@ def convert(recipe_path, blend, texdir, out, opt):
 
         def add_group(gid, kind, names, rigid=None, max_tris=None):
             ms = build_mesh(gid, kind, objs_of(names), recipe, keys, bone_names, chain, textures, tex_of_image, fwd,
-                            max_tris=max_tris, rigid=rigid, body_kd=kd, body_weights=bw)
+                            max_tris=max_tris, rigid=rigid, body_kd=kd, body_weights=bw, image_for=image_for)
             meshes.append(ms)
             return ms
 
         always = [add_group(g['id'], g['kind'], g['objects'], g.get('rigid')).id for g in recipe.get('always', [])]
         eye_tex = []
-        for e in recipe.get('eyeTextures', []):
-            p = find_image(e['image'])
-            if p: eye_tex.append({'id': e['id'], 'label': e['label'], 'texture': tex_of_image(p)})
+        for i, (label, p, e) in enumerate(images(recipe.get('eyeTextures', []))):
+            if p: eye_tex.append({'id': e.get('id', 'eyes%d' % (i + 1)), 'label': label, 'texture': tex_of_image(p)})
+        # tint presets that are textures of their own (a skin's other tones, the hair's colours): {label, image} or a glob
+        def presets(spec):
+            got = []
+            for i, (label, p, e) in enumerate(images(spec)):
+                t = {'id': e.get('id', 'p%d' % (i + 1)), 'label': label, 'rgb': e.get('rgb', 'FFFFFF')}
+                if e.get('lift'): t['lift'] = e['lift']
+                if p: t['texture'] = tex_of_image(p)
+                elif e.get('image'): log('preset image missing', e['image']); continue
+                got.append(t)
+            return got
+        tints = presets(var.get('tints', recipe.get('tints', [])))
+        hair_tints = presets(var.get('hairTints', recipe.get('hairTints', [])))
+        def base_tex(key):
+            pth = find_image(recipe[key]) if recipe.get(key) else None
+            return tex_of_image(pth) if pth else -1
+        skin_tex, hair_tex = base_tex('skinImage'), base_tex('hairImage')
         hair = []
         for h in recipe.get('hair', []):
             ms = add_group('hair_' + h['id'], 'hair', h['objects'], h.get('rigid'), h.get('maxTris'))
@@ -553,7 +683,8 @@ def convert(recipe_path, blend, texdir, out, opt):
         # the joints, in the same axes
         joints = {}
         for wow, b in recipe['joints'].items():
-            if b in joints_b: joints[wow] = [round(x, 5) for x in to_wow(joints_b[b], fwd)]
+            j = joints_b.get(b) or joints_n.get(norm(b))
+            if j: joints[wow] = [round(x, 5) for x in to_wow(j, fwd)]
         if var.get('ears') == 'human':
             for n in ('Ear.L', 'Ear.R'): pass
         bones = [None] * len(bone_names)
@@ -562,8 +693,9 @@ def convert(recipe_path, blend, texdir, out, opt):
             'format': 'whd', 'version': WHD_VERSION, 'id': recipe['id'] + ':' + var['file'], 'label': var['label'],
             'race': var['race'], 'sex': var['sex'], 'units': 'metres', 'axes': 'x forward, y left, z up; feet at z 0',
             'bones': bones, 'joints': joints, 'textures': textures, 'meshes': mesh_meta, 'always': always,
+            'bodies': bodies_meta, 'shapes': [{'key': sh['key'], 'label': sh['label']} for sh in shapes],
             'eyeTextures': eye_tex, 'hair': hair, 'outfits': outfits, 'jewelry': jewelry, 'overlays': overlays,
-            'tints': var.get('tints', []), 'hairTints': var.get('hairTints', []), 'gpuBytes': gpu[0],
+            'tints': tints, 'hairTints': hair_tints, 'skinTexture': skin_tex, 'hairTexture': hair_tex, 'credit': recipe.get('credit', ''), 'gpuBytes': gpu[0],
             'triangles': {'body': len(body.idx) // 3, 'max': len(body.idx) // 3 + max((sum(next(x['triangles'] for x in mesh_meta if x['id'] == mid) for mid in h['meshes']) for h in hair), default=0)
                           + max((sum(next(x['triangles'] for x in mesh_meta if x['id'] == mid) for mid in o['meshes']) for o in outfits), default=0)},
         }
