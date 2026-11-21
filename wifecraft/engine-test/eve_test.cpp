@@ -163,6 +163,96 @@ std::vector<uint8_t> pngOf(int w, int h, const std::vector<uint8_t>& rgba) {
     return out;
 }
 
+// The fit in the game's own poses (the model's sequences whose keys are in FILES_DIR: sitting on a chair, kneeling, lying dead
+// and asleep, cheering with the arms up, bowing), skinned on the CPU as the renderer skins her (the skeleton edited by her
+// proportions, bodyrig.h): the seams can't open (each stitch vertex on its model vertex), the strip between her ring and the
+// model's edge stays a strip (no edge of it longer than 3 cm), and her own triangles stretch and collapse no more than the
+// model's own body does in the same pose (her stretch's 99.9th percentile within 1.3 times the model's, and 0.2 more;
+// her collapsed triangles, area under 5 % of the bind pose's, at most 0.2 % of them). A pose whose sequence or .anim isn't
+// here is skipped and said.
+void posedSeams(M2Model& m, const FileLookup& look, const EveResult& res, size_t eveVerts, const std::string& name) {
+    struct Pose { const char* what; uint16_t anim; uint32_t t; };
+    const Pose poses[] = {{"sit on a chair", 103, 900}, {"kneel", 115, 900}, {"lie dead", 1, 1500}, {"lie asleep", 100, 1500},
+                          {"cheer, arms up", 68, 700}, {"bow", 66, 900}};
+    const std::vector<M2Vertex>& ev = res.body.verts;
+    const std::vector<uint32_t>& ei = res.body.indices;
+    // each stitch vertex's model vertex (the same place and weights: the check above)
+    std::vector<int> twin(ev.size(), -1);
+    for (size_t v = eveVerts; v < ev.size(); ++v)
+        for (size_t w = 0; w < m.vertices.size(); ++w) {
+            const M2Vertex& a = ev[v]; const M2Vertex& b = m.vertices[w];
+            if (std::fabs(a.pos[0] - b.pos[0]) < 1e-6f && std::fabs(a.pos[1] - b.pos[1]) < 1e-6f && std::fabs(a.pos[2] - b.pos[2]) < 1e-6f) { twin[v] = int(w); break; }
+        }
+    LegEdit edit = bodyEditOf(m, res.body.scale);
+    auto skinAll = [&](const std::vector<M2Vertex>& vs, const std::vector<M4>& mats, std::vector<V3>& out) {
+        out.resize(vs.size());
+        for (size_t i = 0; i < vs.size(); ++i) {
+            V3 p(vs[i].pos[0], vs[i].pos[1], vs[i].pos[2]), s;
+            for (int k = 0; k < 4; ++k) if (vs[i].weights[k] && vs[i].bones[k] < mats.size()) s = s + mats[vs[i].bones[k]].point(p) * (vs[i].weights[k] / 255.0f);
+            out[i] = s;
+        }
+    };
+    // per triangle: the longest edge's stretch over the bind pose's, and the area's share of the bind pose's
+    auto tris = [&](const std::vector<V3>& rest, const std::vector<V3>& posed, const std::vector<uint32_t>& idx, size_t below,
+                    std::vector<float>& stretch, size_t& collapsed, size_t& counted) {
+        stretch.clear(); collapsed = counted = 0;
+        for (size_t t = 0; t + 2 < idx.size(); t += 3) {
+            uint32_t a = idx[t], b = idx[t + 1], c = idx[t + 2];
+            if (a >= below || b >= below || c >= below) continue;
+            float worst = 0;
+            for (auto [x, y] : {std::pair<uint32_t, uint32_t>{a, b}, {b, c}, {c, a}}) {
+                float r = (rest[x] - rest[y]).length();
+                if (r > 1e-5f) worst = std::max(worst, (posed[x] - posed[y]).length() / r);
+            }
+            float ar = (rest[b] - rest[a]).cross(rest[c] - rest[a]).length(), ap = (posed[b] - posed[a]).cross(posed[c] - posed[a]).length();
+            if (ar < 1e-9f) continue;
+            ++counted;
+            stretch.push_back(worst);
+            if (ap < 0.05f * ar) ++collapsed;
+        }
+        std::sort(stretch.begin(), stretch.end());
+    };
+    auto pct = [](const std::vector<float>& s, double q) { return s.empty() ? 0.0f : s[std::min(s.size() - 1, size_t(q * double(s.size())))]; };
+    std::vector<M4> bindMats;
+    if (edit.active) legEditMatrices(m.bones, std::vector<BonePose>(), edit, bindMats); else bindMats.assign(m.bones.size(), M4());
+    std::vector<V3> eRest, mRest;
+    skinAll(ev, bindMats, eRest);
+    std::vector<M4> plain(m.bones.size(), M4());
+    skinAll(m.vertices, plain, mRest);
+    for (const Pose& p : poses) {
+        int seq = m.findSequence(p.anim);
+        if (seq >= 0) m.ensureSequence(seq, look);
+        if (seq < 0 || !m.sequenceReady(seq)) { std::printf("  %s, %s: not here (anim %u), skipped\n", name.c_str(), p.what, p.anim); continue; }
+        uint32_t t = std::min(p.t, std::max<uint32_t>(1, m.sequences[size_t(seq)].duration) - 1);
+        std::vector<BonePose> bp; m.pose(seq, t, t, bp, false);
+        std::vector<M4> em, mm;
+        if (edit.active) legEditMatrices(m.bones, bp, edit, em); else m.bonesToMatrices(bp, em);
+        m.bonesToMatrices(bp, mm);
+        std::vector<V3> eP, mP;
+        skinAll(ev, em, eP);
+        skinAll(m.vertices, em, mP);   // the model's edge under the same (edited) skeleton, as the renderer draws the cut body
+        float gap = 0, strip = 0;
+        for (size_t v = eveVerts; v < ev.size(); ++v) if (twin[v] >= 0) gap = std::max(gap, (eP[v] - mP[size_t(twin[v])]).length());
+        for (size_t k = 0; k + 2 < ei.size(); k += 3) {
+            bool s = ei[k] >= eveVerts || ei[k + 1] >= eveVerts || ei[k + 2] >= eveVerts;
+            if (!s) continue;
+            for (int q = 0; q < 3; ++q) strip = std::max(strip, (eP[ei[k + q]] - eP[ei[k + (q + 1) % 3]]).length());
+        }
+        std::vector<V3> mPose; skinAll(m.vertices, mm, mPose);
+        std::vector<float> es, ms; size_t ec, en, mc, mn;
+        tris(eRest, eP, ei, eveVerts, es, ec, en);
+        tris(mRest, mPose, m.indices, m.vertices.size(), ms, mc, mn);
+        float e999 = pct(es, 0.999), m999 = pct(ms, 0.999);
+        std::printf("  %s, %s: seam gap %.5f, strip's longest edge %.4f, stretch p99 %.2f p99.9 %.2f max %.2f (the model's %.2f %.2f %.2f), "
+                    "collapsed %zu/%zu (the model's %zu/%zu)\n", name.c_str(), p.what, gap, strip, pct(es, 0.99), e999, es.empty() ? 0 : es.back(),
+                    pct(ms, 0.99), m999, ms.empty() ? 0 : ms.back(), ec, en, mc, mn);
+        CHECK(gap < 1e-4f, "%s, %s: a seam opens %.5f", name.c_str(), p.what, gap);
+        CHECK(strip < 0.03f, "%s, %s: the seam's strip stretched to %.4f", name.c_str(), p.what, strip);
+        CHECK(e999 <= m999 * 1.3f + 0.2f, "%s, %s: her triangles stretch %.2f, the model's %.2f", name.c_str(), p.what, e999, m999);
+        CHECK(ec * 500 <= en, "%s, %s: %zu of her %zu triangles collapse", name.c_str(), p.what, ec, en);
+    }
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -364,6 +454,7 @@ int main(int argc, char** argv) {
                             if (!on) ++off;
                         }
                         CHECK(added > 0 && off == 0, "%s: %zu stitch vertices, %zu off the model's edge", row->name.c_str(), added, off);
+                        posedSeams(m, look, res, e.vertexCount(), row->name);
                     }
                 }
             }

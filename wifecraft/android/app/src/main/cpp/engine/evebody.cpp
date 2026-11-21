@@ -1789,25 +1789,50 @@ EveDetailLayer eveDetailLayer(const EveBody& eve, int w, int h, const std::vecto
         mt.push_back(x);
     }
     if (mt.empty()) return out;
-    const float cs = reach * 0.25f;
-    auto cellOf = [&](V3 p) { return std::array<int, 3>{int(std::floor(p.x / cs)), int(std::floor(p.y / cs)), int(std::floor(p.z / cs))}; };
-    std::map<std::array<int, 3>, std::vector<uint32_t>> grid;
-    for (size_t i = 0; i < mt.size(); ++i) grid[cellOf(mt[i].c)].push_back(uint32_t(i));
+    // (a dense grid over their centres, cells a third of the reach: a query looks at a few hundred cells by index)
+    const float cs = reach / 3;
+    V3 lo3 = mt[0].c, hi3 = mt[0].c;
+    for (const Tri& x : mt) {
+        lo3 = V3(std::min(lo3.x, x.c.x), std::min(lo3.y, x.c.y), std::min(lo3.z, x.c.z));
+        hi3 = V3(std::max(hi3.x, x.c.x), std::max(hi3.y, x.c.y), std::max(hi3.z, x.c.z));
+    }
+    const int gx = int((hi3.x - lo3.x) / cs) + 1, gy = int((hi3.y - lo3.y) / cs) + 1, gz = int((hi3.z - lo3.z) / cs) + 1;
+    if (size_t(gx) * gy * gz > (1u << 22)) return out;   // (a model this large for its reach: nothing sensible to do)
+    auto cellOf = [&](V3 p, int k) { float f = k == 0 ? (p.x - lo3.x) : k == 1 ? (p.y - lo3.y) : (p.z - lo3.z); return int(std::floor(f / cs)); };
+    std::vector<uint32_t> start(size_t(gx) * gy * gz + 1, 0), items(mt.size());
+    auto cellIndex = [&](const V3& c) {
+        int x = std::clamp(cellOf(c, 0), 0, gx - 1), y = std::clamp(cellOf(c, 1), 0, gy - 1), z = std::clamp(cellOf(c, 2), 0, gz - 1);
+        return (size_t(z) * gy + y) * gx + x;
+    };
+    for (const Tri& x : mt) ++start[cellIndex(x.c) + 1];
+    for (size_t i = 1; i < start.size(); ++i) start[i] += start[i - 1];
+    {
+        std::vector<uint32_t> fill(start.begin(), start.end() - 1);
+        for (size_t i = 0; i < mt.size(); ++i) items[fill[cellIndex(mt[i].c)]++] = uint32_t(i);
+    }
     // the model's triangles whose spheres come within `rad` of p
     auto gather = [&](V3 p, float rad, std::vector<uint32_t>& outList) {
         outList.clear();
         float span = rad + rmax;
-        auto lo = cellOf(p - V3(span, span, span)), hi = cellOf(p + V3(span, span, span));
-        for (int x = lo[0]; x <= hi[0]; ++x) for (int y = lo[1]; y <= hi[1]; ++y) for (int z = lo[2]; z <= hi[2]; ++z) {
-            auto it = grid.find({x, y, z});
-            if (it == grid.end()) continue;
-            for (uint32_t i : it->second) if ((mt[i].c - p).length() - mt[i].r <= rad) outList.push_back(i);
+        int x0 = std::max(0, cellOf(p - V3(span, span, span), 0)), x1 = std::min(gx - 1, cellOf(p + V3(span, span, span), 0));
+        int y0 = std::max(0, cellOf(p - V3(span, span, span), 1)), y1 = std::min(gy - 1, cellOf(p + V3(span, span, span), 1));
+        int z0 = std::max(0, cellOf(p - V3(span, span, span), 2)), z1 = std::min(gz - 1, cellOf(p + V3(span, span, span), 2));
+        for (int z = z0; z <= z1; ++z) for (int y = y0; y <= y1; ++y) for (int x = x0; x <= x1; ++x) {
+            size_t c = (size_t(z) * gy + y) * gx + x;
+            for (uint32_t k = start[c]; k < start[c + 1]; ++k) {
+                uint32_t i = items[k];
+                if ((mt[i].c - p).length() - mt[i].r <= rad) outList.push_back(i);
+            }
         }
     };
-    // the nearest point among `cand` facing n, within `best` (squared; updated): its triangle and weights
-    auto nearest = [&](V3 p, V3 n, const std::vector<uint32_t>& cand, float& best, int& bt, V3& bb) {
-        for (uint32_t i : cand) {
-            const Tri& x = mt[i];
+    // the nearest point among `cand` facing n, within `best` (squared; updated): its triangle and weights. With `keys` (each
+    // candidate's sphere's distance from a centre within `slack` of p, ascending), it stops where none further can be nearer.
+    auto nearest = [&](V3 p, V3 n, const std::vector<uint32_t>& cand, float& best, int& bt, V3& bb, const std::vector<float>* keys = nullptr,
+                       float slack = 0) {
+        for (size_t j = 0; j < cand.size(); ++j) {
+            if (keys && (*keys)[j] - slack > 0 && ((*keys)[j] - slack) * ((*keys)[j] - slack) >= best) break;
+            const Tri& x = mt[cand[j]];
+            const uint32_t i = cand[j];
             float lim = std::sqrt(best) + x.r;
             if ((x.c - p).dot(x.c - p) > lim * lim) continue;
             const M2Vertex &A = wow[x.v[0]], &B = wow[x.v[1]], &C = wow[x.v[2]];
@@ -1826,8 +1851,9 @@ EveDetailLayer eveDetailLayer(const EveBody& eve, int w, int h, const std::vecto
     const Lut& L = lut();
     const size_t ev = eve.verts.size();
     // each Eve corner's own nearest distance first: it bounds what her triangle's texels need to look at
-    std::vector<float> cornerD(ev, -1);
+    std::vector<float> cornerD(ev, -1), keys;
     std::vector<uint32_t> cand;
+    std::vector<std::pair<float, uint32_t>> order;
     for (size_t v = 0; v < ev; ++v) {
         V3 p = posOf(eve.verts[v]), n = nrmOf(eve.verts[v]).normalized();
         gather(p, reach, cand);
@@ -1846,6 +1872,12 @@ EveDetailLayer eveDetailLayer(const EveBody& eve, int w, int h, const std::vecto
         float rad = r + (all ? std::min(reach, far + 2 * r) : reach) + 0.005f * reach / 0.1f;
         gather(centre, rad, cand);
         if (cand.empty()) continue;
+        // nearest first (by their spheres from her triangle's centre): each texel stops once the rest are all farther
+        order.clear();
+        for (uint32_t i : cand) order.push_back({(mt[i].c - centre).length() - mt[i].r, i});
+        std::sort(order.begin(), order.end());
+        keys.resize(order.size());
+        for (size_t j = 0; j < order.size(); ++j) { keys[j] = order[j].first; cand[j] = order[j].second; }
         V3 na = nrmOf(A), nb = nrmOf(B), nc = nrmOf(C);
         raster(A.uv[0] * w, A.uv[1] * h, B.uv[0] * w, B.uv[1] * h, C.uv[0] * w, C.uv[1] * h, w, h, [&](int x, int y, float b0, float b1, float b2) {
             size_t i = size_t(y) * w + x;
@@ -1854,7 +1886,7 @@ EveDetailLayer eveDetailLayer(const EveBody& eve, int w, int h, const std::vecto
             ++out.texels;
             V3 p = pa * b0 + pb * b1 + pc * b2, n = (na * b0 + nb * b1 + nc * b2).normalized();
             float best = reach * reach; int bt = -1; V3 bb;
-            nearest(p, n, cand, best, bt, bb);
+            nearest(p, n, cand, best, bt, bb, &keys, r);
             if (bt < 0) return;
             const Tri& q = mt[size_t(bt)];
             float u = wow[q.v[0]].uv[0] * bb.x + wow[q.v[1]].uv[0] * bb.y + wow[q.v[2]].uv[0] * bb.z;
