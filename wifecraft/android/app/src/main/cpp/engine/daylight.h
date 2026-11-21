@@ -79,7 +79,12 @@ DaySample sampleDay(const DayCycle& c, float hours, float frameYawDeg = 0);
 // pulls the location's light, its fog and its grade toward it (cineProfile's zone part, by the "Zone mood" option).
 //
 //   zone: {source, glow, keys: [[hour, ambient rgb, direct rgb, sky top rgb, sky middle rgb, fog rgb, end fog rgb,
-//                                fog near, fog far (yards)], ...]}
+//                                fog near, fog far (yards), sun rgb, cloud rgb, sky band 1 rgb, sky band 2 rgb,
+//                                horizon ambient rgb, ground ambient rgb], ...]}
+//   (the last six bands are optional: a key of 21 numbers leaves them black, and the look then works from the first six;
+//   sun: the sun's disc and glow (SunColor; Tirisfal's a pale green), cloud: the clouds' sunlit colour (CloudSunColor; a
+//   deep green there), the bands: the sky between the middle and the fog (SkyBand1Color, SkyBand2Color), horizon and ground
+//   ambient: the ambient from the side and from below (HorizonAmbientColor, GroundAmbientColor))
 struct ZoneKey {
     float hour = 0;
     float ambient[3] = {0, 0, 0};
@@ -89,6 +94,12 @@ struct ZoneKey {
     float fog[3] = {0, 0, 0};
     float endFog[3] = {0, 0, 0};
     float fogNear = 0, fogFar = 500;
+    float sun[3] = {0, 0, 0};
+    float cloud[3] = {0, 0, 0};
+    float band1[3] = {0, 0, 0};
+    float band2[3] = {0, 0, 0};
+    float horizonAmbient[3] = {0, 0, 0};
+    float groundAmbient[3] = {0, 0, 0};
 };
 
 struct ZoneLight {
@@ -151,6 +162,11 @@ struct CineProfile {
     float flickerColour[3] = {1, 1, 1};
     // the zone mood (cineZoneLight; all neutral without a zone or at zone mood 0)
     float mid[3] = {1, 1, 1};        // the grade's mid-tones by channel (over 1: that channel's mid-tones raised)
+    float shadowTint[3] = {1, 1, 1}; // the grade's split tone: the shadows times this (eased out by the mid-tones; luminance
+    float highTint[3] = {1, 1, 1};   //   about 1), the highlights times this (eased in from the mid-tones)
+    float exposure = 1;              // the frame brightened before the grade (a soft shoulder: 0 and 1 stay where they are)
+    float roomFloor[3] = {0, 0, 0};  // a room's ambient raised by this (absolute light, before the room's tint): a dark room
+                                     //   stays readable in its own (or the zone's) colour
     float zoneMix = 0;               // 0..1: the location's ambient, sun, sky and fog pulled toward these
     float zoneAmbient[3] = {0, 0, 0};
     float zoneSun[3] = {0, 0, 0};
@@ -162,7 +178,8 @@ struct CineProfile {
 
 // A field a location may set by hand (locations.json "cinematic": {"override": {"inside"|"outside": {name: value}}}):
 // key, keyGain, sunBias, practicalBias, rim, rimGain, actorAmbient, sceneAmbient, sceneSun, sceneSky, room, lift, gamma,
-// gain, contrast, saturation, vignette, flicker, flickerColour (each replaces the derived value; the limits still hold),
+// gain, contrast, saturation, vignette, flicker, flickerColour, mid, shadowTint, highTint, exposure, roomFloor (each
+// replaces the derived value; the limits still hold),
 // and hue (the area's own colour, in place of the one its light gives).
 struct CineOverride {
     uint32_t mask = 0;               // which of CineProfile's fields are set (cineOverrideFields' order)
@@ -176,6 +193,9 @@ struct CineArea {
     CinePracticals inside, outside;
     CineOverride overInside, overOutside;
     ZoneLight zone;              // the zone's own light ("zone"; empty: none, the zone mood does nothing)
+    // "exposure": a number (both sides) or {"inside": n, "outside": n}: the place's own exposure times the derived one
+    // (0.5..2; 1: as derived). For a room whose baked light is darker or brighter than the rest.
+    float exposureInside = 1, exposureOutside = 1;
 };
 
 // "cinematic" read (missing or broken parts keep their defaults); false when it isn't an object.
@@ -193,6 +213,7 @@ struct CineInput {
     float roomAmbient[3] = {0, 0, 0};        // the room's own ambient (MOHD) and its baked light's mean (times the hour's tint)
     float roomLight[3] = {0, 0, 0};
     float hour = -1;                         // the world clock's hour (negative: no clock, as by day)
+    float exposure = 1;                      // the place's exposure tweak (CineArea's, for the side the people stand on)
     CinePracticals practicals;
     // the zone mood: the zone's light at the hour (sampleZone), how much of it (Options' Zone mood, 0..1: 0 changes nothing,
     // exactly) and the Mood boost (its colours exaggerated: more saturation and contrast)
@@ -221,6 +242,8 @@ void cineStep(CineProfile& now, const CineProfile& target, float dt, float tau =
 
 // The grade's transfer of one colour (0..1), as grade.cpp's shader does it, for a profile already at its strength.
 void cineGradeColour(const CineProfile& p, const float in[3], float out[3]);
+// The exposure's soft shoulder on one channel (0..1): v * e / (1 + v * (e - 1)); 0 and 1 stay, the slope at black is e.
+float cineExpose(float v, float exposure);
 
 // The zone mood on the location's light at `strength` (before cineScene): the ambient, sun, sky top, fog and the sky at and
 // under the horizon pulled toward the profile's zone colours by zoneMix, the fog's start and end pulled in toward its

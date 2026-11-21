@@ -147,6 +147,16 @@ bool parseZoneLight(const Json& j, ZoneLight& out) {
             for (int i = 0; i < 3; ++i) dst[c][i] = std::clamp(v[1 + c * 3 + i] > 1.5f ? v[1 + c * 3 + i] / 255.0f : v[1 + c * 3 + i], 0.0f, 1.0f);
         z.fogFar = std::clamp(v[20], 20.0f, 5000.0f);
         z.fogNear = std::clamp(v[19], 0.0f, z.fogFar * 0.9f);
+        // the six optional bands (sun, cloud, sky band 1 and 2, horizon and ground ambient), all or none
+        if (k.size() >= 39) {
+            float w[18];
+            bool okb = true;
+            for (int i = 0; i < 18; ++i) { w[i] = float(k[size_t(21 + i)].num()); okb = okb && std::isfinite(w[i]); }
+            float* bd[] = {z.sun, z.cloud, z.band1, z.band2, z.horizonAmbient, z.groundAmbient};
+            if (okb)
+                for (int c = 0; c < 6; ++c)
+                    for (int i = 0; i < 3; ++i) bd[c][i] = std::clamp(w[c * 3 + i] > 1.5f ? w[c * 3 + i] / 255.0f : w[c * 3 + i], 0.0f, 1.0f);
+        }
         out.keys.push_back(z);
     }
     std::stable_sort(out.keys.begin(), out.keys.end(), [](const ZoneKey& a, const ZoneKey& b) { return a.hour < b.hour; });
@@ -170,10 +180,13 @@ void sampleZone(const ZoneLight& zl, float hours, ZoneKey& out) {
     if (span <= 0) span += 24.0f;
     if (at < 0) at += 24.0f;
     float t = span > 1e-6f ? std::clamp(at / span, 0.0f, 1.0f) : 0.0f;
-    const float* as[] = {a.ambient, a.direct, a.skyTop, a.skyMid, a.fog, a.endFog};
-    const float* bs[] = {b.ambient, b.direct, b.skyTop, b.skyMid, b.fog, b.endFog};
-    float* os[] = {out.ambient, out.direct, out.skyTop, out.skyMid, out.fog, out.endFog};
-    for (int c = 0; c < 6; ++c)
+    const float* as[] = {a.ambient, a.direct, a.skyTop, a.skyMid, a.fog, a.endFog, a.sun, a.cloud, a.band1, a.band2,
+                         a.horizonAmbient, a.groundAmbient};
+    const float* bs[] = {b.ambient, b.direct, b.skyTop, b.skyMid, b.fog, b.endFog, b.sun, b.cloud, b.band1, b.band2,
+                         b.horizonAmbient, b.groundAmbient};
+    float* os[] = {out.ambient, out.direct, out.skyTop, out.skyMid, out.fog, out.endFog, out.sun, out.cloud, out.band1, out.band2,
+                   out.horizonAmbient, out.groundAmbient};
+    for (int c = 0; c < 12; ++c)
         for (int k = 0; k < 3; ++k) os[c][k] = as[c][k] + (bs[c][k] - as[c][k]) * t;
     out.fogNear = a.fogNear + (b.fogNear - a.fogNear) * t;
     out.fogFar = a.fogFar + (b.fogFar - a.fogFar) * t;
@@ -284,14 +297,16 @@ const Field kFields[] = {
     {"contrast", offsetof(CineProfile, contrast), 1}, {"saturation", offsetof(CineProfile, saturation), 1},
     {"vignette", offsetof(CineProfile, vignette), 1}, {"flicker", offsetof(CineProfile, flicker), 1},
     {"flickerColour", offsetof(CineProfile, flickerColour), 3},
-    {"mid", offsetof(CineProfile, mid), 3}, {"zoneMix", offsetof(CineProfile, zoneMix), 1},
+    {"mid", offsetof(CineProfile, mid), 3}, {"shadowTint", offsetof(CineProfile, shadowTint), 3},
+    {"highTint", offsetof(CineProfile, highTint), 3}, {"exposure", offsetof(CineProfile, exposure), 1},
+    {"roomFloor", offsetof(CineProfile, roomFloor), 3}, {"zoneMix", offsetof(CineProfile, zoneMix), 1},
     {"zoneAmbient", offsetof(CineProfile, zoneAmbient), 3}, {"zoneSun", offsetof(CineProfile, zoneSun), 3},
     {"zoneSky", offsetof(CineProfile, zoneSky), 3}, {"zoneFog", offsetof(CineProfile, zoneFog), 3},
     {"fogMix", offsetof(CineProfile, fogMix), 1}, {"fogNear", offsetof(CineProfile, fogNear), 1},
     {"fogFar", offsetof(CineProfile, fogFar), 1},
 };
 constexpr int kFieldCount = int(sizeof kFields / sizeof kFields[0]);
-static_assert(sizeof(CineProfile) == 56 * sizeof(float), "CineProfile holds floats only: kFields covers them all");
+static_assert(sizeof(CineProfile) == 66 * sizeof(float), "CineProfile holds floats only: kFields covers them all");
 
 float* at(CineProfile& p, const Field& f) { return reinterpret_cast<float*>(reinterpret_cast<char*>(&p) + f.offset); }
 const float* at(const CineProfile& p, const Field& f) {
@@ -342,8 +357,11 @@ float channelMin(const CineProfile& p, float v) {
     cineGradeColour(p, c, o);
     return std::min(o[0], std::min(o[1], o[2]));
 }
-// The grade's tone limits: black not washed out, the shadows not crushed, the highlights not blown, the mid-grey kept near.
-bool toneOk(const CineProfile& p) {
+// The grade's tone limits: black not washed out, the shadows not crushed, the highlights not blown, the mid-grey kept near
+// (the exposure left out: it is meant to move the mid-grey, its shoulder keeps black and white where they are).
+bool toneOk(const CineProfile& p0) {
+    CineProfile p = p0;
+    p.exposure = 1;
     return channelMax(p, 0.0f) <= 0.07f && channelMin(p, 0.04f) >= 0.018f && channelMax(p, 0.9f) <= 0.97f &&
            channelMin(p, 1.0f) >= 0.80f && toneAt(p, 0.5f) >= 0.36f && toneAt(p, 0.5f) <= 0.60f;
 }
@@ -406,6 +424,12 @@ bool parseCineArea(const Json& j, CineArea& out) {
     parseCineOverride(ov["inside"], out.overInside);
     parseCineOverride(ov["outside"], out.overOutside);
     parseZoneLight(j["zone"], out.zone);
+    const Json& ex = j["exposure"];
+    auto expo = [](const Json& v, float& dst) {
+        if (v.kind == Json::Number && std::isfinite(float(v.num()))) dst = std::clamp(float(v.num()), 0.5f, 2.0f);
+    };
+    if (ex.kind == Json::Number) { expo(ex, out.exposureInside); expo(ex, out.exposureOutside); }
+    else if (ex.kind == Json::Object) { expo(ex["inside"], out.exposureInside); expo(ex["outside"], out.exposureOutside); }
     return true;
 }
 
@@ -435,6 +459,10 @@ namespace {
 struct ZoneTargets {
     float amb[3] = {}, sun[3] = {}, sky[3] = {}, fog[3] = {};
     float ambHue[3] = {1, 1, 1}, sunHue[3] = {1, 1, 1}, skyHue[3] = {1, 1, 1}, fogHue[3] = {1, 1, 1};
+    // the grade's split: the shadows (the sky's middle, its clouds and first band: Tirisfal's green-teal murk), the
+    // highlights (the sun's own glow: its pale green), the haze in the blacks (the fog, the second band and the horizon's
+    // ambient: its purple)
+    float shadowHue[3] = {1, 1, 1}, highHue[3] = {1, 1, 1}, hazeHue[3] = {1, 1, 1};
     float near = 0, far = 0;
 };
 
@@ -459,9 +487,43 @@ ZoneTargets zoneTargets(const CineInput& in) {
     if (cineLum(z.skyMid) > 0.02f) std::copy(z.skyMid, z.skyMid + 3, zs); else std::copy(zf, zf + 3, zs);
     make(zs, in.sky, 0.30f, 0.03f, 0.70f, 0.60f, t.sky, t.skyHue);
     make(zf, in.fog, 0.25f, 0.05f, 0.60f, 0.60f, t.fog, t.fogHue);
-    // the scenes are close (a room, a yard): a zone that sees 500 yards fogs at 150, Tirisfal's 170 at about 50
+    // the split's hues: each band where the zone has it (a key without the bands: the sky's middle, the fog, the ambient)
+    auto add = [](float acc[3], float& w, const float c[3], float k) {
+        if (cineLum(c) < 0.02f) return;
+        float h[3];
+        cineHue(c, h);
+        for (int i = 0; i < 3; ++i) acc[i] += h[i] * k;
+        w += k;
+    };
+    auto hueOf = [&](float acc[3], float w, const float fallback[3], float limit, float out[3]) {
+        float h[3];
+        if (w > 0) for (int i = 0; i < 3; ++i) h[i] = acc[i] / w;
+        else std::copy(fallback, fallback + 3, h);
+        for (int i = 0; i < 3; ++i) h[i] = std::max(0.0f, 1.0f + (h[i] - 1.0f) * push);
+        cineHue(h, h);
+        limitChroma(h, limit + (push - 1.0f) * 0.15f);
+        std::copy(h, h + 3, out);
+    };
+    {
+        float acc[3] = {0, 0, 0}, w = 0;
+        add(acc, w, z.skyMid, 0.5f); add(acc, w, z.cloud, 0.3f); add(acc, w, z.band1, 0.2f);
+        hueOf(acc, w, t.skyHue, 0.45f, t.shadowHue);
+    }
+    {
+        float acc[3] = {0, 0, 0}, w = 0;
+        add(acc, w, z.sun, 0.6f); add(acc, w, z.skyMid, 0.2f); add(acc, w, z.ambient, 0.2f);
+        hueOf(acc, w, t.ambHue, 0.25f, t.highHue);
+    }
+    {
+        float acc[3] = {0, 0, 0}, w = 0;
+        add(acc, w, zf, 0.5f); add(acc, w, z.band2, 0.25f); add(acc, w, z.horizonAmbient, 0.25f);
+        hueOf(acc, w, t.fogHue, 0.60f, t.hazeHue);
+    }
+    // the scenes are close (a room, a yard): a zone that sees 500 yards fogs at 150, Tirisfal's 170 at about 50; the fog
+    // starts near where the zone's is thick (its murk in the middle distance, not only at the edge)
     t.far = std::clamp(z.fogFar * 0.30f, 35.0f, 450.0f);
-    t.near = std::clamp(std::max(z.fogNear * 0.30f, t.far * 0.15f), 4.0f, t.far * 0.5f);
+    const float thick = 1.0f - smooth01(150.0f, 600.0f, z.fogFar);
+    t.near = std::clamp(std::max(z.fogNear * 0.30f, t.far * (0.15f - 0.10f * thick)), 2.5f, t.far * 0.5f);
     return t;
 }
 
@@ -579,15 +641,32 @@ CineProfile cineProfile(const CineInput& in0, const CineOverride* over) {
         p.gain[i] = 1.0f + 0.05f * (p.key[i] - 1.0f);
     }
     std::copy(prac, prac + 3, p.flickerColour);
+    // readable, still moody: a dark room's ambient raised toward a floor in its own colour (the zone's, under a zone mood;
+    // by day a little of the sky's through its windows), its practicals left the warm part; the frame's exposure up where
+    // the place is dark (a room, a night), times the place's own tweak
+    if (in.interior) {
+        float fh[3];
+        mixHue(area, sky, 0.25f * day, fh);
+        limitChroma(fh, 0.30f);
+        const float target = 0.30f - 0.08f * night;
+        const float need = std::max(0.0f, target - lit);
+        for (int i = 0; i < 3; ++i) p.roomFloor[i] = fh[i] * 0.85f * need;
+        p.exposure = 1.0f + 0.40f * dark;
+    } else {
+        p.exposure = 1.0f + 0.15f * night * dark;
+    }
+    p.exposure *= std::isfinite(in.exposure) ? std::clamp(in.exposure, 0.5f, 2.0f) : 1.0f;
     if (za > 0) {
         // the grade toward the zone: the shadows into its fog's colour, the mid-tones toward its ambient, the highlights a
         // little toward its sky; the Mood boost more of each, more saturation and contrast
         const float b = in.zoneBoost ? 1.0f : 0.0f;
         for (int i = 0; i < 3; ++i) {
-            // (split: the shadows mostly the sky's colour, a little of the fog's: Tirisfal's teal under its mauve mid-tones)
-            const float shadow = 0.3f * zt.fogHue[i] + 0.7f * zt.skyHue[i];
-            p.lift[i] += za * ((0.050f + 0.012f * b) * (shadow - 1.0f) + 0.008f);
+            // the blacks a haze of the fog's colour (Tirisfal's purple), the shadows the sky's and clouds' (its green-teal),
+            // the mid-tones the ambient's (its mauve), the highlights a little of the sun's glow (its pale green)
+            p.lift[i] += za * ((0.050f + 0.012f * b) * (zt.hazeHue[i] - 1.0f) + 0.008f);
             p.mid[i] = 1.0f + za * (0.10f + 0.05f * b) * (zt.ambHue[i] - 1.0f);
+            p.shadowTint[i] = 1.0f + za * (0.75f + 0.25f * b) * (zt.shadowHue[i] - 1.0f);
+            p.highTint[i] = 1.0f + za * (0.45f + 0.20f * b) * (zt.highHue[i] - 1.0f);
             p.gain[i] += za * 0.03f * (zt.skyHue[i] - 1.0f);
         }
         p.saturation *= 1.0f + za * (0.03f + 0.14f * b);
@@ -647,6 +726,10 @@ void cineLimit(CineProfile& p) {
     p.saturation = fin(p.saturation, 0.75f, 1.35f, 1.0f);
     p.vignette = fin(p.vignette, 0.0f, 1.2f, 0.0f);
     p.flicker = fin(p.flicker, 0.0f, 1.0f, 0.0f);
+    limitMultiplier(p.shadowTint, 0.92f, 1.08f, 0.45f);
+    limitMultiplier(p.highTint, 0.95f, 1.05f, 0.25f);
+    p.exposure = fin(p.exposure, 0.6f, 1.9f, 1.0f);
+    for (int i = 0; i < 3; ++i) p.roomFloor[i] = fin(p.roomFloor[i], 0.0f, 0.35f, 0.0f);
     for (int i = 0; i < 3; ++i) {
         p.mid[i] = fin(p.mid[i], 0.85f, 1.15f, 1.0f);
         p.zoneAmbient[i] = fin(p.zoneAmbient[i], 0.0f, 1.5f, 0.0f);
@@ -667,6 +750,7 @@ void cineLimit(CineProfile& p) {
             CineProfile q = p;
             for (int i = 0; i < 3; ++i) {
                 q.lift[i] = lerpf(n.lift[i], g.lift[i], t); q.gain[i] = lerpf(n.gain[i], g.gain[i], t); q.mid[i] = lerpf(n.mid[i], g.mid[i], t);
+                q.shadowTint[i] = lerpf(n.shadowTint[i], g.shadowTint[i], t); q.highTint[i] = lerpf(n.highTint[i], g.highTint[i], t);
             }
             q.gamma = lerpf(n.gamma, g.gamma, t);
             q.contrast = lerpf(n.contrast, g.contrast, t);
@@ -674,6 +758,7 @@ void cineLimit(CineProfile& p) {
         }
         for (int i = 0; i < 3; ++i) {
             p.lift[i] = lerpf(n.lift[i], g.lift[i], lo); p.gain[i] = lerpf(n.gain[i], g.gain[i], lo); p.mid[i] = lerpf(n.mid[i], g.mid[i], lo);
+            p.shadowTint[i] = lerpf(n.shadowTint[i], g.shadowTint[i], lo); p.highTint[i] = lerpf(n.highTint[i], g.highTint[i], lo);
         }
         p.gamma = lerpf(n.gamma, g.gamma, lo);
         p.contrast = lerpf(n.contrast, g.contrast, lo);
@@ -696,14 +781,26 @@ void cineStep(CineProfile& now, const CineProfile& target, float dt, float tau) 
     now = cineBlend(now, target, k);
 }
 
+float cineExpose(float v, float exposure) {
+    const float e = std::isfinite(exposure) ? std::clamp(exposure, 0.25f, 4.0f) : 1.0f;
+    v = std::clamp(v, 0.0f, 1.0f);
+    return v * e / (1.0f + v * (e - 1.0f));
+}
+
 void cineGradeColour(const CineProfile& p, const float in[3], float out[3]) {
     float c[3];
     for (int i = 0; i < 3; ++i) {
-        float v = std::clamp(in[i], 0.0f, 1.0f);
+        float v = cineExpose(in[i], p.exposure);
         v = p.lift[i] + v * (p.gain[i] - p.lift[i]);
         v = std::pow(std::max(v, 0.0f), p.gamma / std::max(p.mid[i], 0.5f));
         float s = v * v * (3.0f - 2.0f * v);
         c[i] = v + (s - v) * p.contrast;
+    }
+    // the split tone: the shadows toward one colour, the highlights toward another (the mid-tones between keep the mid's)
+    {
+        float l0 = cineLum(c);
+        float ws = 1.0f - smooth01(0.0f, 0.36f, l0), wh = smooth01(0.45f, 1.0f, l0);
+        for (int i = 0; i < 3; ++i) c[i] *= lerpf(1.0f, p.shadowTint[i], ws) * lerpf(1.0f, p.highTint[i], wh);
     }
     float l = cineLum(c);
     for (int i = 0; i < 3; ++i) out[i] = std::clamp(l + (c[i] - l) * p.saturation, 0.0f, 1.0f);
