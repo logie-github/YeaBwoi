@@ -433,6 +433,8 @@ class SceneSimulation(
         var hold = 0f
         /** The life simulation's interaction this person is doing (an [InteractionId] ordinal), or -1. */
         var lifeTag = -1
+        /** Held where Move mode put them ([holdAt]) until [endHold] or another order. */
+        var held = false
         /** The queue plays round again when it ends; its next is picked at random ([queueOptions]). */
         var queueRepeat = false
         var queueShuffle = false
@@ -615,6 +617,42 @@ class SceneSimulation(
         val actor = actors[id] ?: return false
         if (!available(target, id)) return false
         return begin(actor, target.action, spots.getValue(target).entry, directed = true, target = target)
+    }
+
+    /**
+     * Move mode (the item mapper): [id] put at once at [at] facing [facing] (radians) and held there in [activity] (SIT, REST,
+     * IDLE) until [endHold] or another order. On [item] (it holds it: nobody else takes it) when its own activity is that one,
+     * so it is drawn on it as a use is; otherwise at [at]'s height off it. False: no such person or a place that isn't one.
+     */
+    fun holdAt(id: String, item: SceneObject?, at: Vec3, facing: Float, activity: Activity): Boolean {
+        val actor = actors[id] ?: return false
+        if (!at.x.isFinite() || !at.y.isFinite() || !at.z.isFinite() || !facing.isFinite()) return false
+        if (item != null && actors.values.any { it !== actor && it.target == item }) return false
+        // eased from where they are drawn now (a nudge slides them, never a jump off the furniture and back)
+        val x0 = actor.drawnX; val y0 = actor.drawnY; val z0 = actor.drawnZ; val f0 = actor.drawnFacing
+        clearQueue(id)
+        release(actor)
+        actor.position = at
+        actor.facing = facing
+        actor.activity = activity
+        actor.target = item?.takeIf { it in spots && it.action == activity }
+        actor.waypoints = emptyList()
+        actor.phase = Phase.ACTING
+        actor.remaining = HOLD_SECONDS
+        actor.directed = true
+        actor.held = true
+        actor.easeFrom(x0, y0, z0, f0, JoinEase.SETTLE)
+        version++
+        return true
+    }
+
+    /** Whether [id] is held by Move mode. */
+    fun held(id: String): Boolean = actors[id]?.held == true
+
+    /** Move mode let go of [id]: back to their day from where they are (off the furniture onto its floor spot). */
+    fun endHold(id: String) {
+        val actor = actors[id] ?: return
+        if (actor.held) release(actor)
     }
 
     fun walk(id: String, destination: Vec3): Boolean {
@@ -1307,6 +1345,7 @@ class SceneSimulation(
         actor.directed = false
         actor.hold = 0f
         actor.lifeTag = -1
+        actor.held = false
         if (partner != null) {
             partner.partner = null
             release(partner)
@@ -1939,6 +1978,8 @@ class SceneSimulation(
         const val TIE_YARDS = 0.25f
         /** The one waiting turns to the one coming within this distance. */
         const val FACE_RANGE = 3f
+        /** Move mode holds a person this long (seconds: until it is ended, in practice). */
+        const val HOLD_SECONDS = 1.0e9f
         /** A one-shot pair holds its last pose at least this long; a looping one plays this long at least, at most [MAX_LOOP_TIME]. */
         const val MIN_HOLD = 3f
         const val MIN_LOOP_TIME = 6f

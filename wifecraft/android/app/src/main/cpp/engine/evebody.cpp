@@ -703,6 +703,27 @@ static BodyScale eveProportions(const M2Model& m, const std::vector<M2Vertex>& v
     return k;
 }
 
+// The point of triangle (a, b, c) nearest p, and its barycentric weights (of b and c; a's is 1 - u - w): Ericson's
+// region test.
+static V3 nearestOnTriangle(V3 p, V3 a, V3 b, V3 c, float& u, float& w) {
+    V3 ab = b - a, ac = c - a, ap = p - a;
+    float d1 = ab.dot(ap), d2 = ac.dot(ap);
+    if (d1 <= 0 && d2 <= 0) { u = 0; w = 0; return a; }
+    V3 bp = p - b; float d3 = ab.dot(bp), d4 = ac.dot(bp);
+    if (d3 >= 0 && d4 <= d3) { u = 1; w = 0; return b; }
+    float vc = d1 * d4 - d3 * d2;
+    if (vc <= 0 && d1 >= 0 && d3 <= 0) { float v = d1 / (d1 - d3); u = v; w = 0; return a + ab * v; }
+    V3 cp = p - c; float d5 = ab.dot(cp), d6 = ac.dot(cp);
+    if (d6 >= 0 && d5 <= d6) { u = 0; w = 1; return c; }
+    float vb = d5 * d2 - d1 * d6;
+    if (vb <= 0 && d2 >= 0 && d6 <= 0) { float v = d2 / (d2 - d6); u = 0; w = v; return a + ac * v; }
+    float va = d3 * d6 - d5 * d4;
+    if (va <= 0 && (d4 - d3) >= 0 && (d5 - d6) >= 0) { float v = (d4 - d3) / ((d4 - d3) + (d5 - d6)); u = 1 - v; w = v; return b + (c - b) * v; }
+    float den = 1.0f / (va + vb + vc);
+    u = vb * den; w = vc * den;
+    return a + ab * u + ac * w;
+}
+
 EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::vector<uint32_t>& indices,
                const std::vector<M2Submesh>& subs, const std::vector<uint16_t>& geosets, const EveMesh& eve, const EveRaceFit& fit) {
     auto t0 = std::chrono::steady_clock::now();
@@ -1528,71 +1549,6 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
             P[v] = q * (1 - t) + f * t;
         }
     }
-    // ---- the shins' last centimetres onto the model's own lower leg (the skin Eve's cut took: its radius round the ankle's
-    // centre at each angle and height above its cut edge, which slants over the foot's top): her shin meets the foot as the
-    // model's own leg did, with no lip where the foot's edge flares out under a slimmer shin (a step of up to 1 cm on the
-    // night elf before). Full at the edge, none `kAnkleBand` above it.
-    if (fit.ankleMatch > 0) for (int s = 0; s < 2 && !split; ++s) {
-        if (ankleR[s].e.empty()) continue;
-        constexpr int kAng = 24, kRows = 6;
-        const float band = 0.09f * unit, share = std::min(fit.ankleMatch, 1.0f);
-        const V3 c = ankleR[s].centre;
-        auto bin = [&](V3 p) { float a = std::atan2(p.y - c.y, p.x - c.x); int k = int(std::floor((a + 3.14159265f) / 6.2831853f * kAng)); return (k % kAng + kAng) % kAng; };
-        // the cut edge's height per angle (its vertices'), the gaps filled from the neighbours
-        float edgeZ[kAng], ez[kAng]; int en[kAng] = {0};
-        for (int k = 0; k < kAng; ++k) { edgeZ[k] = 0; ez[k] = 0; }
-        for (auto& e : ankleR[s].e) for (uint32_t v : {e.first, e.second}) { int k = bin(posOf(verts[v])); ez[k] += verts[v].pos[2]; en[k]++; }
-        bool anyEdge = false;
-        for (int k = 0; k < kAng; ++k) if (en[k]) { edgeZ[k] = ez[k] / float(en[k]); anyEdge = true; }
-        if (!anyEdge) continue;
-        for (int pass = 0; pass < kAng; ++pass) for (int k = 0; k < kAng; ++k) if (!en[k]) {
-            int a = (k + kAng - 1) % kAng, b = (k + 1) % kAng;
-            if (en[a]) { edgeZ[k] = edgeZ[a]; en[k] = -1; } else if (en[b]) { edgeZ[k] = edgeZ[b]; en[k] = -1; }
-        }
-        // the model's removed lower leg: its widest radius per angle and height above the edge
-        float rad[kAng][kRows]; bool has[kAng][kRows];
-        for (int k = 0; k < kAng; ++k) for (int r = 0; r < kRows; ++r) { rad[k][r] = 0; has[k][r] = false; }
-        std::vector<uint8_t> onRing(nv, 0);
-        if (const std::vector<uint32_t>* rr = eve.ring(s ? "R_ankle" : "L_ankle")) for (uint32_t v : *rr) if (v < nv) onRing[v] = 1;
-        const V3 other = ankleR[s ^ 1].e.empty() ? W[s ^ 1].ankle : ankleR[s ^ 1].centre;
-        // (the shown skin's own: a hidden geoset's boot or trouser leg is skin too; all shown, the bare ones: 0 and NN01)
-        std::vector<uint8_t> shown(verts.size(), 0);
-        for (size_t sI = 0; sI < subs.size(); ++sI) {
-            if (!skinSub[sI]) continue;
-            if (all ? (subs[sI].id % 100 > 1) : std::find(geosets.begin(), geosets.end(), subs[sI].id) == geosets.end()) continue;
-            for (uint32_t t = subs[sI].indexStart; t < subs[sI].indexStart + subs[sI].indexCount && t < indices.size(); ++t)
-                if (indices[t] < verts.size()) shown[indices[t]] = 1;
-        }
-        for (size_t i = 0; i < verts.size(); ++i) {
-            if (!out.cut[i] || !shown[i]) continue;
-            V3 p = posOf(verts[i]);
-            float dm = V3(p.x - c.x, p.y - c.y, 0).length();
-            if (dm > 0.2f * unit || dm >= V3(p.x - other.x, p.y - other.y, 0).length()) continue;   // (this leg's own skin)
-            int k = bin(p);
-            float dz = p.z - edgeZ[k];
-            if (dz < 0 || dz >= band) continue;
-            int r = std::min(kRows - 1, int(dz / band * kRows));
-            rad[k][r] = std::max(rad[k][r], V3(p.x - c.x, p.y - c.y, 0).length());
-            has[k][r] = true;
-        }
-        for (size_t v = 0; v < nv; ++v) {
-            if (calfW[s][v] < 0.3f || onRing[v]) continue;   // (the ring itself is snapped onto the edge below)
-            V3 q = P[v];
-            int k = bin(q);
-            float dz = q.z - edgeZ[k];
-            if (dz < 0 || dz >= band) continue;
-            int r = std::min(kRows - 1, int(dz / band * kRows));
-            if (!has[k][r]) continue;
-            V3 d(q.x - c.x, q.y - c.y, 0);
-            float rl = d.length();
-            if (rl < 1e-5f) continue;
-            float t = 1 - dz / band;
-            t = share * t * t * (3 - 2 * t);
-            float want = rad[k][r] * 0.99f;
-            float nr = rl + (want - rl) * t;
-            P[v] = V3(c.x + d.x * nr / rl, c.y + d.y * nr / rl, q.z);
-        }
-    }
     // ---- the split fit: each thigh's last 25% above the cut drawn onto the model's cut section (its centre and radii), so the
     // rings meet without a step
     for (int sd = 0; sd < 2 && split; ++sd) {
@@ -1628,6 +1584,7 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
             P[v] = q * (1 - t) + f * t;
         }
     }
+    const std::vector<V3> preSnap = P;   // (the ankles' profile below reads her heights over her rings before the snap)
     // ---- the rings snapped onto the cut edge (its weights and normals), the move spread over the skin near them
     const char* ringNames[3] = {"neck", "L_ankle", "R_ankle"};
     const RingEdges* ringEdges[3] = {&neckR, &ankleR[0], &ankleR[1]};
@@ -1694,6 +1651,114 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
                 V3 rr = P[c] - cc; rr.z = 0;
                 P[c] = P[c] - rr * tuck + lift;
             }
+        }
+    }
+    // ---- the shins' last centimetres onto the model's own lower leg (the skin Eve's cut took), once her rings are on its cut
+    // edge (which slants over the foot's top): each of her shin's vertices within `band` over her ring (her own height over it
+    // before the snap, at its angle) is set that high over the model's edge, then onto the nearest point of the model's
+    // removed skin (its triangles: over the slanted instep that is the foot's top, not a radius), fully up to 2 cm over the
+    // edge, eased to none at `band`; her normals and weights turn to the model's skin's there by as much. Before, her loops
+    // were drawn onto the model's leg before the snap: where the edge stood higher than her ring they were left below it and
+    // the snap's spread lifted them only partly, so her ring stood out over her next loop as a cuff (0.9 to 2 cm off the
+    // model's own skin 0.2 to 2 cm over the edge, her normals 19 to 34 degrees off its: eve_test's ankle measure); and the
+    // model's legs are low in vertices, so a profile read from them alone (the widest per 1.5 cm row) missed most of hers.
+    // Now 0.01 to 0.14 cm and 0 to 2 degrees on the ten offered models.
+    if (fit.ankleMatch > 0) for (int s = 0; s < 2 && !split; ++s) {
+        if (ankleR[s].e.empty()) continue;
+        constexpr int kAng = 24;
+        const float band = 0.09f * unit, full = 0.02f * unit, share = std::min(fit.ankleMatch, 1.0f);
+        const V3 c = ankleR[s].centre;
+        auto angleOf = [&](V3 p) { return std::atan2(p.y - c.y, p.x - c.x); };
+        auto bin = [&](V3 p) { int k = int(std::floor((angleOf(p) + 3.14159265f) / 6.2831853f * kAng)); return (k % kAng + kAng) % kAng; };
+        // the cut edge's height per angle (its vertices'), the gaps filled from the neighbours; read between the bins' centres
+        float edgeZ[kAng], ez[kAng]; int en[kAng] = {0};
+        for (int k = 0; k < kAng; ++k) { edgeZ[k] = 0; ez[k] = 0; }
+        for (auto& e : ankleR[s].e) for (uint32_t v : {e.first, e.second}) { int k = bin(posOf(verts[v])); ez[k] += verts[v].pos[2]; en[k]++; }
+        bool anyEdge = false;
+        for (int k = 0; k < kAng; ++k) if (en[k]) { edgeZ[k] = ez[k] / float(en[k]); anyEdge = true; }
+        if (!anyEdge) continue;
+        for (int pass = 0; pass < kAng; ++pass) for (int k = 0; k < kAng; ++k) if (!en[k]) {
+            int a2 = (k + kAng - 1) % kAng, b2 = (k + 1) % kAng;
+            if (en[a2]) { edgeZ[k] = edgeZ[a2]; en[k] = -1; } else if (en[b2]) { edgeZ[k] = edgeZ[b2]; en[k] = -1; }
+        }
+        auto edgeAt = [&](V3 p) {
+            float f = (angleOf(p) + 3.14159265f) / 6.2831853f * kAng - 0.5f;
+            int k0 = int(std::floor(f)); float w = f - float(k0);
+            return edgeZ[(k0 % kAng + kAng) % kAng] * (1 - w) + edgeZ[((k0 + 1) % kAng + kAng) % kAng] * w;
+        };
+        float eLo = 1e9f, eHi = -1e9f;
+        for (int k = 0; k < kAng; ++k) { eLo = std::min(eLo, edgeZ[k]); eHi = std::max(eHi, edgeZ[k]); }
+        std::vector<uint8_t> onRing(nv, 0);
+        if (const std::vector<uint32_t>* rr = eve.ring(s ? "R_ankle" : "L_ankle")) for (uint32_t v : *rr) if (v < nv) onRing[v] = 1;
+        const V3 other = ankleR[s ^ 1].e.empty() ? W[s ^ 1].ankle : ankleR[s ^ 1].centre;
+        // the model's removed skin round this ankle: the shown skin's triangles the cut drops (any corner cut), this leg's own
+        std::vector<std::array<uint32_t, 3>> tris;
+        for (size_t sI = 0; sI < subs.size(); ++sI) {
+            if (!skinSub[sI]) continue;
+            if (all ? (subs[sI].id % 100 > 1) : std::find(geosets.begin(), geosets.end(), subs[sI].id) == geosets.end()) continue;
+            for (uint32_t t = subs[sI].indexStart; t + 2 < subs[sI].indexStart + subs[sI].indexCount && t + 2 < indices.size(); t += 3) {
+                uint32_t i0 = indices[t], i1 = indices[t + 1], i2 = indices[t + 2];
+                if (i0 >= verts.size() || i1 >= verts.size() || i2 >= verts.size()) continue;
+                if (!out.cut[i0] && !out.cut[i1] && !out.cut[i2]) continue;
+                V3 g = (posOf(verts[i0]) + posOf(verts[i1]) + posOf(verts[i2])) * (1.0f / 3);
+                float dm = V3(g.x - c.x, g.y - c.y, 0).length();
+                if (dm > 0.2f * unit || dm >= V3(g.x - other.x, g.y - other.y, 0).length()) continue;
+                if (g.z < eLo - 0.03f * unit || g.z > eHi + band + 0.03f * unit) continue;
+                tris.push_back({i0, i1, i2});
+            }
+        }
+        if (tris.empty()) continue;
+        // the nearest point of that skin to p (and the skin's normal there); false: none within a tenth of a Sims metre
+        auto nearest = [&](V3 p, V3& at, V3& n, WMap& wm) {
+            float best = (0.1f * unit) * (0.1f * unit);
+            bool any = false;
+            for (const auto& t : tris) {
+                float u, w;
+                V3 q = nearestOnTriangle(p, posOf(verts[t[0]]), posOf(verts[t[1]]), posOf(verts[t[2]]), u, w);
+                V3 dd = q - p;
+                float d2 = dd.dot(dd);
+                if (d2 >= best) continue;
+                best = d2; at = q; any = true;
+                n = (V3(verts[t[0]].normal[0], verts[t[0]].normal[1], verts[t[0]].normal[2]) * (1 - u - w) +
+                     V3(verts[t[1]].normal[0], verts[t[1]].normal[1], verts[t[1]].normal[2]) * u +
+                     V3(verts[t[2]].normal[0], verts[t[2]].normal[1], verts[t[2]].normal[2]) * w).normalized();
+                wm = WMap();
+                const float bw[3] = {1 - u - w, u, w};
+                for (int c3 = 0; c3 < 3; ++c3) for (int k = 0; k < 4; ++k)
+                    wm.add(verts[t[size_t(c3)]].bones[k], verts[t[size_t(c3)]].weights[k] / 255.0f * bw[c3]);
+            }
+            return any;
+        };
+        // her ring's height before the snap per angle (as the edge's: the gaps from the neighbours), read between the bins
+        float ringZ[kAng], rz[kAng] = {0}; int rn[kAng] = {0};
+        for (size_t v = 0; v < nv; ++v) if (onRing[v]) { int k = bin(preSnap[v]); rz[k] += preSnap[v].z; ++rn[k]; }
+        bool haveRing = false;
+        for (int k = 0; k < kAng; ++k) { ringZ[k] = rn[k] ? rz[k] / float(rn[k]) : 0; haveRing = haveRing || rn[k] > 0; }
+        if (!haveRing) continue;
+        for (int pass = 0; pass < kAng; ++pass) for (int k = 0; k < kAng; ++k) if (!rn[k]) {
+            int a2 = (k + kAng - 1) % kAng, b2 = (k + 1) % kAng;
+            if (rn[a2]) { ringZ[k] = ringZ[a2]; rn[k] = -1; } else if (rn[b2]) { ringZ[k] = ringZ[b2]; rn[k] = -1; }
+        }
+        auto ringAt = [&](V3 p) {
+            float f = (angleOf(p) + 3.14159265f) / 6.2831853f * kAng - 0.5f;
+            int k0 = int(std::floor(f)); float w = f - float(k0);
+            return ringZ[(k0 % kAng + kAng) % kAng] * (1 - w) + ringZ[((k0 + 1) % kAng + kAng) % kAng] * w;
+        };
+        for (size_t v = 0; v < nv; ++v) {
+            if (calfW[s][v] < 0.3f || onRing[v] || anyRing[v]) continue;   // (the rings stay on the edge)
+            const float h = preSnap[v].z - ringAt(preSnap[v]);   // her own height over her ring
+            if (h <= 0 || h >= band) continue;
+            const float u = std::clamp((h - full) / (band - full), 0.0f, 1.0f);
+            const float t = share * (1 - u * u * (3 - 2 * u));
+            V3 q = P[v];
+            q.z = q.z + (edgeAt(q) + h - q.z) * t;   // that high over the model's edge
+            V3 at, n; WMap wm;
+            if (nearest(q, at, n, wm)) {
+                q = q + (at - q) * t;
+                N[v] = (N[v] * (1 - t) + n * t).normalized();
+                WM[v] = blend(WM[v], wm, t);   // (and bends as the model's own leg there: no lip in a pose either)
+            }
+            P[v] = q;
         }
     }
     // ---- the seams stitched: a thin strip from each Eve ring to the model's own cut-edge vertices (their places, weights and

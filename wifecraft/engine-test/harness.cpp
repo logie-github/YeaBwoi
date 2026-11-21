@@ -969,6 +969,57 @@ int main(int argc, char** argv) {
             std::vector<float> v; float x;
             while (ss >> x) v.push_back(x);
             if (actors.count(name)) scene.setSculpt(actors[name], v.data(), v.size());
+        } else if (cmd == "sculptlive") {
+            // sculptlive on|off: the creator's live sculpt as the phone has it (Scene::setSculptThrottle on) with the CPU sculpt
+            // held back (setSculptRefitHold): each later sculpt is drawn by the GPU fields alone until "sculptlive off" (the
+            // stills' way again: every sculpt made on the CPU at the next frame)
+            std::string on; ss >> on;
+            scene.setSculptThrottle(on == "on");
+            scene.setSculptRefitHold(on == "on");
+        } else if (cmd == "sculptstat") {
+            // sculptstat N: person N's live sculpt fields (GPU MB, the ms they took) and whether a change is drawn by them now
+            int name; ss >> name;
+            float ms = 0; bool drawing = false;
+            size_t bytes = actors.count(name) ? scene.sculptMorphBytes(actors[name], &ms, &drawing) : 0;
+            std::printf("sculptstat %d: fields %.2f MB, made in %.1f ms, drawing %s; last CPU sculpt %.1f ms\n", name, bytes / 1048576.0, ms,
+                        drawing ? "yes" : "no", actors.count(name) ? scene.sculptMs(actors[name]) : 0.0f);
+        } else if (cmd == "sculpttime") {
+            // sculpttime N FRAMES SLIDER: a drag of SLIDER from -1 to 1 over FRAMES frames (320 x 540), drawn twice: by the live
+            // sculpt (the GPU fields, the CPU sculpt held back) and by the CPU sculpt at every change (as before it); then the
+            // same frames with nothing changing. Each frame's time: setSculpt and the frame, glFinish'd (llvmpipe: the GPU's work
+            // is this machine's CPU too).
+            int name, n, k; ss >> name >> n >> k;
+            if (!actors.count(name) || n < 1 || k < 0 || k >= 64) continue;
+            unsigned fbo, rb[2];   // (an off-screen target as renderTo's)
+            glGenFramebuffers(1, &fbo); glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+            glGenRenderbuffers(2, rb);
+            glBindRenderbuffer(GL_RENDERBUFFER, rb[0]); glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, 320, 540);
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rb[0]);
+            glBindRenderbuffer(GL_RENDERBUFFER, rb[1]); glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 320, 540);
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rb[1]);
+            auto run = [&](bool live, bool still) {
+                scene.setSculptThrottle(live);
+                scene.setSculptRefitHold(live);
+                std::vector<float> v(size_t(k + 1), 0.0f);
+                double sum = 0, worst = 0;
+                for (int i = 0; i < n; ++i) {
+                    v[size_t(k)] = still ? 0.5f : -1.0f + 2.0f * float(i + 1) / float(n);
+                    auto t0 = std::chrono::steady_clock::now();
+                    scene.setSculpt(actors[name], v.data(), v.size());
+                    scene.render(320, 540, 0); glFinish();
+                    double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+                    if (i > 0) { sum += ms; worst = std::max(worst, ms); }   // (the first: the fields made, or a first sculpt)
+                }
+                std::printf("sculpttime %s: %d frames mean %.2f ms worst %.2f ms\n", still ? "still" : live ? "live (GPU fields)" : "CPU sculpt",
+                            n - 1, sum / std::max(1, n - 1), worst);
+            };
+            run(true, false);
+            run(false, false);
+            run(false, true);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glDeleteFramebuffers(1, &fbo); glDeleteRenderbuffers(2, rb);
+            scene.setSculptThrottle(false);
+            scene.setSculptRefitHold(false);
         } else if (cmd == "bodypick") {
             // bodypick N X Y W H: the part of person N's body at pixel (X, Y) of a W x H view of the last camera (bodypick.h)
             int name, w, h; float x, y; ss >> name >> x >> y >> w >> h;

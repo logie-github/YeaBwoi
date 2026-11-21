@@ -47,6 +47,15 @@ uniform vec4 uSoftAxis[10];
 uniform vec4 uSoftMask[10];
 uniform vec4 uSoftDisp[10];
 uniform vec4 uSoftCtr[10];
+// The live sculpt (sculpt.h SculptMorph; bodyrig.cpp): while a slider moves, each vertex's move fields for a value of 1 (uMorphIdx
+// per vertex: its first entry, how many, its side; uMorphData per entry: the slider, the move) blended by the sliders' change
+// since the body was last sculpted (uMorphW per slider; uMorphB per slider times the vertex's side, for a balance), in the bind
+// pose before the skinning. uMorphOn 0: off (every other draw).
+uniform int uMorphOn;
+uniform highp sampler2D uMorphIdx;
+uniform highp sampler2D uMorphData;
+uniform vec4 uMorphW[16];
+uniform vec4 uMorphB[16];
 out vec3 vWorld;
 out vec3 vNormal;
 out vec2 vUv;
@@ -56,13 +65,33 @@ mat4 bone(float i) {
                 texelFetch(uBones, ivec2(2, b), 0), texelFetch(uBones, ivec2(3, b), 0));
 }
 vec4 gate(float i) { return texelFetch(uSoftGate, ivec2(0, int(i + 0.5)), 0); }
+vec3 morphed() {
+    if (uMorphOn == 0) return aPos;
+    int iw = textureSize(uMorphIdx, 0).x;
+    int dw = textureSize(uMorphData, 0).x;
+    vec4 h = texelFetch(uMorphIdx, ivec2(gl_VertexID % iw, gl_VertexID / iw), 0);
+    int e0 = int(h.x + 0.5);
+    int n = int(h.y + 0.5);
+    vec3 p = aPos;
+    for (int i = 0; i < 64; ++i) {
+        if (i >= n) break;
+        int e = e0 + i;
+        vec4 d = texelFetch(uMorphData, ivec2(e % dw, e / dw), 0);
+        int c = int(d.x + 0.5);
+        int q = c / 4;
+        int r = c - 4 * q;
+        p += (uMorphW[q][r] + h.z * uMorphB[q][r]) * d.yzw;
+    }
+    return p;
+}
 void main() {
+    vec3 pos = morphed();
     float total = aWeights.x + aWeights.y + aWeights.z + aWeights.w;
     mat4 skin = total > 0.0
         ? bone(aBones.x) * aWeights.x + bone(aBones.y) * aWeights.y + bone(aBones.z) * aWeights.z + bone(aBones.w) * aWeights.w
         : mat4(1.0);
     if (total > 0.0) skin = skin * (1.0 / total);
-    vec4 sp = skin * vec4(aPos, 1.0);
+    vec4 sp = skin * vec4(pos, 1.0);
     if (uSoftN > 0 && uSoftGain > 0.0 && total > 0.0) {
         vec4 g = (gate(aBones.x) * aWeights.x + gate(aBones.y) * aWeights.y + gate(aBones.z) * aWeights.z +
                   gate(aBones.w) * aWeights.w) * (1.0 / total);
@@ -71,7 +100,7 @@ void main() {
             if (r >= uSoftN) break;
             float m = clamp(dot(g, uSoftMask[r]), 0.0, 1.0);
             if (m <= 0.0) continue;
-            vec3 q = (aPos - uSoftRest[r].xyz) * uSoftInvR[r].xyz;
+            vec3 q = (pos - uSoftRest[r].xyz) * uSoftInvR[r].xyz;
             float w;
             if (uSoftAxis[r].w > 0.5) {
                 float qa = dot(q, uSoftAxis[r].xyz);
@@ -344,13 +373,22 @@ namespace {
 template <typename B> void forgetBodyGl(B& b) {
     b.vao = b.vbo = b.ibo = b.layerVao = b.layerVbo = b.layerIbo = b.layerTex = 0;
     b.layerIndices = 0;
-    b.dirty = !b.morph.empty() || b.design != 0;
+    b.dirty = !b.morph.empty() || b.design != 0 || !b.shaped.empty();   // (a sculpted body's own buffers made again too)
+    b.morphIdxTex = b.morphDataTex = 0;   // (the live sculpt's fields: made again when next needed)
+    b.morphGen = 0;
+    b.morphBytes = 0;
 }
 } // namespace
 
 bool Scene::initGl() {
     gLocations.clear();
     m2Prog_ = program(kM2Vs, kM2Fs);
+    if (m2Prog_) {   // (the live sculpt's textures on units 6 and 7, off until a body's draw turns it on: bodyrig.cpp)
+        glUseProgram(m2Prog_);
+        glUniform1i(loc(m2Prog_, "uMorphIdx"), 6);
+        glUniform1i(loc(m2Prog_, "uMorphData"), 7);
+        glUniform1i(loc(m2Prog_, "uMorphOn"), 0);
+    }
     wmoProg_ = program(kWmoVs, kLitFs);
     skyProg_ = program(kSkyVs, kSkyFs);
     glGenVertexArrays(1, &skyVao_);
@@ -706,6 +744,7 @@ void Scene::removeActor(int id) {
     if (it->second.boneTex && glReady_) glDeleteTextures(1, &it->second.boneTex);
     dropDressGl(it->second);
     dropBodyGl(it->second);
+    dropSculptMorph(it->second);
     dropPartGl(it->second.parts);
     it->second.soft.release(glReady_);
     dropClothGl(it->second, true);
@@ -922,7 +961,14 @@ bool Scene::actorFlesh(int id, std::vector<float>& out) {
         const bool eve = a.eve.active && a.eve.measure.host >= 0;
         const LegEdit legs = a.eve.active && !a.eve.body.rigPivots.empty() ? bodyEditFrom(m, a.eve.body.rigPivots, legK) : bodyEditOf(m, legK);
         const LegEdit* lp = legs.active ? &legs : nullptr;
-        FleshMeasure f = eve ? measureFlesh(m, a.eve.measure.verts, a.eve.measure.indices, a.eve.measure.subs, a.geosets, nullptr, lp)
+        // (in Eve: her trunk and thighs read by the segments the model's own skin has where she is: flesh.h FleshGuide)
+        FleshGuide guide;
+        guide.byArea = eve;
+        if (eve && a.eve.baseReady && a.eve.measure.verts.size() >= a.eve.body.verts.size()) {
+            guide.from = a.eve.measure.verts.size() - a.eve.body.verts.size();
+            guide.idx = &a.eve.baseIndices; guide.subs = &a.eve.baseSubs;
+        }
+        FleshMeasure f = eve ? measureFlesh(m, a.eve.measure.verts, a.eve.measure.indices, a.eve.measure.subs, a.geosets, nullptr, lp, &guide)
                              : measureFlesh(m, shaped ? a.body.shaped : m.vertices, shaped ? a.body.indices : m.indices,
                                             shaped && !a.body.submeshes.empty() ? a.body.submeshes : m.submeshes, a.geosets, nullptr, lp);
         a.flesh = f.ok ? f.pack() : std::vector<float>();
@@ -1575,8 +1621,10 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     skinOf(a, w);   // (scene_gfx.cpp: the sheen, the eyes, the thin parts)
     // (a flap hung as cloth is drawn from its simulated points instead of skinned: drawCloth)
     const bool cloth = a.cloth.active();
+    const bool morph = sculptMorphDraw(a);   // (the live sculpt's change on the GPU: bodyrig.cpp)
     drawModel(*a.mesh, w, &a.drawTextures, cloth ? &a.cloth.bodyGeosets : &a.geosets, a.boneTex, a.seq, a.animTime % dur, nowMs, bodyTint,
               transparent, kActorTex, &a.composed, a.body.vao, a.body.vao ? &a.body.submeshes : nullptr);
+    if (morph) { glUseProgram(m2Prog_); glUniform1i(loc(m2Prog_, "uMorphOn"), 0); }
     if (cloth && !transparent) drawCloth(a, w, bodyTint);
     if (!transparent && a.eve.active) drawEve(a, w, bodyTint);   // (with the soft body's uniforms still set)
     softBodyDraw_ = false;
@@ -2011,6 +2059,10 @@ void Scene::refreshBody(Actor& a) {
         if (sculptOnly) {
             b.shaped = b.sculptBase;
         } else {
+            if (b.genModel != static_cast<const void*>(&m) || b.genMorph != b.morph || b.genCut != a.parts.cut) {
+                ++b.baseGen;   // (another body before the sculpt: the live sculpt's fields are made again for it, bodyrig.cpp)
+                b.genModel = &m; b.genMorph = b.morph; b.genCut = a.parts.cut;
+            }
             b.sculptBase.clear();
             b.shaped.clear();
             b.indices.clear();

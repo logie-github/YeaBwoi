@@ -93,6 +93,19 @@ class PairAlignmentAudit {
             if (gf != null) combos += Combo("human_m+gnome_f", m, Body("gnome_f", gf, gf.pelvis.toDouble(), HumanScale.GNOME_FEMALE.toDouble()),
                 1f, HumanScale.GNOME_FEMALE, 1f, HumanScale.GNOME_FEMALE)
         }
+        // the Eve body (README, "Her own rig"): a woman in Eve measured on her own rig (engine-test/audit's `eve` then `flesh`:
+        // her skin's flesh, her rig's joints), ALIGN_EVE the races (eve_<race>.flesh; default human), with the human man both ways
+        if (hm != null) for (race in (System.getenv("ALIGN_EVE") ?: "human").split(',').map { it.trim() }.filter { it.isNotEmpty() }) {
+            val ev = measured("eve_$race") ?: continue
+            val w = Body("eve_$race", ev, ev.pelvis.toDouble())
+            val m = Body("human_m", hm, hm.pelvis.toDouble())
+            combos += Combo("human_m+eve_$race", m, w, 1f, 1f, 1f, 1f)
+            combos += Combo("eve_$race+human_m", w, m, 1f, 1f, 1f, 1f)
+        }
+        // ALIGN_COMBOS: only these body pairs (comma-separated names; the generic one is always kept: the retarget's measure)
+        System.getenv("ALIGN_COMBOS")?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.takeIf { it.isNotEmpty() }?.let { keep ->
+            combos.retainAll { it.name == "generic" || it.name in keep }
+        }
         log.println("bodies: " + combos.joinToString { "${it.name} (pelvis ${f(it.a.pelvis)}/${f(it.b.pelvis)} yd)" })
 
         // the pack through the app's own pipeline, the "player's skeleton" being the rig that covers its clips best
@@ -125,6 +138,8 @@ class PairAlignmentAudit {
         // ALIGN_LOCATIONS: engine-test/audit's game files, look files and locations.json)
         // (matched by [nameKey]: letters and digits only, so "Stage 5 · Cowgirl", "stage 5 cowgirl" and "Stage5-Cowgirl" are one)
         val renders = System.getenv("ALIGN_RENDER")?.split('|')?.map { nameKey(it) }?.filter { it.isNotEmpty() }.orEmpty()
+        // ALIGN_RENDER_COMBO: the body pair the stills are of (default the human man and woman)
+        val renderCombo = System.getenv("ALIGN_RENDER_COMBO") ?: "human_m+human_f"
         val dbg = File(out, "debug.txt").printWriter()
         val table = File(out, "table.csv").printWriter()
         table.println("pack,hash,class,hips_fwd_bu,hips_left_bu,hips_up_bu,retarget_hips_cm")
@@ -197,6 +212,7 @@ class PairAlignmentAudit {
                 val orderB = PairAlignment.played(anB, combo.b, times, fb.x.toDouble(), fb.y.toDouble(), rb.offset.z * k, Math.toDegrees(rb.facing.toDouble()))
                 // pair: spaced for the two bodies, fitted, each role lifted as roleLifts lifts it
                 val spaced = PairSpacing.spaced(pp, combo.a.flesh, combo.b.flesh)
+                if (debug != null && c.name.contains(debug, true)) dbg.println("spacing ${combo.name}: " + spacingParts(pp, combo.a.flesh, combo.b.flesh))
                 val push = PairAlignment.horiz(doubleArrayOf((spaced.slotB.x - pp.slotB.x).toDouble(), (spaced.slotB.y - pp.slotB.y).toDouble(), 0.0))
                 val (sA, sB) = PairFit.slots(spaced.slotA, spaced.slotB, combo.sizeA, combo.sizeB)
                 // each role's lift for its own flesh, shared, the hips matched: PairLifts.of, as SceneSimulation.roleLifts runs it
@@ -244,7 +260,7 @@ class PairAlignmentAudit {
                 val pairA = PairAlignment.played(anA, combo.a, times, sA.x.toDouble(), sA.y.toDouble(), sA.z.toDouble(), sA.yawDeg.toDouble(), la)
                 val pairB = PairAlignment.played(anB, combo.b, times, sB.x.toDouble(), sB.y.toDouble(), sB.z.toDouble(), sB.yawDeg.toDouble(), lb)
 
-                if (renders.isNotEmpty() && combo.name == "human_m+human_f" && renders.any { nameKey(c.name).contains(it) || nameKey(c.id) == it }) {
+                if (renders.isNotEmpty() && combo.name == renderCombo && renders.any { nameKey(c.name).contains(it) || nameKey(c.id) == it }) {
                     // stills for engine-test/audit: the pair way as the app places it, on the stage's floor (a bed's or seat's
                     // height taken off, so the bodies rest on the floor plane as on the furniture), side and three-quarter
                     val slug = (c.name.replace(Regex("[^A-Za-z0-9]+"), "_").trim('_').take(40) + "_" + hash).lowercase()
@@ -261,12 +277,21 @@ class PairAlignmentAudit {
                     val plan = StringBuilder()
                     plan.append("files ${System.getenv("ALIGN_FILES")}\nlocation ${System.getenv("ALIGN_LOCATIONS")} embassy inside\nfloor $floor\n")
                     plan.append("case $slug kind=pair\nclearsolids\nclearprops\n")
-                    plan.append("actor 0 ${System.getenv("ALIGN_LOOKS")}/human_m.look ${HumanScale.MALE_HEIGHT} ${HumanScale.PAIR}\n")
-                    plan.append(String.format(locale, "place 0 %.4f %.4f %.4f %.4f raw\n", sx + sA.x, sy + sA.y, floor + base + la, Math.toRadians(sA.yawDeg.toDouble())))
-                    plan.append("clip 0 ${File(dir, "a.anim").absolutePath}\n")
-                    plan.append("actor 1 ${System.getenv("ALIGN_LOOKS")}/human_f.look ${HumanScale.FEMALE_HEIGHT} ${HumanScale.PAIR}\n")
-                    plan.append(String.format(locale, "place 1 %.4f %.4f %.4f %.4f raw\n", sx + sB.x, sy + sB.y, floor + base + lb, Math.toRadians(sB.yawDeg.toDouble())))
-                    plan.append("clip 1 ${File(dir, "b.anim").absolutePath}\n")
+                    // each body's look: the man and the default woman dressed (ALIGN_LOOKS); a woman in Eve nude by design
+                    // (ALIGN_EVE_LOOK, her race's look, the set and table by ALIGN_EVE_SET and ALIGN_EVE_FIT)
+                    if (combo.a.name.startsWith("eve_") || combo.b.name.startsWith("eve_"))
+                        plan.append("eveset ${System.getenv("ALIGN_EVE_SET")} ${System.getenv("ALIGN_EVE_FIT")}\n")
+                    for ((slot, body) in listOf(0 to combo.a, 1 to combo.b)) {
+                        val eve = body.name.startsWith("eve_")
+                        val look = if (eve) System.getenv("ALIGN_EVE_LOOK") else "${System.getenv("ALIGN_LOOKS")}/${body.name}.look"
+                        val height = if (eve || body.name.endsWith("_f")) HumanScale.FEMALE_HEIGHT else HumanScale.MALE_HEIGHT
+                        val s = if (slot == 0) sA else sB
+                        plan.append("actor $slot $look $height ${HumanScale.PAIR}\n")
+                        if (eve) plan.append("eve $slot 1\n")
+                        plan.append(String.format(locale, "place $slot %.4f %.4f %.4f %.4f raw\n", sx + s.x, sy + s.y, floor + base + (if (slot == 0) la else lb),
+                            Math.toRadians(s.yawDeg.toDouble())))
+                        plan.append("clip $slot ${File(dir, if (slot == 0) "a.anim" else "b.anim").absolutePath}\n")
+                    }
                     for ((view, turn) in listOf("side" to across, "3q" to across - Math.PI / 4)) {
                         val ex = cx + kotlin.math.cos(turn) * 3.2; val ey = cy + kotlin.math.sin(turn) * 3.2
                         plan.append(String.format(locale, "camera %.3f %.3f %.3f %.3f %.3f %.3f 40\n", ex, ey, chest + 0.5 + base * 0.5, cx, cy, chest - 0.35 + base * 0.5))
@@ -363,6 +388,29 @@ class PairAlignmentAudit {
         }
         worst.close()
         log.close()
+    }
+
+    /**
+     * ALIGN_DEBUG: what moves a pair apart ([PairSpacing.push]): the part pairs (A's/B's) that come deepest past their tolerance
+     * as authored, before any move, each at its worst moment (body units; negative: that much too near).
+     */
+    private fun spacingParts(p: PartnerPair, fa: FleshProfile, fb: FleshProfile): String {
+        val a = PairSpacing.frames(p.slotA, p.a, fa); val b = PairSpacing.frames(p.slotB, p.b, fb)
+        val ga = PairSpacing.frames(p.slotA, p.a); val gb = PairSpacing.frames(p.slotB, p.b)
+        val res = HashMap<String, Double>()
+        for (i in 0 until max(a.size, b.size)) {
+            val pa = PairSpacing.parts(a[minOf(i, a.size - 1)], fa); val pb = PairSpacing.parts(b[minOf(i, b.size - 1)], fb)
+            val auth = PairSpacing.slack(ga[minOf(i, ga.size - 1)], gb[minOf(i, gb.size - 1)])?.first ?: 0.0
+            val deep = -auth
+            val tol = if (deep > PairSpacing.CONTACT_TOLERANCE) PairSpacing.CONTACT_TOLERANCE else max(PairSpacing.CONTACT_TOLERANCE, deep + PairSpacing.EXTRA)
+            for ((ka, va) in pa) for ((kb, vb) in pb) {
+                val one = PairSpacing.slack(mapOf(ka to va), mapOf(kb to vb), fa, fb) ?: continue
+                val over = one.first + tol
+                val k = "$ka/$kb"
+                if (over < (res[k] ?: 0.0)) res[k] = over
+            }
+        }
+        return res.entries.sortedBy { it.value }.take(6).joinToString { "${it.key} ${String.format(locale, "%.3f", it.value)}" }
     }
 
     private fun rel(a: Pose, b: Pose) = PairAlignment.sub(b["Root"]!!, a["Root"]!!)

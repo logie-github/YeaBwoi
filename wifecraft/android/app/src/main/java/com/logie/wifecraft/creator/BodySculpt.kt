@@ -10,9 +10,9 @@ import kotlin.random.Random
 enum class SculptPart(val label: String) {
     OVERALL("Overall"), NECK("Neck"), SHOULDERS("Shoulders"), CHEST("Chest"), ARMS("Arms"), WAIST("Waist"), HIPS("Hips"), LEGS("Legs");
 
-    /** Its sliders in the engine's order; on a man the chest's own slider first (the bust's work on his chest too). */
+    /** Its sliders in the engine's order (those for her sex: a man has no bust shapes); on a man the chest's own slider first. */
     fun sliders(female: Boolean = true): List<SculptSlider> {
-        val all = SculptSlider.entries.filter { it.part == this }
+        val all = SculptSlider.entries.filter { it.part == this && (if (female) it.forWomen else it.forMen) }
         return if (this == CHEST && !female) all.sortedBy { if (it == SculptSlider.CHEST) 0 else 1 } else all
     }
 
@@ -39,7 +39,7 @@ enum class SculptPart(val label: String) {
  * SculptSlider): the first eleven as they always were, the rest added after them, so older saves read back unchanged.
  */
 enum class SculptSlider(val key: String, val label: String, val part: SculptPart, val mesh: Boolean = true, val sided: Boolean = true,
-                        val drawn: Boolean = true) {
+                        val drawn: Boolean = true, val forWomen: Boolean = true, val forMen: Boolean = true) {
     HEIGHT("height", "Height", SculptPart.OVERALL, mesh = false, sided = false),
     SHOULDERS("shoulders", "Shoulders", SculptPart.SHOULDERS),
     ARMS("arms", "Arms", SculptPart.ARMS),
@@ -65,6 +65,41 @@ enum class SculptSlider(val key: String, val label: String, val part: SculptPart
     BODY_FAT("bodyFat", "Body Fat", SculptPart.OVERALL, sided = false),
     /** Overall muscle: shares of the shoulders, arms, chest, thighs, calves and neck, the waist and belly a little less. */
     MUSCLE("muscle", "Muscle", SculptPart.OVERALL, sided = false),
+    // the Bust & Butt designer's shapes (BustButtDesigner.kt; sculpt.h after the twenty-two: older saves and arrays end before them)
+    /** The bust forward from the chest wall, its tip leading. */
+    BUST_PROJECTION("bustProjection", "Bust Projection", SculptPart.CHEST, forMen = false),
+    /** The tips down (and the underside rolled out over the fold); below 0 perkier. */
+    BUST_DROOP("bustDroop", "Bust Droop", SculptPart.CHEST, forMen = false),
+    /** The upper slope filled (or hollowed) between the collarbones and the tips. */
+    BUST_UPPER("bustUpper", "Upper Fullness", SculptPart.CHEST, forMen = false),
+    /** Fuller round each tip (rounder), or narrower and more conical. */
+    BUST_ROUND("bustRound", "Bust Roundness", SculptPart.CHEST, forMen = false),
+    /** Each breast's outer side out toward the arm. */
+    BUST_SIDE("bustSide", "Side Fullness", SculptPart.CHEST, forMen = false),
+    /** The underside fuller (down and forward). */
+    UNDERBUST("underbust", "Underbust", SculptPart.CHEST, forMen = false),
+    /** The butt's back half wider. */
+    BUTT_WIDTH("buttWidth", "Butt Width", SculptPart.HIPS),
+    /** Each cheek's crown back. */
+    BUTT_PROJECTION("buttProjection", "Butt Projection", SculptPart.HIPS),
+    /** Fuller round each cheek (mostly down and out), or flatter. */
+    BUTT_ROUND("buttRound", "Butt Roundness", SculptPart.HIPS),
+    /** The cleft between the cheeks deeper (or shallower). */
+    CHEEK_GAP("cheekGap", "Cheek Gap", SculptPart.HIPS, sided = false),
+    /** The side under the hip bone drawn in (below 0 filled out). */
+    HIP_DIP("hipDip", "Hip Dip", SculptPart.HIPS),
+    /** The fold where the cheek meets the thigh, fuller. */
+    UNDERBUTT("underbutt", "Underbutt", SculptPart.HIPS),
+    /** The pectorals' lower half forward (a narrower band than Chest). */
+    PECS("pecs", "Pec Definition", SculptPart.CHEST),
+    /** The belly flatter, its middle line drawn in. */
+    ABS("abs", "Abs", SculptPart.WAIST, sided = false);
+
+    /** Whether it is one of the designer's shapes (added after the twenty-two; [BodySculpt.random] leaves them to the designer). */
+    val designer: Boolean get() = ordinal >= BUST_PROJECTION.ordinal
+
+    /** Its name on a body of [female]'s sex: a man's Butt is his Glutes. */
+    fun labelFor(female: Boolean): String = if (!female && this == BUTT) "Glutes" else label
 }
 
 /** A side of her body (her own left and right, as the engine's model space has them). */
@@ -108,6 +143,9 @@ data class BodySculpt(val values: Map<SculptSlider, Float> = emptyMap(), val sid
 
     /** Both sides of [s] made alike again. */
     fun even(s: SculptSlider): BodySculpt = copy(sides = sides - s)
+
+    /** [s]'s side balance set to [b] (her left [s] + b, her right [s] - b), as far as both sides stay within -1..1. */
+    fun balanced(s: SculptSlider, b: Float): BodySculpt = withBalance(s, b)
 
     private fun withBalance(s: SculptSlider, b: Float): BodySculpt {
         if (!s.sided) return copy(sides = sides - s)
@@ -175,12 +213,13 @@ data class BodySculpt(val values: Map<SculptSlider, Float> = emptyMap(), val sid
             return s.takeIf { !it.isNeutral }
         }
 
-        /** A plausible body: each mesh slider within ±[reach], the hips and the butt leaning together; both sides alike. */
+        /** A plausible body: each mesh slider within ±[reach] (the designer's shapes left at 0: BustButtDesigner.randomize), the
+         *  hips and the butt leaning together; both sides alike. */
         fun random(random: Random, reach: Float): BodySculpt {
             fun r() = (random.nextFloat() * 2f - 1f) * reach
             val curve = r()
             var s = BodySculpt()
-            for (k in SculptSlider.entries) if (k.mesh && k.drawn) s = s.with(k, r())
+            for (k in SculptSlider.entries) if (k.mesh && k.drawn && !k.designer) s = s.with(k, r())
             s = s.with(SculptSlider.HIPS, (curve + s[SculptSlider.HIPS]) / 2f).with(SculptSlider.BUTT, (curve + s[SculptSlider.BUTT]) / 2f)
             return s
         }

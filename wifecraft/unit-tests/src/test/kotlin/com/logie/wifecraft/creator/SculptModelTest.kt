@@ -17,7 +17,12 @@ class SculptModelTest {
         val first = listOf("height", "shoulders", "arms", "bust", "bustLift", "waist", "belly", "hips", "butt", "thighs", "legLength")
         assertEquals(first, SculptSlider.entries.take(11).map { it.key })
         assertEquals(listOf("neck", "chest", "bustWidth", "bustSpacing", "shoulderSlope", "upperArms", "forearms", "calves", "buttLift", "bodyFat", "muscle"),
-            SculptSlider.entries.drop(11).map { it.key })
+            SculptSlider.entries.drop(11).take(11).map { it.key })
+        // the Bust & Butt designer's shapes after the twenty-two (sculpt.h's order)
+        assertEquals(listOf("bustProjection", "bustDroop", "bustUpper", "bustRound", "bustSide", "underbust", "buttWidth", "buttProjection",
+            "buttRound", "cheekGap", "hipDip", "underbutt", "pecs", "abs"), SculptSlider.entries.drop(22).map { it.key })
+        assertTrue(SculptSlider.entries.drop(22).all { it.designer && it.mesh && it.drawn })
+        assertFalse(SculptSlider.entries.take(22).any { it.designer })
         assertEquals(listOf("Height", "Shoulders", "Arms", "Bust Size", "Bust Lift", "Waist", "Belly", "Hips", "Butt", "Thighs", "Leg Length"),
             SculptSlider.entries.take(11).map { it.label })
         assertEquals(SculptSlider.entries.size, SculptSlider.entries.map { it.key }.toSet().size)
@@ -46,8 +51,12 @@ class SculptModelTest {
     }
 
     @Test fun everyPartHasItsSliders() {
-        for (k in SculptSlider.entries) assertTrue(k in k.part.sliders(true) && k in k.part.sliders(false), "$k in ${k.part}")
-        assertEquals(SculptSlider.entries.size, SculptPart.entries.sumOf { it.sliders().size })
+        for (k in SculptSlider.entries) assertTrue((k in k.part.sliders(true)) == k.forWomen && (k in k.part.sliders(false)) == k.forMen, "$k in ${k.part}")
+        assertEquals(SculptSlider.entries.count { it.forWomen }, SculptPart.entries.sumOf { it.sliders().size })
+        // a man has no bust shapes (his Butt is his Glutes); every slider is someone's
+        assertTrue(SculptSlider.entries.all { it.forWomen || it.forMen })
+        assertFalse(SculptPart.CHEST.sliders(false).contains(SculptSlider.BUST_DROOP))
+        assertEquals("Glutes", SculptSlider.BUTT.labelFor(false)); assertEquals("Butt", SculptSlider.BUTT.labelFor(true))
         assertEquals(SculptSlider.BUST_SIZE, SculptPart.CHEST.sliders(female = true).first())
         assertEquals(SculptSlider.CHEST, SculptPart.CHEST.sliders(female = false).first())   // a man's chest first
         // the tap-to-edit's regions to parts
@@ -100,6 +109,15 @@ class SculptModelTest {
         // in a whole appearance too
         val a = Appearance(1, Sex.FEMALE, mapOf(10 to 100), sculpt = n)
         assertEquals(n, Appearance.fromJson(JSONObject(a.toJson().toString())).sculpt)
+        // the designer's keys saved and read back; a save without them reads them as 0
+        val d = BodySculpt().with(SculptSlider.BUST_DROOP, 0.4f).withSide(SculptSlider.BUTT_ROUND, BodySide.LEFT, 0.6f).with(SculptSlider.CHEEK_GAP, -0.2f)
+        val dj = d.toJson()
+        assertTrue(dj.has("bustDroop") && dj.has("cheekGap") && dj.getJSONObject(BodySculpt.SIDES_KEY).has("buttRound"))
+        assertEquals(d, BodySculpt.fromJson(JSONObject(dj.toString())))
+        for (k in SculptSlider.entries.filter { it.designer }) assertEquals(0f, s[k])
+        val arr = d.toArray()
+        assertEquals(0.4f, arr[SculptSlider.BUST_DROOP.ordinal]); assertEquals(-0.2f, arr[SculptSlider.CHEEK_GAP.ordinal])
+        assertEquals(0.3f, arr[SculptSlider.entries.size + SculptSlider.BUTT_ROUND.ordinal], 1e-6f)
         // nothing to save for a neutral body; unknown keys ignored
         assertNull(BodySculpt.fromJson(JSONObject("""{"sides":{},"wings":0.5}""")))
     }
@@ -118,6 +136,15 @@ class SculptModelTest {
         assertEquals(SculptSlider.BUTT_LIFT, SculptDrag.axes(SculptPart.HIPS, true, true).vertical)
         assertEquals(SculptDrag.Axes(SculptSlider.BELLY, SculptSlider.WAIST), SculptDrag.axes(SculptPart.WAIST, true, false))
         assertEquals(SculptDrag.Axes(SculptSlider.THIGHS, SculptSlider.CALVES), SculptDrag.axes(SculptPart.LEGS, true, false))
+        // the designer's Projection mode: the bust's and butt's projection and roundness, a man's pectorals; elsewhere as Size
+        assertEquals(SculptDrag.Axes(SculptSlider.BUST_PROJECTION, SculptSlider.BUST_ROUND), SculptDrag.axes(SculptPart.CHEST, true, false, project = true))
+        assertEquals(SculptDrag.Axes(SculptSlider.PECS, null), SculptDrag.axes(SculptPart.CHEST, false, false, project = true))
+        assertEquals(SculptDrag.Axes(SculptSlider.BUTT_PROJECTION, SculptSlider.BUTT_ROUND), SculptDrag.axes(SculptPart.HIPS, true, false, project = true))
+        assertEquals(SculptDrag.axes(SculptPart.LEGS, true, false), SculptDrag.axes(SculptPart.LEGS, true, false, project = true))
+        assertEquals(SculptDrag.axes(SculptPart.CHEST, true, true), SculptDrag.axes(SculptPart.CHEST, true, true, project = true))   // (Lift first)
+        val pd = SculptDragSession(BodySculpt(), SculptPart.HIPS, true, false, null, 1000f, 12f, project = true)
+        pd.move(0f, -125f)
+        assertEquals(SculptSlider.BUTT_PROJECTION, pd.slider); assertEquals(0.5f, pd.sculpt[SculptSlider.BUTT_PROJECTION])
     }
 
     @Test fun dragToValue() {

@@ -19,7 +19,12 @@
 //     the same moves on the model's whole vertex list (the skin and the clothing geosets on it, so a robe or sleeves follow),
 //     with the spine followed along its curve (an orc's chest stands far forward of its pelvis), the limbs' moves faded out
 //     before the wrists and ankles (the hands and feet keep their size and seams), and any triangle that would turn over or
-//     collapse eased back (its corners' moves halved, by place, up to six times, then dropped).
+//     collapse eased back (its corners' moves halved, by place, up to six times, then dropped). Their women's bust is a soft
+//     mound by place round each breast bone (their breast bones' weights are too light and patchy to carry it), and the bust
+//     grows round (outward from its centre) rather than drawn to a point; Droop turns it down about its root.
+//   - The Bust & Butt designer's shapes (after the twenty-two): the bust's projection, droop, upper fullness, roundness, side
+//     fullness and underside about each breast; the butt's width, projection, roundness, cheek gap, hip dip and underbutt about
+//     each cheek's centre (below the hip joints, behind); a man's pectorals and abs.
 // Slider order as the app's (creator/BodySculpt.kt SculptSlider). Height is the actor's scale (the app's), not a move here;
 // leg length is the skeleton's (bodyrig.h), not a move here either. Body Fat and Muscle are no moves of their own: each adds
 // shares of the others (more waist, belly, hips, thighs...; more shoulders, arms, chest, calves...).
@@ -39,7 +44,11 @@ enum SculptSlider {
     kSculptButt, kSculptThighs, kSculptLegLength,
     // added after the first eleven (older saves and the Eve fit's arrays end before them)
     kSculptNeck, kSculptChest, kSculptBustWidth, kSculptBustSpacing, kSculptShoulderSlope, kSculptUpperArms, kSculptForearms,
-    kSculptCalves, kSculptButtLift, kSculptBodyFat, kSculptMuscle, kSculptCount
+    kSculptCalves, kSculptButtLift, kSculptBodyFat, kSculptMuscle,
+    // the bust and butt designer's shape sliders (added after the twenty-two; arrays that end before them leave them at 0)
+    kSculptBustProjection, kSculptBustDroop, kSculptBustUpper, kSculptBustRound, kSculptBustSide, kSculptUnderbust,
+    kSculptButtWidth, kSculptButtProjection, kSculptButtRound, kSculptCheekGap, kSculptHipDip, kSculptUnderbutt,
+    kSculptPecs, kSculptAbs, kSculptCount
 };
 // The values array: the kSculptCount sliders, then (optional) each one's side balance (the body's left side takes the slider
 // plus it, the right the slider minus it; 0: both alike, as the creator's Symmetry keeps them). Height and Leg Length have none.
@@ -94,5 +103,31 @@ size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std
 
 // Whether any slider the mesh takes is set (0 for all of them: nothing to do).
 bool sculptActive(const float* values, size_t count);
+
+// The live sculpt (scene.cpp draws it on the GPU while a slider moves; bodyrig.cpp sculptSync). Every move above is a slider
+// times a fixed field (the masks depend on the body before the sculpt, not on the values), so each move slider's field for a
+// value of 1 is made once per body and the vertex shader blends them by the sliders' change since the last CPU sculpt: a drag
+// changes uniforms only. Kept sparse: per vertex the sliders that move it more than kSculptMorphFloor of the hip height (the
+// bust's near the chest, the butt's near the hips...). What it leaves to the CPU sculpt that follows when the sliders rest:
+// the 12% cap, the eased triangles, Body Fat's and Muscle's clamps (1.5) and the normals (all exact again once it has run).
+constexpr float kSculptMorphFloor = 1e-5f;
+struct SculptMorph {
+    std::vector<uint32_t> first;    // per vertex, and one more: its entries are [first[v], first[v + 1])
+    std::vector<float> side;        // per vertex: the share of a balance it takes (1 her left, -1 her right, between at the middle)
+    std::vector<uint8_t> channel;   // per entry: the slider (SculptSlider)
+    std::vector<V3> delta;          // per entry: its move for a value of 1 (model units, bind pose)
+    float unit = 1;                 // the rig's hip height
+    size_t vertices() const { return first.empty() ? 0 : first.size() - 1; }
+    size_t entries() const { return delta.size(); }
+    bool ok() const { return !first.empty(); }
+};
+// The fields of every move slider on `verts` (the body before the sculpt; the same options as applySculpt's). On the game's
+// bodies the copies of a vertex at one place share their mean, as applySculpt makes them.
+bool buildSculptMorph(const SculptRig& rig, const std::vector<M2Vertex>& verts, const SculptOptions& opt, SculptMorph& out);
+// The weights of the fields for slider values (as applySculpt takes them): `sym` per slider for both sides, `bal` per slider
+// times the vertex's side (kSculptCount each; Body Fat's and Muscle's shares folded into the moves they add to).
+void sculptMorphWeights(const float* values, size_t count, bool gameBody, float* sym, float* bal);
+// The vertex shader's sum on the CPU (the tests): each position plus its fields times their weights.
+void applySculptMorph(const SculptMorph& m, const float* sym, const float* bal, std::vector<V3>& positions);
 
 } // namespace wc

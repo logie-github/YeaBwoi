@@ -2,13 +2,16 @@
 // (Recolor's gain, Lab and the nearest shade), the texture's composition (tint, overlay, seam feather), the fit on a
 // synthetic skeleton and body (the cut rule, the cut edge, the rings snapped onto it with its weights, the torso's map),
 // the measure mesh and the breast regions. build/eve_test [SET_DIR FILES_DIR MODEL_ID ...]: with a converted set and the
-// game's files, also fits each model given and prints its numbers. Exit 0 when all pass.
+// game's files, also fits each model given and prints its numbers (MODEL:SKIN:FIT_JSON[:GEO]: the real fit table's row, the
+// seams' colour, the posed seams; with GEO, a look's geoset groups "0=2,4=1,...", also her flesh as the scene measures it and
+// the ankles' step). Exit 0 when all pass.
 #include <chrono>
 #include <thread>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -21,6 +24,7 @@
 #include "evebody.h"
 #include "m2.h"
 #include "modelpart.h"
+#include "flesh.h"
 
 using namespace wc;
 
@@ -336,6 +340,130 @@ void posedSeams(M2Model& m, const FileLookup& look, const EveResult& res, size_t
     }
 }
 
+
+// The ankle seam measured (README, "Her own rig", the ankles): per side, each of her vertices 0.2 to 2 cm over the model's
+// cut edge (at its angle round the model's ankle joint; the edge slants over the foot's top) against the model's own skin
+// round the ankle as it was (the lower leg her cut took and the foot it kept, the look's shown geosets), at rest on her rig:
+// its distance from that skin along the skin's normal at the nearest point is the step the eye sees where her shin meets
+// the foot (cm at her human-scale height, 1.709 yards = 156 cm), and the angle between her normal and the skin's there the
+// fold of shading. `step`, `turn`: the worst of both sides; `mean`: the larger side's mean |step|; `taper`: the step 2.5 to
+// 5 cm up (her shin eased from the model's back to her own over the band).
+struct AnkleStep { float step = 0, mean = 0, turn = 0, taper = 0; int samples = 0; };
+
+// A look's shown geosets from its groups, as the scene shows them (scene.cpp characterGeosets).
+std::vector<uint16_t> shownGeosets(const M2Model& m, const std::map<int, int>& groups) {
+    std::vector<uint16_t> out;
+    for (const M2Submesh& sm : m.submeshes) {
+        int id = sm.id, group = id < 100 ? 0 : id / 100, value = id < 100 ? id : id % 100;
+        bool show = id == 0 || (id >= 100 && value == 1) || group == 32;
+        if (group == 17 || group == 35) show = false;
+        auto it = groups.find(group);
+        if (id != 0 && it != groups.end()) show = value == it->second;
+        if (show && std::find(out.begin(), out.end(), sm.id) == out.end()) out.push_back(sm.id);
+    }
+    return out;
+}
+
+AnkleStep ankleStep(const M2Model& m, const EveResult& res, bool print, const char* name, const std::vector<uint16_t>& geosets) {
+    AnkleStep out;
+    const std::vector<M2Vertex>& ev = res.body.verts;
+    const size_t eveVerts = res.body.stats.eveVerts;
+    const float H = res.body.stats.height > 0 ? res.body.stats.height : 2.0f;
+    const float cm = 156.25f / H;   // cm per model unit
+    std::vector<uint8_t> skin(m.submeshes.size(), 0);
+    for (const M2Batch& bt : m.batches) {
+        if (bt.submesh >= m.submeshes.size() || bt.textureCombo >= m.textureCombos.size()) continue;
+        uint16_t ti = m.textureCombos[bt.textureCombo];
+        const uint16_t id = m.submeshes[bt.submesh].id;
+        if (ti < m.textures.size() && m.textures[ti].type == 1 &&
+            (geosets.empty() ? id % 100 <= 1 : std::find(geosets.begin(), geosets.end(), id) != geosets.end())) skin[bt.submesh] = 1;
+    }
+    // as drawn at rest: both skinned on her rig's bind (bodyrig.h; posedSeams' bindMats)
+    LegEdit edit = res.body.rigPivots.empty() ? bodyEditOf(m, res.body.scale) : bodyEditFrom(m, res.body.rigPivots, res.body.scale);
+    std::vector<M4> bindMats;
+    if (edit.active) legEditMatrices(m.bones, std::vector<BonePose>(), edit, bindMats); else bindMats.assign(m.bones.size(), M4());
+    auto skinned = [&](const M2Vertex& v, bool normal) {
+        V3 p = normal ? V3(v.normal[0], v.normal[1], v.normal[2]) : V3(v.pos[0], v.pos[1], v.pos[2]), q; float w = 0;
+        for (int k = 0; k < 4; ++k) if (v.weights[k] && v.bones[k] < bindMats.size()) {
+            const M4& M = bindMats[v.bones[k]];
+            q = q + (normal ? M.point(p) - M.point(V3(0, 0, 0)) : M.point(p)) * (v.weights[k] / 255.0f); w += v.weights[k] / 255.0f;
+        }
+        return w > 0 ? (normal ? q.normalized() : q * (1.0f / w)) : p;
+    };
+    struct Tri { V3 a, b, c, na, nb, nc; };
+    for (int sd = 0; sd < 2; ++sd) {
+        int fb = m.findWowBone(sd ? "R_Foot" : "L_Foot");
+        if (fb < 0) continue;
+        const V3 o = bindMats[size_t(fb)].point(m.bones[size_t(fb)].pivot);
+        auto mine = [&](V3 p) { return p.z < 0.25f * H && (sd ? p.y < 0 : p.y > 0) && V3(p.x - o.x, p.y - o.y, 0).length() < 0.1f * H; };
+        // the model's cut edge on this leg: the stitch's model vertices (exact copies of its edge), their height by angle
+        std::vector<std::pair<float, float>> edge;
+        for (size_t v = eveVerts; v < ev.size(); ++v) { V3 p = skinned(ev[v], false); if (mine(p)) edge.push_back({std::atan2(p.y - o.y, p.x - o.x), p.z}); }
+        if (edge.size() < 3) continue;
+        auto edgeAt = [&](float a) {   // the edge's height at angle a: inverse-distance over the nearest edge vertices by angle
+            float wsum = 0, z = 0;
+            for (auto& [ea, ez] : edge) { float d = std::fabs(std::remainder(ea - a, 6.2831853f)); float w = 1.0f / (d * d + 1e-4f); wsum += w; z += ez * w; }
+            return z / wsum;
+        };
+        // the model's own skin round the ankle as it was (the removed lower leg and the kept foot: what her shin replaces and meets)
+        std::vector<Tri> model;
+        for (size_t si = 0; si < m.submeshes.size(); ++si) if (skin[si])
+            for (uint32_t t = m.submeshes[si].indexStart; t + 2 < m.submeshes[si].indexStart + m.submeshes[si].indexCount && t + 2 < m.indices.size(); t += 3) {
+                uint32_t i0 = m.indices[t], i1 = m.indices[t + 1], i2 = m.indices[t + 2];
+                if (i0 >= res.body.cut.size() || i1 >= res.body.cut.size() || i2 >= res.body.cut.size()) continue;
+                V3 A = skinned(m.vertices[i0], false), B = skinned(m.vertices[i1], false), C = skinned(m.vertices[i2], false);
+                if (!mine((A + B + C) * (1.0f / 3))) continue;
+                model.push_back({A, B, C, skinned(m.vertices[i0], true), skinned(m.vertices[i1], true), skinned(m.vertices[i2], true)});
+            }
+        // the nearest point of the model's skin to p and the skin's normal there
+        auto nearest = [&](const std::vector<Tri>& ts, V3 p, V3& at, V3& nn) {
+            float best = 1e30f; bool any = false;
+            for (const Tri& t : ts) {
+                // (the nearest point of a triangle: sampled finely enough for a check, 1 mm on these)
+                V3 e1 = t.b - t.a, e2 = t.c - t.a, nrm = e1.cross(e2);
+                float area = nrm.length(); if (area < 1e-12f) continue;
+                nrm = nrm * (1.0f / area);
+                V3 q = p - nrm * (p - t.a).dot(nrm);
+                // barycentric of the projection; outside: the nearest of the edges
+                V3 v2 = q - t.a; float d00 = e1.dot(e1), d01 = e1.dot(e2), d11 = e2.dot(e2), d20 = v2.dot(e1), d21 = v2.dot(e2);
+                float den = d00 * d11 - d01 * d01; if (std::fabs(den) < 1e-20f) continue;
+                float u = (d11 * d20 - d01 * d21) / den, w = (d00 * d21 - d01 * d20) / den;
+                if (u < 0 || w < 0 || u + w > 1) {
+                    float bu = 0, bw = 0, bd = 1e30f;
+                    for (int k = 0; k <= 20; ++k) for (int e = 0; e < 3; ++e) {
+                        float f = k / 20.0f, uu = e == 0 ? f : e == 1 ? 1 - f : 0, ww = e == 0 ? 0 : e == 1 ? f : f;
+                        V3 x = t.a + e1 * uu + e2 * ww; float d = (x - p).dot(x - p);
+                        if (d < bd) { bd = d; bu = uu; bw = ww; }
+                    }
+                    u = bu; w = bw; q = t.a + e1 * u + e2 * w;
+                }
+                float d = (q - p).dot(q - p);
+                if (d < best) { best = d; at = q; nn = (t.na * (1 - u - w) + t.nb * u + t.nc * w).normalized(); any = true; }
+            }
+            return any;
+        };
+        float worst = 0, wsgn = 0, wh = 0, wa = 0, sum = 0, turn = 0, taper = 0; int n = 0;
+        for (size_t v = 0; v < eveVerts; ++v) {
+            V3 p = skinned(ev[v], false);
+            if (!mine(p)) continue;
+            float a = std::atan2(p.y - o.y, p.x - o.x), h = (p.z - edgeAt(a)) * cm;
+            if (h < 0.2f || h > 5.0f) continue;
+            V3 at, nn;
+            if (!nearest(model, p, at, nn) || (at - p).length() > 0.05f * H) continue;
+            float st = (p - at).dot(nn) * cm;
+            if (h > 2.5f) { taper = std::max(taper, std::fabs(st)); continue; }
+            sum += std::fabs(st); ++n;
+            if (std::fabs(st) > worst) { worst = std::fabs(st); wsgn = st; wh = h; wa = a * 57.2958f; }
+            turn = std::max(turn, std::acos(std::clamp(skinned(ev[v], true).dot(nn), -1.0f, 1.0f)) * 57.2958f);
+        }
+        if (print) std::printf("  %s ankle %s: step %.2f cm (%+.2f at %.1f cm up, %.0f deg), mean %.2f cm over %d of her vertices 0.2-2 cm up; her normals within %.0f deg "
+                               "of the model's skin; 2.5-5 cm up %.2f cm\n", name, sd ? "R" : "L", worst, wsgn, wh, wa, n ? sum / n : 0.0f, n, turn, taper);
+        out.step = std::max(out.step, worst); out.turn = std::max(out.turn, turn); out.taper = std::max(out.taper, taper);
+        out.mean = std::max(out.mean, n ? sum / n : 0.0f); out.samples += n;
+    }
+    return out;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -567,12 +695,28 @@ int main(int argc, char** argv) {
             std::string arg = argv[i];
             uint32_t skinId = 0;
             std::string fitPath;
+            std::map<int, int> groupsArg;
             {
                 size_t c1 = arg.find(':');
                 if (c1 != std::string::npos) {
                     size_t c2 = arg.find(':', c1 + 1);
                     skinId = uint32_t(std::strtoul(arg.substr(c1 + 1, c2 == std::string::npos ? std::string::npos : c2 - c1 - 1).c_str(), nullptr, 10));
-                    if (c2 != std::string::npos) fitPath = arg.substr(c2 + 1);
+                    if (c2 != std::string::npos) {
+                        // MODEL:SKIN:FIT_JSON[:GEO]: GEO a look's geoset groups ("0=2,4=1,..."), shown as the scene shows them
+                        size_t c3 = arg.find(':', c2 + 1);
+                        fitPath = arg.substr(c2 + 1, c3 == std::string::npos ? std::string::npos : c3 - c2 - 1);
+                        if (c3 != std::string::npos) {
+                            std::string g = arg.substr(c3 + 1);
+                            size_t at = 0;
+                            while (at < g.size()) {
+                                size_t comma = g.find(',', at), eq = g.find('=', at);
+                                if (eq == std::string::npos || (comma != std::string::npos && eq > comma)) break;
+                                groupsArg[std::atoi(g.substr(at, eq - at).c_str())] = std::atoi(g.substr(eq + 1, comma == std::string::npos ? std::string::npos : comma - eq - 1).c_str());
+                                if (comma == std::string::npos) break;
+                                at = comma + 1;
+                            }
+                        }
+                    }
                 }
             }
             if (!m.load(uint32_t(std::atoi(argv[i])), look)) { std::printf("model %s: %s\n", argv[i], m.error.c_str()); continue; }
@@ -588,6 +732,7 @@ int main(int argc, char** argv) {
                     EveJob j;
                     j.serial = 1; j.key = 1; j.model = &m; j.set = set; j.mesh = std::make_shared<EveMesh>(e); j.fit = *row;
                     j.indices = m.indices; j.subs = m.submeshes;
+                    if (!groupsArg.empty()) j.geosets = shownGeosets(m, groupsArg);
                     j.skinPath = look(skinId);
                     EveResult res = eveCompute(j);
                     CHECK(res.ok, "model %u: %s", m.fileId, res.status.c_str());
@@ -632,6 +777,40 @@ int main(int argc, char** argv) {
                         }
                         CHECK(added > 0 && off == 0, "%s: %zu stitch vertices, %zu off the model's edge", row->name.c_str(), added, off);
                         posedSeams(m, look, res, res.body.stats.eveVerts, row->name, *row);
+                        // her flesh as the scene measures it (Scene::actorFlesh, flesh.h FleshGuide: her skin by area, her trunk and thighs by
+                        // the model's own segments where she is) against the model's own body's: a race whose build she keeps (no `bulk`) reads
+                        // within 0.035 body units of it at the pelvis, the spine's front and the chest's front (read by her weights alone her
+                        // spine's front came 0.05 deeper and her pelvis 0.04 narrower than the human woman's); the hip joints the model's
+                        if (row->rig > 0 && !j.geosets.empty()) {
+                            const LegEdit legs = bodyEditFrom(m, res.body.rigPivots, res.body.scale);
+                            FleshGuide guide;
+                            guide.byArea = true;
+                            guide.from = res.measure.verts.size() - res.body.verts.size();
+                            guide.idx = &m.indices; guide.subs = &m.submeshes;
+                            FleshMeasure fe = measureFlesh(m, res.measure.verts, res.measure.indices, res.measure.subs, j.geosets, nullptr, legs.active ? &legs : nullptr, &guide);
+                            FleshMeasure fm = measureFlesh(m, m.vertices, m.indices, m.submeshes, j.geosets);
+                            if (fe.ok && fm.ok) {
+                                const FleshSeg &ep = fe.seg[kFleshPelvis], &mp = fm.seg[kFleshPelvis], &es = fe.seg[kFleshSpine], &ms = fm.seg[kFleshSpine];
+                                const FleshSeg &ec = fe.seg[kFleshChest], &mc = fm.seg[kFleshChest];
+                                std::printf("  %s: her flesh (body units) pelvis front/back/side %.3f/%.3f/%.3f (the model's %.3f/%.3f/%.3f), spine front %.3f (%.3f), "
+                                            "chest front %.3f (%.3f); hips %.3f (%.3f)\n", row->name.c_str(), ep.front, ep.back, ep.side, mp.front, mp.back, mp.side,
+                                            es.front, ms.front, ec.front, mc.front, fe.rest[15].z, fm.rest[15].z);   // (15: L_Thigh)
+                                const EveBulk& bk = row->bulk;
+                                const bool keepsHers = bk.arm == 1 && bk.forearm == 1 && bk.thigh == 1 && bk.calf == 1 && bk.shoulders == 1 && bk.chest == 1 &&
+                                                       bk.waist == 1 && bk.hips == 1;
+                                if (keepsHers)
+                                    CHECK(std::fabs(ep.side - mp.side) <= 0.035f && std::fabs(ep.back - mp.back) <= 0.035f && std::fabs(es.front - ms.front) <= 0.035f &&
+                                          std::fabs(ec.front - mc.front) <= 0.035f, "%s: her flesh as measured strays from the model's own body", row->name.c_str());
+                            }
+                            CHECK(fe.ok && fm.ok, "%s: her flesh and the model's measured", row->name.c_str());
+                        }
+                        // the ankles: her shin meets the model's foot as its own leg did (no cuff, no fold of shading), on the look's own
+                        // geosets (MODEL:SKIN:FIT:GEO; without them every geoset's edges are cut and the measure means nothing)
+                        if (row->rig > 0 && row->ankleMatch > 0 && !j.geosets.empty()) {
+                            AnkleStep as = ankleStep(m, res, true, row->name.c_str(), j.geosets);
+                            CHECK(as.samples > 20 && as.step <= 0.3f, "%s: the ankle's step %.2f cm (at most 0.3 over %d vertices)", row->name.c_str(), as.step, as.samples);
+                            CHECK(as.turn <= 5.0f, "%s: her normals at the ankle %.1f degrees off the model's skin's (at most 5)", row->name.c_str(), as.turn);
+                        }
                         // Keep undead bones (a row with "detail"): its details carried, the seams' colour as with them off (within 3)
                         if (row->detail > 0) {
                             EveJob off = j;

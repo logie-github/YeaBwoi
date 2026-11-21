@@ -24,8 +24,17 @@ object SculptDrag {
     /** One part's drag: which slider each direction moves (null: that direction does nothing) and whether up lowers it. */
     data class Axes(val vertical: SculptSlider?, val horizontal: SculptSlider?, val invertVertical: Boolean = false)
 
-    /** The sliders a drag on [part] moves: its size and width, or (in [lift] mode) its lift and spacing. */
-    fun axes(part: SculptPart, female: Boolean, lift: Boolean): Axes = when (part) {
+    /**
+     * The sliders a drag on [part] moves: its size and width, or (in [lift] mode) its lift and spacing, or (in [project] mode, the
+     * Bust & Butt designer's Projection) the bust's or butt's projection and roundness, a man's pectorals.
+     */
+    fun axes(part: SculptPart, female: Boolean, lift: Boolean, project: Boolean = false): Axes = when {
+        project && !lift && part == SculptPart.CHEST -> if (female) Axes(SculptSlider.BUST_PROJECTION, SculptSlider.BUST_ROUND) else Axes(SculptSlider.PECS, null)
+        project && !lift && part == SculptPart.HIPS -> Axes(SculptSlider.BUTT_PROJECTION, SculptSlider.BUTT_ROUND)
+        else -> sizeAxes(part, female, lift)
+    }
+
+    private fun sizeAxes(part: SculptPart, female: Boolean, lift: Boolean): Axes = when (part) {
         SculptPart.OVERALL -> if (lift) Axes(SculptSlider.HEIGHT, null) else Axes(SculptSlider.BODY_FAT, SculptSlider.MUSCLE)
         SculptPart.NECK -> if (lift) Axes(SculptSlider.SHOULDER_SLOPE, null, invertVertical = true) else Axes(SculptSlider.NECK, SculptSlider.SHOULDERS)
         SculptPart.SHOULDERS -> Axes(SculptSlider.SHOULDER_SLOPE, SculptSlider.SHOULDERS, invertVertical = true)
@@ -70,7 +79,7 @@ object SculptDrag {
  */
 class SculptDragSession(
     val start: BodySculpt, val part: SculptPart, val female: Boolean, lift: Boolean, val side: BodySide?, private val stagePx: Float,
-    private val slopPx: Float,
+    private val slopPx: Float, private val project: Boolean = false,
 ) {
     var lift: Boolean = lift
         private set
@@ -106,7 +115,7 @@ class SculptDragSession(
         val dy = dyPx - originY
         if (slider == null) {
             if (abs(dx) < slopPx && abs(dy) < slopPx) return false
-            val axes = SculptDrag.axes(part, female, lift)
+            val axes = SculptDrag.axes(part, female, lift, project)
             vertical = abs(dy) >= abs(dx)
             // the direction the finger took; a part with no slider that way takes its other one (the finger's other direction)
             if ((if (vertical) axes.vertical else axes.horizontal) == null) vertical = !vertical
@@ -115,7 +124,7 @@ class SculptDragSession(
             lastValue = startOf(s)
         }
         val s = slider ?: return false
-        val axes = SculptDrag.axes(part, female, lift)
+        val axes = SculptDrag.axes(part, female, lift, project)
         val along = if (vertical) (if (axes.invertVertical && s == axes.vertical) dy else -dy) else dx
         val v = SculptDrag.valueFor(startOf(s), along, stagePx)
         val next = if (side != null && s.sided) sculpt.withSide(s, side, v) else sculpt.with(s, v)
