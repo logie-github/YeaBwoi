@@ -23,6 +23,10 @@ namespace wc {
 
 // ================================================================================================ the .weve file
 
+// How far her ankle ring's line between two of its vertices is kept over the model's cut edge (Sims metres; fitEve's
+// ankleMatch: the edge's vertices between hers).
+constexpr float kRingClear = 0.001f;
+
 // Two more loops of vertices above each ankle ring (at `t` of the way to the next vertices up, then `t` again of that):
 // Eve's shin has none for 10 cm above the ring, so it ran straight from the ring to there and couldn't follow the foot's
 // edge flaring out (fitEve's ankleMatch). Each edge from a ring vertex to a vertex off the ring is split, its attributes
@@ -1729,6 +1733,61 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
             }
             return any;
         };
+        // her ring over the model's edge between her ring's vertices. Each of hers is snapped onto the edge, but the edge
+        // zigzags between them (a cut along the model's triangles): where one of its vertices stood over the line between two
+        // of hers, the model's skin below it overlapped her shin's lowest centimetres (the two drawn into each other: a dashed
+        // hairline of the model's lit skin along the seam, from behind most) and the strip folded back over itself there
+        // (19 of the human's 34 strip triangles at the ankles). Each of her ring's places is raised along the model's removed
+        // skin by what the edge stands over the line from it to its neighbours (and kRingClear more), so the strip always runs
+        // down from her ring to the edge and the model's skin always ends under hers.
+        if (const std::vector<uint32_t>* rr = eve.ring(s ? "R_ankle" : "L_ankle")) {
+            // (angles about the edge's own vertices' mean, as the strip below walks the two loops)
+            std::vector<uint32_t> wv;
+            for (auto& e : ankleR[s].e) for (uint32_t v : {e.first, e.second}) if (std::find(wv.begin(), wv.end(), v) == wv.end()) wv.push_back(v);
+            V3 wc;
+            for (uint32_t v : wv) wc = wc + posOf(verts[v]);
+            wc = wc * (1.0f / float(std::max<size_t>(wv.size(), 1)));
+            auto turnOf = [&](V3 p) { return std::atan2(p.y - wc.y, p.x - wc.x); };
+            std::vector<std::pair<float, float>> edge;   // the model's edge vertices: angle, height
+            for (uint32_t v : wv) edge.push_back({turnOf(posOf(verts[v])), verts[v].pos[2]});
+            std::map<int64_t, std::vector<uint32_t>> groups;
+            for (uint32_t v : *rr) if (v < nv) groups[weldKey(P0[v], 1e-5f)].push_back(v);
+            struct Place { float a; std::vector<uint32_t> copies; };
+            std::vector<Place> pl;
+            for (auto& [k, g] : groups) pl.push_back({turnOf(P[g[0]]), g});
+            std::sort(pl.begin(), pl.end(), [](const Place& x, const Place& y) { return x.a < y.a; });
+            const size_t np = pl.size();
+            const float clear = kRingClear * unit, twoPi = 6.2831853f;
+            for (int pass = 0; pass < 6 && np >= 3; ++pass) {
+                std::vector<float> raise(np, 0.0f);
+                for (size_t i = 0; i < np; ++i) {
+                    const size_t j = (i + 1) % np;
+                    float span = pl[j].a - pl[i].a;
+                    if (span <= 0) span += twoPi;
+                    const float z0 = P[pl[i].copies[0]].z, z1 = P[pl[j].copies[0]].z;
+                    for (const auto& [eAng, eZ] : edge) {
+                        float d = std::fmod(eAng - pl[i].a + 2 * twoPi, twoPi);
+                        if (d <= 0 || d >= span) continue;
+                        const float over = eZ - (z0 + (z1 - z0) * (d / span)) + clear;
+                        if (over > 0) { raise[i] = std::max(raise[i], over); raise[j] = std::max(raise[j], over); }
+                    }
+                }
+                bool moved = false;
+                for (size_t i = 0; i < np; ++i) {
+                    if (!(raise[i] > 1e-6f)) continue;
+                    V3 q = P[pl[i].copies[0]] + V3(0, 0, raise[i]), at, n;
+                    WMap w;
+                    // (onto the model's removed skin above the edge, up it: no step off the skin; its weights and normal; where
+                    // none of it is higher, left where it is)
+                    if (nearest(q, at, n, w) && at.z > P[pl[i].copies[0]].z + 1e-6f) q = at; else continue;
+                    for (uint32_t cp : pl[i].copies) { P[cp] = q; N[cp] = n; WM[cp] = w; }
+                    ++out.stats.ankleRaised[s];
+                    out.stats.ankleRaiseMax[s] = std::max(out.stats.ankleRaiseMax[s], raise[i]);
+                    moved = true;
+                }
+                if (!moved) break;
+            }
+        }
         // her ring's height before the snap per angle (as the edge's: the gaps from the neighbours), read between the bins
         float ringZ[kAng], rz[kAng] = {0}; int rn[kAng] = {0};
         for (size_t v = 0; v < nv; ++v) if (onRing[v]) { int k = bin(preSnap[v]); rz[k] += preSnap[v].z; ++rn[k]; }
@@ -1825,11 +1884,38 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
                     if (d < bd) { bd = d; s0 = k; }
                 }
                 std::rotate(loop.begin(), loop.begin() + long(s0), loop.end());
-                std::vector<float> len(loop.size() + 1, 0);
-                for (size_t k = 0; k < loop.size(); ++k) len[k + 1] = len[k] + (posOf(verts[loop[(k + 1) % loop.size()]]) - posOf(verts[loop[k]])).length();
-                for (size_t k = 0; k < loop.size(); ++k) wb.push_back({len[k] / std::max(len.back(), 1e-6f), loop[k]});
-                // Eve's: her angles from her first, as shares of a turn
-                for (A& x : ea) { float d = x.a - ea[0].a; if (d < 0) d += 6.2831853f; x.a = d / 6.2831853f; }
+                // each of its vertices by its angle from Eve's first, as a share of a turn (as hers are): walked by one measure
+                // the two loops pair each of her vertices with the model's at its own side, and the strip's triangles never
+                // cross. (By the share of the loop's length, as before, a slanted edge, long over the instep and short at the
+                // heel, was paired off by up to a sixth of a turn: 19 of the human's 34 strip triangles at the ankles lay over
+                // others, and the model's foot showed through where none lay, a dashed bright hairline along the seam.) An edge
+                // whose angle doesn't grow all the way round (not seen round its centre) keeps the share of its length.
+                std::vector<float> turnShare(loop.size(), 0);
+                bool byAngle = true;
+                {
+                    float acc = std::remainder(angle(posOf(verts[loop[0]])) - ea[0].a, 6.2831853f);
+                    turnShare[0] = acc;
+                    for (size_t k = 1; k < loop.size() && byAngle; ++k) {
+                        float d = std::remainder(angle(posOf(verts[loop[k]])) - angle(posOf(verts[loop[k - 1]])), 6.2831853f);
+                        if (d <= 0) byAngle = false;
+                        acc += d;
+                        turnShare[k] = acc;
+                    }
+                    if (byAngle && turnShare.back() - turnShare[0] >= 6.2831853f) byAngle = false;
+                    for (float& x : turnShare) x /= 6.2831853f;
+                }
+                if (byAngle) {
+                    for (size_t k = 0; k < loop.size(); ++k) wb.push_back({turnShare[k], loop[k]});
+                } else {
+                    std::vector<float> len(loop.size() + 1, 0);
+                    for (size_t k = 0; k < loop.size(); ++k) len[k + 1] = len[k] + (posOf(verts[loop[(k + 1) % loop.size()]]) - posOf(verts[loop[k]])).length();
+                    for (size_t k = 0; k < loop.size(); ++k) wb.push_back({len[k] / std::max(len.back(), 1e-6f), loop[k]});
+                }
+                // Eve's: her angles from her first, as shares of a turn (her first's angle kept aside: read from ea[0] as the
+                // loop went, it was 0 after the first step and every other was read from 0, a turn's share out of hers by
+                // her first's angle, up to half a turn: the strip's triangles reached across the ankle)
+                const float first = ea[0].a;
+                for (A& x : ea) { float d = x.a - first; if (d < 0) d += 6.2831853f; x.a = d / 6.2831853f; }
             } else {
                 for (uint32_t v : wv) wb.push_back({angle(posOf(verts[v])), v});
                 std::sort(wb.begin(), wb.end(), [](const B& x, const B& y) { return x.a < y.a; });
@@ -2144,6 +2230,38 @@ EvePrep evePrepare(const EveMesh& m, const std::vector<uint8_t>& rgba, int w, in
     std::vector<uint8_t> after = rgba;
     eveApplyCorrection(p, after);
     eveFrontBack(m, after, w, h, p.frontAfter, p.backAfter);
+    // the islands' edges padded (EvePrep::pad): her triangles' texels (their centres, and the corners' own texels), then
+    // grown kEvePad texels out, each new texel taking the source of the neighbour it was reached from
+    {
+        std::vector<int32_t> src(size_t(w) * h, -1);
+        std::vector<uint32_t> front;
+        for (size_t t = 0; t + 2 < m.idx.size(); t += 3) {
+            uint32_t a = m.idx[t], b = m.idx[t + 1], c = m.idx[t + 2];
+            raster(m.uv[a * 2] * w, m.uv[a * 2 + 1] * h, m.uv[b * 2] * w, m.uv[b * 2 + 1] * h, m.uv[c * 2] * w, m.uv[c * 2 + 1] * h, w, h,
+                   [&](int x, int y, float, float, float) { uint32_t i = uint32_t(y) * uint32_t(w) + uint32_t(x); if (src[i] < 0) { src[i] = int32_t(i); front.push_back(i); } });
+            for (uint32_t v : {a, b, c}) {
+                int x = std::clamp(int(m.uv[v * 2] * w), 0, w - 1), y = std::clamp(int(m.uv[v * 2 + 1] * h), 0, h - 1);
+                uint32_t i = uint32_t(y) * uint32_t(w) + uint32_t(x);
+                if (src[i] < 0) { src[i] = int32_t(i); front.push_back(i); }
+            }
+        }
+        for (int step = 0; step < kEvePad && !front.empty(); ++step) {
+            std::vector<uint32_t> next;
+            for (uint32_t i : front) {
+                int x = int(i % uint32_t(w)), y = int(i / uint32_t(w));
+                for (int dy = -1; dy <= 1; ++dy) for (int dx = -1; dx <= 1; ++dx) {
+                    int xx = x + dx, yy = y + dy;
+                    if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+                    uint32_t j = uint32_t(yy) * uint32_t(w) + uint32_t(xx);
+                    if (src[j] >= 0) continue;
+                    src[j] = src[i];
+                    next.push_back(j);
+                    p.pad.push_back({j, uint32_t(src[i])});
+                }
+            }
+            front.swap(next);
+        }
+    }
     // the references the tint is measured against: the skin as drawn near each ring
     for (int ri = 0; ri < 2; ++ri) {
         std::vector<float> uvs;
@@ -2236,6 +2354,12 @@ void eveCompose(const std::vector<uint8_t>& base, int w, int h, V3 gain, const u
         d[0] = L.toByte(c.x * (1 - f) + L.lin[d[0]] * f);
         d[1] = L.toByte(c.y * (1 - f) + L.lin[d[1]] * f);
         d[2] = L.toByte(c.z * (1 - f) + L.lin[d[2]] * f);
+    }
+    // the islands' edges padded with their own skin (EvePrep::pad)
+    for (const auto& [to, from] : prep.pad) {
+        if (to >= n || from >= n) continue;
+        std::memcpy(&out[size_t(to) * 4], &out[size_t(from) * 4], 3);
+        out[size_t(to) * 4 + 3] = 255;
     }
 }
 

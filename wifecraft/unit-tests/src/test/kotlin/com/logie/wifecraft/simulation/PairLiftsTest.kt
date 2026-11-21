@@ -68,6 +68,26 @@ class PairLiftsTest {
         assertEquals(hang.heightUnits.toDouble(), trunkLow, 0.03, "the trunk on the bed")
     }
 
+    @Test fun whetherABodyLiesOnItsTrunkIsReadOnTheReferenceSkeleton() {
+        // a body on its back, its legs over the bed's edge; on a measured body's own rig its pelvis stands higher (a woman in
+        // Eve's rig: a few centimetres), past PELVIS_REST over the bed by the median: read on its own skeleton the rule
+        // flipped and its hanging shins lifted it; read on the reference skeleton (the stage as authored) it lies on its trunk
+        val clip = legsOverTheEdge(0.55, "hang4")
+        val need = RequirementClassifier.classify(clip).actors[0]
+        val ref = BodyGeometry.frames(clip)
+        val over = ref.map { it["Root"]!![2] - need.heightUnits }.sorted().let { it[it.size / 2] }
+        val up = RequirementClassifier.PELVIS_REST - over + 0.02
+        val own = ref.map { f -> com.logie.wifecraft.anim.BodyFrame(f.joints.mapValues { (_, v) -> doubleArrayOf(v[0], v[1], v[2] + up) }, f.driven) }
+        assertTrue(RequirementClassifier.pelvisRests(ref, need.heightUnits.toDouble()))
+        assertFalse(RequirementClassifier.pelvisRests(own, need.heightUnits.toDouble()), "the own rig's pelvis past the rule")
+        assertEquals(FleshLift.LYING, FleshLift.bearing(need, ref))
+        val byRef = FleshLift.liftUnits(need, own, man, ref)
+        val trunk = FleshLift.groundLift(own, man, need.heightUnits.toDouble(), FleshLift.LYING)
+        assertEquals(trunk, byRef, 1e-9, "lifted by its trunk")
+        // (on its own skeleton the shins would have lifted it by more: the flip the audit found)
+        assertTrue(FleshLift.liftUnits(need, own, man) > byRef + 0.1)
+    }
+
     @Test fun aBodyLyingWithItsHipsRaisedIsBorneByItsFeet() {
         // the pelvis held well over the support (a bridge): it doesn't rest, so the feet count
         val frames = BodyGeometry.frames(F.lyingBack(0.0, name = "bridge"))
@@ -132,9 +152,17 @@ class PairLiftsTest {
         val placed = PairLifts.of(stack, pair("stack"), floatArrayOf(0.05f, 0.3f), floatArrayOf(0.05f, 0.3f), true, null, null, U)
         assertEquals(listOf(0.05f, 0.05f), placed.lifts.toList())
         // one on top whose own flesh reaches the bed past its support (it needs more lift than its support is over the
-        // other's): it lies on the bed too, the more either needs
-        assertEquals(-1, PairLifts.under(stack, floatArrayOf(0.05f, 0.5f), U))
-        assertEquals(listOf(0.5f, 0.5f), PairLifts.of(stack, pair("stack"), floatArrayOf(0.05f, 0.5f), floatArrayOf(0.05f, 0.5f), true, null, null, U).lifts.toList())
+        // other's: 0.5 against 0.3 x 1.17): raised by as much as keeps that flesh out of the bed, no more
+        val room = 0.3f * 1.17f
+        val reach = PairLifts.of(stack, pair("stack"), floatArrayOf(0.05f, 0.5f), floatArrayOf(0.05f, 0.5f), true, null, null, U).lifts.toList()
+        assertEquals(0.5f - room, reach[0], 1e-5f); assertEquals(reach[0], reach[1])
+        // continuous in the flesh: the one on top's lift a little past the room moves the pair a little, never by a stride
+        // (before, a guard switched to the whole of its own lift there: 3 cm less flesh under it moved the pair 5 to 14 cm)
+        for (top in listOf(room + 0.04f, room + 0.05f, room + 0.06f, room + 0.08f)) {
+            val a = PairLifts.of(stack, pair("stack"), floatArrayOf(0.05f, top), floatArrayOf(0.05f, top), true, null, null, U).lifts[0]
+            val b = PairLifts.of(stack, pair("stack"), floatArrayOf(0.02f, top), floatArrayOf(0.02f, top), true, null, null, U).lifts[0]
+            assertTrue(kotlin.math.abs(a - b) <= 0.03f + 1e-5f, "under's lift 3 cm apart moves the pair ${a - b}")
+        }
         // side by side on one support: the more either needs, as before; someone standing: no one is on top
         val side = Requirement(Surface.BED, listOf(actor(Posture.LIE_BACK, Surface.BED, 0.04f, heightUnits = 0.58f),
             actor(Posture.LIE_BACK, Surface.BED, 0.08f, heightUnits = 0.6f)), 0.9f, "", "geometry")

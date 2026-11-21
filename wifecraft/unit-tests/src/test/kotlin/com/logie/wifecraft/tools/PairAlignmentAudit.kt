@@ -218,7 +218,8 @@ class PairAlignmentAudit {
                 // each role's lift for its own flesh, shared, the hips matched: PairLifts.of, as SceneSimulation.roleLifts runs it
                 fun lift(i: Int, body: Body, slot: PartnerSlot, anim: com.logie.wifecraft.anim.Anim, unit: Double): Double {
                     val need = req.actors.getOrNull(i) ?: return 0.0
-                    val own = if (body.flesh.measured) FleshLift.adjusted(need, BodyGeometry.frames(anim, z = slot.z.toDouble(), flesh = body.flesh), body.flesh).liftUnits
+                    val own = if (body.flesh.measured) FleshLift.adjusted(need, BodyGeometry.frames(anim, z = slot.z.toDouble(), flesh = body.flesh), body.flesh,
+                        BodyGeometry.frames(anim, z = slot.z.toDouble())).liftUnits
                         else need.liftUnits
                     return ((own - if (floorLevel) 0f else need.liftUnits) * unit)
                 }
@@ -226,6 +227,18 @@ class PairAlignmentAudit {
                 val unitA = SceneUnit.HUMAN * combo.scaleA; val unitB = SceneUnit.HUMAN * combo.scaleB
                 fun hipsOf(body: Body, anim: com.logie.wifecraft.anim.Anim, slot: PartnerSlot, unit: Double) =
                     PairHeight.hips(anim, slot.z, body.flesh, if (body.flesh.measured) body.pelvis.toFloat() else unit.toFloat(), unit.toFloat())
+                if (debug != null && c.name.contains(debug, true)) for ((i, role) in listOf(Triple(combo.a, spaced.slotA, anA), Triple(combo.b, spaced.slotB, anB)).withIndex()) {
+                    // ALIGN_DEBUG: what lifts each role (body units): each bearing part's need over its support, the deepest four
+                    val need = req.actors.getOrNull(i) ?: continue
+                    val (body, slot, anim) = role
+                    val ref = BodyGeometry.frames(anim, z = slot.z.toDouble())
+                    val fr = BodyGeometry.frames(anim, z = slot.z.toDouble(), flesh = body.flesh.takeIf { it.measured })
+                    val parts = FleshLift.bearing(need, ref)
+                    val per = parts.associateWith { pt -> fr.maxOf { f -> need.heightUnits - (body.flesh.lowestOver(f, listOf(pt)) ?: 9.0) } }
+                    dbg.println("lift ${combo.name} role $i ${need.posture} support ${String.format(locale, "%.3f", need.heightUnits)} classifier ${String.format(locale, "%.3f", need.liftUnits)} " +
+                        "rests(ref) ${com.logie.wifecraft.anim.RequirementClassifier.pelvisRests(ref, need.heightUnits.toDouble())} rests(own) ${com.logie.wifecraft.anim.RequirementClassifier.pelvisRests(fr, need.heightUnits.toDouble())}: " +
+                        per.entries.sortedByDescending { it.value }.take(4).joinToString { "${it.key} ${String.format(locale, "%.3f", it.value)}" })
+                }
                 val placed = PairLifts.of(req, pp, floatArrayOf(lift(0, combo.a, spaced.slotA, anA, unitA).toFloat(), lift(1, combo.b, spaced.slotB, anB, unitB).toFloat()),
                     floatArrayOf(authoredLift(0, unitA), authoredLift(1, unitB)), touching,
                     hipsOf(combo.a, anA, spaced.slotA, unitA), hipsOf(combo.b, anB, spaced.slotB, unitB), floatArrayOf(unitA.toFloat(), unitB.toFloat()))
@@ -245,8 +258,8 @@ class PairAlignmentAudit {
                     val seat = need.posture.seated && need.height >= com.logie.wifecraft.anim.RequirementClassifier.FLOOR_SIT_MAX
                     val parts = when {
                         seat -> com.logie.wifecraft.anim.FleshProfile.SEAT
-                        need.posture.lying && com.logie.wifecraft.anim.RequirementClassifier.pelvisRests(frames, need.heightUnits.toDouble()) -> FleshLift.LYING
-                        else -> FleshLift.BEARING
+                        // (lying on the trunk read on the reference skeleton, as FleshLift decides it)
+                        else -> FleshLift.bearing(need, BodyGeometry.frames(anim, z = slot.z.toDouble()))
                     }
                     val low = frames.minOfOrNull { f -> body.flesh.lowestOver(f, parts, if (seat) com.logie.wifecraft.anim.FleshProfile.HALF else emptySet(),
                         if (seat) com.logie.wifecraft.anim.FleshProfile.SEAT_BARE else emptySet()) ?: Double.MAX_VALUE } ?: return Double.NaN

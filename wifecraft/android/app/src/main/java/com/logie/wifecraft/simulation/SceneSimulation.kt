@@ -206,7 +206,8 @@ class SceneSimulation(
         if (!body.measured) return need
         if (lifts.size > 512) lifts.clear()
         return lifts.getOrPut(LiftKey(anim, z, body, need)) {
-            FleshLift.adjusted(need, BodyGeometry.frames(anim, z = z.toDouble(), flesh = body), body)
+            // (whether it lies on its trunk read on the reference skeleton: FleshLift.bearing)
+            FleshLift.adjusted(need, BodyGeometry.frames(anim, z = z.toDouble(), flesh = body), body, BodyGeometry.frames(anim, z = z.toDouble()))
         }
     }
 

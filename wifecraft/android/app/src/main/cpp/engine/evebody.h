@@ -181,6 +181,8 @@ struct EveFitStats {
     size_t cutVertices = 0, cutTriangles = 0, keptTriangles = 0;
     size_t neckEdges = 0, ankleEdges[2] = {0, 0}, ringSnapped[3] = {0, 0, 0};
     float ringMoveMean[3] = {0, 0, 0}, ringMoveMax[3] = {0, 0, 0};
+    size_t ankleRaised[2] = {0, 0};          // her ankle ring's places raised over the model's edge between them (ankleMatch)
+    float ankleRaiseMax[2] = {0, 0};
     float unit = 1;                 // model units per Sims metre (the hip height ratio)
     float head = 0, height = 0, heightAfter = 0;   // the model's head (chin to crown), its height, hers with the proportions
     int stitched = 0;               // seams stitched to the model's edge
@@ -241,7 +243,12 @@ struct EvePrep {
     std::vector<EveSeamTexel> seam;
     float frontBefore = 0, backBefore = 0, frontAfter = 0, backAfter = 0;   // mean luminance of the torso's front and back
     uint32_t neck = 0, ankle = 0;    // the corrected skin's own colour within 4 cm of the neck ring and of the ankle rings
+    // the texels round her UV islands (within kEvePad of one, none of hers): each with the island texel nearest it, whose
+    // colour eveCompose copies into it, so a bilinear or mipmapped lookup at an island's edge (the ankle rings and the seam
+    // strips lie on it) reads her skin and not the texture's unused ground
+    std::vector<std::pair<uint32_t, uint32_t>> pad;
 };
+constexpr int kEvePad = 12;   // texels: enough for the mip levels a body is seen at (8 x 8 texels a texel at level 3)
 EvePrep evePrepare(const EveMesh& m, const std::vector<uint8_t>& rgba, int w, int h);
 void eveApplyCorrection(const EvePrep& p, std::vector<uint8_t>& rgba);
 // The luminance of `rgba` (linear) at the torso's front and back vertices (front: normal x > 0.6, back < -0.6, 1.0 to 1.45 up).
