@@ -243,21 +243,45 @@ void posedSeams(M2Model& m, const FileLookup& look, const EveResult& res, size_t
             for (size_t v = eveVerts; v < ev.size(); ++v) if (twin[v] >= 0) gap = std::max(gap, (eP[v] - mP[size_t(twin[v])]).length());
             for (size_t k = 0; k + 2 < ei.size(); k += 3) {
                 if (ei[k] < eveVerts && ei[k + 1] < eveVerts && ei[k + 2] < eveVerts) continue;
-                for (int q = 0; q < 3; ++q) strip = std::max(strip, (eP[ei[k + q]] - eP[ei[k + (q + 1) % 3]]).length());
+                for (int q = 0; q < 3; ++q) {
+                    uint32_t x = ei[k + q], y = ei[k + (q + 1) % 3];
+                    float r = (eRest[x] - eRest[y]).length(), d = (eP[x] - eP[y]).length();
+                    strip = std::max(strip, d - r);
+                    if (getenv("EVE_DIAG") && d - r > 0.01f) std::printf("    strip edge %u-%u rest %.4f posed %.4f at %.2f %.2f %.2f\n", x, y, r, d, eRest[x].x, eRest[x].y, eRest[x].z);
+                }
             }
             std::vector<float> es, ms; size_t c1, n1, c2, n2;
             tris(eRest, eP, ei, eveVerts, es, c1, n1);
             tris(mRest, mPose, m.indices, m.vertices.size(), ms, c2, n2);
+            if (getenv("EVE_DIAG") && f == 0.6f) {
+                const char* names[] = {"Neck1", "Chest", "Spine1", "Pelvis", "L_UpperArm", "R_UpperArm", "L_Forearm", "R_Forearm", "L_Hand", "R_Hand", "L_Thigh", "R_Thigh", "L_Calf", "R_Calf", "L_Foot", "R_Foot"};
+                std::vector<std::pair<float, size_t>> w;
+                for (size_t t2 = 0; t2 + 2 < ei.size(); t2 += 3) {
+                    uint32_t a = ei[t2], b = ei[t2 + 1], c = ei[t2 + 2];
+                    if (a >= eveVerts || b >= eveVerts || c >= eveVerts) continue;
+                    float worst = 0;
+                    for (auto [x, y] : {std::pair<uint32_t, uint32_t>{a, b}, {b, c}, {c, a}}) { float r = (eRest[x] - eRest[y]).length(); if (r > 1e-5f) worst = std::max(worst, (eP[x] - eP[y]).length() / r); }
+                    w.push_back({worst, t2});
+                }
+                std::sort(w.rbegin(), w.rend());
+                for (size_t q = 0; q < 12 && q < w.size(); ++q) {
+                    V3 c = (eRest[ei[w[q].second]] + eRest[ei[w[q].second + 1]] + eRest[ei[w[q].second + 2]]) * (1.0f / 3);
+                    const char* best = "?"; float bd = 1e9f;
+                    for (const char* nm : names) { int b = m.findWowBone(nm); if (b < 0) continue; float d = (m.bones[size_t(b)].pivot - c).length(); if (d < bd) { bd = d; best = nm; } }
+                    float edge = 0; for (int k = 0; k < 3; ++k) edge = std::max(edge, (eRest[ei[w[q].second + k]] - eRest[ei[w[q].second + (k + 1) % 3]]).length());
+                    std::printf("    stretch %.2f near %s (%.3f) rest edge %.4f at %.2f %.2f %.2f\n", w[q].first, best, bd, edge, c.x, c.y, c.z);
+                }
+            }
             if (pct(es, 0.999) - pct(ms, 0.999) * 1.3f > e999 - m999 * 1.3f || en == 0) {   // the moment hers is furthest past the model's
                 e999 = pct(es, 0.999); m999 = pct(ms, 0.999); e99 = pct(es, 0.99); m99 = pct(ms, 0.99);
                 eMax = es.empty() ? 0 : es.back(); mMax = ms.empty() ? 0 : ms.back();
             }
             if (c1 >= ec) { ec = c1; en = n1; mc = c2; mn = n2; }
         }
-        std::printf("  %s, %s: seam gap %.5f, strip's longest edge %.4f, stretch p99 %.2f p99.9 %.2f max %.2f (the model's %.2f %.2f %.2f), "
+        std::printf("  %s, %s: seam gap %.5f, strip's edges longer by %.4f, stretch p99 %.2f p99.9 %.2f max %.2f (the model's %.2f %.2f %.2f), "
                     "collapsed %zu/%zu (the model's %zu/%zu)\n", name.c_str(), p.what, gap, strip, e99, e999, eMax, m99, m999, mMax, ec, en, mc, mn);
         CHECK(gap < 1e-4f, "%s, %s: a seam opens %.5f", name.c_str(), p.what, gap);
-        CHECK(strip < 0.03f, "%s, %s: the seam's strip stretched to %.4f", name.c_str(), p.what, strip);
+        CHECK(strip < 0.03f, "%s, %s: the seam's strip stretched by %.4f", name.c_str(), p.what, strip);
         CHECK(e999 <= m999 * 1.3f + 0.2f, "%s, %s: her triangles stretch %.2f, the model's %.2f", name.c_str(), p.what, e999, m999);
         CHECK(ec * 500 <= en, "%s, %s: %zu of her %zu triangles collapse", name.c_str(), p.what, ec, en);
     }

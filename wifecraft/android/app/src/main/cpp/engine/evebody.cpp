@@ -1857,6 +1857,10 @@ EveDetailLayer eveDetailLayer(const EveBody& eve, int w, int h, const std::vecto
     const Lut& L = lut();
     const size_t ev = eve.verts.size();
     // each Eve corner's own nearest distance first: it bounds what her triangle's texels need to look at
+    struct Own { int x, y; V3 b; };
+    std::vector<Own> own;
+    std::vector<uint32_t> hint;
+    std::vector<int32_t> found(size_t(w) * h, -2);   // per lattice texel: the model triangle nearest it (-1 none, -2 not searched)
     std::vector<float> cornerD(ev, -1), keys;
     std::vector<uint32_t> cand;
     std::vector<std::pair<float, uint32_t>> order;
@@ -1885,26 +1889,52 @@ EveDetailLayer eveDetailLayer(const EveBody& eve, int w, int h, const std::vecto
         keys.resize(order.size());
         for (size_t j = 0; j < order.size(); ++j) { keys[j] = order[j].first; cand[j] = order[j].second; }
         V3 na = nrmOf(A), nb = nrmOf(B), nc = nrmOf(C);
+        // her texels this triangle owns; those on the even lattice searched in full first, then each of the others among the
+        // nearest triangles its lattice neighbours found (the same answer but where a triangle is nearest to none of the four)
+        own.clear();
         raster(A.uv[0] * w, A.uv[1] * h, B.uv[0] * w, B.uv[1] * h, C.uv[0] * w, C.uv[1] * h, w, h, [&](int x, int y, float b0, float b1, float b2) {
             size_t i = size_t(y) * w + x;
             if (done[i]) return;   // (a texel two triangles share: the first one's)
             done[i] = 1;
             ++out.texels;
-            V3 p = pa * b0 + pb * b1 + pc * b2, n = (na * b0 + nb * b1 + nc * b2).normalized();
-            float best = reach * reach; int bt = -1; V3 bb;
-            nearest(p, n, cand, best, bt, bb, &keys, r);
-            if (bt < 0) return;
-            const Tri& q = mt[size_t(bt)];
-            float u = wow[q.v[0]].uv[0] * bb.x + wow[q.v[1]].uv[0] * bb.y + wow[q.v[2]].uv[0] * bb.z;
-            float v = wow[q.v[0]].uv[1] * bb.x + wow[q.v[1]].uv[1] * bb.y + wow[q.v[2]].uv[1] * bb.z;
-            int sx = std::clamp(int(u * sw), 0, sw - 1), sy = std::clamp(int(v * sh), 0, sh - 1);   // (the nearest texel: no blur)
-            size_t si = size_t(sy) * sw + sx;
-            float cover = mask.a[si] / 255.0f * (1 - smooth01(0.5f * reach, reach, std::sqrt(best)));
-            uint8_t* d = &out.rgba[i * 4];
-            for (int k = 0; k < 3; ++k) d[k] = L.toByte(L.lin[skin[si * 4 + k]] * tint[k]);
-            d[3] = uint8_t(std::clamp(cover, 0.0f, 1.0f) * 255.0f + 0.5f);
-            if (d[3]) ++out.covered;
+            own.push_back({x, y, V3(b0, b1, b2)});
         });
+        for (int pass = 0; pass < 2; ++pass)
+            for (const Own& o : own) {
+                bool lattice = !(o.x & 1) && !(o.y & 1);
+                if (lattice != (pass == 0)) continue;
+                size_t i = size_t(o.y) * w + o.x;
+                V3 p = pa * o.b.x + pb * o.b.y + pc * o.b.z, n = (na * o.b.x + nb * o.b.y + nc * o.b.z).normalized();
+                float best = reach * reach; int bt = -1; V3 bb;
+                if (!lattice) {
+                    hint.clear();
+                    int x0 = o.x & ~1, y0 = o.y & ~1, have = 0;
+                    for (int dy = 0; dy <= 2; dy += 2) for (int dx = 0; dx <= 2; dx += 2) {
+                        int xx = x0 + dx, yy = y0 + dy;
+                        if (xx >= w || yy >= h) continue;
+                        int32_t f = found[size_t(yy) * w + xx];
+                        if (f == -2) continue;
+                        ++have;
+                        if (f >= 0 && std::find(hint.begin(), hint.end(), uint32_t(f)) == hint.end()) hint.push_back(uint32_t(f));
+                    }
+                    if (have >= 2 && !hint.empty()) nearest(p, n, hint, best, bt, bb);
+                    if (bt < 0) { best = reach * reach; nearest(p, n, cand, best, bt, bb, &keys, r); }
+                } else {
+                    nearest(p, n, cand, best, bt, bb, &keys, r);
+                    found[i] = bt;
+                }
+                if (bt < 0) continue;
+                const Tri& q = mt[size_t(bt)];
+                float u = wow[q.v[0]].uv[0] * bb.x + wow[q.v[1]].uv[0] * bb.y + wow[q.v[2]].uv[0] * bb.z;
+                float v = wow[q.v[0]].uv[1] * bb.x + wow[q.v[1]].uv[1] * bb.y + wow[q.v[2]].uv[1] * bb.z;
+                int sx = std::clamp(int(u * sw), 0, sw - 1), sy = std::clamp(int(v * sh), 0, sh - 1);   // (the nearest texel: no blur)
+                size_t si = size_t(sy) * sw + sx;
+                float cover = mask.a[si] / 255.0f * (1 - smooth01(0.5f * reach, reach, std::sqrt(best)));
+                uint8_t* d = &out.rgba[i * 4];
+                for (int k = 0; k < 3; ++k) d[k] = L.toByte(L.lin[skin[si * 4 + k]] * tint[k]);
+                d[3] = uint8_t(std::clamp(cover, 0.0f, 1.0f) * 255.0f + 0.5f);
+                if (d[3]) ++out.covered;
+            }
     }
     // her coverage's edges softened (3 x 3 over her own texels), then the layer grown 3 texels past her islands (mip levels)
     {
