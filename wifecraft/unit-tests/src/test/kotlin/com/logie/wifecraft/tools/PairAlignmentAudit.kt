@@ -212,7 +212,7 @@ class PairAlignmentAudit {
                 val orderB = PairAlignment.played(anB, combo.b, times, fb.x.toDouble(), fb.y.toDouble(), rb.offset.z * k, Math.toDegrees(rb.facing.toDouble()))
                 // pair: spaced for the two bodies, fitted, each role lifted as roleLifts lifts it
                 val spaced = PairSpacing.spaced(pp, combo.a.flesh, combo.b.flesh)
-                if (debug != null && c.name.contains(debug, true)) dbg.println("TMPDBG ${combo.name}: " + tmpWorst(pp, combo.a.flesh, combo.b.flesh))
+                if (debug != null && c.name.contains(debug, true)) dbg.println("spacing ${combo.name}: " + spacingParts(pp, combo.a.flesh, combo.b.flesh))
                 val push = PairAlignment.horiz(doubleArrayOf((spaced.slotB.x - pp.slotB.x).toDouble(), (spaced.slotB.y - pp.slotB.y).toDouble(), 0.0))
                 val (sA, sB) = PairFit.slots(spaced.slotA, spaced.slotB, combo.sizeA, combo.sizeB)
                 // each role's lift for its own flesh, shared, the hips matched: PairLifts.of, as SceneSimulation.roleLifts runs it
@@ -390,8 +390,11 @@ class PairAlignmentAudit {
         log.close()
     }
 
-    // TMPDBG: the part pairs that come deepest past their tolerance (unshifted), worst moment each
-    private fun tmpWorst(p: PartnerPair, fa: FleshProfile, fb: FleshProfile): String {
+    /**
+     * ALIGN_DEBUG: what moves a pair apart ([PairSpacing.push]): the part pairs (A's/B's) that come deepest past their tolerance
+     * as authored, before any move, each at its worst moment (body units; negative: that much too near).
+     */
+    private fun spacingParts(p: PartnerPair, fa: FleshProfile, fb: FleshProfile): String {
         val a = PairSpacing.frames(p.slotA, p.a, fa); val b = PairSpacing.frames(p.slotB, p.b, fb)
         val ga = PairSpacing.frames(p.slotA, p.a); val gb = PairSpacing.frames(p.slotB, p.b)
         val res = HashMap<String, Double>()

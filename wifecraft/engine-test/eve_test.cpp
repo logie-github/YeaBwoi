@@ -2,7 +2,9 @@
 // (Recolor's gain, Lab and the nearest shade), the texture's composition (tint, overlay, seam feather), the fit on a
 // synthetic skeleton and body (the cut rule, the cut edge, the rings snapped onto it with its weights, the torso's map),
 // the measure mesh and the breast regions. build/eve_test [SET_DIR FILES_DIR MODEL_ID ...]: with a converted set and the
-// game's files, also fits each model given and prints its numbers. Exit 0 when all pass.
+// game's files, also fits each model given and prints its numbers (MODEL:SKIN:FIT_JSON[:GEO]: the real fit table's row, the
+// seams' colour, the posed seams; with GEO, a look's geoset groups "0=2,4=1,...", also her flesh as the scene measures it and
+// the ankles' step). Exit 0 when all pass.
 #include <chrono>
 #include <thread>
 #include <cmath>
@@ -22,6 +24,7 @@
 #include "evebody.h"
 #include "m2.h"
 #include "modelpart.h"
+#include "flesh.h"
 
 using namespace wc;
 
@@ -774,6 +777,33 @@ int main(int argc, char** argv) {
                         }
                         CHECK(added > 0 && off == 0, "%s: %zu stitch vertices, %zu off the model's edge", row->name.c_str(), added, off);
                         posedSeams(m, look, res, res.body.stats.eveVerts, row->name, *row);
+                        // her flesh as the scene measures it (Scene::actorFlesh, flesh.h FleshGuide: her skin by area, her trunk and thighs by
+                        // the model's own segments where she is) against the model's own body's: a race whose build she keeps (no `bulk`) reads
+                        // within 0.035 body units of it at the pelvis, the spine's front and the chest's front (read by her weights alone her
+                        // spine's front came 0.05 deeper and her pelvis 0.04 narrower than the human woman's); the hip joints the model's
+                        if (row->rig > 0 && !j.geosets.empty()) {
+                            const LegEdit legs = bodyEditFrom(m, res.body.rigPivots, res.body.scale);
+                            FleshGuide guide;
+                            guide.byArea = true;
+                            guide.from = res.measure.verts.size() - res.body.verts.size();
+                            guide.idx = &m.indices; guide.subs = &m.submeshes;
+                            FleshMeasure fe = measureFlesh(m, res.measure.verts, res.measure.indices, res.measure.subs, j.geosets, nullptr, legs.active ? &legs : nullptr, &guide);
+                            FleshMeasure fm = measureFlesh(m, m.vertices, m.indices, m.submeshes, j.geosets);
+                            if (fe.ok && fm.ok) {
+                                const FleshSeg &ep = fe.seg[kFleshPelvis], &mp = fm.seg[kFleshPelvis], &es = fe.seg[kFleshSpine], &ms = fm.seg[kFleshSpine];
+                                const FleshSeg &ec = fe.seg[kFleshChest], &mc = fm.seg[kFleshChest];
+                                std::printf("  %s: her flesh (body units) pelvis front/back/side %.3f/%.3f/%.3f (the model's %.3f/%.3f/%.3f), spine front %.3f (%.3f), "
+                                            "chest front %.3f (%.3f); hips %.3f (%.3f)\n", row->name.c_str(), ep.front, ep.back, ep.side, mp.front, mp.back, mp.side,
+                                            es.front, ms.front, ec.front, mc.front, fe.rest[15].z, fm.rest[15].z);   // (15: L_Thigh)
+                                const EveBulk& bk = row->bulk;
+                                const bool keepsHers = bk.arm == 1 && bk.forearm == 1 && bk.thigh == 1 && bk.calf == 1 && bk.shoulders == 1 && bk.chest == 1 &&
+                                                       bk.waist == 1 && bk.hips == 1;
+                                if (keepsHers)
+                                    CHECK(std::fabs(ep.side - mp.side) <= 0.035f && std::fabs(ep.back - mp.back) <= 0.035f && std::fabs(es.front - ms.front) <= 0.035f &&
+                                          std::fabs(ec.front - mc.front) <= 0.035f, "%s: her flesh as measured strays from the model's own body", row->name.c_str());
+                            }
+                            CHECK(fe.ok && fm.ok, "%s: her flesh and the model's measured", row->name.c_str());
+                        }
                         // the ankles: her shin meets the model's foot as its own leg did (no cuff, no fold of shading), on the look's own
                         // geosets (MODEL:SKIN:FIT:GEO; without them every geoset's edges are cut and the measure means nothing)
                         if (row->rig > 0 && row->ankleMatch > 0 && !j.geosets.empty()) {

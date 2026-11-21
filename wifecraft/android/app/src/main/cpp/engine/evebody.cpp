@@ -1657,10 +1657,12 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
     // edge (which slants over the foot's top): each of her shin's vertices within `band` over her ring (her own height over it
     // before the snap, at its angle) is set that high over the model's edge, then onto the nearest point of the model's
     // removed skin (its triangles: over the slanted instep that is the foot's top, not a radius), fully up to 2 cm over the
-    // edge, eased to none at `band`; her normals and weights turn to the model's skin's there by as much. Before, her loops were drawn onto the model's leg before the snap: where the edge stood higher than her ring they
-    // were left below it, and the snap's spread lifted them only partly, so her ring stood over its own next loop as a cuff (up
-    // to 1 cm on the night elf, a fold of shading on the human); and the model's legs are low in vertices, so a profile read
-    // from them alone (the widest per 1.5 cm row) missed most of hers. Her shin now meets the foot as the model's own leg did.
+    // edge, eased to none at `band`; her normals and weights turn to the model's skin's there by as much. Before, her loops
+    // were drawn onto the model's leg before the snap: where the edge stood higher than her ring they were left below it and
+    // the snap's spread lifted them only partly, so her ring stood out over her next loop as a cuff (0.9 to 2 cm off the
+    // model's own skin 0.2 to 2 cm over the edge, her normals 19 to 34 degrees off its: eve_test's ankle measure); and the
+    // model's legs are low in vertices, so a profile read from them alone (the widest per 1.5 cm row) missed most of hers.
+    // Now 0.01 to 0.14 cm and 0 to 2 degrees on the ten offered models.
     if (fit.ankleMatch > 0) for (int s = 0; s < 2 && !split; ++s) {
         if (ankleR[s].e.empty()) continue;
         constexpr int kAng = 24;
