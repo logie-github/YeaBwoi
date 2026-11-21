@@ -2190,9 +2190,9 @@ EveDetailLayer eveDetailLayer(const EveBody& eve, int w, int h, const std::vecto
         const M2Vertex &A = eve.verts[a], &B = eve.verts[b], &C = eve.verts[c];
         V3 pa = posOf(A), pb = posOf(B), pc = posOf(C), centre = (pa + pb + pc) * (1.0f / 3);
         float r = std::max({(pa - centre).length(), (pb - centre).length(), (pc - centre).length()});
-        float far = std::max({cornerD[a], cornerD[b], cornerD[c]});
+        float farD = std::max({cornerD[a], cornerD[b], cornerD[c]});
         bool all = cornerD[a] >= 0 && cornerD[b] >= 0 && cornerD[c] >= 0;
-        float rad = r + (all ? std::min(reach, far + 2 * r) : reach) + 0.005f * reach / 0.1f;
+        float rad = r + (all ? std::min(reach, farD + 2 * r) : reach) + 0.005f * reach / 0.1f;
         gather(centre, rad, cand);
         if (cand.empty()) continue;
         // nearest first (by their spheres from her triangle's centre): each texel stops once the rest are all farther
