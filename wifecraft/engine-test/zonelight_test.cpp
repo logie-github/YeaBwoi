@@ -58,7 +58,9 @@ static void checkTone(const CineProfile& full, float s, const char* what) {
     CHECK(std::max(o[0], std::max(o[1], o[2])) <= 0.075f, "%s: black washed out (%.3f %.3f %.3f)", what, o[0], o[1], o[2]);
     grade(p, 0.04f, o);
     CHECK(std::min(o[0], std::min(o[1], o[2])) >= 0.015f, "%s: shadows crushed (%.3f %.3f %.3f)", what, o[0], o[1], o[2]);
-    grade(p, 0.5f, o);
+    CineProfile p1 = p;
+    p1.exposure = 1;   // (the exposure moves the mid-grey on purpose: daylight_test holds its range)
+    grade(p1, 0.5f, o);
     float m = (o[0] + o[1] + o[2]) / 3;
     CHECK(m >= 0.35f && m <= 0.61f, "%s: mid-grey to %.3f", what, m);
     grade(p, 1.0f, o);

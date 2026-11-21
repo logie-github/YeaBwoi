@@ -56,7 +56,7 @@ void main() {
     vec3 s = c * c * (3.0 - 2.0 * c);
     c = mix(c, s, uContrast);
     float l0 = dot(c, vec3(0.299, 0.587, 0.114));
-    c *= mix(vec3(1.0), uShadowTint, 1.0 - smoothstep(0.0, 0.36, l0)) * mix(vec3(1.0), uHighTint, smoothstep(0.45, 1.0, l0));
+    c *= mix(vec3(1.0), uShadowTint, 1.0 - smoothstep(0.0, 0.45, l0)) * mix(vec3(1.0), uHighTint, smoothstep(0.45, 1.0, l0));
     float l = dot(c, vec3(0.299, 0.587, 0.114));
     c = mix(vec3(l), c, uSat);
     float mids = 4.0 * l * (1.0 - l);

@@ -104,8 +104,16 @@ static void checkLimits(const CineProfile& p, const char* what) {
             CHECK(o9[i] <= 0.97f + 1e-4f, "%s at %.1f: the highlights blown (%.3f)", what, s, o9[i]);
             CHECK(o1[i] >= 0.80f - 1e-4f, "%s at %.1f: white greyed (%.3f)", what, s, o1[i]);
         }
+        // the mid-grey by the grade itself (the exposure is meant to move it: its own range below)
+        CineProfile q1 = q;
+        q1.exposure = 1;
+        cineGradeColour(q1, c5, o5);
         float m = (o5[0] + o5[1] + o5[2]) / 3;
         CHECK(m >= 0.36f - 1e-4f && m <= 0.60f + 1e-4f, "%s at %.1f: the mid-grey moved to %.3f", what, s, m);
+        CHECK(q.exposure >= 0.6f - 1e-4f && q.exposure <= 1.9f + 1e-4f, "%s at %.1f: exposure %.2f", what, s, q.exposure);
+        cineGradeColour(q, c5, o5);
+        m = (o5[0] + o5[1] + o5[2]) / 3;
+        CHECK(m <= 0.72f, "%s at %.1f: the exposure takes the mid-grey to %.3f", what, s, m);
     }
 }
 

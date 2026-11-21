@@ -481,7 +481,15 @@ ZoneTargets zoneTargets(const CineInput& in) {
         for (int i = 0; i < 3; ++i) { hue[i] = h[i]; out[i] = h[i] * l; }
     };
     make(z.ambient, in.ambient, 0.35f, 0.10f, 0.70f, 0.55f, t.amb, t.ambHue);
-    make(z.direct, in.direct, 0.30f, 0.04f, 0.85f, 0.50f, t.sun, t.sunHue);
+    // (the sun's light a little of its own glow's colour: Tirisfal's dim blue direct light toward its pale green sun)
+    float zd[3];
+    std::copy(z.direct, z.direct + 3, zd);
+    if (cineLum(z.sun) > 0.05f && cineLum(z.direct) > 1e-3f) {
+        float hd[3], hs[3];
+        cineHue(z.direct, hd); cineHue(z.sun, hs);
+        for (int i = 0; i < 3; ++i) zd[i] = (0.65f * hd[i] + 0.35f * hs[i]) * cineLum(z.direct);
+    }
+    make(zd, in.direct, 0.30f, 0.04f, 0.85f, 0.50f, t.sun, t.sunHue);
     float zs[3] = {0, 0, 0}, zf[3] = {0, 0, 0};
     for (int i = 0; i < 3; ++i) zf[i] = 0.7f * z.fog[i] + 0.3f * z.endFog[i];
     if (cineLum(z.skyMid) > 0.02f) std::copy(z.skyMid, z.skyMid + 3, zs); else std::copy(zf, zf + 3, zs);
@@ -506,8 +514,8 @@ ZoneTargets zoneTargets(const CineInput& in) {
     };
     {
         float acc[3] = {0, 0, 0}, w = 0;
-        add(acc, w, z.skyMid, 0.5f); add(acc, w, z.cloud, 0.3f); add(acc, w, z.band1, 0.2f);
-        hueOf(acc, w, t.skyHue, 0.45f, t.shadowHue);
+        add(acc, w, z.skyMid, 0.4f); add(acc, w, z.cloud, 0.5f); add(acc, w, z.band1, 0.1f);
+        hueOf(acc, w, t.skyHue, 0.60f, t.shadowHue);
     }
     {
         float acc[3] = {0, 0, 0}, w = 0;
@@ -648,10 +656,10 @@ CineProfile cineProfile(const CineInput& in0, const CineOverride* over) {
         float fh[3];
         mixHue(area, sky, 0.25f * day, fh);
         limitChroma(fh, 0.30f);
-        const float target = 0.30f - 0.08f * night;
+        const float target = 0.46f - 0.03f * night;
         const float need = std::max(0.0f, target - lit);
-        for (int i = 0; i < 3; ++i) p.roomFloor[i] = fh[i] * 0.85f * need;
-        p.exposure = 1.0f + 0.40f * dark;
+        for (int i = 0; i < 3; ++i) p.roomFloor[i] = fh[i] * 0.9f * need;
+        p.exposure = 1.0f + 0.60f * dark;
     } else {
         p.exposure = 1.0f + 0.15f * night * dark;
     }
@@ -663,9 +671,9 @@ CineProfile cineProfile(const CineInput& in0, const CineOverride* over) {
         for (int i = 0; i < 3; ++i) {
             // the blacks a haze of the fog's colour (Tirisfal's purple), the shadows the sky's and clouds' (its green-teal),
             // the mid-tones the ambient's (its mauve), the highlights a little of the sun's glow (its pale green)
-            p.lift[i] += za * ((0.050f + 0.012f * b) * (zt.hazeHue[i] - 1.0f) + 0.008f);
-            p.mid[i] = 1.0f + za * (0.10f + 0.05f * b) * (zt.ambHue[i] - 1.0f);
-            p.shadowTint[i] = 1.0f + za * (0.75f + 0.25f * b) * (zt.shadowHue[i] - 1.0f);
+            p.lift[i] += za * ((0.030f + 0.012f * b) * (zt.hazeHue[i] - 1.0f) + 0.008f);
+            p.mid[i] = 1.0f + za * (0.06f + 0.05f * b) * (zt.ambHue[i] - 1.0f);
+            p.shadowTint[i] = 1.0f + za * (1.0f + 0.3f * b) * (zt.shadowHue[i] - 1.0f);
             p.highTint[i] = 1.0f + za * (0.45f + 0.20f * b) * (zt.highHue[i] - 1.0f);
             p.gain[i] += za * 0.03f * (zt.skyHue[i] - 1.0f);
         }
@@ -726,7 +734,7 @@ void cineLimit(CineProfile& p) {
     p.saturation = fin(p.saturation, 0.75f, 1.35f, 1.0f);
     p.vignette = fin(p.vignette, 0.0f, 1.2f, 0.0f);
     p.flicker = fin(p.flicker, 0.0f, 1.0f, 0.0f);
-    limitMultiplier(p.shadowTint, 0.92f, 1.08f, 0.45f);
+    limitMultiplier(p.shadowTint, 0.92f, 1.08f, 0.60f);
     limitMultiplier(p.highTint, 0.95f, 1.05f, 0.25f);
     p.exposure = fin(p.exposure, 0.6f, 1.9f, 1.0f);
     for (int i = 0; i < 3; ++i) p.roomFloor[i] = fin(p.roomFloor[i], 0.0f, 0.35f, 0.0f);
@@ -799,7 +807,7 @@ void cineGradeColour(const CineProfile& p, const float in[3], float out[3]) {
     // the split tone: the shadows toward one colour, the highlights toward another (the mid-tones between keep the mid's)
     {
         float l0 = cineLum(c);
-        float ws = 1.0f - smooth01(0.0f, 0.36f, l0), wh = smooth01(0.45f, 1.0f, l0);
+        float ws = 1.0f - smooth01(0.0f, 0.45f, l0), wh = smooth01(0.45f, 1.0f, l0);
         for (int i = 0; i < 3; ++i) c[i] *= lerpf(1.0f, p.shadowTint[i], ws) * lerpf(1.0f, p.highTint[i], wh);
     }
     float l = cineLum(c);
