@@ -262,7 +262,8 @@ bool vertexMoves(const SculptRig& rig, const SculptOptions& opt, const M2Vertex&
         if (on(kSculptBustProjection))                                                                 // forward from the wall
             D[kSculptBustProjection].x += mound ? 0.032f * U * bust[k] * (0.25f + 0.75f * tip) : out * 0.45f * bust[k];
         if (on(kSculptBustDroop)) {                                                                    // down, the tip leading
-            D[kSculptBustDroop].z -= 0.04f * U * bust[k] * tip;
+            // (turned down about the breast's root: the farther out of the chest, the lower; the chest round it kept)
+            D[kSculptBustDroop].z -= (mound ? 0.5f * std::max(0.0f, p.x - b.x) : 0.04f * U * tip) * bust[k];
             D[kSculptBustDroop].x += 0.015f * U * bust[k] * tip * below;   // (the underside rolls out over the fold)
         }
         if (on(kSculptBustUpper))                                                                      // the upper slope filled

@@ -19,7 +19,12 @@
 //     the same moves on the model's whole vertex list (the skin and the clothing geosets on it, so a robe or sleeves follow),
 //     with the spine followed along its curve (an orc's chest stands far forward of its pelvis), the limbs' moves faded out
 //     before the wrists and ankles (the hands and feet keep their size and seams), and any triangle that would turn over or
-//     collapse eased back (its corners' moves halved, by place, up to six times, then dropped).
+//     collapse eased back (its corners' moves halved, by place, up to six times, then dropped). Their women's bust is a soft
+//     mound by place round each breast bone (their breast bones' weights are too light and patchy to carry it), and the bust
+//     grows round (outward from its centre) rather than drawn to a point; Droop turns it down about its root.
+//   - The Bust & Butt designer's shapes (after the twenty-two): the bust's projection, droop, upper fullness, roundness, side
+//     fullness and underside about each breast; the butt's width, projection, roundness, cheek gap, hip dip and underbutt about
+//     each cheek's centre (below the hip joints, behind); a man's pectorals and abs.
 // Slider order as the app's (creator/BodySculpt.kt SculptSlider). Height is the actor's scale (the app's), not a move here;
 // leg length is the skeleton's (bodyrig.h), not a move here either. Body Fat and Muscle are no moves of their own: each adds
 // shares of the others (more waist, belly, hips, thighs...; more shoulders, arms, chest, calves...).
