@@ -194,6 +194,8 @@ class LiveScene(
      */
     @Volatile var director: CinematicDirector? = null
     @Volatile var directing = false
+    /** Build mode is on: no animation ends ([SceneSimulation.holdAnimations]). Any thread; passed to the simulation each frame. */
+    @Volatile var holdAnimations = false
     @Volatile var aspect = 16f / 9f
     // the director's view of the stage (GL thread): filled each frame; its furniture and obstacles made again on a change
     private var cineStage: CinematicStage? = null
@@ -548,6 +550,7 @@ class LiveScene(
         frameSink = sink
         holdPreview(sink)
         val ticking = running && previewFor == null
+        simulation.holdAnimations = holdAnimations
         if (ticking) {
             for (s in 0 until due) {
                 for (i in 0 until n) { prevX[i] = curX[i]; prevY[i] = curY[i]; prevZ[i] = curZ[i] }

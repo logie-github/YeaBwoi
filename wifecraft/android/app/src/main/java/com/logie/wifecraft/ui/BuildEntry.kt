@@ -25,6 +25,16 @@ object BuildEntry {
     fun hintShown(seen: Boolean, buildOn: Boolean, hudHidden: Boolean, revealed: Boolean): Boolean =
         !seen && !buildOn && !hudHidden && revealed
 
-    /** What entering does to the other modes: cinematic ends (Build mode and cinematic are exclusive). */
-    fun cinematicAfterEnter(@Suppress("UNUSED_PARAMETER") cinematic: Boolean): Boolean = false
+    /** What entering Build mode does to cinematic mode: nothing (they run together: the film frame, light and shots stay, the camera
+     *  orbits the selection, auto-play stands on the shot). */
+    fun cinematicAfterEnter(cinematic: Boolean): Boolean = cinematic
+
+    /** What turning cinematic mode on or off does to Build mode: nothing. */
+    fun buildAfterCinematic(build: Boolean): Boolean = build
+
+    /** Whether the cinematic director owns the camera: not while Build mode is on (its orbit round the selection is the camera then). */
+    fun directorCamera(cinematic: Boolean, buildOn: Boolean): Boolean = cinematic && !buildOn
+
+    /** Whether the auto-play sequence is held on its current shot (Build mode on: no animation ends). */
+    fun holdAnimations(buildOn: Boolean): Boolean = buildOn
 }

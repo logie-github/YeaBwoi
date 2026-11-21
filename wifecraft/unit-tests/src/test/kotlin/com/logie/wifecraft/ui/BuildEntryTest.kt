@@ -31,8 +31,20 @@ class BuildEntryTest {
     }
 
     @Test
-    fun enteringEndsCinematic() {
-        assertFalse(BuildEntry.cinematicAfterEnter(true))
+    fun buildModeAndCinematicModeRunTogether() {
+        // entering Build mode leaves cinematic as it is, and turning cinematic on leaves Build mode as it is
+        assertTrue(BuildEntry.cinematicAfterEnter(true))
         assertFalse(BuildEntry.cinematicAfterEnter(false))
+        assertTrue(BuildEntry.buildAfterCinematic(true))
+        assertFalse(BuildEntry.buildAfterCinematic(false))
+    }
+
+    @Test
+    fun buildModeTakesTheCameraAndHoldsTheAnimationsInCinematic() {
+        assertTrue(BuildEntry.directorCamera(cinematic = true, buildOn = false))
+        assertFalse(BuildEntry.directorCamera(cinematic = true, buildOn = true))
+        assertFalse(BuildEntry.directorCamera(cinematic = false, buildOn = false))
+        assertTrue(BuildEntry.holdAnimations(buildOn = true))
+        assertFalse(BuildEntry.holdAnimations(buildOn = false))
     }
 }

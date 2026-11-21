@@ -252,6 +252,39 @@ class CinematicAutoplayTest {
         runUntilSwap(a)
     }
 
+    @Test fun buildModeHoldsTheSequenceOnItsShotAndLeavingResumesIt() {
+        val a = CinematicAutoplay(AutoplayPlanner(8))
+        a.options = options()
+        a.start()
+        runUntilSwap(a); a.swapped(true)
+        repeat(60) { a.tick(dt) }
+        val playing = a.beat
+        val elapsed = a.elapsed
+        a.hold = true
+        // far past any dwell: nothing is chosen, started, cut or replaced; Next scene does nothing; the dwell does not run
+        repeat(60 * 400) { assertTrue(a.tick(dt).isEmpty()) }
+        assertEquals(AutoPhase.PLAY, a.phase)
+        assertSame(playing, a.beat)
+        assertEquals(elapsed, a.elapsed)
+        assertTrue(a.next().isEmpty())
+        assertEquals(AutoPhase.PLAY, a.phase)
+        a.hold = false
+        // resumed where it was: the rest of the dwell, then the change
+        runUntilSwap(a)
+    }
+
+    @Test fun cinematicStartedDuringBuildModeWaitsForItsFirstAnimation() {
+        val a = CinematicAutoplay(AutoplayPlanner(8))
+        a.options = options()
+        a.hold = true
+        assertTrue(a.start().isEmpty())
+        repeat(600) { assertTrue(a.tick(dt).isEmpty()) }
+        assertNull(a.beat)
+        assertEquals(AutoPhase.PLAY, a.phase)
+        a.hold = false
+        runUntilSwap(a)
+    }
+
     @Test fun showMovementWalksInTheOpenAndCutsAsTheyStart() {
         val a = CinematicAutoplay(AutoplayPlanner(12))
         a.options = options(); a.showMovement = true
