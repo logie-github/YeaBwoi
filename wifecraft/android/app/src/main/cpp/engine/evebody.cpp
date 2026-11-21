@@ -1787,13 +1787,13 @@ EveDetailMask eveDetailMask(const std::vector<M2Vertex>& wow, const std::vector<
     std::unordered_map<int32_t, std::pair<double, size_t>> mean;   // island: its texels' summed detail, their count
     for (size_t i = 0; i < island.size(); ++i) {
         if (island[i] < 0) continue;
-        float dl = lab[i].x - tl.x;
-        dl *= dl < 0 ? 0.5f : 0.15f;
-        float d = std::sqrt(dl * dl + (lab[i].y - tl.y) * (lab[i].y - tl.y) + (lab[i].z - tl.z) * (lab[i].z - tl.z));
-        float a = smooth01(9.0f, 16.0f, d);
+        // (a texel is detail well off the tone; an island is a piece when most of it is even a little off: a bone's highlights)
+        float dl = lab[i].x - tl.x, c2 = (lab[i].y - tl.y) * (lab[i].y - tl.y) + (lab[i].z - tl.z) * (lab[i].z - tl.z);
+        float dt = dl * (dl < 0 ? 0.25f : 0.15f), dp = dl * (dl < 0 ? 0.5f : 0.15f);
+        float a = smooth01(14.0f, 22.0f, std::sqrt(dt * dt + c2));
         m.a[i] = uint8_t(a * 255.0f + 0.5f);
         auto& s = mean[island[i]];
-        s.first += a; ++s.second;
+        s.first += smooth01(9.0f, 16.0f, std::sqrt(dp * dp + c2)); ++s.second;
     }
     // an island mostly off the tone is a piece (a bone): all of it is detail, its highlights too
     std::vector<uint8_t> pieceIsland(nv, 0);
@@ -2227,43 +2227,65 @@ EveResult eveCompute(const EveJob& job) {
     // Keep undead bones (her fit row's "detail", her options' bones): the model's own details found on its skin texture (read
     // whole: 1024 texels), baked into Eve's skin by where her surface lies over its body, and taken out of what the colour
     // transfer reads (no brown haze round a bone); with "detail" 2 its bone pieces are also kept, uncut
-    EveDetailMask dmask;
-    EveDetailLayer dlayer;
+    std::shared_ptr<EveSet::Detail> keepDetail;   // (held while it is used: the cache may drop it meanwhile)
+    const EveDetailMask* dmask = nullptr;
+    const EveDetailLayer* dlayer = nullptr;
     std::vector<uint8_t> cleaned;
     if (job.opt.bones && job.fit.detail > 0 && haveImg) {
         auto td = std::chrono::steady_clock::now();
-        Image whole;
-        Bytes blp;
-        if (readFile(job.skinPath, blp) && decodeBlp(blp, 1024, whole)) {
-            // the body Eve takes the place of: the shown skin sections' triangles her cut removes
-            std::vector<uint32_t> tris;
+        // the body Eve takes the place of: the shown skin sections' triangles her cut removes
+        std::vector<uint32_t> tris;
+        {
             bool all = job.geosets.empty() || (job.geosets.size() == 1 && job.geosets[0] == 0xFFFF);
+            std::vector<uint8_t> taken(job.subs.size(), 0);
             for (const M2Batch& bt : m.batches) {
-                if (bt.submesh >= job.subs.size() || bt.textureCombo >= m.textureCombos.size()) continue;
+                if (bt.submesh >= job.subs.size() || taken[bt.submesh] || bt.textureCombo >= m.textureCombos.size()) continue;
                 uint16_t ti = m.textureCombos[bt.textureCombo];
                 if (ti >= m.textures.size() || m.textures[ti].type != 1) continue;
+                taken[bt.submesh] = 1;   // (a section two batches draw: once)
                 const M2Submesh& sm = job.subs[bt.submesh];
                 if (!all && std::find(job.geosets.begin(), job.geosets.end(), sm.id) == job.geosets.end()) continue;
-                bool again = false;   // (a section two batches draw: once)
-                for (const M2Batch& b2 : m.batches) { if (&b2 == &bt) break; if (b2.submesh == bt.submesh && b2.textureCombo < m.textureCombos.size() &&
-                    m.textureCombos[b2.textureCombo] < m.textures.size() && m.textures[m.textureCombos[b2.textureCombo]].type == 1) again = true; }
-                if (again) continue;
                 for (uint32_t t = sm.indexStart; t + 2 < sm.indexStart + sm.indexCount && t + 2 < job.indices.size(); t += 3) {
                     uint32_t a = job.indices[t], b = job.indices[t + 1], c = job.indices[t + 2];
                     if (a >= body.cut.size() || b >= body.cut.size() || c >= body.cut.size() || !(body.cut[a] || body.cut[b] || body.cut[c])) continue;
                     tris.push_back(a); tris.push_back(b); tris.push_back(c);
                 }
             }
-            dmask = eveDetailMask(verts, tris, whole.rgba.data(), whole.width, whole.height);
-            if (!dmask.empty()) {
-                dlayer = eveDetailLayer(body, tex->w, tex->h, verts, tris, whole.rgba.data(), whole.width, whole.height, dmask, job.tint,
-                                        0.10f * body.stats.unit);
-                cleaned = img.rgba;
-                eveDetailClean(cleaned.data(), img.width, img.height, dmask);
-                r.detail = true;
-                r.detailPieces = dmask.pieces;
-                r.detailCovered = dlayer.covered;
+        }
+        // made once per fitted body, skin, tint and texture (the set's cache: a look change that leaves her body alone is free)
+        uint64_t dkey = uint64_t(eveCrc32(reinterpret_cast<const uint8_t*>(body.verts.data()), body.verts.size() * sizeof(M2Vertex))) << 32 |
+                        eveCrc32(reinterpret_cast<const uint8_t*>(tris.data()), tris.size() * sizeof(uint32_t));
+        dkey ^= uint64_t(eveCrc32(reinterpret_cast<const uint8_t*>(job.skinPath.data()), job.skinPath.size())) * 0x9E3779B97F4A7C15ull;
+        dkey ^= uint64_t(eveCrc32(reinterpret_cast<const uint8_t*>(job.tint), sizeof job.tint)) << 17;
+        dkey ^= (uint64_t(uint32_t(tex->w)) << 40) ^ (uint64_t(uint32_t(tex->h)) << 8) ^ uint64_t(job.fit.detail * 1000.0f) ^ (uint64_t(m.fileId) << 20);
+        std::shared_ptr<EveSet::Detail> det;
+        {
+            std::lock_guard<std::mutex> lock(set.cacheMutex);
+            for (auto& d : set.details) if (d.first == dkey) det = d.second;
+        }
+        if (!det) {
+            Image whole;
+            Bytes blp;
+            if (readFile(job.skinPath, blp) && decodeBlp(blp, 1024, whole)) {
+                det = std::make_shared<EveSet::Detail>();
+                det->mask = eveDetailMask(verts, tris, whole.rgba.data(), whole.width, whole.height);
+                if (!det->mask.empty())
+                    det->layer = eveDetailLayer(body, tex->w, tex->h, verts, tris, whole.rgba.data(), whole.width, whole.height, det->mask, job.tint,
+                                                0.10f * body.stats.unit);
+                std::lock_guard<std::mutex> lock(set.cacheMutex);
+                set.details.push_back({dkey, det});
+                if (set.details.size() > 2) set.details.erase(set.details.begin());   // (5 MB each)
             }
+        }
+        if (det && !det->mask.empty()) {
+            dmask = &det->mask;
+            dlayer = det->layer.empty() ? nullptr : &det->layer;
+            cleaned = img.rgba;
+            eveDetailClean(cleaned.data(), img.width, img.height, *dmask);
+            r.detail = true;
+            r.detailPieces = dmask->pieces;
+            r.detailCovered = det->layer.covered;
+            keepDetail = det;
         }
         r.detailMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - td).count();
     }
@@ -2289,7 +2311,7 @@ EveResult eveCompute(const EveJob& job) {
     }
     eveCompose(tex->rgba, tex->w, tex->h, gain, ov ? ov->rgba.data() : nullptr, ov ? ov->w : 0, ov ? ov->h : 0, shade ? shade->rect[0] : 0,
                shade ? shade->rect[1] : 0, std::clamp(job.opt.opacity, 0.0f, 1.0f), ovGain, tex->prep, neck, ankle, r.rgba, &map,
-               dlayer.empty() ? nullptr : &dlayer);
+               dlayer);
     // the seams measured: Eve's skin 1.5 to 8 cm from each ring against the model's own at its cut edge there (what meets her)
     if (haveImg) {
         const char* rn[3] = {"neck", "L_ankle", "R_ankle"};
@@ -2324,7 +2346,7 @@ EveResult eveCompute(const EveJob& job) {
     r.cutSubs = job.subs;
     if (r.detail && job.fit.detail >= 2) {   // (the bone pieces kept: their triangles stay uncut)
         std::vector<bool> keep = body.cut;
-        for (size_t v = 0; v < keep.size() && v < dmask.piece.size(); ++v) if (dmask.piece[v] && keep[v]) { keep[v] = false; ++r.detailKept; }
+        for (size_t v = 0; v < keep.size() && v < dmask->piece.size(); ++v) if (dmask->piece[v] && keep[v]) { keep[v] = false; ++r.detailKept; }
         r.cutIndices = cutTriangles(job.indices, r.cutSubs, keep, 1);
     } else {
         r.cutIndices = cutTriangles(job.indices, r.cutSubs, body.cut, 1);

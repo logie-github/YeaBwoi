@@ -114,9 +114,10 @@
     "forearm": 1.12,
     "thigh": 1.03,
     "calf": 1.05,
-    "transfer": 0.15
+    "transfer": 0.15,
+    "detail": 2
    },
-   "note": "smooth all over: the undead body's exposed bones and stitches are lost"
+   "note": "Keep undead bones (on by default): her bone pieces, torn rims and wounds baked into Eve's skin, the spine and shoulder spurs kept as her own pieces; bones inside Eve's fuller knees, forearms and hips show as painted bone only"
   },
   {
    "race": 6,

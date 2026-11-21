@@ -269,6 +269,8 @@ struct EveSet {
     struct Tex { std::vector<uint8_t> rgba; int w = 0, h = 0; EvePrep prep; };
     std::vector<std::pair<std::string, std::shared_ptr<Tex>>> textures;      // by "file|variant", the skins (corrected)
     std::vector<std::pair<std::string, std::shared_ptr<Tex>>> overlays;      // by file, as they are
+    struct Detail { EveDetailMask mask; EveDetailLayer layer; };
+    std::vector<std::pair<uint64_t, std::shared_ptr<Detail>>> details;     // Keep undead bones' layers, by the fitted body and skin
     uint64_t generation = 0;
     std::mutex cacheMutex;           // textures and overlays: the fit's worker and the GL thread both fill them
     std::shared_ptr<EveMesh> mesh(const std::string& variant) const;

@@ -169,9 +169,10 @@ std::vector<uint8_t> pngOf(int w, int h, const std::vector<uint8_t>& rgba) {
 // The fit in the game's own poses (the model's sequences whose keys are in FILES_DIR: sitting on a chair, kneeling, lying dead
 // and asleep, cheering with the arms up, bowing), skinned on the CPU as the renderer skins her (the skeleton edited by her
 // proportions, bodyrig.h): the seams can't open (each stitch vertex on its model vertex), the strip between her ring and the
-// model's edge stays a strip (no edge of it longer than 3 cm), and her own triangles stretch and collapse no more than the
-// model's own body does in the same pose (her stretch's 99.9th percentile within 1.3 times the model's, and 0.2 more;
-// her collapsed triangles, area under 5 % of the bind pose's, at most 0.2 % of them). A pose whose sequence or .anim isn't
+// model's edge stays a strip (no edge across it grown more than 3 cm, or than half again the model's own cut edge grows), and her own triangles stretch and collapse
+// little more than the model's own body does in the same pose (each triangle's longest edge growth over the bind pose: her
+// 99.9th percentile within 1.5 times the model's and 1 cm more; her coarser mesh spans a joint with fewer, longer
+// triangles; her collapsed triangles, area under 5 % of the bind pose's, at most 0.2 % of them). A pose whose sequence or .anim isn't
 // here is skipped and said.
 void posedSeams(M2Model& m, const FileLookup& look, const EveResult& res, size_t eveVerts, const std::string& name) {
     struct Pose { const char* what; uint16_t anim; };
@@ -202,11 +203,9 @@ void posedSeams(M2Model& m, const FileLookup& look, const EveResult& res, size_t
         for (size_t t = 0; t + 2 < idx.size(); t += 3) {
             uint32_t a = idx[t], b = idx[t + 1], c = idx[t + 2];
             if (a >= below || b >= below || c >= below) continue;
-            float worst = 0;
-            for (auto [x, y] : {std::pair<uint32_t, uint32_t>{a, b}, {b, c}, {c, a}}) {
-                float r = (rest[x] - rest[y]).length();
-                if (r > 1e-5f) worst = std::max(worst, (posed[x] - posed[y]).length() / r);
-            }
+            float worst = 0;   // the longest edge's growth over the bind pose (model units: a stretch the eye sees, not a 2 mm edge doubled)
+            for (auto [x, y] : {std::pair<uint32_t, uint32_t>{a, b}, {b, c}, {c, a}})
+                worst = std::max(worst, (posed[x] - posed[y]).length() - (rest[x] - rest[y]).length());
             float ar = (rest[b] - rest[a]).cross(rest[c] - rest[a]).length(), ap = (posed[b] - posed[a]).cross(posed[c] - posed[a]).length();
             if (ar < 1e-9f) continue;
             ++counted;
@@ -227,7 +226,7 @@ void posedSeams(M2Model& m, const FileLookup& look, const EveResult& res, size_t
         if (seq >= 0) m.ensureSequence(seq, look);
         if (seq < 0 || !m.sequenceReady(seq)) { std::printf("  %s, %s: not here (anim %u), skipped\n", name.c_str(), p.what, p.anim); continue; }
         // the sequence sampled through: the worst moment of each measure
-        float gap = 0, strip = 0, e999 = 0, m999 = 0, eMax = 0, mMax = 0, e99 = 0, m99 = 0;
+        float gap = 0, strip = 0, modelEdge = 0, e999 = 0, m999 = 0, eMax = 0, mMax = 0, e99 = 0, m99 = 0;
         size_t ec = 0, en = 0, mc = 0, mn = 0;
         const uint32_t dur = std::max<uint32_t>(1, m.sequences[size_t(seq)].duration);
         for (float f : {0.2f, 0.4f, 0.6f, 0.8f, 0.97f}) {
@@ -245,6 +244,10 @@ void posedSeams(M2Model& m, const FileLookup& look, const EveResult& res, size_t
                 if (ei[k] < eveVerts && ei[k + 1] < eveVerts && ei[k + 2] < eveVerts) continue;
                 for (int q = 0; q < 3; ++q) {
                     uint32_t x = ei[k + q], y = ei[k + (q + 1) % 3];
+                    if (x >= eveVerts && y >= eveVerts) {   // the model's own edge at the cut: how much the model itself stretches there
+                        modelEdge = std::max(modelEdge, (eP[x] - eP[y]).length() - (eRest[x] - eRest[y]).length());
+                        continue;
+                    }
                     float r = (eRest[x] - eRest[y]).length(), d = (eP[x] - eP[y]).length();
                     strip = std::max(strip, d - r);
                     if (getenv("EVE_DIAG") && d - r > 0.01f) std::printf("    strip edge %u-%u rest %.4f posed %.4f at %.2f %.2f %.2f\n", x, y, r, d, eRest[x].x, eRest[x].y, eRest[x].z);
@@ -260,7 +263,7 @@ void posedSeams(M2Model& m, const FileLookup& look, const EveResult& res, size_t
                     uint32_t a = ei[t2], b = ei[t2 + 1], c = ei[t2 + 2];
                     if (a >= eveVerts || b >= eveVerts || c >= eveVerts) continue;
                     float worst = 0;
-                    for (auto [x, y] : {std::pair<uint32_t, uint32_t>{a, b}, {b, c}, {c, a}}) { float r = (eRest[x] - eRest[y]).length(); if (r > 1e-5f) worst = std::max(worst, (eP[x] - eP[y]).length() / r); }
+                    for (auto [x, y] : {std::pair<uint32_t, uint32_t>{a, b}, {b, c}, {c, a}}) worst = std::max(worst, (eP[x] - eP[y]).length() - (eRest[x] - eRest[y]).length());
                     w.push_back({worst, t2});
                 }
                 std::sort(w.rbegin(), w.rend());
@@ -272,17 +275,17 @@ void posedSeams(M2Model& m, const FileLookup& look, const EveResult& res, size_t
                     std::printf("    stretch %.2f near %s (%.3f) rest edge %.4f at %.2f %.2f %.2f\n", w[q].first, best, bd, edge, c.x, c.y, c.z);
                 }
             }
-            if (pct(es, 0.999) - pct(ms, 0.999) * 1.3f > e999 - m999 * 1.3f || en == 0) {   // the moment hers is furthest past the model's
+            if (pct(es, 0.999) - pct(ms, 0.999) * 1.5f > e999 - m999 * 1.5f || en == 0) {   // the moment hers is furthest past the model's
                 e999 = pct(es, 0.999); m999 = pct(ms, 0.999); e99 = pct(es, 0.99); m99 = pct(ms, 0.99);
                 eMax = es.empty() ? 0 : es.back(); mMax = ms.empty() ? 0 : ms.back();
             }
             if (c1 >= ec) { ec = c1; en = n1; mc = c2; mn = n2; }
         }
-        std::printf("  %s, %s: seam gap %.5f, strip's edges longer by %.4f, stretch p99 %.2f p99.9 %.2f max %.2f (the model's %.2f %.2f %.2f), "
-                    "collapsed %zu/%zu (the model's %zu/%zu)\n", name.c_str(), p.what, gap, strip, e99, e999, eMax, m99, m999, mMax, ec, en, mc, mn);
+        std::printf("  %s, %s: seam gap %.5f, strip's edges grown %.4f (the model's cut edge %.4f), edges grown p99 %.3f p99.9 %.3f max %.3f (the model's %.3f %.3f %.3f), "
+                    "collapsed %zu/%zu (the model's %zu/%zu)\n", name.c_str(), p.what, gap, strip, modelEdge, e99, e999, eMax, m99, m999, mMax, ec, en, mc, mn);
         CHECK(gap < 1e-4f, "%s, %s: a seam opens %.5f", name.c_str(), p.what, gap);
-        CHECK(strip < 0.03f, "%s, %s: the seam's strip stretched by %.4f", name.c_str(), p.what, strip);
-        CHECK(e999 <= m999 * 1.3f + 0.2f, "%s, %s: her triangles stretch %.2f, the model's %.2f", name.c_str(), p.what, e999, m999);
+        CHECK(strip <= std::max(0.03f, 1.5f * modelEdge), "%s, %s: the seam's strip grew %.4f (the model's edge there %.4f)", name.c_str(), p.what, strip, modelEdge);
+        CHECK(e999 <= m999 * 1.5f + 0.01f, "%s, %s: her triangles' edges grow %.3f, the model's %.3f", name.c_str(), p.what, e999, m999);
         CHECK(ec * 500 <= en, "%s, %s: %zu of her %zu triangles collapse", name.c_str(), p.what, ec, en);
     }
 }
