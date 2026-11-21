@@ -62,7 +62,9 @@ std::vector<uint8_t> writeEve(const EveMesh& m);
 EveMesh eveSplitMesh(const EveMesh& m, float t);
 // Two more loops of vertices above each ankle ring, at `t` of the way from the ring to the vertices above it and `t` of that
 // again (attributes interpolated; the rings and the other vertices unchanged, the new ones appended), the variant named
-// "<variant>|ankles<t>": what fitEve's ankleMatch draws onto the model's lower leg.
+// "<variant>|ankles<t>": what fitEve's ankleMatch draws onto the model's lower leg. Then the neck's and the ankles' rings
+// have their edges halved (a vertex at each edge's middle, added to the ring), so each ring has a place for every corner
+// of the models' cut edges (fitEve sets her rings onto them corner by corner).
 EveMesh eveRefineAnkles(const EveMesh& m, float t);
 uint32_t eveCrc32(const uint8_t* data, size_t n);
 

@@ -27,11 +27,41 @@ namespace wc {
 // ankleMatch: the edge's vertices between hers).
 constexpr float kRingClear = 0.001f;
 
+// A vertex `t` of the way from a to b appended to `o`: its attributes (place, normal, both UV sets, bone weights) interpolated.
+static uint32_t eveLerpVertex(EveMesh& o, uint32_t a, uint32_t b, float t) {
+    uint32_t n = uint32_t(o.vertexCount());
+    for (int k = 0; k < 3; ++k) o.pos.push_back(o.pos[a * 3 + k] + (o.pos[b * 3 + k] - o.pos[a * 3 + k]) * t);
+    float nn[3], len = 0;
+    for (int k = 0; k < 3; ++k) { nn[k] = o.nrm[a * 3 + k] + (o.nrm[b * 3 + k] - o.nrm[a * 3 + k]) * t; len += nn[k] * nn[k]; }
+    len = std::sqrt(std::max(len, 1e-12f));
+    for (int k = 0; k < 3; ++k) o.nrm.push_back(nn[k] / len);
+    for (int k = 0; k < 2; ++k) o.uv.push_back(o.uv[a * 2 + k] + (o.uv[b * 2 + k] - o.uv[a * 2 + k]) * t);
+    for (int k = 0; k < 2; ++k) o.uv2.push_back(o.uv2.size() >= size_t(b) * 2 + 2 ? o.uv2[a * 2 + k] + (o.uv2[b * 2 + k] - o.uv2[a * 2 + k]) * t : 0.0f);
+    std::map<uint8_t, float> w;
+    for (int k = 0; k < 4; ++k) { w[o.bi[a * 4 + k]] += o.bw[a * 4 + k] * (1 - t); w[o.bi[b * 4 + k]] += o.bw[b * 4 + k] * t; }
+    std::vector<std::pair<float, uint8_t>> ws;
+    for (auto& [bone, x] : w) if (x > 0) ws.push_back({x, bone});
+    std::sort(ws.rbegin(), ws.rend());
+    ws.resize(std::min<size_t>(ws.size(), 4));
+    float tot = 0; for (auto& x : ws) tot += x.first;
+    int given = 0;
+    for (int k = 0; k < 4; ++k) {
+        uint8_t bone = k < int(ws.size()) ? ws[size_t(k)].second : 0;
+        int wv = k < int(ws.size()) && tot > 0 ? int(std::lround(ws[size_t(k)].first / tot * 255)) : 0;
+        if (k == int(ws.size()) - 1) wv = 255 - given;
+        given += wv;
+        o.bi.push_back(bone); o.bw.push_back(uint8_t(std::clamp(wv, 0, 255)));
+    }
+    return n;
+}
+
 // Two more loops of vertices above each ankle ring (at `t` of the way to the next vertices up, then `t` again of that):
 // Eve's shin has none for 10 cm above the ring, so it ran straight from the ring to there and couldn't follow the foot's
 // edge flaring out (fitEve's ankleMatch). Each edge from a ring vertex to a vertex off the ring is split, its attributes
 // (place, normal, both UV sets, bone weights) interpolated; the rings' indices and every other vertex are unchanged, the new
-// vertices appended.
+// vertices appended. Her rings' edges are then halved (the neck's 16 places to 32, each ankle's 9 to 18, each new one on the
+// ring): the models' neck edges have 14 to 24 corners and their ankles' 8 to 12, and fitEve gives every corner a place of
+// hers; with fewer places than corners a V-neck's corners fell between two of hers and the neck strip folded over itself.
 EveMesh eveRefineAnkles(const EveMesh& m, float t) {
     EveMesh o = m;
     char tag[32];
@@ -54,29 +84,7 @@ EveMesh eveRefineAnkles(const EveMesh& m, float t) {
         auto split = [&](uint32_t a, uint32_t b) {   // a on the band's lower edge, b above
             auto it = made.find({a, b});
             if (it != made.end()) return it->second;
-            uint32_t n = uint32_t(o.vertexCount());
-            for (int k = 0; k < 3; ++k) o.pos.push_back(o.pos[a * 3 + k] + (o.pos[b * 3 + k] - o.pos[a * 3 + k]) * t);
-            float nn[3], len = 0;
-            for (int k = 0; k < 3; ++k) { nn[k] = o.nrm[a * 3 + k] + (o.nrm[b * 3 + k] - o.nrm[a * 3 + k]) * t; len += nn[k] * nn[k]; }
-            len = std::sqrt(std::max(len, 1e-12f));
-            for (int k = 0; k < 3; ++k) o.nrm.push_back(nn[k] / len);
-            for (int k = 0; k < 2; ++k) o.uv.push_back(o.uv[a * 2 + k] + (o.uv[b * 2 + k] - o.uv[a * 2 + k]) * t);
-            for (int k = 0; k < 2; ++k) o.uv2.push_back(o.uv2.size() >= size_t(b) * 2 + 2 ? o.uv2[a * 2 + k] + (o.uv2[b * 2 + k] - o.uv2[a * 2 + k]) * t : 0.0f);
-            std::map<uint8_t, float> w;
-            for (int k = 0; k < 4; ++k) { w[o.bi[a * 4 + k]] += o.bw[a * 4 + k] * (1 - t); w[o.bi[b * 4 + k]] += o.bw[b * 4 + k] * t; }
-            std::vector<std::pair<float, uint8_t>> ws;
-            for (auto& [bone, x] : w) if (x > 0) ws.push_back({x, bone});
-            std::sort(ws.rbegin(), ws.rend());
-            ws.resize(std::min<size_t>(ws.size(), 4));
-            float tot = 0; for (auto& x : ws) tot += x.first;
-            int given = 0;
-            for (int k = 0; k < 4; ++k) {
-                uint8_t bone = k < int(ws.size()) ? ws[size_t(k)].second : 0;
-                int wv = k < int(ws.size()) && tot > 0 ? int(std::lround(ws[size_t(k)].first / tot * 255)) : 0;
-                if (k == int(ws.size()) - 1) wv = 255 - given;
-                given += wv;
-                o.bi.push_back(bone); o.bw.push_back(uint8_t(std::clamp(wv, 0, 255)));
-            }
+            const uint32_t n = eveLerpVertex(o, a, b, t);
             made[{a, b}] = n;
             return n;
         };
@@ -99,6 +107,30 @@ EveMesh eveRefineAnkles(const EveMesh& m, float t) {
         }
         o.idx.swap(idx);
         band.resize(o.vertexCount(), 0);   // (the next pass: the ring again, its band now up to the new loop)
+    }
+    // the rings' edges halved: each triangle edge between two of a ring's vertices split at its middle (one new vertex per
+    // edge of indices: a UV copy's edge gets its own, at the same place), the triangle in two; the new vertices join the ring
+    for (auto& rg : o.rings) {
+        if (rg.first != "neck" && rg.first != "L_ankle" && rg.first != "R_ankle") continue;
+        std::vector<uint8_t> on(o.vertexCount(), 0);
+        for (uint32_t v : rg.second) if (v < on.size()) on[v] = 1;
+        std::map<std::pair<uint32_t, uint32_t>, uint32_t> mids;
+        std::vector<uint32_t> idx;
+        idx.reserve(o.idx.size() + 64);
+        for (size_t i = 0; i + 2 < o.idx.size(); i += 3) {
+            const uint32_t v[3] = {o.idx[i], o.idx[i + 1], o.idx[i + 2]};
+            int e = -1;   // (a triangle with one edge on the ring: the ring is her mesh's open edge, one triangle to an edge)
+            for (int k = 0; k < 3 && e < 0; ++k) if (on[v[k]] && on[v[(k + 1) % 3]] && !on[v[(k + 2) % 3]]) e = k;
+            if (e < 0) { idx.insert(idx.end(), v, v + 3); continue; }
+            const uint32_t a = v[e], b = v[(e + 1) % 3], c = v[(e + 2) % 3];
+            const auto k2 = std::make_pair(std::min(a, b), std::max(a, b));
+            auto it = mids.find(k2);
+            uint32_t mid;
+            if (it != mids.end()) mid = it->second;
+            else { mid = eveLerpVertex(o, k2.first, k2.second, 0.5f); mids[k2] = mid; rg.second.push_back(mid); }
+            for (uint32_t x : {a, mid, c, mid, b, c}) idx.push_back(x);
+        }
+        o.idx.swap(idx);
     }
     return o;
 }
@@ -1673,6 +1705,11 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
     const char* ringNames[3] = {"neck", "L_ankle", "R_ankle"};
     const RingEdges* ringEdges[3] = {&neckR, &ankleR[0], &ankleR[1]};
     std::vector<uint8_t> anyRing(nv, 0);   // a ring's vertices are moved by their own ring only
+    // a ring set onto its edge's loop: the loop (from its lowest angle) and each of her places' position along it (corner k at
+    // k), by her place's key; the clearing and the strip below go round by these, not by angle
+    std::vector<uint32_t> ringLoop[3];
+    std::map<int64_t, float> ringPos[3];
+    bool ringAll[3] = {false, false, false};   // every corner of the loop has a place of hers (then cleared at the snap)
     for (const char* rn : ringNames) if (const std::vector<uint32_t>* rr = eve.ring(rn)) for (uint32_t v : *rr) anyRing[v] = 1;
     for (int r = 0; r < 3; ++r) {
         const std::vector<uint32_t>* ring = eve.ring(ringNames[r]);
@@ -1696,8 +1733,8 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         // 30 to 40 triangles, up to 2.4 cm tall), and an orc's 8 corners a side fell between her places at the ankles.
         std::vector<V3> pinAt(gs.size());
         std::vector<WMap> pinW(gs.size());
-        std::vector<V3> pinN(gs.size());
-        bool pinned = false;
+        std::vector<V3> pinN(gs.size()), pinT(gs.size());
+        bool pinned = false, everyCorner = false;
         {
             std::vector<uint32_t> loop;
             V3 c;
@@ -1709,53 +1746,69 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
             }
             auto angOf = [&](V3 p) { return std::atan2(p.y - c.y, p.x - c.x); };
             bool ok = gs.size() >= 3 && edgeLoopOf(verts, we, c, loop);
-            if (ok) {   // (its angle grows at every step, once round)
-                float acc = 0;
-                for (size_t k = 0; k < loop.size() && ok; ++k) {
-                    const float d = std::remainder(angOf(posOf(verts[loop[(k + 1) % loop.size()]])) - angOf(posOf(verts[loop[k]])), 6.2831853f);
-                    if (d <= 0) ok = false;
-                    acc += d;
+            std::vector<float> ca;   // the corners' angles, made to grow at every step (below)
+            if (ok) {
+                size_t k0 = 0;
+                for (size_t k = 1; k < loop.size(); ++k) if (angOf(posOf(verts[loop[k]])) < angOf(posOf(verts[loop[k0]]))) k0 = k;
+                std::rotate(loop.begin(), loop.begin() + long(k0), loop.end());
+                // its angle's steps round the loop; once round its centre, or not paired. Where the edge turns back on itself
+                // seen from above (a step down a V's side, a notch), a step that doesn't grow takes a quarter of its share of
+                // the loop's length instead and the rest are scaled to one turn: a smooth order the walk below can keep
+                const size_t nc = loop.size();
+                std::vector<float> d(nc), len(nc);
+                float acc = 0, perim = 0;
+                for (size_t k = 0; k < nc; ++k) {
+                    const V3 a = posOf(verts[loop[k]]), b = posOf(verts[loop[(k + 1) % nc]]);
+                    d[k] = std::remainder(angOf(b) - angOf(a), 6.2831853f);
+                    len[k] = (b - a).length();
+                    acc += d[k]; perim += len[k];
                 }
-                ok = ok && std::fabs(acc - 6.2831853f) < 0.01f;
+                ok = std::fabs(acc - 6.2831853f) < 0.01f && perim > 1e-6f;
+                if (ok) {
+                    float tot = 0;
+                    for (size_t k = 0; k < nc; ++k) { d[k] = std::max(d[k], 0.25f * 6.2831853f * len[k] / perim); tot += d[k]; }
+                    ca.resize(nc);
+                    ca[0] = angOf(posOf(verts[loop[0]]));
+                    for (size_t k = 1; k < nc; ++k) ca[k] = ca[k - 1] + d[k - 1] * (6.2831853f / tot);
+                }
             }
             if (ok) {
-                // both lists ascending round one turn from their lowest angle
+                // her places ascending round one turn
                 std::vector<size_t> po(gs.size());
                 for (size_t gi = 0; gi < gs.size(); ++gi) po[gi] = gi;
                 std::vector<float> pAng(gs.size());
                 for (size_t gi = 0; gi < gs.size(); ++gi) pAng[gi] = angOf(P[gs[gi][0]]);
                 std::sort(po.begin(), po.end(), [&](size_t x, size_t y) { return pAng[x] < pAng[y]; });
-                size_t k0 = 0;
-                for (size_t k = 1; k < loop.size(); ++k) if (angOf(posOf(verts[loop[k]])) < angOf(posOf(verts[loop[k0]]))) k0 = k;
-                std::rotate(loop.begin(), loop.begin() + long(k0), loop.end());
-                std::vector<float> pa(po.size()), ca(loop.size());
+                std::vector<float> pa(po.size());
                 for (size_t k = 0; k < po.size(); ++k) pa[k] = pAng[po[k]];
-                for (size_t k = 0; k < loop.size(); ++k) ca[k] = angOf(posOf(verts[loop[k]]));
                 const size_t np = po.size(), nc = loop.size();
                 auto cornerW = [&](uint32_t mv) { WMap w; for (int k = 0; k < 4; ++k) w.add(verts[mv].bones[k], verts[mv].weights[k] / 255.0f); return w; };
                 auto cornerN = [&](uint32_t mv) { return V3(verts[mv].normal[0], verts[mv].normal[1], verts[mv].normal[2]).normalized(); };
+                std::vector<float> s(gs.size(), 0.0f);   // each place's position along the loop (corner k at k)
                 if (nc <= np) {
                     const std::vector<int> at = pairInOrder(ca, pa);   // per corner, its place (in po's order)
                     if (at.size() == nc) {
-                        std::vector<int> cornerOf(np, -1);
-                        for (size_t k = 0; k < nc; ++k) cornerOf[size_t(at[k])] = int(k);
                         for (size_t k = 0; k < nc; ++k) {
                             // corner k on its place, the places up to corner k + 1's along the edge between them
-                            const size_t t0 = size_t(at[k]), t1 = size_t(at[(k + 1) % nc]);
+                            const size_t tFrom = size_t(at[k]), tTo = size_t(at[(k + 1) % nc]);
                             const uint32_t ma = loop[k], mb = loop[(k + 1) % nc];
                             std::vector<size_t> run;
-                            for (size_t t = t0; ; t = (t + 1) % np) { run.push_back(t); if (run.size() > 1 && t == t1) break; if (run.size() > np) break; }
-                            std::vector<float> len(run.size(), 0);
-                            for (size_t q = 1; q < run.size(); ++q) len[q] = len[q - 1] + (P[gs[po[run[q]]][0]] - P[gs[po[run[q - 1]]][0]]).length();
+                            for (size_t t = tFrom; ; t = (t + 1) % np) { run.push_back(t); if (run.size() > 1 && t == tTo) break; if (run.size() > np) break; }
+                            std::vector<float> rl(run.size(), 0);
+                            for (size_t q = 1; q < run.size(); ++q) rl[q] = rl[q - 1] + (P[gs[po[run[q]]][0]] - P[gs[po[run[q - 1]]][0]]).length();
                             for (size_t q = 0; q + 1 < run.size(); ++q) {
-                                const float f = len.back() > 1e-9f ? len[q] / len.back() : float(q) / float(run.size() - 1);
+                                const float f = rl.back() > 1e-9f ? rl[q] / rl.back() : float(q) / float(run.size() - 1);
                                 const size_t gi = po[run[q]];
                                 pinAt[gi] = posOf(verts[ma]) * (1 - f) + posOf(verts[mb]) * f;
                                 pinW[gi] = blend(cornerW(ma), cornerW(mb), f);
                                 pinN[gi] = (cornerN(ma) * (1 - f) + cornerN(mb) * f).normalized();
+                                s[gi] = float(k) + f;
+                                // the edge's way there (at a corner, from the corner before to the one after)
+                                pinT[gi] = q == 0 ? posOf(verts[mb]) - posOf(verts[loop[(k + nc - 1) % nc]]) : posOf(verts[mb]) - posOf(verts[ma]);
                             }
                         }
                         pinned = true;
+                        everyCorner = true;
                     }
                 } else {
                     const std::vector<int> at = pairInOrder(pa, ca);   // per place, its corner
@@ -1763,21 +1816,31 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
                         for (size_t k = 0; k < np; ++k) {
                             const uint32_t mv = loop[size_t(at[k])];
                             pinAt[po[k]] = posOf(verts[mv]); pinW[po[k]] = cornerW(mv); pinN[po[k]] = cornerN(mv);
+                            s[po[k]] = float(at[k]);
                         }
                         pinned = true;
                     }
                 }
+                if (pinned) {
+                    ringLoop[r] = loop;
+                    for (size_t gi = 0; gi < gs.size(); ++gi) ringPos[r][weldKey(P0[gs[gi][0]], 1e-5f)] = s[gi];
+                }
             }
         }
         out.stats.ringPinned[r] = pinned;
-        if (std::getenv("EVE_DIAG")) {
-            std::vector<uint32_t> lp; V3 c0 = we.centre;
-            const bool simple = edgeLoopOf(verts, we, c0, lp);
-            std::printf("    ring %s: %zu places, %zu edges, loop %s (%zu), pinned %d\n", ringNames[r], gs.size(), we.e.size(), simple ? "simple" : "not simple", lp.size(), int(pinned));
-        }
+        ringAll[r] = everyCorner;
         for (size_t gi = 0; gi < gs.size() && pinned; ++gi) {
             const V3 p = P[gs[gi][0]];
             disp[gi] = pinAt[gi] - p; wm[gi] = pinW[gi]; nn[gi] = pinN[gi];
+            if (everyCorner) {
+                // kRingClear off the edge to her side, across it in the skin's plane (the loop runs counter-clockwise seen from
+                // above with the normals out, so its normal crossed with its way points to the edge's upper side: hers at the
+                // ankles, the model's at the neck). Across, not up or down: where the edge climbs steeply (a nape's), a move
+                // straight down ran along it and the strip there folded.
+                V3 across = pinN[gi].cross(pinT[gi]);
+                const float al = across.length();
+                if (al > 1e-9f) disp[gi] = disp[gi] + across * ((r == 0 ? -1.0f : 1.0f) * kRingClear * unit / al);
+            }
             const float d = disp[gi].length();
             sum += d; mx = std::max(mx, d);
             for (uint32_t cc : gs[gi]) isRing[cc] = 1;
@@ -1865,10 +1928,26 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         struct Place { float a; std::vector<uint32_t> copies; };
         std::vector<Place> pl;
         for (auto& [k, g] : groups) pl.push_back({turnOf(P[g[0]]), g});
+        const float clear = kRingClear * unit, twoPi = 6.2831853f;
+        if (!ringLoop[0].empty()) {   // (set onto the loop: round it by the loop's own order)
+            const float per = twoPi / float(ringLoop[0].size());
+            edge.clear();
+            const std::vector<uint32_t>& lp = ringLoop[0];
+            for (size_t k = 0; k < lp.size(); ++k) edge.push_back({float(k) * per, verts[lp[k]].pos[2]});
+            for (auto& x : pl) {
+                auto it = ringPos[0].find(weldKey(P0[x.copies[0]], 1e-5f));
+                if (it == ringPos[0].end()) continue;
+                x.a = it->second * per;
+                // (and the edge under each place, so a place between two corners is cleared as much as its neighbours: left
+                // on the edge between two lowered ones, the strip there folded, a millimetre tall)
+                const size_t k = size_t(it->second) % lp.size();
+                const float f = it->second - std::floor(it->second);
+                edge.push_back({x.a, verts[lp[k]].pos[2] * (1 - f) + verts[lp[(k + 1) % lp.size()]].pos[2] * f});
+            }
+        }
         std::sort(pl.begin(), pl.end(), [](const Place& x, const Place& y) { return x.a < y.a; });
         const size_t np = pl.size();
-        const float clear = kRingClear * unit, twoPi = 6.2831853f;
-        for (int pass = 0; pass < 8 && np >= 3 && !tris.empty(); ++pass) {
+        for (int pass = 0; pass < 8 && np >= 3 && !tris.empty() && !ringAll[0]; ++pass) {
             std::vector<float> lower(np, 0.0f);
             for (size_t i = 0; i < np; ++i) {
                 const size_t j = (i + 1) % np;
@@ -1888,8 +1967,9 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
                 if (!(lower[i] > 1e-6f)) continue;
                 const V3 p = P[pl[i].copies[0]], q = p - V3(0, 0, lower[i]);
                 // (onto the removed skin there, down it; where none of it is lower, left)
+                V3 at;
+                bool any = false;
                 float best = (0.05f * unit) * (0.05f * unit);
-                bool any = false; V3 at;
                 for (const auto& t : tris) {
                     float u, s;
                     const V3 x = nearestOnTriangle(q, posOf(verts[t[0]]), posOf(verts[t[1]]), posOf(verts[t[2]]), u, s);
@@ -1936,7 +2016,24 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
             int a2 = (k + kAng - 1) % kAng, b2 = (k + 1) % kAng;
             if (en[a2]) { edgeZ[k] = edgeZ[a2]; en[k] = -1; } else if (en[b2]) { edgeZ[k] = edgeZ[b2]; en[k] = -1; }
         }
+        // (her ring set onto the loop: its own places' heights, read between them by angle, so her loops above it follow every
+        // corner it was set on; averaged per bin, a spur's corner a few centimetres up (the undead's) left her next loops under
+        // the ring there)
+        std::vector<std::pair<float, float>> ringOn;
+        if (!ringLoop[1 + s].empty()) if (const std::vector<uint32_t>* rr = eve.ring(s ? "R_ankle" : "L_ankle"))
+            for (uint32_t v : *rr) if (v < nv) ringOn.push_back({angleOf(P[v]), P[v].z});
+        std::sort(ringOn.begin(), ringOn.end());
         auto edgeAt = [&](V3 p) {
+            if (ringOn.size() >= 3) {
+                const float ang = angleOf(p);
+                const size_t k = size_t(std::lower_bound(ringOn.begin(), ringOn.end(), std::make_pair(ang, -1e30f)) - ringOn.begin());
+                const auto& hi = ringOn[k % ringOn.size()];
+                const auto& lo = ringOn[(k + ringOn.size() - 1) % ringOn.size()];
+                float span = hi.first - lo.first, d = ang - lo.first;
+                if (span <= 0) span += 6.2831853f;
+                if (d < 0) d += 6.2831853f;
+                return span > 1e-6f ? lo.second + (hi.second - lo.second) * std::clamp(d / span, 0.0f, 1.0f) : hi.second;
+            }
             float f = (angleOf(p) + 3.14159265f) / 6.2831853f * kAng - 0.5f;
             int k0 = int(std::floor(f)); float w = f - float(k0);
             return edgeZ[(k0 % kAng + kAng) % kAng] * (1 - w) + edgeZ[((k0 + 1) % kAng + kAng) % kAng] * w;
@@ -2006,10 +2103,24 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
             struct Place { float a; std::vector<uint32_t> copies; };
             std::vector<Place> pl;
             for (auto& [k, g] : groups) pl.push_back({turnOf(P[g[0]]), g});
+            const float clear = kRingClear * unit, twoPi = 6.2831853f;
+            if (!ringLoop[1 + s].empty()) {   // (set onto the loop: round it by the loop's own order)
+                const std::vector<uint32_t>& lp = ringLoop[1 + s];
+                const float per = twoPi / float(lp.size());
+                edge.clear();
+                for (size_t k = 0; k < lp.size(); ++k) edge.push_back({float(k) * per, verts[lp[k]].pos[2]});
+                for (auto& x : pl) {
+                    auto it = ringPos[1 + s].find(weldKey(P0[x.copies[0]], 1e-5f));
+                    if (it == ringPos[1 + s].end()) continue;
+                    x.a = it->second * per;
+                    const size_t k = size_t(it->second) % lp.size();   // (and the edge under each place, as the neck's)
+                    const float f = it->second - std::floor(it->second);
+                    edge.push_back({x.a, verts[lp[k]].pos[2] * (1 - f) + verts[lp[(k + 1) % lp.size()]].pos[2] * f});
+                }
+            }
             std::sort(pl.begin(), pl.end(), [](const Place& x, const Place& y) { return x.a < y.a; });
             const size_t np = pl.size();
-            const float clear = kRingClear * unit, twoPi = 6.2831853f;
-            for (int pass = 0; pass < 6 && np >= 3; ++pass) {
+            for (int pass = 0; pass < 6 && np >= 3 && !ringAll[1 + s]; ++pass) {
                 std::vector<float> raise(np, 0.0f);
                 for (size_t i = 0; i < np; ++i) {
                     const size_t j = (i + 1) % np;
@@ -2033,7 +2144,8 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
                     // (onto the model's removed skin above the edge, up it: no step off the skin; its weights and normal; where
                     // none of it is higher, left where it is)
                     if (nearest(q, at, n, w) && at.z > P[pl[i].copies[0]].z + 1e-6f) q = at; else continue;
-                    for (uint32_t cp : pl[i].copies) { P[cp] = q; N[cp] = n; WM[cp] = w; }
+                    // (set onto the loop, its weights and normal stay the edge's; snapped to its nearest, the skin's there)
+                    for (uint32_t cp : pl[i].copies) { P[cp] = q; if (ringLoop[1 + s].empty()) { N[cp] = n; WM[cp] = w; } }
                     ++out.stats.ankleRaised[s];
                     out.stats.ankleRaiseMax[s] = std::max(out.stats.ankleRaiseMax[s], raise[i]);
                     moved = true;
@@ -2101,6 +2213,14 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         std::vector<B> wb;
         std::sort(ea.begin(), ea.end(), [](const A& x, const A& y) { return x.a < y.a; });
         if (ea.size() < 3) continue;
+        if (!ringLoop[r].empty()) {
+            // set onto the loop (above): both loops round by the loop's own order, her places at their positions along it, its
+            // corners at theirs; a place on a corner and the corner meet, the strip there has no height
+            const float per = 6.2831853f / float(ringLoop[r].size());
+            for (A& x : ea) { auto it = ringPos[r].find(weldKey(P0[x.copies[0]], 1e-5f)); x.a = it != ringPos[r].end() ? it->second * per : 0.0f; }
+            std::sort(ea.begin(), ea.end(), [](const A& x, const A& y) { return x.a < y.a; });
+            for (size_t k = 0; k < ringLoop[r].size(); ++k) wb.push_back({float(k) * per, ringLoop[r][k]});
+        } else
         // the model's edge in its own order (walked edge to edge, so the strip's edges are the model's), its parameter the
         // share of the loop's length from the vertex nearest Eve's first, the way round her angles go; Eve's by her angles
         {
@@ -2176,12 +2296,6 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
             if (wb.size() < 3) continue;
             if (simple) { for (B& b : wb) b.a *= 6.2831853f; for (A& x : ea) x.a *= 6.2831853f; }   // (the walk below counts in turns of 2 pi)
         }
-        // the copy of `g` nearest in UV to (u, v)
-        auto copyNear = [&](const std::vector<uint32_t>& g, float u, float v) {
-            uint32_t best = g[0]; float bd = 1e30f;
-            for (uint32_t x : g) { float du = eve.uv[x * 2] - u, dv = eve.uv[x * 2 + 1] - v, d = du * du + dv * dv; if (d < bd) { bd = d; best = x; } }
-            return best;
-        };
         auto addW = [&](uint32_t mv, float u, float v, float u2, float v2) {
             const M2Vertex& w = verts[mv];
             XP.push_back(posOf(w));
@@ -2199,42 +2313,71 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         float start = std::min(ea[0].a, wb[0].a);   // (both lists ascend within one turn)
         auto aAt = [&](size_t k) { return ea[k % ea.size()].a + (k >= ea.size() ? two : 0.0f) - start; };
         auto bAt = [&](size_t k) { return wb[k % wb.size()].a + (k >= wb.size() ? two : 0.0f) - start; };
-        uint32_t ca = ea[0].copies[0];
+        // her places k and k + 1's copies nearest each other in UV: one side of her UV seam (a copy chosen as the one nearest
+        // the walk's last stepped from her seam's place on one side to the next place's on the other, and the strip's triangle
+        // there read her texture right across it: a black sliver along the neck on the human and the Zandalari)
+        auto pairNear = [&](size_t k, uint32_t& cx, uint32_t& cy) {
+            const std::vector<uint32_t>& gx = ea[k % ea.size()].copies;
+            const std::vector<uint32_t>& gy = ea[(k + 1) % ea.size()].copies;
+            float bd = 1e30f;
+            cx = gx[0]; cy = gy[0];
+            for (uint32_t x : gx) for (uint32_t y : gy) {
+                const float du = eve.uv[x * 2] - eve.uv[y * 2], dv = eve.uv[x * 2 + 1] - eve.uv[y * 2 + 1], d = du * du + dv * dv;
+                if (d < bd) { bd = d; cx = x; cy = y; }
+            }
+        };
+        // the UVs (both sets) of her ring's edge at `at` along it: between the two of her places either side of it (from her
+        // place i0, their copies by pairNear). Each copy of the model's vertex reads its own place's colour there, not the
+        // clamped end of the triangle's span: a corner shared by her places i and i + 1 read place i + 1's (the colours along an
+        // orc's painted foot one place out: ΔE 22).
+        auto uvOn = [&](float at, size_t i0, uint32_t ref, float* q) {
+            const size_t n = ea.size();
+            size_t lo = i0;
+            while (lo > 0 && at < aAt(lo)) --lo;
+            while (at > aAt(lo + 1) && lo + 2 < 2 * n) ++lo;
+            uint32_t clo, chi;
+            pairNear(lo, clo, chi);
+            const float span = aAt(lo + 1) - aAt(lo);
+            const float f = span > 1e-6f ? std::clamp((at - aAt(lo)) / span, 0.0f, 1.0f) : 0.0f;
+            for (int k = 0; k < 2; ++k) q[k] = eve.uv[clo * 2 + k] + (eve.uv[chi * 2 + k] - eve.uv[clo * 2 + k]) * f;
+            const bool has2 = eve.uv2.size() > size_t(std::max({clo, chi, ref})) * 2 + 1;
+            for (int k = 0; k < 2; ++k) q[2 + k] = has2 ? eve.uv2[clo * 2 + k] + (eve.uv2[chi * 2 + k] - eve.uv2[clo * 2 + k]) * f : 0.0f;
+            // (a corner of the triangle's fan past her UV seam, read on the other side of it from the triangle's own copy of
+            // hers: it takes that copy's UV instead, so the triangle never reads her texture right across the seam: a black
+            // sliver along the back of the neck on the human and the Zandalari)
+            const float du = q[0] - eve.uv[ref * 2], dv = q[1] - eve.uv[ref * 2 + 1];
+            if (du * du + dv * dv > 0.01f) {
+                for (int k = 0; k < 2; ++k) q[k] = eve.uv[ref * 2 + k];
+                for (int k = 0; k < 2; ++k) q[2 + k] = has2 ? eve.uv2[ref * 2 + k] : 0.0f;
+            }
+        };
         const size_t seamFirst = XI.size();
         while (i < ea.size() || j < wb.size()) {
-            const A& a0 = ea[i % ea.size()];
             const B& b0 = wb[j % wb.size()];
             bool stepA = j >= wb.size() || (i < ea.size() && aAt(i + 1) <= bAt(j + 1));
             if (stepA) {
-                const A& a1 = ea[(i + 1) % ea.size()];
-                uint32_t c0 = copyNear(a0.copies, eve.uv[ca * 2], eve.uv[ca * 2 + 1]);
-                uint32_t c1 = copyNear(a1.copies, eve.uv[c0 * 2], eve.uv[c0 * 2 + 1]);
-                // the model's vertex takes the UV between the two by its angle
-                float span = aAt(i + 1) - aAt(i), f = span > 1e-6f ? std::clamp((bAt(j) - aAt(i)) / span, 0.0f, 1.0f) : 0.5f;
-                auto lerpUv = [&](const std::vector<float>& uv, uint32_t x, uint32_t y, int k) { return uv.size() > size_t(y) * 2 + 1 ? uv[x * 2 + k] + (uv[y * 2 + k] - uv[x * 2 + k]) * f : 0.0f; };
-                uint32_t bw = addW(b0.v, lerpUv(eve.uv, c0, c1, 0), lerpUv(eve.uv, c0, c1, 1), lerpUv(eve.uv2, c0, c1, 0), lerpUv(eve.uv2, c0, c1, 1));
+                uint32_t c0, c1;
+                pairNear(i, c0, c1);
+                // the model's vertex takes the UV of her ring's edge at its own place along it (uvOn)
+                float q[4];
+                uvOn(bAt(j), i, c0, q);
+                uint32_t bw = addW(b0.v, q[0], q[1], q[2], q[3]);
                 XI.insert(XI.end(), {c0, bw, c1});
-                ca = c1;
                 ++i;
             } else {
                 const B& b1 = wb[(j + 1) % wb.size()];
-                uint32_t c0 = copyNear(a0.copies, eve.uv[ca * 2], eve.uv[ca * 2 + 1]);
                 // the model's two vertices take the UVs along her island's edge toward her next ring vertex by their angles
                 // (as stepping her ring does), not both her vertex's own: the seams' band (eveSeamLayer) paints the model's kept
                 // edge's colours along that edge, so each of them reads its own place's colour there (one UV for both drew the
-                // strip in one colour, a wedge against an orc's painted foot)
-                const A& a1 = ea[(i + 1) % ea.size()];
-                const uint32_t c1 = copyNear(a1.copies, eve.uv[c0 * 2], eve.uv[c0 * 2 + 1]);
-                const float span = aAt(i + 1) - aAt(i);
-                auto along = [&](float at) { return span > 1e-6f ? std::clamp((at - aAt(i)) / span, 0.0f, 1.0f) : 0.0f; };
-                auto uvAt = [&](const std::vector<float>& uv, float f, int k) {
-                    return uv.size() > size_t(std::max(c0, c1)) * 2 + 1 ? uv[c0 * 2 + k] + (uv[c1 * 2 + k] - uv[c0 * 2 + k]) * f : 0.0f;
-                };
-                const float f0 = along(bAt(j)), f1 = along(bAt(j + 1));
-                uint32_t w0 = addW(b0.v, uvAt(eve.uv, f0, 0), uvAt(eve.uv, f0, 1), uvAt(eve.uv2, f0, 0), uvAt(eve.uv2, f0, 1));
-                uint32_t w1 = addW(b1.v, uvAt(eve.uv, f1, 0), uvAt(eve.uv, f1, 1), uvAt(eve.uv2, f1, 0), uvAt(eve.uv2, f1, 1));
+                // strip in one colour, a wedge against an orc's painted foot); her vertex the copy on their side of her UV seam
+                uint32_t c0, c1;
+                pairNear(i, c0, c1);
+                float q0[4], q1[4];
+                uvOn(bAt(j), i, c0, q0);
+                uvOn(bAt(j + 1), i, c0, q1);
+                uint32_t w0 = addW(b0.v, q0[0], q0[1], q0[2], q0[3]);
+                uint32_t w1 = addW(b1.v, q1[0], q1[1], q1[2], q1[3]);
                 XI.insert(XI.end(), {c0, w0, w1});
-                ca = c0;
                 ++j;
             }
         }
