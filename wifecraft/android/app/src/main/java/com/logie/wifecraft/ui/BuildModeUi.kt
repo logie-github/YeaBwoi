@@ -623,7 +623,7 @@ class BuildController internal constructor(
     fun deleteRace(o: RaceOffset) = saveRace(raceMine.filter { it.key != o.key })
     fun resetRaces() = saveRace(emptyList())
 
-    fun setShowMarkers(v: Boolean) {
+    fun changeShowMarkers(v: Boolean) {
         showMarkers = v
         runCatching { prefs.edit().putBoolean(KEY_SHOW, v).apply() }
         push()
@@ -859,7 +859,7 @@ private fun MarkerPage(build: BuildController) {
         WifeButton("Go", { build.selectMarker(m) }, kind = WifeButtonKind.QUIET)
         if (!m.shipped) WifeButton("×", { build.deleteMarker(m.id) }, kind = WifeButtonKind.QUIET)
     }
-    WifeSwitchRow("Show markers", build.showMarkers, { build.setShowMarkers(it) }, detail = "Small, outside build mode too.")
+    WifeSwitchRow("Show markers", build.showMarkers, { build.changeShowMarkers(it) }, detail = "Small, outside build mode too.")
 }
 
 /** A selected NPC: playing, its pair is moved live with the gizmo; Re-place, Reset, and Remember for the races in it. */
@@ -904,7 +904,7 @@ private fun SendPage(build: BuildController) {
     WifeButton("Save and send", { build.send() }, Modifier.fillMaxWidth(), enabled = build.state.canSend, kind = WifeButtonKind.PRIMARY)
     WifeNote("Saved on the phone (files/build) and sent as one issue: positions in the place's frame, the items' classes, the moved pairs and races. Nothing else from the phone.")
     RaceOffsetsList(build.raceLocal, { build.deleteRace(it) }, { build.resetRaces() })
-    WifeSwitchRow("Show markers", build.showMarkers, { build.setShowMarkers(it) }, detail = "Small, outside build mode too.")
+    WifeSwitchRow("Show markers", build.showMarkers, { build.changeShowMarkers(it) }, detail = "Small, outside build mode too.")
 }
 
 @Composable
