@@ -433,8 +433,8 @@ namespace {
 // its chroma kept within a limit) at a brightness between the zone's and the location's own (so a night stays a night and
 // a bright zone doesn't blow out a dim room's door), the fog's distances brought to the scene's scale.
 struct ZoneTargets {
-    float amb[3], sun[3], sky[3], fog[3];
-    float ambHue[3], sunHue[3], skyHue[3], fogHue[3];
+    float amb[3] = {}, sun[3] = {}, sky[3] = {}, fog[3] = {};
+    float ambHue[3] = {1, 1, 1}, sunHue[3] = {1, 1, 1}, skyHue[3] = {1, 1, 1}, fogHue[3] = {1, 1, 1};
     float near = 0, far = 0;
 };
 
@@ -454,7 +454,7 @@ ZoneTargets zoneTargets(const CineInput& in) {
     };
     make(z.ambient, in.ambient, 0.35f, 0.10f, 0.70f, 0.55f, t.amb, t.ambHue);
     make(z.direct, in.direct, 0.30f, 0.04f, 0.85f, 0.50f, t.sun, t.sunHue);
-    float zs[3], zf[3];
+    float zs[3] = {0, 0, 0}, zf[3] = {0, 0, 0};
     for (int i = 0; i < 3; ++i) zf[i] = 0.7f * z.fog[i] + 0.3f * z.endFog[i];
     if (cineLum(z.skyMid) > 0.02f) std::copy(z.skyMid, z.skyMid + 3, zs); else std::copy(zf, zf + 3, zs);
     make(zs, in.sky, 0.30f, 0.03f, 0.70f, 0.60f, t.sky, t.skyHue);

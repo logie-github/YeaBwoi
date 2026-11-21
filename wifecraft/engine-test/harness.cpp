@@ -9,6 +9,7 @@
 //   gfxtiming on|off | gfxstats                each pass timed with glFinish round it, and the last frame's timings printed
 //   cinematic MOOD VIGNETTE GRAIN LETTERBOX    cinematic mode's look (Scene::setCinematic), each 0..1; LETTERBOX 1: the
 //                                              2.39:1 bars of the next render's size (grade.h letterboxBars)
+//   zonemood STRENGTH [boost]                  cinematic mode's zone mood (Scene::setZoneMood): 0..1, boost its colours
 //   city ROOT GROUP,GROUP,...  X Y Z RADIUS [X Y Z ...]   Dalaran's groups and the props near the points
 //   actor N MODEL SCALE X Y Z FACING [tex T=F,T=F] [geo GROUP=VALUE,...]
 //   attach N ATTACHMENT MODEL T=F,...
@@ -794,6 +795,8 @@ int main(int argc, char** argv) {
             float hours; ss >> hours; scene.setTimeOfDay(hours);   // the world clock's hour on the location (negative: off)
         } else if (cmd == "cinematic") {
             ss >> cine[0] >> cine[1] >> cine[2] >> cine[3];
+        } else if (cmd == "zonemood") {   // zonemood STRENGTH [boost]: cinematic mode's zone mood (Scene::setZoneMood)
+            float z = 0.7f; std::string b; ss >> z >> b; scene.setZoneMood(z, b == "boost" || b == "1");
         } else if (cmd == "gfx") {   // gfx [off] [NAME=VALUE...]: Options' Graphics (graphics_settings.h's names, lower case)
             static const char* kNames[GraphicsSettings::kCount] = {"scale", "msaa", "aniso", "texture", "tonemap", "exposure",
                 "bloom", "dof", "aperture", "dofeditor", "ao", "aoquality", "contact", "shadows", "shadowquality", "skin", "hair",

@@ -243,6 +243,11 @@ public:
     // candle-like flicker) with the picture's grade; `vignette`, `grain` 0..1; `bars` each letterbox bar's share of the
     // height (0..0.5). All 0: off, the frame drawn straight to the screen as before. Cheap; the caller eases them in and out.
     void setCinematic(float mood, float vignette, float grain, float bars);
+    // Cinematic mode's zone mood (daylight.h ZoneLight, cineProfile's zone part): `strength` 0..1 how far the location's
+    // light, fog and grade are pulled toward the zone's own light (the game's ZoneLight/LightData for the place: Tirisfal's
+    // mauve and teal gloom, Teldrassil's violet), 0 none of it; `boost` its colours exaggerated (saturation, contrast).
+    // Only while the cinematic look is on (setCinematic's mood scales it). Cheap; default 0.7, no boost.
+    void setZoneMood(float strength, bool boost);
     // Options' Graphics page (graphics_settings.h: the array in its order; scene_gfx.cpp) and the last frame's timings
     // (cpu ms, each pass's GPU ms, timers available, the scene's drawn width and height: PostStats::kStages + 4 floats).
     void setGraphics(const float* values, int count);
@@ -722,6 +727,8 @@ private:
     Light dayLight_;
     float dayRoomTint_[3] = {1, 1, 1};
     CinePracticals cinePractical_;
+    float zoneMood_ = 0.7f;              // setZoneMood's
+    bool zoneBoost_ = false;
     void updateCinematic(uint32_t nowMs);
     // the additive layers: the body's motion (Options'), the motes and how bright, the clock they were last stepped at
     MotionParams motionParams_;

@@ -125,12 +125,14 @@ void Grade::end(int width, int height, const GradeParams& p) {
     glUniform1i(gl::loc(prog_, "uTex"), 0);
     // the grade drawn only while the look is on (mood over 0): otherwise neutral
     const bool on = p.mood > 0.001f;
-    float lift[3], gain[3];
+    float lift[3], gain[3], mid[3];
     for (int i = 0; i < 3; ++i) {
         lift[i] = on && std::isfinite(p.lift[i]) ? std::clamp(p.lift[i], 0.0f, 0.2f) : 0.0f;
         gain[i] = on && std::isfinite(p.gain[i]) ? std::clamp(p.gain[i], 0.5f, 1.5f) : 1.0f;
+        mid[i] = on && std::isfinite(p.mid[i]) ? std::clamp(p.mid[i], 0.5f, 1.5f) : 1.0f;
     }
     glUniform3fv(gl::loc(prog_, "uLift"), 1, lift);
+    glUniform3fv(gl::loc(prog_, "uMid"), 1, mid);
     glUniform3fv(gl::loc(prog_, "uGain"), 1, gain);
     glUniform1f(gl::loc(prog_, "uGamma"), on && std::isfinite(p.gamma) ? std::clamp(p.gamma, 0.5f, 2.0f) : 1.0f);
     glUniform1f(gl::loc(prog_, "uContrast"), on && std::isfinite(p.contrast) ? std::clamp(p.contrast, 0.0f, 1.0f) : 0.0f);

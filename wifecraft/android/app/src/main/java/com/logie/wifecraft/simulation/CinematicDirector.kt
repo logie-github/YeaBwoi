@@ -31,15 +31,22 @@ data class ShotFrame(val yaw: Float, val pitch: Float, val distance: Float, val 
         yaw + turn * t, pitch + (o.pitch - pitch) * t, distance + (o.distance - distance) * t, at.lerp(o.at, t), fov + (o.fov - fov) * t)
 }
 
+/** How much of the people a shot of [type] from the director's own mix shows (the library's shots carry their own size). */
+fun mixSize(type: ShotType): ShotSize = when (type) {
+    ShotType.WIDE -> ShotSize.WIDE
+    ShotType.CLOSE_UP, ShotType.OVER_SHOULDER -> ShotSize.CLOSE
+    else -> ShotSize.MEDIUM
+}
+
 /**
  * One shot: [type], its [preset] (the type and its variant: a side, a view, who: never one of the last three again), its
  * camera moving from [from] to [to] over [seconds] (eased in and out; the yaw by `to.yaw - from.yaw` exactly), reached by a
  * move of [travel] seconds from where the camera was turning the yaw by [turn] (the way round that stays in the room), or by
- * a [cut].
+ * a [cut]; [size] how much of the people it shows.
  */
 data class CinematicShot(
     val type: ShotType, val preset: String, val from: ShotFrame, val to: ShotFrame, val seconds: Float,
-    val cut: Boolean, val turn: Float = 0f, val travel: Float = 0f,
+    val cut: Boolean, val turn: Float = 0f, val travel: Float = 0f, val size: ShotSize = mixSize(type),
 )
 
 /**
@@ -539,6 +546,11 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
         const val CORNER_PITCH = 0.26f
         /** The presets of the library's shots start with this. */
         const val LIBRARY = "LIB:"
+        /**
+         * A forced cut ([cutNow]) to a shot of the same size as the last must look from at least this far round (degrees); a
+         * shot of another size may look from anywhere on the side.
+         */
+        const val NEW_ANGLE_DEG = 30f
         private const val TAU = (2.0 * PI).toFloat()
     }
 
@@ -605,6 +617,29 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
     /** The next [update] starts afresh from the stage's camera (entering cinematic mode). */
     fun restart() { started = false }
 
+    // a cut asked for by auto-play (0: none, 1: a cut, 2: a cut with the side of the line chosen again), and one being made
+    @Volatile private var cutAsked = 0
+    private var forcing = false
+    /** Forced cuts made ([cutNow]); tests. */
+    var forcedCuts = 0
+        private set
+
+    /**
+     * Auto-play changed the animation under a cover: the next [update] cuts at once (no move) to a new shot of what plays now,
+     * of another size than the last or, the same size, from at least [NEW_ANGLE_DEG] round; the focus is put on the people at
+     * once (no drift from where they were). [resetSide]: the place changed, the 180-degree side is chosen again for it.
+     */
+    fun cutNow(resetSide: Boolean) { cutAsked = if (resetSide) 2 else maxOf(cutAsked, 1) }
+
+    /** Whether [c] is new enough after [last] for a forced cut: another size, or the same seen from far enough round. */
+    fun freshAfter(last: CinematicShot?, c: CinematicShot): Boolean {
+        if (last == null) return true
+        if (c.size != last.size) return true
+        val turn = abs(OrbitMath.wrap(c.from.yaw - last.to.yaw)) * (180f / PI.toFloat())
+        val id = libraryId(c.preset)
+        return turn >= NEW_ANGLE_DEG && (id == null || id != libraryId(last.preset))
+    }
+
     /**
      * One frame, [dt] seconds after the last, on [stage]: the shot moves on (a new one when it ends or its eye is no longer
      * clear) and the pose is written. False (nothing written): there is nobody to film.
@@ -626,6 +661,24 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
             ax.snap(stage.atX); ay.snap(stage.atY); az.snap(stage.atZ); of.snap(stage.fov)
         } else {
             fx.update(raw.x, step); fy.update(raw.y, step); fz.update(raw.z, step)
+        }
+        // auto-play changed the animation under a cover ([cutNow]): a cut at once to a new shot of it, the focus on the people
+        val ask = if (started) cutAsked else 0
+        if (ask != 0) {
+            cutAsked = 0
+            if (ask == 2) { lineSide = 0f; cadenceAt = 0 }
+            fx.snap(raw.x); fy.snap(raw.y); fz.snap(raw.z)
+            // (they were put on their places at once: no walking speed from the jump)
+            lastHeads = FloatArray(0); walking = 0f
+            val now = stage.action
+            if (now != null && (lineSide == 0f || now.cls != actionCls)) line(stage)
+            actionKey = now?.key; actionCls = now?.cls
+            repick = false
+            forcing = true
+            furnitureId = furn
+            next(stage, raw, lastFrame ?: frameAt(shotTime))
+            forcing = false
+            forcedCuts++
         }
         val focus = Vec3(fx.value, fy.value, fz.value)
         // how fast the quickest person moves (yards a second, smoothed over about a second): close-ups wait for them
@@ -747,13 +800,14 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
                 repeat(if (type == ShotType.FURNITURE) 3 else 4) {
                     val shot = build(type, stage, focus, pts) ?: return@repeat
                     if (shot.preset in recent) return@repeat
-                    val placed = place(shot, stage, focus, pts, from, cut = cuts || pass == 2) ?: return@repeat
+                    val placed = place(shot, stage, focus, pts, from, cut = cuts || pass == 2 || forcing, forceCut = forcing) ?: return@repeat
+                    if (forcing && pass < 2 && !freshAfter(history.lastOrNull(), placed)) return@repeat
                     return placed
                 }
             }
         }
         val hold = from.copy()
-        return CinematicShot(ShotType.HOLD, "HOLD", hold, hold, shotSeconds(), cut = false, turn = 0f, travel = 0f)
+        return CinematicShot(ShotType.HOLD, "HOLD", hold, hold, shotSeconds(), cut = forcing, turn = 0f, travel = 0f)
     }
 
     private fun shotSeconds(): Float {
@@ -1028,6 +1082,7 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
             // Classic follows the cadence throughout; the other styles (but Random) only open with the wide
             if (sp.size == want && (style == ShotStyle.CLASSIC || (style != ShotStyle.RANDOM && cadenceAt == 0))) w *= 1f + 6f * (1f - r)
             if (sp.id == lastId) w = 0f
+            else if (forcing && sp.size == history.lastOrNull()?.size) w *= 0.3f
             else if (cands.size >= 4 && sp.id in ids) w *= 0.3f
             if (!still && (sp.size == ShotSize.CLOSE || sp.size == ShotSize.DETAIL)) w = 0f
             if (!two && (sp.anchor == ShotAnchor.HEAD_B || sp.anchor == ShotAnchor.HIP_B)) w = 0f
@@ -1052,15 +1107,17 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
             if (k < 0) return null
             weights[k] = 0f
             val sp = cands[k].first
-            val wantCut = st.style == CinematicStyle.CUTS || (cutsOk && when (sp.transition) {
+            val wantCut = forcing || st.style == CinematicStyle.CUTS || (cutsOk && when (sp.transition) {
                 ShotTransition.CUT -> true; ShotTransition.BLEND -> false; ShotTransition.ANY -> random.nextFloat() < 0.5f
             })
             repeat(3) { attempt ->
                 // a wide or medium shot that doesn't fit the room is tried nearer (as wide as the room allows)
                 val nearer = when (sp.size) { ShotSize.WIDE -> 1f - 0.2f * attempt; ShotSize.MEDIUM -> 1f - 0.15f * attempt; else -> 1f }
                 val built = buildLibrary(sp, stage, focus, nearer) ?: return@repeat
-                val placed = place(built.shot, stage, focus, pts, from, cut = cutsOk, framed = built.framed, faces = built.faces,
+                val placed = place(built.shot, stage, focus, pts, from, cut = cutsOk || forcing, framed = built.framed, faces = built.faces,
                     overIdx = built.over, forceCut = wantCut) ?: return@repeat
+                // a forced cut (auto-play's change) to another size, or the same size from well round
+                if (forcing && !freshAfter(history.lastOrNull(), placed)) return@repeat
                 spec = sp
                 cadenceAt++
                 return placed
@@ -1157,7 +1214,7 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
         val yaw0 = lineYaw + lineSide * az0 * deg
         val yaw1 = lineYaw + lineSide * az1 * deg
         val shot = CinematicShot(sp.type, "$LIBRARY${sp.id}:${sector(yaw0)}$tag", ShotFrame(yaw0, pitch, d0, at, fov),
-            ShotFrame(yaw1, pitch, d1, at, fov), seconds, cut = false)
+            ShotFrame(yaw1, pitch, d1, at, fov), seconds, cut = false, size = sp.size)
         return Built(shot, framed, faces, over)
     }
 
