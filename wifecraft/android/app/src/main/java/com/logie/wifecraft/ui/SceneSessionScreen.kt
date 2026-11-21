@@ -1233,25 +1233,6 @@ fun LiveSceneScreen(
     }
 
     // immersive mode's HUD: up after a tap for Options' time, kept while a window or menu is open
-    // the first-run hint for Build mode (BuildEntry): until dismissed, or until Build mode was entered once
-    val buildPrefs = remember(context) { context.getSharedPreferences(BuildEntry.PREFS, android.content.Context.MODE_PRIVATE) }
-    var buildHintSeen by remember(buildPrefs) {
-        mutableStateOf(try { buildPrefs.getBoolean(BuildEntry.KEY_HINT_SEEN, false) } catch (e: Exception) { false })
-    }
-    fun dismissBuildHint() {
-        buildHintSeen = true
-        try { buildPrefs.edit().putBoolean(BuildEntry.KEY_HINT_SEEN, true).apply() } catch (e: Exception) { }
-    }
-    // the one way in (the HUD chip and the scene menu): ends cinematic mode, then the orbit camera round what is selected
-    fun enterBuild() {
-        if (BuildEntry.cinematicAfterEnter(cinematic) != cinematic) cinematic = false
-        menu = false
-        if (mapper.on) mapper.leave()
-        dismissBuildHint()
-        build.enter()
-        cameraMode = CameraMode.ORBIT; furnitureView = -1
-        live.camera.setMode(CameraMode.ORBIT)
-    }
     val windowOpen = choosingAnimation != null || furnitureMenu != null || saying != null || chatting != null ||
         choosingPartner != null || pairPlay != null || menu || ending || mapper.on || build.on
     LaunchedEffect(revealTick, windowOpen, immersive.hudSeconds, immersiveHud) {
@@ -1532,18 +1513,8 @@ fun LiveSceneScreen(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     val hint = SceneHud.hint(active != null, mate != null, cast.size, walking)
-                    // the life answer's toast said it already: the line keeps the help
-                    val toastText = lifeToast?.first?.message
-                    // while an animation plays: its part and loop counter ("Stage 2 · Cowgirl · Loop 3/5")
-                    // (immersive mode: no counters, only what the scene says back)
-                    val line = (snapshot.notice?.takeIf { it != toastText }
-                        ?: if (immersiveHud) null else (active?.playing ?: hint.takeIf { active != null })).orEmpty()
                     Row(Modifier.fillMaxWidth().height(WifeTheme.touch), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
-                        // the chips scroll sideways, so none is ever clipped on a narrow phone; Build comes first, always in reach
-                        Row(Modifier.weight(if (line.isEmpty()) 1f else 2f, fill = false).horizontalScroll(rememberScrollState()),
-                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
-                        if (!mapper.on && BuildEntry.chipShown(mapper.on)) WifeChip(BuildEntry.CHIP, { enterBuild() }, trailing = null)
                         AnimatedVisibility(mate != null && active != null, enter = fadeIn(tween(MenuMotion.duration(FrontMotion.GLOW_MS, reduced))),
                             exit = fadeOut(tween(MenuMotion.duration(FrontMotion.GLOW_MS, reduced)))) {
                             WifeChip("Partner: ${rememberHeld(mate)?.let { names[it] } ?: ""}", { control = control.clearPartner() })
@@ -1557,6 +1528,12 @@ fun LiveSceneScreen(
                         // Build mode (ui/BuildModeUi.kt): markers, item interactions, live moves, reports; Move mode (the item
                         // mapper, ui/ItemMapperUi.kt) is part of it (a selected object's Hold NPC here)
                         if (mapper.on) WifeChip("Done moving", { mapper.leave() }, trailing = null)
+                        else WifeChip("Build", {
+                            if (cinematic) cinematic = false
+                            build.enter()
+                            cameraMode = CameraMode.ORBIT; furnitureView = -1
+                            live.camera.setMode(CameraMode.ORBIT)
+                        }, trailing = null)
                         // the Gear switch (ui/GearUi.kt): the selected NPC's, and everyone's in the scene
                         val gearControl = LocalGearControl.current
                         if (gearControl != null) {
@@ -1570,7 +1547,12 @@ fun LiveSceneScreen(
                                 WifeChip(if (all) "All gear off" else "All gear on", { gearControl.setAll(!all) }, trailing = null)
                             }
                         }
-                        }
+                        // the life answer's toast said it already: the line keeps the help
+                        val toastText = lifeToast?.first?.message
+                        // while an animation plays: its part and loop counter ("Stage 2 · Cowgirl · Loop 3/5")
+                        // (immersive mode: no counters, only what the scene says back)
+                        val line = (snapshot.notice?.takeIf { it != toastText }
+                            ?: if (immersiveHud) null else (active?.playing ?: hint.takeIf { active != null })).orEmpty()
                         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                             if (line.isNotEmpty()) HudLine(line)
                         }
@@ -1589,12 +1571,6 @@ fun LiveSceneScreen(
                         }
                     }
                 }
-            }
-            // the first-run hint pointing to Build mode (dismissed with Got it, or by entering it once)
-            if (shown > 0f && BuildEntry.hintShown(buildHintSeen, build.on, hudHidden, revealed) && !mapper.on) {
-                Tooltip(BuildEntry.HINT, Modifier.align(Alignment.BottomCenter).graphicsLayer { alpha = shown }
-                    .padding(start = SceneHud.MARGIN.dp, end = SceneHud.MARGIN.dp,
-                        bottom = hud.barH.dp + WifeTheme.touch + (2 * SceneHud.MARGIN + 6f).dp), onDismiss = { dismissBuildHint() })
             }
             // a problem after loading (a prop without a surface, a file that wouldn't come): a fixed-width note on top
             ProblemNote(status.takeIf { revealed }, Modifier.align(Alignment.TopCenter).padding(top = (SceneHud.TOP_H + 4f).dp))
@@ -1738,8 +1714,7 @@ fun LiveSceneScreen(
         freezeName = selected?.takeIf { selectedLife != null }?.let { names[it] },
         frozen = selectedLife?.frozen == true,
         onFreeze = { on -> selected?.let { live.life.freeze(it, on) } },
-        onLife = selected?.takeIf { selectedLife != null }?.let { id -> { menu = false; lifeWindow = id } },
-        buildOn = build.on, onBuild = { if (build.on) { menu = false; build.leave() } else enterBuild() })
+        onLife = selected?.takeIf { selectedLife != null }?.let { id -> { menu = false; lifeWindow = id } })
     val windowFor = rememberHeld(lifeWindow)
     val windowPerson = windowFor?.let { id -> lifeShown?.person(id) }
     if (windowFor != null && windowPerson != null) {
@@ -2195,9 +2170,6 @@ private fun SceneMenu(
     frozen: Boolean = false,
     onFreeze: (Boolean) -> Unit = {},
     onLife: (() -> Unit)? = null,
-    /** Build mode's entry (always there): enters it, or leaves it while [buildOn]. */
-    buildOn: Boolean = false,
-    onBuild: (() -> Unit)? = null,
 ) {
     val name = rememberHeld(freezeName)
     Overlay(onClose, visible) {
@@ -2207,10 +2179,6 @@ private fun SceneMenu(
                 if (freezeName != null && name != null) {
                     if (onLife != null) WifeButton("$name's life", onLife, Modifier.fillMaxWidth(), sound = "open")
                     WifeSwitchRow("Freeze $name's needs", frozen, onFreeze, detail = "Their needs stand still")
-                }
-                if (onBuild != null && BuildEntry.menuShown()) {
-                    WifeButton(BuildEntry.menuLabel(buildOn), onBuild, Modifier.fillMaxWidth(), sound = "open")
-                    Text(BuildEntry.menuDetail(buildOn), style = WifeTheme.captionStyle())
                 }
                 if (onOptions != null) WifeButton("Options", onOptions, Modifier.fillMaxWidth(), sound = "open")
                 WifeButton("End scene", onEnd, Modifier.fillMaxWidth())

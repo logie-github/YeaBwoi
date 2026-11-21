@@ -39,7 +39,6 @@ val pureUi = tasks.register<Copy>("pureUi") {
     from("../android/app/src/main/java/com/logie/wifecraft/ui/MenuMotion.kt")
     // the live scene's HUD: the action bar's orders and pages, the help line, the clock, the layout, the animation tabs (SceneHud)
     from("../android/app/src/main/java/com/logie/wifecraft/ui/SceneHud.kt")
-    from("../android/app/src/main/java/com/logie/wifecraft/ui/BuildEntry.kt")
     // the life simulation's HUD: mood gems, need bars, relationships, thought bubbles, the radial menu, the clock (LifeHud, LifeIcons)
     from("../android/app/src/main/java/com/logie/wifecraft/ui/LifeHud.kt")
     from("../android/app/src/main/java/com/logie/wifecraft/ui/LifeIcons.kt")
