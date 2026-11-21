@@ -266,15 +266,24 @@ object FleshLift {
      * the seat; lying with the pelvis on the surface: the trunk, head, arms and thighs over it; otherwise (kneeling, a floor
      * sit, lying with the hips raised) everything but the hands over the support.
      */
-    fun liftUnits(need: ActorRequirement, frames: List<BodyFrame>, flesh: FleshProfile): Double {
+    fun liftUnits(need: ActorRequirement, frames: List<BodyFrame>, flesh: FleshProfile, reference: List<BodyFrame> = frames): Double {
         if (!flesh.measured || frames.isEmpty()) return need.liftUnits.toDouble()
         val stand = need.posture == Posture.STAND || need.posture == Posture.LEAN || need.posture == Posture.CROUCH
         val support = if (stand) 0.0 else need.heightUnits.toDouble()
         val seat = !stand && need.posture.seated && need.height >= RequirementClassifier.FLOOR_SIT_MAX
         if (seat) return groundLift(frames, flesh, support, FleshProfile.SEAT, FleshProfile.HALF, FleshProfile.SEAT_BARE)
-        val lying = need.posture.lying && RequirementClassifier.pelvisRests(frames, support)
-        return groundLift(frames, flesh, support, if (lying) LYING else BEARING)
+        return groundLift(frames, flesh, support, bearing(need, reference))
     }
+
+    /**
+     * What bears [need]'s body (neither standing nor on a seat): [LYING] when it lies with its pelvis on the surface, else
+     * [BEARING]. Decided on [reference], the clip on the reference skeleton (the classifier's own reading, as the stage was
+     * authored), never on a measured body's skeleton: a body whose pelvis stands a few centimetres higher or lower on its
+     * own rig (a woman in Eve) put the median near [RequirementClassifier.PELVIS_REST] on the other side of it, so one body
+     * was lifted by its hanging shins and the other not (the audit: 5 to 14 cm, both ways, in four lying stages).
+     */
+    fun bearing(need: ActorRequirement, reference: List<BodyFrame>): List<FleshPart> =
+        if (need.posture.lying && RequirementClassifier.pelvisRests(reference, need.heightUnits.toDouble())) LYING else BEARING
 
     /** What bears a body that is not lying on its trunk (standing, kneeling, a floor sit): everything but the hands. */
     val BEARING: List<FleshPart> = FleshPart.entries.filter { it != FleshPart.L_HAND && it != FleshPart.R_HAND }
@@ -293,9 +302,9 @@ object FleshLift {
     }
 
     /** [need] with its lift for a body with [flesh] (the same [need] for the generic body, or when nothing changes). */
-    fun adjusted(need: ActorRequirement, frames: List<BodyFrame>, flesh: FleshProfile): ActorRequirement {
+    fun adjusted(need: ActorRequirement, frames: List<BodyFrame>, flesh: FleshProfile, reference: List<BodyFrame> = frames): ActorRequirement {
         if (!flesh.measured) return need
-        val lift = liftUnits(need, frames, flesh).toFloat()
+        val lift = liftUnits(need, frames, flesh, reference).toFloat()
         return if (abs(lift - need.liftUnits) < 1e-6f) need else need.copy(liftUnits = lift)
     }
 }

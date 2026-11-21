@@ -75,6 +75,45 @@ class PlacementFitTest {
             PairSpacing.contact(pair("hug_2")) && PairSpacing.contact(pair("Cuddle")) && !PairSpacing.contact(pair("stacked")))
     }
 
+    @Test fun thePushIsTheShortestMoveThatClearsEveryMoment() {
+        // three moments, the second body at a different spot against the first's trunk each time: one move for the clip,
+        // the shortest that clears all three (against a brute-force search over the floor, 2 mm apart)
+        val a = listOf(body(0.0, 0.0, armOut = 0.0), body(0.0, 0.0, armOut = 0.0), body(0.0, 0.0, armOut = 0.0))
+        fun moments(e: Double) = listOf(body(0.02, 0.03 + e, armOut = 0.0), body(-0.03, 0.04 + e, armOut = 0.0), body(0.05, -0.01 + e, armOut = 0.0))
+        val b = moments(0.0)
+        fun clears(ox: Double, oy: Double) = a.indices.all { PairSpacing.slack(a[it], b[it], ox, oy)!!.first + PairSpacing.CONTACT_TOLERANCE >= -1e-3 }
+        var brute = Double.MAX_VALUE
+        for (i in -150..150) for (j in -150..150) {
+            val x = i * 0.002; val y = j * 0.002
+            if (hypot(x, y) < brute && clears(x, y)) brute = hypot(x, y)
+        }
+        val push = PairSpacing.push(a, b)!!
+        assertTrue(clears(push.first, push.second), "clears every moment: $push")
+        assertTrue(hypot(push.first, push.second) <= brute + 0.005, "$push against the shortest ${brute}")
+        // 2 mm more at one moment moves it by about as much, never by a stride
+        val near = PairSpacing.push(a, moments(0.002))!!
+        assertTrue(hypot(near.first - push.first, near.second - push.second) < 0.01, "$near against $push")
+    }
+
+    @Test fun twoMomentsThatWantOppositeWaysAreNotZigzaggedAway() {
+        // one moment wants the second body 2 cm along +x, another (nearly opposite, 170 degrees round) lets it go at most
+        // 1 cm that way: no short move clears both (the nearest that does is 6 cm off sideways). The old push stepped toward
+        // whichever was worst at each round and walked off; now the move that leaves the least unmet, within reach
+        val back = Math.toRadians(170.0)
+        val cons = listOf(doubleArrayOf(1.0, 0.0, 0.02), doubleArrayOf(kotlin.math.cos(back), kotlin.math.sin(back), -0.01))
+        val reach = PairSpacing.BOUND * 0.02 + 0.01
+        val (x, y) = PairSpacing.solve(cons, reach)
+        assertTrue(hypot(x, y) <= reach + 1e-9, "within reach: $x, $y")
+        val left = cons.maxOf { it[2] - (it[0] * x + it[1] * y) }
+        assertTrue(left <= 0.006, "the least left unmet: $left at $x, $y")
+        // exactly opposite: the middle
+        val (x2, y2) = PairSpacing.solve(listOf(doubleArrayOf(1.0, 0.0, 0.02), doubleArrayOf(-1.0, 0.0, -0.01)), reach)
+        assertEquals(0.015, x2, 0.003); assertEquals(0.0, y2, 0.003)
+        // met together where they can be: the corner of two ways at a right angle
+        val (x3, y3) = PairSpacing.solve(listOf(doubleArrayOf(1.0, 0.0, 0.02), doubleArrayOf(0.0, 1.0, 0.03)), 1.0)
+        assertEquals(0.02, x3, 0.001); assertEquals(0.03, y3, 0.001)
+    }
+
     @Test fun thePushIsBounded() {
         val push = PairSpacing.push(listOf(body(0.0, 0.0)), listOf(body(0.0, 0.0)), maxPush = 0.03)!!
         assertTrue(hypot(push.first, push.second) <= 0.03 + 1e-9)

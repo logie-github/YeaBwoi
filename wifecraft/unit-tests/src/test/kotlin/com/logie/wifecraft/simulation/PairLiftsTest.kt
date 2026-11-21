@@ -68,6 +68,26 @@ class PairLiftsTest {
         assertEquals(hang.heightUnits.toDouble(), trunkLow, 0.03, "the trunk on the bed")
     }
 
+    @Test fun whetherABodyLiesOnItsTrunkIsReadOnTheReferenceSkeleton() {
+        // a body on its back, its legs over the bed's edge; on a measured body's own rig its pelvis stands higher (a woman in
+        // Eve's rig: a few centimetres), past PELVIS_REST over the bed by the median: read on its own skeleton the rule
+        // flipped and its hanging shins lifted it; read on the reference skeleton (the stage as authored) it lies on its trunk
+        val clip = legsOverTheEdge(0.55, "hang4")
+        val need = RequirementClassifier.classify(clip).actors[0]
+        val ref = BodyGeometry.frames(clip)
+        val over = ref.map { it["Root"]!![2] - need.heightUnits }.sorted().let { it[it.size / 2] }
+        val up = RequirementClassifier.PELVIS_REST - over + 0.02
+        val own = ref.map { f -> com.logie.wifecraft.anim.BodyFrame(f.joints.mapValues { (_, v) -> doubleArrayOf(v[0], v[1], v[2] + up) }, f.driven) }
+        assertTrue(RequirementClassifier.pelvisRests(ref, need.heightUnits.toDouble()))
+        assertFalse(RequirementClassifier.pelvisRests(own, need.heightUnits.toDouble()), "the own rig's pelvis past the rule")
+        assertEquals(FleshLift.LYING, FleshLift.bearing(need, ref))
+        val byRef = FleshLift.liftUnits(need, own, man, ref)
+        val trunk = FleshLift.groundLift(own, man, need.heightUnits.toDouble(), FleshLift.LYING)
+        assertEquals(trunk, byRef, 1e-9, "lifted by its trunk")
+        // (on its own skeleton the shins would have lifted it by more: the flip the audit found)
+        assertTrue(FleshLift.liftUnits(need, own, man) > byRef + 0.1)
+    }
+
     @Test fun aBodyLyingWithItsHipsRaisedIsBorneByItsFeet() {
         // the pelvis held well over the support (a bridge): it doesn't rest, so the feet count
         val frames = BodyGeometry.frames(F.lyingBack(0.0, name = "bridge"))

@@ -140,7 +140,7 @@ class PairAlignmentTest {
             val r = FurnitureAnimation.of(PairSpacing.spaced(p)).requirement
             fun own(i: Int, body: PairAlignment.Body, anim: Anim, s: PartnerSlot): Float {
                 val need = r.actors[i]
-                val u = if (body.flesh.measured) FleshLift.adjusted(need, BodyGeometry.frames(anim, z = s.z.toDouble(), flesh = body.flesh), body.flesh).liftUnits else need.liftUnits
+                val u = if (body.flesh.measured) FleshLift.adjusted(need, BodyGeometry.frames(anim, z = s.z.toDouble(), flesh = body.flesh), body.flesh, BodyGeometry.frames(anim, z = s.z.toDouble())).liftUnits else need.liftUnits
                 return (u * PairAlignment.AUTHORED_UNIT).toFloat()
             }
             val lifts = PairLift.shared(own(0, ba, p.a, sp.slotA), own(1, bb, p.b, sp.slotB), PairSpacing.touching(p))

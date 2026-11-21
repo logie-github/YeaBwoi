@@ -350,6 +350,67 @@ void posedSeams(M2Model& m, const FileLookup& look, const EveResult& res, size_t
 // 5 cm up (her shin eased from the model's back to her own over the band).
 struct AnkleStep { float step = 0, mean = 0, turn = 0, taper = 0; int samples = 0; };
 
+// The texture at the ankle seams as the GPU samples it (README, "Her own rig", the ankles): the ankle rings lie on the edge
+// of her UV island and the seam strip's UVs on it, so a bilinear or mipmapped lookup there takes texels outside the island
+// too. Per mip level (eveMips, as the scene uploads them; level 0 bilinear at the texel centres as GL samples it), the
+// mean and worst CIE ΔE of the composed texture at the strip's and the rings' UVs against the seam's own colour
+// (EveResult::ankleRgb, the band's colour at the ring). EVE_TEX_DUMP=DIR writes the texture (DIR/NAME.ppm) and those UVs.
+struct SeamBleed { float mean[4] = {0, 0, 0, 0}, worst[4] = {0, 0, 0, 0}; int samples = 0; };
+SeamBleed seamBleed(const EveResult& res, const char* name) {
+    SeamBleed out;
+    const EveBody& b = res.body;
+    if (res.rgba.empty() || b.verts.empty()) return out;
+    float top = -1e30f;
+    for (const M2Vertex& v : b.verts) top = std::max(top, v.pos[2]);
+    // the strip's triangles at the ankles (a corner past her own vertices: the model's edge), every corner's UV
+    std::vector<std::pair<float, float>> uvs;
+    for (size_t t = 0; t + 2 < b.indices.size(); t += 3) {
+        uint32_t i[3] = {b.indices[t], b.indices[t + 1], b.indices[t + 2]};
+        if (std::max({i[0], i[1], i[2]}) < b.stats.eveVerts) continue;
+        if (b.verts[i[0]].pos[2] > 0.25f * top) continue;   // (the neck's strip is high)
+        for (uint32_t k : i) uvs.push_back({b.verts[k].uv[0], b.verts[k].uv[1]});
+    }
+    if (uvs.empty()) return out;
+    std::vector<std::vector<uint8_t>> levels = eveMips(res.rgba, res.w, res.h);
+    levels.insert(levels.begin(), res.rgba);
+    const V3 want = eveLab(res.ankleRgb);
+    for (int L = 0; L < 4 && L < int(levels.size()); ++L) {
+        int w = std::max(1, res.w >> L), h = std::max(1, res.h >> L);
+        const std::vector<uint8_t>& img = levels[size_t(L)];
+        double sum = 0; float worst = 0;
+        for (auto [u, v] : uvs) {
+            float x = u * w - 0.5f, y = v * h - 0.5f;
+            int x0 = int(std::floor(x)), y0 = int(std::floor(y));
+            float fx = x - x0, fy = y - y0;
+            V3 c;
+            for (int dy = 0; dy < 2; ++dy) for (int dx = 0; dx < 2; ++dx) {
+                int xx = std::clamp(x0 + dx, 0, w - 1), yy = std::clamp(y0 + dy, 0, h - 1);
+                const uint8_t* q = &img[(size_t(yy) * w + xx) * 4];
+                float wt = (dx ? fx : 1 - fx) * (dy ? fy : 1 - fy);
+                c = c + eveLinear((uint32_t(q[0]) << 16) | (uint32_t(q[1]) << 8) | q[2]) * wt;
+            }
+            float de = (eveLab(eveRgb(c)) - want).length();
+            sum += de; worst = std::max(worst, de);
+        }
+        out.mean[L] = float(sum / uvs.size()); out.worst[L] = worst;
+    }
+    out.samples = int(uvs.size());
+    if (const char* dir = std::getenv("EVE_TEX_DUMP")) {
+        std::string base = std::string(dir) + "/" + name;
+        for (char& ch : base) if (ch == ' ' || ch == '\'') ch = '_';
+        if (FILE* f = std::fopen((base + ".ppm").c_str(), "wb")) {
+            std::fprintf(f, "P6 %d %d 255\n", res.w, res.h);
+            for (size_t i = 0; i < size_t(res.w) * res.h; ++i) std::fwrite(&res.rgba[i * 4], 1, 3, f);
+            std::fclose(f);
+        }
+        if (FILE* f = std::fopen((base + ".uv").c_str(), "w")) {
+            for (auto [u, v] : uvs) std::fprintf(f, "%.5f %.5f\n", u, v);
+            std::fclose(f);
+        }
+    }
+    return out;
+}
+
 // A look's shown geosets from its groups, as the scene shows them (scene.cpp characterGeosets).
 std::vector<uint16_t> shownGeosets(const M2Model& m, const std::map<int, int>& groups) {
     std::vector<uint16_t> out;
@@ -810,6 +871,10 @@ int main(int argc, char** argv) {
                             AnkleStep as = ankleStep(m, res, true, row->name.c_str(), j.geosets);
                             CHECK(as.samples > 20 && as.step <= 0.3f, "%s: the ankle's step %.2f cm (at most 0.3 over %d vertices)", row->name.c_str(), as.step, as.samples);
                             CHECK(as.turn <= 5.0f, "%s: her normals at the ankle %.1f degrees off the model's skin's (at most 5)", row->name.c_str(), as.turn);
+                            SeamBleed sb = seamBleed(res, row->name.c_str());
+                            std::printf("  %s: the ankle seams' texture as sampled (ΔE against the seam's colour, mean/worst) mip 0 %.1f/%.1f, 1 %.1f/%.1f, "
+                                        "2 %.1f/%.1f, 3 %.1f/%.1f over %d UVs\n", row->name.c_str(), sb.mean[0], sb.worst[0], sb.mean[1], sb.worst[1],
+                                        sb.mean[2], sb.worst[2], sb.mean[3], sb.worst[3], sb.samples);
                         }
                         // Keep undead bones (a row with "detail"): its details carried, the seams' colour as with them off (within 3)
                         if (row->detail > 0) {

@@ -218,7 +218,8 @@ class PairAlignmentAudit {
                 // each role's lift for its own flesh, shared, the hips matched: PairLifts.of, as SceneSimulation.roleLifts runs it
                 fun lift(i: Int, body: Body, slot: PartnerSlot, anim: com.logie.wifecraft.anim.Anim, unit: Double): Double {
                     val need = req.actors.getOrNull(i) ?: return 0.0
-                    val own = if (body.flesh.measured) FleshLift.adjusted(need, BodyGeometry.frames(anim, z = slot.z.toDouble(), flesh = body.flesh), body.flesh).liftUnits
+                    val own = if (body.flesh.measured) FleshLift.adjusted(need, BodyGeometry.frames(anim, z = slot.z.toDouble(), flesh = body.flesh), body.flesh,
+                        BodyGeometry.frames(anim, z = slot.z.toDouble())).liftUnits
                         else need.liftUnits
                     return ((own - if (floorLevel) 0f else need.liftUnits) * unit)
                 }
@@ -245,8 +246,8 @@ class PairAlignmentAudit {
                     val seat = need.posture.seated && need.height >= com.logie.wifecraft.anim.RequirementClassifier.FLOOR_SIT_MAX
                     val parts = when {
                         seat -> com.logie.wifecraft.anim.FleshProfile.SEAT
-                        need.posture.lying && com.logie.wifecraft.anim.RequirementClassifier.pelvisRests(frames, need.heightUnits.toDouble()) -> FleshLift.LYING
-                        else -> FleshLift.BEARING
+                        // (lying on the trunk read on the reference skeleton, as FleshLift decides it)
+                        else -> FleshLift.bearing(need, BodyGeometry.frames(anim, z = slot.z.toDouble()))
                     }
                     val low = frames.minOfOrNull { f -> body.flesh.lowestOver(f, parts, if (seat) com.logie.wifecraft.anim.FleshProfile.HALF else emptySet(),
                         if (seat) com.logie.wifecraft.anim.FleshProfile.SEAT_BARE else emptySet()) ?: Double.MAX_VALUE } ?: return Double.NaN

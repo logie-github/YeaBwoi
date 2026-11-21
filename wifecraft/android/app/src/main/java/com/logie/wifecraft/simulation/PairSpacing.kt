@@ -140,7 +140,13 @@ object PairSpacing {
                 val deep = -authored[minOf(i, authored.size - 1)]
                 if (deep > CONTACT_TOLERANCE) CONTACT_TOLERANCE else max(CONTACT_TOLERANCE, deep + EXTRA)
             }
-        return push(a, b, fallback, fleshA, fleshB, if (contact(p)) MAX_PUSH_CONTACT else MAX_PUSH, tolerance)
+        val cap = if (contact(p)) MAX_PUSH_CONTACT else MAX_PUSH
+        val moved = push(a, b, fallback, fleshA, fleshB, cap, tolerance)
+        if (authored == null || moved == null) return moved
+        // never farther than the plain rule (every moment [CONTACT_TOLERANCE], which the authored tolerance never tightens)
+        // moves the same bodies: its move clears these moments too
+        val plain = push(a, b, fallback, fleshA, fleshB, cap) ?: return null
+        return if (hypot(plain.first, plain.second) < hypot(moved.first, moved.second)) plain else moved
     }
 
     /** A role's body over its clip at its slot, on [flesh]'s own skeleton when measured. */
@@ -151,19 +157,31 @@ object PairSpacing {
     /** The least room left by [RULES] between [fa] and [fb] (the second moved by [ox], [oy]), and the way apart there. */
     fun slack(fa: BodyFrame, fb: BodyFrame, ox: Double = 0.0, oy: Double = 0.0): Triple<Double, Double, Double>? {
         var worst = Double.MAX_VALUE; var wx = 0.0; var wy = 0.0
-        for (r in RULES) {
+        eachRule(fa, fb, ox, oy) { _, s, x, y, _ -> if (s < worst) { worst = s; wx = x; wy = y } }
+        return if (worst == Double.MAX_VALUE) null else Triple(worst, wx, wy)
+    }
+
+    /** Each of [RULES] [fa] and [fb] have the joints of: its index, the room left, the way apart (x, y) and the axes' distance. */
+    private fun eachRule(fa: BodyFrame, fb: BodyFrame, ox: Double, oy: Double, f: (Int, Double, Double, Double, Double) -> Unit) {
+        for ((idx, r) in RULES.withIndex()) {
             val a0 = fa[r.a0] ?: continue; val a1 = fa[r.a1] ?: continue
             val b0 = fb[r.b0]?.let { doubleArrayOf(it[0] + ox, it[1] + oy, it[2]) } ?: continue
             val b1 = fb[r.b1]?.let { doubleArrayOf(it[0] + ox, it[1] + oy, it[2]) } ?: continue
             val (d, pa, pb) = nearest(a0, a1, b0, b1)
-            if (d - r.need < worst) { worst = d - r.need; wx = pb[0] - pa[0]; wy = pb[1] - pa[1] }
+            f(idx, d - r.need, pb[0] - pa[0], pb[1] - pa[1], d)
         }
-        return if (worst == Double.MAX_VALUE) null else Triple(worst, wx, wy)
     }
 
     /**
      * How far the second body ([b], sampled with [a] over one clock: each list as long, or the shorter's last frame held)
      * must move across the floor; [toward] the way to go when the parts are on one axis (from the first to the second).
+     *
+     * One move for the whole clip, the least that clears every moment ([solve]): each part pair that comes near is a
+     * constraint on the move (its room grows by the move along the line between the parts), the constraints of every
+     * moment are kept together and the shortest move meeting them all is taken, read again at that move and solved again
+     * until it holds. Before, the push stepped toward whichever part pair was worst at each round, and two moments that
+     * wanted different ways (an arm on the chest, the thighs) zigzagged it 20 cm away for 2 mm more flesh. A clip no move
+     * clears is moved by the one that leaves the least of it too near, never farther than [BOUND] times its deepest moment.
      */
     fun push(a: List<BodyFrame>, b: List<BodyFrame>, toward: Pair<Double, Double> = 0.0 to 0.0,
              fleshA: FleshProfile = FleshProfile.GENERIC, fleshB: FleshProfile = FleshProfile.GENERIC,
@@ -172,35 +190,129 @@ object PairSpacing {
         // with measured flesh, each moment's parts placed once (moving the second body only shifts its parts)
         val partsA = if (measured) a.map { parts(it, fleshA) } else emptyList()
         val partsB = if (measured) b.map { parts(it, fleshB) } else emptyList()
-        var ox = 0.0; var oy = 0.0
-        // a few rounds: moving away from the nearest moment may bring another nearer
-        repeat(6) {
-            var worst = Double.MAX_VALUE; var wx = 0.0; var wy = 0.0
-            for (i in 0 until max(a.size, b.size)) {
-                val (s, x, y) = (if (measured) slack(partsA[minOf(i, a.size - 1)], partsB[minOf(i, b.size - 1)], fleshA, fleshB, ox, oy)
-                    else slack(a[minOf(i, a.size - 1)], b[minOf(i, b.size - 1)], ox, oy)) ?: return null
-                // what this moment comes nearer than its tolerance
-                val over = s + tolerance(i)
-                if (over < worst) { worst = over; wx = x; wy = y }
-            }
-            // nearer than the contact tolerance: moved by what it comes nearer than that
-            if (worst >= -1e-6) return if (ox == 0.0 && oy == 0.0) null else ox to oy
-            var h = hypot(wx, wy)
-            if (h < 1e-3) {
-                // on one axis: between the slots, else to the first body's left
-                wx = toward.first; wy = toward.second; h = hypot(wx, wy)
-                if (h < 1e-3) {
-                    val n = a.first(); val r = n["L_Thigh"]; val l = n["R_Thigh"]
-                    if (r != null && l != null) { wx = r[0] - l[0]; wy = r[1] - l[1]; h = hypot(wx, wy) }
-                    if (h < 1e-3) { wx = 0.0; wy = 1.0; h = 1.0 }
-                }
-            }
-            val step = -worst + 1e-3
-            ox += wx / h * step; oy += wy / h * step
-            val total = hypot(ox, oy)
-            if (total > maxPush) return ox / total * maxPush to oy / total * maxPush
+        val n = max(a.size, b.size)
+        // the way apart for parts on one axis: between the slots, else to the first body's left
+        var axX = toward.first; var axY = toward.second; var axH = hypot(axX, axY)
+        if (axH < 1e-3) {
+            val f = a.first(); val r = f["L_Thigh"]; val l = f["R_Thigh"]
+            if (r != null && l != null) { axX = r[0] - l[0]; axY = r[1] - l[1]; axH = hypot(axX, axY) }
+            if (axH < 1e-3) { axX = 0.0; axY = 1.0; axH = 1.0 }
         }
-        return ox to oy
+        axX /= axH; axY /= axH
+        val rules = if (measured) PART_RULES.size else RULES.size
+        // every part pair that has come near: its constraint read again at each move (key: moment * rules + rule)
+        val seen = HashSet<Int>()
+        val cons = ArrayList<DoubleArray>()
+        // reads every moment at a move: the worst room left past the tolerance (NaN: a moment can't be read)
+        fun read(ox: Double, oy: Double, collect: Boolean): Double {
+            if (collect) cons.clear()
+            var worst = Double.MAX_VALUE
+            for (i in 0 until n) {
+                val tol = tolerance(i)
+                var any = false
+                val sink = { rule: Int, s: Double, wx: Double, wy: Double, d: Double ->
+                    any = true
+                    val over = s + tol
+                    if (over < worst) worst = over
+                    val key = i * rules + rule
+                    if (collect && (over < ACTIVE || key in seen)) {
+                        seen.add(key)
+                        // the room's rate of growth with the move: the line between the parts across the floor
+                        val h = hypot(wx, wy)
+                        var gx: Double; var gy: Double
+                        if (h < 1e-3) { gx = axX; gy = axY } else {
+                            gx = wx / max(d, 1e-9); gy = wy / max(d, 1e-9)
+                            val g = hypot(gx, gy)
+                            if (g < MIN_RATE) { gx *= MIN_RATE / g; gy *= MIN_RATE / g }
+                        }
+                        // g . move >= g . (ox, oy) - over (and a millimetre)
+                        cons.add(doubleArrayOf(gx, gy, gx * ox + gy * oy - over + 1e-3))
+                    }
+                }
+                if (measured) eachPart(partsA[minOf(i, a.size - 1)], partsB[minOf(i, b.size - 1)], fleshA, fleshB, ox, oy, sink)
+                else eachRule(a[minOf(i, a.size - 1)], b[minOf(i, b.size - 1)], ox, oy, sink)
+                if (!any) return Double.NaN
+            }
+            return worst
+        }
+        val start = read(0.0, 0.0, true)
+        if (start.isNaN()) return null
+        // nearer than the contact tolerance nowhere: left as it is
+        if (start >= -1e-6) return null
+        val reach = minOf(BOUND * -start + 0.01, maxPush * 2)
+        var ox = 0.0; var oy = 0.0
+        var bestX = 0.0; var bestY = 0.0; var bestLeft = -start; var bestLen = 0.0
+        for (round in 0 until ROUNDS) {
+            val (nx, ny) = solve(cons, reach)
+            val worst = read(nx, ny, true)
+            if (worst.isNaN()) return null
+            val left = max(0.0, -worst); val len = hypot(nx, ny)
+            // the best move so far: the least left too near (to 2 mm), then the shortest
+            if (left < bestLeft - 0.002 || (left < bestLeft + 0.002 && len < bestLen)) { bestX = nx; bestY = ny; bestLeft = left; bestLen = len }
+            // a move that clears every moment is read again there and solved again while that shortens it (the parts'
+            // flesh is round: each constraint, taken at the move, is the tangent of the room it needs there)
+            if (hypot(nx - ox, ny - oy) < 1e-4) break
+            ox = nx; oy = ny
+        }
+        if (bestX == 0.0 && bestY == 0.0) return null
+        if (bestLen > maxPush) return bestX / bestLen * maxPush to bestY / bestLen * maxPush
+        return bestX to bestY
+    }
+
+    /** A part pair whose room past its tolerance is under this (body units) is one of the constraints [push] solves. */
+    private const val ACTIVE = 0.03
+    /** The least rate a part pair's room is taken to grow at with the move ([push]: parts one over the other). */
+    private const val MIN_RATE = 0.25
+    /** How many times [push] reads the moments again at its move and solves again. */
+    private const val ROUNDS = 12
+    /** The farthest [push] looks, against the deepest moment's depth past its tolerance (two ways at a right angle: 1.41). */
+    const val BOUND = 1.5
+
+    /**
+     * The shortest move (x, y) meeting every constraint of [cons] (each gx, gy, c: gx x + gy y >= c), looked for on every
+     * way across the floor (half a degree apart) within [reach]; where none meets them all, the move within [reach] that
+     * leaves the least unmet, then the shortest.
+     */
+    fun solve(cons: List<DoubleArray>, reach: Double): Pair<Double, Double> {
+        // the constraints by way (to half a degree), the strictest of each: a constraint of a moment met by far can't bind
+        val ways = 720
+        val c = DoubleArray(ways) { Double.NEGATIVE_INFINITY }
+        for (k in cons) {
+            val g = hypot(k[0], k[1]); if (g < 1e-9) continue
+            val v = k[2] / g
+            if (v < -reach) continue
+            val w = Math.floorMod(Math.round(Math.atan2(k[1], k[0]) / (2 * Math.PI) * ways).toInt(), ways)
+            if (v > c[w]) c[w] = v
+        }
+        val ux = DoubleArray(ways) { kotlin.math.cos(2 * Math.PI * it / ways) }
+        val uy = DoubleArray(ways) { kotlin.math.sin(2 * Math.PI * it / ways) }
+        val used = (0 until ways).filter { c[it] != Double.NEGATIVE_INFINITY }
+        if (used.isEmpty()) return 0.0 to 0.0
+        var best = Double.MAX_VALUE; var bx = 0.0; var by = 0.0
+        for (t in 0 until ways) {
+            var lo = 0.0; var hi = reach; var ok = true
+            for (w in used) {
+                val gu = ux[w] * ux[t] + uy[w] * uy[t]
+                if (gu > 1e-9) lo = max(lo, c[w] / gu)
+                else if (gu < -1e-9) hi = minOf(hi, c[w] / gu)
+                else if (c[w] > 0) { ok = false; break }
+                if (lo > hi) { ok = false; break }
+            }
+            if (ok && lo < best) { best = lo; bx = ux[t] * lo; by = uy[t] * lo }
+        }
+        if (best != Double.MAX_VALUE) return bx to by
+        // nothing meets them all: the least left unmet within reach, then the shortest
+        var bestLeft = Double.MAX_VALUE; best = Double.MAX_VALUE
+        for (s in 1..24) {
+            val r = reach * s / 24
+            for (t in 0 until ways step 2) {
+                val x = ux[t] * r; val y = uy[t] * r
+                var left = 0.0
+                for (w in used) left = max(left, c[w] - (ux[w] * x + uy[w] * y))
+                if (left < bestLeft - 0.002 || (left < bestLeft + 0.002 && r < best)) { bestLeft = left; best = r; bx = x; by = y }
+            }
+        }
+        return bx to by
     }
 
     /** [f]'s parts the measured rules read, placed with [flesh]'s segments (a part [f] lacks the joints of is left out). */
@@ -218,7 +330,15 @@ object PairSpacing {
     fun slack(pa: Map<FleshPart, PartFrame>, pb: Map<FleshPart, PartFrame>, fleshA: FleshProfile, fleshB: FleshProfile,
               ox: Double = 0.0, oy: Double = 0.0): Triple<Double, Double, Double>? {
         var worst = Double.MAX_VALUE; var wx = 0.0; var wy = 0.0
-        for ((ka, kb) in PART_RULES) {
+        eachPart(pa, pb, fleshA, fleshB, ox, oy) { _, s, x, y, _ -> if (s < worst) { worst = s; wx = x; wy = y } }
+        return if (worst == Double.MAX_VALUE) null else Triple(worst, wx, wy)
+    }
+
+    /** Each of [PART_RULES] both bodies have: its index, the room left, the way apart (x, y) and the axes' distance. */
+    private fun eachPart(pa: Map<FleshPart, PartFrame>, pb: Map<FleshPart, PartFrame>, fleshA: FleshProfile, fleshB: FleshProfile,
+                         ox: Double, oy: Double, f: (Int, Double, Double, Double, Double) -> Unit) {
+        for ((idx, rule) in PART_RULES.withIndex()) {
+            val (ka, kb) = rule
             val fa = pa[ka] ?: continue
             val fb0 = pb[kb] ?: continue
             val fb = if (ox == 0.0 && oy == 0.0) fb0 else fb0.shifted(ox, oy)
@@ -230,9 +350,8 @@ object PairSpacing {
                 val back = DoubleArray(3) { -dir[it] }
                 FleshProfile.reach(sa, fa, dir, ta <= 1e-6, ta >= 1 - 1e-6) + FleshProfile.reach(sb, fb, back, tb <= 1e-6, tb >= 1 - 1e-6) + MARGIN
             }
-            if (d - need < worst) { worst = d - need; wx = pB[0] - pA[0]; wy = pB[1] - pA[1] }
+            f(idx, d - need, pB[0] - pA[0], pB[1] - pA[1], d)
         }
-        return if (worst == Double.MAX_VALUE) null else Triple(worst, wx, wy)
     }
 
     /** The nearest points of segments [a0]-[a1] and [b0]-[b1]: their distance and where on each (0 to 1). */
