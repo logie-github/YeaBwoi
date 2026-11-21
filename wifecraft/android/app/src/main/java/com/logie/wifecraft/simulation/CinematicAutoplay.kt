@@ -18,8 +18,12 @@ data class AutoPlace(val key: String, val item: SceneObject?, val furniture: Fur
     val floor: Boolean get() = item == null
 }
 
-/** A two-person animation auto-play may play: [id] the partner pair's id, its [name] and what it needs ([requirement]). */
-data class AutoClip(val id: String, val name: String, val requirement: Requirement)
+/**
+ * A two-person animation auto-play may play: [id] the partner pair's id, its [name] and what it needs ([requirement], the
+ * player's Treat as applied); [floorRests]: needing furniture, lowered onto the open floor it rests there
+ * ([FurnitureAvailability.floorRests]), so it may play on the floor where no furniture here takes it.
+ */
+data class AutoClip(val id: String, val name: String, val requirement: Requirement, val floorRests: Boolean = false)
 
 /** [clip] playable on [place], where [fit] puts it. */
 data class AutoOption(val place: AutoPlace, val clip: AutoClip, val fit: FurnitureFit)
@@ -69,12 +73,23 @@ class AutoplayPlanner(seed: Long = Random.nextLong()) {
             return DWELL_MIN * k..DWELL_MAX * k
         }
 
-        /** Every clip on every place it fits, for bodies of [bodyUnit] (world units of a standing pelvis). */
+        /**
+         * Every clip on every place it fits, for bodies of [bodyUnit] (world units of a standing pelvis); as the scene plays
+         * them ([FurnitureAvailability]): a clip that fits no piece here goes where it nearly fits ([FurnitureFit.fit] relaxed),
+         * else, when lowered it rests on the floor ([AutoClip.floorRests]), on the open floor.
+         */
         fun options(places: List<AutoPlace>, clips: List<AutoClip>, bodyUnit: Float = FurnitureFit.DEFAULT_BODY_UNIT): List<AutoOption> {
             val out = ArrayList<AutoOption>()
             for (c in clips) {
                 if (c.requirement.actors.size != 2) continue
+                val before = out.size
                 for (p in places) FurnitureFit.fit(c.requirement, p.furniture, bodyUnit)?.let { out += AutoOption(p, c, it) }
+                if (out.size > before || c.requirement.surface in Requirement.FLOOR_LEVEL) continue
+                for (p in places) if (!p.floor) FurnitureFit.fit(c.requirement, p.furniture, bodyUnit, relaxed = true)?.let { out += AutoOption(p, c, it) }
+                if (out.size > before || !c.floorRests) continue
+                places.firstOrNull { it.floor }?.let { p ->
+                    out += AutoOption(p, c, FurnitureFit(p.key, p.furniture.x, p.furniture.y, p.furniture.z, 0f, emptyList(), emptyList(), 0f, 0f))
+                }
             }
             return out
         }

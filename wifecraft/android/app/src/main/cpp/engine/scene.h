@@ -16,6 +16,7 @@
 #include "boneanim.h"
 #include "cloth.h"
 #include "evebody.h"
+#include "hdbody.h"
 #include "grade.h"
 #include "location.h"
 #include "m2.h"
@@ -177,6 +178,23 @@ public:
     // The fit on a worker thread (default) or at once on the GL thread (the desktop's checks; pictures always are).
     void setEveAsync(bool on);
 
+    // ---------------------------------------------------------------- HD Models (hdbody.h; hdscene.cpp)
+    // An HD model set (a .whd: tools/hd/whd_convert.py) kept for the scene's life under its race and sex; a new one of the
+    // same race and sex replaces it (its actors fitted again). False and `error` when it can't be read.
+    bool loadHdSet(const std::string& path, std::string& error);
+    void clearHdSets();
+    // The HD figure of race `race`, sex `sex` (ChrRaces id; 0 male, 1 female) drawn on actor `id` instead of its game model,
+    // with these options (on false: the game's model). The actor keeps its skeleton, animations and attachments; the fit is
+    // made at the next frame and again when the model or the options change. Kept across dress().
+    void setHdBody(int id, int race, int sex, const HdOptions& options);
+    void clearHdBody(int id);
+    struct HdStatus {
+        bool requested = false, active = false;
+        std::string status, set;
+        HdFitStats stats;
+    };
+    bool hdStatus(int id, HdStatus& out) const;
+
     // ---------------------------------------------------------------- body parts (bodypart.h)
     // A part file (.wcbp) read and kept: its handle (> 0), the same one again for a path already loaded; 0 and partError()
     // when it can't be read. Parts stay loaded for the scene's life (a set is 36 small meshes).
@@ -194,6 +212,25 @@ public:
     void setPartFit(int id, const PartFit& fit);
     // Takes every part off the actor (their textures freed).
     void detachParts(int id);
+    // Arousal and insertion (bodypart.h): `level` 0 flaccid .. 1 erect (< 0: not driven: the state's slot as it is); during a
+    // partner stage, `partner` (an actor id; 0 none) and `entry` (PartEntry) aim the erect shaft at the partner's entry, `rest`
+    // the stage's rest depth (Sims metres). Kept across dress().
+    void setPartDrive(int id, float level, int partner, int entry, float rest);
+    // The desktop check: the last frame's level, insertion depth and distance (Sims metres), the aim's angle (degrees) and
+    // weight, and the partner's entry point (world). False: no such actor.
+    struct PartDriveInfo { float level = -1, depth = 0, distance = -1, aimDeg = 0, aimWeight = 0; bool slotOn = false; V3 entryWorld, rootWorld, pelvisForward; };
+    bool partDriveInfo(int id, PartDriveInfo& out) const;
+    // An actor's entry anchor `entry` as posed (world), and its way in (unit, world) when asked; measured on its model as
+    // shown; false when it has none.
+    bool entryWorld(int id, int entry, V3& out, V3* inward = nullptr);
+    // The body's skin colour where the parts meet it (0xRRGGBB, sampled by the caller: bodyparts/PartSkin; < 0 none): the
+    // parts' roots are blended to it (bodypart.h blendRootToSkin). Their textures are made again.
+    void setPartSkin(int id, int rgb);
+    // An HD body's own genital vertices (indices into its body mesh, from the HD set's 'genital_mask': tools/hd), hidden while
+    // the parts are drawn in their place; empty: the HD body as it is, no parts. hdscene.cpp's index buffers are to leave
+    // these triangles out (bodypart.h maskTriangles): NOT wired there yet.
+    void setHdGenitalMask(int id, const std::vector<uint32_t>& vertices);
+    const std::vector<uint32_t>* hdGenitalMask(int id) const;
     // Where to sample the actor's skin colour for its parts' tint: the skin texture coordinates (u, v pairs, v 0 at the top)
     // of its shown lower body around the parts' root (bodySkinUvs: within 0.12 pelvis heights, at most 256). Empty: no actor,
     // or a model without a Pelvis.
@@ -371,6 +408,18 @@ public:
     bool ghostBounds(V3& mn, V3& mx) const;
     int ghostActorId() const { return ghost_.actor; }
 
+    // ---------------------------------------------------------------- the live scene's build mode overlay (buildview.cpp)
+    // The axis gizmo at a point of the world (flags: kBuildArrows, kBuildRing), its x and y turned by yaw, the active handle
+    // (0 x, 1 y, 2 z, 3 the ring; -1 none) lit; the markers (kBuildMarkerFloats each: x, y, z, yaw, r, g, b, selected); the
+    // selected item's box (centre xyz, half xyz, yaw; fewer than 7 floats: none). All drawn over the scene, never picked.
+    enum BuildFlags { kBuildArrows = 1, kBuildRing = 2 };
+    static constexpr int kBuildMarkerFloats = 8;
+    void setBuildGizmo(int flags, V3 pos, float yaw, int activeAxis);
+    void setBuildMarkers(const float* data, int count);
+    void setBuildBox(const float* data, int floats);
+    // A location doodad by its pick id: model file id, origin xyz, yaw, scale, its model's box (min xyz, max xyz) (12 floats).
+    bool locationObjectInfo(int index, float* out) const;
+
     // A thumbnail: a prop (propFile, an M2 or a WMO) or a look (an actor dressed as `look` says), alone in an off-screen
     // framebuffer of this context, framed from three quarters in front, softly lit on a neutral gradient; RGBA, size x size,
     // top row first. Nothing of the live scene is changed (its camera, light and things are put back; the temporary actor,
@@ -385,6 +434,8 @@ public:
         std::vector<float> morph;
         float bodyK = 0, bodyFold = 0;
         EveOptions eve;                          // the Eve body on the look (setEveBody's; `on` false: her own body)
+        HdOptions hd;                            // the HD figure on the look (setHdBody's; `on` false: the game's model)
+        int hdRace = 0, hdSex = 0;
     };
     bool thumbnail(uint32_t propFile, const ThumbLook* look, int size, std::vector<uint8_t>& rgba, std::string& error);
     // How a look's picture is framed instead (the Transmog window's cards, creator/TransmogCards.kt): the band of the body
@@ -479,6 +530,11 @@ private:
         unsigned tex = 0;
         M4 drawn;                // the matrix last drawn with (model space)
         bool wasDrawn = false;
+        // the shaft bent per frame (bodypart.h: the level, the thighs, the aim): its own buffers, the shared indices
+        PartShaft shaft;
+        bool shaftMeasured = false;
+        unsigned vao = 0, vbo = 0;
+        std::vector<M2Vertex> posed;
     };
     // A model part on an actor (attachBonePart): fitted to its skeleton once, drawn rigid on its bone.
     struct BonePart {
@@ -498,6 +554,22 @@ private:
         PartFit fit;
         PartPlacement place;
         bool placed = false;     // place measured for the actor's model and fit
+        // arousal and insertion (setPartDrive): the level (< 0: not driven, the state's slot as it is), the partner and entry
+        float level = -1;
+        bool slotOn = false;
+        int partner = 0, entry = 0;
+        float rest = 0;
+        Quat aim;                // the shaft's aim turn as last drawn (eased)
+        float aimWeight = 0;     // 0..1, eased in while the aim holds
+        float reach = 1;         // the drawn length over the shaft's own, eased slowly to meet the stage's rest depth
+        float depth = 0;         // the last frame's insertion depth (Sims metres; partDrive)
+        float distance = -1;     // the last frame's root-to-entry distance (Sims metres; -1 none)
+        uint32_t lastMs = 0;
+        V3 lastEntry, lastRoot;  // the last frame's entry (world) and shaft root (world)
+        V3 lastForward;          // the pelvis' forward as last drawn (world, unit)
+        EntryAnchors entries;    // this actor as a partner: its entry anchors (measured once per look)
+        int skinRgb = -1;        // setPartSkin: the body's skin colour where the parts meet it (0xRRGGBB; -1 none)
+        std::vector<uint32_t> hdGenitalMask;   // setHdGenitalMask: the HD body's own genital vertices (hidden, the parts drawn)
     };
     // A tabard flap hung as cloth (cloth.h): its rig for the look, the sim, this frame's inputs and what is drawn.
     struct ClothGl {
@@ -588,6 +660,7 @@ private:
         std::vector<float> flesh;
         uint64_t fleshKey = 0;
         EveDraw eve;                   // the Eve body (evescene.cpp)
+        HdDraw hd;                     // the HD figure drawn instead of the model (hdscene.cpp)
         std::vector<float> sculpt;     // the creator's sculpt sliders (setSculpt; sculpt.h): the Eve body fitted with them
         std::vector<float> sculptWant; // what setSculpt last gave (taken into `sculpt` by sculptSync)
         uint64_t sculptAtMs = 0;       // when the game's body was last sculpted (steady clock)
@@ -826,8 +899,15 @@ private:
     std::string partError_;
     void uploadPart(PartGl& p);
     void dropPartGl(ActorParts& ap);
-    void drawParts(Actor& a, const M4& world, bool transparent);
+    void drawParts(Actor& a, const M4& world, bool transparent, uint32_t nowMs, const float tint[4]);
     void drawBoneParts(Actor& a, const M4& world, bool transparent);
+    // HD Models (hdscene.cpp)
+    std::map<int, std::shared_ptr<const HdSet>> hdSets_;    // by race * 10 + sex
+    std::map<std::string, unsigned> hdTex_;                 // the sets' textures as drawn, shared by every actor (set|texture|overlay|tint)
+    uint64_t hdGen_ = 0;                                    // counted up with each set loaded
+    void hdCheck(Actor& a);                                 // the model, the options or the set changed: fitted again
+    void drawHd(Actor& a, const M4& world, const float tint[4]);
+    void dropHdGl(Actor& a);
     // the Eve body (evescene.cpp)
     std::shared_ptr<EveSet> eveSet_;               // (shared with the worker's jobs)
     void eveCheck(Actor& a);                       // before refreshBody: the look or options changed, so fit again
@@ -862,6 +942,12 @@ private:
     M4 ghostDelta() const;                // a WMO ghost: from where it was placed to where it is drawn
     void drawGhost(const M4& viewProj, uint32_t now);
     void drawGizmo();
+    // build mode's overlay (buildview.cpp)
+    int buildFlags_ = 0, buildAxis_ = -1;
+    V3 buildPos_;
+    float buildYaw_ = 0;
+    std::vector<float> buildMarkers_, buildBox_;
+    void drawBuild();
     void freeWmoGl(PlacedWmo& w);
     void litSetup(unsigned prog, const M4& viewProj);                            // scene.cpp
     void staticSetup(unsigned prog, const M4& viewProj, const float intAmbient[3], const float* roomTint = nullptr); // location.cpp

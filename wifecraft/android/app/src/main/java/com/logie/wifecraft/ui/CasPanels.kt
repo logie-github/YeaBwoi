@@ -128,7 +128,10 @@ fun CasPanel(
                 CasTab.RACE -> CasRaceSection(model, rev, atlas, onChanged)
                 CasTab.BODY -> CasBodySection(model, rev, atlas, eveBody, focus, onChanged, onSculpt, sculptRateMs, eve, sculptUi, sculptActions)
                 CasTab.PERSONALITY -> CasPersonalitySection(model, rev, icons, onChanged)
-                CasTab.OUTFIT -> CasGearSection(model, rev, onChanged)
+                CasTab.OUTFIT -> { CasHdOutfitNote(model, rev, onChanged); CasGearSection(model, rev, onChanged) }
+                CasTab.FACE, CasTab.HAIR, CasTab.MAKEUP, CasTab.ACCESSORIES ->
+                    if (rev.let { LocalCasHd.current?.setFor?.invoke(model.appearance) } != null) CasHdSection(model, rev, LocalCasHd.current, onChanged, tab)
+                    else CasRows(remember(rev, tab, model.appearance.raceId, model.appearance.sex) { CasTabs.rows(model, tab) }, model, atlas, onChanged)
                 else -> CasRows(remember(rev, tab, model.appearance.raceId, model.appearance.sex) { CasTabs.rows(model, tab) }, model, atlas, onChanged)
             }
             Spacer(Modifier.height(12.dp))
@@ -258,6 +261,11 @@ private fun CasBodySection(
         }
     }, Modifier.padding(bottom = 6.dp))
     if (part == 0) {
+        if (rev.let { LocalCasHd.current?.setFor?.invoke(model.appearance) } != null) {
+            // an HD race: the figure's skin and marks here; the Eve body never goes on it
+            CasHdSection(model, rev, LocalCasHd.current, onChanged, CasTab.BODY)
+            return
+        }
         CasEveSection(model, rev, eve, onChanged)
         CasRows(remember(rev, model.appearance.raceId, model.appearance.sex) { CasTabs.rows(model, CasTab.BODY) }, model, atlas, onChanged)
         return
@@ -486,6 +494,92 @@ private fun CasEveSection(model: CreatorModel, rev: Int, eve: CasEveBinding?, on
     val overlays = listOf("None") + eve.overlays
     stepper("Overlay", overlays, (o.overlaySlot + 1).coerceIn(0, overlays.size - 1)) { set(o.copy(overlaySlot = it - 1, overlayShade = -1)) }
     if (o.overlaySlot >= 0) WifeSliderRow("Strength", (o.opacity * 100).roundToInt(), { set(o.copy(opacity = it / 100f)) })
+}
+
+/**
+ * HD Models in the creator (bodyparts/HdModels): for a race and sex with an imported HD set ([setFor] non-null), the figure's
+ * own choices replace the game's: the Body tab's skin tint and body marks, the Face tab's eyes and face marks, the Hair tab's
+ * styles and colours, Accessories' jewellery; the Outfit tab's class picks the set's outfit (Gear on). The game's own option
+ * rows for that race aren't shown (they change nothing on the HD figure). Provided by the host ([LocalCasHd]); null: no sets.
+ */
+class CasHdBinding(
+    val setFor: (Appearance) -> com.logie.wifecraft.bodyparts.HdSetInfo?,
+)
+
+val LocalCasHd = staticCompositionLocalOf<CasHdBinding?> { null }
+
+@Composable
+private fun CasHdOutfitNote(model: CreatorModel, rev: Int, onChanged: (Boolean) -> Unit) {
+    val set = rev.let { LocalCasHd.current?.setFor?.invoke(model.appearance) } ?: return
+    val a = model.appearance
+    val o = a.hd ?: com.logie.wifecraft.bodyparts.HdOptions()
+    val (idx, note) = com.logie.wifecraft.bodyparts.HdDress.outfitFor(set, a.classId)
+    val what = when {
+        !a.gear -> "Gear off: the HD figure bare."
+        o.outfit >= 0 -> "HD outfit: ${set.outfits.getOrNull(o.outfit)?.label ?: "?"} (chosen)."
+        idx >= 0 -> "HD outfit for this class: ${set.outfits[idx].label}." + (note?.let { " ($it)" } ?: "")
+        else -> note ?: ""
+    }
+    WifeNote(what, Modifier.padding(bottom = 6.dp))
+    val names = listOf("By class") + set.outfits.map { it.label }
+    CasHdStepper("HD outfit", names, (o.outfit + 1).coerceIn(0, names.size - 1)) { at ->
+        model.edit { it.copy(hd = o.copy(outfit = at - 1)) }
+        onChanged(true)
+    }
+}
+
+@Composable
+private fun CasHdStepper(label: String, names: List<String>, at: Int, onAt: (Int) -> Unit) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, style = WifeTheme.labelStyle(), maxLines = 1, modifier = Modifier.weight(0.38f))
+        val n = names.size
+        Box(Modifier.size(44.dp).warPress(enabled = n > 1, repeatable = true) { onAt(Math.floorMod(at - 1, n)) }, contentAlignment = Alignment.Center) {
+            Text("◀", style = frizStyle(WifeTheme.label, WifeTheme.gold))
+        }
+        Box(Modifier.weight(0.62f).height(38.dp).clip(RoundedCornerShape(6.dp)).background(WifeTheme.slateDeep).border(1.dp, WifeTheme.trimSoft, RoundedCornerShape(6.dp)),
+            contentAlignment = Alignment.Center) {
+            Text(names.getOrNull(at) ?: "", style = frizStyle(WifeTheme.body, WifeTheme.gold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Box(Modifier.size(44.dp).warPress(enabled = n > 1, repeatable = true) { onAt(Math.floorMod(at + 1, n)) }, contentAlignment = Alignment.Center) {
+            Text("▶", style = frizStyle(WifeTheme.label, WifeTheme.gold))
+        }
+    }
+}
+
+/** The HD figure's own rows on [tab] (see [CasHdBinding]). */
+@Composable
+private fun CasHdSection(model: CreatorModel, rev: Int, hd: CasHdBinding?, onChanged: (Boolean) -> Unit, tab: CasTab) {
+    val set = rev.let { hd?.setFor?.invoke(model.appearance) } ?: return
+    val o = rev.let { model.appearance.hd ?: com.logie.wifecraft.bodyparts.HdOptions() }
+    fun put(next: com.logie.wifecraft.bodyparts.HdOptions) { model.edit { it.copy(hd = next) }; onChanged(true) }
+    WifeSectionHeader("HD figure")
+    WifeNote("${set.label}: drawn instead of the game's model. The game's own ${tab.label.lowercase()} choices don't apply to it.",
+        Modifier.padding(bottom = 6.dp))
+    when (tab) {
+        CasTab.BODY -> {
+            if (set.tints.isNotEmpty()) CasHdStepper("Skin", set.tints, o.tint.coerceIn(0, set.tints.size - 1)) { put(o.copy(tint = it)) }
+            if (set.bodyMarks) WifeSwitchRow("Body marks", o.bodyMarks, { put(o.copy(bodyMarks = it)) })
+            WifeNote("The sculpt sliders and Bust & Butt shape the HD figure too.", Modifier.padding(top = 4.dp))
+        }
+        CasTab.FACE, CasTab.MAKEUP -> {
+            if (set.eyes.isNotEmpty()) CasHdStepper("Eyes", set.eyes, o.eyes.coerceIn(0, set.eyes.size - 1)) { put(o.copy(eyes = it)) }
+            val marks = listOf("None") + set.faceMarks
+            if (set.faceMarks.isNotEmpty()) CasHdStepper("Face marks", marks, (o.faceMark + 1).coerceIn(0, marks.size - 1)) { put(o.copy(faceMark = it - 1)) }
+        }
+        CasTab.HAIR -> {
+            val styles = set.hair + "None"
+            val at = if (o.hair == -2) styles.size - 1 else o.hair.coerceIn(0, styles.size - 1)
+            CasHdStepper("Style", styles, at) { put(o.copy(hair = if (it == styles.size - 1) -2 else it)) }
+            if (set.hairTints.isNotEmpty()) CasHdStepper("Colour", set.hairTints, o.hairTint.coerceIn(0, set.hairTints.size - 1)) { put(o.copy(hairTint = it)) }
+        }
+        CasTab.ACCESSORIES -> {
+            set.jewelry.forEachIndexed { i, name ->
+                WifeSwitchRow(name, i in o.jewelry, { on -> put(o.copy(jewelry = if (on) (o.jewelry + i).distinct().sorted() else o.jewelry - i)) })
+            }
+            if (set.jewelry.isEmpty()) WifeNote("The set has no jewellery.")
+        }
+        else -> {}
+    }
 }
 
 /** A sculpt slider: its name (a long press puts it back to 0), the slider from -1 to 1 with its middle marked, the value. */

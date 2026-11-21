@@ -206,6 +206,10 @@ JNIEXPORT void JNICALL FN(partFit)(JNIEnv*, jclass, jlong h, jint id, jfloat dx,
     f.dx = dx; f.dz = dz; f.scale = scale;
     scene(h)->setPartFit(id, f);
 }
+JNIEXPORT void JNICALL FN(partDrive)(JNIEnv*, jclass, jlong h, jint id, jfloat level, jint partner, jint entry, jfloat rest) {
+    scene(h)->setPartDrive(id, level, partner, entry, rest);
+}
+JNIEXPORT void JNICALL FN(partSkin)(JNIEnv*, jclass, jlong h, jint id, jint rgb) { scene(h)->setPartSkin(id, rgb); }
 JNIEXPORT void JNICALL FN(detachParts)(JNIEnv*, jclass, jlong h, jint id) { scene(h)->detachParts(id); }
 JNIEXPORT jfloatArray JNICALL FN(partSkinUvs)(JNIEnv* env, jclass, jlong h, jint id) {
     std::vector<float> uv = scene(h)->partSkinUvs(id);
@@ -240,6 +244,37 @@ JNIEXPORT jstring JNICALL FN(eveStatus)(JNIEnv* env, jclass, jlong h, jint id) {
     if (!scene(h)->eveStatus(id, st)) return env->NewStringUTF("no such actor");
     char buf[256];
     std::snprintf(buf, sizeof buf, "%s|%06X|%06X|%d|%.1f", st.active ? "on" : "off", st.neck, st.ankle, st.shade, st.stats.ms + st.composeMs);
+    return env->NewStringUTF((std::string(buf) + "|" + st.status).c_str());
+}
+
+// HD Models (engine/hdbody.h, hdscene.cpp): a set loaded under its race and sex ("" or why not), all of them dropped, one
+// actor drawn as its HD figure with its options (bodyparts/HdModels: hair, outfit, eyes, face mark, body marks, skin tint,
+// hair tint, jewellery), taken off, and what became of it ("on|off|scale|ms|triangles|why").
+JNIEXPORT jstring JNICALL FN(loadHdSet)(JNIEnv* env, jclass, jlong h, jstring path) {
+    std::string err;
+    bool ok = scene(h)->loadHdSet(str(env, path), err);
+    return env->NewStringUTF(ok ? "" : err.c_str());
+}
+
+JNIEXPORT void JNICALL FN(clearHdSets)(JNIEnv*, jclass, jlong h) { scene(h)->clearHdSets(); }
+
+JNIEXPORT void JNICALL FN(setHdBody)(JNIEnv* env, jclass, jlong h, jint id, jint race, jint sex, jboolean on, jint hair, jint outfit, jint eyes,
+                                     jint faceMark, jint bodyMarks, jint tint, jint hairTint, jintArray jewelry) {
+    wc::HdOptions o;
+    o.on = on == JNI_TRUE;
+    o.hair = hair; o.outfit = outfit; o.eyes = eyes; o.faceMark = faceMark; o.bodyMarks = bodyMarks;
+    o.tint = tint; o.hairTint = hairTint;
+    for (int j : ints(env, jewelry)) o.jewelry.push_back(j);
+    scene(h)->setHdBody(id, race, sex, o);
+}
+
+JNIEXPORT void JNICALL FN(clearHdBody)(JNIEnv*, jclass, jlong h, jint id) { scene(h)->clearHdBody(id); }
+
+JNIEXPORT jstring JNICALL FN(hdStatus)(JNIEnv* env, jclass, jlong h, jint id) {
+    wc::Scene::HdStatus st;
+    if (!scene(h)->hdStatus(id, st)) return env->NewStringUTF("no such actor");
+    char buf[160];
+    std::snprintf(buf, sizeof buf, "%s|%.3f|%.1f|%zu", st.active ? "on" : "off", st.stats.scale, st.stats.ms, st.stats.triangles);
     return env->NewStringUTF((std::string(buf) + "|" + st.status).c_str());
 }
 
@@ -462,6 +497,37 @@ JNIEXPORT jint JNICALL FN(gizmoHit)(JNIEnv*, jclass, jlong h, jfloat sx, jfloat 
     return scene(h)->gizmoHit(sx, sy, w, ht, slop);
 }
 
+// ---- the live scene's build mode overlay (engine/buildview.cpp; Native.kt documents them)
+
+JNIEXPORT void JNICALL FN(buildGizmo)(JNIEnv*, jclass, jlong h, jint flags, jfloat x, jfloat y, jfloat z, jfloat yaw, jint axis) {
+    scene(h)->setBuildGizmo(flags, V3(x, y, z), yaw, axis);
+}
+
+JNIEXPORT void JNICALL FN(buildMarkers)(JNIEnv* env, jclass, jlong h, jfloatArray data) {
+    std::vector<float> v;
+    if (data) {
+        jsize n = env->GetArrayLength(data);
+        v.resize(size_t(n));
+        if (n > 0) env->GetFloatArrayRegion(data, 0, n, v.data());
+    }
+    scene(h)->setBuildMarkers(v.data(), int(v.size()) / Scene::kBuildMarkerFloats);
+}
+
+JNIEXPORT void JNICALL FN(buildBox)(JNIEnv* env, jclass, jlong h, jfloatArray data) {
+    float v[7] = {0, 0, 0, 0, 0, 0, 0};
+    jsize n = data ? env->GetArrayLength(data) : 0;
+    if (n >= 7) env->GetFloatArrayRegion(data, 0, 7, v);
+    scene(h)->setBuildBox(v, n >= 7 ? 7 : 0);
+}
+
+JNIEXPORT jfloatArray JNICALL FN(locationObjectInfo)(JNIEnv* env, jclass, jlong h, jint index) {
+    float v[12];
+    if (!scene(h)->locationObjectInfo(index, v)) return nullptr;
+    jfloatArray arr = env->NewFloatArray(12);
+    env->SetFloatArrayRegion(arr, 0, 12, v);
+    return arr;
+}
+
 // eye 3, target 3, up 3, fovY, aspect, view 16, proj 16 (column-major)
 JNIEXPORT jfloatArray JNICALL FN(cameraInfo)(JNIEnv* env, jclass, jlong h) {
     Scene::CameraInfo c = scene(h)->cameraInfo();
@@ -494,6 +560,9 @@ jfloatArray boxArray(JNIEnv* env, const V3& mn, const V3& mx) {
 std::string gThumbError;
 // The Eve body for the next look picture (thumbEve, then thumbLook or thumbCard on the same GL thread): taken once.
 EveOptions gThumbEve;
+// The HD figure for the next look picture (thumbHd): taken once.
+HdOptions gThumbHd;
+int gThumbHdRace = 0, gThumbHdSex = 0;
 } // namespace
 
 // An actor's box in the world (its standing box, turned and placed as it stands); null: no such actor.
@@ -589,6 +658,8 @@ Scene::ThumbLook thumbLookOf(JNIEnv* env, jint model, jfloat scale, jintArray ge
     look.bodyK = k; look.bodyFold = fold;
     look.eve = gThumbEve;
     gThumbEve = EveOptions();
+    look.hd = gThumbHd; look.hdRace = gThumbHdRace; look.hdSex = gThumbHdSex;
+    gThumbHd = HdOptions();
     return look;
 }
 } // namespace
@@ -624,6 +695,17 @@ JNIEXPORT jintArray JNICALL FN(thumbCard)(JNIEnv* env, jclass, jlong h, jint mod
 }
 
 JNIEXPORT jstring JNICALL FN(thumbError)(JNIEnv* env, jclass, jlong) { return env->NewStringUTF(gThumbError.c_str()); }
+
+// The HD figure (bodyparts/HdModels) on the next look picture only (thumbLook or thumbCard right after, on this thread).
+JNIEXPORT void JNICALL FN(thumbHd)(JNIEnv* env, jclass, jlong, jint race, jint sex, jboolean on, jint hair, jint outfit, jint eyes,
+                                   jint faceMark, jint bodyMarks, jint tint, jint hairTint, jintArray jewelry) {
+    HdOptions o;
+    o.on = on == JNI_TRUE;
+    o.hair = hair; o.outfit = outfit; o.eyes = eyes; o.faceMark = faceMark; o.bodyMarks = bodyMarks;
+    o.tint = tint; o.hairTint = hairTint;
+    for (int j : ints(env, jewelry)) o.jewelry.push_back(j);
+    gThumbHd = o; gThumbHdRace = race; gThumbHdSex = sex;
+}
 
 // The Eve body (bodyparts/EveOptions) on the next look picture only (thumbLook or thumbCard right after, on this thread).
 JNIEXPORT void JNICALL FN(thumbEve)(JNIEnv* env, jclass, jlong, jboolean on, jstring bottom, jint tone, jint slot, jint shade, jfloat opacity,

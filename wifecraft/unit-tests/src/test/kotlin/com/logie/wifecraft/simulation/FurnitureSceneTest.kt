@@ -74,10 +74,15 @@ class FurnitureSceneTest {
             assertTrue(couch.partner("a", "b"))
             assertEquals(SceneObject.COUCH, couch.partnerOf("a")!!.furniture)
         }
-        // lying on a bed with no bed: never; nothing else to play: the emotes
+        // lying on a bed with no bed: on the floor in its place (lowered, it rests there: FurnitureAvailability.floorRests)
         val bare = SceneSimulation(listOf("a", "b"), emptySet(), Random(3), pairs = listOf(sideBySideLying))
         assertTrue(bare.partner("a", "b"))
-        assertTrue(bare.partnerOf("a")!!.emote >= 0)
+        assertTrue(bare.partnerOf("a")!!.emote < 0)
+        assertNull(bare.partnerOf("a")!!.furniture)
+        // but one that wouldn't rest on the floor lowered (two sitting with their feet down): the emotes, as before
+        val seats = SceneSimulation(listOf("a", "b"), emptySet(), Random(3), pairs = listOf(sideBySideSitting))
+        assertTrue(seats.partner("a", "b"))
+        assertTrue(seats.partnerOf("a")!!.emote >= 0)
     }
 
     @Test fun aFloorPairPlaysOnTheFloorOrOnABed() {

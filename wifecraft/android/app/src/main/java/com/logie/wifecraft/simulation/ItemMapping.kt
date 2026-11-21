@@ -21,7 +21,19 @@ import kotlin.math.sin
  * phone ([MappedItems]) override the furniture's measured class and places ([ItemOverrides]). Pure.
  */
 enum class ItemClass(val id: String, val label: String) {
-    SEAT("seat", "Chair/seat"), TABLETOP("tabletop", "Table top"), FLOOR("floor", "Floor"), BED("bed", "Bed/couch");
+    SEAT("seat", "Chair/seat"), TABLETOP("tabletop", "Table top"), FLOOR("floor", "Floor/rug"), BED("bed", "Bed/couch"),
+    /** Build mode's classes: something to lean on or stand against (a wall, a post, a shelf), and anything else (its ticks decide). */
+    WALL("wall", "Wall/stand"), OTHER("other", "Other");
+
+    /** The animation classes an item of this class supports unless the player ticked others (build mode's Interact). */
+    val supports: Set<SupportClass> get() = when (this) {
+        SEAT -> setOf(SupportClass.SITTING, SupportClass.KNEELING)
+        TABLETOP -> setOf(SupportClass.LEANING, SupportClass.SITTING, SupportClass.LYING)
+        FLOOR -> setOf(SupportClass.STANDING, SupportClass.SITTING, SupportClass.KNEELING, SupportClass.LYING)
+        BED -> setOf(SupportClass.LYING, SupportClass.SITTING, SupportClass.KNEELING)
+        WALL -> setOf(SupportClass.LEANING, SupportClass.STANDING)
+        OTHER -> emptySet()
+    }
 
     /** The furniture kind an item of this class is taken as when its own kind isn't one of this class's ([accepts]). */
     val kind: FurnitureKind get() = when (this) {
@@ -29,6 +41,8 @@ enum class ItemClass(val id: String, val label: String) {
         TABLETOP -> FurnitureKind.TABLE
         FLOOR -> FurnitureKind.FLOOR
         BED -> FurnitureKind.BED_DOUBLE
+        WALL -> FurnitureKind.COUNTER
+        OTHER -> FurnitureKind.FLOOR
     }
 
     /** Whether a piece measured as [k] is of this class already (its measured shape is kept). */
@@ -37,6 +51,8 @@ enum class ItemClass(val id: String, val label: String) {
         TABLETOP -> k == FurnitureKind.TABLE || k == FurnitureKind.COUNTER
         FLOOR -> k == FurnitureKind.FLOOR
         BED -> k.bed || k == FurnitureKind.COUCH
+        WALL -> k == FurnitureKind.COUNTER
+        OTHER -> false
     }
 
     /** The poses an NPC can be held in on an item of this class, the usual first. */
@@ -45,6 +61,8 @@ enum class ItemClass(val id: String, val label: String) {
         TABLETOP -> listOf(HeldPose.STAND, HeldPose.SIT)
         FLOOR -> listOf(HeldPose.STAND, HeldPose.SIT)
         BED -> listOf(HeldPose.LIE, HeldPose.SIT)
+        WALL -> listOf(HeldPose.STAND)
+        OTHER -> listOf(HeldPose.STAND, HeldPose.SIT, HeldPose.LIE)
     }
 
     companion object {
@@ -235,7 +253,7 @@ object ItemMapping {
                 ?: LocalOffset(0f, 0f, spec.surface.takeIf { it > 0f } ?: 0.47f * k, 0f)) to pose
             ItemClass.BED -> (spec.slots.firstOrNull { Posture.LIE_BACK in it.postures && it.height > 0.05f * k }?.let(::of)
                 ?: LocalOffset(0f, 0f, spec.surface, 180f)) to pose
-            ItemClass.TABLETOP, ItemClass.FLOOR -> (spec.slots.firstOrNull { it.name.startsWith("floor_front") || it.name == "floor_foot" }?.let(::of)
+            ItemClass.TABLETOP, ItemClass.FLOOR, ItemClass.WALL, ItemClass.OTHER -> (spec.slots.firstOrNull { it.name.startsWith("floor_front") || it.name == "floor_foot" }?.let(::of)
                 ?: spec.slots.firstOrNull { Posture.STAND in it.postures && it.height < 0.05f * k }?.let(::of)
                 ?: LocalOffset(spec.halfX + 0.4f * k, 0f, 0f, 180f)) to pose
         }
@@ -284,7 +302,30 @@ data class HeldSpot(val offset: LocalOffset, val pose: HeldPose, val reports: In
  * place for each class reported ([spots]) and the notes that came with them.
  */
 data class ItemOverride(val key: String, val cls: ItemClass, val surface: Float?, val spots: Map<ItemClass, HeldSpot>,
-                        val notes: List<String> = emptyList(), val issues: List<Int> = emptyList())
+                        val notes: List<String> = emptyList(), val issues: List<Int> = emptyList(),
+                        /** The animation classes it supports (build mode's Interact ticks); empty: its class's own ([ItemClass.supports]). */
+                        val supports: Set<SupportClass> = emptySet()) {
+    /** What it supports: the ticks, else its class's. */
+    val supported: Set<SupportClass> get() = supports.ifEmpty { cls.supports }
+}
+
+/**
+ * The animation classes build mode's Interact ticks for an item: what a body does on it. [postures]: the requirement postures
+ * each takes (an animation whose primary actor's posture is among an item's supported ones is offered on it).
+ */
+enum class SupportClass(val id: String, val label: String, val postures: Set<Posture>) {
+    LYING("lying", "Lying", setOf(Posture.LIE_BACK, Posture.LIE_FRONT, Posture.LIE_SIDE)),
+    SITTING("sitting", "Sitting", setOf(Posture.SIT, Posture.SIT_ON_SURFACE)),
+    KNEELING("kneeling", "Kneeling", setOf(Posture.KNEEL, Posture.ALL_FOURS, Posture.CROUCH)),
+    STANDING("standing", "Standing", setOf(Posture.STAND)),
+    LEANING("leaning", "Leaning", setOf(Posture.LEAN));
+
+    companion object {
+        fun of(id: String?): SupportClass? = entries.firstOrNull { it.id == id }
+        fun ofPosture(p: Posture): SupportClass? = entries.firstOrNull { p in it.postures }
+        fun parse(a: JSONArray?): Set<SupportClass> = if (a == null) emptySet() else (0 until a.length()).mapNotNullTo(LinkedHashSet()) { of(a.optString(it)) }
+    }
+}
 
 /** Where an item's class came from: the player's own mapping on the phone, the shipped file, or the furniture's own measure. */
 enum class OverrideSource { LOCAL, SHIPPED, HEURISTIC }
@@ -321,7 +362,7 @@ object ItemOverrides {
             val surface = if (o.has("surface") && !o.isNull("surface")) o.optDouble("surface", Double.NaN).toFloat().takeIf { it.isFinite() } else null
             val notes = o.optJSONArray("notes")?.let { a -> (0 until a.length()).map { a.optString(it) } }.orEmpty()
             val issues = o.optJSONArray("issues")?.let { a -> (0 until a.length()).map { a.optInt(it) } }.orEmpty()
-            out[key] = ItemOverride(key, cls, surface, spots, notes, issues)
+            out[key] = ItemOverride(key, cls, surface, spots, notes, issues, SupportClass.parse(o.optJSONArray("supports")))
         }
         return out
     }
@@ -333,7 +374,8 @@ object ItemOverrides {
             for ((c, s) in o.spots) spots.put(c.id, JSONObject().put("x", r(s.offset.x)).put("y", r(s.offset.y)).put("z", r(s.offset.z))
                 .put("yaw", r(s.offset.yawDeg)).put("pose", s.pose.id).put("reports", s.reports).put("outliers", JSONArray(s.outliers)))
             all.put(o.key, JSONObject().put("class", o.cls.id).put("surface", o.surface?.let { r(it) } ?: JSONObject.NULL)
-                .put("spots", spots).put("notes", JSONArray(o.notes)).put("issues", JSONArray(o.issues)))
+                .put("spots", spots).put("notes", JSONArray(o.notes)).put("issues", JSONArray(o.issues))
+                .put("supports", JSONArray(o.supports.sortedBy { it.ordinal }.map { it.id })))
         }
         return JSONObject().put("schema", SCHEMA).put("items", all).toString(1)
     }
@@ -374,7 +416,7 @@ object ItemOverrides {
             val postures = when (s.pose) {
                 HeldPose.SIT -> if (c == ItemClass.TABLETOP) setOf(Posture.SIT_ON_SURFACE, Posture.SIT) else setOf(Posture.SIT)
                 HeldPose.LIE -> FurnitureSpec.LIE
-                HeldPose.STAND -> if (s.offset.z > 0.05f * k) setOf(Posture.STAND, Posture.KNEEL) else setOf(Posture.STAND, Posture.KNEEL, Posture.CROUCH)
+                HeldPose.STAND -> if (c == ItemClass.WALL) setOf(Posture.STAND, Posture.LEAN) else if (s.offset.z > 0.05f * k) setOf(Posture.STAND, Posture.KNEEL) else setOf(Posture.STAND, Posture.KNEEL, Posture.CROUCH)
             }
             FurnitureSlot("user_${c.id}", s.offset.x, s.offset.y, Math.toRadians(s.offset.yawDeg.toDouble()).toFloat(), s.offset.z, postures)
         }
@@ -394,7 +436,20 @@ object ItemOverrides {
             ItemClass.TABLETOP -> r.surface == Surface.TABLE_OR_COUNTER || (p == Posture.LEAN && r.surface != Surface.BED)
             ItemClass.FLOOR -> r.surface in Requirement.FLOOR_LEVEL
             ItemClass.BED -> r.surface == Surface.BED || r.surface == Surface.COUCH || (p.lying && r.surface !in Requirement.FLOOR_LEVEL)
+            ItemClass.WALL -> p == Posture.LEAN || (p == Posture.STAND && r.surface in Requirement.FLOOR_LEVEL)
+            ItemClass.OTHER -> false
         }
+    }
+
+    /**
+     * Whether an animation needing [r] is offered on an item overridden as [o]: with build mode's ticks, any whose primary
+     * actor's posture is among the ticked classes (any prop can be made a bed: tick Lying); without, its class's rule ([compatible]).
+     */
+    fun compatible(o: ItemOverride, r: Requirement): Boolean {
+        if (o.supports.isEmpty()) return compatible(o.cls, r)
+        val p = r.actors.getOrNull(r.primary)?.posture ?: Posture.UNKNOWN
+        val support = SupportClass.ofPosture(p) ?: return compatible(o.cls, r)
+        return support in o.supports
     }
 
     /**

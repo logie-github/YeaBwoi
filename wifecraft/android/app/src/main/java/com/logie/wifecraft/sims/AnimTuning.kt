@@ -26,6 +26,8 @@ data class PairDefinition(
     val locations: Set<String> = emptySet(),
     val stageLinks: List<String> = emptyList(),
     val stageName: String = "",
+    /** The entry's `animation_category` (WickedWhims' packs: TEASING, HANDJOB, ORALJOB, VAGINAL, ANAL, CLIMAX...), upper case; empty: none. */
+    val kind: String = "",
 )
 
 /**
@@ -134,6 +136,7 @@ object AnimTuning {
             locations = f["animation_locations"]?.let { values(it) }.orEmpty().map { it.uppercase() }.toSet(),
             stageLinks = f["animation_next_stages"]?.let { values(it) }.orEmpty(),
             stageName = stage,
+            kind = f["animation_category"]?.let { text(it) }.orEmpty().trim().uppercase(),
         )
     }
 

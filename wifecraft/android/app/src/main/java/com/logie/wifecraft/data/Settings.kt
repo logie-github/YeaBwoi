@@ -93,6 +93,17 @@ class Settings(context: Context) {
         get() = prefs.getInt("softBody", SOFT_NATURAL).let { if (it in 0..3) it else SOFT_NATURAL }
         set(v) = prefs.edit().putInt("softBody", v).apply()
 
+    /** Options' Body parts → Arousal (bodyparts/Arousal ArousalMode): Automatic (the default), Always flaccid, Always erect. */
+    var partArousal: com.logie.wifecraft.bodyparts.ArousalMode
+        get() = com.logie.wifecraft.bodyparts.ArousalMode.of(prefs.getString("partArousal", null))
+        set(v) = prefs.edit().putString("partArousal", v.name).apply()
+    /** Each NPC's arousal override (the scene's switch: Auto, On, Off; by NPC id; Auto when never set). */
+    fun partOverride(npcId: String): com.logie.wifecraft.bodyparts.PartOverride =
+        com.logie.wifecraft.bodyparts.PartOverride.of(prefs.getString("partOverride.$npcId", null))
+    fun setPartOverride(npcId: String, o: com.logie.wifecraft.bodyparts.PartOverride) =
+        if (o == com.logie.wifecraft.bodyparts.PartOverride.AUTO) prefs.edit().remove("partOverride.$npcId").apply()
+        else prefs.edit().putString("partOverride.$npcId", o.name).apply()
+
     /** The imported body-part set the men wear (files/bodyparts/<set>, Options' Body parts); null: none imported. */
     var partSet: String?
         get() = prefs.getString("partSet", null)?.takeIf { it.isNotEmpty() }
@@ -106,6 +117,14 @@ class Settings(context: Context) {
     var eveDefault: Boolean
         get() = prefs.getBoolean("eveDefault", false)
         set(v) = prefs.edit().putBoolean("eveDefault", v).apply()
+
+    /**
+     * Options' HD Models switch (bodyparts/HdModels): with it on, every race and sex with an imported HD set is drawn as its
+     * HD figure instead of the game's model. On by default: importing a set is the choice; the switch turns them all off.
+     */
+    var hdModels: Boolean
+        get() = prefs.getBoolean("hdModels", true)
+        set(v) = prefs.edit().putBoolean("hdModels", v).apply()
 
     /**
      * The placement editor's own switches, kept for the user ([name]: "place.panel" the side panel open, "place.tip.<id>"

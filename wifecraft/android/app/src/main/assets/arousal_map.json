@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "about": "bodyparts/Arousal.kt ArousalMap: what a partner stage does to a man wearing the body parts. categories: the WickedWhims-format packs' animation_category values (seen in WickedWhims' own, Anarcis' and Azmodan22's packs: TEASING, HANDJOB, FOOTJOB, ORALJOB, VAGINAL, ANAL, CLIMAX) and this map's own (CALM, ORAL_GIVE, CHEST, THIGH): level 0 flaccid .. 1 erect, entry the partner's opening the erect shaft is aimed at (none, vaginal, anal, oral, manual, thigh, chest, keep: a climax keeps the stage before's), rest the extra depth in Sims metres. keywords: in order, the first whose word is in the stage's names wins ('=' a whole word). calm: kiss, hug, dance... stages stay flaccid unless the pack calls them one of strongCategories. A two-person stage with none of these but a sexualHints word is unknownSexual (no entry); anything else is 0.",
+  "categories": {
+    "CALM":      {"level": 0.0,  "entry": "none",    "rest": 0.0},
+    "TEASING":   {"level": 0.55, "entry": "none",    "rest": 0.0},
+    "HANDJOB":   {"level": 0.95, "entry": "manual",  "rest": 0.0},
+    "FOOTJOB":   {"level": 0.9,  "entry": "none",    "rest": 0.0},
+    "ORALJOB":   {"level": 1.0,  "entry": "oral",    "rest": 0.02},
+    "ORAL_GIVE": {"level": 0.8,  "entry": "none",    "rest": 0.0},
+    "VAGINAL":   {"level": 1.0,  "entry": "vaginal", "rest": 0.05},
+    "ANAL":      {"level": 1.0,  "entry": "anal",    "rest": 0.04},
+    "CHEST":     {"level": 1.0,  "entry": "chest",   "rest": 0.0},
+    "THIGH":     {"level": 1.0,  "entry": "thigh",   "rest": 0.02},
+    "CLIMAX":    {"level": 1.0,  "entry": "keep",    "rest": 0.05}
+  },
+  "aliases": {
+    "ORAL": "ORALJOB", "ORAJOB": "ORALJOB", "BLOWJOB": "ORALJOB",
+    "VAGNAL": "VAGINAL", "VAGINA": "VAGINAL",
+    "FACE": "ORALJOB", "CHEST, FACE": "CHEST"
+  },
+  "strongCategories": ["HANDJOB", "FOOTJOB", "ORALJOB", "VAGINAL", "ANAL", "CLIMAX"],
+  "keywords": [
+    {"category": "ORAL_GIVE", "words": ["cunnilingus", "cunni", "eat out", "eating out", "eats out", "eating her", "lick her", "licking her", "pussy lick", "rimjob", "rim job", "rimming", "facesit", "face sit", "face sitting", "=muff", "=lick", "licking", "licks"]},
+    {"category": "CHEST", "words": ["titjob", "tit job", "titfuck", "tit fuck", "titty fuck", "boobjob", "boob job", "paizuri"]},
+    {"category": "THIGH", "words": ["thighjob", "thigh job", "intercrural"]},
+    {"category": "FOOTJOB", "words": ["footjob", "foot job"]},
+    {"category": "ORALJOB", "words": ["blowjob", "blow job", "dicksuck", "dick suck", "cocksuck", "cock suck", "deepthroat", "deep throat", "fellatio", "sixty nine", "sixtynine", "=69", "=bj", "=suck", "=sucking", "throat", "throatfuck", "throat fuck", "face fuck", "facefuck", "glory hole", "gloryhole", "=oral"]},
+    {"category": "ANAL", "words": ["=anal", "analplay", "anal play", "assfuck", "ass fuck", "buttfuck", "butt fuck", "sodomy", "backdoor", "in the ass", "=assplay", "rectal", "=butt sex", "=ass sex"]},
+    {"category": "HANDJOB", "words": ["handjob", "hand job", "=handy", "jerk", "=stroke", "=stroking", "=fap", "masturbat", "fingering", "finger her", "=finger", "quickfinger", "fingerblast", "wank", "=tugs", "=tug", "jacking", "=jack off"]},
+    {"category": "CLIMAX", "words": ["climax", "orgasm", "=cum", "=cumming", "cumshot", "creampie", "=facial", "=finish", "=finale"]},
+    {"category": "VAGINAL", "words": ["doggy", "doggie", "cowgirl", "missionary", "mating press", "prone bone", "=lotus", "penetrat", "=fuck", "=fucking", "fucked", "hatefuck", "quickie", "intercourse", "=riding", "=ride", "=rides", "amazon", "piledriver", "wheelbarrow", "standing sex", "=sex", "=vaginal", "=woohoo", "spitroast", "pounding", "=pound", "=thrust", "=thrusting", "=mounted", "=mount", "=lap sex", "=bang", "gangbang", "=screw", "=screwing", "=breed", "banging", "banged", "=hump", "humping", "humped", "=bonk", "bonked", "bonking", "=slam", "shove it in", "=rider", "rough rider", "=impale"]},
+    {"category": "TEASING", "words": ["fondl", "caress", "=grope", "groping", "grabbed", "grabby", "lapdance", "lap dance", "foreplay", "=tease", "teasing", "seduc", "=strip", "stripping", "striptease", "undress", "twerk", "booty shake", "butt rub", "=spank", "spanking", "frottage", "grind", "=gyrat", "gyrations"]}
+  ],
+  "calm": ["kiss", "makeout", "make out", "lock lips", "afterglow", "=cuddle", "=hug", "=hugs", "hugging", "cuddl", "=dance", "dancing", "=chat", "=talk", "talking", "embrace", "hold me", "holding hands", "massage", "=nap", "=sleep", "sleeping", "=wave", "flirt", "=photo", "=selfie", "=wait", "=idle", "=sit", "=sitting"],
+  "sexualHints": ["=ww", "wickedwhims", "naughty", "nsfw", "nude", "naked", "=strip", "stripping", "sensual", "passionate", "intimate", "horny", "lewd", "erotic", "=spank", "spanking", "grope", "groping", "grind", "grinding", "booty", "=butt", "=ass", "=tits", "=boobs", "=dick", "=cock", "=pussy", "anarcis", "azmodan", "=leroy", "=lupin", "=kritical"],
+  "unknownSexual": 0.6
+}

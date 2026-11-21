@@ -432,6 +432,24 @@ data class FurnitureFit(
         /** How far from the furniture a floor-level actor may be (metres). */
         const val REACH_M = 2.0f
 
+        /** Heights (metres) within this of a surface rest on it in a relaxed fit ([fit] relaxed: a bed taller than the clip's). */
+        const val RELAXED_TOLERANCE_M = 0.3f
+        /** How far a lying body's head or feet may hang past its surface in a relaxed fit (metres). */
+        const val RELAXED_OVERHANG_M = 0.6f
+
+        /**
+         * Which kinds a requirement's surface may be played on in a relaxed fit: a bed's on a bed or a couch, a seat's on any
+         * seat or a bed, a table's on a table, a counter or a bed (a body lying or kneeling on a top: on the bed, let down onto
+         * it), an unread one on any piece; the floor's and the open ground's as [allows]. The postures still decide ([fit]).
+         */
+        fun allowsRelaxed(surface: Surface, kind: FurnitureKind): Boolean = when (surface) {
+            Surface.BED -> kind.bed || kind == FurnitureKind.COUCH
+            Surface.COUCH, Surface.CHAIR, Surface.ANY_SEAT -> kind.bed || kind == FurnitureKind.COUCH || kind == FurnitureKind.CHAIR
+            Surface.TABLE_OR_COUNTER -> kind == FurnitureKind.TABLE || kind == FurnitureKind.COUNTER || kind.bed
+            Surface.UNKNOWN -> kind != FurnitureKind.FLOOR
+            else -> allows(surface, kind)
+        }
+
         /** Which kinds a requirement's surface may be played on at all (the geometry then decides: [fit]). */
         fun allows(surface: Surface, kind: FurnitureKind): Boolean = when (surface) {
             Surface.BED -> kind.bed
@@ -457,12 +475,15 @@ data class FurnitureFit(
          * The fit whose actors land nearest slots, at the closest heights, wins. [bodyUnit]: world units of one body unit
          * (the actor's standing pelvis height as drawn).
          */
-        fun fit(r: Requirement, f: Furniture, bodyUnit: Float = DEFAULT_BODY_UNIT): FurnitureFit? {
-            if (r.actors.isEmpty() || !allows(r.surface, f.kind)) return null
+        fun fit(r: Requirement, f: Furniture, bodyUnit: Float = DEFAULT_BODY_UNIT, relaxed: Boolean = false): FurnitureFit? {
+            if (r.actors.isEmpty() || !(if (relaxed) allowsRelaxed(r.surface, f.kind) else allows(r.surface, f.kind))) return null
             val k = f.spec.unitsPerMetre
-            val tol = HEIGHT_TOLERANCE_M * k
-            val raised = r.actors.indices.filter { r.actors[it].surface !in Requirement.FLOOR_LEVEL }
-            val primaries = raised.ifEmpty { r.actors.indices.toList() }
+            val tol = (if (relaxed) RELAXED_TOLERANCE_M else HEIGHT_TOLERANCE_M) * k
+            val overhang = if (relaxed) RELAXED_OVERHANG_M else OVERHANG_M
+            val onPartner = BooleanArray(r.actors.size) { onPartner(r, it) }
+            // (a body resting on its partner is placed by where its partner goes)
+            val raised = r.actors.indices.filter { r.actors[it].surface !in Requirement.FLOOR_LEVEL && !onPartner[it] }
+            val primaries = raised.ifEmpty { r.actors.indices.filter { !onPartner[it] } }.ifEmpty { r.actors.indices.toList() }
             var best: FurnitureFit? = null
             for (i in primaries) {
                 val a = r.actors[i]
@@ -482,23 +503,33 @@ data class FurnitureFit(
                         fun place(px: Float, py: Float) = (tx + (px * bodyUnit) * c - (py * bodyUnit) * s) to (ty + (px * bodyUnit) * s + (py * bodyUnit) * c)
                         val (px, py) = place(b.x, b.y)
                         val pz = b.restUnits * bodyUnit + lift
+                        if (onPartner[j]) {
+                            // astride or on a lap: on its partner, over the surface its partner is on (or the floor)
+                            val under = f.spec.regions.firstOrNull { it.postures.isNotEmpty() && it.contains(px, py, overhang * k) }
+                            if (under == null && f.spec.regions.any { it.solid && it.height > tol && it.contains(px, py, -0.05f * k) }) { ok = false; break }
+                            landed += under?.name ?: "floor"
+                            at += f.toWorld(px, py, pz)
+                            continue
+                        }
                         val land = land(f, b.posture, px, py, pz, tol, k)
                         if (land == null) { ok = false; break }
                         if (b.posture.lying) {
                             val (hx, hy) = place(b.headX, b.headY)
                             val (fx, fy) = place(b.feetX, b.feetY)
-                            if (!over(f, land, hx, hy, k) || !over(f, land, fx, fy, k)) { ok = false; break }
+                            if (!over(f, land, hx, hy, k, overhang) || !over(f, land, fx, fy, k, overhang)) { ok = false; break }
                         }
                         // a seated body's shins hang below its seat: its feet must be off the solid it sits on (a sit on a
                         // bed takes its edge, not its middle, where the shins went into the mattress), and out of its
                         // solid parts (a footboard, a chair's arm)
-                        if (b.posture == Posture.SIT && land.region?.solid == true) {
+                        // (only a sit whose feet go down to the floor: one with its legs out on a bed keeps its feet on it)
+                        if (b.posture == Posture.SIT && b.feetOnFloor && land.region?.solid == true) {
                             val (fx, fy) = place(b.feetX, b.feetY)
                             if (land.region.contains(fx, fy, -0.1f * k)) { ok = false; break }
                             if (f.spec.regions.any { it.postures.isEmpty() && it.height > land.height && it.contains(fx, fy, -0.03f * k) }) { ok = false; break }
                         }
                         if (b.feetOnFloor) {
-                            if (abs(lift) > tol) { ok = false; break }
+                            // (relaxed too: feet on the floor are never lifted off it more than the usual tolerance)
+                            if (abs(lift) > HEIGHT_TOLERANCE_M * k) { ok = false; break }
                             val (fx, fy) = place(b.feetX, b.feetY)
                             if (f.spec.regions.any { it.solid && it.height > tol && it.contains(fx, fy, -0.1f * k) && land.region !== it }) { ok = false; break }
                         }
@@ -519,6 +550,25 @@ data class FurnitureFit(
                 }
             }
             return best
+        }
+
+        /** A support this much higher (body units) than its partner's, over its partner, rests on the partner ([onPartner]). */
+        const val ON_PARTNER_UNITS = 0.08f
+        /** How near (body units, across the floor) a body's support must be to its partner's to rest on it. */
+        const val ON_PARTNER_REACH = 0.6f
+
+        /**
+         * Whether actor [j] of [r] rests on its partner rather than on the furniture: sitting, kneeling or lying with its support
+         * more than [ON_PARTNER_UNITS] over a partner's lying, kneeling, on-all-fours or sitting body, within [ON_PARTNER_REACH] of
+         * it across the floor, its feet not on the floor (astride one lying on a bed, on a lap). The fit places it by its partner.
+         */
+        fun onPartner(r: Requirement, j: Int): Boolean {
+            val b = r.actors[j]
+            if (b.feetOnFloor || b.posture == Posture.STAND || b.posture == Posture.LEAN || b.posture == Posture.UNKNOWN) return false
+            return r.actors.withIndex().any { (o, a) ->
+                o != j && !a.feetOnFloor && (a.posture.lying || a.posture.seated || a.posture == Posture.KNEEL || a.posture == Posture.ALL_FOURS) &&
+                    b.restUnits > a.restUnits + ON_PARTNER_UNITS && hypot(b.x - a.x, b.y - a.y) < ON_PARTNER_REACH
+            }
         }
 
         private class Land(val name: String, val height: Float, val error: Float, val region: FurnitureRegion?)
@@ -542,10 +592,10 @@ data class FurnitureFit(
          * Whether a lying body's end at [x], [y] is over the surface it lies on (the floor: not inside a solid piece) and not
          * in a solid part standing over it (a headboard, a footboard, a post).
          */
-        private fun over(f: Furniture, land: Land, x: Float, y: Float, k: Float): Boolean {
+        private fun over(f: Furniture, land: Land, x: Float, y: Float, k: Float, overhang: Float = OVERHANG_M): Boolean {
             val r = land.region ?: return f.spec.regions.none { it.solid && it.height > 0.2f * k && it.contains(x, y, -0.15f * k) }
             if (f.spec.regions.any { it.postures.isEmpty() && it.height > r.height + 0.1f * k && it.contains(x, y, -0.03f * k) }) return false
-            return r.contains(x, y, OVERHANG_M * k)
+            return r.contains(x, y, overhang * k)
         }
 
         private fun wrap(a: Float): Float {

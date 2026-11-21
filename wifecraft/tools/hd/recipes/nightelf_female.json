@@ -1,0 +1,103 @@
+{
+  "_doc": "HD model recipe (tools/hd/whd_convert.py): which objects of the user's .blend make the figure, how its rig's bones map onto the game's skeleton, its options, and the variants written (one .whd each). Object and bone names are the .blend's own.",
+  "id": "nightelf_female",
+  "label": "Night elf woman (HD)",
+  "source": "NightElf1.1.blend with NETextures1.1 (the user's own download; never committed)",
+  "armature": "NightElf.ArmatureFem",
+  "forward": "-y",
+  "shapeKeys": {},
+  "skipModifiers": ["ARMATURE", "SUBSURF", "MASK", "CORRECTIVE_SMOOTH", "NODES", "SOLIDIFY"],
+  "textureMax": 1024,
+  "textureSize": {"NightElfFem_BaseColor.1001.png": 2048, "NightElfFem_BaseColor.1002.png": 2048, "NightElfFuta_BaseColor.1003.png": 2048, "NightElf_Mouth_BaseColor.png": 512},
+  "alphaMaterials": ["hair", "Hair", "brow", "Lashe", "Druid.Armor", "Druid.Shoulder", "Sylv_feather", "Vines", "summerswimsuit", "Ysera"],
+  "ignoreImages": ["armorreflect", "data-10", "ShadowMask", "AOFACE", "Stubble", "GroundGravel", "SkinMask"],
+
+  "weights": {
+    "root": "Root", "hip": "Pelvis", "pelvis": "Pelvis",
+    "abdomenLower": "Spine1", "abdomenUpper": "Spine2", "chestLower": "Chest", "chestUpper": "Chest",
+    "neckLower": "Neck1", "neckUpper": "Neck2", "head": "Head", "lowerJaw": "Jaw", "lowerTeeth": "Jaw", "tongue01": "Jaw",
+    "Eye.L": "L_Eye", "Eye.R": "R_Eye",
+    "Breast.L": "L_Breast", "Nipple.L": "L_Breast", "Breast.R": "R_Breast", "Nipple.R": "R_Breast",
+    "Collar.L": "L_Clavicle", "ShldrBend.L": "L_UpperArm", "ShldrTwist.L": "L_UpperArm", "ForearmBend.L": "L_Forearm", "ForearmTwist.L": "L_Forearm", "Hand.L": "L_Hand",
+    "Thumb1.L": "L_Thumb1", "Thumb2.L": "L_Thumb2", "Thumb3.L": "L_Thumb2",
+    "Index1.L": "L_Index1", "Index2.L": "L_Index2", "Index3.L": "L_Index2",
+    "Mid1.L": "L_Middle1", "Mid2.L": "L_Middle2", "Mid3.L": "L_Middle2",
+    "Ring1.L": "L_Ring1", "Ring2.L": "L_Ring2", "Ring3.L": "L_Ring2",
+    "Pinky1.L": "L_Pinky1", "Pinky2.L": "L_Pinky2", "Pinky3.L": "L_Pinky2",
+    "Collar.R": "R_Clavicle", "ShldrBend.R": "R_UpperArm", "ShldrTwist.R": "R_UpperArm", "ForearmBend.R": "R_Forearm", "ForearmTwist.R": "R_Forearm", "Hand.R": "R_Hand",
+    "Thumb1.R": "R_Thumb1", "Thumb2.R": "R_Thumb2", "Thumb3.R": "R_Thumb2",
+    "Index1.R": "R_Index1", "Index2.R": "R_Index2", "Index3.R": "R_Index2",
+    "Mid1.R": "R_Middle1", "Mid2.R": "R_Middle2", "Mid3.R": "R_Middle2",
+    "Ring1.R": "R_Ring1", "Ring2.R": "R_Ring2", "Ring3.R": "R_Ring2",
+    "Pinky1.R": "R_Pinky1", "Pinky2.R": "R_Pinky2", "Pinky3.R": "R_Pinky2",
+    "ThighBend.L": "L_Thigh", "ThighTwist.L": "L_Thigh", "Shin.L": "L_Calf", "Foot.L": "L_Foot", "Metatarsals.L": "L_Foot", "Toe.L": "L_Toe",
+    "ThighBend.R": "R_Thigh", "ThighTwist.R": "R_Thigh", "Shin.R": "R_Calf", "Foot.R": "R_Foot", "Metatarsals.R": "R_Foot", "Toe.R": "R_Toe"
+  },
+  "joints": {
+    "Root": "hip", "Pelvis": "hip", "Spine1": "abdomenLower", "Spine2": "abdomenUpper", "Chest": "chestLower",
+    "Neck1": "neckLower", "Neck2": "neckUpper", "Head": "head", "Jaw": "lowerJaw",
+    "L_Eye": "Eye.L", "R_Eye": "Eye.R", "L_Breast": "Breast.L", "R_Breast": "Breast.R",
+    "L_Clavicle": "Collar.L", "L_UpperArm": "ShldrBend.L", "L_Forearm": "ForearmBend.L", "L_Hand": "Hand.L",
+    "L_Thumb1": "Thumb1.L", "L_Thumb2": "Thumb2.L", "L_Index1": "Index1.L", "L_Index2": "Index2.L", "L_Middle1": "Mid1.L", "L_Middle2": "Mid2.L",
+    "L_Ring1": "Ring1.L", "L_Ring2": "Ring2.L", "L_Pinky1": "Pinky1.L", "L_Pinky2": "Pinky2.L",
+    "R_Clavicle": "Collar.R", "R_UpperArm": "ShldrBend.R", "R_Forearm": "ForearmBend.R", "R_Hand": "Hand.R",
+    "R_Thumb1": "Thumb1.R", "R_Thumb2": "Thumb2.R", "R_Index1": "Index1.R", "R_Index2": "Index2.R", "R_Middle1": "Mid1.R", "R_Middle2": "Mid2.R",
+    "R_Ring1": "Ring1.R", "R_Ring2": "Ring2.R", "R_Pinky1": "Pinky1.R", "R_Pinky2": "Pinky2.R",
+    "L_Thigh": "ThighBend.L", "L_Calf": "Shin.L", "L_Ankle": "Foot.L", "L_Foot": "Foot.L", "L_Toe": "Toe.L",
+    "R_Thigh": "ThighBend.R", "R_Calf": "Shin.R", "R_Ankle": "Foot.R", "R_Foot": "Foot.R", "R_Toe": "Toe.R"
+  },
+
+  "body": {"object": "NightElf.Fem", "kind": "body"},
+  "always": [
+    {"id": "eye_l", "objects": ["Eye.L"], "kind": "eyes", "rigid": "L_Eye"},
+    {"id": "eye_r", "objects": ["Eye.R"], "kind": "eyes", "rigid": "R_Eye"},
+    {"id": "brows", "objects": ["NE.Eyebrows"], "kind": "brows", "rigid": "Head"}
+  ],
+  "eyeTextures": [{"id": "eyes1", "label": "Silver glow", "image": "Eyes01.png"}, {"id": "eyes2", "label": "Eyes 2", "image": "Eyes02.png"}, {"id": "eyes3", "label": "Eyes 3", "image": "Eyes03.png"}],
+  "hair": [
+    {"id": "hair4", "label": "Swept back", "objects": ["Hair.4"], "rigid": "Head"},
+    {"id": "hair1", "label": "Long braids", "objects": ["Hair.1"], "rigid": "Head"},
+    {"id": "hair2", "label": "Hair 2", "objects": ["Hair.2"], "rigid": "Head"},
+    {"id": "hair5", "label": "Tail", "objects": ["Hair.5"], "rigid": "Head"},
+    {"id": "hair6", "label": "Hair 6", "objects": ["Hair.6"], "rigid": "Head"},
+    {"id": "hair7", "label": "Twin tails", "objects": ["Hair.7"], "rigid": "Head"},
+    {"id": "hair8", "label": "Short", "objects": ["Hair.8"], "rigid": "Head"},
+    {"id": "tyrande", "label": "High priestess", "objects": ["Hair.Tyrande"], "rigid": "Head", "maxTris": 9000},
+    {"id": "ranger", "label": "Ranger", "objects": ["Sylv.Hair"], "rigid": "Head"}
+  ],
+  "outfits": [
+    {"id": "civilian", "label": "Summer swimsuit", "classes": [0], "objects": ["Flowers(test)", "Panty.(test)"]},
+    {"id": "druid", "label": "Druid", "classes": [11, 7, 10, 13], "objects": ["Chest.Druid", "Belt.Druid", "Boots.Druid", "Gloves.Druid", "Shoulders.Druid"], "maxTris": 5000},
+    {"id": "warden", "label": "Warden plate", "classes": [1, 2, 6, 12], "objects": ["Body.1(maiev)", "Belt.1(maiev)", "Boots.1(maiev)", "Gloves.1(maiev)", "Shoulders.1(maiev)", "Cape1.(maiev", "Necklace.1(maiev)"], "maxTris": 5000},
+    {"id": "priestess", "label": "Priestess", "classes": [5, 8, 9], "objects": ["Chest.Tyrande", "Belt.Tyrande", "Boots.Tyrande", "Bracers.Tyrande"], "maxTris": 5000},
+    {"id": "ranger", "label": "Ranger", "classes": [3, 4], "objects": ["Sylv.Chest", "Sylv.Belt", "Sylv.Boots", "Sylv.Bracers.L", "Sylv.Bracers.R", "Sylv.Shoulders", "Sylv.Cape", "Sylv.Bandage.2", "Sylv.necklace"], "maxTris": 5000}
+  ],
+  "jewelry": [
+    {"id": "necklace1", "label": "Moon necklace", "objects": ["Necklace.1"]},
+    {"id": "earrings1", "label": "Earrings", "objects": ["Earrings.1"], "rigid": "Head"},
+    {"id": "headdress1", "label": "Circlet", "objects": ["Headdress.1"], "rigid": "Head"}
+  ],
+  "overlays": [
+    {"id": "face1", "label": "Face mark 1", "slot": "face", "image": "NE_FaceMark.1.png", "onto": "NightElfFuta_BaseColor.1003.png"},
+    {"id": "face2", "label": "Face mark 2", "slot": "face", "image": "NE_FaceMark.2.png", "onto": "NightElfFuta_BaseColor.1003.png"},
+    {"id": "face3", "label": "Face mark 3", "slot": "face", "image": "NE_FaceMark.3.png", "onto": "NightElfFuta_BaseColor.1003.png"},
+    {"id": "face4", "label": "Face mark 4", "slot": "face", "image": "NE_FaceMark.4.png", "onto": "NightElfFuta_BaseColor.1003.png"},
+    {"id": "face5", "label": "Face mark 5", "slot": "face", "image": "NE_FaceMark.5.png", "onto": "NightElfFuta_BaseColor.1003.png"},
+    {"id": "face6", "label": "Face mark 6", "slot": "face", "image": "NE_FaceMark.6.png", "onto": "NightElfFuta_BaseColor.1003.png"},
+    {"id": "face7", "label": "Face mark 7", "slot": "face", "image": "NE_FaceMark.7.png", "onto": "NightElfFuta_BaseColor.1003.png"},
+    {"id": "body1", "label": "Body marks (limbs)", "slot": "body", "image": "NE_bodyMarks1(Limbs).png", "onto": "NightElfFem_BaseColor.1001.png"},
+    {"id": "body2", "label": "Body marks (torso)", "slot": "body2", "image": "NE_bodyMarks1(Torso).png", "onto": "NightElfFem_BaseColor.1002.png"}
+  ],
+  "variants": [
+    {"file": "NightElf_F.whd", "race": 4, "sex": 1, "label": "Night elf woman (HD)",
+     "tints": [{"id": "own", "label": "Her own", "rgb": "FFFFFF"}, {"id": "violet", "label": "Violet", "rgb": "E6D2F5"}, {"id": "dusk", "label": "Dusk", "rgb": "C8B4E6"}, {"id": "pale", "label": "Moon pale", "rgb": "F0E6FA"}, {"id": "blue", "label": "Blue", "rgb": "C8D2F5"}],
+     "hairTints": [{"id": "own", "label": "As made", "rgb": "FFFFFF"}, {"id": "teal", "label": "Teal", "rgb": "A0E6DC"}, {"id": "green", "label": "Green", "rgb": "9CD79C"}, {"id": "blue", "label": "Blue", "rgb": "A5B9F0"}, {"id": "white", "label": "White", "rgb": "FFFFFF", "lift": 0.45}, {"id": "purple", "label": "Purple", "rgb": "C8A0E6"}]},
+    {"file": "Human_F.whd", "race": 1, "sex": 1, "label": "Human woman (HD, from the night elf)",
+     "ears": "human",
+     "objectFix": {"NE.Eyebrows": "short_brows"},
+     "skin": {"recolor": "human", "targetLab": [72, 12, 17]},
+     "overlays": [],
+     "tints": [{"id": "own", "label": "Fair", "rgb": "FFFFFF"}, {"id": "light", "label": "Light", "rgb": "FFF0E4"}, {"id": "tan", "label": "Tan", "rgb": "E8C8A8"}, {"id": "olive", "label": "Olive", "rgb": "D8C09C"}, {"id": "brown", "label": "Brown", "rgb": "B08A68"}, {"id": "dark", "label": "Dark", "rgb": "7C5A44"}],
+     "hairTints": [{"id": "brown", "label": "Brown", "rgb": "8C6446"}, {"id": "blonde", "label": "Blonde", "rgb": "F0D9A0"}, {"id": "own", "label": "As made", "rgb": "FFFFFF"}, {"id": "black", "label": "Black", "rgb": "4A4040"}, {"id": "red", "label": "Red", "rgb": "C86E46"}, {"id": "white", "label": "White", "rgb": "FFFFFF", "lift": 0.45}]}
+  ]
+}

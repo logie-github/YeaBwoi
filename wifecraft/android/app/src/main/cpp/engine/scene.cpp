@@ -414,9 +414,11 @@ bool Scene::initGl() {
         forgetBodyGl(a.body);
         a.soft.forget();
         a.cloth.vao = a.cloth.vbo = a.cloth.ibo = a.cloth.tex = 0;   // (its texture is composed again with the skin)
-        for (PartSlot& s : a.parts.slots) s.tex = 0;   // (uploaded again from its kept pixels when next drawn)
+        for (PartSlot& s : a.parts.slots) s.tex = s.vao = s.vbo = 0;   // (uploaded again from its kept pixels when next drawn)
         a.eve.forgetGl();                              // (and the Eve body's, from its kept vertices and pixels)
+        a.hd.forgetGl();                               // (and the HD figure's, from its kept fit)
     }
+    hdTex_.clear();   // (the HD figures' textures decoded again when drawn)
     for (auto& [id, p] : parts_) { p->vao = p->vbo = p->ibo = 0; uploadPart(*p); }
     if (cityLoaded_) { uploadCityGl(); warmCity(); }
     staticGl();
@@ -440,9 +442,11 @@ void Scene::releaseGl() {
         forgetBodyGl(a.body);
         a.soft.forget();
         a.cloth.vao = a.cloth.vbo = a.cloth.ibo = a.cloth.tex = 0;   // (its texture is composed again with the skin)
-        for (PartSlot& s : a.parts.slots) s.tex = 0;
+        for (PartSlot& s : a.parts.slots) s.tex = s.vao = s.vbo = 0;
         a.eve.forgetGl();
+        a.hd.forgetGl();
     }
+    hdTex_.clear();
     for (auto& [id, p] : parts_) p->vao = p->vbo = p->ibo = 0;
     groups_.clear();
     forgetStaticGl();
@@ -749,6 +753,7 @@ void Scene::removeActor(int id) {
     it->second.soft.release(glReady_);
     dropClothGl(it->second, true);
     dropEveGl(it->second);
+    dropHdGl(it->second);
     actors_.erase(it);
 }
 
@@ -783,6 +788,7 @@ void Scene::dress(int id, const std::map<int, int>& geosetGroups, const std::vec
     a.body.hair = hair;
     a.body.dirty = true;     // (the geosets the layer lies on may have changed too)
     a.parts.placed = false;  // (and the lower body the parts are fitted to)
+    a.parts.entries = EntryAnchors();   // (and its entry anchors as a partner)
     a.soft.dirty = true;     // (and the skin the soft body finds its regions on)
     a.cloth.dirty = true;    // (and whether a flap hangs, and its shape)
     a.skinDirty = true;
@@ -951,6 +957,7 @@ bool Scene::actorFlesh(int id, std::vector<float>& out) {
     mix(shaped ? a.body.indices.size() : 0);
     for (size_t i = 0; i < a.body.morph.size(); i += 97) { uint32_t bits; std::memcpy(&bits, &a.body.morph[i], 4); mix(bits); }
     mix(a.eve.active ? a.eve.key : 0);   // (the Eve body: measured on its own skin)
+    mix(a.hd.active ? a.hd.key : 0);     // (the HD figure: measured on its own body)
     for (float f : a.body.sculpted) { uint32_t bits; std::memcpy(&bits, &f, 4); mix(bits); }   // (the game's body sculpted)
     // the skeleton as she is drawn (bodyrig.h: Eve's proportions, Leg Length)
     BodyScale legK = a.eve.active ? a.eve.body.scale : BodyScale();
@@ -959,7 +966,8 @@ bool Scene::actorFlesh(int id, std::vector<float>& out) {
     if (key == 0) key = 1;
     if (a.fleshKey != key) {
         const bool eve = a.eve.active && a.eve.measure.host >= 0;
-        const LegEdit legs = a.eve.active && !a.eve.body.rigPivots.empty() ? bodyEditFrom(m, a.eve.body.rigPivots, legK) : bodyEditOf(m, legK);
+        const LegEdit legs = a.hd.active && !a.hd.fit.rigPivots.empty() ? bodyEditFrom(m, a.hd.fit.rigPivots, legK)
+                           : a.eve.active && !a.eve.body.rigPivots.empty() ? bodyEditFrom(m, a.eve.body.rigPivots, legK) : bodyEditOf(m, legK);
         const LegEdit* lp = legs.active ? &legs : nullptr;
         // (in Eve: her trunk and thighs read by the segments the model's own skin has where she is: flesh.h FleshGuide)
         FleshGuide guide;
@@ -968,7 +976,10 @@ bool Scene::actorFlesh(int id, std::vector<float>& out) {
             guide.from = a.eve.measure.verts.size() - a.eve.body.verts.size();
             guide.idx = &a.eve.baseIndices; guide.subs = &a.eve.baseSubs;
         }
-        FleshMeasure f = eve ? measureFlesh(m, a.eve.measure.verts, a.eve.measure.indices, a.eve.measure.subs, a.geosets, nullptr, lp, &guide)
+        std::vector<M2Submesh> hdSubs;
+        if (a.hd.active) { hdSubs.resize(1); hdSubs[0].indexCount = uint32_t(a.hd.fit.bodyIndices.size()); }
+        FleshMeasure f = a.hd.active ? measureFlesh(m, a.hd.fit.verts, a.hd.fit.bodyIndices, hdSubs, std::vector<uint16_t>{0}, nullptr, lp)
+                       : eve ? measureFlesh(m, a.eve.measure.verts, a.eve.measure.indices, a.eve.measure.subs, a.geosets, nullptr, lp, &guide)
                              : measureFlesh(m, shaped ? a.body.shaped : m.vertices, shaped ? a.body.indices : m.indices,
                                             shaped && !a.body.submeshes.empty() ? a.body.submeshes : m.submeshes, a.geosets, nullptr, lp);
         a.flesh = f.ok ? f.pack() : std::vector<float>();
@@ -1284,7 +1295,14 @@ void Scene::stepSoft(Actor& a, uint32_t now) {
     if (a.soft.dirty && !a.body.dirty && !a.body.shapeDirty) {
         const BodyGl& b = a.body;
         bool own = !b.shaped.empty() && !b.indices.empty() && !b.submeshes.empty();
-        if (a.eve.active && a.eve.measure.host >= 0) {
+        if (a.hd.active && a.hd.fit.bodyVertexEnd > 0) {
+            // the HD body's skin is what moves: its regions found on it, the breasts measured on its own vertices
+            std::vector<M2Submesh> one(1);
+            one[0].indexCount = uint32_t(a.hd.fit.bodyIndices.size());
+            a.soft.rebuild(m, a.hd.fit.verts, a.hd.fit.bodyIndices, one, std::vector<uint16_t>{0}, glReady_);
+            std::vector<SoftRegion> rg = a.soft.sim.regions();
+            if (hdBreastRegions(m, a.hd.fit.verts, a.hd.fit.bodyVertexEnd, rg)) a.soft.sim.setRegions(rg);
+        } else if (a.eve.active && a.eve.measure.host >= 0) {
             // the Eve body's skin is what moves: its regions found on it, the breasts measured on its own vertices
             a.soft.rebuild(m, a.eve.measure.verts, a.eve.measure.indices, a.eve.measure.subs, a.geosets, glReady_);
             std::vector<SoftRegion> rg = a.soft.sim.regions();
@@ -1311,7 +1329,9 @@ void Scene::animate(Actor& a, uint32_t now) {
         BodyScale k = a.eve.active ? a.eve.body.scale : BodyScale();
         if (a.sculpt.size() > size_t(kSculptLegLength)) k.legs *= legLengthFactor(a.sculpt[size_t(kSculptLegLength)]);
         // (an Eve body with her own rig: the animation runs about her joints, evebody.h EveBody::rigPivots)
-        const std::vector<V3>* rig = a.eve.active && !a.eve.body.rigPivots.empty() ? &a.eve.body.rigPivots : nullptr;
+        // (an HD figure: the animation runs about its joints, hdbody.h HdFit::rigPivots)
+        const std::vector<V3>* rig = a.hd.active && !a.hd.fit.rigPivots.empty() ? &a.hd.fit.rigPivots
+                                   : a.eve.active && !a.eve.body.rigPivots.empty() ? &a.eve.body.rigPivots : nullptr;
         const void* base = rig ? rig->data() : nullptr;
         if (a.legEdit.model != &m || !(a.legEdit.scale == k) || a.legEdit.base != base) a.legEdit = rig ? bodyEditFrom(m, *rig, k) : bodyEditOf(m, k);
     }
@@ -1620,6 +1640,18 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     softBodyDraw_ = soft;
     skinOf(a, w);   // (scene_gfx.cpp: the sheen, the eyes, the thin parts)
     // (a flap hung as cloth is drawn from its simulated points instead of skinned: drawCloth)
+    if (a.hd.active) {
+        // the HD figure instead of the game's model, its clothing and parts (hdscene.cpp); what it holds still hangs on it
+        if (!transparent) drawHd(a, w, bodyTint);   // (with the soft body's uniforms still set)
+        // an HD body whose own genitals are hidden (setHdGenitalMask): the parts drawn in their place, on the game skeleton
+        // the HD figure is fitted to (hdscene.cpp's index buffers must leave the masked triangles out: bodypart.h maskTriangles)
+        if (!a.parts.hdGenitalMask.empty()) drawParts(a, w, transparent, nowMs, bodyTint);
+        softBodyDraw_ = false;
+        if (soft) SoftDraw::off(m2Prog_);
+        std::fill(drawSkin_, drawSkin_ + 4, 0.0f);
+        drawAttached(a, w, nowMs, transparent);
+        return;
+    }
     const bool cloth = a.cloth.active();
     const bool morph = sculptMorphDraw(a);   // (the live sculpt's change on the GPU: bodyrig.cpp)
     drawModel(*a.mesh, w, &a.drawTextures, cloth ? &a.cloth.bodyGeosets : &a.geosets, a.boneTex, a.seq, a.animTime % dur, nowMs, bodyTint,
@@ -1639,10 +1671,11 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
         if (soft) a.soft.uniforms(m2Prog_, a.soft.skinnedGate(i, e.mesh, e.boneMap));
         drawModel(*e.mesh, w, &tex, &e.geosets, e.boneTex, -1, 0, nowMs, bodyTint, transparent, kActorTex, &a.composed);
     }
+    // the body parts with the body's own tint and skin shading (drawSkin_ still the person's)
+    drawParts(a, w, transparent, nowMs, bodyTint);
     if (soft) SoftDraw::off(m2Prog_);
     std::fill(drawSkin_, drawSkin_ + 4, 0.0f);
     drawAttached(a, w, nowMs, transparent);
-    drawParts(a, w, transparent);
 }
 
 bool Scene::creatorBackdrop(uint32_t fileId) {
@@ -1698,6 +1731,7 @@ void Scene::render(int width, int height, uint32_t nowMs) {
             for (uint32_t f : a.body.missing) if (!files_(f).empty()) { a.body.dirty = true; break; }
         sculptSync(a); // (the creator's sculpt taken: bodyrig.cpp)
         eveCheck(a);   // (the Eve body's look or options changed: the body is cut and fitted again)
+        hdCheck(a);    // (the HD figure's model, set or options changed: fitted again; hdscene.cpp)
         if (a.body.dirty) refreshBody(a);
         bool arrived = false;
         for (const DressModel& d : a.pendingModels) if (!files_(d.model).empty()) { arrived = true; break; }
@@ -1807,6 +1841,7 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     litUniforms(m2Prog_, light_, eye_, viewProj);
     drawGhost(viewProj, nowMs);
     drawGizmo();
+    drawBuild();   // the live scene's build mode: its gizmo, markers and selected box (buildview.cpp)
     if (post) { gfxEnd(outW, outH, nowMs); width = outW; height = outH; }
     if (graded) grade_.end(width, height, cineGrade_);
 }
@@ -2305,6 +2340,7 @@ bool Scene::attachPart(int id, int part, const uint8_t* rgba, int w, int h) {
     if (s.tex && glReady_) glDeleteTextures(1, &s.tex);
     s.tex = 0;
     s.part = part;
+    for (PartSlot& o : it->second.parts.slots) o.shaftMeasured = false;   // (each slot's shaft is told against the other's mesh)
     s.rgba.assign(rgba, rgba + size_t(w) * size_t(h) * 4);
     s.w = w; s.h = h;
     s.wasDrawn = false;
@@ -2331,8 +2367,68 @@ void Scene::setPartFit(int id, const PartFit& fit) {
 void Scene::dropPartGl(ActorParts& ap) {
     for (PartSlot& s : ap.slots) {
         if (s.tex && glReady_) glDeleteTextures(1, &s.tex);
+        if (s.vbo && glReady_) glDeleteBuffers(1, &s.vbo);
+        if (s.vao && glReady_) glDeleteVertexArrays(1, &s.vao);
         s = PartSlot();
     }
+}
+
+void Scene::setPartDrive(int id, float level, int partner, int entry, float rest) {
+    auto it = actors_.find(id);
+    if (it == actors_.end()) return;
+    ActorParts& ap = it->second.parts;
+    ap.level = std::isfinite(level) ? (level < 0 ? -1.0f : std::min(level, 1.0f)) : -1.0f;
+    ap.partner = partner != id ? partner : 0;
+    ap.entry = entry > kEntryNone && entry < kEntryCount ? entry : kEntryNone;
+    ap.rest = std::isfinite(rest) ? std::clamp(rest, -0.1f, 0.2f) : 0.0f;
+}
+
+void Scene::setPartSkin(int id, int rgb) {
+    auto it = actors_.find(id);
+    if (it == actors_.end()) return;
+    ActorParts& ap = it->second.parts;
+    int v = rgb < 0 ? -1 : (rgb & 0xFFFFFF);
+    if (v == ap.skinRgb) return;
+    ap.skinRgb = v;
+    for (PartSlot& s : ap.slots) { if (s.tex && glReady_) glDeleteTextures(1, &s.tex); s.tex = 0; }
+}
+
+void Scene::setHdGenitalMask(int id, const std::vector<uint32_t>& vertices) {
+    auto it = actors_.find(id);
+    if (it != actors_.end()) it->second.parts.hdGenitalMask = vertices;
+}
+
+const std::vector<uint32_t>* Scene::hdGenitalMask(int id) const {
+    auto it = actors_.find(id);
+    return it == actors_.end() ? nullptr : &it->second.parts.hdGenitalMask;
+}
+
+bool Scene::partDriveInfo(int id, PartDriveInfo& out) const {
+    auto it = actors_.find(id);
+    if (it == actors_.end()) return false;
+    const ActorParts& ap = it->second.parts;
+    out.level = ap.level; out.depth = ap.depth; out.distance = ap.distance;
+    out.aimDeg = quatAngle(ap.aim) * 57.29578f; out.aimWeight = ap.aimWeight; out.slotOn = ap.slotOn;
+    out.entryWorld = ap.lastEntry; out.rootWorld = ap.lastRoot; out.pelvisForward = ap.lastForward;
+    return true;
+}
+
+bool Scene::entryWorld(int id, int entry, V3& out, V3* inward) {
+    auto it = actors_.find(id);
+    if (it == actors_.end() || entry <= kEntryNone || entry >= kEntryCount) return false;
+    Actor& o = it->second;
+    if (!o.mesh || !o.mesh->model) return false;
+    // (a partner who wears a part is a man here: no vaginal entry, the anal one instead)
+    bool wears = o.parts.slots[0].part || o.parts.slots[1].part;
+    if (!o.parts.entries.measured) o.parts.entries = measureEntries(*o.mesh->model, o.geosets, true);
+    if (entry == kEntryVaginal && wears) entry = kEntryAnal;
+    const EntryAnchor& e = o.parts.entries.at[entry];
+    if (!e.ok || e.bone < 0 || size_t(e.bone) >= o.mats.size()) return false;
+    M4 w = M4::translation(o.position) * M4::rotationZ(o.facing) * M4::scaling(V3(o.scale, o.scale, o.scale));
+    M4 bw = w * o.mats[size_t(e.bone)];
+    out = bw.point(e.point);
+    if (inward) *inward = (bw.point(e.point + e.inward) - out).normalized();
+    return true;
 }
 
 void Scene::detachParts(int id) {
@@ -2364,20 +2460,43 @@ bool Scene::partPose(int id, int slot, M4& matrix, PartPlacement& placement) con
 
 // The slot the actor's state picks, rigid on its Pelvis as animated this frame (bodypart.h), lit and opaque as the body
 // is (no culling: the body's isn't either). Drawn in the opaque pass, after the soft body's uniforms are off.
-void Scene::drawParts(Actor& a, const M4& world, bool transparent) {
+void Scene::drawParts(Actor& a, const M4& world, bool transparent, uint32_t nowMs, const float tint[4]) {
     ActorParts& ap = a.parts;
     drawBoneParts(a, world, transparent);
     if (transparent || ap.state < 1 || ap.state > 2) return;
-    PartSlot& s = ap.slots[ap.state - 1];
-    auto pt = parts_.find(s.part);
-    if (!s.part || pt == parts_.end() || !pt->second->vao) return;
     if (!ap.placed) { ap.place = placeParts(*a.mesh->model, a.geosets, ap.fit); ap.placed = true; }
     if (!ap.place.ok || size_t(ap.place.pelvis) >= a.mats.size()) return;
+    // the shafts, measured once per pair of meshes (each against the other's: their shared vertices are the base)
+    const PartData* datas[2] = {nullptr, nullptr};
+    for (int k = 0; k < 2; ++k) {
+        auto f = parts_.find(ap.slots[k].part);
+        if (ap.slots[k].part && f != parts_.end()) datas[k] = &f->second->data;
+    }
+    for (int k = 0; k < 2; ++k) {
+        if (!datas[k] || ap.slots[k].shaftMeasured) continue;
+        ap.slots[k].shaft = measureShaft(*datas[k], datas[1 - k]);
+        ap.slots[k].shaftMeasured = true;
+    }
+    float dt = ap.lastMs && nowMs > ap.lastMs ? std::min(0.1f, float(nowMs - ap.lastMs) / 1000.0f) : 0.0f;
+    ap.lastMs = nowMs;
+    // which mesh: driven, the level with hysteresis; not driven, the state as it is
+    bool driven = ap.level >= 0;
+    float level = driven ? ap.level : (ap.state == 2 ? 1.0f : 0.0f);
+    if (driven) ap.slotOn = levelSlotOn(level, ap.slotOn); else ap.slotOn = ap.state == 2;
+    int slot = ap.slotOn ? 1 : 0;
+    if (!datas[slot]) slot = 1 - slot;   // (a set with one state only: that one, bent)
+    PartSlot& s = ap.slots[slot];
+    auto pt = parts_.find(s.part);
+    if (!s.part || pt == parts_.end() || !pt->second->ibo) return;
+    const PartData& d = pt->second->data;
     if (!s.tex) {
         if (s.rgba.empty()) return;
+        // the root blended to the body's skin colour with its contact shade (blendRootToSkin), on a copy: the kept pixels stay
+        std::vector<uint8_t> px = s.rgba;
+        if (ap.skinRgb >= 0) blendRootToSkin(d, px.data(), s.w, s.h, uint32_t(ap.skinRgb));
         glGenTextures(1, &s.tex);
         glBindTexture(GL_TEXTURE_2D, s.tex);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, s.w, s.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, s.rgba.data());
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, s.w, s.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
         glGenerateMipmap(GL_TEXTURE_2D);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -2386,6 +2505,73 @@ void Scene::drawParts(Actor& a, const M4& world, bool transparent) {
     }
     s.drawn = partMatrix(a.mats[size_t(ap.place.pelvis)], ap.place);
     s.wasDrawn = true;
+    // the bend: the level's pitch and length, the thighs' hang while flaccid, the aim at the partner's entry while erect
+    const PartShaft& flaccid = ap.slots[0].shaft;
+    const PartShaft& erect = ap.slots[1].shaftMeasured && ap.slots[1].shaft.ok ? ap.slots[1].shaft : flaccid;
+    float hang = std::clamp(thighPitch(*a.mesh->model, a.mats, ap.place.pelvis), -0.35f, 1.75f) * kFlaccidThighShare;
+    PartBend bend = levelBend(level, slot == 1, flaccid.ok ? flaccid : erect, erect, hang);
+    bend.squeeze = ap.place.squeeze;
+    Quat aimTarget;
+    bool aiming = false;
+    ap.distance = -1;
+    ap.depth = 0;
+    ap.lastRoot = (world * s.drawn).point(V3(kPartRootX, 0.0f, kPartRootZ));
+    ap.lastForward = ((world * s.drawn).point(V3(kPartRootX + 1.0f, 0.0f, kPartRootZ)) - ap.lastRoot).normalized();
+    V3 entryW;
+    V3 inwardW;
+    if (driven && ap.partner && ap.entry != kEntryNone && level >= kPartSwapDown && entryWorld(ap.partner, ap.entry, entryW, &inwardW)) {
+        // the entry in the part's own (Sims) frame: the world back into the wearer's model space, then through the part matrix
+        M4 toSims = affineInverse(world * s.drawn);
+        V3 e = toSims.point(entryW);
+        V3 root(kPartRootX, 0.0f, kPartRootZ);
+        V3 want = e - root;
+        V3 have = levelAxis(level, flaccid.ok ? flaccid : erect, erect, hang);
+        float dist = want.length();
+        float cosA = dist > 1e-5f ? want.normalized().dot(have) : 1.0f;
+        ap.lastEntry = entryW;
+        ap.lastRoot = (world * s.drawn).point(root);
+        float length0 = erect.ok ? erect.length : 0.15f;
+        float reachable = length0 * kAimReach + kAimSlack;
+        if (dist > 1e-4f && dist <= reachable) {
+            // the way: at the entry from in front, root to entry; where the entry is at the root or behind it (the bodies
+            // pressed together), along the partner's own way in. Turned at most kAimLimitDeg from the shaft's rest line.
+            V3 way = want.normalized();
+            if (dist < 0.5f * length0 || cosA < 0.0f) way = (toSims.point(entryW + inwardW) - e).normalized();
+            float lim = kAimLimitDeg * 0.0174533f;
+            float ang = std::acos(std::clamp(way.dot(have), -1.0f, 1.0f));
+            Quat full = quatFromTo(have, way);
+            aimTarget = ang > lim ? slerp(Quat(), full, lim / ang) : full;
+            aiming = true;
+            ap.distance = dist;
+            float length = length0 * ap.reach;
+            ap.depth = insertionDepth(length, std::max(0.0f, want.dot(quatRotate(aimTarget, have))), ap.rest);
+            // the reach: the drawn length eased (over seconds) toward meeting the stage's rest depth on average, at most +25%
+            float wantReach = std::clamp((dist + std::max(ap.rest, 0.0f)) / std::max(1e-3f, length0), 1.0f, 1.25f);
+            ap.reach += (wantReach - ap.reach) * std::min(1.0f, dt * 0.5f);
+        }
+    }
+    float maxTurn = kAimRateDeg * 0.0174533f * (dt > 0 ? dt : 1.0f / 30.0f);
+    ap.aim = stepAim(ap.aim, aiming ? aimTarget : Quat(), maxTurn);
+    ap.aimWeight = std::clamp(ap.aimWeight + (aiming ? 1.0f : -1.0f) * (dt > 0 ? dt : 1.0f / 30.0f) * 2.5f, 0.0f, 1.0f);
+    if (!aiming && ap.aimWeight <= 0) ap.reach += (1.0f - ap.reach) * std::min(1.0f, dt * 0.5f);
+    if (ap.aimWeight > 0) {
+        bend.turn = quatMul(slerp(Quat(), ap.aim, ap.aimWeight), bend.turn);
+        bend.stretch *= 1.0f + (ap.reach - 1.0f) * ap.aimWeight;
+    }
+    posePart(d, s.shaft.ok ? s.shaft : PartShaft(), bend, s.posed);
+    if (!s.vao) {
+        glGenVertexArrays(1, &s.vao);
+        glBindVertexArray(s.vao);
+        glGenBuffers(1, &s.vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, s.vbo);
+        glBufferData(GL_ARRAY_BUFFER, GLsizeiptr(s.posed.size() * sizeof(M2Vertex)), s.posed.data(), GL_DYNAMIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, pt->second->ibo);
+        m2VertexLayout();
+    } else {
+        glBindVertexArray(s.vao);
+        glBindBuffer(GL_ARRAY_BUFFER, s.vbo);
+        glBufferData(GL_ARRAY_BUFFER, GLsizeiptr(s.posed.size() * sizeof(M2Vertex)), s.posed.data(), GL_DYNAMIC_DRAW);
+    }
     M4 w = world * s.drawn;
     unsigned p = m2Prog_;
     glUseProgram(p);
@@ -2395,12 +2581,22 @@ void Scene::drawParts(Actor& a, const M4& world, bool transparent) {
     glUniform1i(loc(p, "uBones"), 1);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, s.tex);
-    glUniform4fv(loc(p, "uColor"), 1, ghostTint_);
+    glUniform4fv(loc(p, "uColor"), 1, tint);
     glUniform1f(loc(p, "uAlphaRef"), -1.0f);
     glUniform1i(loc(p, "uOpaque"), 1);
     glUniform1i(loc(p, "uUnlit"), 0);
-    glBindVertexArray(pt->second->vao);
-    glDrawElements(GL_TRIANGLES, GLsizei(pt->second->data.indices.size()), GL_UNSIGNED_INT, nullptr);
+    // shaded as the body's skin is (drawModel's skin kind 1: the same sheen and light), so the part reads as his
+    const bool skinFx = gfx_.skin > 0 || (drawSkin_[3] > 0.5f && gfx_.thinSkin > 0) || drawSkin_[0] > 0;
+    if (skinFx) {
+        glUniform4fv(loc(p, "uSkinActor"), 1, drawSkin_);
+        if (drawSkin_[3] > 0.5f) {
+            glUniformMatrix4fv(loc(p, "uThinHead"), 1, GL_FALSE, drawThin_);
+            glUniform4fv(loc(p, "uThinHands"), 2, drawThin_ + 16);
+        }
+        glUniform1i(loc(p, "uSkinKind"), 1);
+    }
+    glDrawElements(GL_TRIANGLES, GLsizei(d.indices.size()), GL_UNSIGNED_INT, nullptr);
+    if (skinFx) glUniform1i(loc(p, "uSkinKind"), 0);
     glBindVertexArray(0);
 }
 

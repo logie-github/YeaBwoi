@@ -904,6 +904,7 @@ int main(int argc, char** argv) {
                 target = int(std::strtol(skin.c_str(), nullptr, 16));
             }
             if (target >= 0) partpaint::recolor(img, target, partpaint::uvMask(pd, img.w, img.h));
+            if (target >= 0) scene.setPartSkin(actors[name], target);   // (the root blended to it: bodypart.h blendRootToSkin)
             bool ok = scene.attachPart(actors[name], part, img.px.data(), img.w, img.h);
             std::fprintf(stderr, "part %d %s (%s %s): %s, skin %06X\n", name, pd.id.c_str(), pd.state.c_str(), pd.variant.c_str(), ok ? "ok" : "FAILED", target < 0 ? 0 : target);
         } else if (cmd == "eveset") {
@@ -921,6 +922,27 @@ int main(int argc, char** argv) {
             if (ss >> bottom) { o.bottom = bottom; ss >> o.tone >> o.overlaySlot >> o.overlayShade >> o.opacity; int bones = 1; if (ss >> bones) o.bones = bones != 0; }
             o.on = on != 0;
             if (actors.count(name)) scene.setEveBody(actors[name], o);
+        } else if (cmd == "hdset") {
+            // hdset PATH: an HD model set (.whd: tools/hd/whd_convert.py), kept under its race and sex
+            std::string path, err; ss >> path;
+            bool ok = scene.loadHdSet(path, err);
+            std::fprintf(stderr, "hdset %s: %s\n", path.c_str(), ok ? "ok" : err.c_str());
+        } else if (cmd == "hd") {
+            // hd N RACE SEX ON [HAIR OUTFIT EYES FACEMARK BODYMARKS TINT HAIRTINT JEWEL...]: person N drawn as the HD figure
+            // (Scene::setHdBody; -1: the set's default; HAIR -2 none; OUTFIT -1 bare)
+            int name, race, sex, on; HdOptions o;
+            ss >> name >> race >> sex >> on;
+            if (ss >> o.hair) { ss >> o.outfit >> o.eyes >> o.faceMark >> o.bodyMarks >> o.tint >> o.hairTint; int j; while (ss >> j) o.jewelry.push_back(j); }
+            o.on = on != 0;
+            if (actors.count(name)) scene.setHdBody(actors[name], race, sex, o);
+        } else if (cmd == "hdstatus") {
+            // hdstatus N: whether person N is drawn as its HD figure, and the fit's numbers
+            int name; ss >> name;
+            Scene::HdStatus st;
+            if (actors.count(name) && scene.hdStatus(actors[name], st))
+                std::printf("hdstatus %d: requested %d active %d set '%s' status '%s' scale %.3f limbDeg %.2f verts %zu tris %zu unmapped %zu fit %.1f ms\n", name,
+                            st.requested, st.active, st.set.c_str(), st.status.c_str(), st.stats.scale, st.stats.jointError, st.stats.vertices,
+                            st.stats.triangles, st.stats.unmapped, st.stats.ms);
         } else if (cmd == "eveasync") {
             // eveasync 0|1: the Eve fit at once on this thread (the harness's default) or on the worker (the app's)
             int on = 0; ss >> on; scene.setEveAsync(on != 0);
@@ -1058,6 +1080,29 @@ int main(int argc, char** argv) {
         } else if (cmd == "partfit") {
             int name; PartFit f; ss >> name >> f.dx >> f.dz >> f.scale;
             if (actors.count(name)) scene.setPartFit(actors[name], f);
+        } else if (cmd == "partdrive") {
+            // partdrive N LEVEL [PARTNER ENTRY REST]: arousal 0..1 (-1 off) and the insertion (Scene::setPartDrive; ENTRY
+            // bodypart.h PartEntry: 1 vaginal, 2 anal, 3 oral, 5 thigh, 6 chest; REST Sims metres)
+            int name, partner = 0, entry = 0; float level = -1, rest = 0;
+            ss >> name >> level >> partner >> entry >> rest;
+            if (actors.count(name)) scene.setPartDrive(actors[name], level, actors.count(partner) ? actors[partner] : 0, entry, rest);
+        } else if (cmd == "partinfo") {
+            int name; ss >> name;
+            Scene::PartDriveInfo pi;
+            if (actors.count(name) && scene.partDriveInfo(actors[name], pi))
+                std::printf("partinfo %d: level %.2f slot %s depth %.3f distance %.3f aim %.1f deg weight %.2f root (%.3f,%.3f,%.3f) entry (%.3f,%.3f,%.3f) forward (%.3f,%.3f,%.3f)\n",
+                            name, pi.level, pi.slotOn ? "on" : "default", pi.depth, pi.distance, pi.aimDeg, pi.aimWeight,
+                            pi.rootWorld.x, pi.rootWorld.y, pi.rootWorld.z, pi.entryWorld.x, pi.entryWorld.y, pi.entryWorld.z,
+                            pi.pelvisForward.x, pi.pelvisForward.y, pi.pelvisForward.z);
+        } else if (cmd == "entry") {
+            int name, kind; ss >> name >> kind;
+            V3 e;
+            if (actors.count(name) && scene.entryWorld(actors[name], kind, e)) std::printf("entry %d kind %d: (%.3f,%.3f,%.3f)\n", name, kind, e.x, e.y, e.z);
+            else std::printf("entry %d kind %d: none\n", name, kind);
+        } else if (cmd == "placeraw") {
+            // placeraw N X Y Z FACING: at Z as given (Scene::kRaised, as the app places a clip raised onto furniture)
+            int name; float x, y, z, f; ss >> name >> x >> y >> z >> f;
+            if (actors.count(name)) scene.placeActor(actors[name], V3(x, y, z), f, Scene::kRaised);
         } else if (cmd == "partpose") {
             int name; ss >> name;
             M4 m; PartPlacement pl;

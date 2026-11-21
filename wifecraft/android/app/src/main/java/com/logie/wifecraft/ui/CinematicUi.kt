@@ -48,6 +48,9 @@ import com.logie.wifecraft.simulation.CinematicFrame
 import com.logie.wifecraft.simulation.CutStyle
 import com.logie.wifecraft.simulation.FilmFrame
 import com.logie.wifecraft.simulation.Furniture
+import com.logie.wifecraft.simulation.FurnitureAnimation
+import com.logie.wifecraft.simulation.FurnitureAvailability
+import com.logie.wifecraft.simulation.TreatAs
 import com.logie.wifecraft.simulation.FurnitureKind
 import com.logie.wifecraft.simulation.FurnitureSpec
 import com.logie.wifecraft.simulation.LiveScene
@@ -90,7 +93,9 @@ const val CINEMATIC_HUD_MS = 400
  */
 @Composable
 fun CinematicLayer(on: Boolean, hudHidden: Boolean, shown: Boolean, onToggle: () -> Unit, onPeek: () -> Unit,
-                   onAspect: (Float) -> Unit, modifier: Modifier = Modifier, frame: CinematicFrame = CinematicFrame.FULL) {
+                   onAspect: (Float) -> Unit, modifier: Modifier = Modifier, frame: CinematicFrame = CinematicFrame.FULL,
+                   /** dp from the end to the button's right edge in the top bar (null: beside the camera's buttons, as before). */
+                   topBarEnd: Float? = null) {
     var screen by remember { mutableStateOf(IntSize.Zero) }
     val aspectOut by rememberUpdatedState(onAspect)
     LaunchedEffect(screen, on, frame) {
@@ -106,8 +111,10 @@ fun CinematicLayer(on: Boolean, hudHidden: Boolean, shown: Boolean, onToggle: ()
                 label = "cinematicButton")
             BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
                 val hud = SceneHud.layout(maxWidth.value, maxHeight.value)
-                CinematicButton(on, onToggle, Modifier.align(Alignment.TopEnd).graphicsLayer { alpha = buttonAlpha }
-                    .padding(end = (SceneHud.MARGIN + SceneHud.CAMERA_W + 2 * SceneHud.CAMERA_GAP).dp, top = SceneHud.cameraTop(hud).dp))
+                // in the top bar's kept room (it covers no other control), else beside the camera's buttons
+                val place = if (topBarEnd != null) Modifier.padding(end = topBarEnd.dp, top = ((SceneHud.TOP_H - 48f) / 2f).coerceAtLeast(0f).dp)
+                    else Modifier.padding(end = (SceneHud.MARGIN + SceneHud.CAMERA_W + 2 * SceneHud.CAMERA_GAP).dp, top = SceneHud.cameraTop(hud).dp)
+                CinematicButton(on, onToggle, Modifier.align(Alignment.TopEnd).graphicsLayer { alpha = buttonAlpha }.then(place))
             }
         }
     }
@@ -142,6 +149,8 @@ fun CinematicAutoplayHost(
     lead: String?, partner: String?, castIds: List<String>,
     pairs: List<PartnerPair>, needs: Map<String, Requirement>, furniture: Map<SceneObject, Furniture>,
     bodyScales: Map<String, Float>, controls: Boolean, modifier: Modifier = Modifier,
+    /** The player's "Treat as" per pair id (each played as that, not as read). */
+    treatAs: Map<String, TreatAs> = emptyMap(),
 ) {
     val auto = remember(live) { CinematicAutoplay() }
     var cover by remember(live) { mutableFloatStateOf(0f) }
@@ -155,11 +164,18 @@ fun CinematicAutoplayHost(
     val b = partner?.takeIf { it != a } ?: castIds.firstOrNull { it != a }
     val floorZ = furniture.values.firstOrNull()?.z ?: 0f
     // every installed two-person animation on every place it fits these two bodies (off the main thread)
-    val options by produceState(emptyList<AutoOption>(), pairs, needs, furniture, a, b) {
+    val options by produceState(emptyList<AutoOption>(), pairs, needs, furniture, a, b, treatAs) {
         value = withContext(Dispatchers.Default) {
             val places = furniture.entries.sortedBy { it.key.ordinal }.map { (item, f) -> AutoPlace(item.name, item, f) } +
                 AutoPlace("floor", null, Furniture("floor", FurnitureSpec.standard(FurnitureKind.FLOOR), 0f, 0f, floorZ, 0f))
-            val clips = pairs.mapNotNull { p -> needs[p.id]?.takeIf { it.actors.size == 2 }?.let { AutoClip(p.id, p.name, it) } }
+            // each as the player classed it; one needing furniture none here takes may play on the floor where, lowered, it rests
+            val clips = pairs.mapNotNull { p -> needs[p.id]?.takeIf { it.actors.size == 2 }?.let { r ->
+                val t = treatAs[p.id]
+                val need = FurnitureAvailability.applied(r, t)
+                val rests = t == TreatAs.FLOOR || (t == null && FurnitureAvailability.placed(r) && r.surface !in Requirement.FLOOR_LEVEL &&
+                    FurnitureAvailability.floorRests(r, runCatching { FurnitureAnimation.floorDrop(p) }.getOrDefault(0f)))
+                AutoClip(p.id, p.name, need, rests)
+            } }
             val unit = SceneSimulation.HUMAN_BODY_UNIT * listOfNotNull(a, b).map { bodyScales[it] ?: 1f }.ifEmpty { listOf(1f) }.average().toFloat()
             AutoplayPlanner.options(places, clips, unit)
         }

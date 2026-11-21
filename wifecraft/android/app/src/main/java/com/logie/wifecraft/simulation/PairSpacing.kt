@@ -116,7 +116,7 @@ object PairSpacing {
         val (dx, dy) = push(p, fleshA, fleshB) ?: return p
         val unit = (BodyGeometry.REF_UNIT * HumanScale.PAIR).toFloat()
         val b = p.slotB.copy(x = p.slotB.x + (dx * unit).toFloat(), y = p.slotB.y + (dy * unit).toFloat())
-        return PartnerPair(p.id, p.name, p.a, p.b, p.slotA, b, p.loops, p.locations, p.sounds)
+        return PartnerPair(p.id, p.name, p.a, p.b, p.slotA, b, p.loops, p.locations, p.sounds, p.kind)
     }
 
     /** How far (body units, x and y of the pair's frame) [p]'s second role must move; null: not at all, or the bodies can't be read. */

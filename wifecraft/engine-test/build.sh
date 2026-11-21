@@ -122,3 +122,10 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/zonelight_test.cpp" "$engine/daylight.cpp" "$engine/json.cpp" \
     -o "$here/build/zonelight_test"
 echo "$here/build/zonelight_test"
+# HD Models (engine/hdbody.cpp: the .whd read and written back, the fit on the game's model, the weights, the game's poses
+# skinned on the CPU): build/hdbody_test SET.whd FILES_DIR MODEL_FILE_ID, exit 0 when all pass (needs a converted set:
+# tools/hd/whd_convert.py, and the model's files).
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/hdbody_test.cpp" "$engine/hdbody.cpp" "$engine/evebody.cpp" "$engine/softbody.cpp" "$engine/modelpart.cpp" "$engine/bodypart.cpp" \
+    "$engine/blp.cpp" "$engine/json.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" "$engine/sculpt.cpp" -lGLESv2 -lz -lpthread -o "$here/build/hdbody_test"
+echo "$here/build/hdbody_test"

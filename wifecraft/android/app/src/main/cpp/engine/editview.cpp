@@ -582,6 +582,8 @@ bool Scene::thumbnail(uint32_t propFile, const ThumbLook* look, const ThumbFrame
             if (!look->morph.empty() || look->bodyK > 0) setBody(actor, look->morph, look->bodyK, look->bodyFold);
             // the Eve body as the live scene draws it (evescene.cpp: fitted in refreshBody, drawn by drawActor)
             if (look->eve.on) { setEveBody(actor, look->eve); eveCheck(a); }
+            // and the HD figure (hdscene.cpp), drawn instead of the model
+            if (look->hd.on) { setHdBody(actor, look->hdRace, look->hdSex, look->hd); hdCheck(a); }
             refreshSkin(a);
             if (a.body.dirty) refreshBody(a);
             a.position = V3(); a.facing = 0;

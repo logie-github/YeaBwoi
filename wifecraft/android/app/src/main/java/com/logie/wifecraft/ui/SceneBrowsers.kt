@@ -283,6 +283,8 @@ interface PartControl {
     fun has(npcId: String): Boolean
     fun isOn(npcId: String): Boolean
     fun toggle(npcId: String)
+    /** The switch's words (the live scene's chip): its arousal override where it has one. */
+    fun label(npcId: String): String = if (isOn(npcId)) "Off" else "On"
 }
 
 /** The live scene's [PartControl]; none outside a live scene. */

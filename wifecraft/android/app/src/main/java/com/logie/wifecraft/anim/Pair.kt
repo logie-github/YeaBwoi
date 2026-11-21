@@ -38,6 +38,8 @@ data class PairAnim(
     val enabled: Boolean = true,
     val source: String,
     val importedAt: Long,
+    /** The pack's category for the stage (sims/AnimTuning PairDefinition.kind; bodyparts/Arousal's ArousalMap reads it); empty: none. */
+    val kind: String = "",
 ) {
     val duration: Float get() = maxOf(a.duration, b.duration)
 
@@ -48,7 +50,7 @@ data class PairAnim(
             PerformanceRole(clip.source, Vec3(o.x, o.y, o.z), Math.toRadians(o.yawDeg.toDouble()).toFloat())
         }
         return AnimationChoice("$CHOICE_PREFIX$id", name, category, clips[0], clips, roles,
-            locations.sorted().joinToString(", ") { it.lowercase().replace('_', ' ') }, yards = true, sounds = sounds)
+            locations.sorted().joinToString(", ") { it.lowercase().replace('_', ' ') }, yards = true, sounds = sounds, kind = kind)
     }
 
     companion object {
@@ -96,6 +98,7 @@ object PairJson {
             .put("sounds", sounds)
             .put("offsetA", offset(p.offsetA)).put("offsetB", offset(p.offsetB))
             .put("a", AnimJson.toJson(p.a)).put("b", AnimJson.toJson(p.b))
+            .also { o -> if (p.kind.isNotEmpty()) o.put("stageKind", p.kind) }
     }
 
     fun fromJson(o: JSONObject): PairAnim {
@@ -118,6 +121,7 @@ object PairJson {
             offsetA = offset(o.getJSONObject("offsetA")), offsetB = offset(o.getJSONObject("offsetB")),
             loops = o.optBoolean("loops", false), locations = locs, sounds = sounds,
             enabled = o.optBoolean("enabled", true), source = o.optString("source", ""), importedAt = o.optLong("importedAt", 0L),
+            kind = o.optString("stageKind", ""),
         )
     }
 

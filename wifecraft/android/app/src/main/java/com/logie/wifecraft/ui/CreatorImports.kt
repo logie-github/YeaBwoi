@@ -394,3 +394,81 @@ fun casEveBinding(editor: com.logie.wifecraft.bodyparts.EveOptionsEditor?, defau
         unavailable = { a -> e.unavailable(a.raceId, a.sex) },
     )
 }
+
+/**
+ * Options' "HD Models" rows: the user's own high-detail characters, converted on a computer (tools/hd/whd_convert.py) into a
+ * zip of .whd sets, picked here and imported by [runner] (bodyparts/HdImportRunner, its own thread) into files/bodyparts/hd;
+ * the host loads them into the 3D view when it is done. [on]: the switch (every imported race and sex drawn as its HD figure
+ * instead of the game's model, in every scene, picture and the creator, Gear on and off). Each set's row says what it offers
+ * and has its own Remove. NOT run on a phone; the store and the runner are unit-tested (HdModelsTest).
+ */
+@Composable
+fun HdModelsSection(
+    runner: com.logie.wifecraft.bodyparts.HdImportRunner,
+    store: com.logie.wifecraft.bodyparts.HdStore,
+    on: Boolean,
+    onSwitch: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    var state by remember { mutableStateOf(runner.state) }
+    androidx.compose.runtime.DisposableEffect(runner) {
+        val main = android.os.Handler(android.os.Looper.getMainLooper())
+        val stop = runner.listen { s -> main.post { state = s } }
+        onDispose { stop() }
+    }
+    val busy = state is com.logie.wifecraft.bodyparts.HdImportRunner.State.Running
+    var sets by remember { mutableStateOf<List<com.logie.wifecraft.bodyparts.HdSetInfo>>(emptyList()) }
+    LaunchedEffect(state) { sets = withContext(Dispatchers.IO) { store.sets() } }
+    val work = remember { File(context.cacheDir, "hd-import") }
+    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) runner.start(work) { dir ->
+            uris.mapIndexed { i, uri ->
+                val name = displayName(context, uri)
+                val ext = name.substringAfterLast('.', "zip").lowercase().take(8)
+                val out = File(dir, "%02d_".format(i) + com.logie.wifecraft.bodyparts.PartPackage.safeName(name.substringBeforeLast('.')) + "." + ext)
+                val input = context.contentResolver.openInputStream(uri) ?: throw java.io.IOException("$name can't be opened.")
+                input.use { s -> out.outputStream().use { s.copyTo(it) } }
+                out
+            }
+        }
+    }
+    Column(modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("HD Models", style = frizStyle(16.sp))
+        val s = state
+        if (s is com.logie.wifecraft.bodyparts.HdImportRunner.State.Running) Text(s.line, style = frizStyle(12.sp, WowColors.white))
+        Text("Your own high-detail characters replace the game's models: a race and sex with an imported set is drawn as its HD " +
+            "figure everywhere (its body, face, ears, eyes, hair and its own clothing for her class with Gear on). Convert the " +
+            "character's FBX zip (or .blend) on a computer with the app's tools/hd converter, copy the zip it makes (Wifecraft-HD-*.zip) to the " +
+            "phone and pick it here. The first picture of each figure takes a moment while its textures are read.",
+            style = frizStyle(11.sp, WowColors.grey))
+        WowCheckRow("Use HD Models", on, onSwitch, enabled = !busy,
+            detail = "Off: every NPC is drawn on the game's own model again (the sets stay imported). Applies to looks dressed from now on.")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 2.dp)) {
+            WowButton("Choose files", { filePicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream", "*/*")) },
+                enabled = !busy, width = 140.dp, height = 36.dp)
+            WowButton("Remove all", { Thread { runner.remove() }.start() }, enabled = !busy && sets.isNotEmpty(), width = 130.dp, height = 36.dp)
+        }
+        if (sets.isEmpty()) Text("Not imported", style = frizStyle(12.sp, WowColors.white))
+        for (set in sets) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.weight(1f)) {
+                    Text(set.label, style = frizStyle(13.sp, WowColors.white))
+                    Text("${set.hair.size} hair styles, ${set.outfits.size} outfits, ${set.eyes.size} eyes, ${set.faceMarks.size} face marks, " +
+                        "${set.tints.size} skin tints, ${set.jewelry.size} jewellery; up to ${set.triangles / 1000}k triangles, " +
+                        "about ${set.gpuBytes / 1_000_000} MB of textures",
+                        style = frizStyle(11.sp, WowColors.grey))
+                    if (set.credit.isNotEmpty()) Text(set.credit, style = frizStyle(11.sp, WowColors.grey))
+                }
+                WowButton("Remove", { Thread { runner.remove(set.race, set.sex) }.start() }, enabled = !busy, width = 100.dp, height = 34.dp)
+            }
+        }
+        Text("Credits: the HD models converted from Liard's Art's edited World of Warcraft models are Liard's Art's work " +
+            "(liardart.com), used with credit as the site asks; they are not part of this app.", style = frizStyle(11.sp, WowColors.grey))
+        when (s) {
+            is com.logie.wifecraft.bodyparts.HdImportRunner.State.Failed -> Text(s.message, style = frizStyle(12.sp, androidx.compose.ui.graphics.Color(0xFFFF6A5A)))
+            is com.logie.wifecraft.bodyparts.HdImportRunner.State.Done -> Text(s.message, style = frizStyle(12.sp, WowColors.white))
+            else -> {}
+        }
+    }
+}

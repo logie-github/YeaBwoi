@@ -13,10 +13,13 @@ add_library(wcengine SHARED
     engine/bodypick.cpp
     engine/bodyrig.cpp
     engine/bodyshape.cpp
+    engine/buildview.cpp
     engine/bytes.cpp
     engine/cloth.cpp
     engine/daylight.cpp
     engine/grade.cpp
+    engine/hdbody.cpp
+    engine/hdscene.cpp
     engine/editview.cpp
     engine/evebody.cpp
     engine/evescene.cpp

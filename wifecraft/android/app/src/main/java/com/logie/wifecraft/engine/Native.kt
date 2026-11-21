@@ -130,6 +130,10 @@ object Native {
     @JvmStatic external fun partState(scene: Long, actor: Int, state: Int)
     /** The race's fit (bodyparts/PartFits): forward and up in pelvis heights, a factor on the size. */
     @JvmStatic external fun partFit(scene: Long, actor: Int, dx: Float, dz: Float, scale: Float)
+    /** Arousal 0..1 (< 0: not driven) and the insertion: [partner] an actor id (0 none), [entry] bodyparts/PartEntryKind.engine, [rest] Sims metres (cpp Scene::setPartDrive). */
+    @JvmStatic external fun partDrive(scene: Long, actor: Int, level: Float, partner: Int, entry: Int, rest: Float)
+    /** The body's skin colour where the parts meet it (0xRRGGBB; -1 none): the parts' roots blended to it (cpp Scene::setPartSkin). */
+    @JvmStatic external fun partSkin(scene: Long, actor: Int, rgb: Int)
     @JvmStatic external fun detachParts(scene: Long, actor: Int)
     /** Where to sample the actor's skin for the parts' tint: skin texture (u, v) pairs, v 0 at the top (empty: can't say). */
     @JvmStatic external fun partSkinUvs(scene: Long, actor: Int): FloatArray
@@ -144,6 +148,25 @@ object Native {
      */
     @JvmStatic external fun setEveBody(scene: Long, actor: Int, on: Boolean, bottom: String, tone: Int, slot: Int, shade: Int, opacity: Float, bones: Boolean)
     @JvmStatic external fun clearEveBody(scene: Long, actor: Int)
+
+    // ---- HD Models (cpp engine/hdbody.h, hdscene.cpp; bodyparts/HdModels)
+    /** An HD model set (.whd) loaded under its race and sex: "" or why it can't be read. */
+    @JvmStatic external fun loadHdSet(scene: Long, path: String): String
+    /** Every HD set dropped (the actors drawn as their game models until sets are loaded again). */
+    @JvmStatic external fun clearHdSets(scene: Long)
+    /**
+     * [actor] drawn as the HD figure of [race] and [sex] (0 male, 1 female) instead of its game model: [hair] (-1 the set's
+     * first, -2 none), [outfit] (-1 bare), [eyes] (-1 the first), [faceMark] (-1 none), [bodyMarks] (0/1), [tint] and
+     * [hairTint] preset indices, [jewelry] the pieces worn. Fitted at the next frame and again when anything changes.
+     */
+    @JvmStatic external fun setHdBody(scene: Long, actor: Int, race: Int, sex: Int, on: Boolean, hair: Int, outfit: Int, eyes: Int,
+                                      faceMark: Int, bodyMarks: Int, tint: Int, hairTint: Int, jewelry: IntArray)
+    @JvmStatic external fun clearHdBody(scene: Long, actor: Int)
+    /** "on|off|SCALE|MS|TRIANGLES|why". */
+    @JvmStatic external fun hdStatus(scene: Long, actor: Int): String
+    /** The HD figure (as [setHdBody] takes it) on the NEXT [thumbLook] or [thumbCard] only, called right before it on the GL thread. */
+    @JvmStatic external fun thumbHd(scene: Long, race: Int, sex: Int, on: Boolean, hair: Int, outfit: Int, eyes: Int, faceMark: Int,
+                                    bodyMarks: Int, tint: Int, hairTint: Int, jewelry: IntArray)
     /** "on|NECK|ANKLE|SHADE|MS|why": drawn or not, the skin colours matched (RRGGBB), the overlay shade, the fit's cost, why not. */
     @JvmStatic external fun eveStatus(scene: Long, actor: Int): String
 
@@ -290,6 +313,23 @@ object Native {
     @JvmStatic external fun gizmo(scene: Long, mode: Int, kind: Int, id: Int, axis: Int)
     /** The handle under the screen point ([sx], [sy] pixels of a [width] x [height] view, the camera last drawn) within [slop] pixels, or -1. */
     @JvmStatic external fun gizmoHit(scene: Long, sx: Float, sy: Float, width: Int, height: Int, slop: Float): Int
+
+    // ---- the live scene's build mode overlay (cpp engine/buildview.cpp)
+
+    /**
+     * Build mode's axis gizmo at [x], [y], [z] (world), its x and y arrows turned by [yaw] radians, z up: [flags]
+     * [BUILD_ARROWS] and/or [BUILD_RING] (0: none); [axis] lit (0 x, 1 y, 2 z, 3 the ring; -1 none). Drawn over everything,
+     * never picked (the screen projects the handles itself: simulation/BuildModeMath).
+     */
+    @JvmStatic external fun buildGizmo(scene: Long, flags: Int, x: Float, y: Float, z: Float, yaw: Float, axis: Int)
+    /** Build mode's markers, 8 floats each (x, y, z, yaw, r, g, b, selected 0/1); empty or null: none. */
+    @JvmStatic external fun buildMarkers(scene: Long, data: FloatArray?)
+    /** The selected item's box (centre x,y,z, half x,y,z, yaw); null or shorter: none. */
+    @JvmStatic external fun buildBox(scene: Long, data: FloatArray?)
+    /** A location doodad by its pick id: model file id, origin x,y,z, yaw, scale, its model's box (min x,y,z, max x,y,z); null: none. */
+    @JvmStatic external fun locationObjectInfo(scene: Long, index: Int): FloatArray?
+    const val BUILD_ARROWS = 1
+    const val BUILD_RING = 2
     /** The camera last drawn: eye x,y,z, target x,y,z, up x,y,z, vertical fov (degrees), aspect, view (16), projection (16), column-major. */
     @JvmStatic external fun cameraInfo(scene: Long): FloatArray
     /** The loaded location's [view]'s camera: eye x,y,z, target x,y,z, fov; null when it has none. */

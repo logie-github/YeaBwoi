@@ -2,6 +2,8 @@ package com.logie.wifecraft.engine
 
 import com.logie.wifecraft.bodyparts.EveContext
 import com.logie.wifecraft.bodyparts.EveDress
+import com.logie.wifecraft.bodyparts.HdContext
+import com.logie.wifecraft.bodyparts.HdDress
 import com.logie.wifecraft.bodyparts.ModelParts
 import com.logie.wifecraft.bodyparts.PartChoice
 import com.logie.wifecraft.bodyparts.PartDraw
@@ -70,6 +72,10 @@ class Dresser(
     @Volatile var eve: () -> EveContext? = { null }
     /** The keys Eve was put on (taken off again when a look no longer allows it). */
     private val withEve = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    /** HD Models as the dressing needs it (bodyparts/HdDress: Options' switch, the loaded sets); null: none. */
+    @Volatile var hd: () -> HdContext? = { null }
+    /** The keys an HD figure was put on (taken off again when the look no longer has one). */
+    private val withHd = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     private val _withParts = MutableStateFlow<Set<String>>(emptySet())
     /** The keys whose actors wear the body parts now (a man with nothing below the waist, the add-on imported). */
@@ -93,6 +99,7 @@ class Dresser(
         extras.remove(key)?.cancel()
         bodies.remove(key)
         withEve.remove(key)
+        withHd.remove(key)
         // the actor leaves the stage with the caller (SceneView.removeActor or removeAll take its set and parts with it)
         withSets.remove(key)
         synchronized(_withParts) { if (key in _withParts.value) _withParts.value = _withParts.value - key }
@@ -129,7 +136,12 @@ class Dresser(
             val set = call.set
             val parts = call.drawn != null && PartChoice.applies(a) && PartChoice.lowerBodyBare(a) && partSet != null
             // the Eve body (bodyparts/EveDress): put on before the dress, so its first frame fits her once
-            val eveOptions = EveDress.decide(a, call.drawn, call.call.model, eve()).options
+            // the HD figure (bodyparts/HdDress): for a race and sex with an HD set it IS the character (the game's model not
+            // drawn), with Gear on and off; the Eve body never goes on it
+            val hdDecision = HdDress.decide(a, call.drawn, hd())
+            if (hdDecision.on) { scene.setHdBody(key, hdDecision); withHd += key }
+            else if (withHd.remove(key)) scene.clearHdBody(key)
+            val eveOptions = if (hdDecision.on) null else EveDress.decide(a, call.drawn, call.call.model, eve()).options
             if (eveOptions != null) { scene.setEveBody(key, eveOptions); withEve += key }
             else if (withEve.remove(key)) scene.clearEveBody(key)
             // the look's sex and race: the live scene's NPCs stand at human scale, the dwarves and gnomes at their own
@@ -245,8 +257,11 @@ class Dresser(
         val uvs = kotlinx.coroutines.CompletableDeferred<FloatArray>()
         scene.partSkinUvs(key) { uvs.complete(it) }
         val at = uvs.await()
+        // the skin's colour where the parts meet the body: the parts' roots are blended to it by the engine
+        var skinColour = -1
         val textures = withContext(Dispatchers.IO) {
             val skinImage = skinImage(skin)
+            if (skinImage != null && at.isNotEmpty()) skinColour = PartSkin.sampleAt(skinImage, at) ?: -1
             entries.mapNotNull { e ->
                 runCatching {
                     val part = PartFile.read(File(dir, "${e.id}.wcbp").readBytes())
@@ -257,6 +272,7 @@ class Dresser(
             }
         }
         if (textures.isEmpty()) return
+        scene.setPartSkin(key, skinColour)
         for ((id, t) in textures) scene.attachPart(key, "$set/$id", t.rgba, t.width, t.height)
         synchronized(_withParts) { _withParts.value = _withParts.value + key }
         scene.setPartState(key, PartDraw.visible(PartDraw.DEFAULT, true))
@@ -301,6 +317,7 @@ class Dresser(
     fun dressLook(scene: SceneView, key: String, look: ResolvedLook) {
         jobs.remove(key)?.cancel()
         if (withEve.remove(key)) scene.clearEveBody(key)   // a display is drawn as the game has it
+        if (withHd.remove(key)) scene.clearHdBody(key)
         bodies.remove(key)
         jobs[key] = scope.launch {
             val call = withContext(Dispatchers.IO) {
