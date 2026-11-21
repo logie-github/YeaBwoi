@@ -201,7 +201,7 @@ bool parseEveFitTable(const std::string& json, EveFitTable& out, std::string& er
             auto bn = [&](const char* key, float& v) { if (b.has(key)) v = float(b[key].num(v)); };
             bn("arm", f.bulk.arm); bn("forearm", f.bulk.forearm); bn("thigh", f.bulk.thigh); bn("calf", f.bulk.calf);
             bn("shoulders", f.bulk.shoulders); bn("chest", f.bulk.chest); bn("waist", f.bulk.waist); bn("hips", f.bulk.hips);
-            bn("chestDepth", f.bulk.chestDepth); bn("waistDepth", f.bulk.waistDepth); bn("hipDepth", f.bulk.hipDepth); bn("follow", f.bulk.follow);
+            bn("chestDepth", f.bulk.chestDepth); bn("waistDepth", f.bulk.waistDepth); bn("hipDepth", f.bulk.hipDepth); bn("follow", f.bulk.follow); bn("inset", f.bulk.inset);
         }
     };
     if (j.has("defaults")) readFit(j["defaults"]["fit"], defaults);
@@ -1028,6 +1028,7 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         const float wHip = cl(bk.hips, 0.7f, 1.8f), wWaist = cl(bk.waist, 0.7f, 1.8f), wChest = cl(bk.chest, 0.7f, 1.8f);
         const float dHip = cl(bk.hipDepth, 0.7f, 1.8f), dWaist = cl(bk.waistDepth, 0.7f, 1.8f), dChest = cl(bk.chestDepth, 0.7f, 1.8f);
         const float follow = std::isfinite(bk.follow) ? std::clamp(bk.follow, 0.0f, 1.0f) : 0.0f;
+        const float inset = std::isfinite(bk.inset) ? std::clamp(bk.inset, 0.0f, 1.0f) : 0.0f;
         const float zHip = (A["L_Thigh"].z + A["R_Thigh"].z) * 0.5f, zSh = (A["L_UpperArm"].z + A["R_UpperArm"].z) * 0.5f;
         auto smooth = [](float t) { t = std::clamp(t, 0.0f, 1.0f); return t * t * (3 - 2 * t); };
         // the trunk's factors by height (0 the hip joints, 1 the shoulder joints): hips to 0.1, waist at 0.45, chest at 0.75,
@@ -1043,7 +1044,7 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
             kw = ws[i] + (ws[i + 1] - ws[i]) * t; kd = ds[i] + (ds[i + 1] - ds[i]) * t;
         };
         const bool bulky = std::fabs(kArm - 1) + std::fabs(kFore - 1) + std::fabs(kThigh - 1) + std::fabs(kCalf - 1) + std::fabs(wHip - 1) + std::fabs(wWaist - 1) +
-                           std::fabs(wChest - 1) + std::fabs(dHip - 1) + std::fabs(dWaist - 1) + std::fabs(dChest - 1) + std::fabs(shoulderK - 1) + follow > 1e-4f;
+                           std::fabs(wChest - 1) + std::fabs(dHip - 1) + std::fabs(dWaist - 1) + std::fabs(dChest - 1) + std::fabs(shoulderK - 1) + follow + inset > 1e-4f;
         // her trunk's middle (front to back) by height: the mid of its depth in 2 cm bands of the Sims body (her trunk as she stands)
         std::vector<float> midX;
         const float band = 0.02f * sr, zLo = zHip - 0.5f * sr;
@@ -1090,16 +1091,18 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         const char* segA[5] = {"", "UpperArm", "Forearm", "Thigh", "Calf"};
         const char* segB[5] = {"", "Forearm", "Hand", "Calf", "Foot"};
         // a limb's factor along it (0 at its first joint, 1 at its next): an arm's and a thigh's half of the change toward the next
-        // segment's factor made over the last quarter, a shin's eased back to the ankle's own size (the seam's foot top)
+        // segment's factor made over the last quarter; a thigh's growth eased in from the hip crease (her own hips' curve is
+        // there: no ledge), a forearm's partly kept to the wrist, a shin's eased back to the ankle's own size over its last 40%
+        // (the seam's foot top)
         auto limbK = [&](int seg, float t) {
             switch (seg) {
                 case 1: return kArm + (0.5f * (kArm + kFore) - kArm) * smooth((t - 0.75f) / 0.35f);
-                case 2: return kFore + (0.5f * (kArm + kFore) - kFore) * smooth((0.25f - t) / 0.35f) + (1 + 0.3f * (kFore - 1) - kFore) * smooth((t - 0.6f) / 0.4f);
+                case 2: return kFore + (0.5f * (kArm + kFore) - kFore) * smooth((0.25f - t) / 0.35f) + (1 + 0.6f * (kFore - 1) - kFore) * smooth((t - 0.7f) / 0.35f);
                 case 3: {
-                    float top = 0.5f * (wHip + kThigh);
+                    float top = 0.5f * (wHip + 1 + 0.4f * (kThigh - 1));   // (at the hip crease little more than the hips: no ledge there)
                     return top + (kThigh - top) * smooth(t / 0.35f) + (0.5f * (kThigh + kCalf) - kThigh) * smooth((t - 0.75f) / 0.35f);
                 }
-                case 4: return kCalf + (0.5f * (kThigh + kCalf) - kCalf) * smooth((0.25f - t) / 0.35f) + (1 - kCalf) * smooth((t - 0.45f) / 0.5f);
+                case 4: return kCalf + (0.5f * (kThigh + kCalf) - kCalf) * smooth((0.25f - t) / 0.35f) + (1 - kCalf) * smooth((t - 0.6f) / 0.4f);
                 default: return 1.0f;
             }
         };
@@ -1119,6 +1122,11 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
                 float a = r.dot(d);
                 float k = limbK(seg, a / L);
                 qo = ia->second + d * a + (r - d * a) * k;
+                if (seg == 3 && inset > 0 && legDone[sd]) {   // the thigh's flesh drawn in toward her middle by her hip joint's move out
+                    float dy = std::max(0.0f, (hipNew[sd].y - hipOwn[sd].y) * (sd ? -1.0f : 1.0f));
+                    float in = inset * dy * (1 - smooth((a / L - 0.1f) / 0.6f));
+                    qo.y += sd ? in : -in;
+                }
                 V3 na = d * n.dot(d);
                 no = (na + (n - na) * (1.0f / k)).normalized();
                 return;

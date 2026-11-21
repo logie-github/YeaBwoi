@@ -66,11 +66,12 @@ uint32_t eveCrc32(const uint8_t* data, size_t n);
 // girths (wifecraft/README.md, Her own rig). Each limb segment's skin scaled across its bone about her joints (arm, forearm,
 // thigh, calf), the trunk's width (hips, waist, chest) and depth (hipDepth, waistDepth, chestDepth) about her middle by
 // height, the shoulders' width by her clavicles, and the hips' sides moved with the hip joints (`follow`, 0..1) where a race's
-// legs are set wider than hers. 1 (0 for follow): her own build.
+// legs are set wider than hers, or her thighs' flesh drawn in under them (`inset`, 0..1). 1 (0 for follow, inset): her own build.
 struct EveBulk {
     float arm = 1, forearm = 1, thigh = 1, calf = 1;
     float shoulders = 1, chest = 1, waist = 1, hips = 1, chestDepth = 1, waistDepth = 1, hipDepth = 1;
     float follow = 0;
+    float inset = 0;   // each thigh's flesh moved in toward her middle by this share of her hip joint's move out (none at the knee)
 };
 
 // One row of assets/eve_fit.json: a Warcraft female model and how Eve fits it.

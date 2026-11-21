@@ -149,6 +149,7 @@ size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std
         }
         if (total <= 0) continue;
         for (float& w : W) w /= total;
+        if (W[kGroupOther] + W[kGroupHead] + W[kGroupFoot] > 0.999f) continue;   // (the head, hands and feet: no move)
         const V3 p = before[vi];
         const float spineX = spineAt(p.z);
         const float front = smooth(-0.02f * U, 0.06f * U, p.x - spineX);
@@ -282,13 +283,14 @@ size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std
     size_t eased = 0;
     if (!indices.empty()) {
         std::unordered_map<uint64_t, uint32_t> placeOf;
-        placeOf.reserve(verts.size());
-        std::vector<uint32_t> place(verts.size());
+        placeOf.reserve(verts.size() / 8 + 16);
+        std::vector<uint32_t> place(verts.size(), 0);
         for (size_t i = 0; i < verts.size(); ++i) {
+            if (!moves[i]) continue;   // (only a moving corner is eased)
             auto ins = placeOf.emplace(key(before[i]), uint32_t(placeOf.size()));
             place[i] = ins.first->second;
         }
-        std::vector<float> ease(placeOf.size(), 1.0f);
+        std::vector<float> ease(placeOf.size() + 1, 1.0f);
         for (int round = 0; round < 7; ++round) {
             size_t bad = 0;
             for (size_t t = 0; t + 2 < indices.size(); t += 3) {
