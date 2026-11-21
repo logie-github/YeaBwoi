@@ -63,13 +63,13 @@ class FurnitureSceneTest {
         assertEquals(bed, sim.onFurniture("a")!!.first)
     }
 
-    @Test fun aPairThatNeedsASurfaceIsNeverChosenWithoutOne() {
+    @Test fun aPairThatNeedsASurfaceIsStillChosenWithoutOne() {
         // two side by side on a seat: a chair holds one, so the emotes instead; a couch holds both
         val p = sideBySideSitting
         for (seed in 1..10) {
             val chair = SceneSimulation(listOf("a", "b"), setOf(SceneObject.CHAIR), Random(seed), pairs = listOf(p))
             assertTrue(chair.partner("a", "b"))
-            assertTrue(chair.partnerOf("a")!!.emote >= 0, "seed $seed: the emotes, not the seat pair")
+            assertTrue(chair.partnerOf("a")!!.emote < 0, "seed $seed: played all the same (marked for a seat is only a preference)")
             val couch = SceneSimulation(listOf("a", "b"), setOf(SceneObject.COUCH), Random(seed), pairs = listOf(p))
             assertTrue(couch.partner("a", "b"))
             assertEquals(SceneObject.COUCH, couch.partnerOf("a")!!.furniture)
@@ -79,10 +79,10 @@ class FurnitureSceneTest {
         assertTrue(bare.partner("a", "b"))
         assertTrue(bare.partnerOf("a")!!.emote < 0)
         assertNull(bare.partnerOf("a")!!.furniture)
-        // but one that wouldn't rest on the floor lowered (two sitting with their feet down): the emotes, as before
+        // and one that wouldn't rest on the floor lowered (two sitting with their feet down) plays too, never left out
         val seats = SceneSimulation(listOf("a", "b"), emptySet(), Random(3), pairs = listOf(sideBySideSitting))
         assertTrue(seats.partner("a", "b"))
-        assertTrue(seats.partnerOf("a")!!.emote >= 0)
+        assertTrue(seats.partnerOf("a")!!.emote < 0)
     }
 
     @Test fun aFloorPairPlaysOnTheFloorOrOnABed() {
@@ -111,7 +111,7 @@ class FurnitureSceneTest {
         assertEquals(Surface.TABLE_OR_COUNTER, lean.surface)
         val sim = SceneSimulation(listOf("a"), setOf(SceneObject.BED, SceneObject.TABLE), Random(1))
         val order = PerformanceOrder(null, listOf(PlaybackRole("lean:0", Vec3(0f, 0f, 0f), 0f)), 2f)
-        assertFalse(sim.performOn("a", SceneObject.BED, lean, order))
+        // (marked for a counter, a lean is still played on a bed, loosely, if the player asks: no refusal for the mark)
         assertTrue(sim.performOn("a", SceneObject.TABLE, lean, order))
         // it walks there first, then plays at the table's front, holding the table
         assertFalse(sim.available(SceneObject.TABLE, "b"))
@@ -120,8 +120,6 @@ class FurnitureSceneTest {
         val at = sim.position("a")!!
         val (lx, _) = table.toLocal(at.x, at.y)
         assertTrue(lx > 0f && lx < table.spec.halfX + 1f, "at the table's front: $lx")
-        // a lying one on the table refused too (nothing on it takes a bed's height)
-        assertFalse(sim.performOn("a", SceneObject.TABLE, RequirementClassifier.classify(F.lyingBack(0.55)), order))
     }
 
     @Test fun thePlayersPairOnFurnitureTakesTheNearestPartnerWhenNoneIsGiven() {

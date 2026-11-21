@@ -155,7 +155,7 @@ class Dresser(
                     if (set != null) putModelSet(scene, key, set, call.skin)
                     if (parts) wearParts(scene, key, a.parts ?: PartOptions(), call.skin)
                 }
-            }, sex = a.sex, raceId = a.raceId) { why ->
+            }, sex = if (call.creature) null else a.sex, raceId = a.raceId) { why ->   // a creature keeps her own scale (no human height)
                 fail(why)
                 if (onComplete != null) scope.launch { onComplete() }
             }
@@ -353,7 +353,7 @@ class Dresser(
      * is a soft body, the body it is drawn on (null: a display as the game has it) and a partial look's set.
      */
     private class Prepared(val call: DressCall, val body: BodyCall, val skin: Int, val character: Boolean, val drawn: Appearance?,
-        val set: ModelParts.PartSet?)
+        val set: ModelParts.PartSet?, val creature: Boolean = false)
 
     /** IO: [plan]'s files fetched (ImportedLooks.of made it: the imports applied), then the renderer's call made. */
     private suspend fun prepare(key: String, plan: ImportedLook, extraAnimations: Set<Int>): Prepared? {
@@ -378,7 +378,7 @@ class Dresser(
         } catch (e: Exception) {
             fail("The body options: ${e.message ?: e}"); BodyCall.NONE
         }
-        return Prepared(plan.call(tables), body, plan.skin, plan.character, drawn, plan.set)
+        return Prepared(plan.call(tables), body, plan.skin, plan.character, drawn, plan.set, plan.creature)
     }
 
     /**

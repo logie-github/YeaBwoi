@@ -27,6 +27,8 @@ class ImportedLook(
     val character: Boolean,
     val set: ModelParts.PartSet? = null,
     val display: Int = 0,
+    /** A creature NPC (CreatureNpcs: Sindragosa's dragon): game animations only, never scaled to a human's height. */
+    val creature: Boolean = false,
 ) {
     /** The renderer's call: a body's as Dresser makes it (CreatureLooks.call when clothing is worn, else Dressing.call), a display's as CreatureLooks makes it. */
     fun call(t: Tables): DressCall {
@@ -37,7 +39,7 @@ class ImportedLook(
     /** The body's base skin file (the body parts' and model sets' skin match); 0: none. */
     val skin: Int get() = look.layers.firstOrNull { it.textureType == 1 && it.region == -1 }?.fileId ?: look.textures[1] ?: 0
 
-    fun with(set: ModelParts.PartSet?) = ImportedLook(look, drawn, layout, character, set, display)
+    fun with(set: ModelParts.PartSet?) = ImportedLook(look, drawn, layout, character, set, display, creature)
 }
 
 /**
@@ -63,7 +65,12 @@ object ImportedLooks {
     /** [a] as the roster or the creator keeps it: a named character's choice ([named]) or the appearance itself. */
     fun of(c: Catalog, t: Tables, a: Appearance, named: NamedCast?, o: Overrides): ImportedLook {
         val choice = named?.choiceOf(a)
-        if (choice != null && choice.display > 0) return ofDisplay(c, t, choice.display, o, a.body)
+        if (choice != null && choice.display > 0) {
+            val shown = ofDisplay(c, t, choice.display, o, a.body)
+            // a creature (Sindragosa's dragon): at her own scale, the game's animations only
+            val spec = CreatureNpcs.of(a) ?: return shown
+            return ImportedLook(shown.look.copy(scale = spec.scale), null, 0, false, display = shown.display, creature = true)
+        }
         val variant = choice?.let { CharacterLooks.appearance(it.variant) }
         val drawn = if (variant == null) a else ownOptions(variant, a)
         // Gear off on a created NPC (or a starter) is nude: the skin colour's underwear goes too, as a bare variant's

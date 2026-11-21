@@ -148,9 +148,9 @@ object PairBedPlan {
                 val cx = (at[0].x + at[1].x) / 2.0; val cy = (at[0].y + at[1].y) / 2.0
                 val top = origin.z + (piece?.spec?.regions?.firstOrNull()?.height ?: 0.85f) + 0.35
                 val yaw = (piece?.yaw ?: 0f).toDouble()
-                for ((view, turn) in listOf("side" to yaw + Math.PI / 2, "3q" to yaw + Math.PI / 4)) {
-                    val ex = cx + Math.cos(turn) * 3.6; val ey = cy + Math.sin(turn) * 3.6
-                    plan.append(String.format(locale, "camera %.3f %.3f %.3f %.3f %.3f %.3f 42\n", ex, ey, top + 1.3, cx, cy, top - 0.1))
+                for ((view, turn) in listOf("side" to yaw - Math.PI / 2, "3q" to yaw + Math.PI / 4)) {
+                    val ex = cx + Math.cos(turn) * 2.9; val ey = cy + Math.sin(turn) * 2.9
+                    plan.append(String.format(locale, "camera %.3f %.3f %.3f %.3f %.3f %.3f 38\n", ex, ey, top + 1.0, cx, cy, top - 0.15))
                     val d = maxOf(c.pair.a.duration, c.pair.b.duration)
                     for (frac in listOf(0.25, 0.5)) plan.append("render ${File(out, "${slug}_${view}_${(frac * 100).toInt()}.png").absolutePath} 960 540 ${(d * frac * 1000).toInt()}\n")
                 }
@@ -179,10 +179,13 @@ object PairBedPlan {
             val s = sim(listOf(a, b))
             fun order(c: Case) = PerformanceOrder("p1", listOf(PlaybackRole("${c.pair.id}:0", Vec3(0f, 0f, 0f), 0f),
                 PlaybackRole("${c.pair.id}:1", Vec3(c.pair.slotB.x, c.pair.slotB.y, 0f), 0f)), 4f, name = c.pair.name, pairId = c.pair.id)
-            if (!s.enqueue("p0", listOf(order(a), order(b))) || !settle(s, b.pair.name)) { System.err.println("bed chain: ${a.name} > ${b.name}: never played"); continue }
+            val queued = s.enqueue("p0", listOf(order(a), order(b)))
+            if (queued && settle(s, a.pair.name)) System.err.println("bed chain: ${a.name} first: on ${s.partnerOf("p0")?.furniture}; ${s.takeQueueNotice() ?: ""}")
+            if (!queued || !settle(s, b.pair.name)) { System.err.println("bed chain: ${a.name} > ${b.name}: never played"); continue }
             val bed = s.furniture(SceneObject.BED)!!
             val za = FurnitureFit.fit(a.req, bed, unit)?.z; val zb = FurnitureFit.fit(b.req, bed, unit)?.z
             if (za == null || zb == null) continue
+            System.err.println("bed chain: ${b.name} next: on ${s.partnerOf("p0")?.furniture}; ${s.takeQueueNotice() ?: ""}")
             val slug = "chain_${b.slug}"
             emit("${slug}_now", b, s, 0f, " after=${a.slug}")
             emit("${slug}_before", b, s, za - zb, " after=${a.slug}")

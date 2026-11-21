@@ -96,12 +96,16 @@ class FurnitureAvailabilityTest {
         assertEquals(PlayState.ON_FURNITURE, near.state)
         assertTrue(near.relaxed)
         assertEquals("Plays on the couch, the nearest fit (its height differs from the animation's).", FurnitureAvailability.describe(near))
-        // the Embassy has only its study table: a bed's pair is never laid on it, it plays on the floor, lowered
+        // the Embassy has only its study table: what a bed pair is marked for is only a preference, so it is laid on it loosely
         val assets = File(System.getProperty("wifecraft.assets") ?: "../android/app/src/main/assets")
         val table = Furniture.of(LocationInfo.parseAll(File(assets, "locations.json").readText()).first { it.id == "embassy" }.furniture.single())!!
         val onFloor = FurnitureAvailability.of(bedPair, listOf(table), unit, drop = FurnitureAvailability.floorDrop(bodies(*lying)))
-        assertEquals(PlayState.FLOOR, onFloor.state); assertTrue(onFloor.floorRests)
-        assertEquals("Nothing here fits it as a bed: playing on the floor.", onFloor.notice)
+        assertEquals(PlayState.ON_FURNITURE, onFloor.state, "never refused for being marked for a bed")
+        assertTrue(onFloor.relaxed)
+        // with no furniture at all: the floor, lowered, with the notice
+        val bare = FurnitureAvailability.of(bedPair, emptyList(), unit, drop = FurnitureAvailability.floorDrop(bodies(*lying)))
+        assertEquals(PlayState.FLOOR, bare.state); assertTrue(bare.floorRests)
+        assertEquals("No bed here: playing on the floor.", bare.notice)
         // one with a partner standing beside it: lowered, it wouldn't rest on the floor; played where they stand, as made
         val edge = arrayOf(F.standing, moved(F.lyingBack(0.55), -0.7, 0.0))
         val a = FurnitureAvailability.of(req(*edge), emptyList(), unit, drop = FurnitureAvailability.floorDrop(bodies(*edge)))

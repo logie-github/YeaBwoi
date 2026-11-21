@@ -125,6 +125,7 @@ import com.logie.wifecraft.simulation.LiveScene
 import com.logie.wifecraft.simulation.ModelEmotes
 import com.logie.wifecraft.simulation.PartnerEmotes
 import com.logie.wifecraft.simulation.PartnerFrequency
+import com.logie.wifecraft.characters.CreatureNpcs
 import com.logie.wifecraft.simulation.PartnerPair
 import com.logie.wifecraft.simulation.PartnerSoundSink
 import com.logie.wifecraft.simulation.SceneSnapshot
@@ -420,12 +421,14 @@ fun LiveSceneScreen(
     val lines = remember(live) { mutableStateListOf<String?>().apply { repeat(live.count) { add(null) } } }
     // each one's head: a human's of their sex at human scale, a dwarf's or gnome's own (anim/HumanScale)
     val heads = remember(cast) {
-        FloatArray(cast.size) { HumanScale.head(cast[it].appearance.raceId, cast[it].appearance.sex == Sex.FEMALE) }
+        FloatArray(cast.size) { CreatureNpcs.of(cast[it].appearance)?.head ?: HumanScale.head(cast[it].appearance.raceId, cast[it].appearance.sex == Sex.FEMALE) }
     }
     // each one's size for the pairs' positioning: a gnome's own, everyone else 1 (HumanScale.pairScale, simulation/PairFit)
     val pairSizes = remember(cast) {
         cast.associate { it.id to HumanScale.pairScale(it.appearance.raceId, it.appearance.sex == Sex.FEMALE) }
     }
+    // the creature NPCs (Sindragosa's dragon): game animations only, put at their role's marker (characters/CreatureNpcs)
+    val creatureSpecs = remember(cast) { cast.mapNotNull { a -> CreatureNpcs.of(a.appearance)?.let { a.id to it } }.toMap() }
     // each one's body over a human's (a dwarf's or gnome's own): what furniture fits them (simulation/FurnitureFit)
     val bodyScales = remember(cast) {
         cast.associate { it.id to HumanScale.bodyScale(it.appearance.raceId, it.appearance.sex == Sex.FEMALE) }
@@ -494,6 +497,7 @@ fun LiveSceneScreen(
         live.command { sim ->
             sim.pairs = partnerPairs; sim.partnerChance = partner.chance; sim.emotes = emotes; sim.chatterChance = chatter.chance
             sim.sizes = pairSizes
+            sim.creatures = creatureSpecs
             sim.bodyScales = bodyScales
         }
     }
@@ -771,6 +775,7 @@ fun LiveSceneScreen(
     DisposableEffect(live, view) {
         val main = Handler(Looper.getMainLooper())
         val ids = Array(live.count) { live.id(it) }
+        val creatureOf = Array(live.count) { creatureSpecs[ids[it]] }
         val keys = Array(live.count) { actorKey(ids[it]) }
         // GL thread: the frame's time on the engine's clock; both of a pair start their clips from this one value
         var frameMs = 0
@@ -828,6 +833,15 @@ fun LiveSceneScreen(
 
             override fun playback(index: Int, clip: ClipPlayback?) {
                 val key = keys[index]
+                val creature = creatureOf[index]
+                if (creature != null) {
+                    // a creature never plays a Sims clip (nothing is retargeted onto her): her own game animation, looped
+                    view.glPlayAnimation(key, null)
+                    playingKeys[index] = clip?.clip
+                    emoting[index] = false
+                    view.glAnimate(key, creature.standAnimation)
+                    return
+                }
                 val emote = clip?.let { PlaybackKeys.emoteOf(it.clip) }
                 playingKeys[index] = clip?.clip?.takeIf { emote == null }
                 val wasEmote = emoting[index]
