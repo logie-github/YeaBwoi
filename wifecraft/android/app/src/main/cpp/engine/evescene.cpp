@@ -21,18 +21,12 @@ std::shared_ptr<EveMesh> EveSet::mesh(const std::string& variant) const {
 
 namespace {
 
-bool readPngFile(const std::string& path, std::vector<uint8_t>& rgba, int& w, int& h, std::string& error) {
-    Bytes b;
-    if (!readFile(path, b)) { error = "can't be read"; return false; }
-    return decodePng(b.data(), b.size(), rgba, w, h, error);
-}
-
 uint64_t mixKey(uint64_t k, uint64_t v) { return (k ^ v) * 1099511628211ull; }
 
 } // namespace
 
 bool Scene::loadEveSet(const std::string& dir, const std::string& fitJson, std::string& error) {
-    auto set = std::make_unique<EveSet>();
+    auto set = std::make_shared<EveSet>();
     set->dir = dir;
     Bytes b;
     if (!readFile(dir + "/set.json", b)) { error = "The Eve set (" + dir + "/set.json) can't be read."; return false; }
@@ -78,6 +72,7 @@ bool Scene::eveStatus(int id, EveStatus& out) const {
     out.neck = e.neckRgb; out.ankle = e.ankleRgb; out.reference = e.reference;
     out.shade = e.shade; out.shadeDist = e.shadeDist; out.composeMs = e.composeMs;
     out.eveTriangles = e.body.indices.size() / 3;
+    out.glMs = e.glMs; out.pending = e.pending != 0 || e.staged != nullptr; out.waitFrames = e.waitFrames;
     out.bodyTriangles = it->second.body.indices.size() / 3;
     return true;
 }
@@ -89,11 +84,17 @@ void Scene::dropEveGl(Actor& a) {
         if (e.vao) glDeleteVertexArrays(1, &e.vao);
         if (e.vbo) glDeleteBuffers(1, &e.vbo);
         if (e.ibo) glDeleteBuffers(1, &e.ibo);
+        if (e.stTex) glDeleteTextures(1, &e.stTex);   // (and a fit still uploading)
+        if (e.stVao) glDeleteVertexArrays(1, &e.stVao);
+        if (e.stVbo) glDeleteBuffers(1, &e.stVbo);
+        if (e.stIbo) glDeleteBuffers(1, &e.stIbo);
     }
     e.forgetGl();
 }
 
 // The key of what the body is fitted for: the set, the model, its shown geosets, its skin's layers, its shape and the options.
+// A change sends a new fit (eveStart) and keeps what is drawn until it is ready (eveTake); the first fit of a body, or one
+// whose shape is being made again, is sent from refreshBody (eveRefit), the body drawn whole until it comes.
 void Scene::eveCheck(Actor& a) {
     EveDraw& e = a.eve;
     uint64_t k = 0;
@@ -113,136 +114,286 @@ void Scene::eveCheck(Actor& a) {
         k = mixKey(k, uint64_t(uint32_t(e.opt.tone)) << 32 | uint32_t(e.opt.overlaySlot));
         k = mixKey(k, uint64_t(uint32_t(e.opt.overlayShade)) << 32 | op);
         for (float f : a.parts.tint) { uint32_t bits; std::memcpy(&bits, &f, 4); k = mixKey(k, bits); }
-        for (float f : a.sculpt) { uint32_t bits; std::memcpy(&bits, &f, 4); k = mixKey(k, bits); }   // the creator's sculpt (sculpt.h)
+        for (size_t i = 0; i < a.sculpt.size(); ++i) {   // the creator's sculpt (sculpt.h; Leg Length is the skeleton's, bodyrig.h)
+            if (i == size_t(kSculptLegLength) || i == size_t(kSculptHeight)) continue;
+            uint32_t bits; std::memcpy(&bits, &a.sculpt[i], 4); k = mixKey(k, bits);
+        }
         if (k == 0) k = 1;
     }
-    if (k == e.key) return;
-    e.key = k;
-    a.body.shapeDirty = true;
-    a.body.dirty = true;
-    a.soft.dirty = true;
-    a.cloth.dirty = true;
+    if (k != e.key) {
+        e.key = k;
+        e.sync = !eveAsync_ || a.ghost;   // (a picture's actor and the placing ghost: drawn at once)
+        if (!k) eveOff(a);
+        else if (!e.baseReady || a.body.shapeDirty) { a.body.shapeDirty = true; a.body.dirty = true; }   // (refreshBody: eveRefit)
+        else eveStart(a, false);
+    }
+    if (e.pending) eveTake(a);
+    if (e.staged) eveStage(a);
 }
 
-void Scene::eveRefit(Actor& a) {
+// A staged fit's GL objects deleted (a newer look, Eve off, the body made again).
+void Scene::eveDropStage(Actor& a) {
     EveDraw& e = a.eve;
+    if (glReady_) {
+        if (e.stTex) glDeleteTextures(1, &e.stTex);
+        if (e.stVao) glDeleteVertexArrays(1, &e.stVao);
+        if (e.stVbo) glDeleteBuffers(1, &e.stVbo);
+        if (e.stIbo) glDeleteBuffers(1, &e.stIbo);
+    }
+    e.stTex = e.stVao = e.stVbo = e.stIbo = 0;
+    e.stStep = 0;
+    e.staged.reset();
+}
+
+// A finished fit uploaded a little each frame (its mesh, then its texture's rows, level by level, about 640 KB a frame), then
+// swapped in whole: no frame of the GL thread carries the fit, nor more than a slice of its upload.
+void Scene::eveStage(Actor& a) {
+    EveDraw& e = a.eve;
+    if (!glReady_ || !e.staged) return;
+    ++e.waitFrames;
+    auto t0 = std::chrono::steady_clock::now();
+    EveResult& r = *e.staged;
+    constexpr size_t kBudget = 640 * 1024;
+    size_t used = 0;
+    // the levels: the texture, then its mips
+    std::vector<std::pair<const std::vector<uint8_t>*, std::pair<int, int>>> levels;
+    levels.push_back({&r.rgba, {r.w, r.h}});
+    {
+        int lw = r.w, lh = r.h;
+        for (const auto& m : r.mips) { lw = std::max(1, lw / 2); lh = std::max(1, lh / 2); levels.push_back({&m, {lw, lh}}); }
+    }
+    if (e.stStep == 0) {
+        glGenVertexArrays(1, &e.stVao);
+        glBindVertexArray(e.stVao);
+        glGenBuffers(1, &e.stVbo);
+        glBindBuffer(GL_ARRAY_BUFFER, e.stVbo);
+        glBufferData(GL_ARRAY_BUFFER, GLsizeiptr(r.body.verts.size() * sizeof(M2Vertex)), r.body.verts.data(), GL_STATIC_DRAW);
+        glGenBuffers(1, &e.stIbo);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, e.stIbo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, GLsizeiptr(r.body.indices.size() * 4), r.body.indices.data(), GL_STATIC_DRAW);
+        gl::m2VertexLayout();
+        glBindVertexArray(0);
+        used += r.body.verts.size() * sizeof(M2Vertex) + r.body.indices.size() * 4;
+        glGenTextures(1, &e.stTex);
+        glBindTexture(GL_TEXTURE_2D, e.stTex);
+        glTexStorage2D(GL_TEXTURE_2D, GLsizei(levels.size()), GL_RGBA8, r.w, r.h);   // (every level at once, its pixels sent below)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, levels.size() > 1 ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        e.stStep = 1;
+    }
+    // the rows: numbered through the levels in order (stStep - 1 of them sent)
+    glBindTexture(GL_TEXTURE_2D, e.stTex);
+    int cursor = e.stStep - 1, base = 0;
+    bool done = true;
+    for (size_t l = 0; l < levels.size(); ++l) {
+        const int lw = levels[l].second.first, lh = levels[l].second.second;
+        if (cursor >= base + lh) { base += lh; continue; }
+        const size_t rowBytes = size_t(lw) * 4;
+        int y = cursor - base;
+        int rows = int(std::max<size_t>(1, (kBudget > used ? kBudget - used : 0) / rowBytes));
+        if (used >= kBudget) { done = false; break; }
+        rows = std::min(rows, lh - y);
+        glTexSubImage2D(GL_TEXTURE_2D, GLint(l), 0, y, lw, rows, GL_RGBA, GL_UNSIGNED_BYTE, levels[l].first->data() + size_t(y) * rowBytes);
+        used += size_t(rows) * rowBytes;
+        cursor += rows;
+        base += lh;
+        if (y + rows < lh) { done = false; break; }
+    }
+    e.stStep = cursor + 1;
+    double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    e.stageMs = std::max(e.stageMs, ms);
+    if (!done) return;
+    std::shared_ptr<EveResult> keep = e.staged;
+    eveSwap(a, *keep, false, true);
+}
+
+// Eve taken off: the body's own triangles back, the worker's job for it dropped.
+void Scene::eveOff(Actor& a) {
+    EveDraw& e = a.eve;
+    if (e.pending && eveWorker_) eveWorker_->cancel(e.serial);
+    e.pending = 0;
+    eveDropStage(a);
+    if (e.active && e.baseReady) {
+        a.body.indices = e.baseIndices;
+        a.body.submeshes = e.baseSubs;
+        a.body.dirty = true;
+        a.soft.dirty = true;
+        a.cloth.dirty = true;
+    }
     dropEveGl(a);
     e.active = false;
     e.body = EveBody();
     e.measure = EveMeasureMesh();
     e.rgba.clear();
     e.shade = -1;
+    e.status = e.requested ? (eveSet_ ? "" : "no Eve set is loaded") : "off";
+}
+
+// In refreshBody, the body just built (its shape, the stand-in's cut) and not yet cut for Eve: kept as the base each fit cuts,
+// and a fit sent. Until it comes the body is drawn whole.
+void Scene::eveRefit(Actor& a) {
+    EveDraw& e = a.eve;
+    if (e.pending && eveWorker_) eveWorker_->cancel(e.serial);
+    e.pending = 0;
+    eveDropStage(a);
+    dropEveGl(a);
+    e.active = false;
+    e.body = EveBody();
+    e.measure = EveMeasureMesh();
+    e.rgba.clear();
+    e.shade = -1;
+    e.baseReady = false;
+    e.baseIndices.clear();
+    e.baseSubs.clear();
     if (!e.requested) { e.status = "off"; return; }
     if (!eveSet_) { e.status = "no Eve set is loaded"; return; }
-    const M2Model& m = *a.mesh->model;
-    const EveRaceFit* fit = eveSet_->fits.forModel(m.fileId);
-    if (!fit) { e.status = "this model has no row in the fit table"; return; }
-    if (!fit->enabled) { e.status = "not offered for " + fit->name + ": " + fit->reason; return; }
-    std::shared_ptr<EveMesh> mesh = eveSet_->mesh(e.opt.bottom);
-    if (!mesh) { e.status = "the Eve set has no mesh"; return; }
+    if (!eveOffered(a)) return;
     BodyGl& b = a.body;
-    const bool own = !b.shaped.empty() && !b.indices.empty() && !b.submeshes.empty();
-    EveBody body = fitEve(m, own ? b.shaped : m.vertices, own ? b.indices : m.indices, own ? b.submeshes : m.submeshes, a.geosets, *mesh, *fit);
-    if (!body.ok) { e.status = body.error; return; }
-    // the creator's sculpt sliders (sculpt.h) on the fitted body, before it is measured, cut and drawn
-    if (sculptActive(a.sculpt.data(), a.sculpt.size()))
-        applySculpt(sculptRigOf(m), body.verts, body.indices, a.sculpt.data(), a.sculpt.size());
+    const M2Model& m = *a.mesh->model;
+    e.baseOwn = b.shaped.empty();
+    if (e.baseOwn) { b.shaped = m.vertices; b.indices = m.indices; b.submeshes = m.submeshes; }
+    e.baseIndices = b.indices;
+    e.baseSubs = b.submeshes;
+    e.baseReady = true;
+    ++e.baseGen;
+    e.sync = !eveAsync_ || a.ghost;
+    eveStart(a, true);
+}
+
+// Whether the fit table offers Eve on this model (else `status` says why).
+bool Scene::eveOffered(Actor& a) {
+    EveDraw& e = a.eve;
+    const EveRaceFit* fit = eveSet_->fits.forModel(a.mesh->model->fileId);
+    if (!fit) { e.status = "this model has no row in the fit table"; return false; }
+    if (!fit->enabled) { e.status = "not offered for " + fit->name + ": " + fit->reason; return false; }
+    if (!eveSet_->mesh(e.opt.bottom)) { e.status = "the Eve set has no mesh"; return false; }
+    return true;
+}
+
+// A fit sent: the actor's body and look taken as they are now (EveJob), computed on the worker (or at once when `sync`).
+void Scene::eveStart(Actor& a, bool inRefresh) {
+    EveDraw& e = a.eve;
     auto t0 = std::chrono::steady_clock::now();
-    // the actor's own skin where Eve meets it: its base skin layer (the whole material, lowest) sampled at the cut edges
-    const EveSetIndex& ix = eveSet_->index;
-    uint32_t neck = ix.skin.neck, ankle = ix.skin.ankle;
+    if (!eveOffered(a)) {
+        if (e.active) eveOff(a);
+        return;
+    }
+    static uint64_t serials = 0;
+    if (!e.serial) e.serial = ++serials;
+    const M2Model& m = *a.mesh->model;
+    const BodyGl& b = a.body;
+    auto job = std::make_unique<EveJob>();
+    job->serial = e.serial;
+    job->key = e.key;
+    job->base = e.baseGen;
+    job->model = &m;
+    job->set = eveSet_;
+    job->mesh = eveSet_->mesh(e.opt.bottom);
+    job->fit = *eveSet_->fits.forModel(m.fileId);
+    job->opt = e.opt;
+    if (!e.baseOwn) job->verts = b.shaped;   // (else the model's own, which never change)
+    job->indices = e.baseIndices;
+    job->subs = e.baseSubs;
+    job->geosets = a.geosets;
+    job->sculpt = a.sculpt;
+    if (sculptActive(a.sculpt.data(), a.sculpt.size())) job->rig = sculptRigOf(m);
+    // the actor's base skin layer (the whole material, lowest): its file found here, read by the worker
     {
         const SkinLayer* base = nullptr;
         for (const SkinLayer& l : a.layers)
             if (l.textureType == 1 && l.fileId && l.layer != kBodyLayer && !isClothLayer(l) && (!base || l.layer < base->layer)) base = &l;
         uint32_t fid = base ? base->fileId : 0;
         if (!fid) { auto t = a.textures.find(1); if (t != a.textures.end()) fid = t->second; }
-        Bytes blp;
-        Image img;
-        std::string path = fid ? files_(fid) : "";
-        if (!path.empty() && readFile(path, blp) && decodeBlp(blp, 512, img)) {
-            int n = eveSampleAt(img.rgba.data(), img.width, img.height, body.neckUvs);
-            int k = eveSampleAt(img.rgba.data(), img.width, img.height, body.ankleUvs);
-            auto tinted = [&](int c) {
-                float r = float((c >> 16) & 255) * a.parts.tint[0], g = float((c >> 8) & 255) * a.parts.tint[1], bl = float(c & 255) * a.parts.tint[2];
-                return uint32_t(std::clamp(r, 0.0f, 255.0f)) << 16 | uint32_t(std::clamp(g, 0.0f, 255.0f)) << 8 | uint32_t(std::clamp(bl, 0.0f, 255.0f));
-            };
-            if (n >= 0) neck = tinted(n);
-            if (k >= 0) ankle = tinted(k); else if (n >= 0) ankle = neck;
-        }
+        job->skinPath = fid ? files_(fid) : "";
     }
-    // the skin texture: the neutral skin tinted to that colour, or a chosen tone as it is (corrected once per file)
-    const EveTexInfo* skin = ix.hasSkin ? &ix.skin : nullptr;
-    bool tone = e.opt.tone >= 0 && size_t(e.opt.tone) < ix.tones.size();
-    if (tone) skin = &ix.tones[size_t(e.opt.tone)];
-    if (!skin) { e.status = "the Eve set has no skin"; return; }
-    std::string texKey = skin->file + "|" + mesh->variant;
-    std::shared_ptr<EveSet::Tex> tex;
-    for (auto& t : eveSet_->textures) if (t.first == texKey) tex = t.second;
-    if (!tex) {
-        tex = std::make_shared<EveSet::Tex>();
-        std::string why;
-        if (!readPngFile(eveSet_->dir + "/" + skin->file, tex->rgba, tex->w, tex->h, why)) { e.status = "the skin " + skin->file + " " + why; return; }
-        tex->prep = evePrepare(*mesh, tex->rgba, tex->w, tex->h);
-        eveApplyCorrection(tex->prep, tex->rgba);
-        eveSet_->textures.push_back({texKey, tex});
-        if (eveSet_->textures.size() > 3) eveSet_->textures.erase(eveSet_->textures.begin());   // (5 MB each)
-        std::fprintf(stderr, "eve skin %s: front/back brightness %.3f/%.3f before the correction, %.3f/%.3f after\n", skin->file.c_str(),
-                     tex->prep.frontBefore, tex->prep.backBefore, tex->prep.frontAfter, tex->prep.backAfter);
+    for (int i = 0; i < 3; ++i) job->tint[i] = a.parts.tint[i];
+    job->mips = !e.sync;
+    eveDropStage(a);   // (a fit of an older look still uploading)
+    e.glMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    if (e.sync) {
+        EveResult r = eveCompute(*job);
+        eveSwap(a, r, inRefresh);
+        return;
     }
-    // the reference: the corrected skin's own colour near its neck ring (else set.json's)
-    e.reference = tex->prep.neck ? tex->prep.neck : (skin->neck ? skin->neck : skin->mean);
-    V3 gain = tone ? V3(1, 1, 1) : eveGain(neck, e.reference);
-    // the overlay: its shade nearest the skin (Lab), its brightness scaled to the skin's
-    std::shared_ptr<EveSet::Tex> ov;
-    const EveShadeInfo* shade = nullptr;
-    if (e.opt.overlaySlot >= 0 && size_t(e.opt.overlaySlot) < ix.overlays.size()) {
-        const EveSlotInfo& slot = ix.overlays[size_t(e.opt.overlaySlot)];
-        uint32_t skinRgb = tone ? skin->mean : neck;
-        int s = e.opt.overlayShade >= 0 && size_t(e.opt.overlayShade) < slot.shades.size() ? e.opt.overlayShade
-                                                                                            : eveNearestShade(skinRgb, slot.shades, &e.shadeDist);
-        if (s >= 0) {
-            shade = &slot.shades[size_t(s)];
-            e.shade = s;
-            for (auto& t : eveSet_->overlays) if (t.first == shade->file) ov = t.second;
-            if (!ov) {
-                ov = std::make_shared<EveSet::Tex>();
-                std::string why;
-                if (readPngFile(eveSet_->dir + "/" + shade->file, ov->rgba, ov->w, ov->h, why)) {
-                    eveSet_->overlays.push_back({shade->file, ov});
-                    if (eveSet_->overlays.size() > 8) eveSet_->overlays.erase(eveSet_->overlays.begin());
-                } else { ov.reset(); std::fprintf(stderr, "eve overlay %s %s\n", shade->file.c_str(), why.c_str()); }
-            }
-        }
+    if (!eveWorker_) eveWorker_ = std::make_unique<EveWorker>();
+    e.pending = e.key;
+    e.waitFrames = 0;
+    if (!e.active) e.status = "fitting";
+    eveWorker_->submit(std::move(job));
+}
+
+// A finished fit, if there is one for this actor's look now (an older look's is dropped).
+void Scene::eveTake(Actor& a) {
+    EveDraw& e = a.eve;
+    ++e.waitFrames;
+    if (!eveWorker_) { e.pending = 0; return; }
+    std::unique_ptr<EveResult> r = eveWorker_->take(e.serial);
+    if (!r || r->key != e.key || r->base != e.baseGen) return;
+    e.pending = 0;
+    if (!r->ok || e.sync) { eveSwap(a, *r, false); return; }
+    e.staged = std::shared_ptr<EveResult>(std::move(r));   // uploaded over the next frames (eveStage), then swapped in
+    e.stStep = 0;
+    e.stageMs = 0;
+}
+
+// The fit put in place in one frame: Eve's mesh and skin, the body's triangles with her cut (uploaded by refreshBody and drawEve).
+void Scene::eveSwap(Actor& a, EveResult& r, bool inRefresh, bool staged) {
+    auto t0 = std::chrono::steady_clock::now();
+    EveDraw& e = a.eve;
+    BodyGl& b = a.body;
+    const unsigned st[4] = {e.stTex, e.stVao, e.stVbo, e.stIbo};
+    if (staged) { e.stTex = e.stVao = e.stVbo = e.stIbo = 0; e.stStep = 0; }   // (kept from dropEveGl: they become hers)
+    dropEveGl(a);
+    if (staged) { e.tex = st[0]; e.vao = st[1]; e.vbo = st[2]; e.ibo = st[3]; }   // (uploaded already: eveStage)
+    if (!r.ok) {
+        e.status = r.status;
+        if (e.active) { b.indices = e.baseIndices; b.submeshes = e.baseSubs; if (!inRefresh) b.dirty = true; }
+        e.active = false;
+        e.body = EveBody();
+        e.measure = EveMeasureMesh();
+        e.rgba.clear();
+        a.soft.dirty = true;
+        a.cloth.dirty = true;
+        return;
     }
-    // its colour: brightness only when a shade was made for a skin like this one (Lab distance under 12), so its own pinks and
-    // browns stay; for a skin no shade was made for (green, blue, grey), the full per-channel tint, fading in up to 30
-    V3 ovGain(1, 1, 1);
-    if (shade) {
-        uint32_t want = tone ? skin->mean : neck;
-        V3 t = eveLinear(want), s = eveLinear(shade->swatch);
-        float yt = 0.2126f * t.x + 0.7152f * t.y + 0.0722f * t.z, ys = 0.2126f * s.x + 0.7152f * s.y + 0.0722f * s.z;
-        float bright = std::clamp(yt / std::max(ys, 1e-4f), 0.5f, 2.0f);
-        V3 full = eveGain(want, shade->swatch);
-        float d = (eveLab(want) - eveLab(shade->swatch)).length();
-        float f = std::clamp((d - 12.0f) / 18.0f, 0.0f, 1.0f);
-        ovGain = V3(bright, bright, bright) * (1 - f) + full * f;
-    }
-    eveCompose(tex->rgba, tex->w, tex->h, gain, ov ? ov->rgba.data() : nullptr, ov ? ov->w : 0, ov ? ov->h : 0, shade ? shade->rect[0] : 0,
-               shade ? shade->rect[1] : 0, std::clamp(e.opt.opacity, 0.0f, 1.0f), ovGain, tex->prep, neck, ankle, e.rgba);
-    e.w = tex->w; e.h = tex->h;
-    e.neckRgb = neck; e.ankleRgb = ankle;
-    e.composeMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-    // the body under it cut (any corner on a body bone drops the triangle)
-    if (b.shaped.empty()) { b.shaped = m.vertices; b.indices = m.indices; b.submeshes = m.submeshes; }
-    b.indices = cutTriangles(b.indices, b.submeshes, body.cut, 1);
-    e.measure = eveMeasureMesh(m, b.shaped, b.indices, b.submeshes, a.geosets, body);
-    e.body = std::move(body);
+    e.body = std::move(r.body);
+    e.measure = std::move(r.measure);
+    e.rgba = std::move(r.rgba);
+    e.w = r.w; e.h = r.h;
+    e.neckRgb = r.neckRgb; e.ankleRgb = r.ankleRgb; e.reference = r.reference;
+    e.shade = r.shade; e.shadeDist = r.shadeDist; e.composeMs = r.composeMs;
+    b.indices = std::move(r.cutIndices);
+    b.submeshes = std::move(r.cutSubs);
     e.active = true;
     e.status.clear();
-    std::fprintf(stderr, "eve: fitted in %.1f ms (skin %.1f ms): %zu triangles over %zu of the body's; neck %06X ankle %06X, shade %d\n",
-                 e.body.stats.ms, e.composeMs, e.body.indices.size() / 3, b.indices.size() / 3, neck, ankle, e.shade);
+    if (!inRefresh) {
+        // the body's vertices are as they were: only its triangles change (no layer over it: refreshBody's whole work else)
+        if (glReady_ && b.vao && b.ibo && !b.shaped.empty() && (!b.design || b.k <= 0)) {
+            glBindVertexArray(b.vao);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, b.ibo);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, GLsizeiptr(b.indices.size() * 4), b.indices.data(), GL_STATIC_DRAW);
+            glBindVertexArray(0);
+        } else {
+            b.dirty = true;   // (refreshBody uploads the cut body this same frame)
+        }
+    }
+    a.soft.dirty = true;
+    a.cloth.dirty = true;
+    e.glMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    e.staged.reset();
+    std::fprintf(stderr, "eve: fitted in %.1f ms (skin %.1f ms, all %.1f ms %s): %zu triangles over %zu of the body's; neck %06X ankle %06X, shade %d; "
+                 "GL thread %.2f ms (snapshot and swap; the upload's slices at most %.2f ms a frame), swapped in after %u frames\n",
+                 e.body.stats.ms, e.composeMs, r.totalMs, e.sync ? "at once" : "on the worker", e.body.indices.size() / 3, b.indices.size() / 3,
+                 e.neckRgb, e.ankleRgb, e.shade, e.glMs, staged ? e.stageMs : 0.0, e.sync ? 0u : e.waitFrames);
+    const BodyScale& k = e.body.scale;
+    std::fprintf(stderr, "eve proportions: head %.3f, height %.3f (%.2f heads) -> %.3f (%.2f heads); legs %.3f torso %.3f arms %.3f hands %.3f spread %.3f\n",
+                 e.body.stats.head, e.body.stats.height, e.body.stats.height / std::max(e.body.stats.head, 1e-3f), e.body.stats.heightAfter,
+                 e.body.stats.heightAfter / std::max(e.body.stats.head, 1e-3f), k.legs, k.torso, k.arms, k.hands, k.spread);
 }
+
+void Scene::setEveAsync(bool on) { eveAsync_ = on; }
 
 void Scene::drawEve(Actor& a, const M4& world, const float tint[4]) {
     EveDraw& e = a.eve;

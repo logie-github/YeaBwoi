@@ -96,6 +96,7 @@ import com.logie.wifecraft.location.FurniturePiece
 import com.logie.wifecraft.location.LocationInfo
 import com.logie.wifecraft.simulation.CameraClearance
 import com.logie.wifecraft.simulation.CinematicDirector
+import com.logie.wifecraft.simulation.ShotLibrary
 import com.logie.wifecraft.simulation.CinematicLook
 import com.logie.wifecraft.simulation.CinematicSettings
 import com.logie.wifecraft.simulation.Furniture
@@ -484,6 +485,12 @@ fun LiveSceneScreen(
     // cinematic mode (the Cinematic button): the director's camera, the mood's light, the HUD hidden (a tap shows it a while)
     val cineLook = remember(live) { CinematicLook() }
     val cineDirector = remember(live) { CinematicDirector(cinematicSettings) }
+    // the shot library (assets/shot_library.json): the director's shots for what the cast plays; without it, its own mix
+    LaunchedEffect(cineDirector) {
+        cineDirector.library = withContext(Dispatchers.IO) {
+            runCatching { ShotLibrary.parse(context.assets.open("shot_library.json").bufferedReader().use { it.readText() }) }.getOrNull()
+        }
+    }
     var cinematic by remember(live) { mutableStateOf(false) }
     var cinePeek by remember(live) { mutableStateOf(false) }
     val cineNotify by rememberUpdatedState(onCinematic)

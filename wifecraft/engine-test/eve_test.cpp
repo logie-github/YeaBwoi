@@ -4,6 +4,7 @@
 // the measure mesh and the breast regions. build/eve_test [SET_DIR FILES_DIR MODEL_ID ...]: with a converted set and the
 // game's files, also fits each model given and prints its numbers. Exit 0 when all pass.
 #include <chrono>
+#include <thread>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -286,6 +287,12 @@ int main(int argc, char** argv) {
         CHECK(h && h->enabled && std::fabs(h->girth - 1.2f) < 1e-6f && std::fabs(h->hips - 0.9f) < 1e-6f, "human row");
         const EveRaceFit* g = t.forModel(940356);
         CHECK(g && !g->enabled && g->reason == "no" && !t.forModel(1), "gnome row");
+        // "defaults": every row starts from them, its own fit over them
+        EveFitTable d;
+        CHECK(parseEveFitTable(R"({"defaults":{"fit":{"heads":7.3,"hipRatio":0.52,"girth":1.3}},"races":[{"race":1,"models":[1],"enabled":true,
+            "fit":{"girth":1.2}},{"race":2,"models":[2],"enabled":true}]})", d, err), "defaults: %s", err.c_str());
+        CHECK(d.forModel(1) && std::fabs(d.forModel(1)->heads - 7.3f) < 1e-6f && std::fabs(d.forModel(1)->girth - 1.2f) < 1e-6f &&
+              std::fabs(d.forModel(2)->girth - 1.3f) < 1e-6f && std::fabs(d.forModel(2)->hipRatio - 0.52f) < 1e-6f, "defaults under each row");
     }
     // ---- a real set on real models (optional): SET_DIR FILES_DIR MODEL...
     if (argc >= 4) {
@@ -307,6 +314,82 @@ int main(int argc, char** argv) {
             double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
             std::printf("model %s: %s %.1f ms, neck edges %zu, ankles %zu/%zu, ring moves %.4f/%.4f/%.4f\n", argv[i], b.ok ? "fitted" : b.error.c_str(), ms,
                         b.stats.neckEdges, b.stats.ankleEdges[0], b.stats.ankleEdges[1], b.stats.ringMoveMean[0], b.stats.ringMoveMean[1], b.stats.ringMoveMean[2]);
+            // her proportions: 7.3 of the model's head heights, the factors within their bounds
+            EveRaceFit pf;
+            pf.heads = 7.3f;
+            EveBody pb = fitEve(m, m.vertices, m.indices, m.submeshes, {}, e, pf);
+            if (pb.ok) {
+                const BodyScale& k = pb.scale;
+                std::printf("  proportions: head %.3f height %.3f (%.2f heads) -> %.3f; legs %.3f torso %.3f arms %.3f hands %.3f\n", pb.stats.head,
+                            pb.stats.height, pb.stats.height / std::max(pb.stats.head, 1e-3f), pb.stats.heightAfter, k.legs, k.torso, k.arms, k.hands);
+                // (every geoset shown here: a model whose extra skin geosets hide its head measure is left as it is)
+                CHECK(k.identity() || std::fabs(pb.stats.heightAfter / pb.stats.head - 7.3f) < 0.05f, "model %s: 7.3 heads", argv[i]);
+                CHECK(k.legs >= 0.6f && k.legs <= 1.3f && k.torso >= 0.7f && k.torso <= 1.3f && k.arms >= 0.6f && k.hands >= 0.6f, "model %s: factors bounded", argv[i]);
+                CHECK(b.scale.identity(), "model %s: no heads target, no edit", argv[i]);
+            }
+            // the split fit (a draenei's): Eve to mid-thigh, the model's own legs below, the seam rings at the cut
+            {
+                EveMesh sm = eveSplitMesh(e, 0.5f);
+                const std::vector<uint32_t>* rl = sm.ring("L_ankle");
+                const std::vector<uint32_t>* rr = sm.ring("R_ankle");
+                V3 hip, knee; e.joint("hip", hip); e.joint("knee", knee);
+                const float zc = hip.z - (hip.z - knee.z) * 0.5f;
+                bool above = rl && rr && !rl->empty() && !rr->empty();
+                if (above) for (const auto* r : {rl, rr}) for (uint32_t v : *r) above &= sm.pos[v * 3 + 2] >= zc - 1e-4f;
+                float lowest = 1e9f;
+                for (uint32_t i : sm.idx) lowest = std::min(lowest, sm.pos[i * 3 + 2]);
+                CHECK(above && lowest >= zc - 1e-4f && sm.idx.size() < e.idx.size() && sm.ankleFeather > kEveFeather,
+                      "split mesh: rings at the cut (%zu/%zu), nothing drawn below (lowest %.3f, cut %.3f)", rl ? rl->size() : 0, rr ? rr->size() : 0, lowest, zc);
+                EveRaceFit sf;
+                sf.split = 0.5f;
+                EveBody sb = fitEve(m, m.vertices, m.indices, m.submeshes, {}, sm, sf);
+                int calves[2] = {m.findWowBone("L_Calf"), m.findWowBone("R_Calf")};
+                size_t calfCut = 0;
+                for (size_t v = 0; v < m.vertices.size() && sb.ok; ++v) {
+                    const M2Vertex& x = m.vertices[v];
+                    int best = 0;
+                    for (int k = 1; k < 4; ++k) if (x.weights[k] > x.weights[best]) best = k;
+                    if (sb.cut[v] && (x.bones[best] == calves[0] || x.bones[best] == calves[1])) ++calfCut;
+                }
+                std::printf("  split fit: %s, thigh rings %zu/%zu edges, snapped %zu/%zu, move %.4f/%.4f, calf vertices cut %zu\n", sb.ok ? "ok" : sb.error.c_str(),
+                            sb.stats.ankleEdges[0], sb.stats.ankleEdges[1], sb.stats.ringSnapped[1], sb.stats.ringSnapped[2], sb.stats.ringMoveMean[1],
+                            sb.stats.ringMoveMean[2], calfCut);
+                CHECK(sb.ok && calfCut == 0 && sb.stats.ankleEdges[0] > 3 && sb.stats.ankleEdges[1] > 3, "model %s: split fit keeps the calves, finds both thigh rings", argv[i]);
+            }
+            // the fit off the GL thread: the worker's result is byte for byte the one computed at once
+            if (!ix.hasSkin) continue;
+            auto set = std::make_shared<EveSet>();
+            set->dir = dir; set->index = ix;
+            auto mesh = std::make_shared<EveMesh>(e);
+            auto job = [&](uint64_t serial, uint64_t key) {
+                auto j = std::make_unique<EveJob>();
+                j->serial = serial; j->key = key; j->base = 1; j->model = &m; j->set = set; j->mesh = mesh; j->fit = pf;
+                j->opt.overlaySlot = ix.overlays.empty() ? -1 : 0;
+                j->indices = m.indices; j->subs = m.submeshes;
+                j->sculpt = {0, 0.3f, -0.2f, 0.4f, 0, 0, 0.2f, 0.3f, 0, 0, 0};
+                j->rig = sculptRig({}, {}, SculptBones());
+                return j;
+            };
+            EveResult now = eveCompute(*job(1, 8));
+            EveWorker w;
+            w.submit(job(5, 7));   // (the same actor's older look: replaced while queued, or run and its result replaced)
+            w.submit(job(5, 8));
+            auto t1 = std::chrono::steady_clock::now();
+            while (!w.idle() && std::chrono::steady_clock::now() - t1 < std::chrono::seconds(20)) std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            std::unique_ptr<EveResult> later = w.take(5);
+            CHECK(later && later->key == 8, "model %s: the newest look's fit is the one kept", argv[i]);
+            CHECK(later && later->ok && now.ok, "model %s: the worker's fit came", argv[i]);
+            if (later && now.ok) {
+                bool same = later->body.verts.size() == now.body.verts.size() &&
+                            !std::memcmp(later->body.verts.data(), now.body.verts.data(), now.body.verts.size() * sizeof(M2Vertex)) &&
+                            later->rgba == now.rgba && later->cutIndices == now.cutIndices && later->body.indices == now.body.indices &&
+                            later->measure.indices == now.measure.indices && later->neckRgb == now.neckRgb && later->shade == now.shade &&
+                            later->body.scale == now.body.scale;
+                CHECK(same, "model %s: the worker's result is the same bytes as the one at once", argv[i]);
+                std::printf("  worker and at once: %s (%zu vertices, %zu texture bytes, %zu cut indices)\n", same ? "identical" : "DIFFERENT",
+                            now.body.verts.size(), now.rgba.size(), now.cutIndices.size());
+            }
+            CHECK(!w.take(5) && w.idle(), "model %s: nothing left behind", argv[i]);
         }
     }
     std::printf(failures ? "%d FAILED\n" : "eve_test: all passed\n", failures);

@@ -3,6 +3,10 @@
 //
 //   files DIR                                  the downloaded files, each named by its id
 //   time HOURS                                 the hour (0..24) on the location's light (daylight.h; negative: off)
+//   gfx [off] [NAME=VALUE...]                  Options' Graphics (Scene::setGraphics; names: scale msaa aniso texture
+//                                              tonemap exposure bloom dof aperture dofeditor ao aoquality contact shadows
+//                                              shadowquality skin hair shafts haze vignette grain chroma sharpen timers)
+//   gfxtiming on|off | gfxstats                each pass timed with glFinish round it, and the last frame's timings printed
 //   cinematic MOOD VIGNETTE GRAIN LETTERBOX    cinematic mode's look (Scene::setCinematic), each 0..1; LETTERBOX 1: the
 //                                              2.39:1 bars of the next render's size (grade.h letterboxBars)
 //   city ROOT GROUP,GROUP,...  X Y Z RADIUS [X Y Z ...]   Dalaran's groups and the props near the points
@@ -104,6 +108,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <thread>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -549,6 +554,7 @@ int main(int argc, char** argv) {
     };
     Scene scene(lookup);
     scene.initGl();
+    scene.setEveAsync(false);   // (each render shows the fit asked for; `eveasync 1` puts it on the worker as the app does)
     std::map<int, int> actors, props;
     Light light;
 
@@ -788,6 +794,33 @@ int main(int argc, char** argv) {
             float hours; ss >> hours; scene.setTimeOfDay(hours);   // the world clock's hour on the location (negative: off)
         } else if (cmd == "cinematic") {
             ss >> cine[0] >> cine[1] >> cine[2] >> cine[3];
+        } else if (cmd == "gfx") {   // gfx [off] [NAME=VALUE...]: Options' Graphics (graphics_settings.h's names, lower case)
+            static const char* kNames[GraphicsSettings::kCount] = {"scale", "msaa", "aniso", "texture", "tonemap", "exposure",
+                "bloom", "dof", "aperture", "dofeditor", "ao", "aoquality", "contact", "shadows", "shadowquality", "skin", "hair",
+                "shafts", "haze", "vignette", "grain", "chroma", "sharpen", "timers"};
+            static float gfxv[GraphicsSettings::kCount];
+            static bool gfxInit = false;
+            auto reset = [] { GraphicsSettings d; for (float& v : gfxv) v = 0; gfxv[GraphicsSettings::kRenderScale] = 1;
+                gfxv[GraphicsSettings::kAnisotropy] = 1; gfxv[GraphicsSettings::kTextureDetail] = 1;
+                gfxv[GraphicsSettings::kAperture] = d.aperture; gfxv[GraphicsSettings::kAoQuality] = 1; gfxv[GraphicsSettings::kShadowQuality] = 1; };
+            if (!gfxInit) { reset(); gfxInit = true; }
+            std::string kv;
+            while (ss >> kv) {
+                if (kv == "off") { reset(); continue; }
+                size_t eq = kv.find('=');
+                std::string k = kv.substr(0, eq);
+                for (int i = 0; i < GraphicsSettings::kCount; ++i)
+                    if (eq != std::string::npos && k == kNames[i]) gfxv[i] = std::stof(kv.substr(eq + 1));
+            }
+            scene.setGraphics(gfxv, GraphicsSettings::kCount);
+        } else if (cmd == "gfxtiming") {   // gfxtiming on|off: each pass timed with glFinish (software GL: not the phone's cost)
+            std::string on; ss >> on;
+            scene.setGraphicsSyncTiming(on == "on");
+        } else if (cmd == "gfxstats") {    // prints the last frame's pass timings (ms)
+            float v[PostStats::kStages + 4];
+            scene.graphicsStats(v, PostStats::kStages + 4);
+            std::printf("gfxstats cpu %.2f shadow %.2f scene %.2f ao %.2f lighting %.2f bloom %.2f dof %.2f shafts %.2f final %.2f timers %d size %dx%d\n",
+                v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], int(v[9]), int(v[10]), int(v[11]));
         } else if (cmd == "motionparams") {   // motionparams BREATHING IDLE LOOKAT(0|1): Options' shares (motionlayer.h)
             MotionParams p; int look = 1;
             ss >> p.breathing >> p.idle >> look; p.lookAt = look != 0;
@@ -872,6 +905,48 @@ int main(int argc, char** argv) {
             if (ss >> bottom) { o.bottom = bottom; ss >> o.tone >> o.overlaySlot >> o.overlayShade >> o.opacity; }
             o.on = on != 0;
             if (actors.count(name)) scene.setEveBody(actors[name], o);
+        } else if (cmd == "eveasync") {
+            // eveasync 0|1: the Eve fit at once on this thread (the harness's default) or on the worker (the app's)
+            int on = 0; ss >> on; scene.setEveAsync(on != 0);
+        } else if (cmd == "evesettle") {
+            // evesettle N MAXFRAMES [FRAME_MS]: frames drawn (64 x 64, the clock held) until person N's fit is swapped in, each
+            // frame's time on this (the GL) thread printed; FRAME_MS (default 16) the frame's pace (the worker runs meanwhile)
+            int name, maxFrames, pace = 16; ss >> name >> maxFrames; ss >> pace;
+            if (!actors.count(name)) continue;
+            static uint32_t settleT = 0;
+            double worst = 0, sum = 0, swapMs = 0; int n = 0, swapAt = -1;
+            for (int f = 0; f < maxFrames; ++f) {
+                Scene::EveStatus before; scene.eveStatus(actors[name], before);
+                auto t0 = std::chrono::steady_clock::now();
+                scene.render(64, 64, settleT);
+                glFinish();
+                double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+                Scene::EveStatus st; scene.eveStatus(actors[name], st);
+                worst = std::max(worst, ms); sum += ms; ++n;
+                if (before.pending && !st.pending) { swapAt = f; swapMs = ms; }
+                if (!st.pending && f > 0 && swapAt >= 0) {
+                    // one more frame: the Eve body's own upload is drawn then
+                    auto t1 = std::chrono::steady_clock::now();
+                    scene.render(64, 64, settleT); glFinish();
+                    double up = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t1).count();
+                    std::printf("evesettle %d: swapped in at frame %d (%.2f ms that frame, then %.2f ms), %d frames mean %.2f ms worst %.2f ms; "
+                                "the fit's GL-thread share %.2f ms\n", name, swapAt, swapMs, up, n, sum / n, worst, st.glMs);
+                    break;
+                }
+                if (!st.pending && swapAt < 0 && f > 0) { std::printf("evesettle %d: nothing pending (%s)\n", name, st.status.c_str()); break; }
+                std::this_thread::sleep_for(std::chrono::milliseconds(pace));
+            }
+        } else if (cmd == "frametime") {
+            // frametime N W H: N frames drawn (the clock held), their mean and worst time on this thread
+            int n, w, h; ss >> n >> w >> h;
+            double worst = 0, sum = 0;
+            for (int f = 0; f < n; ++f) {
+                auto t0 = std::chrono::steady_clock::now();
+                scene.render(w, h, 0); glFinish();
+                double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+                worst = std::max(worst, ms); sum += ms;
+            }
+            std::printf("frametime: %d frames mean %.2f ms worst %.2f ms\n", n, sum / std::max(n, 1), worst);
         } else if (cmd == "sculpt") {
             // sculpt N V0 .. V10: person N's sculpt sliders (Scene::setSculpt; creator/BodySculpt.kt's order, -1..1)
             int name; ss >> name;

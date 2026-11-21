@@ -14,6 +14,7 @@
 #include "flesh.h"
 #include "glutil.h"
 #include "humanscale.h"
+#include "sculpt.h"
 
 namespace wc {
 
@@ -117,7 +118,36 @@ uniform vec3 uEye;
 uniform vec4 uGhost;   // the placement editor's ghost: its colour mixed toward rgb by a (a 0: none)
 uniform vec3 uRimColor;   // cinematic mode's rim light on a person (0: none) and the way toward it
 uniform vec3 uRimDir;
+// Options' Graphics (scene_gfx.cpp): a person's skin (uSkinKind 1) and hair (2) shaded with uSkinFx (wrap, sheen, warm
+// scatter, hair's highlight); 0 everywhere else, and all 0 at Standard: the light as before
+uniform int uSkinKind;
+uniform vec4 uSkinFx;
 out vec4 fragColor;
+vec3 skinShade(vec3 albedo, vec3 lit, vec3 n, float d) {
+    vec3 v = normalize(uEye - vWorld);
+    vec3 l = -uSunDir;
+    float nl = dot(n, l);
+    if (uSkinKind == 1) {
+        float w = uSkinFx.x;
+        float wrap = max((nl + w) / (1.0 + w), 0.0);
+        vec3 c = albedo * (uAmbient + uSunColor * wrap);
+        c += albedo * uSunColor * vec3(0.85, 0.28, 0.14) * max(wrap - d, 0.0) * uSkinFx.z;
+        float fres = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 4.0);
+        c += (uAmbient * 0.6 + uSunColor * 0.4) * fres * uSkinFx.y * 0.12;
+        vec3 h = normalize(l + v);
+        c += uSunColor * pow(max(dot(n, h), 0.0), 28.0) * 0.05 * uSkinFx.y * d;
+        return c;
+    }
+    vec3 t = vec3(0.0, 0.0, 1.0) - n * n.z;
+    t = dot(t, t) > 1e-6 ? normalize(t) : vec3(1.0, 0.0, 0.0);
+    vec3 h = normalize(l + v);
+    float th = dot(t, h);
+    float s1 = pow(sqrt(max(1.0 - th * th, 0.0)), 90.0);
+    vec3 t2 = normalize(t + n * 0.3);
+    float th2 = dot(t2, h);
+    float s2 = pow(sqrt(max(1.0 - th2 * th2, 0.0)), 18.0);
+    return lit + uSunColor * (s1 * 0.10 + s2 * albedo * 0.22) * uSkinFx.w * smoothstep(-0.2, 0.3, nl);
+}
 void main() {
     vec4 c = texture(uTex, vUv) * uColor;
     if (c.a < uAlphaRef) discard;
@@ -126,6 +156,7 @@ void main() {
         vec3 n = normalize(vNormal);
         float d = max(dot(n, -uSunDir), 0.0);
         rgb *= uAmbient + uSunColor * d;
+        if (uSkinKind > 0) rgb = skinShade(c.rgb, rgb, n, d);
         if (dot(uRimColor, uRimColor) > 0.0) {
             float edge = 1.0 - clamp(dot(n, normalize(uEye - vWorld)), 0.0, 1.0);
             rgb += c.rgb * uRimColor * (edge * edge) * (0.35 + 0.65 * max(dot(n, uRimDir), 0.0));
@@ -280,6 +311,7 @@ bool Scene::initGl() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     compositor_.initGl();
     grade_.forget();
+    postfx_.forget();
     glReady_ = true;
     // A context that was lost takes everything with it: build again what the scene holds.
     for (auto& [id, m] : models_) if (m->ok) uploadModel(*m);
@@ -306,6 +338,7 @@ void Scene::releaseGl() {
     glReady_ = false;
     compositor_.releaseGl();
     grade_.forget();
+    postfx_.forget();
     particleDraw_.release();
     textures_.clear();
     for (auto& [id, m] : models_) { m->vao = m->vbo = m->ibo = m->boneTex = 0; }
@@ -328,6 +361,7 @@ void Scene::releaseGl() {
 }
 
 GlTexture Scene::texture(uint32_t fileId, int maxSize) {
+    maxSize = gfx_.textureCap(maxSize);   // (Options' Graphics: texture detail picks a larger mip of the file)
     uint64_t key = uint64_t(fileId) << 16 | uint32_t(maxSize);
     auto it = textures_.find(key);
     if (it != textures_.end()) return it->second;
@@ -359,6 +393,7 @@ GlTexture Scene::texture(uint32_t fileId, int maxSize) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        if (gfx_.anisotropy > 1) applyAnisotropy(gfx_.anisotropy);
         t.hasAlpha = img.hasAlpha;
     } else {
         t.id = white_;
@@ -824,12 +859,18 @@ bool Scene::actorFlesh(int id, std::vector<float>& out) {
     mix(shaped ? a.body.indices.size() : 0);
     for (size_t i = 0; i < a.body.morph.size(); i += 97) { uint32_t bits; std::memcpy(&bits, &a.body.morph[i], 4); mix(bits); }
     mix(a.eve.active ? a.eve.key : 0);   // (the Eve body: measured on its own skin)
+    // the skeleton as she is drawn (bodyrig.h: Eve's proportions, Leg Length)
+    BodyScale legK = a.eve.active ? a.eve.body.scale : BodyScale();
+    if (a.sculpt.size() > size_t(kSculptLegLength)) legK.legs *= legLengthFactor(a.sculpt[size_t(kSculptLegLength)]);
+    for (float f : {legK.legs, legK.torso, legK.arms, legK.hands, legK.spread}) { uint32_t bits; std::memcpy(&bits, &f, 4); mix(bits); }
     if (key == 0) key = 1;
     if (a.fleshKey != key) {
         const bool eve = a.eve.active && a.eve.measure.host >= 0;
-        FleshMeasure f = eve ? measureFlesh(m, a.eve.measure.verts, a.eve.measure.indices, a.eve.measure.subs, a.geosets)
+        const LegEdit legs = bodyEditOf(m, legK);
+        const LegEdit* lp = legs.active ? &legs : nullptr;
+        FleshMeasure f = eve ? measureFlesh(m, a.eve.measure.verts, a.eve.measure.indices, a.eve.measure.subs, a.geosets, nullptr, lp)
                              : measureFlesh(m, shaped ? a.body.shaped : m.vertices, shaped ? a.body.indices : m.indices,
-                                            shaped && !a.body.submeshes.empty() ? a.body.submeshes : m.submeshes, a.geosets);
+                                            shaped && !a.body.submeshes.empty() ? a.body.submeshes : m.submeshes, a.geosets, nullptr, lp);
         a.flesh = f.ok ? f.pack() : std::vector<float>();
         a.fleshKey = key;
     }
@@ -1164,7 +1205,19 @@ void Scene::setCamera(V3 eye, V3 target, float fovDegrees) {
 void Scene::animate(Actor& a, uint32_t now) {
     M2Model& m = *a.mesh->model;
     bool hasSeq = a.seq >= 0 && size_t(a.seq) < m.sequences.size();
-    if (!hasSeq && !a.boneAnim) { a.mats.assign(std::max<size_t>(1, m.bones.size()), M4()); return; }
+    // the skeleton edited for this actor (bodyrig.h): the Eve body's proportions and the sculpt's Leg Length on them, made
+    // again when either changes
+    {
+        BodyScale k = a.eve.active ? a.eve.body.scale : BodyScale();
+        if (a.sculpt.size() > size_t(kSculptLegLength)) k.legs *= legLengthFactor(a.sculpt[size_t(kSculptLegLength)]);
+        if (a.legEdit.model != &m || !(a.legEdit.scale == k)) a.legEdit = bodyEditOf(m, k);
+    }
+    if (!hasSeq && !a.boneAnim) {
+        if (a.legEdit.active) legEditMatrices(m.bones, std::vector<BonePose>(), a.legEdit, a.mats);
+        else a.mats.assign(std::max<size_t>(1, m.bones.size()), M4());
+        if (a.mats.empty()) a.mats.push_back(M4());
+        return;
+    }
     if (!hasSeq) {
         a.pa.assign(m.bones.size(), BonePose());
     } else {
@@ -1217,7 +1270,8 @@ void Scene::animate(Actor& a, uint32_t now) {
         a.fadeMs = 0;
     }
     a.posed = true;
-    m.bonesToMatrices(a.pa, a.mats);
+    if (a.legEdit.active) legEditMatrices(m.bones, a.pa, a.legEdit, a.mats);
+    else m.bonesToMatrices(a.pa, a.mats);
     if (a.mats.empty()) a.mats.push_back(M4());
     layMotion(a, now);
     if (!a.boneTex) {
@@ -1251,7 +1305,7 @@ void Scene::alignWithFurniture(Actor& a) {
     const V3 pelvis = point(a.pelvisBone);
     if (a.furniture == kSitting) {
         // A standing or still-blending pose would put the actor's feet below the floor.
-        if (model.bones[a.pelvisBone].pivot.z - pelvis.z < 0.12f) return;
+        if (model.bones[a.pelvisBone].pivot.z + a.legEdit.lift - pelvis.z < 0.12f) return;   // (Leg Length's lift: bodyrig.h)
         V3 offset = M4::rotationZ(a.furnitureFacing).point(pelvis) * a.scale;
         a.position = a.surface - offset + V3(0, 0, a.scale * 0.12f);
         return;
@@ -1414,7 +1468,11 @@ void Scene::drawModel(ModelGl& mg, const M4& world, const std::map<uint32_t, uin
         // nearer the eye, it stays over the skin and the trousers there instead of fighting them in steps.
         const bool flap = geosets && sm.id / 100 == kTabardGroup;
         if (flap) { glEnable(GL_POLYGON_OFFSET_FILL); glPolygonOffset(kTabardOffsetFactor, kTabardOffsetUnits); }
+        // Options' Graphics: a person's skin (texture type 1) and hair (6) shaded as such (kLitFs's skinShade)
+        const int skinKind = gfx_.skin > 0 && tex.type == 1 ? 1 : gfx_.hair > 0 && tex.type == 6 ? 2 : 0;
+        if (skinKind) glUniform1i(loc(p, "uSkinKind"), skinKind);
         glDrawElements(GL_TRIANGLES, GLsizei(sm.indexCount), GL_UNSIGNED_INT, (void*)(size_t(sm.indexStart) * 4));
+        if (skinKind) glUniform1i(loc(p, "uSkinKind"), 0);
         if (flap) { glPolygonOffset(0, 0); glDisable(GL_POLYGON_OFFSET_FILL); }
         if (blend) glDisable(GL_BLEND);
         glDepthMask(GL_TRUE);
@@ -1528,13 +1586,14 @@ void Scene::render(int width, int height, uint32_t nowMs) {
         if (arrived) dressModels(a);
     }
     viewW_ = std::max(1, width); viewH_ = std::max(1, height);
-    // cinematic mode (setCinematic): the mood's slow flicker on the warm light, and the frame drawn offscreen for the grade
-    if (cineMood_ > 0) {
-        float f = moodFlicker(float(nowMs % 3600000u) / 1000.0f);
-        if (std::fabs(f - cineFlicker_) > 0.002f) { cineFlicker_ = f; applyTimeOfDay(); }
-    }
+    // cinematic mode (setCinematic): the area's profile for the frame, its flicker, and the frame drawn offscreen for the grade
+    if (cineMood_ > 0) updateCinematic(nowMs);
     cineGrade_.seconds = float(nowMs % 1000000u) / 1000.0f;
     const bool graded = cineGrade_.active() && grade_.begin(width, height);
+    // Options' Graphics (scene_gfx.cpp): the key light's shadow pass, and the scene drawn into the offscreen chain at the
+    // render scale's size (width and height become that size until the chain's last pass draws it at the view's)
+    const int outW = width, outH = height;
+    const bool post = gfxBegin(width, height, nowMs);
     glViewport(0, 0, width, height);
     glClearColor(light_.skyHorizon[0], light_.skyHorizon[1], light_.skyHorizon[2], 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1630,6 +1689,7 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     litUniforms(m2Prog_, light_, eye_, viewProj);
     drawGhost(viewProj, nowMs);
     drawGizmo();
+    if (post) { gfxEnd(outW, outH, nowMs); width = outW; height = outH; }
     if (graded) grade_.end(width, height, cineGrade_);
 }
 
@@ -1688,12 +1748,15 @@ void Scene::setCinematic(float mood, float vignette, float grain, float bars) {
     auto unit = [](float v) { return std::isfinite(v) ? std::clamp(v, 0.0f, 1.0f) : 0.0f; };
     float m = unit(mood);
     cineGrade_.mood = m;
-    cineGrade_.vignette = unit(vignette);
+    cineVignette_ = unit(vignette);   // the option's; the profile scales it (updateCinematic)
+    cineGrade_.vignette = cineHas_ ? std::clamp(cineVignette_ * cineNow_.vignette, 0.0f, 1.0f) : cineVignette_;
     cineGrade_.grain = unit(grain);
     cineGrade_.bars = std::isfinite(bars) ? std::clamp(bars, 0.0f, 0.5f) : 0.0f;
     if (m != cineMood_) {
         cineMood_ = m;
-        if (m <= 0) cineFlicker_ = 0;
+        // off: the profile is worked out afresh when the look comes on again (the fade in eases it)
+        if (m <= 0) { cineFlicker_ = 0; cineHas_ = false; GradeParams n; n.grain = cineGrade_.grain; n.bars = cineGrade_.bars;
+                      n.vignette = cineGrade_.vignette; cineGrade_ = n; }
         applyTimeOfDay();
     }
 }

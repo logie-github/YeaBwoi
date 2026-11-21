@@ -170,6 +170,14 @@ def main():
         out["packs"].append({"name": name, "files": files})
         print("%-10s %5d files %8.1f MB" % (name, len(files), sum(s for _, s in files) / 1e6), file=sys.stderr)
     print("total %.1f MB" % (total / 1e6), file=sys.stderr)
+    # Options' "Download everything" estimates (tools/pack_sizes.py) are kept as they were
+    try:
+        with open(os.path.join(ASSETS, "files.json")) as f:
+            old = json.load(f)
+        if "estimates" in old:
+            out["estimates"] = old["estimates"]
+    except (OSError, ValueError):
+        pass
     with open(os.path.join(ASSETS, "files.json"), "w") as f:
         json.dump(out, f, separators=(",", ":"))
         f.write("\n")

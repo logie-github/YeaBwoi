@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.logie.wifecraft.simulation.CinematicSettings
 import com.logie.wifecraft.simulation.CinematicStyle
+import com.logie.wifecraft.simulation.ShotStyle
 
 /** How long the HUD stays after a tap in cinematic mode before it hides again (ms). */
 const val CINEMATIC_PEEK_MS = 5_000L
@@ -109,6 +110,13 @@ fun CinematicPage(settings: CinematicSettings, onChange: (CinematicSettings) -> 
             valueText = "${settings.longest} s", range = CinematicSettings.SHOT_MIN..CinematicSettings.SHOT_MAX)
     }
     WifeNote("The camera moves round the bed or the people from shot to shot: orbits, low and high angles, close-ups, over a shoulder, wide shots, the bed's own views, slow dollies. Cuts joins them without the move.")
+    WifeSectionHeader("Shots during animations")
+    val shotStyles = ShotStyle.entries
+    WifeTabs(shotStyles.map { it.label }, shotStyles.indexOf(settings.shotStyle).coerceAtLeast(0), { onChange(settings.copy(shotStyle = shotStyles[it])) })
+    WifeSliderRow("Randomness", settings.randomness, { onChange(settings.copy(randomness = it)) }, valueText = "${settings.randomness}%")
+    WifeSwitchRow("Camera cuts", settings.allowCuts, { onChange(settings.copy(allowCuts = it)) },
+        detail = if (settings.allowCuts) "Cuts allowed between shots" else "Smooth moves only")
+    WifeNote("While an animation plays, the shots follow its position: a wide shot to set the scene, then medium, close-up and detail shots chosen for it, the camera kept on one side of the pair. Randomness loosens that order and lets each shot drift.")
     WifeSectionHeader("Picture")
     WifeSwitchRow("Letterbox", settings.letterbox, { onChange(settings.copy(letterbox = it)) }, detail = "Black bars for a wide film frame")
     WifeSwitchRow("Film grain", settings.grain, { onChange(settings.copy(grain = it)) })

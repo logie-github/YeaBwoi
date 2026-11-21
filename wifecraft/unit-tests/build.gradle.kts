@@ -45,10 +45,19 @@ val pureUi = tasks.register<Copy>("pureUi") {
     into(layout.buildDirectory.dir("gen/pureUi"))
 }
 
-// data/ also holds Android classes: only the limiter is copied.
+// data/ also holds Android classes: only the limiter and the download plan are copied.
 val pureData = tasks.register<Copy>("pureData") {
     from("../android/app/src/main/java/com/logie/wifecraft/data/FetchLimiter.kt")
+    // "Download everything"'s packs, sizes, free-space check, states, failed queue and kept state (pure)
+    from("../android/app/src/main/java/com/logie/wifecraft/data/DownloadPlan.kt")
     into(layout.buildDirectory.dir("gen/pureData"))
+}
+
+// graphics/ also holds the Android runtime (Graphics.kt): only the settings, presets, steps, governor and pacing are copied.
+val pureGraphics = tasks.register<Copy>("pureGraphics") {
+    from("../android/app/src/main/java/com/logie/wifecraft/graphics/GraphicsSettings.kt")
+    from("../android/app/src/main/java/com/logie/wifecraft/graphics/Governor.kt")
+    into(layout.buildDirectory.dir("gen/pureGraphics"))
 }
 
 // play/ is Android (Compose) but for the placed things' host, which is pure.
@@ -77,6 +86,7 @@ sourceSets {
         kotlin.srcDir(pureData.map { it.destinationDir })
         kotlin.srcDir(pureAudio.map { it.destinationDir })
         kotlin.srcDir(purePlay.map { it.destinationDir })
+        kotlin.srcDir(pureGraphics.map { it.destinationDir })
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/editor")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/story")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/update")

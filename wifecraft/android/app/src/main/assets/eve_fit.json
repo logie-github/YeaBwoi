@@ -4,8 +4,18 @@
   "Wifecraft's Eve body fit table, read by engine/evebody.cpp (parseEveFitTable): one row per Warcraft female model.",
   "enabled: whether the Eve body is put on that model at all; reason says why not (shown in the menus), quality what the desktop renders showed.",
   "fit: factors on the measured fit (girth: every width over the measured hip and shoulder ratios; torso, hips, shoulders, thigh, calf, arm, forearm: one region's",
-  "width; neckTuck, neckLift, neckBase, ankleLift: the seams). Numbers checked in desktop renders only (wifecraft/README.md, The Eve body)."
+  "width; neckTuck, neckLift, neckBase, ankleLift: the seams). Numbers checked in desktop renders only (wifecraft/README.md, The Eve body).",
+  "defaults.fit: what every row's fit starts from. The proportions (heads, hipRatio, armRatio, handHeads, spread) edit the actor's skeleton while she wears Eve (engine/bodyrig.h): her height made `heads` of the model's own head heights (chin to crown), the hip joints at hipRatio of it, shoulder to fingertip armRatio of it, the hand handHeads head heights long, the clavicles spread by `spread`; 0 heads keeps the model's lengths. Chosen on the human woman from desktop renders: 7.3 heads (the game's own woman stands 8.7 of her head heights, a realistic woman 7 to 7.5)."
  ],
+ "defaults": {
+  "fit": {
+   "heads": 7.3,
+   "hipRatio": 0.53,
+   "armRatio": 0.44,
+   "handHeads": 0.8,
+   "spread": 1.12
+  }
+ },
  "races": [
   {
    "race": 1,
@@ -17,7 +27,12 @@
    "quality": "good",
    "reason": "",
    "fit": {
-    "girth": 1.15
+    "girth": 1.2,
+    "hips": 0.88,
+    "shoulders": 1.15,
+    "arm": 1.2,
+    "forearm": 1.12,
+    "thigh": 0.95
    },
    "note": ""
   },
@@ -31,9 +46,13 @@
    "quality": "acceptable",
    "reason": "",
    "fit": {
-    "girth": 1.3,
-    "arm": 1.2,
-    "forearm": 1.15
+    "girth": 1.36,
+    "arm": 1.44,
+    "forearm": 1.288,
+    "hips": 0.88,
+    "shoulders": 1.0,
+    "thigh": 0.95,
+    "spread": 1.0
    },
    "note": "much slimmer than the orc build; the arms read thin"
   },
@@ -60,7 +79,12 @@
    "quality": "good",
    "reason": "",
    "fit": {
-    "girth": 1.15
+    "girth": 1.2,
+    "hips": 0.88,
+    "shoulders": 1.15,
+    "arm": 1.2,
+    "forearm": 1.12,
+    "thigh": 0.95
    },
    "note": ""
   },
@@ -74,7 +98,12 @@
    "quality": "acceptable",
    "reason": "",
    "fit": {
-    "girth": 1.15
+    "girth": 1.2,
+    "hips": 0.88,
+    "shoulders": 1.15,
+    "arm": 1.2,
+    "forearm": 1.12,
+    "thigh": 0.95
    },
    "note": "smooth all over: the undead body's exposed bones and stitches are lost"
   },
@@ -114,7 +143,12 @@
    "quality": "acceptable",
    "reason": "",
    "fit": {
-    "girth": 1.15
+    "girth": 1.2,
+    "hips": 0.88,
+    "shoulders": 1.15,
+    "arm": 1.2,
+    "forearm": 1.12,
+    "thigh": 0.95
    },
    "note": "slim and long, as a troll is"
   },
@@ -141,7 +175,13 @@
    "quality": "good",
    "reason": "",
    "fit": {
-    "girth": 1.15
+    "girth": 1.27,
+    "hips": 0.88,
+    "shoulders": 1.0,
+    "arm": 1.38,
+    "forearm": 1.232,
+    "thigh": 0.95,
+    "spread": 1.05
    },
    "note": ""
   },
@@ -153,10 +193,14 @@
    ],
    "enabled": false,
    "quality": "bad",
-   "reason": "the legs bend back to the hooves: Eve's legs end at the shins and the hooves float under them",
+   "reason": "the legs bend back to the hooves; Eve on the hips with the game's own legs below shows a seam line around the thighs",
    "fit": {
-    "girth": 1.15
-   }
+    "girth": 1.15,
+    "split": 0.5,
+    "ankleTuck": -0.06,
+    "ankleSink": 0.03
+   },
+   "note": "split fit tried (Eve to mid-thigh, the model's thighs, hocks and hooves below, the tail kept): the ring at mid-thigh stays visible as a line with small gaps on the outer thigh and a colour step (Lightforged: darker legs); not offered until the seam closes"
   },
   {
    "race": 22,
@@ -194,7 +238,12 @@
    "quality": "good",
    "reason": "",
    "fit": {
-    "girth": 1.15
+    "girth": 1.2,
+    "hips": 0.88,
+    "shoulders": 1.15,
+    "arm": 1.2,
+    "forearm": 1.12,
+    "thigh": 0.95
    },
    "note": ""
   },
@@ -221,7 +270,13 @@
    "quality": "good",
    "reason": "",
    "fit": {
-    "girth": 1.15
+    "girth": 1.27,
+    "hips": 0.88,
+    "shoulders": 1.0,
+    "arm": 1.38,
+    "forearm": 1.232,
+    "thigh": 0.95,
+    "spread": 1.05
    },
    "note": ""
   },
@@ -233,10 +288,14 @@
    ],
    "enabled": false,
    "quality": "bad",
-   "reason": "the legs bend back to the hooves: Eve's legs end at the shins and the hooves float under them",
+   "reason": "the legs bend back to the hooves; Eve on the hips with the game's own legs below shows a seam line around the thighs",
    "fit": {
-    "girth": 1.15
-   }
+    "girth": 1.15,
+    "split": 0.5,
+    "ankleTuck": -0.06,
+    "ankleSink": 0.03
+   },
+   "note": "split fit tried (Eve to mid-thigh, the model's thighs, hocks and hooves below, the tail kept): the ring at mid-thigh stays visible as a line with small gaps on the outer thigh and a colour step (Lightforged: darker legs); not offered until the seam closes"
   },
   {
    "race": 31,
@@ -248,7 +307,12 @@
    "quality": "acceptable",
    "reason": "",
    "fit": {
-    "girth": 1.15
+    "girth": 1.2,
+    "hips": 0.88,
+    "shoulders": 1.15,
+    "arm": 1.2,
+    "forearm": 1.12,
+    "thigh": 0.95
    },
    "note": "very tall and thin"
   },
@@ -262,8 +326,13 @@
    "quality": "acceptable",
    "reason": "",
    "fit": {
-    "girth": 1.3,
-    "arm": 1.15
+    "girth": 1.357,
+    "arm": 1.38,
+    "hips": 0.88,
+    "shoulders": 0.9,
+    "forearm": 1.12,
+    "thigh": 0.95,
+    "spread": 1.0
    },
    "note": "slimmer than the Kul Tiran build"
   },
@@ -275,11 +344,22 @@
    ],
    "enabled": false,
    "quality": "bad",
-   "reason": "dwarf proportions: wide flaring hips and long thin arms on a short body",
+   "reason": "a dwarf's short, stocky build: Eve's slim body widened to it reads boxy and square-shouldered",
    "fit": {
-    "girth": 1.2,
-    "hips": 0.85
-   }
+    "girth": 1.45,
+    "hips": 0.62,
+    "heads": 6.0,
+    "hipRatio": 0.46,
+    "armRatio": 0.36,
+    "handHeads": 0.75,
+    "arm": 1.35,
+    "forearm": 1.25,
+    "shoulders": 1.15,
+    "thigh": 0.8,
+    "calf": 1.15,
+    "spread": 1.0
+   },
+   "note": "retuned (6 head heights, shorter arms, narrower hips, thicker limbs): the flaring hips and long thin arms are gone, but the torso turns into a straight-sided block with square shoulder shelves; needs a body shaped for dwarves"
   },
   {
    "race": 35,

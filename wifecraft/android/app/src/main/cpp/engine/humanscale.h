@@ -6,6 +6,7 @@
 #include <cmath>
 #include <vector>
 
+#include "bodyrig.h"
 #include "boneanim.h"
 #include "m2.h"
 
@@ -31,7 +32,8 @@ struct StandFit {
 };
 
 // The bone matrices of that stance (model space; empty when the model has no bones). flesh.h measures the body in it too.
-inline void standMatrices(const M2Model& m, std::vector<M4>& mats) {
+// `legs`: an actor's Leg Length (bodyrig.h) on the skeleton, when it has one.
+inline void standMatrices(const M2Model& m, std::vector<M4>& mats, const LegEdit* legs = nullptr) {
     mats.clear();
     if (m.bones.empty()) return;
     // one identity key (the reference's rest) on every bone the clips aim and on what each aims at
@@ -56,16 +58,17 @@ inline void standMatrices(const M2Model& m, std::vector<M4>& mats) {
         if (b < 0 || size_t(b) >= poses.size() || t.values.size() < 4) continue;
         poses[size_t(b)].r = Quat(t.values[0], t.values[1], t.values[2], t.values[3]).normalized();
     }
-    m.bonesToMatrices(poses, mats);
+    if (legs && legs->active) legEditMatrices(m.bones, poses, *legs, mats);
+    else m.bonesToMatrices(poses, mats);
 }
 
-inline StandFit measureStand(const M2Model& m) {
+inline StandFit measureStand(const M2Model& m, const LegEdit* legs = nullptr) {
     StandFit out;
     int root = m.findWowBone("Root"), head = m.findWowBone("Head");
     int lf = m.findWowBone("L_Foot"), rf = m.findWowBone("R_Foot");
     if (root < 0 || head < 0 || lf < 0 || rf < 0 || m.bones.empty()) return out;
     std::vector<M4> mats;
-    standMatrices(m, mats);
+    standMatrices(m, mats, legs);
     if (mats.size() != m.bones.size()) return out;
     auto at = [&](int b) { return mats[size_t(b)].point(m.bones[size_t(b)].pivot); };
     float soleL = at(lf).z - m.bones[size_t(lf)].pivot.z;
@@ -73,7 +76,7 @@ inline StandFit measureStand(const M2Model& m) {
     out.ground = std::fmin(soleL, soleR);
     out.head = at(head).z - out.ground;
     out.pelvis = at(root).z - out.ground;
-    out.bindHead = m.bones[size_t(head)].pivot.z;
+    out.bindHead = m.bones[size_t(head)].pivot.z + (legs && legs->active ? legs->lift : 0.0f);
     out.ok = std::isfinite(out.head) && std::isfinite(out.pelvis) && out.head > 0.05f && out.pelvis > 0.02f && out.bindHead > 0.05f;
     return out;
 }

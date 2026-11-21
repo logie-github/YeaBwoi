@@ -15,8 +15,14 @@
 // along it), held a standoff outside it; the torso, and a thigh while it hangs, keep a front piece in front and a back
 // piece behind; a limb lying across (a raised thigh, a shin or foot near the level) has the cloth laid over its top, a
 // forearm or hand resting on the lap presses it down; each point is held off the tangent plane of its nearest skin vertex;
-// each row is turned back to within kTwistCone of the hips' side (never edge-on); last, no link along the grid is left
-// longer than kMaxStrain past its rest (the free cloth gives way, not the points the body holds). The pull toward the
+// each row is turned back to within kTwistCone of the hips' side (never edge-on) and spread back out to kMinWidth; last, no
+// link along the grid is left longer than kMaxStrain past its rest (the free cloth gives way, not the points the body
+// holds), then kHardStrain whatever holds it. Seated or sitting back on her heels the two thighs are one lap (clothBridge:
+// nothing sinks between them), the front piece is drawn toward lying along it and the back piece toward lying back on the
+// seat or floor behind her; a forearm or hand over the lap leaves the cloth under it where there is room and has it laid
+// over where it rests on the lap. Lying on her side, part of the cloth's weight along the hips' side is turned onto her
+// (kLieTurn) and the thighs are one along her front. Standing, the game's flap is followed only kSwingMax from hanging
+// down and within the twist cone. The pull toward the
 // game's flap fades where that flap lies inside the body (seated, it runs through the thighs). Touching points don't
 // bounce and lose some of their sliding; nothing moves faster than kMaxSpeed; sideways speed is damped harder; the floor
 // (or, seated, the seat for the back flap) holds it up. The cloth's lengths are fitted once to the body as made.
@@ -60,6 +66,9 @@ struct ClothCapsule {
     // the flap drapes over the lap and the shins and falls between the legs. Bit 0 the front piece, bit 1 the back.
     uint8_t drape = 0;
     V3 up;
+    // a forearm or a hand lying across the lap (bit 7): per section (bit s), whether there is room under it for the
+    // cloth (what lies clear below it stays there) or it rests on the lap (the cloth is laid over it there)
+    uint8_t under = 0;
 };
 
 // A segment's measured flesh (model units, the dressed body in its bind pose, around flesh.h's frame of the segment):
@@ -160,6 +169,14 @@ bool clothCollide(const ClothCapsule& c, int side, float standoff, V3& p, V3& no
 // capsule's reach along its axis.
 float clothCapsuleDepth(const ClothCapsule& c, const V3& p, bool& within);
 
+// Two limbs side by side as one (the thighs, seated, kneeling back on the heels or lying): between their axes, while
+// their flesh nearly meets (a gap of at most kClothBridgeGap), the surface on the `out` side (unit: the lap's top, or a
+// lying body's front) runs straight from the one's top to the other's, so cloth laid across them can't sink into the
+// groove where they touch. Pushes p out along `out` to `standoff` above that surface when it lies within the limbs'
+// thickness below it and within both along their axes. Returns whether it moved; `normal` is then `out`.
+constexpr float kClothBridgeGap = 0.08f;   // model units
+bool clothBridge(const ClothCapsule& a, const ClothCapsule& b, const V3& out, float standoff, V3& p, V3& normal);
+
 class ClothSim {
 public:
     static constexpr int kHz = 120;                 // the fixed step
@@ -176,13 +193,21 @@ public:
     static constexpr float kFriction = 0.45f;       // the share of its sliding a touching point loses a step
     static constexpr float kStandoff = 0.015f;      // how far outside the capsules it is held (model units)
     static constexpr float kSkinGap = 0.006f;       // and outside the skin itself, at its nearest vertex (model units)
-    static constexpr float kSkinReach = 0.04f;      // the nearest skin vertex counts within this (model units)
+    static constexpr float kSkinReach = 0.06f;      // the nearest skin vertex counts within this (model units)
     static constexpr float kSlack = 0.01f;          // the cloth's give: no length grows past its rest by more
     static constexpr float kMaxSpeed = 2.0f;        // world units a second, at most
     static constexpr float kTeleport = 0.5f;        // a pin moving farther in one frame was put there, not moved
     static constexpr float kMaxStrain = 0.06f;      // no link along the grid longer than its rest by more, after the body
-    static constexpr float kTwistCone = 1.0472f;    // a row turns at most this far (60 degrees) from the hips' side, about
+    static constexpr float kHardStrain = 0.085f;    // and, last of all, whatever holds it
+    static constexpr float kLieTurn = 0.6f;         // lying on her side, this share of the cloth's weight along the hips'
+                                                    // side (then up and down) is turned onto her; the rest still falls
+    static constexpr float kTwistCone = 0.7854f;    // a row turns at most this far (45 degrees) from the hips' side, about
                                                     // the pelvis's axis: the flap never swings round edge-on
+    static constexpr float kMinWidth = 0.72f;       // and spread back out along its own line to at least this share of
+                                                    // its width at rest, end to end (a raised knee doesn't bunch it up)
+    static constexpr float kSwingMax = 0.70f;       // standing, walking or running, the game's flap is followed only
+                                                    // this far (40 degrees) from hanging down the hips (its own swing is
+                                                    // the bones' throw: followed, it streams out level at a run)
     static constexpr float kSideDamping = 0.15f;    // the share of its speed along the hips' side a free point loses a
                                                     // step beyond kDamping (a stride doesn't flick it out sideways)
 
@@ -207,20 +232,43 @@ public:
     const std::vector<V3>& positions() const { return x_; }   // world, the rig's points in order
     // The largest stretch of a structural link now (its length over its rest, less 1): the tests' and the harness's check.
     float maxStretch(float worldScale) const;
-    // The narrowest row now (the free ones and the pinned second), as a share of its width at rest, measured along the
-    // hips' side (right hip joint to left, the spine's axis taken out) in the last step's body: a flap turned edge-on or
-    // bunched up reads low. 1 without both thighs.
+    // The narrowest row now (the free ones and the pinned second), as a share of its width at rest, as seen from the
+    // hips' front (or back): its first point to its last with the hips' front direction taken out (the hips' side, right
+    // hip joint to left, and their up axis, the spine's square to it, kept), in the last step's body. A flap turned
+    // edge-on, bunched up or fallen along her side reads low; one laid over a raised knee, rising across it, doesn't.
+    // 1 without both thighs.
     float minWidthRatio(float worldScale) const;
+    // The same along the hips' side alone (the up axis taken out too): the older, stricter measure, which also counts a
+    // row rising over a raised knee as narrow.
+    float minHipWidthRatio(float worldScale) const;
     int stepsTaken() const { return steps_; }                // fixed steps taken in the last call
 
 private:
     void substep(const std::vector<V3>& pins, const std::vector<V3>& targets, const std::vector<ClothCapsule>& bodies, float scale,
                  float dt);
-    void skinPass(float scale);
+    void skinPass(float scale, bool search = true);
+    std::vector<int> nearest_;     // each point's nearest skin vertex at the last look-up (-1: none near)
     void inextensible(float scale);
-    void strainLimit(float scale);
-    void twist(const std::vector<ClothCapsule>& bodies);
+    // no link along the grid past (1 + strain) of its rest (strain 0: kMaxStrain); `held` how much a point touching the
+    // body moves for it against a free one's 1
+    void strainLimit(float scale, float strain = 0, float held = 0.2f);
+    void twist(const std::vector<ClothCapsule>& bodies, float scale);
     void collide(const std::vector<ClothCapsule>& bodies, float scale);
+    // this step's body as the solver sees it: the thighs as one where they lie side by side (clothBridge: each piece's
+    // `out`, or none), and which capsules can reach each piece (a box test: the rest are skipped)
+    void prepare(const std::vector<ClothCapsule>& bodies, float scale);
+    void bridgePoint(int piece, const std::vector<ClothCapsule>& bodies, float standoff, V3& x, V3* contact);
+    // seated or sitting back on the heels: each piece laid over both thighs is drawn toward lying along the lap (from
+    // its waist down the thighs, then over the knees) instead of toward the game's flap, which runs through them
+    void lapTargets(const std::vector<V3>& posed, const std::vector<ClothCapsule>& bodies, float scale);
+    // standing, walking or running: the game's flap followed at most kSwingMax from hanging down the hips
+    void clampSwing(const std::vector<ClothCapsule>& bodies);
+    int thighL_ = -1, thighR_ = -1;
+    bool bridgeOn_[2] = {false, false};   // per piece (pieces[0], pieces[1])
+    V3 bridgeOut_[2];
+    std::vector<uint8_t> near_;            // per piece and capsule: the capsule's box meets the piece's (1) or not
+    float lie_ = 0;                        // 0 upright .. 1 lying (the hips' up axis level)
+    V3 press_[2];                          // lying: the way gravity's pull along the hips' side is turned (onto her)
     // where the game's posed flap is (what the cloth is drawn toward), this frame and the last, and how much each point is
     std::vector<V3> target_, lastTarget_, targetNow_;
     std::vector<float> followW_;

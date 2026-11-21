@@ -1,13 +1,19 @@
 // The cinematic look's last pass (Scene::setCinematic): the frame is drawn into an offscreen picture of the view's size,
-// then drawn onto the framebuffer that was bound with a colour grade (deeper shadows by a gentle S-curve, a warm lift of
-// the mid-tones, a little more saturation), a vignette, film grain and letterbox bars, each by its own amount. With every
+// then drawn onto the framebuffer that was bound with a colour grade (the area's cinematic profile, daylight.h: lift, gamma,
+// gain, an S-curve and saturation, cineGradeColour's maths), a vignette, film grain and letterbox bars, each by its own
+// amount. With every
 // amount at 0 nothing is drawn offscreen at all (the frame goes straight to the screen, as before). OpenGL ES 3.
 #pragma once
 
 namespace wc {
 
 struct GradeParams {
-    float mood = 0;       // 0..1: the grade's strength (contrast, the warm mids, saturation)
+    float mood = 0;       // 0..1: the grade's strength (over 0: the grade is drawn; its numbers below are at that strength)
+    float lift[3] = {0, 0, 0};    // where black goes (daylight.h CineProfile, scaled by cineScaled)
+    float gamma = 1;
+    float gain[3] = {1, 1, 1};    // where white goes
+    float contrast = 0;           // the S-curve's share
+    float saturation = 1;
     float vignette = 0;   // 0..1: how much the corners darken (1: by about 60%)
     float grain = 0;      // 0..1: film grain's strength (1: about +-4% on the mid-tones)
     float bars = 0;       // 0..0.5: each letterbox bar's height over the view's

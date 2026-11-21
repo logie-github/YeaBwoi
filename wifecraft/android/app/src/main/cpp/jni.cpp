@@ -338,6 +338,19 @@ JNIEXPORT void JNICALL FN(particles)(JNIEnv*, jclass, jlong h, jint count, jfloa
     scene(h)->setParticles(count, strength);
 }
 
+JNIEXPORT void JNICALL FN(graphics)(JNIEnv* env, jclass, jlong h, jfloatArray values) {
+    auto v = floats(env, values);
+    scene(h)->setGraphics(v.data(), int(v.size()));
+}
+
+JNIEXPORT void JNICALL FN(graphicsStats)(JNIEnv* env, jclass, jlong h, jfloatArray out) {
+    if (!out) return;
+    jsize n = std::min<jsize>(env->GetArrayLength(out), 32);
+    float v[32];
+    scene(h)->graphicsStats(v, int(n));
+    env->SetFloatArrayRegion(out, 0, n, v);
+}
+
 // ---- locations and the editor's props (Native.kt documents them)
 
 JNIEXPORT jboolean JNICALL FN(loadLocation)(JNIEnv* env, jclass, jlong h, jstring json, jstring id, jstring view) {

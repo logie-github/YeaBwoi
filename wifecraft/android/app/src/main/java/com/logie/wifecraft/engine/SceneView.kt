@@ -211,6 +211,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
                     d.drive(System.nanoTime())
                     applyGizmo()
                     Native.render(handle, width, height, Clock.now())
+                    com.logie.wifecraft.graphics.Graphics.glFrame(handle)   // (Options' Graphics: timings, the governor)
                     glMeasureFlesh()
                     framesDrawn++
                     return
@@ -228,11 +229,14 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
                     }
                 }
                 Native.render(handle, width, height, Clock.now())
+                com.logie.wifecraft.graphics.Graphics.glFrame(handle)
                 glMeasureFlesh()
                 framesDrawn++
             }
         })
         renderMode = RENDERMODE_CONTINUOUSLY
+        // Options' Graphics: frames paced to the target frame rate on the screen's vsync while the view is on screen
+        com.logie.wifecraft.graphics.Graphics.attach(this)
     }
 
     /**

@@ -26,7 +26,9 @@ add_library(wcengine SHARED
     engine/modelpart.cpp
     engine/motionlayer.cpp
     engine/particles.cpp
+    engine/postfx.cpp
     engine/scene.cpp
+    engine/scene_gfx.cpp
     engine/sculpt.cpp
     engine/skin.cpp
     engine/softbody.cpp
@@ -34,4 +36,4 @@ add_library(wcengine SHARED
     engine/wmo.cpp)
 
 target_compile_options(wcengine PRIVATE -O2 -Wall -Wno-unused-parameter)
-target_link_libraries(wcengine GLESv3 log z)   # z: the Eve body's PNG files (engine/evebody.cpp)
+target_link_libraries(wcengine GLESv3 EGL log z)   # z: the Eve body's PNG files (engine/evebody.cpp)

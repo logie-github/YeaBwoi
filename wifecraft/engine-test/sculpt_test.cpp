@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "bodypick.h"
+#include "bodyrig.h"
 #include "sculpt.h"
 
 using namespace wc;
@@ -334,6 +335,125 @@ int main() {
         M2Submesh hair; hair.id = 5; hair.indexStart = uint32_t(i0); hair.indexCount = uint32_t(H.indices.size() - i0); s2.push_back(hair);
         uint8_t r = pickBody(H.verts, H.indices, s2, {}, {}, regions, V3(2, 0, 1.65f), V3(-1, 0, 0)).region;
         CHECK(r == kRegionHair, "the hair (%d)", r);
+    }
+
+    // ---- Leg Length on the skeleton (bodyrig.h): a made-up skeleton, legs straight down, the feet on the floor
+    {
+        CHECK(std::fabs(legLengthFactor(-1) - 0.85f) < 1e-6f && std::fabs(legLengthFactor(0) - 1) < 1e-6f &&
+              std::fabs(legLengthFactor(1) - 1.2f) < 1e-6f && std::fabs(legLengthFactor(0.5f) - 1.1f) < 1e-6f &&
+              std::fabs(legLengthFactor(-0.5f) - 0.925f) < 1e-6f && legLengthFactor(5) == 1.2f && legLengthFactor(NAN) == 1.0f,
+              "the slider's mapping");
+        // 0 root, 1 pelvis, 2/3 thighs, 4/5 calves, 6/7 ankle twists (the calf's), 8/9 feet, 10/11 toes, 12 a sole helper (left)
+        std::vector<M2Bone> bones(13);
+        const V3 piv[13] = {{0, 0, 1.05f}, {0, 0, 1.0f}, {0, 0.1f, 0.95f}, {0, -0.1f, 0.95f}, {0.02f, 0.1f, 0.52f}, {0.02f, -0.1f, 0.52f},
+                            {0, 0.1f, 0.1f}, {0, -0.1f, 0.1f}, {0, 0.1f, 0.1f}, {0, -0.1f, 0.1f}, {0.12f, 0.1f, 0.03f}, {0.12f, -0.1f, 0.03f},
+                            {0.05f, 0.1f, 0.0f}};
+        const int16_t par[13] = {-1, 0, 1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 8};
+        std::vector<V3> pivots(piv, piv + 13);
+        std::vector<int16_t> parents(par, par + 13);
+        for (int i = 0; i < 13; ++i) { bones[size_t(i)].pivot = piv[i]; bones[size_t(i)].parent = par[i]; }
+        LegBones legs[2] = {{2, 4, 8}, {3, 5, 9}};
+        CHECK(!makeLegEdit(pivots, parents, legs, 1.0f).active, "a factor of 1 edits nothing");
+        LegBones broken[2] = {{2, 4, -1}, {3, 5, 9}};
+        CHECK(!makeLegEdit(pivots, parents, broken, 1.2f).active, "a leg without its foot: no edit");
+        for (float k : {0.85f, 1.2f}) {
+            LegEdit e = makeLegEdit(pivots, parents, legs, k);
+            CHECK(e.active, "k %.2f active", k);
+            auto near = [](V3 a, V3 b) { return (a - b).length() < 1e-5f; };
+            V3 knee = piv[2] + (piv[4] - piv[2]) * k, foot = knee + (piv[8] - piv[4]) * k;
+            CHECK(near(e.pivots[4], knee) && near(e.knee[0], knee), "k %.2f: the knee down the thigh's axis", k);
+            CHECK(near(e.pivots[8], foot) && near(e.ankle[0], foot), "k %.2f: the ankle down the shin's axis", k);
+            CHECK(near(e.bind[2].point(piv[4]), e.bind[4].point(piv[4])), "k %.2f: the thigh and the calf agree at the knee", k);
+            CHECK(near(e.bind[4].point(piv[8]), e.bind[8].point(piv[8])), "k %.2f: the calf and the foot agree at the ankle", k);
+            CHECK(near(e.bind[6].point(piv[6]), e.pivots[8]), "k %.2f: the ankle twist goes with the shin", k);
+            V3 toeMove = e.pivots[10] - piv[10], footMove = e.pivots[8] - piv[8];
+            CHECK(near(toeMove, footMove) && near(e.pivots[12] - piv[12], footMove), "k %.2f: the toes and soles move with the foot (rigid)", k);
+            CHECK(e.part[1] == kLegNone && e.part[2] == kLegThigh && e.part[4] == kLegCalf && e.part[6] == kLegCalf && e.part[10] == kLegFoot,
+                  "k %.2f: each bone's part", k);
+            // the thigh's midpoint, a vertex 4 cm in front of it: along the axis scaled, across it kept
+            V3 mid = (piv[2] + piv[4]) * 0.5f + V3(0.04f, 0, 0);
+            V3 axis = (piv[4] - piv[2]).normalized();
+            V3 q = e.bind[2].point(mid) - piv[2], q0 = mid - piv[2];
+            CHECK(std::fabs(q.dot(axis) - q0.dot(axis) * k) < 1e-5f && ((q - axis * q.dot(axis)) - (q0 - axis * q0.dot(axis))).length() < 1e-5f,
+                  "k %.2f: a thigh vertex stretched along the bone only", k);
+            // the bind pose drawn: every foot bone where it was (the soles on the floor), the hips raised by the legs' change
+            std::vector<M4> mats;
+            float lift = 0;
+            legEditMatrices(bones, {}, e, mats, &lift);
+            CHECK(std::fabs(lift - e.lift) < 1e-5f && std::fabs(lift - (k - 1) * 0.85f) < 1e-4f, "k %.2f: standing, raised by the legs' change (%f)", k, lift);
+            CHECK(std::fabs(mats[12].point(piv[12]).z - piv[12].z) < 1e-5f && std::fabs(mats[10].point(piv[10]).z - piv[10].z) < 1e-5f,
+                  "k %.2f: the soles stay on the floor", k);
+            CHECK(near(mats[1].point(piv[1]), piv[1] + V3(0, 0, lift)), "k %.2f: the pelvis is only raised", k);
+            // posed: the left thigh forward 40 degrees, the knee back 60: the lowest foot point where the model's own skeleton has it
+            std::vector<BonePose> pose(13);
+            pose[2].r = Quat(0, std::sin(-0.35f), 0, std::cos(-0.35f));
+            pose[4].r = Quat(0, std::sin(0.52f), 0, std::cos(0.52f));
+            std::vector<M4> own;
+            legPosed(bones, pose, nullptr, own);
+            legEditMatrices(bones, pose, e, mats);
+            float lo = 1e9f, loOwn = 1e9f;
+            for (int b : {8, 9, 10, 11, 12}) { lo = std::min(lo, mats[size_t(b)].point(piv[b]).z); loOwn = std::min(loOwn, own[size_t(b)].point(piv[b]).z); }
+            CHECK(std::fabs(lo - loOwn) < 1e-5f, "k %.2f: posed, the planted foot stays on the ground (%f %f)", k, lo, loOwn);
+            float shin = (mats[8].point(piv[8]) - mats[4].point(piv[4])).length(), shin0 = (piv[8] - piv[4]).length();
+            CHECK(std::fabs(shin - shin0 * k) < 1e-4f, "k %.2f: posed, the shin is k times as long (%f)", k, shin / shin0);
+            float footLen = (mats[10].point(piv[10]) - mats[8].point(piv[8])).length();
+            CHECK(std::fabs(footLen - (piv[10] - piv[8]).length()) < 1e-5f, "k %.2f: posed, the foot keeps its size", k);
+        }
+    }
+
+    // ---- the Eve body's proportions on the skeleton (bodyrig.h makeBodyEdit): torso, arms, hands, clavicles, legs together
+    {
+        // 0 root, 1 pelvis, 2/3 thighs, 4/5 calves, 6/7 feet, 8 spine, 9 chest, 10 neck, 11 head, 12/13 clavicles,
+        // 14/15 upper arms, 16/17 forearms, 18/19 hands, 20 a left finger, 21 a left breast
+        const V3 piv[22] = {{0, 0, 1.05f}, {0, 0, 1.0f}, {0, 0.1f, 0.95f}, {0, -0.1f, 0.95f}, {0, 0.1f, 0.52f}, {0, -0.1f, 0.52f},
+                            {0, 0.1f, 0.1f}, {0, -0.1f, 0.1f}, {0, 0, 1.1f}, {0, 0, 1.3f}, {0, 0, 1.5f}, {0, 0, 1.56f},
+                            {0, 0.03f, 1.45f}, {0, -0.03f, 1.45f}, {0, 0.17f, 1.44f}, {0, -0.17f, 1.44f}, {0, 0.37f, 1.22f},
+                            {0, -0.37f, 1.22f}, {0, 0.56f, 1.0f}, {0, -0.56f, 1.0f}, {0, 0.62f, 0.93f}, {0.08f, 0.09f, 1.3f}};
+        const int16_t par[22] = {-1, 0, 1, 1, 2, 3, 4, 5, 0, 8, 9, 10, 9, 9, 12, 13, 14, 15, 16, 17, 18, 9};
+        std::vector<V3> pivots(piv, piv + 22);
+        std::vector<int16_t> parents(par, par + 22);
+        BodyBones bb;
+        bb.legs[0] = {2, 4, 6}; bb.legs[1] = {3, 5, 7};
+        bb.arms[0] = {12, 14, 16, 18}; bb.arms[1] = {13, 15, 17, 19};
+        bb.root = 0; bb.pelvis = 1; bb.spine = 8; bb.neck = 10;
+        BodyScale k;
+        k.legs = 0.78f; k.torso = 0.88f; k.arms = 0.9f; k.hands = 0.84f; k.spread = 1.12f;
+        LegEdit e = makeBodyEdit(pivots, parents, bb, k);
+        auto near = [](V3 a, V3 b) { return (a - b).length() < 1e-5f; };
+        CHECK(e.active, "proportions: active");
+        CHECK(!makeBodyEdit(pivots, parents, bb, BodyScale()).active, "proportions: all 1 edits nothing");
+        // every bone's map agrees with its parent's at its own pivot: the skin stays joined
+        float worst = 0;
+        for (int b = 1; b < 22; ++b) worst = std::max(worst, (e.bind[size_t(par[b])].point(piv[b]) - e.bind[size_t(b)].point(piv[b])).length());
+        CHECK(worst < 1e-5f, "proportions: parent and child agree at every joint (%g)", worst);
+        // the neck comes down by the torso's share, the head keeps its size
+        float neckDrop = piv[10].z - e.pivots[10].z, want = (1 - k.torso) * (piv[10].z - 0.95f);
+        CHECK(std::fabs(neckDrop - want) < 1e-5f, "proportions: the neck comes down with the torso (%f %f)", neckDrop, want);
+        CHECK(near(e.pivots[11] - e.pivots[10], piv[11] - piv[10]), "proportions: the head moves with the neck, as it is");
+        // the clavicle spread, the arm's segments, the hand's size
+        CHECK(std::fabs((e.pivots[14] - e.pivots[12]).length() - (piv[14] - piv[12]).length() * k.spread) < 1e-5f, "proportions: the clavicle spread");
+        CHECK(std::fabs((e.pivots[16] - e.pivots[14]).length() - (piv[16] - piv[14]).length() * k.arms) < 1e-5f &&
+              std::fabs((e.pivots[18] - e.pivots[16]).length() - (piv[18] - piv[16]).length() * k.arms) < 1e-5f, "proportions: the arm's two segments");
+        CHECK(std::fabs((e.pivots[20] - e.pivots[18]).length() - (piv[20] - piv[18]).length() * k.hands) < 1e-5f, "proportions: the hand scaled about the wrist");
+        CHECK(e.part[21] == kPartTorso && e.part[11] == kPartNeck && e.part[20] == kPartHand && e.part[12] == kPartClavicle, "proportions: parts");
+        // mirror symmetric
+        float asym = 0;
+        for (int b = 0; b < 22; ++b) {
+            int m = b;
+            if (b >= 2 && b <= 7) m = b ^ 1; else if (b >= 12 && b <= 19) m = b ^ 1;
+            if (b == 20 || b == 21) continue;
+            V3 p = e.pivots[size_t(b)], q = e.pivots[size_t(m)];
+            asym = std::max(asym, (p - V3(q.x, -q.y, q.z)).length());
+        }
+        CHECK(asym < 1e-5f, "proportions: symmetric (%g)", asym);
+        // standing: the soles on the floor
+        std::vector<M2Bone> bones(22);
+        for (int i = 0; i < 22; ++i) { bones[size_t(i)].pivot = piv[i]; bones[size_t(i)].parent = par[i]; }
+        std::vector<M4> mats;
+        float lift = 0;
+        legEditMatrices(bones, {}, e, mats, &lift);
+        CHECK(std::fabs(mats[6].point(piv[6]).z - piv[6].z) < 1e-5f, "proportions: the feet stay on the floor (lift %f)", lift);
+        CHECK(lift < 0, "proportions: shorter legs bring her down (%f)", lift);
     }
 
     if (failures) { std::printf("%d failed\n", failures); return 1; }

@@ -1,127 +1,188 @@
 package com.logie.wifecraft.data
 
+import android.content.Context
+import com.logie.wifecraft.audio.TimeOfDaySound
+import com.logie.wifecraft.characters.NamedCast
 import com.logie.wifecraft.creator.*
-import com.logie.wifecraft.engine.PropLoader
 import com.logie.wifecraft.location.LocationInfo
-import kotlinx.coroutines.*
-import java.util.concurrent.ConcurrentHashMap
-import kotlin.coroutines.coroutineContext
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
 
-/** [named]: the named characters, whose own displays and model-part sources the CHARACTERS pack fetches. */
-class AssetDownloads(private val files: GameFiles, private val tables: Tables, private val named: com.logie.wifecraft.characters.NamedCast? = null) {
-    enum class Pack(val label: String) { SCENES("Scenes"), ANIMATIONS("Animations"), CLOTHING("Clothes"), CHARACTERS("Named characters") }
-
-    data class Progress(
-        val pack: Pack,
-        val packNumber: Int,
-        val packCount: Int,
-        val done: Int = 0,
-        val total: Int = 0,
-        val files: Int = 0,
-        val bytes: Long = 0L,
-        val failed: Int = 0,
-    ) {
-        val fraction: Float get() = ((packNumber - 1) + (if (total == 0) 0f else done.toFloat() / total)) / packCount
+/**
+ * What each pack of Options' "Download everything" (PackKey) holds, as file ids of wago.tools: the files fetched as
+ * they are ([Work.direct]) and the models whose own needs are read from them once here ([Work.models], by [Work.closure]:
+ * a character or creature model's skin, skeleton and textures; every animation of a character model; a prop's or a
+ * building's rooms, textures and doodads). Read from the app's assets and the game's tables on the phone. The fetching
+ * is DownloadService's. [PackKey.BASICS] is GameFiles' own gathering; [PackKey.ART] is [art] (files kept in the art's own
+ * caches). Off the main thread.
+ */
+class AssetDownloads(private val context: Context, private val tables: Tables, private val named: NamedCast?) {
+    enum class Closure {
+        /** Nothing beyond the files themselves. */
+        NONE,
+        /** A model with its skin, skeleton and the skeleton's own files (M2Files.closure, no animations). */
+        MODEL,
+        /** A character model with every animation it names. */
+        MODEL_ALL_ANIMATIONS,
+        /** A prop or a building (PropLoader.closure: an M2's needs, or a WMO's rooms, textures and doodads). */
+        PROP,
     }
 
-    private data class Work(val direct: Set<Int>, val models: Set<Int>)
+    class Work(val direct: Collection<Int>, val models: Collection<Int>, val closure: Closure, val sizes: Map<Int, Long> = emptyMap())
 
-    suspend fun download(
-        packs: List<Pack>, locations: List<LocationInfo>, catalog: Catalog?,
-        wardrobe: suspend () -> TransmogCatalog, onProgress: (Progress) -> Unit,
-    ): String = withContext(Dispatchers.IO) {
-        val seen = ConcurrentHashMap.newKeySet<Int>()
-        val failed = ConcurrentHashMap.newKeySet<Int>()
-        val lock = Any()
-        var downloaded = 0
-        var bytes = 0L
-        val packErrors = mutableListOf<String>()
+    /** One art file: [id] at the art's [build], kept as [target] (the art classes read `<id>-<build>` from their caches). */
+    class ArtFile(val id: Int, val build: String, val target: File)
 
-        for ((index, pack) in packs.withIndex()) {
-            var state = Progress(pack, index + 1, packs.size, files = downloaded, bytes = bytes, failed = failed.size)
-            fun report(advance: Boolean = false) = synchronized(lock) {
-                state = state.copy(done = state.done + if (advance) 1 else 0, files = downloaded, bytes = bytes, failed = failed.size)
-                onProgress(state)
-            }
-            report()
-            val job = coroutineContext.job
-            fun fetch(ids: Collection<Int>, checkDependencies: Boolean) {
-                for (id in ids) {
-                    job.ensureActive()
-                    if (id <= 0 || files.has(id) || id in failed) continue
-                    val first = seen.add(id)
-                    if (!first && !checkDependencies) continue
-                    try {
-                        files.fetchNow(id)
-                        if (first) synchronized(lock) {
-                            downloaded++
-                            bytes += files.file(id).length()
-                        }
-                    } catch (e: CancellationException) { throw e }
-                    catch (_: Exception) { failed += id }
-                }
-            }
-            try {
-                val work = plan(pack, locations, catalog, wardrobe)
-                state = state.copy(total = work.direct.size + work.models.size)
-                report()
-                work.direct.toList().parallel { id ->
-                    fetch(listOf(id), checkDependencies = false)
-                    report(advance = true)
-                }
-                work.models.toList().parallel { id ->
-                    if (pack == Pack.SCENES) {
-                        if (PropLoader.closure(files, id) { fetch(it, checkDependencies = true) } != null) failed += id
-                    } else {
-                        fetch(listOf(id), checkDependencies = true)
-                        M2Files.closure(id, if (pack == Pack.ANIMATIONS) null else emptySet(),
-                            { if (files.has(it)) files.file(it).readBytes() else null },
-                            { fetch(it, checkDependencies = true) })
-                    }
-                    report(advance = true)
-                }
-            } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { packErrors += "${pack.label}: ${e.message ?: "Download failed"}" }
-        }
-        listOfNotNull(
-            "${failed.size} files could not be downloaded. Retry to resume.".takeIf { failed.isNotEmpty() },
-            packErrors.takeIf { it.isNotEmpty() }?.joinToString("\n"),
-        ).joinToString("\n").ifEmpty { "Download complete" }
+    private fun asset(name: String): String = context.assets.open(name).bufferedReader().use { it.readText() }
+
+    fun plan(pack: PackKey, wardrobe: () -> TransmogCatalog): Work = when (pack) {
+        PackKey.BASICS, PackKey.ART -> Work(emptyList(), emptyList(), Closure.NONE)
+        PackKey.PLACES -> places()
+        PackKey.SOUNDS -> Work(sounds(), emptyList(), Closure.NONE)
+        PackKey.ANIMATIONS -> animations()
+        PackKey.NAMED -> namedCharacters()
+        PackKey.TRANSMOG -> transmog(wardrobe())
+        PackKey.CREATURES -> creatures()
+        PackKey.PROPS -> Work(emptyList(), library("0"), Closure.PROP)
+        PackKey.BUILDINGS -> Work(emptyList(), library("1"), Closure.PROP)
     }
 
-    private suspend fun plan(pack: Pack, locations: List<LocationInfo>, catalog: Catalog?, wardrobe: suspend () -> TransmogCatalog): Work =
-        when (pack) {
-            Pack.SCENES -> {
-                val files = locations.flatMap { loc -> loc.files().map { it.first } }.toSet()
-                val backdrops = catalog?.races.orEmpty().mapNotNull { RaceBackdrop.file(tables, it.id) }
-                Work(files, backdrops.toSet())
-            }
-            Pack.CLOTHING -> {
-                val pieces = wardrobe().pieces
-                val displays = pieces.mapTo(HashSet()) { it.display }
-                val icons = pieces.mapNotNull { p -> p.icon.takeIf { it > 0 } }
-                val (models, textures) = CreatureLooks.clothingFiles(tables, displays)
-                Work(textures + icons, models)
-            }
-            Pack.CHARACTERS -> {
-                // every display a named character is drawn as or a partial look is cut from: its model, skin, textures
-                val cast = named ?: com.logie.wifecraft.characters.NamedCast(emptyList())
-                val looks = cast.displays().mapNotNull { CreatureLooks.resolve(tables, it) }
-                val sets = cast.manifest?.sets.orEmpty().map { it.model }.filter { it > 0 }
-                Work(looks.flatMapTo(HashSet()) { it.needsFiles }, looks.mapTo(HashSet()) { it.model }.filter { it > 0 }.toSet() + sets)
-            }
-            Pack.ANIMATIONS -> {
-                checkNotNull(catalog) { "Gather the character tables first." }
-                val models = tables.rows("ChrModel").mapNotNullTo(LinkedHashSet()) { row ->
-                    val displayId = row.int("DisplayID")
-                    val modelId = tables.rowBy("CreatureDisplayInfo", "ID", displayId)?.int("ModelID") ?: 0
-                    tables.rowBy("CreatureModelData", "ID", modelId)?.int("FileDataID")?.takeIf { it > 0 }
+    /** Every location's files (their sizes known: assets/locations.json) and every race's backdrop model. */
+    private fun places(): Work {
+        val sizes = LinkedHashMap<Int, Long>()
+        for (loc in LocationInfo.parseAll(asset("locations.json"))) for ((id, size) in loc.files()) sizes.putIfAbsent(id, size)
+        val backdrops = tables.rows("ChrRaces").mapNotNullTo(LinkedHashSet()) { row -> RaceBackdrop.file(tables, row.int("ID")) }
+        return Work(sizes.keys, backdrops, Closure.PROP, sizes)
+    }
+
+    /**
+     * The sounds the app plays by id: assets/sounds.json (the title, the music and ambience by time of day, the places'
+     * tracks, the interface's clicks), the time of day's flavour and bells (TimeOfDaySound), the immersive fire, rain and
+     * cloth (the same ids as audio/Audio's), and every emote's voice for every race and sex (assets/emotes.json's "v").
+     */
+    fun sounds(): Set<Int> {
+        val out = LinkedHashSet<Int>()
+        fun walk(o: Any?, key: String?) {
+            when (o) {
+                is JSONObject -> for (k in o.keys()) {
+                    val v = o.get(k)
+                    // a place's "ambience" is a SoundAmbience id, the top level's the day and night files
+                    if (k == "silenceMs" || (k in NOT_FILES && v is Number)) continue
+                    walk(v, k)
                 }
-                Work(emptySet(), models)
+                is JSONArray -> for (i in 0 until o.length()) walk(o.get(i), key)
+                is Int -> if (o > 0) out += o
             }
         }
+        walk(JSONObject(asset("sounds.json")), null)
+        for (p in TimeOfDaySound.PLACES.values) { out += p.flavorDay; out += p.flavorNight; out += p.bell }
+        out += IMMERSION_SOUNDS
+        val models = JSONObject(asset("emotes.json")).optJSONObject("models") ?: JSONObject()
+        for (m in models.keys()) {
+            val voices = models.getJSONObject(m).optJSONObject("v") ?: continue
+            for (e in voices.keys()) { val ids = voices.getJSONArray(e); for (i in 0 until ids.length()) out += ids.getInt(i) }
+        }
+        return out
+    }
 
-    private suspend fun <T> List<T>.parallel(work: suspend (T) -> Unit) {
-        for (batch in chunked(8)) coroutineScope { batch.map { item -> async { work(item) } }.awaitAll() }
+    /** Every character model (ChrModel) with every animation it names. */
+    private fun animations(): Work {
+        val models = tables.rows("ChrModel").mapNotNullTo(LinkedHashSet()) { row -> modelFile(row.int("DisplayID")) }
+        return Work(emptyList(), models, Closure.MODEL_ALL_ANIMATIONS)
+    }
+
+    /** Every display a named character is drawn as or a partial look is cut from: its model, skin, textures, extras. */
+    private fun namedCharacters(): Work {
+        val cast = named ?: NamedCast(emptyList())
+        val looks = cast.displays().mapNotNull { CreatureLooks.resolve(tables, it) }
+        val sets = cast.manifest?.sets.orEmpty().map { it.model }.filter { it > 0 }
+        return looksWork(looks, sets)
+    }
+
+    /** Every Transmog item's models (every race and sex) and textures, and the items' icons. */
+    private fun transmog(wardrobe: TransmogCatalog): Work {
+        val pieces = wardrobe.pieces
+        val displays = pieces.mapTo(HashSet()) { it.display }
+        val icons = pieces.mapNotNull { p -> p.icon.takeIf { it > 0 } }
+        val (models, textures) = CreatureLooks.clothingFiles(tables, displays)
+        return Work(LinkedHashSet(textures + icons), models, Closure.MODEL)
+    }
+
+    /** The placement library's creature models (assets/catalog.tsv kind 2) and the game's named creatures, each display. */
+    private fun creatures(): Work {
+        val displays = LinkedHashSet<Int>()
+        for (a in libraryRows()) if (a.second == "2" && a.third > 0) displays += a.third
+        for (row in tables.rows("Creature")) (0..3).map { row.int("DisplayID_$it") }.firstOrNull { it > 0 }?.let { displays += it }
+        val looks = displays.mapNotNull { d -> runCatching { CreatureLooks.resolve(tables, d) }.getOrNull() }
+        return looksWork(looks, emptyList())
+    }
+
+    private fun looksWork(looks: List<ResolvedLook>, extraModels: List<Int>): Work {
+        val direct = LinkedHashSet<Int>()
+        val models = LinkedHashSet<Int>()
+        for (l in looks) {
+            direct += l.needsFiles
+            if (l.model > 0) models += l.model
+            for (x in l.extraModels) { if (x.model > 0) models += x.model; if (x.texture > 0) direct += x.texture }
+        }
+        models += extraModels
+        return Work(direct, models, Closure.MODEL)
+    }
+
+    /** The library's entries of [kind] ("0" props, "1" buildings): their file ids. */
+    private fun library(kind: String): List<Int> = libraryRows().filter { it.second == kind }.map { it.first }
+
+    /** assets/catalog.tsv's rows as (file id, kind, display). */
+    private fun libraryRows(): List<Triple<Int, String, Int>> {
+        val out = ArrayList<Triple<Int, String, Int>>(70_000)
+        context.assets.open("catalog.tsv").bufferedReader().useLines { lines ->
+            for (line in lines) {
+                if (line.isEmpty() || line[0] == '#') continue
+                val f = line.split('\t')
+                if (f.size < 7) continue
+                val id = f[0].toIntOrNull() ?: continue
+                out += Triple(id, f[5], f[6].toIntOrNull() ?: 0)
+            }
+        }
+        return out
+    }
+
+    private fun modelFile(displayId: Int): Int? {
+        val modelId = tables.rowBy("CreatureDisplayInfo", "ID", displayId)?.int("ModelID") ?: 0
+        return tables.rowBy("CreatureModelData", "ID", modelId)?.int("FileDataID")?.takeIf { it > 0 }
+    }
+
+    /**
+     * The art's files: the Transmog window's (files/transmog-art), the menus' (files/war-art) and the creator's
+     * (files/creator-art), each at its own file's build, as those classes keep them.
+     */
+    fun art(): List<ArtFile> {
+        val out = ArrayList<ArtFile>()
+        for ((name, dirName, keys) in ART) {
+            val doc = JSONObject(asset(name))
+            val build = doc.getString("build")
+            val dir = File(context.filesDir, dirName)
+            val ids = LinkedHashSet<Int>()
+            doc.optJSONObject("sheets")?.let { s -> for (k in s.keys()) k.toIntOrNull()?.let { ids += it } }
+            for (key in keys) doc.optJSONObject(key)?.let { o -> for (k in o.keys()) o.optJSONObject(k)?.optInt("f")?.takeIf { it > 0 }?.let { ids += it } }
+            doc.optInt("mask").takeIf { it > 0 }?.let { ids += it }
+            for (id in ids) out += ArtFile(id, build, File(dir, "$id-$build"))
+        }
+        return out
+    }
+
+    companion object {
+        /** sounds.json's numbers that aren't files (tables' ids) where they are single numbers; "silenceMs" (times) always. */
+        private val NOT_FILES = setOf("area", "zoneMusic", "ambience", "kit")
+
+        /** audio/Audio's immersive sounds: campfiresmallloop, rainlightloop, the seven cloth movements (keep in step). */
+        val IMMERSION_SOUNDS = listOf(565519, 538983, 4612169, 4612171, 4612173, 4612175, 4612177, 4612179, 4612181)
+
+        private val ART = listOf(
+            Triple("transmog_art.json", "transmog-art", listOf("files")),
+            Triple("ui_art.json", "war-art", listOf("icons")),
+            Triple("creator_art.json", "creator-art", listOf("files")),
+        )
     }
 }

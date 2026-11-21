@@ -4,10 +4,11 @@ import org.json.JSONObject
 import kotlin.random.Random
 
 /**
- * The Body tab's sculpt sliders, each from -1 to 1 (0: the body as made). Height works on every body (the actor's scale);
- * the others change the Eve body's mesh (cpp/engine/sculpt.h: smooth regions from its bone weights, scaled about the joints'
- * axes and pushed along the normals), so on a Warcraft body they are shown greyed ([eveOnly]). The engine takes them in
- * this order ([BodySculpt.toArray]; sculpt.h's SculptSlider).
+ * The Body tab's sculpt sliders, each from -1 to 1 (0: the body as made). Height works on every body (the actor's scale), and
+ * so does Leg Length (the actor's skeleton: thighs and shins lengthened, the feet kept on the floor; cpp/engine/bodyrig.h,
+ * [legFactor]); the others change the Eve body's mesh (cpp/engine/sculpt.h: smooth regions from its bone weights, scaled
+ * about the joints' axes and pushed along the normals), so on a Warcraft body they are shown greyed ([eveOnly]). The engine
+ * takes them in this order ([BodySculpt.toArray]; sculpt.h's SculptSlider).
  */
 enum class SculptSlider(val key: String, val label: String, val eveOnly: Boolean, val drawn: Boolean = true) {
     HEIGHT("height", "Height", false),
@@ -20,8 +21,8 @@ enum class SculptSlider(val key: String, val label: String, val eveOnly: Boolean
     HIPS("hips", "Hips", true),
     BUTT("butt", "Butt", true),
     THIGHS("thighs", "Thighs", true),
-    /** Not drawn yet: longer legs need the skeleton's bones moved, not only the mesh (the neck and ankle seams hold it). */
-    LEG_LENGTH("legLength", "Leg Length", true, drawn = false),
+    /** The skeleton's legs (engine/bodyrig.h): on every body, Eve's or the game's own. */
+    LEG_LENGTH("legLength", "Leg Length", false),
 }
 
 /**
@@ -45,13 +46,30 @@ data class BodySculpt(val values: Map<SculptSlider, Float> = emptyMap()) {
     /** The values in [SculptSlider]'s order (the engine's). */
     fun toArray(): FloatArray = FloatArray(SculptSlider.entries.size) { this[SculptSlider.entries[it]] }
 
-    /** What a body that isn't Eve's can show: the height alone. */
-    fun forWarcraftBody(): BodySculpt = BodySculpt().with(SculptSlider.HEIGHT, this[SculptSlider.HEIGHT])
+    /** The legs' length over the body as made ([legFactor] of [SculptSlider.LEG_LENGTH]). */
+    val legScale: Float get() = legFactor(this[SculptSlider.LEG_LENGTH])
+
+    /** What a body that isn't Eve's can show: the height and the legs' length. */
+    fun forWarcraftBody(): BodySculpt {
+        var s = BodySculpt()
+        for (k in SculptSlider.entries) if (!k.eveOnly) s = s.with(k, this[k])
+        return s
+    }
 
     fun toJson(): JSONObject = JSONObject().also { j -> for (s in SculptSlider.entries) this[s].takeIf { it != 0f }?.let { j.put(s.key, it.toDouble()) } }
 
     companion object {
         const val HEIGHT_REACH = 0.06f
+        /** Leg Length's ends: the thighs and shins this many times as long at -1 and at +1 (engine/bodyrig.h kLegShortest, kLegLongest). */
+        const val LEG_SHORTEST = 0.85f
+        const val LEG_LONGEST = 1.2f
+
+        /** The slider (-1..1) as the legs' factor, as the engine maps it (bodyrig.h legLengthFactor): linear on each side of 0. */
+        fun legFactor(v: Float): Float {
+            if (!v.isFinite()) return 1f
+            val c = v.coerceIn(-1f, 1f)
+            return if (c < 0f) 1f + (1f - LEG_SHORTEST) * c else 1f + (LEG_LONGEST - 1f) * c
+        }
 
         fun quantize(v: Float): Float {
             if (!v.isFinite()) return 0f
@@ -92,7 +110,7 @@ interface BodySculptApplier {
     }
 }
 
-/** What each kind of body takes: a Warcraft body the height alone, the Eve body every slider. */
+/** What each kind of body takes: a Warcraft body the height and the legs' length, the Eve body every slider. */
 object SculptSupport {
     fun supports(slider: SculptSlider, eveBody: Boolean): Boolean = slider.drawn && (eveBody || !slider.eveOnly)
 
@@ -103,7 +121,8 @@ object SculptSupport {
         else -> null
     }
 
-    const val NOT_DRAWN = "Not drawn yet (needs the skeleton changed)"
+    /** (No slider is undrawn now; kept for a slider added before the engine draws it.) */
+    const val NOT_DRAWN = "Not drawn yet"
 }
 
 /** A stand-in applier (tests; the screen before the engine answers): keeps what it was given. */

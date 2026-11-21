@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "bodypart.h"
+#include "bodyrig.h"
 #include "boneanim.h"
 #include "cloth.h"
 #include "evebody.h"
@@ -21,6 +22,7 @@
 #include "modelpart.h"
 #include "motionlayer.h"
 #include "particles.h"
+#include "postfx.h"
 #include "skin.h"
 #include "softbody.h"
 #include "wmath.h"
@@ -166,8 +168,13 @@ public:
         float shadeDist = 0;
         double composeMs = 0;
         size_t eveTriangles = 0, bodyTriangles = 0;
+        double glMs = 0;           // the GL thread's share of the last fit (the snapshot and the swap; the uploads are the frame's)
+        bool pending = false;      // a fit is on the worker; what is drawn is the last one (or her own body)
+        uint32_t waitFrames = 0;   // frames it has waited
     };
     bool eveStatus(int id, EveStatus& out) const;
+    // The fit on a worker thread (default) or at once on the GL thread (the desktop's checks; pictures always are).
+    void setEveAsync(bool on);
 
     // ---------------------------------------------------------------- body parts (bodypart.h)
     // A part file (.wcbp) read and kept: its handle (> 0), the same one again for a path already loaded; 0 and partError()
@@ -235,6 +242,12 @@ public:
     // candle-like flicker) with the picture's grade; `vignette`, `grain` 0..1; `bars` each letterbox bar's share of the
     // height (0..0.5). All 0: off, the frame drawn straight to the screen as before. Cheap; the caller eases them in and out.
     void setCinematic(float mood, float vignette, float grain, float bars);
+    // Options' Graphics page (graphics_settings.h: the array in its order; scene_gfx.cpp) and the last frame's timings
+    // (cpu ms, each pass's GPU ms, timers available, the scene's drawn width and height: PostStats::kStages + 4 floats).
+    void setGraphics(const float* values, int count);
+    void graphicsStats(float* out, int count) const;
+    // The harness: each pass timed with glFinish round it (software GL has no timer queries).
+    void setGraphicsSyncTiming(bool on) { postfx_.setSyncTiming(on); }
 
     // ---------------------------------------------------------------- body language and atmosphere (additive layers)
     // The body's additive motion (motionlayer.h) for everyone it is on: Options' breathing and idle shares, eye contact.
@@ -528,6 +541,7 @@ private:
         uint64_t fleshKey = 0;
         EveDraw eve;                   // the Eve body (evescene.cpp)
         std::vector<float> sculpt;     // the creator's sculpt sliders (setSculpt; sculpt.h): the Eve body fitted with them
+        LegEdit legEdit;               // its Leg Length on the skeleton (bodyrig.h): made again when the slider or model changes
     };
     struct GroupGl {
         unsigned vao = 0, vbo = 0, ibo = 0;
@@ -675,6 +689,24 @@ private:
     float cineFlicker_ = 0;
     GradeParams cineGrade_;
     Grade grade_;
+    // the graphics options (scene_gfx.cpp): the settings, the offscreen chain, the key light's shadow pass
+    GraphicsSettings gfx_;
+    PostFx postfx_;
+    V3 keyLightTravel() const;
+    void renderShadows(uint32_t nowMs);
+    bool gfxBegin(int& width, int& height, uint32_t nowMs);   // true: the scene is drawn into the chain at width x height
+    void gfxEnd(int outW, int outH, uint32_t nowMs);
+    // the area's cinematic profile (daylight.h cineProfile): the one shown, eased toward the place's and hour's each frame
+    // (updateCinematic, location.cpp), the light before it is laid on, the vignette option, the practicals of the side the
+    // camera's target stands on
+    CineProfile cineNow_;
+    bool cineHas_ = false;
+    uint32_t cineClock_ = 0;
+    float cineVignette_ = 0;
+    Light dayLight_;
+    float dayRoomTint_[3] = {1, 1, 1};
+    CinePracticals cinePractical_;
+    void updateCinematic(uint32_t nowMs);
     // the additive layers: the body's motion (Options'), the motes and how bright, the clock they were last stepped at
     MotionParams motionParams_;
     ParticleField particles_;
@@ -729,9 +761,18 @@ private:
     void drawParts(Actor& a, const M4& world, bool transparent);
     void drawBoneParts(Actor& a, const M4& world, bool transparent);
     // the Eve body (evescene.cpp)
-    std::unique_ptr<EveSet> eveSet_;
+    std::shared_ptr<EveSet> eveSet_;               // (shared with the worker's jobs)
     void eveCheck(Actor& a);                       // before refreshBody: the look or options changed, so fit again
-    void eveRefit(Actor& a);                       // in refreshBody: fit, cut the body, compose the skin
+    void eveRefit(Actor& a);                       // in refreshBody: the body's base kept, a fit sent
+    void eveOff(Actor& a);
+    bool eveOffered(Actor& a);
+    void eveStart(Actor& a, bool inRefresh);       // a fit sent to the worker (or computed at once)
+    void eveTake(Actor& a);                        // a finished fit swapped in
+    void eveSwap(Actor& a, EveResult& r, bool inRefresh, bool staged = false);
+    void eveStage(Actor& a);                       // a finished fit uploaded a slice a frame, then swapped in
+    void eveDropStage(Actor& a);
+    bool eveAsync_ = true;
+    std::unique_ptr<EveWorker> eveWorker_;         // (declared after the models and actors: stopped before they go)
     void drawEve(Actor& a, const M4& world, const float tint[4]);
     void dropEveGl(Actor& a);
 

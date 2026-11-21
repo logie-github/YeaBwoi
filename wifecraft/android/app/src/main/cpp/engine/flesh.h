@@ -240,12 +240,12 @@ inline float fleshLowest(const FleshSeg& s, const FleshFrame& f) {
 // left out (a tail, a cape: engine-test/audit tells the body's own sink from a tail's with it).
 inline FleshMeasure measureFlesh(const M2Model& m, const std::vector<M2Vertex>& verts, const std::vector<uint32_t>& idx,
                                  const std::vector<M2Submesh>& subs, const std::vector<uint16_t>& geosets,
-                                 std::vector<uint8_t>* droppedOut = nullptr) {
+                                 std::vector<uint8_t>* droppedOut = nullptr, const LegEdit* legs = nullptr) {
     FleshMeasure out;
-    StandFit stand = measureStand(m);
+    StandFit stand = measureStand(m, legs);   // (`legs`: the actor's Leg Length on the skeleton, bodyrig.h)
     if (!stand.ok) return out;
     std::vector<M4> mats;
-    standMatrices(m, mats);
+    standMatrices(m, mats, legs);
     if (mats.size() != m.bones.size()) return out;
     // each bone's segment: its nearest named ancestor's
     std::vector<int> named(m.bones.size(), -1);

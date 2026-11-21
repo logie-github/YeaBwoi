@@ -332,6 +332,49 @@ class GameFiles(private val context: Context) {
         fetch(id, null)
     }
 
+    /**
+     * [fetchNow] that gives up quietly once [stop] is set (Options' "Download everything": DownloadService). Throws
+     * [NoSuchFile] when wago.tools has no such file, another exception when it couldn't be had after five tries.
+     */
+    fun fetchUnless(id: Int, stop: AtomicBoolean) {
+        fetch(id, stop)
+    }
+
+    /**
+     * Fetches file [id] at [build] into [target] (the art caches: files/transmog-art, files/war-art, files/creator-art
+     * keep `<id>-<build>`), through the same limiter and tries as the game's files; nothing when it is already there.
+     */
+    fun fetchTo(id: Int, build: String, target: File, stop: AtomicBoolean) {
+        if (target.isFile && target.length() > 0) return
+        synchronized(locks.getOrPut(-id) { Any() }) {
+            if (target.isFile && target.length() > 0) return
+            target.parentFile?.mkdirs()
+            val url = source.replace("<id>", id.toString()).replace(Regex("version=[^&]*"), "version=$build")
+            download(id, stop, url, target)
+        }
+    }
+
+    /**
+     * The first launch's gathering ([start]), waited for: the caller's thread blocks until it is done or [pause]d.
+     * "Download everything"'s first pack.
+     */
+    fun gatherBlocking() {
+        start(wifiOnly = false)
+        job?.join()
+    }
+
+    /**
+     * Every file the gathering fetched that is on the phone or planned: assets/files.json's packs (with their sizes) and the
+     * creator's plan in the order it is fetched (sizes unknown: 0). The tables are not files of wago.tools' and not here.
+     */
+    fun basicsFiles(): List<Pair<Int, Long>> {
+        val out = LinkedHashMap<Int, Long>()
+        for (p in packs) for ((id, size) in p.files) out[id] = size
+        val plan = runCatching { Prefetch.Plan.read(planFile.readText(), tablesKey()) }.getOrNull()
+        if (plan != null) for (id in runCatching { plan.order(::deepDeps) }.getOrElse { plan.files.toList() }) out.putIfAbsent(id, 0L)
+        return out.map { it.key to it.value }
+    }
+
     // --- the creator's plan --------------------------------------------------------------------------------------
 
     /** What the tables on the phone are (each one's length): a new set of tables makes a new plan. */
@@ -388,9 +431,8 @@ class GameFiles(private val context: Context) {
         }
     }
 
-    private fun download(id: Int, cancel: AtomicBoolean?) {
-        val target = file(id)
-        val part = File(dir, "$id.part")
+    private fun download(id: Int, cancel: AtomicBoolean?, at: String? = null, target: File = file(id)) {
+        val part = File(target.path + ".part")
         var last: Exception? = null
         // a file the pinned build answers empty (Dalaran's loading art, 7963775, at 12.1.7.70892: 200 and no bytes, while
         // the latest build has it whole) is asked for again without the build
@@ -401,7 +443,7 @@ class GameFiles(private val context: Context) {
             var held = true
             fun letGo() { if (held) { held = false; limiter.release() } }
             try {
-                val url = source.replace("<id>", id.toString()).let { if (unpinned) unpin(it) else it }
+                val url = (at ?: source.replace("<id>", id.toString())).let { if (unpinned) unpin(it) else it }
                 val conn = URL(url).openConnection() as HttpURLConnection
                 conn.connectTimeout = 15000
                 conn.readTimeout = 60000
@@ -441,7 +483,8 @@ class GameFiles(private val context: Context) {
         throw last ?: IOException("Can't fetch file $id")
     }
 
-    private class NoSuchFile(message: String) : IOException(message)
+    /** wago.tools has no such file (asking again won't help). */
+    class NoSuchFile(message: String) : IOException(message)
 
     /** [url] without its pinned build (wago.tools then answers the latest build's file). */
     internal fun unpin(url: String): String = url.replace(Regex("&version=[^&]*"), "")
@@ -454,5 +497,14 @@ class GameFiles(private val context: Context) {
         const val TABLES = "tables"
         /** The creator's files: every race's and sex's every option and choice (creator/Prefetch). */
         const val LOOKS = "looks"
+
+        @Volatile private var instance: GameFiles? = null
+
+        /**
+         * The one GameFiles of the process (its limiter, its locks, its pool): the activity (kept through rotation and
+         * folding, and made again after it is closed) and the download service share it.
+         */
+        fun shared(context: Context): GameFiles =
+            instance ?: synchronized(this) { instance ?: GameFiles(context.applicationContext).also { instance = it } }
     }
 }
