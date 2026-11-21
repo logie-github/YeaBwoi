@@ -14,10 +14,13 @@ How the game picks a place's light (and so how this does):
 The Light row's LightParamsID_0 (clear weather) gives LightParams (its Glow) and LightData's keyframes (Time / 120 is the
 hour: the game counts half-minutes, 2880 a day), each a key:
 
-  [hour, ambient rgb, direct rgb, sky top rgb, sky middle rgb, fog rgb, end fog rgb, fog near, fog far]
+  [hour, ambient rgb, direct rgb, sky top rgb, sky middle rgb, fog rgb, end fog rgb, fog near, fog far,
+   sun rgb, cloud rgb, sky band 1 rgb, sky band 2 rgb, horizon ambient rgb, ground ambient rgb]
 
   ambient AmbientColor, direct DirectColor (the sun's or moon's light), sky top SkyTopColor, sky middle SkyMiddleColor, fog
-  SkyFogColor, end fog EndFogColor (SkyFogColor where it is black: older params have none); colours 0..1.
+  SkyFogColor, end fog EndFogColor (SkyFogColor where it is black: older params have none); sun SunColor (the sun's disc
+  and glow), cloud CloudSunColor, the bands SkyBand1Color and SkyBand2Color, horizon and ground ambient HorizonAmbientColor
+  and GroundAmbientColor (each its neighbour's where it is black: the sky's middle, the ambient); colours 0..1.
   fog far (yards): FogEnd / 36 where FogEnd is set (the older params' unit); else from FogDensity (retail's exponential
   fog: 2400 / density, so density 4.5, Elwynn's, is about 530 yards and Tirisfal's 14 about 170); clamped 80..1600.
   fog near: fog far times FogScaler (clamped 0..0.8). Both are an estimate of how far the zone sees, used for the cinematic
@@ -115,8 +118,16 @@ def keys_of(t, params):
         far = fe / 36.0 if fe > 0 else 2400.0 / max(float(r["FogDensity"]), 0.5)
         far = min(1600.0, max(80.0, far))
         near = far * min(0.8, max(0.0, float(r["FogScaler"])))
-        keys.append([hour] + rgb(r["AmbientColor"]) + rgb(r["DirectColor"]) + rgb(r["SkyTopColor"])
-                    + rgb(r["SkyMiddleColor"]) + fog + end + [round(near, 1), round(far, 1)])
+        mid = rgb(r["SkyMiddleColor"])
+        amb = rgb(r["AmbientColor"])
+
+        def band(name, fallback):
+            c = rgb(r[name] or 0)
+            return c if sum(c) > 0 else fallback
+        keys.append([hour] + amb + rgb(r["DirectColor"]) + rgb(r["SkyTopColor"])
+                    + mid + fog + end + [round(near, 1), round(far, 1)]
+                    + band("SunColor", rgb(r["DirectColor"])) + band("CloudSunColor", mid) + band("SkyBand1Color", mid)
+                    + band("SkyBand2Color", fog) + band("HorizonAmbientColor", amb) + band("GroundAmbientColor", amb))
     return keys
 
 
@@ -144,7 +155,7 @@ def main():
         places[loc["id"]] = dict(map=fr["map"], at=fr["origin"], source=source, light=int(light["ID"]), params=int(lp),
                                  glow=glow, keys=keys)
         zone = dict(source="tools/zone_light.py: " + source + "; [hour, ambient, direct, sky top, sky middle, fog, end fog, "
-                                                             "fog near, fog far]", glow=glow, keys=keys)
+                                                             "fog near, fog far, sun, cloud, sky band 1, sky band 2, horizon ambient, ground ambient]", glow=glow, keys=keys)
         print("%s: %s" % (loc["id"], source), file=sys.stderr)
         # the entry's "cinematic" block with its "zone" put in (or replaced); the rest of the entry as its text stands
         m = re.search(r'\n   "cinematic": ', et)

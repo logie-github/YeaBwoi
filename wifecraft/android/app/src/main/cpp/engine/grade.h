@@ -12,6 +12,9 @@ struct GradeParams {
     float lift[3] = {0, 0, 0};    // where black goes (daylight.h CineProfile, scaled by cineScaled)
     float gamma = 1;
     float mid[3] = {1, 1, 1};     // the mid-tones by channel (the zone mood's tint: each channel's power is gamma / mid)
+    float shadowTint[3] = {1, 1, 1};  // the split tone: the shadows times this, the highlights times highTint
+    float highTint[3] = {1, 1, 1};
+    float exposure = 1;           // the frame brightened first (daylight.h cineExpose: a soft shoulder)
     float gain[3] = {1, 1, 1};    // where white goes
     float contrast = 0;           // the S-curve's share
     float saturation = 1;

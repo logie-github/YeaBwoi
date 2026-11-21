@@ -30,6 +30,9 @@ uniform vec3 uLift;
 uniform vec3 uGain;
 uniform float uGamma;
 uniform vec3 uMid;
+uniform vec3 uShadowTint;
+uniform vec3 uHighTint;
+uniform float uExposure;
 uniform float uContrast;
 uniform float uSat;
 uniform float uVignette;
@@ -47,10 +50,13 @@ void main() {
     vec3 c = clamp(texture(uTex, vUv).rgb, 0.0, 1.0);
     // the area's grade (daylight.cpp cineGradeColour): black to the lift, white to the gain, the mid-tones' power, a gentle
     // S-curve, the saturation
+    c = c * uExposure / (1.0 + c * (uExposure - 1.0));
     c = uLift + c * (uGain - uLift);
     c = pow(max(c, vec3(0.0)), vec3(uGamma) / max(uMid, vec3(0.5)));
     vec3 s = c * c * (3.0 - 2.0 * c);
     c = mix(c, s, uContrast);
+    float l0 = dot(c, vec3(0.299, 0.587, 0.114));
+    c *= mix(vec3(1.0), uShadowTint, 1.0 - smoothstep(0.0, 0.36, l0)) * mix(vec3(1.0), uHighTint, smoothstep(0.45, 1.0, l0));
     float l = dot(c, vec3(0.299, 0.587, 0.114));
     c = mix(vec3(l), c, uSat);
     float mids = 4.0 * l * (1.0 - l);
@@ -125,14 +131,19 @@ void Grade::end(int width, int height, const GradeParams& p) {
     glUniform1i(gl::loc(prog_, "uTex"), 0);
     // the grade drawn only while the look is on (mood over 0): otherwise neutral
     const bool on = p.mood > 0.001f;
-    float lift[3], gain[3], mid[3];
+    float lift[3], gain[3], mid[3], st[3], ht[3];
     for (int i = 0; i < 3; ++i) {
+        st[i] = on && std::isfinite(p.shadowTint[i]) ? std::clamp(p.shadowTint[i], 0.5f, 1.5f) : 1.0f;
+        ht[i] = on && std::isfinite(p.highTint[i]) ? std::clamp(p.highTint[i], 0.5f, 1.5f) : 1.0f;
         lift[i] = on && std::isfinite(p.lift[i]) ? std::clamp(p.lift[i], 0.0f, 0.2f) : 0.0f;
         gain[i] = on && std::isfinite(p.gain[i]) ? std::clamp(p.gain[i], 0.5f, 1.5f) : 1.0f;
         mid[i] = on && std::isfinite(p.mid[i]) ? std::clamp(p.mid[i], 0.5f, 1.5f) : 1.0f;
     }
     glUniform3fv(gl::loc(prog_, "uLift"), 1, lift);
     glUniform3fv(gl::loc(prog_, "uMid"), 1, mid);
+    glUniform3fv(gl::loc(prog_, "uShadowTint"), 1, st);
+    glUniform3fv(gl::loc(prog_, "uHighTint"), 1, ht);
+    glUniform1f(gl::loc(prog_, "uExposure"), on && std::isfinite(p.exposure) ? std::clamp(p.exposure, 0.25f, 4.0f) : 1.0f);
     glUniform3fv(gl::loc(prog_, "uGain"), 1, gain);
     glUniform1f(gl::loc(prog_, "uGamma"), on && std::isfinite(p.gamma) ? std::clamp(p.gamma, 0.5f, 2.0f) : 1.0f);
     glUniform1f(gl::loc(prog_, "uContrast"), on && std::isfinite(p.contrast) ? std::clamp(p.contrast, 0.0f, 1.0f) : 0.0f);

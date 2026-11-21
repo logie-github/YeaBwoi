@@ -27,9 +27,9 @@ static bool readJson(const char* path, Json& out) {
 
 static float zoneStep(const ZoneKey& a, const ZoneKey& b) {
     float d = 0;
-    const float* as[] = {a.ambient, a.direct, a.skyTop, a.skyMid, a.fog, a.endFog};
-    const float* bs[] = {b.ambient, b.direct, b.skyTop, b.skyMid, b.fog, b.endFog};
-    for (int c = 0; c < 6; ++c) for (int i = 0; i < 3; ++i) d = std::max(d, std::fabs(as[c][i] - bs[c][i]));
+    const float* as[] = {a.ambient, a.direct, a.skyTop, a.skyMid, a.fog, a.endFog, a.sun, a.cloud, a.band1, a.band2, a.horizonAmbient, a.groundAmbient};
+    const float* bs[] = {b.ambient, b.direct, b.skyTop, b.skyMid, b.fog, b.endFog, b.sun, b.cloud, b.band1, b.band2, b.horizonAmbient, b.groundAmbient};
+    for (int c = 0; c < 12; ++c) for (int i = 0; i < 3; ++i) d = std::max(d, std::fabs(as[c][i] - bs[c][i]));
     return d;
 }
 
