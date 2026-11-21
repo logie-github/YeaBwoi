@@ -168,7 +168,7 @@ DaySample sampleDay(const DayCycle& c, float hours, float frameYawDeg) {
 namespace {
 
 constexpr float kKeyFloor = 0.42f;      // the least brightness the key keeps on a person (a dark room's people stay lit)
-constexpr float kActorCeiling = 1.15f;  // a person's ambient and key together never brighter than this (luminance)
+constexpr float kActorCeiling = 1.05f;  // a person's ambient and key together never brighter than this (luminance)
 constexpr float kFlickerRoom = 0.04f;   // the flicker's reach on a room's light and on the key, at full flicker
 constexpr float kFlickerKey = 0.06f;
 
@@ -423,10 +423,10 @@ CineProfile cineProfile(const CineInput& in, const CineOverride* over) {
         cineHue(in.direct, hd);
         mixHue(ha, hd, dw, sun);
         float k0[3];
-        mixHue(sun, area, 0.3f, k0);
+        mixHue(sun, area, 0.45f, k0);
         mixHue(k0, prac, 0.35f * night * flames, p.key);
-        limitChroma(p.key, 0.35f + 0.10f * night);
-        p.keyGain = 1.10f * day + 0.95f * night;
+        limitChroma(p.key, 0.28f + 0.14f * night);
+        p.keyGain = 1.0f * day + 0.95f * night;
         p.sunBias = 0.45f * day + 0.25f * night;
         p.practicalBias = pr.hasAt ? 0.30f * night * lights : 0.0f;
         // the rim: the sky by day (warmer as the sun lowers), the moon by night
@@ -446,10 +446,18 @@ CineProfile cineProfile(const CineInput& in, const CineOverride* over) {
         p.vignette = 0.55f * day + 0.90f * night;
         p.flicker = pr.hasAt ? flames * night * 0.5f : 0.0f;
     }
+    // a place already dark (a dim room, a night without a lamp) isn't made darker still: less contrast, the mid-tones a
+    // little lifted, its light kept nearer its own
+    const float lit = in.interior ? cineLum(in.roomAmbient) + cineLum(in.roomLight) : cineLum(in.ambient) + 0.5f * cineLum(in.direct);
+    const float dark = 1.0f - smooth01(0.18f, 0.50f, lit);
+    p.contrast *= 1.0f - 0.6f * dark;
+    p.gamma = 1.0f + (p.gamma - 1.0f) * (1.0f - dark) - 0.05f * dark;
+    for (float* m : {p.sceneAmbient, p.room})
+        for (int i = 0; i < 3; ++i) m[i] += (1.0f - m[i]) * 0.5f * dark;
     // the grade toward the area's own colour: the shadows lifted into it, the highlights toward the key
     const float liftAmt = in.interior ? 0.030f : 0.015f + 0.020f * night;
     for (int i = 0; i < 3; ++i) {
-        p.lift[i] = 0.010f + liftAmt * (area[i] - 1.0f);
+        p.lift[i] = 0.010f + 0.008f * dark + liftAmt * (area[i] - 1.0f);
         p.gain[i] = 1.0f + 0.05f * (p.key[i] - 1.0f);
     }
     std::copy(prac, prac + 3, p.flickerColour);

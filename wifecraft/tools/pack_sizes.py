@@ -188,8 +188,10 @@ def main():
     def walk(o):
         if isinstance(o, dict):
             for k, v in o.items():
-                if k not in ("area", "zoneMusic", "ambience", "silenceMs", "kit"):
-                    walk(v)
+                # a place's "ambience" is a SoundAmbience id, the top level's the day and night files
+                if k == "silenceMs" or (k in ("area", "zoneMusic", "ambience", "kit") and isinstance(v, int)):
+                    continue
+                walk(v)
         elif isinstance(o, list):
             for v in o:
                 walk(v)

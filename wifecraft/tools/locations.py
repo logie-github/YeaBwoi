@@ -15,6 +15,13 @@ adds (or replaces) only each entry's "dayCycle" and leaves the rest of every ent
 day (LightData's keyframes for the LightParams its "light" came from: hour = Time / 120, ambient, direct, sky middle,
 sky fog), which the engine samples by the world clock's hour (cpp engine/daylight.h).
 
+    python3 tools/locations.py --cinematic=LISTFILE
+
+adds (or replaces) only each entry's "cinematic" block's practicals (cinematic mode's profile, cpp engine/daylight.h): the
+light-giving doodads near each view (candles, torches, braziers, lanterns, crystals: by their file names in LISTFILE), how
+many, which flicker, their colour and where their light comes from; a hand-set "override" in the block is kept. A rebuild
+given the listfile makes the block again the same way, keeping the override.
+
     python3 tools/locations.py --furniture-extents=MEASURED.json
 
 adds (or replaces) only each furniture row's "extent" (and its "model") from engine-test/furniture_measure's output: the
@@ -1192,6 +1199,117 @@ def add_day_cycles(st):
             json.dumps(old["comment"]), json.dumps(old["build"]), ",\n  ".join(parts)))
 
 
+# ---------------------------------------------------------------------------------------- cinematic mode's practicals
+# The practical lights a location's views see (cinematic mode's profile, cpp engine/daylight.h: cineProfile): the doodads
+# whose model is a light, by its file name: flames (candles, torches, braziers, hearths, oil lanterns and lamps: they
+# flicker) and steady lights (crystals, arcane and blue lanterns). Their colour is the light such a thing gives; `at` is
+# where their light comes from, weighted toward the nearest to the view's spawn. First match wins.
+PRACTICAL_KINDS = [
+    (r"firewood|hearthstone|cauldron|tree|bush|rug|board|book|candlestick_unlit|unlit", None, None),
+    (r"lantern_blue|bluelantern|blue_lantern", False, (0.45, 0.65, 1.0)),
+    (r"enchanting_lantern|arcane", False, (0.75, 0.55, 1.0)),
+    (r"crystal|^ancient_d_|^dr_lamppost|^dr_.*light|naaru", False, (0.70, 0.62, 1.0)),
+    (r"candle|chandelier|candelabra|candleabra", True, (1.0, 0.66, 0.36)),
+    (r"torch|brazier|campfire|bonfire|firepit|fire_pit|hearth|fireplace|^fire|_fire", True, (1.0, 0.55, 0.25)),
+    (r"^fk_lamppost|tirisfal.*lamp", True, (1.0, 0.80, 0.50)),
+    (r"lantern|lamppost|streetlamp|street_lamp|sconce|mininglamp|lamp", True, (1.0, 0.74, 0.45)),
+]
+PRACTICAL_RADIUS = {"inside": 14.0, "outside": 25.0}   # yards from the view's spawn
+
+
+def practical_kind(path):
+    """(flame, colour) for a model's file path that is a light; None for anything else."""
+    base = path.rsplit("/", 1)[-1].lower()
+    if base.endswith(".m2"):
+        base = base[:-3]
+    for pat, flame, colour in PRACTICAL_KINDS:
+        if re.search(pat, base):
+            return None if flame is None else (flame, colour)
+    return None
+
+
+def cinematic_practicals(entry, name):
+    """{"inside": {...}, "outside": {...}}: each view's practical lights (cpp engine/daylight.h CinePracticals). Inside, the
+    building's own doodads (set >= 0) only; outside, everything near the outside spawn."""
+    out = {}
+    for view, radius in PRACTICAL_RADIUS.items():
+        sp = entry.get("spawns", {}).get(view)
+        if not sp:
+            continue
+        x0, y0, z0 = sp["pos"]
+        flames = lights = 0
+        wsum, at, col = 0.0, [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]
+        for d in entry.get("doodads", []):
+            if view == "inside" and d.get("set", 0) < 0:
+                continue
+            kind = practical_kind(name(d["model"]))
+            if not kind:
+                continue
+            x, y, z = d["pos"]
+            dist2 = (x - x0) ** 2 + (y - y0) ** 2 + (z - z0) ** 2
+            if dist2 > radius * radius:
+                continue
+            flame, colour = kind
+            lights += 1
+            flames += 1 if flame else 0
+            w = 1.0 / (1.0 + dist2 / 16.0)
+            wsum += w
+            for i, v in enumerate((x, y, z + 0.5)):
+                at[i] += v * w
+            for i in range(3):
+                col[i] += colour[i] * w
+        p = dict(flames=flames, lights=lights)
+        if wsum > 0:
+            p["colour"] = [round(c / wsum, 3) for c in col]
+            p["at"] = [round(a / wsum, 3) for a in at]
+        out[view] = p
+    return out
+
+
+def cinematic_block(entry, name, previous=None):
+    """An entry's "cinematic": the practicals worked out again; a hand-set "override" (and any other hand-set part) kept."""
+    block = {k: v for k, v in (previous or {}).items() if k not in ("source", "practicals")}
+    return dict(source="tools/locations.py --cinematic: the practical lights near each view (doodads by file name); "
+                       "\"override\" is set by hand (cpp engine/daylight.h CineOverride)",
+                practicals=cinematic_practicals(entry, name), **block)
+
+
+def block_text(block, indent=3):
+    return ("\n" + " " * indent).join(compact(json.dumps(block, indent=1)).split("\n"))
+
+
+def add_cinematic(listfile):
+    """--cinematic=LISTFILE: each entry's "cinematic" block made (or its practicals made again, its override kept); every
+    other line of the file stays as it stands."""
+    names = Store.__new__(Store)
+    names.names = {}
+    for line in open(listfile, encoding="utf-8", errors="replace"):
+        i = line.find(";")
+        if i > 0 and line[:i].isdigit():
+            names.names[int(line[:i])] = line[i + 1:].strip()
+    path = os.path.join(ASSETS, "locations.json")
+    text = open(path).read()
+    old = json.loads(text)
+    parts = []
+    dec = json.JSONDecoder()
+    for loc, t in zip(old["locations"], entry_texts(text)):
+        body = block_text(cinematic_block(loc, names.name, loc.get("cinematic")))
+        m = re.search(r'\n   "cinematic": ', t)
+        if m:
+            _, end = dec.raw_decode(t, m.end())
+            t = t[:m.end()] + body + t[end:]
+        else:
+            end = t.rstrip().rindex("}")
+            t = t[:end].rstrip() + ",\n   \"cinematic\": " + body + "\n  }"
+        parts.append(t)
+        pr = cinematic_practicals(loc, names.name)
+        log("%s: cinematic practicals inside %s, outside %s" % (
+            loc["id"], pr.get("inside", {}).get("lights"), pr.get("outside", {}).get("lights")))
+    with open(path, "w") as f:
+        f.write("{\n \"comment\": %s,\n \"build\": %s,\n \"locations\": [\n  %s\n ]\n}\n" % (
+            json.dumps(old["comment"]), json.dumps(old["build"]), ",\n  ".join(parts)))
+
+
 def continent(st, loc):
     return int(next(r for r in st.table("AreaTable") if r["ID"] == str(loc["area"]))["ContinentID"])
 
@@ -1229,6 +1347,10 @@ def main():
     only = {x for a in sys.argv[1:] if a.startswith("--only=") for x in a[7:].split(",")}
     if not args:
         raise SystemExit(__doc__)
+    cine = [a.split("=", 1)[1] for a in args if a.startswith("--cinematic=")]
+    if cine:
+        add_cinematic(cine[0])
+        return
     if "--day-cycle" in args:
         add_day_cycles(Store(args[0]))
         return
@@ -1251,9 +1373,16 @@ def main():
         out["locations"] = [l for l in old.get("locations", []) if l["id"] not in {x["id"] for x in todo}]
         kept = {l["id"]: t for l, t in zip(old.get("locations", []), entry_texts(text))}
         previous = {l["id"]: l.get("furniture") for l in old.get("locations", [])}
+        cinematic = {l["id"]: l.get("cinematic") for l in old.get("locations", [])}
+    else:
+        cinematic = {}
     reports = {}
     for loc in todo:
         entry, rep = build(st, loc, previous.get(loc["id"]))
+        if st.names or cinematic.get(loc["id"]):
+            # cinematic mode's block: its practicals made again (with the listfile's names), its hand-set override kept
+            entry["cinematic"] = (cinematic_block(entry, st.name, cinematic.get(loc["id"])) if st.names
+                                  else cinematic[loc["id"]])
         out["locations"].append(entry)
         reports[loc["id"]] = rep
         log("%s: %d groups, %d props, %d yard props, %d ground chunks, %.2f MB, %d missing" % (
