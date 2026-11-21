@@ -1629,6 +1629,53 @@ class SceneSimulation(
     }
 
     /**
+     * Cinematic auto-play (CinematicAutoplay): [id] and [otherId] play [pairId] on [item] where it fits ([partnerOn]), or on the
+     * open floor ([item] null: at [floorAt], else where they are); [pairId] null: one of the models' own partner emotes. It
+     * loops until the next is ordered. With [teleport] (the screen is covered by a cut) both are put on their places at once:
+     * no walk, no settle. False: it can't be played now ([refusal] says why).
+     */
+    fun autoplay(id: String, otherId: String, pairId: String?, item: SceneObject?, teleport: Boolean, floorAt: Vec3? = null): Boolean {
+        refusal = null
+        val actor = actors[id] ?: return false
+        val other = actors[otherId]?.takeIf { it !== actor } ?: return refuse("Auto-play needs two people.")
+        // whatever either did before (an order, the last animation) ends here
+        actor.queue.clear(); other.queue.clear()
+        release(actor); release(other)
+        val started = if (item != null && pairId != null) partnerOn(item, pairId, id, otherId) else {
+            picked = null; pickedEmote = null; pickedFurniture = null; pickedFit = null
+            if (pairId != null) picked = pairs.firstOrNull { it.id == pairId } ?: return refuse("That animation isn't loaded.")
+            else {
+                val mutual = PartnerEmotes.mutual(actor.id, other.id, emotes, emoteScratch)
+                if (mutual.isEmpty()) return refuse("They have no partner animation to play.")
+                pickedEmote = mutual[random.nextInt(mutual.size)]
+            }
+            if (teleport && floorAt != null) {
+                // onto the open floor, side by side, off whatever they were on
+                actor.position = floorAt
+                other.position = Vec3(floorAt.x + cos(actor.facing) * CHAT_GAP, floorAt.y + sin(actor.facing) * CHAT_GAP, floorAt.z)
+            }
+            startPartner(actor, other, directed = true)
+        }
+        if (!started) return false
+        val p = actor.performance ?: other.performance ?: return true
+        p.repeat = true
+        p.cursor.repeat = true
+        if (teleport) {
+            for (a in listOfNotNull(p.lead, p.other)) if (a.phase == Phase.MOVING && a.waypoints.isNotEmpty()) {
+                a.waypoint = a.waypoints.size - 1
+                a.destination = a.waypoints.last()
+                arrive(a)
+            }
+            if (!p.started && p.lead.phase != Phase.MOVING && p.other?.phase != Phase.MOVING) play(p)
+            for (a in listOfNotNull(p.lead, p.other)) { a.easeLength = 0f; a.easeTime = 0f }
+        }
+        return true
+    }
+
+    /** Whether [id]'s two-person animation has started (both on their places), for auto-play's Show movement. */
+    fun autoplayStarted(id: String): Boolean = actors[id]?.performance?.let { it.started && it.other != null } == true
+
+    /**
      * Switch positions mid-play: [id]'s two-person animation started again from its first part with the two people in each
      * other's roles (role A's clip, slot and facing to the one who played B, and B's to the other), on the same spot, heading
      * and furniture; each is eased from where they were drawn onto their new place ([JoinEase]). Sizes refitted ([RoleSwitch.refit]).

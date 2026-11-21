@@ -584,7 +584,9 @@ CineProfile cineProfile(const CineInput& in0, const CineOverride* over) {
         // little toward its sky; the Mood boost more of each, more saturation and contrast
         const float b = in.zoneBoost ? 1.0f : 0.0f;
         for (int i = 0; i < 3; ++i) {
-            p.lift[i] += za * ((0.030f + 0.020f * b) * (zt.fogHue[i] - 1.0f) + 0.006f);
+            // (split: the shadows mostly the sky's colour, a little of the fog's: Tirisfal's teal under its mauve mid-tones)
+            const float shadow = 0.3f * zt.fogHue[i] + 0.7f * zt.skyHue[i];
+            p.lift[i] += za * ((0.050f + 0.025f * b) * (shadow - 1.0f) + 0.008f);
             p.mid[i] = 1.0f + za * (0.10f + 0.08f * b) * (zt.ambHue[i] - 1.0f);
             p.gain[i] += za * 0.03f * (zt.skyHue[i] - 1.0f);
         }
@@ -729,9 +731,11 @@ void cineZoneLight(const CineProfile& p, float strength, float ambient[3], float
         for (int i = 0; i < 3; ++i) {
             ambient[i] = lerpf(ambient[i], p.zoneAmbient[i], k);
             sun[i] = lerpf(sun[i], p.zoneSun[i], k);
-            skyTop[i] = lerpf(skyTop[i], p.zoneSky[i], k);
-            horizon[i] = lerpf(horizon[i], p.zoneFog[i], k);
-            below[i] = lerpf(below[i], p.zoneFog[i], k);
+            // (the sky further: it is the zone's at a glance)
+            const float ks = std::min(1.0f, 1.3f * k);
+            skyTop[i] = lerpf(skyTop[i], p.zoneSky[i], ks);
+            horizon[i] = lerpf(horizon[i], 0.35f * p.zoneFog[i] + 0.65f * p.zoneSky[i], ks);
+            below[i] = lerpf(below[i], p.zoneFog[i], ks);
             fog[i] = lerpf(fog[i], p.zoneFog[i], k);
         }
     float f = s * clamp01(p.fogMix);

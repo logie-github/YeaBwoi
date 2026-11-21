@@ -1224,7 +1224,7 @@ fun LiveSceneScreen(
     Box(Modifier.fillMaxSize().background(SceneGround)) {
         AndroidView(
             { (view.parent as? ViewGroup)?.removeView(view); view },
-            Modifier.fillMaxSize().onSizeChanged { speechSpots.width = it.width.toFloat(); speechSpots.height = it.height.toFloat() }.pointerInput(view, live) {
+            Modifier.fillMaxSize().cinematicFrame(cinematic, cinematicSettings.frame).onSizeChanged { speechSpots.width = it.width.toFloat(); speechSpots.height = it.height.toFloat() }.pointerInput(view, live) {
                 val slop = 8.dp.toPx()
                 val velocity = FloatArray(2)
                 // a drag or pinch on the room's view starts the orbit there (it begins exactly on the room's view)
@@ -1439,10 +1439,14 @@ fun LiveSceneScreen(
                 SoftRadial(SoftControl.offered(flowPhase), { soft(it) }, Modifier.align(Alignment.CenterEnd).padding(end = SceneHud.MARGIN.dp))
             }
         }
+        // cinematic auto-play: the pair's animations one after another, each change under a cut (CinematicUi, CinematicAutoplay)
+        CinematicAutoplayHost(cinematic && cinematicSettings.autoplay, live, cineDirector, cinematicSettings,
+            selected ?: flow?.a, partnerId ?: flow?.b, cast.map { it.id }, partnerPairs, needs.pairs, furnitureAt, bodyScales,
+            controls = cinematic && !cineHidden && revealed)
         CinematicLayer(cinematic, cineHidden, revealed && shown > 0f && (cinematic || !immersiveHud || hudUp), {
             cinematic = !cinematic
             if (cinematic) { radial = null; speedOpen = false; feedOpen = false; menu = false }
-        }, { cinePeek = true }, { live.aspect = it })
+        }, { cinePeek = true }, { live.aspect = it; cineLook.viewAspect = it }, frame = cinematicSettings.frame)
     }
     choosingAnimation?.let { owner ->
         // with a partner chosen, the two-person animations come first and play with them (solo ones still play alone)

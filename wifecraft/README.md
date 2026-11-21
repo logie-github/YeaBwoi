@@ -207,6 +207,49 @@ Not yet checked:
   leaves only wide and medium shots from beside the bed: close-ups and the low hip detail would need a camera under the
   canopy.
 
+### Cinematic mode: auto-play and the 4:3 frame
+
+**Auto-play.** With Options > Cinematic **Auto-play scene** on (the default), starting cinematic mode starts a scene: the
+controlled NPC and their partner (else the flow's pair, else the first other person in the cast) play the installed partner
+animations one after another (`simulation/CinematicAutoplay.kt`). Each one is chosen with a place: the bed, the couch, a chair,
+the table or the open floor, wherever every one of its two bodies lands on something that takes its posture at its height
+(`FurnitureFit`, for these two bodies' size: a dwarf or a gnome only where the existing rules let them). It plays, looping, for
+25 to 90 seconds at the middle **Pace** (1.5 times as long at the slowest, half at the quickest), then the next: the same place
+about half the time while it has something fresh, else another place. The same animation never plays twice running while
+another can, the last four wait their turn, and one in the same posture as the last is less likely. The open floor is where the
+pair stood, or a spot clear of the furniture. With nothing installed (or nothing that fits a place here) it plays the models'
+own partner emotes and its panel says so; with one person nobody plays.
+
+**Every change happens during a cut.** The picture goes to black (**Cut style**: a quick fade of 0.12 s, or a hard cut), the next
+animation starts with both already on their places (no walk, no settle: `SceneSimulation.autoplay`), the camera cuts to a new
+shot of it (`CinematicDirector.cutNow`: another size than the last, or the same size from at least 30 degrees round; never by a
+move), and only then the picture comes back. The black lasts about 0.4 s: the engine's own 0.25 s crossfade of the pose has to
+pass in it, so the change of pose is never seen (a hard cut is black just as long, without the fades). Within a place the camera
+keeps its side of the pair (the 180-degree rule); at a change of place the side is chosen again. With **Show movement** on, a
+change of place is walked in view and the cut comes as the next animation starts.
+
+While the HUD is up (a tap), a small panel shows what plays and has **Next scene**, **Pause** (the clock stops), **Stay** (this
+animation until pressed again) and a **Pace** slider for this scene. Leaving cinematic mode lets the last animation finish its pass.
+
+**The frame.** Options > Cinematic **Picture**: **Auto (4:3)** (the default), **Wide (16:9)** or **Full screen**. In the mode the 3D
+view itself is resized to the largest rectangle of that shape that fits the screen, centred, black round it (above and below on a
+screen narrower than 4:3, such as a fold's open inner screen; at the sides on a wider one; on a 4:3 screen it is the whole screen),
+so its picture, projection, effects and taps are the frame's and the bars take no tap (a tap on them only brings the HUD back).
+**Letterbox** now draws thin film bars inside it (a 1.43:1 picture in Auto: about 3.4% top and bottom on a 4:3 screen; 1.9:1 in
+Wide); Full screen keeps the old wide 2.39:1 bars.
+
+Tested on the desktop only: `CinematicAutoplayTest` (synthetic bed, chair, table and floor with synthetic two-person clips: only
+animations that fit each place, no repeat running and the recent ones held back, the dwell's bounds at every pace, the same seed
+the same sequence, no furniture, no animations, nothing fitting, no partner, the order cover, swap, cut, reveal with the cut
+always under full black, a refused change retried under the same cover, then the base animations, Pause, Stay, Next scene, Show
+movement; the director's forced cut on six seeds, twelve changes each, always a cut to a new size or angle; the frame on eleven
+screens from 4:3 to 20:9 both ways and the fold's screens; taps in and out of the frame; the thin bars; the settings' JSON). A
+desktop render of the Lion's Pride room at 1440x1080 with the thin bars was looked at. Not run on a phone: how the resize of the
+3D view feels when the mode starts, the panel and the black's timing on a real frame rate are unseen. Heuristic: the pace's
+times, the place's chance to stay, the floor spot (not tested against walls), and auto-play plays each pair's loop (a staged
+pack's start and end parts are not played by it); it does not undress anyone (the flow's Continue does). Speech bubbles, if shown
+in the mode, are placed for the whole screen, not the frame.
+
 ## Life simulation
 
 With **Life simulation** on (Options > Time; on by default: `Settings.lifeSimulation`; its HUD below shows only with Options > Immersion > **Show life HUD**; turned off in a running scene, needs stand still and NPCs choose as before), the live scene's NPCs live as in The Sims, in Warcraft's words (`simulation/LifeSim.kt` and its `Life*.kt` files; the screen's side is pinned in `simulation/LifeApi.kt`). It drives the same runtime as everything else (walking, sitting, resting on the bed, reading, talking, partner animations, emotes); it adds no second one.
