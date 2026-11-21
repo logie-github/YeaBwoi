@@ -228,6 +228,8 @@ class SceneSimulation(
      * 1), world units in the pair's actor order ([first]'s, then [second]'s); null: neither. On the floor ([onFurniture]
      * false) the whole lift its own flesh needs ([FleshLift]); on furniture, where the fit already put the clip's support on
      * the seat or bed for the generic body, the difference its own flesh makes (a bulky body up, a slim one down onto it).
+     * Two bodies that meet ([PairSpacing.touching]) are raised together, by the more either needs ([PairLift]), so the
+     * contact their author made stays where it was.
      */
     private fun roleLifts(r: Requirement, pair: PartnerPair, first: Actor, second: Actor, onFurniture: Boolean): FloatArray? {
         val own = forBodies(r, pair, fleshOf(first), fleshOf(second)).actors
@@ -236,8 +238,13 @@ class SceneSimulation(
             val base = if (onFurniture) r.actors.getOrNull(i)?.liftUnits ?: 0f else 0f
             return (mine - base) * bodyUnit(body)
         }
-        return floatArrayOf(raise(0, first), raise(1, second)).takeIf { l -> l.any { abs(it) > 1e-4f } }
+        return PairLift.shared(raise(0, first), raise(1, second), touching(pair)).takeIf { l -> l.any { abs(it) > 1e-4f } }
     }
+
+    private val touchingPairs = java.util.IdentityHashMap<PartnerPair, Boolean>()
+
+    /** Whether [pair]'s two bodies meet ([PairSpacing.touching]); cached. */
+    private fun touching(pair: PartnerPair): Boolean = touchingPairs.getOrPut(pair) { PairSpacing.touching(pair) }
 
     /**
      * Where [pair] (needing [r]) fits on [f] for [first] (its actor 0) and [second] (its actor 1): the fit is made for the

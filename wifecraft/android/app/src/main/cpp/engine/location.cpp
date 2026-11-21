@@ -838,6 +838,7 @@ void Scene::updateCinematic(uint32_t nowMs) {
     in.practicals = location_ ? (room ? area.inside : area.outside) : CinePracticals();
     cinePractical_ = in.practicals;
     const CineOverride* over = location_ ? (room ? &area.overInside : &area.overOutside) : nullptr;
+    in.exposure = location_ ? (room ? area.exposureInside : area.exposureOutside) : 1.0f;
     // the zone mood: the zone's own light at the hour (noon without a clock), by Options' Zone mood and Mood boost
     if (location_ && !area.zone.empty() && zoneMood_ > 0) {
         in.hasZone = true;
@@ -862,6 +863,9 @@ void Scene::updateCinematic(uint32_t nowMs) {
     std::copy(g.gain, g.gain + 3, cineGrade_.gain);
     cineGrade_.gamma = g.gamma;
     std::copy(g.mid, g.mid + 3, cineGrade_.mid);
+    std::copy(g.shadowTint, g.shadowTint + 3, cineGrade_.shadowTint);
+    std::copy(g.highTint, g.highTint + 3, cineGrade_.highTint);
+    cineGrade_.exposure = g.exposure;
     cineGrade_.contrast = g.contrast;
     cineGrade_.saturation = g.saturation;
     cineGrade_.vignette = std::clamp(cineVignette_ * cineNow_.vignette, 0.0f, 1.0f);
@@ -1264,7 +1268,10 @@ void Scene::staticSetup(unsigned prog, const M4& viewProj, const float intAmbien
 
 void Scene::drawWmoGroups(const PlacedWmo& w, bool transparent, const Frustum& f, float glow) {
     unsigned p = locProg_;
-    glUniform3fv(loc(p, "uIntAmbient"), 1, w.intAmbient);
+    // (cinematic mode: a dark room's ambient raised to its floor, daylight.h CineProfile::roomFloor)
+    float ia[3];
+    for (int i = 0; i < 3; ++i) ia[i] = w.intAmbient[i] + (cineMood_ > 0 ? cineNow_.roomFloor[i] * cineMood_ : 0.0f);
+    glUniform3fv(loc(p, "uIntAmbient"), 1, ia);
     glUniform1f(loc(p, "uGlow"), glow);
     glUniform4fv(loc(p, "uColor"), 1, ghostTint_);   // (white but for the ghost)
     float fogEnd = std::max(light_.fogEnd, light_.fogStart + 1.0f);
@@ -1377,8 +1384,12 @@ void Scene::drawInstances(const std::vector<const Instance*>& listIn, bool trans
 void Scene::drawStatic(bool transparent, const M4& viewProj) {
     if ((!location_ && editorProps_.empty()) || !locProg_) return;
     Frustum f(viewProj);
-    float zero[3] = {0, 0, 0};
+    float zero[3] = {0, 0, 0}, raised[3];
     const float* intAmb = location_ ? location_->intAmbient : zero;
+    if (location_ && cineMood_ > 0) {
+        for (int i = 0; i < 3; ++i) raised[i] = intAmb[i] + cineNow_.roomFloor[i] * cineMood_;
+        intAmb = raised;
+    }
     if (!transparent) frameStats_.drawCalls = frameStats_.groupsDrawn = frameStats_.instancesDrawn = 0;
     staticUniforms(locProg_, light_, eye_, viewProj, intAmb, roomTint_);
     if (location_) drawWmoGroups(*location_, transparent, f, 0);
@@ -1463,7 +1474,8 @@ void Scene::lightActor(const V3& feet, bool restore) {
         const float* t = roomTint_;
         for (int i = 0; i < 3; ++i) {
             float mean = i == 0 ? room->meanLight.x : i == 1 ? room->meanLight.y : room->meanLight.z;
-            amb[i] = (ia[i] + mean * 0.8f) * t[i];
+            const float floor = cineMood_ > 0 && !restore ? cineNow_.roomFloor[i] * cineMood_ : 0.0f;
+            amb[i] = (ia[i] + floor + mean * 0.8f) * t[i];
             dir[i] = mean * 0.5f * t[i];
         }
     }

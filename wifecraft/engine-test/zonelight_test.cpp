@@ -27,9 +27,9 @@ static bool readJson(const char* path, Json& out) {
 
 static float zoneStep(const ZoneKey& a, const ZoneKey& b) {
     float d = 0;
-    const float* as[] = {a.ambient, a.direct, a.skyTop, a.skyMid, a.fog, a.endFog};
-    const float* bs[] = {b.ambient, b.direct, b.skyTop, b.skyMid, b.fog, b.endFog};
-    for (int c = 0; c < 6; ++c) for (int i = 0; i < 3; ++i) d = std::max(d, std::fabs(as[c][i] - bs[c][i]));
+    const float* as[] = {a.ambient, a.direct, a.skyTop, a.skyMid, a.fog, a.endFog, a.sun, a.cloud, a.band1, a.band2, a.horizonAmbient, a.groundAmbient};
+    const float* bs[] = {b.ambient, b.direct, b.skyTop, b.skyMid, b.fog, b.endFog, b.sun, b.cloud, b.band1, b.band2, b.horizonAmbient, b.groundAmbient};
+    for (int c = 0; c < 12; ++c) for (int i = 0; i < 3; ++i) d = std::max(d, std::fabs(as[c][i] - bs[c][i]));
     return d;
 }
 
@@ -58,7 +58,9 @@ static void checkTone(const CineProfile& full, float s, const char* what) {
     CHECK(std::max(o[0], std::max(o[1], o[2])) <= 0.075f, "%s: black washed out (%.3f %.3f %.3f)", what, o[0], o[1], o[2]);
     grade(p, 0.04f, o);
     CHECK(std::min(o[0], std::min(o[1], o[2])) >= 0.015f, "%s: shadows crushed (%.3f %.3f %.3f)", what, o[0], o[1], o[2]);
-    grade(p, 0.5f, o);
+    CineProfile p1 = p;
+    p1.exposure = 1;   // (the exposure moves the mid-grey on purpose: daylight_test holds its range)
+    grade(p1, 0.5f, o);
     float m = (o[0] + o[1] + o[2]) / 3;
     CHECK(m >= 0.35f && m <= 0.61f, "%s: mid-grey to %.3f", what, m);
     grade(p, 1.0f, o);
@@ -106,6 +108,20 @@ int main(int argc, char** argv) {
         CHECK(std::fabs(k.ambient[0] - 1) < 1e-4f && std::fabs(k.fogFar - 75) < 1e-3f, "zone not interpolated (%.3f %.2f)", k.ambient[0], k.fogFar);
         ZoneLight e;
         CHECK(!parseZoneLight(Json(), e) && e.empty(), "nothing read as a zone");
+        // the optional bands: read with 39 numbers, black with 21
+        Json j2;
+        Json::parse(R"({"keys": [[12, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 5, 100, 0.5,0.9,0.5, 0,0.2,0.1, 0,0,0, 0,0,0, 0,0,0, 0,0,0]]})", j2);
+        ZoneLight b;
+        CHECK(parseZoneLight(j2, b) && b.keys.size() == 1 && std::fabs(b.keys[0].sun[1] - 0.9f) < 1e-4f && std::fabs(b.keys[0].cloud[1] - 0.2f) < 1e-4f,
+              "the zone's bands aren't read");
+        CHECK(z.keys.size() == 2 && z.keys[0].sun[1] == 0, "a short key's bands aren't black");
+        // the place's exposure tweak: a number for both sides, or by side, within 0.5..2
+        CineArea ca;
+        Json j3;
+        Json::parse(R"({"exposure": {"inside": 1.3, "outside": 9}})", j3);
+        CHECK(parseCineArea(j3, ca) && std::fabs(ca.exposureInside - 1.3f) < 1e-4f && ca.exposureOutside == 2.0f, "exposure not read");
+        Json::parse(R"({"exposure": 0.8})", j3);
+        CHECK(parseCineArea(j3, ca) && std::fabs(ca.exposureInside - 0.8f) < 1e-4f && std::fabs(ca.exposureOutside - 0.8f) < 1e-4f, "exposure number not read");
     }
 
     int places = 0, checked = 0;
@@ -220,6 +236,14 @@ int main(int argc, char** argv) {
                 CHECK(p.lift[2] > p.lift[1] && p.mid[1] < 1.0f, "Brill %.0f h: the grade isn't toward purple (lift %.3f %.3f %.3f, mid g %.3f)", h, p.lift[0], p.lift[1], p.lift[2], p.mid[1]);
                 CHECK(cineLum(p.zoneSun) < 0.25f, "Brill %.0f h: the sun %.2f isn't gloomy", h, cineLum(p.zoneSun));
                 CHECK(p.fogFar < 60.0f, "Brill %.0f h: the fog (%.0f) isn't close", h, p.fogFar);
+                // the split: the shadows the sky's and clouds' green-teal (green over both), the highlights the sun's pale green
+                CHECK(p.shadowTint[1] > p.shadowTint[0] + 0.2f && p.shadowTint[1] > p.shadowTint[2] + 0.1f,
+                      "Brill %.0f h: the shadows aren't green (%.3f %.3f %.3f)", h, p.shadowTint[0], p.shadowTint[1], p.shadowTint[2]);
+                CHECK(p.highTint[1] > p.highTint[0] && p.highTint[1] > p.highTint[2], "Brill %.0f h: the highlights aren't the sun's green", h);
+                // a dark grey (a wall in the shade) graded: green over red and over blue
+                float g[3];
+                grade(cineScaled(p, 1.0f), 0.12f, g);
+                CHECK(g[1] > g[0] && g[1] > g[2] - 0.003f, "Brill %.0f h: a shadow grades to (%.3f %.3f %.3f), not green", h, g[0], g[1], g[2]);
             }
         }
     }
