@@ -425,6 +425,17 @@ size_t blendRootToSkin(const PartData& d, uint8_t* rgba, int w, int h, uint32_t 
                 if (sh < shade[k]) shade[k] = sh;
             }
     }
+    // each vertex's own texels too (a triangle flat in the texture, a seam's, paints none, yet draws the texels at its corners)
+    for (uint32_t v : d.indices) {
+        int cx = int(d.uvs[v * 2] * w), cy = int(d.uvs[v * 2 + 1] * h);
+        for (int y = cy - 1; y <= cy + 1; ++y)
+            for (int x = cx - 1; x <= cx + 1; ++x) {
+                if (x < 0 || y < 0 || x >= w || y >= h) continue;
+                size_t k = size_t(y) * size_t(w) + size_t(x);
+                if (vw[v] > weight[k]) weight[k] = vw[v];
+                if (weight[k] >= 0 && vs[v] < shade[k]) shade[k] = vs[v];
+            }
+    }
     float tr = float((rgb >> 16) & 255), tg = float((rgb >> 8) & 255), tb = float(rgb & 255);
     size_t changed = 0;
     for (size_t k = 0; k < weight.size(); ++k) {

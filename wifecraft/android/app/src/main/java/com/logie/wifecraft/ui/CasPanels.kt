@@ -557,7 +557,12 @@ private fun CasHdSection(model: CreatorModel, rev: Int, hd: CasHdBinding?, onCha
         Modifier.padding(bottom = 6.dp))
     when (tab) {
         CasTab.BODY -> {
+            if (set.bodies.size > 1) CasHdStepper("Body", set.bodies, o.body.coerceIn(0, set.bodies.size - 1)) { put(o.copy(body = it)) }
             if (set.tints.isNotEmpty()) CasHdStepper("Skin", set.tints, o.tint.coerceIn(0, set.tints.size - 1)) { put(o.copy(tint = it)) }
+            // the model's own shape keys (breasts, hips, thighs...), 0 to 100 %
+            set.shapes.forEachIndexed { i, label ->
+                WifeSliderRow(label, Math.round(o.shapes.getOrElse(i) { 0f } * 100), { v -> put(o.withShape(i, v / 100f)) })
+            }
             if (set.bodyMarks) WifeSwitchRow("Body marks", o.bodyMarks, { put(o.copy(bodyMarks = it)) })
             WifeNote("The sculpt sliders and Bust & Butt shape the HD figure too.", Modifier.padding(top = 4.dp))
         }

@@ -149,8 +149,8 @@ object PairBedPlan {
                 val top = origin.z + (piece?.spec?.regions?.firstOrNull()?.height ?: 0.85f) + 0.35
                 val yaw = (piece?.yaw ?: 0f).toDouble()
                 for ((view, turn) in listOf("side" to yaw + Math.PI / 2, "3q" to yaw + Math.PI / 4)) {
-                    val ex = cx + Math.cos(turn) * 3.0; val ey = cy + Math.sin(turn) * 3.0
-                    plan.append(String.format(locale, "camera %.3f %.3f %.3f %.3f %.3f %.3f 45\n", ex, ey, top + 0.9, cx, cy, top))
+                    val ex = cx + Math.cos(turn) * 3.6; val ey = cy + Math.sin(turn) * 3.6
+                    plan.append(String.format(locale, "camera %.3f %.3f %.3f %.3f %.3f %.3f 42\n", ex, ey, top + 1.3, cx, cy, top - 0.1))
                     val d = maxOf(c.pair.a.duration, c.pair.b.duration)
                     for (frac in listOf(0.25, 0.5)) plan.append("render ${File(out, "${slug}_${view}_${(frac * 100).toInt()}.png").absolutePath} 960 540 ${(d * frac * 1000).toInt()}\n")
                 }

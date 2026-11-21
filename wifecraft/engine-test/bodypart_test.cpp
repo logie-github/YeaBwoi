@@ -383,6 +383,7 @@ static void rootSkin(const std::string& parts) {
             int x = std::clamp(int(d.uvs[v * 2] * w), 0, w - 1), y = std::clamp(int(d.uvs[v * 2 + 1] * h), 0, h - 1);
             const uint8_t* q = &px[(size_t(y) * w + x) * 4];
             uint32_t c = uint32_t(q[0]) << 16 | uint32_t(q[1]) << 8 | q[2];
+            if (dist <= kPartSink && deltaE(c, skin) > 3 && std::getenv("DBG")) std::printf("  v %zu uv (%.4f, %.4f) dist %.4f colour %06X\n", v, d.uvs[v * 2], d.uvs[v * 2 + 1], dist, c);
             if (dist <= kPartSink) worstRoot = std::fmax(worstRoot, deltaE(c, skin));
             if (dist > farthest) { farthest = dist; tipColour = c; }
         }

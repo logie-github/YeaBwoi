@@ -181,6 +181,39 @@ bool parseWhd(const uint8_t* d, size_t size, HdSet& out, std::string& error) {
     if (out.hairTexture >= int(out.textures.size())) out.hairTexture = -1;
     tints(j["tints"], out.tints);
     tints(j["hairTints"], out.hairTints);
+    for (size_t i = 0; i < j["shapes"].size(); ++i) out.shapes.push_back({j["shapes"][i]["key"].str(), j["shapes"][i]["label"].str()});
+    for (size_t i = 0; i < j["bodies"].size(); ++i) {
+        const Json& b = j["bodies"][i];
+        HdBodyOption bo;
+        bo.label = b["label"].str();
+        bo.mesh = out.mesh(b["mesh"].str());
+        if (bo.mesh < 0) continue;
+        const size_t nv = out.meshes[size_t(bo.mesh)].vertexCount();
+        int gb = int(b["genitalBlob"].num(-1));
+        if (blobOk(gb)) {
+            size_t n = size_t(out.blobs[size_t(gb)].second / 4);
+            bo.genitals.resize(n);
+            std::memcpy(bo.genitals.data(), d + out.blobs[size_t(gb)].first, n * 4);
+            for (uint32_t v : bo.genitals) if (v >= nv) { error = "body " + bo.label + ": a genital vertex past its vertices"; return false; }
+        }
+        for (size_t k = 0; k < b["shapes"].size(); ++k) {
+            int sb = int(b["shapes"][k].num(-1));
+            if (blobOk(sb)) {
+                // u32 count, then count x (u32 vertex, f32 x3)
+                size_t sz = size_t(out.blobs[size_t(sb)].second);
+                const uint8_t* p = d + out.blobs[size_t(sb)].first;
+                if (sz < 4 || 4 + size_t(rd32(p)) * 16 != sz) { error = "body " + bo.label + ": a shape key's data is damaged"; return false; }
+                for (uint32_t q = 0; q < rd32(p); ++q) if (rd32(p + 4 + q * 16) >= nv) { error = "body " + bo.label + ": a shape key past its vertices"; return false; }
+            } else sb = -1;
+            bo.shapeBlobs.push_back(sb);
+        }
+        out.bodies.push_back(std::move(bo));
+    }
+    if (out.bodies.empty() || out.bodies[0].mesh != out.body) {
+        HdBodyOption own; own.label = "Body"; own.mesh = out.body;
+        own.shapeBlobs.assign(out.shapes.size(), -1);
+        out.bodies.insert(out.bodies.begin(), own);
+    }
     return true;
 }
 
@@ -270,7 +303,22 @@ std::vector<uint8_t> writeWhd(const HdSet& s) {
         js << "]";
     };
     tints("tints", s.tints); tints("hairTints", s.hairTints);
-    js << "}";
+    js << ",\"shapes\":[";
+    for (size_t i = 0; i < s.shapes.size(); ++i) js << (i ? "," : "") << "{\"key\":" << jsonStr(s.shapes[i].key) << ",\"label\":" << jsonStr(s.shapes[i].label) << "}";
+    js << "],\"bodies\":[";
+    for (size_t i = 0; i < s.bodies.size(); ++i) {
+        const HdBodyOption& b = s.bodies[i];
+        js << (i ? "," : "") << "{\"label\":" << jsonStr(b.label) << ",\"mesh\":" << jsonStr(s.meshes[size_t(b.mesh)].id);
+        if (!b.genitals.empty()) js << ",\"genitalBlob\":" << add(reinterpret_cast<const uint8_t*>(b.genitals.data()), b.genitals.size() * 4);
+        js << ",\"shapes\":[";
+        for (size_t k = 0; k < b.shapeBlobs.size(); ++k) {
+            int nb = -1;
+            if (b.shapeBlobs[k] >= 0) { size_t n = 0; const uint8_t* p = s.blob(b.shapeBlobs[k], n); nb = add(p, n); }
+            js << (k ? "," : "") << nb;
+        }
+        js << "]}";
+    }
+    js << "]}";
     const std::string j = js.str();
     std::vector<uint8_t> out;
     out.insert(out.end(), {'W', 'H', 'D', '1'});
@@ -292,7 +340,8 @@ std::vector<uint8_t> writeWhd(const HdSet& s) {
 uint64_t HdOptions::key() const {
     uint64_t k = 1469598103934665603ull;
     auto mix = [&k](uint64_t v) { k = (k ^ v) * 1099511628211ull; };
-    for (int v : {int(on), hair, outfit, eyes, faceMark, bodyMarks, tint, hairTint}) mix(uint64_t(uint32_t(v)));
+    for (int v : {int(on), hair, outfit, eyes, faceMark, bodyMarks, tint, hairTint, body, int(hideGenitals)}) mix(uint64_t(uint32_t(v)));
+    for (float f : shapes) { uint32_t bits; std::memcpy(&bits, &f, 4); mix(uint64_t(bits) + 991); }
     for (int v : jewelry) mix(uint64_t(uint32_t(v)) + 77);
     return k;
 }
@@ -445,13 +494,39 @@ HdFit fitHd(const M2Model& m, const HdSet& set, const HdOptions& o, std::string&
     const int skinSwap = set.tints.empty() ? -1 : set.tints[size_t(tintIdx)].texture;
     const int hairSwap = o.hairTint >= 0 && size_t(o.hairTint) < set.hairTints.size() ? set.hairTints[size_t(o.hairTint)].texture : -1;
     struct Use { int mesh; uint8_t role; };
-    std::vector<Use> uses{{set.body, 0}};
+    const int bodyOpt = std::clamp(o.body, 0, std::max(0, int(set.bodies.size()) - 1));
+    const HdBodyOption* bodyChoice = set.bodies.empty() ? nullptr : &set.bodies[size_t(bodyOpt)];
+    const int bodyMesh = bodyChoice ? bodyChoice->mesh : set.body;
+    // the shape keys' changes on that body (HD metres, before the fit's scale)
+    std::vector<V3> shapeOffset;
+    if (bodyChoice)
+        for (size_t k = 0; k < bodyChoice->shapeBlobs.size() && k < o.shapes.size(); ++k) {
+            const float w = std::clamp(o.shapes[k], -1.0f, 2.0f);
+            if (std::fabs(w) < 1e-4f || bodyChoice->shapeBlobs[k] < 0) continue;
+            size_t n = 0;
+            const uint8_t* p = set.blob(bodyChoice->shapeBlobs[k], n);
+            if (!p || n < 4) continue;
+            if (shapeOffset.empty()) shapeOffset.assign(set.meshes[size_t(bodyMesh)].vertexCount(), V3());
+            const uint32_t cnt = rd32(p);
+            for (uint32_t q = 0; q < cnt; ++q) {
+                const uint8_t* e = p + 4 + size_t(q) * 16;
+                uint32_t v = rd32(e);
+                float xyz[3]; std::memcpy(xyz, e + 4, 12);
+                if (v < shapeOffset.size()) shapeOffset[v] = shapeOffset[v] + V3(xyz[0], xyz[1], xyz[2]) * w;
+            }
+        }
+    std::vector<uint8_t> genital;
+    if (o.hideGenitals && bodyChoice && !bodyChoice->genitals.empty()) {
+        genital.assign(set.meshes[size_t(bodyMesh)].vertexCount(), 0);
+        for (uint32_t v : bodyChoice->genitals) genital[v] = 1;
+    }
+    std::vector<Use> uses{{bodyMesh, 0}};
     for (int k : set.always) uses.push_back({k, uint8_t(set.meshes[size_t(k)].kind == "brows" ? 1 : 2)});   // (the brows take the hair's tint)
     if (hair) for (int k : hair->meshes) uses.push_back({k, 1});
     if (outfit) for (int k : outfit->meshes) uses.push_back({k, 2});
     for (int jv : o.jewelry) if (jv >= 0 && size_t(jv) < set.jewelry.size()) for (int k : set.jewelry[size_t(jv)].meshes) uses.push_back({k, 2});
     std::vector<uint8_t> hiddenTri;
-    if (outfit && !outfit->hidden.empty()) {
+    if (outfit && !outfit->hidden.empty() && bodyMesh == set.body) {
         hiddenTri.assign(set.meshes[size_t(set.body)].idx.size() / 3, 0);
         for (uint32_t tt : outfit->hidden) hiddenTri[tt] = 1;
     }
@@ -462,7 +537,9 @@ HdFit fitHd(const M2Model& m, const HdSet& set, const HdOptions& o, std::string&
         const uint32_t base = uint32_t(fit.verts.size());
         for (size_t k = 0; k < hm.vertexCount(); ++k) {
             M2Vertex v{};
-            V3 p = S(V3(hm.pos[k * 3], hm.pos[k * 3 + 1], hm.pos[k * 3 + 2]));
+            V3 p0(hm.pos[k * 3], hm.pos[k * 3 + 1], hm.pos[k * 3 + 2]);
+            if (u.mesh == bodyMesh && k < shapeOffset.size()) p0 = p0 + shapeOffset[k];
+            V3 p = S(p0);
             V3 n(hm.nrm[k * 3], hm.nrm[k * 3 + 1], hm.nrm[k * 3 + 2]);
             V3 pa, na;
             int wsum = 0;
@@ -499,17 +576,19 @@ HdFit fitHd(const M2Model& m, const HdSet& set, const HdOptions& o, std::string&
             if (skinSwap >= 0 && dp.texture == set.skinTexture) dp.texture = skinSwap;
             if (hairSwap >= 0 && dp.texture == set.hairTexture && u.role == 1) dp.texture = hairSwap;
             // (a model whose eyes are part of its body mesh: its eye texture as chosen)
-            if (eyeTex >= 0 && hm.kind == "body" && !set.eyeTextures.empty() && part.texture == set.eyeTextures[0].texture) dp.texture = eyeTex;
+            if (eyeTex >= 0 && (hm.kind == "body" || hm.kind == "bodyalt") && !set.eyeTextures.empty() && part.texture == set.eyeTextures[0].texture) dp.texture = eyeTex;
             dp.alphaTest = part.alphaTest;
             dp.role = u.role;
             for (uint32_t i = part.start; i + 2 < part.start + part.count && i + 2 < hm.idx.size(); i += 3) {
-                if (u.mesh == set.body && !hiddenTri.empty() && hiddenTri[i / 3]) continue;
+                if (u.mesh == bodyMesh && !hiddenTri.empty() && hiddenTri[i / 3]) continue;
+                if (u.mesh == bodyMesh && !genital.empty() &&
+                    (genital[hm.idx[i]] || genital[hm.idx[i + 1]] || genital[hm.idx[i + 2]])) continue;
                 for (int c = 0; c < 3; ++c) fit.indices.push_back(base + hm.idx[i + size_t(c)]);
             }
             dp.count = uint32_t(fit.indices.size()) - dp.start;
             if (dp.count) fit.parts.push_back(dp);
         }
-        if (u.mesh == set.body) {
+        if (u.mesh == bodyMesh) {
             fit.bodyVertexEnd = uint32_t(fit.verts.size());
             fit.bodyIndices.assign(fit.indices.begin(), fit.indices.end());
         }

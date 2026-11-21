@@ -157,16 +157,19 @@ object Native {
     /**
      * [actor] drawn as the HD figure of [race] and [sex] (0 male, 1 female) instead of its game model: [hair] (-1 the set's
      * first, -2 none), [outfit] (-1 bare), [eyes] (-1 the first), [faceMark] (-1 none), [bodyMarks] (0/1), [tint] and
-     * [hairTint] preset indices, [jewelry] the pieces worn. Fitted at the next frame and again when anything changes.
+     * [hairTint] preset indices, [jewelry] the pieces worn, [body] the set's body choice, [shapes] its shape-key sliders.
+     * Fitted at the next frame and again when anything changes.
      */
     @JvmStatic external fun setHdBody(scene: Long, actor: Int, race: Int, sex: Int, on: Boolean, hair: Int, outfit: Int, eyes: Int,
-                                      faceMark: Int, bodyMarks: Int, tint: Int, hairTint: Int, jewelry: IntArray)
+                                      faceMark: Int, bodyMarks: Int, tint: Int, hairTint: Int, jewelry: IntArray, body: Int, shapes: FloatArray)
+    /** The HD body's own genitals hidden ([on]: the add-on body parts drawn in their place) or shown again. */
+    @JvmStatic external fun useHdGenitalMask(scene: Long, actor: Int, on: Boolean)
     @JvmStatic external fun clearHdBody(scene: Long, actor: Int)
     /** "on|off|SCALE|MS|TRIANGLES|why". */
     @JvmStatic external fun hdStatus(scene: Long, actor: Int): String
     /** The HD figure (as [setHdBody] takes it) on the NEXT [thumbLook] or [thumbCard] only, called right before it on the GL thread. */
     @JvmStatic external fun thumbHd(scene: Long, race: Int, sex: Int, on: Boolean, hair: Int, outfit: Int, eyes: Int, faceMark: Int,
-                                    bodyMarks: Int, tint: Int, hairTint: Int, jewelry: IntArray)
+                                    bodyMarks: Int, tint: Int, hairTint: Int, jewelry: IntArray, body: Int, shapes: FloatArray)
     /** "on|NECK|ANKLE|SHADE|MS|why": drawn or not, the skin colours matched (RRGGBB), the overlay shade, the fit's cost, why not. */
     @JvmStatic external fun eveStatus(scene: Long, actor: Int): String
 

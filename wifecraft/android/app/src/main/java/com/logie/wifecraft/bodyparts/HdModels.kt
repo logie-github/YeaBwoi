@@ -32,9 +32,18 @@ data class HdOptions(
     val tint: Int = 0,
     val hairTint: Int = 0,
     val jewelry: List<Int> = emptyList(),
+    /** The set's body choice ([HdSetInfo.bodies]: 0 its own; a tail's length, bones showing, male parts...). */
+    val body: Int = 0,
+    /** The set's shape-key sliders ([HdSetInfo.shapes]), 0..1 each; missing ones 0. */
+    val shapes: List<Float> = emptyList(),
 ) {
     fun toJson(): JSONObject = JSONObject().put("hair", hair).put("outfit", outfit).put("eyes", eyes).put("faceMark", faceMark)
         .put("bodyMarks", bodyMarks).put("tint", tint).put("hairTint", hairTint).put("jewelry", JSONArray(jewelry))
+        .also { if (body != 0) it.put("body", body) }
+        .also { if (shapes.any { v -> v != 0f }) it.put("shapes", JSONArray(shapes.map { v -> v.toDouble() })) }
+
+    /** [shapes] with slider [i] at [v] (the list grown as needed). */
+    fun withShape(i: Int, v: Float): HdOptions = copy(shapes = List(maxOf(shapes.size, i + 1)) { k -> if (k == i) v else shapes.getOrElse(k) { 0f } })
 
     val isDefault: Boolean get() = this == HdOptions()
 
@@ -42,7 +51,9 @@ data class HdOptions(
         fun fromJson(o: JSONObject?): HdOptions = if (o == null) HdOptions() else HdOptions(
             o.optInt("hair", -1), o.optInt("outfit", -1), o.optInt("eyes", -1), o.optInt("faceMark", -1),
             o.optBoolean("bodyMarks", false), o.optInt("tint", 0).coerceAtLeast(0), o.optInt("hairTint", 0).coerceAtLeast(0),
-            o.optJSONArray("jewelry")?.let { a -> List(a.length()) { a.optInt(it, -1) }.filter { it >= 0 } }.orEmpty())
+            o.optJSONArray("jewelry")?.let { a -> List(a.length()) { a.optInt(it, -1) }.filter { it >= 0 } }.orEmpty(),
+            o.optInt("body", 0).coerceAtLeast(0),
+            o.optJSONArray("shapes")?.let { a -> List(a.length()) { a.optDouble(it, 0.0).toFloat().coerceIn(-1f, 2f) } }.orEmpty())
     }
 }
 
@@ -64,6 +75,11 @@ class HdSetInfo(
     val gpuBytes: Long,
     /** Who made the model, as its recipe says ("Model by Liard's Art (liardart.com)"); shown with the set. "" when unsaid. */
     val credit: String = "",
+    /** The bodies to choose from (the first its own) and whether each has genitals of its own (the add-on parts' mask). */
+    val bodies: List<String> = listOf("Body"),
+    val bodyGenitals: List<Boolean> = listOf(false),
+    /** The shape keys offered as sliders. */
+    val shapes: List<String> = emptyList(),
 ) {
     class Outfit(val label: String, val classes: List<Int>)
 
@@ -126,6 +142,9 @@ class HdSetInfo(
                     Outfit(x.optString("label"), x.optJSONArray("classes")?.let { c -> List(c.length()) { c.optInt(it) } }.orEmpty())
                 }
             }.orEmpty()
+            val bodies = o.optJSONArray("bodies")?.let { a ->
+                List(a.length()) { i -> (a.optJSONObject(i)?.optString("label", "Body") ?: "Body") to (a.optJSONObject(i)?.has("genitalBlob") == true) }
+            }.orEmpty()
             val overlays = o.optJSONArray("overlays") ?: JSONArray()
             val faces = ArrayList<String>(); var bodyMarks = false
             for (i in 0 until overlays.length()) {
@@ -134,7 +153,9 @@ class HdSetInfo(
             }
             return HdSetInfo(f, race, sex, o.optString("label", f.nameWithoutExtension), labels("hair"), outfits, labels("eyeTextures"),
                 faces, bodyMarks, labels("tints"), labels("hairTints"), labels("jewelry"),
-                o.optJSONObject("triangles")?.optInt("max", 0) ?: 0, o.optLong("gpuBytes", 0), o.optString("credit", ""))
+                o.optJSONObject("triangles")?.optInt("max", 0) ?: 0, o.optLong("gpuBytes", 0), o.optString("credit", ""),
+                bodies.map { it.first }.ifEmpty { listOf("Body") }, bodies.map { it.second }.ifEmpty { listOf(false) },
+                labels("shapes"))
         }
     }
 }

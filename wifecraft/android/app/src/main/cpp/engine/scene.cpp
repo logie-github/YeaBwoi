@@ -1644,7 +1644,7 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
         // the HD figure instead of the game's model, its clothing and parts (hdscene.cpp); what it holds still hangs on it
         if (!transparent) drawHd(a, w, bodyTint);   // (with the soft body's uniforms still set)
         // an HD body whose own genitals are hidden (setHdGenitalMask): the parts drawn in their place, on the game skeleton
-        // the HD figure is fitted to (hdscene.cpp's index buffers must leave the masked triangles out: bodypart.h maskTriangles)
+        // the HD figure is fitted to (hdscene.cpp hdCheck fits the HD body again without its own genitals' triangles)
         if (!a.parts.hdGenitalMask.empty()) drawParts(a, w, transparent, nowMs, bodyTint);
         softBodyDraw_ = false;
         if (soft) SoftDraw::off(m2Prog_);

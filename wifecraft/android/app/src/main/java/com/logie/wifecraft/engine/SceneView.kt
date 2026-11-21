@@ -669,7 +669,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     // ---- HD Models (cpp engine/hdbody.h, hdscene.cpp; bodyparts/HdModels: HdStore, HdDress)
 
     /** GL thread: each key's HD figure (race, sex, options as the engine takes them), put on again when the actor is made anew. */
-    private class HdBody(val race: Int, val sex: Int, val o: com.logie.wifecraft.bodyparts.HdOptions, val outfit: Int)
+    private class HdBody(val race: Int, val sex: Int, val o: com.logie.wifecraft.bodyparts.HdOptions, val outfit: Int, val partsOn: Boolean)
     private val hdBodies = mutableMapOf<String, HdBody>()
     /** GL thread: the sets given ([loadHdSets]) and the scene they were loaded into (a new scene loads them again). */
     private var hdPaths: List<String> = emptyList()
@@ -688,7 +688,8 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         val b = hdBodies[key] ?: return
         ensureHdSets(h)
         Native.setHdBody(h, id, b.race, b.sex, true, b.o.hair, b.outfit, b.o.eyes, b.o.faceMark, if (b.o.bodyMarks) 1 else 0,
-            b.o.tint, b.o.hairTint, b.o.jewelry.toIntArray())
+            b.o.tint, b.o.hairTint, b.o.jewelry.toIntArray(), b.o.body, b.o.shapes.toFloatArray())
+        Native.useHdGenitalMask(h, id, b.partsOn)
     }
 
     /** The imported HD sets' files (files/bodyparts/hd/<race>_<sex>.whd) for every actor from now on; [onResult] (main thread) "" or what failed. */
@@ -700,12 +701,15 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         main.post { onResult(why) }
     }
 
-    /** The actor [actorKey] drawn as its HD figure ([d]: bodyparts/HdDress's decision, `on`). Kept for a new model of the key. */
-    fun setHdBody(actorKey: String, d: com.logie.wifecraft.bodyparts.HdDress.Decision) {
+    /**
+     * The actor [actorKey] drawn as its HD figure ([d]: bodyparts/HdDress's decision, `on`). [partsOn]: the imported body parts
+     * are drawn on it, so its own genitals are hidden (Native.useHdGenitalMask). Kept for a new model of the key.
+     */
+    fun setHdBody(actorKey: String, d: com.logie.wifecraft.bodyparts.HdDress.Decision, partsOn: Boolean = false) {
         val set = d.set ?: return
         val o = d.options ?: return
         post { h, ids ->
-            hdBodies[actorKey] = HdBody(set.race, set.sex, o, d.outfit)
+            hdBodies[actorKey] = HdBody(set.race, set.sex, o, d.outfit, partsOn)
             ids[actorKey]?.let { applyHd(h, actorKey, it) }
             if (actorKey != GHOST_KEY) fleshWanted[actorKey] = 0   // (her flesh measured again on the body she shows)
         }

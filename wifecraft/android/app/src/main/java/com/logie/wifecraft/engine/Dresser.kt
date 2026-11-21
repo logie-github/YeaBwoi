@@ -139,7 +139,8 @@ class Dresser(
             // the HD figure (bodyparts/HdDress): for a race and sex with an HD set it IS the character (the game's model not
             // drawn), with Gear on and off; the Eve body never goes on it
             val hdDecision = HdDress.decide(a, call.drawn, hd())
-            if (hdDecision.on) { scene.setHdBody(key, hdDecision); withHd += key }
+            // (a man wearing the imported body parts: the HD body's own genitals hidden under them)
+            if (hdDecision.on) { scene.setHdBody(key, hdDecision, partsOn = parts); withHd += key }
             else if (withHd.remove(key)) scene.clearHdBody(key)
             val eveOptions = if (hdDecision.on) null else EveDress.decide(a, call.drawn, call.call.model, eve()).options
             if (eveOptions != null) { scene.setEveBody(key, eveOptions); withEve += key }

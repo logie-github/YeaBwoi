@@ -71,6 +71,25 @@ bool Scene::hdStatus(int id, HdStatus& out) const {
     return true;
 }
 
+void Scene::useHdGenitalMask(int id, bool on) {
+    auto it = actors_.find(id);
+    if (it == actors_.end()) return;
+    HdDraw& h = it->second.hd;
+    if (h.hideGenitals == on) return;
+    h.hideGenitals = on;
+    if (!on) it->second.parts.hdGenitalMask.clear();
+    h.key = 0;   // (fitted again at the next frame)
+}
+
+const std::vector<uint32_t>* Scene::hdBodyGenitals(int id) const {
+    auto it = actors_.find(id);
+    if (it == actors_.end() || !it->second.hd.active || !it->second.hd.set) return nullptr;
+    const HdSet& set = *it->second.hd.set;
+    if (set.bodies.empty()) return nullptr;
+    const HdBodyOption& b = set.bodies[size_t(std::clamp(it->second.hd.opt.body, 0, int(set.bodies.size()) - 1))];
+    return b.genitals.empty() ? nullptr : &b.genitals;
+}
+
 void Scene::dropHdGl(Actor& a) {
     HdDraw& h = a.hd;
     if (glReady_) {
@@ -102,12 +121,15 @@ void Scene::hdCheck(Actor& a) {
     auto mix = [&key](uint64_t v) { key = (key ^ v) * 1099511628211ull; };
     mix(uint64_t(reinterpret_cast<uintptr_t>(&m)));
     mix(uint64_t(reinterpret_cast<uintptr_t>(it->second.get())));
-    mix(h.opt.key());
+    // the body's own genitals left out while the add-on parts are drawn in their place (setHdGenitalMask, bodypart.h)
+    HdOptions opt = h.opt;
+    opt.hideGenitals = h.hideGenitals || !a.parts.hdGenitalMask.empty();
+    mix(opt.key());
     for (float f : a.sculpt) { uint32_t bits; std::memcpy(&bits, &f, 4); mix(bits); }   // (the creator's sculpt sliders)
     if (key == 0) key = 1;
     if (key == h.key) return;
     std::string err;
-    HdFit fit = fitHd(m, *it->second, h.opt, err);
+    HdFit fit = fitHd(m, *it->second, opt, err);
     h.key = key;
     if (fit.verts.empty()) {
         if (h.active) dropHdGl(a);
@@ -142,6 +164,12 @@ void Scene::hdCheck(Actor& a) {
     h.skin[2] = float(rgb & 255) / 255.0f;
     h.active = true;
     h.status = "";
+    // the parts drawn in place of the body's own genitals (useHdGenitalMask): the mask the parts' drawing looks for
+    if (h.hideGenitals) {
+        const HdSet& hs = *h.set;
+        const HdBodyOption* bo = hs.bodies.empty() ? nullptr : &hs.bodies[size_t(std::clamp(h.opt.body, 0, int(hs.bodies.size()) - 1))];
+        a.parts.hdGenitalMask = bo ? bo->genitals : std::vector<uint32_t>();
+    }
     a.soft.dirty = true;     // (the soft body's regions found again on the HD body)
     a.fleshKey = 0;          // (and the flesh measured on it)
 }
