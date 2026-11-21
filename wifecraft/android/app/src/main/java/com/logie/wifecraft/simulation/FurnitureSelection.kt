@@ -88,10 +88,10 @@ object FurnitureSelection {
 
     /**
      * Where [r] plays on [f]: where it fits ([FurnitureFit.fit]), else, needing furniture, where it nearly fits (relaxed: a bed
-     * taller than the clip's, a couch for a bed), as the scene plays it ([FurnitureAvailability]); null: neither.
+     * taller than the clip's, a couch for a bed), else loosely (what it is marked for is only a preference); null: no slot takes it.
      */
     fun fitOrNear(r: Requirement, f: Furniture, bodyUnit: Float = FurnitureFit.DEFAULT_BODY_UNIT): FurnitureFit? =
-        FurnitureFit.fit(r, f, bodyUnit) ?: if (r.surface in Requirement.FLOOR_LEVEL) null else FurnitureFit.fit(r, f, bodyUnit, relaxed = true)
+        FurnitureFit.fitAny(r, f, bodyUnit)
 
     /** The people (one per role) whose walks to [fit]'s positions add up shortest; null without enough. */
     fun cast(fit: FurnitureFit, people: List<NearbyNpc>): List<String>? {

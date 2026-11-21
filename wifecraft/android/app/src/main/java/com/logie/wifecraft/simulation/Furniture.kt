@@ -437,6 +437,17 @@ data class FurnitureFit(
         /** How far a lying body's head or feet may hang past its surface in a relaxed fit (metres). */
         const val RELAXED_OVERHANG_M = 0.6f
 
+        /** The same in a loose fit ([fit] loose: an animation marked for another surface, played here all the same). */
+        const val LOOSE_TOLERANCE_M = 0.55f
+        const val LOOSE_OVERHANG_M = 1.0f
+
+        /**
+         * The best place for [r] on [f] however it is marked: where it fits, else nearly, else loosely (any piece, wide heights);
+         * null only where no slot of [f] takes any of its postures (the open floor then takes it: [FurnitureAvailability]).
+         */
+        fun fitAny(r: Requirement, f: Furniture, bodyUnit: Float = DEFAULT_BODY_UNIT): FurnitureFit? =
+            fit(r, f, bodyUnit) ?: fit(r, f, bodyUnit, relaxed = true) ?: fit(r, f, bodyUnit, loose = true)
+
         /**
          * Which kinds a requirement's surface may be played on in a relaxed fit: a bed's on a bed or a couch, a seat's on any
          * seat or a bed, a table's on a table, a counter or a bed (a body lying or kneeling on a top: on the bed, let down onto
@@ -475,11 +486,12 @@ data class FurnitureFit(
          * The fit whose actors land nearest slots, at the closest heights, wins. [bodyUnit]: world units of one body unit
          * (the actor's standing pelvis height as drawn).
          */
-        fun fit(r: Requirement, f: Furniture, bodyUnit: Float = DEFAULT_BODY_UNIT, relaxed: Boolean = false): FurnitureFit? {
-            if (r.actors.isEmpty() || !(if (relaxed) allowsRelaxed(r.surface, f.kind) else allows(r.surface, f.kind))) return null
+        fun fit(r: Requirement, f: Furniture, bodyUnit: Float = DEFAULT_BODY_UNIT, relaxed: Boolean = false, loose: Boolean = false): FurnitureFit? {
+            // (loose: what an animation is marked for is only a preference, so any piece but the bare floor is tried, wide heights)
+            if (r.actors.isEmpty() || !(if (loose) f.kind != FurnitureKind.FLOOR else if (relaxed) allowsRelaxed(r.surface, f.kind) else allows(r.surface, f.kind))) return null
             val k = f.spec.unitsPerMetre
-            val tol = (if (relaxed) RELAXED_TOLERANCE_M else HEIGHT_TOLERANCE_M) * k
-            val overhang = if (relaxed) RELAXED_OVERHANG_M else OVERHANG_M
+            val tol = (if (loose) LOOSE_TOLERANCE_M else if (relaxed) RELAXED_TOLERANCE_M else HEIGHT_TOLERANCE_M) * k
+            val overhang = if (loose) LOOSE_OVERHANG_M else if (relaxed) RELAXED_OVERHANG_M else OVERHANG_M
             val onPartner = BooleanArray(r.actors.size) { onPartner(r, it) }
             // (a body resting on its partner is placed by where its partner goes)
             val raised = r.actors.indices.filter { r.actors[it].surface !in Requirement.FLOOR_LEVEL && !onPartner[it] }

@@ -76,7 +76,7 @@ class AutoplayPlanner(seed: Long = Random.nextLong()) {
         /**
          * Every clip on every place it fits, for bodies of [bodyUnit] (world units of a standing pelvis); as the scene plays
          * them ([FurnitureAvailability]): a clip that fits no piece here goes where it nearly fits ([FurnitureFit.fit] relaxed),
-         * else, when lowered it rests on the floor ([AutoClip.floorRests]), on the open floor.
+         * else loosely on any piece, else on the open floor (never left out; [AutoClip.floorRests] only says whether it rests on it).
          */
         fun options(places: List<AutoPlace>, clips: List<AutoClip>, bodyUnit: Float = FurnitureFit.DEFAULT_BODY_UNIT): List<AutoOption> {
             val out = ArrayList<AutoOption>()
@@ -86,7 +86,10 @@ class AutoplayPlanner(seed: Long = Random.nextLong()) {
                 for (p in places) FurnitureFit.fit(c.requirement, p.furniture, bodyUnit)?.let { out += AutoOption(p, c, it) }
                 if (out.size > before || c.requirement.surface in Requirement.FLOOR_LEVEL) continue
                 for (p in places) if (!p.floor) FurnitureFit.fit(c.requirement, p.furniture, bodyUnit, relaxed = true)?.let { out += AutoOption(p, c, it) }
-                if (out.size > before || !c.floorRests) continue
+                if (out.size > before) continue
+                // what a clip is marked for is only a preference: loosely on any piece (the marked ones came first), else the floor
+                for (p in places) if (!p.floor) FurnitureFit.fit(c.requirement, p.furniture, bodyUnit, loose = true)?.let { out += AutoOption(p, c, it) }
+                if (out.size > before) continue
                 places.firstOrNull { it.floor }?.let { p ->
                     out += AutoOption(p, c, FurnitureFit(p.key, p.furniture.x, p.furniture.y, p.furniture.z, 0f, emptyList(), emptyList(), 0f, 0f))
                 }
