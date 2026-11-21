@@ -1548,11 +1548,8 @@ void Scene::render(int width, int height, uint32_t nowMs) {
         if (arrived) dressModels(a);
     }
     viewW_ = std::max(1, width); viewH_ = std::max(1, height);
-    // cinematic mode (setCinematic): the mood's slow flicker on the warm light, and the frame drawn offscreen for the grade
-    if (cineMood_ > 0) {
-        float f = moodFlicker(float(nowMs % 3600000u) / 1000.0f);
-        if (std::fabs(f - cineFlicker_) > 0.002f) { cineFlicker_ = f; applyTimeOfDay(); }
-    }
+    // cinematic mode (setCinematic): the area's profile for the frame, its flicker, and the frame drawn offscreen for the grade
+    if (cineMood_ > 0) updateCinematic(nowMs);
     cineGrade_.seconds = float(nowMs % 1000000u) / 1000.0f;
     const bool graded = cineGrade_.active() && grade_.begin(width, height);
     glViewport(0, 0, width, height);
@@ -1708,12 +1705,15 @@ void Scene::setCinematic(float mood, float vignette, float grain, float bars) {
     auto unit = [](float v) { return std::isfinite(v) ? std::clamp(v, 0.0f, 1.0f) : 0.0f; };
     float m = unit(mood);
     cineGrade_.mood = m;
-    cineGrade_.vignette = unit(vignette);
+    cineVignette_ = unit(vignette);   // the option's; the profile scales it (updateCinematic)
+    cineGrade_.vignette = cineHas_ ? std::clamp(cineVignette_ * cineNow_.vignette, 0.0f, 1.0f) : cineVignette_;
     cineGrade_.grain = unit(grain);
     cineGrade_.bars = std::isfinite(bars) ? std::clamp(bars, 0.0f, 0.5f) : 0.0f;
     if (m != cineMood_) {
         cineMood_ = m;
-        if (m <= 0) cineFlicker_ = 0;
+        // off: the profile is worked out afresh when the look comes on again (the fade in eases it)
+        if (m <= 0) { cineFlicker_ = 0; cineHas_ = false; GradeParams n; n.grain = cineGrade_.grain; n.bars = cineGrade_.bars;
+                      n.vignette = cineGrade_.vignette; cineGrade_ = n; }
         applyTimeOfDay();
     }
 }

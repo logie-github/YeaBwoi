@@ -422,6 +422,7 @@ bool parseLocation(const std::string& json, const std::string& id, LocationDesc&
     unsetLight(out.look);
     readLook(*e, out.look);
     parseDayCycle((*e)["dayCycle"], out.dayCycle);
+    parseCineArea((*e)["cinematic"], out.cinematic);
     for (const auto& [name, v] : (*e)["views"].o) {
         LocationView view;
         unsetLight(view.look);
@@ -747,7 +748,11 @@ bool Scene::locationView(const std::string& view) {
 // ------------------------------------------------------------------------------------------------ the time of day
 
 void Scene::setTimeOfDay(float hours) {
+    float was = timeOfDay_;
     timeOfDay_ = std::isfinite(hours) && hours >= 0 ? wrapHour(hours) : -1.0f;
+    // the clock jumped (not the world's slow hour): the cinematic profile takes the new hour's at once, as the light does
+    float jump = std::fabs(timeOfDay_ - was);
+    if ((was < 0) != (timeOfDay_ < 0) || std::min(jump, 24.0f - jump) > 0.5f) cineHas_ = false;
     applyTimeOfDay();
 }
 
@@ -756,12 +761,17 @@ void Scene::setTimeOfDay(float hours) {
 // sun's direction is the hour's; a room's own light is tinted (roomTint_), the baked vertex light kept as it is.
 void Scene::applyTimeOfDay() {
     roomTint_[0] = roomTint_[1] = roomTint_[2] = 1.0f;
-    // cinematic mode's mood over whatever light there is (daylight.h: moodScene; strength 0 changes nothing)
+    // cinematic mode's profile over whatever light there is (daylight.h: cineScene; strength 0 changes nothing); the light
+    // before it is kept (dayLight_: what the profile is worked out from, updateCinematic)
     auto mood = [this] {
-        if (cineMood_ > 0) moodScene(cineMood_, cineFlicker_, light_.ambient, light_.sunColor, light_.skyTop, light_.fogColor, roomTint_);
-        if (cineMood_ > 0) for (int i = 0; i < 3; ++i) {
-            light_.skyHorizon[i] = std::min(light_.skyHorizon[i], light_.skyHorizon[i] * (1.0f - 0.2f * cineMood_));
-            light_.skyBelow[i] = std::min(light_.skyBelow[i], light_.skyBelow[i] * (1.0f - 0.2f * cineMood_));
+        dayLight_ = light_;
+        std::copy(roomTint_, roomTint_ + 3, dayRoomTint_);
+        if (cineMood_ <= 0) return;
+        cineScene(cineNow_, cineMood_, cineFlicker_, light_.ambient, light_.sunColor, light_.skyTop, light_.fogColor, roomTint_);
+        for (int i = 0; i < 3; ++i) {
+            float k = 1.0f + (cineNow_.sceneSky[i] - 1.0f) * cineMood_;
+            light_.skyHorizon[i] *= k;
+            light_.skyBelow[i] *= k;
         }
     };
     if (timeOfDay_ < 0 || !location_) { light_ = baseLight_; mood(); return; }
@@ -783,6 +793,59 @@ void Scene::applyTimeOfDay() {
     std::copy(now.interior, now.interior + 3, roomTint_);
     light_ = l;
     mood();
+}
+
+// Cinematic mode's profile for the frame (daylight.h): the place's light at the hour (dayLight_, before the profile), the
+// room the camera's target stands in (its own ambient and baked light) or the outside, the practical lights of that side
+// and the location's hand-set parts; the profile shown eased toward it (a second or so), snapped when the look comes on or
+// the hour jumps (setTimeOfDay); then the light and the grade made from it.
+void Scene::updateCinematic(uint32_t nowMs) {
+    CineInput in;
+    std::copy(dayLight_.ambient, dayLight_.ambient + 3, in.ambient);
+    std::copy(dayLight_.sunColor, dayLight_.sunColor + 3, in.direct);
+    std::copy(dayLight_.skyTop, dayLight_.skyTop + 3, in.sky);
+    std::copy(dayLight_.fogColor, dayLight_.fogColor + 3, in.fog);
+    in.hour = timeOfDay_;
+    const StaticGroup* room = nullptr;
+    if (location_) {
+        float bestVol = 1e30f;
+        for (const StaticGroup& g : location_->groups) {
+            if (!g.interior || !inside(target_, g.boundsMin, g.boundsMax)) continue;
+            V3 e = g.boundsMax - g.boundsMin;
+            float vol = e.x * e.y * e.z;
+            if (vol < bestVol) { bestVol = vol; room = &g; }
+        }
+    }
+    in.interior = room != nullptr;
+    if (room) {
+        std::copy(location_->intAmbient, location_->intAmbient + 3, in.roomAmbient);
+        in.roomLight[0] = room->meanLight.x * dayRoomTint_[0];
+        in.roomLight[1] = room->meanLight.y * dayRoomTint_[1];
+        in.roomLight[2] = room->meanLight.z * dayRoomTint_[2];
+    }
+    const CineArea& area = locDesc_.cinematic;
+    in.practicals = location_ ? (room ? area.inside : area.outside) : CinePracticals();
+    cinePractical_ = in.practicals;
+    const CineOverride* over = location_ ? (room ? &area.overInside : &area.overOutside) : nullptr;
+    CineProfile target = cineProfile(in, over && !over->empty() ? over : nullptr);
+    if (!cineHas_) {
+        cineNow_ = target;
+        cineHas_ = true;
+    } else {
+        float dt = nowMs > cineClock_ ? std::min(0.1f, float(nowMs - cineClock_) / 1000.0f) : 0.0f;
+        cineStep(cineNow_, target, dt, 1.0f);
+    }
+    cineClock_ = nowMs;
+    cineFlicker_ = moodFlicker(float(nowMs % 3600000u) / 1000.0f);
+    applyTimeOfDay();
+    // the grade at the strength (grade.h): its difference from neutral times the lighting option
+    CineProfile g = cineScaled(cineNow_, cineMood_);
+    std::copy(g.lift, g.lift + 3, cineGrade_.lift);
+    std::copy(g.gain, g.gain + 3, cineGrade_.gain);
+    cineGrade_.gamma = g.gamma;
+    cineGrade_.contrast = g.contrast;
+    cineGrade_.saturation = g.saturation;
+    cineGrade_.vignette = std::clamp(cineVignette_ * cineNow_.vignette, 0.0f, 1.0f);
 }
 
 void Scene::clearLocation() {
@@ -1388,10 +1451,14 @@ void Scene::lightActor(const V3& feet, bool restore) {
     static const float kNone[3] = {0, 0, 0};
     float sdv[3] = {sun.x, sun.y, sun.z};
     if (cineMood_ > 0 && !restore) {
-        // cinematic mode: less ambient, a warm key from the camera's side, low, and a soft rim from behind (daylight.h)
-        MoodActorLight m = moodActor(cineMood_, cineFlicker_, room != nullptr, amb, dir);
+        // cinematic mode: the area's profile (daylight.h): less ambient, a key in the area's colour from the camera's side,
+        // low, pulled toward the sun or the practical lights, and a rim from behind
+        MoodActorLight m = cineActor(cineNow_, cineMood_, cineFlicker_, amb, dir);
         V3 key, rim;
         moodDirections(eye_, target_, key, rim);
+        V3 sunTravel(dayLight_.sunDir[0], dayLight_.sunDir[1], dayLight_.sunDir[2]);
+        key = cineKeyDirection(eye_, target_, sunTravel, cineNow_.sunBias, cinePractical_.hasAt, cinePractical_.at,
+                               cineNow_.practicalBias);
         V3 d = sun * (1.0f - cineMood_) + key * cineMood_;
         d = d.length() > 1e-3f ? d.normalized() : key;
         float dv[3] = {d.x, d.y, d.z}, rv[3] = {rim.x, rim.y, rim.z};

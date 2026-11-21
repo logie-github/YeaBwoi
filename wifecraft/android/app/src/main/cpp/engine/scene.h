@@ -682,6 +682,17 @@ private:
     float cineFlicker_ = 0;
     GradeParams cineGrade_;
     Grade grade_;
+    // the area's cinematic profile (daylight.h cineProfile): the one shown, eased toward the place's and hour's each frame
+    // (updateCinematic, location.cpp), the light before it is laid on, the vignette option, the practicals of the side the
+    // camera's target stands on
+    CineProfile cineNow_;
+    bool cineHas_ = false;
+    uint32_t cineClock_ = 0;
+    float cineVignette_ = 0;
+    Light dayLight_;
+    float dayRoomTint_[3] = {1, 1, 1};
+    CinePracticals cinePractical_;
+    void updateCinematic(uint32_t nowMs);
     // the additive layers: the body's motion (Options'), the motes and how bright, the clock they were last stepped at
     MotionParams motionParams_;
     ParticleField particles_;

@@ -19,6 +19,8 @@
 //                                                                        isn't loaded): at z, fading into the fog
 //   views:    {name: {eye, at, fov (or camera: {eye, at|target, fov}), spawn, light, fog, ground}}  a view's own light/fog
 //   dayCycle: {source, keys: [[hour, ambient rgb, direct rgb, sky rgb, fog rgb]...]}  the map light's day (daylight.h)
+//   cinematic: {practicals: {inside|outside: {flames, lights, colour, at}}, override: {inside|outside: {...}}}  the
+//              practical lights near each view and a hand-set part of the cinematic profile (daylight.h: CineArea)
 // Colours are 0..1 (or 0..255 when any is over 1.5).
 #pragma once
 
@@ -85,6 +87,7 @@ struct LocationDesc {
     LocationLook look;
     std::map<std::string, LocationView> views;
     DayCycle dayCycle;                     // empty: the default (defaultDayCycle)
+    CineArea cinematic;                    // the practical lights and the profile's hand-set parts (cinematic mode)
 };
 
 // Reads an entry (the object itself, or {"locations": [...]} / {"id": entry...} with `id` choosing it). False and

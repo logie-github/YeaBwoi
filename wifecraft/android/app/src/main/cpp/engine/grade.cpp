@@ -26,7 +26,11 @@ const char* kGradeFs = R"(#version 300 es
 precision highp float;
 in vec2 vUv;
 uniform sampler2D uTex;
-uniform float uMood;
+uniform vec3 uLift;
+uniform vec3 uGain;
+uniform float uGamma;
+uniform float uContrast;
+uniform float uSat;
 uniform float uVignette;
 uniform float uGrain;
 uniform float uBars;
@@ -39,15 +43,16 @@ float hash(vec2 p) {
     return fract((p.x + p.y) * p.x);
 }
 void main() {
-    vec3 c = texture(uTex, vUv).rgb;
-    // deeper shadows and fuller highlights: a gentle S-curve
+    vec3 c = clamp(texture(uTex, vUv).rgb, 0.0, 1.0);
+    // the area's grade (daylight.cpp cineGradeColour): black to the lift, white to the gain, the mid-tones' power, a gentle
+    // S-curve, the saturation
+    c = uLift + c * (uGain - uLift);
+    c = pow(max(c, vec3(0.0)), vec3(uGamma));
     vec3 s = c * c * (3.0 - 2.0 * c);
-    c = mix(c, s, 0.35 * uMood);
-    // a warm lift where the picture is neither dark nor bright (the skin, the wood), a little more colour
+    c = mix(c, s, uContrast);
     float l = dot(c, vec3(0.299, 0.587, 0.114));
+    c = mix(vec3(l), c, uSat);
     float mids = 4.0 * l * (1.0 - l);
-    c += vec3(0.040, 0.016, -0.010) * mids * uMood;
-    c = mix(vec3(l), c, 1.0 + 0.12 * uMood);
     // the corners darker
     float aspect = uSize.x / max(uSize.y, 1.0);
     vec2 q = (vUv - 0.5) * vec2(aspect, 1.0);
@@ -117,7 +122,18 @@ void Grade::end(int width, int height, const GradeParams& p) {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, colour_);
     glUniform1i(gl::loc(prog_, "uTex"), 0);
-    glUniform1f(gl::loc(prog_, "uMood"), std::clamp(p.mood, 0.0f, 1.0f));
+    // the grade drawn only while the look is on (mood over 0): otherwise neutral
+    const bool on = p.mood > 0.001f;
+    float lift[3], gain[3];
+    for (int i = 0; i < 3; ++i) {
+        lift[i] = on && std::isfinite(p.lift[i]) ? std::clamp(p.lift[i], 0.0f, 0.2f) : 0.0f;
+        gain[i] = on && std::isfinite(p.gain[i]) ? std::clamp(p.gain[i], 0.5f, 1.5f) : 1.0f;
+    }
+    glUniform3fv(gl::loc(prog_, "uLift"), 1, lift);
+    glUniform3fv(gl::loc(prog_, "uGain"), 1, gain);
+    glUniform1f(gl::loc(prog_, "uGamma"), on && std::isfinite(p.gamma) ? std::clamp(p.gamma, 0.5f, 2.0f) : 1.0f);
+    glUniform1f(gl::loc(prog_, "uContrast"), on && std::isfinite(p.contrast) ? std::clamp(p.contrast, 0.0f, 1.0f) : 0.0f);
+    glUniform1f(gl::loc(prog_, "uSat"), on && std::isfinite(p.saturation) ? std::clamp(p.saturation, 0.0f, 2.0f) : 1.0f);
     glUniform1f(gl::loc(prog_, "uVignette"), std::clamp(p.vignette, 0.0f, 1.0f));
     glUniform1f(gl::loc(prog_, "uGrain"), std::clamp(p.grain, 0.0f, 1.0f));
     glUniform1f(gl::loc(prog_, "uBars"), std::clamp(p.bars, 0.0f, 0.5f));
