@@ -172,7 +172,7 @@ class CharacterLooksTest {
         val older = setOf(28213, 86014, 67797, 67721, 24952, 78231, 76272, 86013, 114447)
         for (c in roster) for (v in c.variants)
             assertTrue(v.display !in older && v.sourceDisplay !in older, "${c.id}/${v.key} uses an older display")
-        assertEquals(setOf("sylvanas", "calia", "lilian", "jaina", "alexstrasza", "chromie", "valeera", "alleria", "whitemane", "xalatath", "tess", "lyssabel"),
+        assertEquals(setOf("sylvanas", "calia", "lilian", "jaina", "alexstrasza", "chromie", "valeera", "alleria", "whitemane", "xalatath", "tess", "lyssabel", "sindragosa"),
             roster.map { it.id }.toSet())
         // Whitemane: her Scarlet Crusade look is the classic display 2043 (npc 3977; a human woman with Scarlet items, a
         // tabard), her death knight look 71257; undressed, the Scarlet display's own choices with the death knight pallor

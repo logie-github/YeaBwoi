@@ -465,9 +465,15 @@ def load_recipe(path):
     return r
 
 
+IMAGE_EXT = ('.png', '.jpg', '.jpeg', '.tga', '.dds', '.bmp', '.tif', '.tiff', '.webp')
+
+
 def plain(f):
-    """A texture's own name in a folder of converted copies ("Folder__Sub__name.jpg": name), without extension, lower case."""
-    return os.path.splitext(os.path.basename(f).split('__')[-1])[0].lower()
+    """A texture's own name in a folder of converted copies ("Folder__Sub__name.jpg": name), without an image extension (a
+    name such as "Skin4.8 V1" or "DraeSkinVag3.0" keeps its dots), lower case."""
+    n = os.path.basename(f).split('__')[-1]
+    if n.lower().endswith(IMAGE_EXT): n = os.path.splitext(n)[0]
+    return n.lower()
 
 
 def choices(spec):
@@ -547,7 +553,7 @@ def convert(recipe_path, blend, texdir, out, opt):
             for d in texdir.split(os.pathsep):
                 for root, _, files in os.walk(d):
                     if name in files: return os.path.join(root, name)
-            want = os.path.splitext(name)[0].lower()
+            want = plain(name)
             for d in texdir.split(os.pathsep):
                 for root, _, files in os.walk(d):
                     for f in sorted(files):
@@ -565,7 +571,7 @@ def convert(recipe_path, blend, texdir, out, opt):
             import fnmatch
             out_ = []
             if isinstance(spec, dict):
-                g = os.path.splitext(spec['glob'])[0].lower()
+                g = plain(spec['glob'])
                 found = sorted(os.path.join(r_, f) for d in texdir.split(os.pathsep) for r_, _, fs in os.walk(d) for f in fs
                                if fnmatch.fnmatch(f, spec['glob']) or fnmatch.fnmatch(plain(f), g))
                 for i, f in enumerate(found): out_.append((spec.get('label', '{n}').replace('{n}', str(i + 1)), f))

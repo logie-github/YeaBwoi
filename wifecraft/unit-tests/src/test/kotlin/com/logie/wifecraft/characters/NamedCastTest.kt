@@ -24,9 +24,9 @@ class NamedCastTest {
 
     private fun keys(id: String) = cast.choices(assertNotNull(cast.character(id))).map { it.key }
 
-    @Test fun theTwelveCharactersAreRosterNpcs() {
+    @Test fun theNamedCharactersAreRosterNpcs() {
         val actors = cast.actors()
-        assertEquals(listOf("sylvanas", "calia", "lilian", "jaina", "alexstrasza", "chromie", "valeera", "alleria", "whitemane", "xalatath", "tess", "lyssabel"),
+        assertEquals(listOf("sylvanas", "calia", "lilian", "jaina", "alexstrasza", "chromie", "valeera", "alleria", "whitemane", "xalatath", "tess", "lyssabel", "sindragosa"),
             actors.map { it.id.removePrefix(NamedCast.PREFIX) })
         assertTrue(actors.all { NamedCast.isNamed(it.id) && it.appearance.named != null && it.appearance.sex == Sex.FEMALE })
         // each in her first look until one is chosen
