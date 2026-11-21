@@ -84,6 +84,12 @@ import com.logie.wifecraft.sims.Channel
 import com.logie.wifecraft.simulation.ClipPlayback
 import com.logie.wifecraft.simulation.PlaybackKeys
 import com.logie.wifecraft.simulation.PlaybackRole
+import com.logie.wifecraft.simulation.HoldFrame
+import com.logie.wifecraft.simulation.PairConfirm
+import com.logie.wifecraft.simulation.PreviewKeys
+import com.logie.wifecraft.simulation.RoleMemory
+import com.logie.wifecraft.simulation.RoleSwitch
+import com.logie.wifecraft.simulation.StagePreview
 import java.util.concurrent.ConcurrentHashMap
 import com.logie.wifecraft.editor.Actor
 import com.logie.wifecraft.engine.FrameDriver
@@ -241,6 +247,13 @@ fun SceneSetupScreen(
 }
 
 private data class PendingAnimation(val owner: String, val choice: AnimationChoice, val mode: AnimationOrderMode)
+
+/** A two-person animation waiting on its preview ([confirm]): the order as chosen, on [item] when played on furniture. */
+private data class PairPlay(val confirm: PairConfirm, val order: PendingAnimation, val item: SceneObject?)
+
+/** Where the switch per animation is kept (RoleMemory.encode). */
+private const val ROLE_PREFS = "partner_roles"
+private const val ROLE_KEY = "switched"
 
 /** The Play animation window of a piece of furniture: [owner] plays, on [item], one of [choices] (only what fits on it). */
 private class FurnitureMenu(val owner: String, val item: SceneObject, val choices: List<AnimationChoice>)
@@ -519,6 +532,12 @@ fun LiveSceneScreen(
     var ending by remember { mutableStateOf(false) }
     var choosingAnimation by remember { mutableStateOf<String?>(null) }
     var choosingPartner by remember { mutableStateOf<PendingAnimation?>(null) }
+    // Switch positions: the preview before a two-person animation plays (PairConfirm), the switch kept per animation (RoleMemory)
+    val rolePrefs = remember(context) { context.getSharedPreferences(ROLE_PREFS, android.content.Context.MODE_PRIVATE) }
+    val roleMemory = remember(rolePrefs) { RoleMemory.decode(try { rolePrefs.getString(ROLE_KEY, null) } catch (e: Exception) { null }) }
+    var pairPlay by remember(live) { mutableStateOf<PairPlay?>(null) }
+    // the last two-person animation played from the preview: its id and its two people (a switch mid-play is kept for it)
+    var lastPair by remember(live) { mutableStateOf<PairConfirm?>(null) }
     // the Say list open for this NPC, the Chat with list, the scene menu (the top bar's gear)
     var saying by remember { mutableStateOf<String?>(null) }
     var chatting by remember { mutableStateOf<String?>(null) }
@@ -558,6 +577,7 @@ fun LiveSceneScreen(
         else if (feedOpen) feedOpen = false
         else if (saying != null) saying = null
         else if (chatting != null) chatting = null
+        else if (pairPlay != null) pairPlay = null
         else if (choosingPartner != null) choosingPartner = null
         else if (choosingAnimation != null) choosingAnimation = null
         else if (menu) menu = false
@@ -620,6 +640,61 @@ fun LiveSceneScreen(
                 else sim.takeRefusal() ?: "The NPCs couldn’t reach their starting positions."
             }
         }
+    }
+
+    /** [order]'s preview with [partner] (on [item] when it is played there): nothing plays until its Play. */
+    fun confirmPair(order: PendingAnimation, partner: String, item: SceneObject? = null) {
+        choosingAnimation = null
+        furnitureMenu = null
+        pairPlay = PairPlay(PairConfirm.open(order.choice.id, order.owner, partner, order.choice.participantCount, roleMemory), order, item)
+    }
+    fun keepRoles(id: String, switched: Boolean) {
+        if (roleMemory.set(id, switched)) try { rolePrefs.edit().putString(ROLE_KEY, roleMemory.encode()).apply() } catch (e: Exception) { }
+    }
+    /** [order] with [partner] at once (no preview), the two in the roles last chosen for it. */
+    fun scheduleKept(order: PendingAnimation, partner: String) {
+        if (RoleSwitch.switchable(order.choice.participantCount) && roleMemory.isSwitched(order.choice.id)) schedule(order.copy(owner = partner), order.owner)
+        else schedule(order, partner)
+    }
+    /** The preview's Play: the two in the roles shown (kept for this animation), then the cinematic director as before. */
+    fun playPair(p: PairPlay) {
+        val c = p.confirm.play()
+        keepRoles(c.choiceId, c.switched)
+        lastPair = c
+        pairPlay = null
+        live.preview = null
+        val item = p.item
+        if (item != null) {
+            val pairId = p.order.choice.id.removePrefix(PairAnim.CHOICE_PREFIX)
+            live.order { sim ->
+                if (sim.partnerOn(item, pairId, c.lead, c.other, fixedRoles = true)) null
+                else sim.takeRefusal() ?: "That can’t be played on the ${item.label.lowercase()} now."
+            }
+        } else schedule(p.order.copy(owner = c.lead), c.other)
+    }
+    /** Switch positions while it plays: started again with the two in each other's roles (kept for it when it was ours). */
+    fun switchPlaying(id: String, other: String) {
+        live.order { sim -> if (sim.switchRoles(id)) null else "They can switch positions once it plays." }
+        lastPair?.takeIf { setOf(it.owner, it.partner) == setOf(id, other) }?.let { c ->
+            val next = c.copy(switched = !roleMemory.isSwitched(c.choiceId))
+            keepRoles(c.choiceId, next.switched)
+            lastPair = next
+        }
+    }
+    // the preview: the scene held with the two at their start places in their roles, the camera framing them (the room's
+    // view); closed or played, the player's camera again
+    val previewing = pairPlay?.takeIf { it.confirm.open }
+    LaunchedEffect(live, previewing) {
+        val p = previewing
+        if (p == null) {
+            live.preview = null
+            live.camera.setMode(cameraMode)
+            return@LaunchedEffect
+        }
+        val c = p.confirm
+        val order = request(c.other, p.order.choice, PlayOptions())
+        live.camera.setMode(CameraMode.ROOM)
+        live.preview = StagePreview(c.lead, order, p.item)
     }
 
     // the GL thread drives every frame; the menus hear of changes only
@@ -698,7 +773,9 @@ fun LiveSceneScreen(
                     view.glPlayAnimation(key, null)
                     main.post { fetch(key, emote); view.anim(key, emote, held, start) }
                 } else {
-                    view.glPlayAnimation(key, clip?.let { playback[it.clip] })
+                    view.glPlayAnimation(key, clip?.let { c ->
+                        playback[c.clip] ?: PreviewKeys.heldOf(c.clip)?.let { held -> playback[held]?.let(HoldFrame::of) }
+                    })
                     if (wasEmote) { val start = frameMs; main.post { view.anim(key, 0, true, start) } }   // back to standing
                 }
             }
@@ -895,6 +972,8 @@ fun LiveSceneScreen(
         if (choice.participantCount == 2) {
             val pairId = choice.id.removePrefix(PairAnim.CHOICE_PREFIX)
             val with = partnerId?.takeIf { it != owner }
+            // with a partner: the preview first (who plays which role, on this piece); without one, the nearest joins as before
+            if (with != null) { confirmPair(PendingAnimation(owner, choice, AnimationOrderMode.PLAY), with, item); return }
             live.order { sim -> if (sim.partnerOn(item, pairId, owner, with)) null else sim.takeRefusal() ?: refused }
         } else {
             val need = needs.choices[choice.id] ?: return
@@ -1032,7 +1111,7 @@ fun LiveSceneScreen(
 
     // immersive mode's HUD: up after a tap for Options' time, kept while a window or menu is open
     val windowOpen = choosingAnimation != null || furnitureMenu != null || saying != null || chatting != null ||
-        choosingPartner != null || menu || ending
+        choosingPartner != null || pairPlay != null || menu || ending
     LaunchedEffect(revealTick, windowOpen, immersive.hudSeconds, immersiveHud) {
         if (!immersiveHud) { hudUp = true; return@LaunchedEffect }
         hudReveal.holdMs = immersive.clamped().hudSeconds * 1000L
@@ -1051,7 +1130,7 @@ fun LiveSceneScreen(
         // the author's chain from its first stage when there is one, else any two-person animation, else a partner one
         val two = choices.filter { it.participantCount == 2 }
         val first = two.firstOrNull { MomentProgress.stageOf(it.stage.ifEmpty { it.name }) == 1 } ?: two.firstOrNull()
-        if (first != null) schedule(PendingAnimation(a, first, AnimationOrderMode.SEQUENCE), b) else sendToPartner(a, b)
+        if (first != null) scheduleKept(PendingAnimation(a, first, AnimationOrderMode.SEQUENCE), b) else sendToPartner(a, b)
     }
     fun runFlow(steps: List<FlowStep>) {
         for (st in steps) when (st) {
@@ -1346,6 +1425,13 @@ fun LiveSceneScreen(
                 Modifier.align(Alignment.TopStart).padding(start = SceneHud.MARGIN.dp, top = SceneHud.TOP_H.dp))
             FeedPanel(feedOpen, lifeShown?.events.orEmpty(), icons, { feedOpen = false },
                 Modifier.align(Alignment.TopEnd).padding(end = SceneHud.MARGIN.dp, top = SceneHud.TOP_H.dp, start = SceneHud.MARGIN.dp))
+            // Switch positions while a two-person animation plays (started again with the roles turned round)
+            val playingWith = active?.takeIf { it.performing }?.partner
+            if (revealed && !hudHidden && !feedOpen && pairPlay == null && active != null && playingWith != null) {
+                WifeButton("Switch positions", { switchPlaying(active.id, playingWith) },
+                    Modifier.align(Alignment.TopEnd)
+                        .padding(top = (SceneHud.TOP_H + if (hud.castSide) 8f else hud.castH + 12f).dp, end = SceneHud.MARGIN.dp))
+            }
         }
         // the soft controls: with a partner chosen or a flow under way, while the HUD is up
         if (revealed && !hudHidden && (flow != null || (active != null && mate != null))) {
@@ -1362,9 +1448,12 @@ fun LiveSceneScreen(
         // with a partner chosen, the two-person animations come first and play with them (solo ones still play alone)
         val with = partnerId?.takeIf { it != owner }
         val shownChoices = remember(choices, with) { if (with == null) choices else choices.sortedByDescending { it.participantCount == 2 } }
-        fun start(choice: AnimationChoice, mode: AnimationOrderMode) {
+        fun start(choice: AnimationChoice, mode: AnimationOrderMode, preview: Boolean = true) {
             val order = PendingAnimation(owner, choice, mode)
-            if (choice.participantCount == 2) { if (with != null) schedule(order, with) else choosingPartner = order }
+            if (choice.participantCount == 2) {
+                // with a partner: the preview before it plays (the browser's own preview plays at once, in the roles kept)
+                if (with == null) choosingPartner = order else if (preview) confirmPair(order, with) else scheduleKept(order, with)
+            }
             else schedule(order, null)
         }
         AnimationBrowser(
@@ -1374,7 +1463,7 @@ fun LiveSceneScreen(
                 if (mode == AnimationOrderMode.PLAY) choosingAnimation = null
                 start(choice, mode)
             },
-            onPreview = { choice -> start(choice, AnimationOrderMode.PLAY) },
+            onPreview = { choice -> start(choice, AnimationOrderMode.PLAY, preview = false) },
             partnerName = with?.let { names[it] },
             actorName = names[owner],
             options = playOptions,
@@ -1427,9 +1516,18 @@ fun LiveSceneScreen(
         } else {
             HudPick("Invite who?", candidates, choosingPartner != null, { choosingPartner = null }) { other ->
                 choosingPartner = null
-                schedule(pending, other)
+                confirmPair(pending, other)
             }
         }
+    }
+    // before a two-person animation plays: who plays which role, seen in the scene; Switch positions, Play, Cancel
+    val shownPair = rememberHeld(pairPlay)
+    if (shownPair != null) {
+        val sexes = remember(cast) { cast.associate { it.id to (it.appearance.sex == Sex.FEMALE) } }
+        PairConfirmPanel(shownPair.confirm, shownPair.order.choice.name, names, sexes, pairPlay != null,
+            onSwitch = { pairPlay = pairPlay?.let { it.copy(confirm = it.confirm.switch()) } },
+            onPlay = { pairPlay?.let { playPair(it) } },
+            onCancel = { pairPlay = null })
     }
     val selectedLife = selected?.let(lifeOf)
     SceneMenu(menu, { menu = false }, onSettings?.let { open -> { menu = false; open() } }, { menu = false; ending = true },
