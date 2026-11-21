@@ -100,6 +100,10 @@ struct EveRaceFit {
     // median radius moves this share of the way to the model's own limb's (measured on the body Eve replaces, after the
     // factors above), so a bigger race keeps its arms and legs.
     float limbs = 0;
+    // Eve on her own rig (1): her body as she was made, scaled to the model's neck height, her bones' pivots at the joints the
+    // Sims rig skinned her for (kEveSimsRig), the model's animation run about them, her own weights as authored; the head
+    // and feet stay the model's, on its own joints, joined at the seams. 0: fitted onto the model's skeleton (the old way).
+    float rig = 0;
 };
 struct EveFitTable {
     std::vector<EveRaceFit> rows;
@@ -154,6 +158,7 @@ struct EveFitStats {
     float head = 0, height = 0, heightAfter = 0;   // the model's head (chin to crown), its height, hers with the proportions
     int stitched = 0;               // seams stitched to the model's edge
     size_t rezoned = 0;             // trunk vertices that took the model's weights
+    float rigScale = 0;             // the Eve rig's scale (model units per Sims metre; 0: no rig)
     float limbScale[4] = {1, 1, 1, 1};   // the limbs' girth correction: upper arm, forearm, thigh, calf (left)
     float kHip = 1, kShoulder = 1;  // the measured width ratios
     double ms = 0;
@@ -169,6 +174,10 @@ struct EveBody {
     // where the Warcraft skin meets Eve: its texture coordinates at the neck's and the ankles' cut edge (u, v pairs)
     std::vector<float> neckUvs, ankleUvs;
     BodyScale scale;                        // her proportions on the skeleton (bodyrig.h), the Leg Length slider's on top
+    // The Eve rig (EveRaceFit::rig): per model bone, its pivot where Eve's own joint is (the Sims rig she was skinned for,
+    // scaled to the model), the head and feet chains the model's own; the scene runs the model's animation about these
+    // (bodyrig.h bodyEditFrom) while she is drawn. Empty: the model's own skeleton (her body fitted onto it).
+    std::vector<V3> rigPivots;
     EveFitStats stats;
 };
 

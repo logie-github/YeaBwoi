@@ -188,7 +188,8 @@ void posedSeams(M2Model& m, const FileLookup& look, const EveResult& res, size_t
             const M2Vertex& a = ev[v]; const M2Vertex& b = m.vertices[w];
             if (std::fabs(a.pos[0] - b.pos[0]) < 1e-6f && std::fabs(a.pos[1] - b.pos[1]) < 1e-6f && std::fabs(a.pos[2] - b.pos[2]) < 1e-6f) { twin[v] = int(w); break; }
         }
-    LegEdit edit = bodyEditOf(m, res.body.scale);
+    // (on her own rig, the Eve rig's pivots: as the scene runs her, engine/bodyrig.h bodyEditFrom)
+    LegEdit edit = res.body.rigPivots.empty() ? bodyEditOf(m, res.body.scale) : bodyEditFrom(m, res.body.rigPivots, res.body.scale);
     auto skinAll = [&](const std::vector<M2Vertex>& vs, const std::vector<M4>& mats, std::vector<V3>& out) {
         out.resize(vs.size());
         for (size_t i = 0; i < vs.size(); ++i) {
@@ -281,6 +282,41 @@ void posedSeams(M2Model& m, const FileLookup& look, const EveResult& res, size_t
                 eMax = es.empty() ? 0 : es.back(); mMax = ms.empty() ? 0 : ms.back();
             }
             if (c1 >= ec) { ec = c1; en = n1; mc = c2; mn = n2; }
+        }
+        // the rig against the model's own skeleton in the same pose: where the head, hands and feet end up (the scene places her by
+        // them: furniture, partners); the worst moment
+        if (!res.body.rigPivots.empty()) {
+            float worst[3] = {0, 0, 0}, turn = 0;   // (turn: the most a limb segment points away from the model's, degrees)
+            for (float f : {0.2f, 0.5f, 0.8f}) {
+                uint32_t t = uint32_t(f * float(dur));
+                std::vector<BonePose> bp; m.pose(seq, t, t, bp, false);
+                if (getenv("EVE_REST")) bp.clear();
+                std::vector<M4> em, mm;
+                legEditMatrices(m.bones, bp, edit, em); m.bonesToMatrices(bp, mm);
+                const char* segs[][2] = {{"L_UpperArm", "L_Forearm"}, {"L_Forearm", "L_Hand"}, {"R_UpperArm", "R_Forearm"}, {"R_Forearm", "R_Hand"},
+                                         {"L_Thigh", "L_Calf"}, {"L_Calf", "L_Foot"}, {"R_Thigh", "R_Calf"}, {"R_Calf", "R_Foot"}};
+                for (const auto& sg : segs) {
+                    int a2 = m.findWowBone(sg[0]), b2 = m.findWowBone(sg[1]);
+                    if (a2 < 0 || b2 < 0) continue;
+                    // (each skeleton's joint where its own bind pose has it: the Eve rig's at its own pivots)
+                    V3 de = em[size_t(b2)].point(edit.pivots[size_t(b2)]) - em[size_t(a2)].point(edit.pivots[size_t(a2)]);
+                    V3 dm = mm[size_t(b2)].point(m.bones[size_t(b2)].pivot) - mm[size_t(a2)].point(m.bones[size_t(a2)].pivot);
+                    float c = std::clamp(de.normalized().dot(dm.normalized()), -1.0f, 1.0f);
+                    turn = std::max(turn, std::acos(c) * 57.2958f);
+                    if (getenv("EVE_DIAG")) std::printf("    %s %.1f deg\n", sg[0], std::acos(c) * 57.2958f);
+                }
+                const char* ends[3][2] = {{"Head", ""}, {"L_Hand", "R_Hand"}, {"L_Foot", "R_Foot"}};
+                for (int k = 0; k < 3; ++k) for (const char* n : ends[k]) {
+                    if (!n[0]) continue;
+                    int b = m.findWowBone(n); if (b < 0) continue;
+                    worst[k] = std::max(worst[k], (em[size_t(b)].point(edit.pivots[size_t(b)]) - mm[size_t(b)].point(m.bones[size_t(b)].pivot)).length());
+                }
+            }
+            const float h = m.bones[size_t(m.findWowBone("Head"))].pivot.z;
+            std::printf("  %s, %s: the Eve rig against the model's: limbs point within %.1f deg; head %.3f, hands %.3f, feet %.3f apart (%.1f%% / %.1f%% / %.1f%% of the "
+                        "head's height: her own lengths)\n", name.c_str(), p.what, turn, worst[0], worst[1], worst[2], 100 * worst[0] / h, 100 * worst[1] / h, 100 * worst[2] / h);
+            CHECK(turn < 3.0f, "%s, %s: a limb of the Eve rig points %.1f degrees off the model's", name.c_str(), p.what, turn);
+            CHECK(worst[0] <= 0.12f * h && worst[2] <= 0.12f * h, "%s, %s: the head or the feet stray from the model's (%.3f, %.3f)", name.c_str(), p.what, worst[0], worst[2]);
         }
         std::printf("  %s, %s: seam gap %.5f, strip's edges grown %.4f (the model's cut edge %.4f), edges grown p99 %.3f p99.9 %.3f max %.3f (the model's %.3f %.3f %.3f), "
                     "collapsed %zu/%zu (the model's %zu/%zu)\n", name.c_str(), p.what, gap, strip, modelEdge, e99, e999, eMax, m99, m999, mMax, ec, en, mc, mn);
@@ -558,6 +594,17 @@ int main(int argc, char** argv) {
                         for (int k = 0; k < 3; ++k)
                             CHECK(res.seamDE[k] >= 0 && res.seamDE[k] < 3.0f, "%s: seam %d's colour ΔE %.1f under 3", row->name.c_str(), k, res.seamDE[k]);
                         CHECK(st.stitched == 3, "%s: three seams stitched (%d)", row->name.c_str(), st.stitched);
+                        // her own rig: the head's and the feet's chains stay the model's (its head, hair and feet ride their own joints)
+                        if (row->rig > 0) {
+                            bool keep = res.body.rigPivots.size() == m.bones.size();
+                            for (const char* n : {"Neck1", "Head", "L_Foot", "R_Foot", "L_Toe", "R_Toe"}) {
+                                int b = m.findWowBone(n);
+                                if (keep && b >= 0) keep = (res.body.rigPivots[size_t(b)] - m.bones[size_t(b)].pivot).length() < 1e-6f;
+                            }
+                            int ua = m.findWowBone("L_UpperArm");
+                            CHECK(keep && ua >= 0 && (res.body.rigPivots[size_t(ua)] - m.bones[size_t(ua)].pivot).length() > 1e-4f,
+                                  "%s: her rig moves her body's joints and keeps the head's and feet's", row->name.c_str());
+                        }
                         // the stitch: every vertex added past Eve's own sits exactly on a model vertex with its weights (no gap in any pose)
                         size_t added = 0, off = 0;
                         for (size_t v = e.vertexCount(); v < res.body.verts.size(); ++v) {

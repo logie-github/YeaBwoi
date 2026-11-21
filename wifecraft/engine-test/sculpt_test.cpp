@@ -454,6 +454,26 @@ int main() {
         legEditMatrices(bones, {}, e, mats, &lift);
         CHECK(std::fabs(mats[6].point(piv[6]).z - piv[6].z) < 1e-5f, "proportions: the feet stay on the floor (lift %f)", lift);
         CHECK(lift < 0, "proportions: shorter legs bring her down (%f)", lift);
+        // another rig's pivots (the Eve rig: bodyEditFrom), every factor 1: active, and with the model's own pivots it poses
+        // exactly as the model's own skeleton does (the regular path is the same skeleton)
+        LegEdit same = makeBodyEdit(pivots, parents, bb, BodyScale(), true);
+        CHECK(same.active, "a rig's edit is active at factor 1");
+        std::vector<BonePose> pose(22);
+        pose[14].r = Quat(0, std::sin(0.4f), 0, std::cos(0.4f)).normalized();
+        pose[4].r = Quat(std::sin(0.3f), 0, 0, std::cos(0.3f)).normalized();
+        std::vector<M4> a1, a2;
+        legEditMatrices(bones, pose, same, a1);
+        legPosed(bones, pose, nullptr, a2);
+        float diff = 0;
+        for (size_t i = 0; i < a1.size(); ++i) for (int k = 0; k < 16; ++k) diff = std::max(diff, std::fabs(a1[i].m[k] - a2[i].m[k]));
+        CHECK(diff < 1e-6f, "the model's own pivots as a rig: the model's own pose (%g)", diff);
+        // a rig whose arm pivot is elsewhere: the arm still turns as the model's (same direction), about its own joint
+        std::vector<V3> moved = pivots;
+        moved[14] = moved[14] + V3(0, 0.03f, -0.02f); moved[16] = moved[16] + V3(0, 0.03f, -0.02f); moved[18] = moved[18] + V3(0, 0.03f, -0.02f); moved[20] = moved[20] + V3(0, 0.03f, -0.02f);
+        LegEdit other = makeBodyEdit(moved, parents, bb, BodyScale(), true);
+        legEditMatrices(bones, pose, other, a1);
+        V3 dOwn = a2[16].point(piv[16]) - a2[14].point(piv[14]), dRig = a1[16].point(other.pivots[16]) - a1[14].point(other.pivots[14]);
+        CHECK(std::fabs(dOwn.normalized().dot(dRig.normalized()) - 1) < 1e-5f, "a rig's upper arm points as the model's");
     }
 
     if (failures) { std::printf("%d failed\n", failures); return 1; }

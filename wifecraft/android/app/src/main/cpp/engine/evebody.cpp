@@ -195,7 +195,7 @@ bool parseEveFitTable(const std::string& json, EveFitTable& out, std::string& er
         num("neckBase", f.neckBase); num("ankleLift", f.ankleLift); num("ankleTuck", f.ankleTuck); num("ankleSink", f.ankleSink);
         num("heads", f.heads); num("hipRatio", f.hipRatio); num("armRatio", f.armRatio); num("handHeads", f.handHeads); num("spread", f.spread);
         num("split", f.split); num("transfer", f.transfer); num("stitch", f.stitch); num("detail", f.detail);
-        num("rezone", f.rezone); num("limbs", f.limbs);
+        num("rezone", f.rezone); num("limbs", f.limbs); num("rig", f.rig);
     };
     if (j.has("defaults")) readFit(j["defaults"]["fit"], defaults);
     for (const Json& r : rows.a) {
@@ -449,6 +449,22 @@ const Helper kHelpers[] = {
     {"L_UpperArmTwist", 73, "L_UpperArm"}, {"R_UpperArmTwist", 72, "R_UpperArm"},
     {"L_ElbowHelper", 75, "L_Forearm"}, {"R_ElbowHelper", 74, "R_Forearm"},
     {"L_ForearmTwist", 77, "L_Forearm"}, {"R_ForearmTwist", 76, "R_Forearm"},
+};
+
+// The Sims 4 adult rig's joints (its bind pose, in Warcraft axes and Sims metres from the feet; read from the game's own rig
+// resource, the one Eve and every CAS body is skinned for), by the Warcraft name her weights carry (EveProfile.wowBone); left
+// side, the right mirrored. Twist and elbow helpers sit at their own joints.
+const std::pair<const char*, V3> kEveSimsRig[] = {
+    {"Pelvis", V3(0.0000f, 0.0000f, 1.1232f)}, {"Spine1", V3(0.0000f, 0.0000f, 1.1292f)}, {"Spine2", V3(0.0000f, 0.0000f, 1.2912f)},
+    {"Chest", V3(0.0000f, 0.0000f, 1.4507f)}, {"Neck1", V3(-0.0361f, 0.0000f, 1.6066f)},
+    {"L_Clavicle", V3(-0.0206f, 0.0200f, 1.5230f)}, {"L_UpperArm", V3(-0.0206f, 0.1600f, 1.5230f)}, {"L_Forearm", V3(-0.0366f, 0.3871f, 1.2967f)},
+    {"L_Hand", V3(-0.0204f, 0.5902f, 1.0943f)}, {"L_Thumb1", V3(0.0090f, 0.5987f, 1.0776f)}, {"L_Thumb2", V3(0.0287f, 0.6041f, 1.0543f)},
+    {"L_Index1", V3(0.0190f, 0.6396f, 1.0437f)}, {"L_Index2", V3(0.0238f, 0.6706f, 1.0128f)}, {"L_Middle1", V3(-0.0032f, 0.6444f, 1.0425f)},
+    {"L_Middle2", V3(-0.0006f, 0.6760f, 1.0091f)}, {"L_Ring1", V3(-0.0253f, 0.6448f, 1.0419f)}, {"L_Ring2", V3(-0.0227f, 0.6746f, 1.0096f)},
+    {"L_Pinky1", V3(-0.0443f, 0.6406f, 1.0433f)}, {"L_Pinky2", V3(-0.0426f, 0.6686f, 1.0147f)},
+    {"L_Thigh", V3(0.0000f, 0.0660f, 1.0122f)}, {"L_Calf", V3(0.0126f, 0.0837f, 0.5287f)}, {"L_Foot", V3(-0.0097f, 0.0991f, 0.1106f)},
+    {"L_Breast", V3(0.0919f, 0.0740f, 1.4190f)},
+    {"L_UpperArmTwist", V3(-0.0206f, 0.1600f, 1.5230f)}, {"L_ForearmTwist", V3(-0.0287f, 0.4870f, 1.1971f)}, {"L_ElbowHelper", V3(-0.0366f, 0.3871f, 1.2967f)},
 };
 
 int resolveBone(const M2Model& m, const std::string& name) {
@@ -876,7 +892,122 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
     auto mainBone = [](const M2Vertex& v) { int k = 0; for (int i = 1; i < 4; ++i) if (v.weights[i] > v.weights[k]) k = i; return int(v.bones[k]); };
     // ---- the limbs' girth toward the model's own: each segment's median radius (its middle 60%) on the body Eve replaces
     // against hers as fitted, both sides together; her vertices moved across the bone by their weight on it
-    if (fit.limbs > 0) {
+    const bool rig = fit.rig > 0;
+    // ---- the Eve rig: her body as made, scaled to the model's neck height and set on its pelvis line; each body bone's pivot
+    // at her own joint (the Sims rig's, likewise scaled); what hangs under a moved bone moves with it, but for the head's and
+    // the feet's chains, which keep the model's (its head, hair and feet are drawn on them, unchanged)
+    if (rig) {
+        V3 simsNeck;
+        for (const auto& j : kEveSimsRig) if (std::string(j.first) == "Neck1") simsNeck = j.second;
+        const float sr = neckW.z / std::max(simsNeck.z, 1e-3f);
+        const V3 off(pelvisW.x, 0, 0);
+        for (size_t v = 0; v < nv; ++v) {
+            P[v] = P0[v] * sr + off;
+            N[v] = V3(eve.nrm[v * 3], eve.nrm[v * 3 + 1], eve.nrm[v * 3 + 2]).normalized();
+        }
+        // her joints (scaled), by Warcraft name, both sides
+        std::map<std::string, V3> J;
+        for (const auto& jt : kEveSimsRig) {
+            std::string n = jt.first;
+            J[n] = jt.second * sr + off;
+            if (n.compare(0, 2, "L_") == 0) J["R_" + n.substr(2)] = mirrorY(jt.second) * sr + off;
+        }
+        // ---- her arms and legs turned to the model's rest pose (each segment along the model's own: the model's animations
+        // are turns from its rest, so her rest must point as its does), skinned by her own weights about her own joints: as a
+        // Sims body is posed in the Sims. Parent first; helpers and fingers ride their limb's turn.
+        struct Turn { V3 from, to; M3 R; bool ok = false; };   // x -> to + R (x - from)
+        std::map<int, Turn> turn;   // by model bone
+        std::map<std::string, V3> A = J;   // her joints as turned
+        auto wowPiv = [&](const std::string& n, V3& p) { int b = m.findWowBone(n); if (b < 0) return false; p = m.bones[size_t(b)].pivot; return true; };
+        const char* chain[][3] = {{"Clavicle", "UpperArm", ""}, {"UpperArm", "Forearm", "Clavicle"}, {"Forearm", "Hand", "UpperArm"},
+                                  {"Hand", "Middle1", "Forearm"}, {"Thigh", "Calf", ""}, {"Calf", "Foot", "Thigh"}};
+        for (int sd = 0; sd < 2; ++sd) {
+            const std::string px = sd ? "R_" : "L_";
+            for (const auto& c : chain) {
+                const std::string bn = px + c[0], cn = px + c[1], pn = c[2][0] ? px + c[2] : "";
+                int b = resolveBone(m, bn);
+                if (b < 0 || m.findWowBone(bn) != b || !J.count(bn) || !J.count(cn)) continue;
+                const Turn* par = !pn.empty() ? (turn.count(m.findWowBone(pn)) ? &turn[m.findWowBone(pn)] : nullptr) : nullptr;
+                // where her joint and her child's are once the parent has turned
+                auto viaParent = [&](V3 x) { return par && par->ok ? par->to + par->R * (x - par->from) : x; };
+                V3 jb = viaParent(J[bn]), jc = viaParent(J[cn]);
+                V3 wb, wc;
+                Turn t;
+                t.from = J[bn]; t.to = jb;
+                M3 G = par && par->ok ? par->R : M3();
+                if (wowPiv(bn, wb) && wowPiv(cn, wc) && (wc - wb).length() > 1e-4f && (jc - jb).length() > 1e-4f) G = rotBetween(jc - jb, wc - wb) * G;
+                t.R = G; t.ok = true;
+                turn[b] = t;
+                A[bn] = jb; A[cn] = t.to + t.R * (J[cn] - t.from);
+            }
+            // the legs exactly along the model's (its feet stay on its own ankles): her shin's length up from the model's ankle along
+            // its shin, her thigh's up from there along its thigh; the hip moves with it (her thigh's skin by its weight)
+            {
+                V3 hipW, kneeW, ankW;
+                const std::string tn = px + "Thigh", cn = px + "Calf", fn = px + "Foot";
+                int tb = m.findWowBone(tn), cb = m.findWowBone(cn);
+                if (tb >= 0 && cb >= 0 && J.count(tn) && J.count(cn) && J.count(fn) && wowPiv(tn, hipW) && wowPiv(cn, kneeW) && wowPiv(fn, ankW)) {
+                    V3 dT = (kneeW - hipW).normalized(), dC = (ankW - kneeW).normalized();
+                    float lT = (J[cn] - J[tn]).length(), lC = (J[fn] - J[cn]).length();
+                    V3 knee2 = ankW - dC * lC, hip2 = knee2 - dT * lT;
+                    Turn tt; tt.from = J[tn]; tt.to = hip2; tt.R = rotBetween(J[cn] - J[tn], dT); tt.ok = true;
+                    Turn tc; tc.from = J[cn]; tc.to = knee2; tc.R = rotBetween(J[fn] - J[cn], dC); tc.ok = true;
+                    turn[tb] = tt; turn[cb] = tc;
+                    A[tn] = hip2; A[cn] = knee2; A[fn] = ankW;
+                }
+            }
+            // helpers and fingers: their limb's turn
+            const std::pair<const char*, const char*> ride[] = {{"UpperArmTwist", "UpperArm"}, {"ForearmTwist", "Forearm"}, {"ElbowHelper", "Forearm"},
+                {"Thumb1", "Hand"}, {"Thumb2", "Hand"}, {"Index1", "Hand"}, {"Index2", "Hand"}, {"Middle1", "Hand"}, {"Middle2", "Hand"},
+                {"Ring1", "Hand"}, {"Ring2", "Hand"}, {"Pinky1", "Hand"}, {"Pinky2", "Hand"}};
+            for (const auto& rd : ride) {
+                int limb = m.findWowBone(px + rd.second);
+                if (limb < 0 || !turn.count(limb)) continue;
+                const Turn& t = turn[limb];
+                std::string hn = px + rd.first;
+                int b = resolveBone(m, hn);
+                if (J.count(hn)) A[hn] = t.to + t.R * (J[hn] - t.from);
+                if (b >= 0 && !turn.count(b)) turn[b] = t;
+            }
+        }
+        // her vertices by her own weights
+        for (size_t v = 0; v < nv; ++v) {
+            V3 acc, nacc; float tot = 0;
+            for (int i = 0; i < WM[v].n; ++i) {
+                int b = WM[v].e[size_t(i)].first;
+                float w = WM[v].e[size_t(i)].second;
+                auto it = turn.find(b);
+                if (it == turn.end()) { acc = acc + P[v] * w; nacc = nacc + N[v] * w; }
+                else { acc = acc + (it->second.to + it->second.R * (P[v] - it->second.from)) * w; nacc = nacc + (it->second.R * N[v]) * w; }
+                tot += w;
+            }
+            if (tot > 0) { P[v] = acc * (1.0f / tot); N[v] = nacc.normalized(); }
+        }
+        out.rigPivots.resize(m.bones.size());
+        std::vector<int8_t> moved(m.bones.size(), 0);   // 1 placed from the rig, -1 kept (head and feet chains)
+        for (size_t b = 0; b < m.bones.size(); ++b) out.rigPivots[b] = m.bones[b].pivot;
+        for (const auto& [name, p] : A) {
+            if (name == "Neck1" || name == "L_Foot" || name == "R_Foot") continue;   // (the neck and feet are the model's)
+            int b = resolveBone(m, name);
+            bool own = m.findWowBone(name) == b;
+            for (const Helper& h : kHelpers) if (name == h.name) own = b >= 0 && m.bones[size_t(b)].keyBoneId == h.key;
+            if (b < 0 || size_t(b) >= m.bones.size() || !own || moved[size_t(b)] == 1) continue;
+            out.rigPivots[size_t(b)] = p;
+            moved[size_t(b)] = 1;
+        }
+        for (const char* n : {"Root", "Neck1", "L_Foot", "R_Foot", "L_Ankle", "R_Ankle"}) { int b = m.findWowBone(n); if (b >= 0 && !moved[size_t(b)]) moved[size_t(b)] = -1; }
+        // the rest: by their nearest decided ancestor (moved: carried by its offset; kept, or none: as the model has them)
+        for (size_t b = 0; b < m.bones.size(); ++b) {
+            if (moved[b]) continue;
+            for (int c = m.bones[b].parent, g = 0; c >= 0 && size_t(c) < m.bones.size() && g < 256; c = m.bones[size_t(c)].parent, ++g) {
+                if (!moved[size_t(c)]) continue;
+                if (moved[size_t(c)] == 1) out.rigPivots[b] = m.bones[b].pivot + (out.rigPivots[size_t(c)] - m.bones[size_t(c)].pivot);
+                break;
+            }
+        }
+        out.stats.rigScale = sr;
+    }
+    if (fit.limbs > 0 && !rig) {
         const char* segBone[4] = {"UpperArm", "Forearm", "Thigh", "Calf"};
         const int segRegion[4] = {kUpperArm, kForearm, kThigh, kCalf};
         std::vector<int> limbBones;
@@ -939,7 +1070,7 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
     // ---- the trunk's weights from the model's own body: each trunk vertex takes the bone weights of the model's skin around
     // it (Gaussian over 5 cm, facing the same way), blended in by how much of it the trunk drives (and, round the hips, the
     // thighs above the hip joints); arms, hands and legs below the hips keep Eve's
-    if (fit.rezone > 0) {
+    if (fit.rezone > 0 && !rig) {
         std::vector<int> trunkNamed;
         for (const char* n : {"Root", "Pelvis", "Waist", "Spine1", "Spine2", "Chest", "L_Breast", "R_Breast", "L_Clavicle", "R_Clavicle"}) {
             int b = m.findWowBone(n); if (b >= 0) trunkNamed.push_back(b);
@@ -1007,7 +1138,7 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
     // none past kShoulderReach): the Sims rig's shoulder helpers fold onto the model's upper arm and clavicle in a narrow
     // band, which pinched a ridge over the shoulder and a crease into the armpit with the arm raised (cheering, asleep
     // with an arm under the head). UV copies of a place move together.
-    {
+    if (!rig) {
         constexpr float kShoulderReach = 0.13f;   // Sims metres from the shoulder joint
         constexpr int kPasses = 4;
         std::unordered_map<int64_t, uint32_t> rep;
@@ -1350,6 +1481,7 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
     out.indices = eve.idx;
     out.indices.insert(out.indices.end(), XI.begin(), XI.end());
     out.scale = eveProportions(m, verts, indices, subs, geosets, out, fit, W[0].hip, W[1].hip, neckW, W[0].shoulder, W[0].elbow, W[0].wrist, out.stats);
+    if (rig) { out.scale = BodyScale(); out.stats.heightAfter = out.stats.height; }   // (her rig is her own proportions: Leg Length alone acts on it)
     out.ok = true;
     out.stats.ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     return out;
@@ -2257,6 +2389,23 @@ std::shared_ptr<EveSet::Tex> eveOverlayTex(EveSet& set, const std::string& file)
 
 } // namespace
 
+// The sculpt's rig (sculpt.h) on the Eve rig's joints: its regions about her own joints, not the model's.
+static SculptRig eveSculptRig(const M2Model& m, const std::vector<V3>& pivots) {
+    SculptBones b;
+    auto find = [&](const char* a, const char* alt = nullptr) { int i = m.findWowBone(a); return i >= 0 || !alt ? i : m.findWowBone(alt); };
+    b.pelvis = find("Pelvis", "Root"); b.waist = find("Spine1", "Waist"); b.chest = find("Chest", "Spine2");
+    b.neck = find("Neck1"); b.head = find("Head");
+    for (int k = 0; k < 2; ++k) {
+        std::string sd = k ? "R_" : "L_";
+        b.breast[k] = m.findWowBone(sd + "Breast"); b.clavicle[k] = m.findWowBone(sd + "Clavicle"); b.upperArm[k] = m.findWowBone(sd + "UpperArm");
+        b.forearm[k] = m.findWowBone(sd + "Forearm"); b.hand[k] = m.findWowBone(sd + "Hand"); b.thigh[k] = m.findWowBone(sd + "Thigh");
+        b.calf[k] = m.findWowBone(sd + "Calf"); b.ankle[k] = m.findWowBone(sd + "Ankle");
+    }
+    std::vector<int16_t> parents(m.bones.size());
+    for (size_t i = 0; i < m.bones.size(); ++i) parents[i] = m.bones[i].parent;
+    return sculptRig(pivots, parents, b);
+}
+
 EveResult eveCompute(const EveJob& job) {
     auto t0 = std::chrono::steady_clock::now();
     EveResult r;
@@ -2286,7 +2435,7 @@ EveResult eveCompute(const EveJob& job) {
     if (!body.ok) { r.status = body.error; return r; }
     // the creator's sculpt sliders (sculpt.h) on the fitted body, before it is measured, cut and drawn
     if (sculptActive(job.sculpt.data(), job.sculpt.size()))
-        applySculpt(job.rig, body.verts, body.indices, job.sculpt.data(), job.sculpt.size());
+        applySculpt(body.rigPivots.empty() ? job.rig : eveSculptRig(m, body.rigPivots), body.verts, body.indices, job.sculpt.data(), job.sculpt.size());
     auto t1 = std::chrono::steady_clock::now();
     // the actor's own skin where Eve meets it: its base skin layer sampled at the cut edges
     const EveSetIndex& ix = set.index;

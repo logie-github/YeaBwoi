@@ -64,6 +64,7 @@ struct LegEdit {
     float factor = 1;                 // the shins' key moves are scaled by this (the legs' factor)
     BodyScale scale;
     const void* model = nullptr;      // what it was made for (Scene: made again when the model or the factors change)
+    const void* base = nullptr;       // the rig's pivots it was made on (the Eve rig's; null: the model's own)
     std::vector<V3> pivots;           // per bone: the edited bind pivots
     std::vector<M4> bind;             // per bone: D, the model's bind pose -> the edited bind pose
     std::vector<uint8_t> part;        // per bone: LegPart
@@ -91,7 +92,9 @@ inline M4 legStretch(V3 c, V3 d, float k, V3 t) {
 
 // The pure core: the edit from pivots and parents (tests build their own). Inactive when the factors are all ~1, a leg lacks
 // a bone, or a factor isn't finite.
-inline LegEdit makeBodyEdit(const std::vector<V3>& pivots, const std::vector<int16_t>& parents, const BodyBones& bb, BodyScale k) {
+// `force`: active even with every factor 1 (`pivots` are another rig's, the Eve rig's, not the model's own).
+inline LegEdit makeBodyEdit(const std::vector<V3>& pivots, const std::vector<int16_t>& parents, const BodyBones& bb, BodyScale k,
+                            bool force = false) {
     LegEdit e;
     e.factor = k.legs;
     e.scale = k;
@@ -100,7 +103,7 @@ inline LegEdit makeBodyEdit(const std::vector<V3>& pivots, const std::vector<int
     e.bind.assign(n, M4());
     e.part.assign(n, kLegNone);
     for (float f : {k.legs, k.torso, k.arms, k.hands, k.spread}) if (!std::isfinite(f) || f <= 0.1f) return e;
-    if (k.identity()) return e;
+    if (k.identity() && !force) { e.active = force; return e; }
     auto ok = [&](int b) { return b >= 0 && size_t(b) < n; };
     for (int s = 0; s < 2; ++s) if (!ok(bb.legs[s].thigh) || !ok(bb.legs[s].calf) || !ok(bb.legs[s].foot)) return e;
     // the torso's stretch in height about the hip joints' mean height
@@ -200,6 +203,18 @@ inline LegEdit bodyEditOf(const M2Model& m, BodyScale k) {
     for (size_t i = 0; i < m.bones.size(); ++i) { pivots[i] = m.bones[i].pivot; parents[i] = m.bones[i].parent; }
     LegEdit e = makeBodyEdit(pivots, parents, bodyBonesOf(m), k);
     e.model = &m;
+    return e;
+}
+
+// The edit on another rig of the same bones (the Eve rig: each bone's pivot where Eve's joint is, evebody.h EveBody::rigPivots):
+// the model's animation run about those pivots, active whatever the factors.
+inline LegEdit bodyEditFrom(const M2Model& m, const std::vector<V3>& basePivots, BodyScale k) {
+    if (basePivots.size() != m.bones.size()) return bodyEditOf(m, k);
+    std::vector<int16_t> parents(m.bones.size());
+    for (size_t i = 0; i < m.bones.size(); ++i) parents[i] = m.bones[i].parent;
+    LegEdit e = makeBodyEdit(basePivots, parents, bodyBonesOf(m), k, true);
+    e.model = &m;
+    e.base = basePivots.data();
     return e;
 }
 

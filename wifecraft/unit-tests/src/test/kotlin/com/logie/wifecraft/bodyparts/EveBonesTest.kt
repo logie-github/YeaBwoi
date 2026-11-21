@@ -48,7 +48,8 @@ class EveBonesTest {
         for (i in 0 until races.length()) {
             val r = races.getJSONObject(i)
             val detail = r.optJSONObject("fit")?.optDouble("detail", 0.0) ?: 0.0
-            if (r.getInt("race") == EveBones.UNDEAD) assertEquals(2.0, detail, "the Forsaken row: painted details and the bone pieces kept")
+            // (1: painted details; the bone pieces aren't kept as geometry on her own rig: they sat on the model's skin, not hers)
+            if (r.getInt("race") == EveBones.UNDEAD) assertEquals(1.0, detail, "the Forsaken row: painted details")
             else assertEquals(0.0, detail, "${r.optString("name")}: no details")
         }
     }
