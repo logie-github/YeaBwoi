@@ -103,6 +103,9 @@ struct EveRaceFit {
     float transfer = 0.06f;
     // The seams stitched to the model's own cut-edge vertices (1) or only snapped onto them (0).
     float stitch = 1;
+    // The seams' band (eveSeamLayer; Sims metres, scaled; 0: off): the model's own skin over her last centimetres at the
+    // neck and the ankles, full for the first centimetre, eased to hers at this far from the ring.
+    float seamBand = 0.06f;
     // The model's own painted details carried onto Eve (Keep undead bones, EveOptions::bones): 1 its bone pieces, wounds,
     // stitches and torn rims baked into her skin (eveDetailLayer); 2 the bone pieces also kept as the model's own geometry
     // (they stick out of her as they stick out of its body); 0 none.
@@ -203,6 +206,8 @@ struct EveBody {
     std::vector<bool> cut;                  // per drawn body vertex: under a body bone (its triangles go)
     // where the Warcraft skin meets Eve: its texture coordinates at the neck's and the ankles' cut edge (u, v pairs)
     std::vector<float> neckUvs, ankleUvs;
+    // per seam strip vertex (verts after her own, stats.eveVerts on): the model's own vertex it copies (its cut edge's)
+    std::vector<uint32_t> stripSource;
     BodyScale scale;                        // her proportions on the skeleton (bodyrig.h), the Leg Length slider's on top
     // The Eve rig (EveRaceFit::rig): per model bone, its pivot where Eve's own joint is (the Sims rig she was skinned for,
     // scaled to the model), the head and feet chains the model's own; the scene runs the model's animation about these
@@ -262,7 +267,8 @@ struct EveDetailLayer;   // (below: the model's own details, Keep undead bones)
 struct EveGainMap { int gw = 0, gh = 0; std::vector<float> rgb; bool empty() const { return rgb.empty(); } };
 void eveCompose(const std::vector<uint8_t>& base, int w, int h, V3 gain, const uint8_t* ov, int ow, int oh, int ox, int oy,
                 float opacity, V3 ovGain, const EvePrep& prep, uint32_t neckRgb, uint32_t ankleRgb, std::vector<uint8_t>& out,
-                const EveGainMap* map = nullptr, const EveDetailLayer* detail = nullptr);   // (detail: over the overlay, under the seams)
+                const EveGainMap* map = nullptr, const EveDetailLayer* detail = nullptr,   // (detail: over the overlay, under the seams)
+                const EveDetailLayer* seamLayer = nullptr);   // (eveSeamLayer: over the detail; the seams' flat fade only where it isn't)
 
 // The skin's colour taken from her own Warcraft body (the colour transfer): each fitted Eve vertex gets the colour of the
 // model's skin around the same place (its shown skin vertices within `radius` model units whose normals face the same way,
@@ -307,6 +313,19 @@ struct EveDetailLayer {
 };
 EveDetailLayer eveDetailLayer(const EveBody& eve, int w, int h, const std::vector<M2Vertex>& wow, const std::vector<uint32_t>& tris,
                               const uint8_t* skin, int sw, int sh, const EveDetailMask& mask, const float tint[3], float reach);
+// The seams' band (README, "Her own rig", the seams): the model's own skin over Eve's last centimetres at the neck and the
+// ankles, so her skin turns into the model's (its painted detail, its shading, an orc's painted feet) over a band instead
+// of meeting it in a line. Each of her texels (on her own triangles; the strips' lie on her islands' edges, padded) within
+// `band` of her nearest ring (model units, its point on the fitted body) takes the model's skin texel (`skin`, sw x sh,
+// bilinear, `tint`ed) at the nearest point of the skin the cut took (`tris`: vertex triples of `wow`) facing her way within
+// `reach`: covered fully up to `full` from the ring, eased to nothing at `band`, and faded out from half the reach to it.
+// The skin the cut took and the skin it kept are often painted apart at the edge (a leg's and a foot's sections of the
+// texture, an orc's painted feet): at the ring she takes the kept skin's own colour just past the edge (`keptTris`, the shown
+// skin's uncut triangles: its nearest point, a fifth of the way in toward its triangle's middle), turning to the taken
+// skin's over `edgeBand` (0: none).
+EveDetailLayer eveSeamLayer(const EveBody& eve, const EveMesh& mesh, int w, int h, const std::vector<M2Vertex>& wow,
+                            const std::vector<uint32_t>& tris, const std::vector<uint32_t>& keptTris, const uint8_t* skin, int sw, int sh,
+                            const float tint[3], float full, float band, float reach, float edgeBand);
 // `layer` over `rgba` (w x h, its own size) in linear light by its coverage.
 void eveApplyDetail(const EveDetailLayer& layer, std::vector<uint8_t>& rgba);
 // The skin (sw x sh, any size: the mask scaled onto it) with its details eased to the tone by the mask: what the colour
@@ -374,6 +393,8 @@ struct EveResult {
     bool detail = false;
     size_t detailPieces = 0, detailKept = 0, detailCovered = 0;
     double detailMs = 0;
+    size_t seamTexels = 0;                     // the seams' band (eveSeamLayer): her texels it covers, and its time
+    double seamMs = 0;
 };
 // The texture's mip levels below `rgba` (w x h): each the 2 x 2 mean of the one above, down to 1 x 1.
 std::vector<std::vector<uint8_t>> eveMips(const std::vector<uint8_t>& rgba, int w, int h);

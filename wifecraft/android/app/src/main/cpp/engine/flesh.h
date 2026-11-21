@@ -353,6 +353,7 @@ inline FleshMeasure measureFlesh(const M2Model& m, const std::vector<M2Vertex>& 
     struct Shares { int seg[4] = {-1, -1, -1, -1}; float w[4] = {0, 0, 0, 0}; };
     std::vector<Shares> guideShares;
     std::vector<int> herGuide;   // per vertex: its nearest guide vertex (-1: none, her own weights stay)
+    std::vector<uint8_t> baseShown;   // (the guide: the model's own vertices its uncut body shows)
     if (from > 0) {
         const float cell = std::max(1e-3f, stand.pelvis * 0.05f);
         auto cellKey = [cell](V3 p, int dx, int dy, int dz) {
@@ -360,18 +361,18 @@ inline FleshMeasure measureFlesh(const M2Model& m, const std::vector<M2Vertex>& 
             return ((x & 0x1FFFFF) << 42) | ((y & 0x1FFFFF) << 21) | (z & 0x1FFFFF);
         };
         std::unordered_map<int64_t, std::vector<uint32_t>> grid;
-        std::vector<uint8_t> shown(from, 0);
+        baseShown.assign(from, 0);
         for (const M2Batch& bt : m.batches) {
             if (bt.submesh >= guide->subs->size()) continue;
             const M2Submesh& sm = (*guide->subs)[bt.submesh];
             if (!geosets.empty() && std::find(geosets.begin(), geosets.end(), sm.id) == geosets.end()) continue;
             for (uint32_t k = sm.indexStart; k < sm.indexStart + sm.indexCount && k < guide->idx->size(); ++k)
-                if ((*guide->idx)[k] < from) shown[(*guide->idx)[k]] = 1;
+                if ((*guide->idx)[k] < from) baseShown[(*guide->idx)[k]] = 1;
         }
         guideShares.assign(from, Shares());
         std::vector<V3> gat(from);
         for (size_t i = 0; i < from; ++i) {
-            if (!shown[i]) continue;
+            if (!baseShown[i]) continue;
             const M2Vertex& vx = verts[i];
             V3 p(vx.pos[0], vx.pos[1], vx.pos[2]), q(0, 0, 0);
             float w = 0, wt = 0;
@@ -432,6 +433,7 @@ inline FleshMeasure measureFlesh(const M2Model& m, const std::vector<M2Vertex>& 
         for (int k = 0; k < 4; ++k) {
             if (!vx.weights[k] || vx.bones[k] >= segOf.size() || dropped[vx.bones[k]]) continue;
             int sg = segOf[vx.bones[k]];
+            if (from > 0 && sg == kFleshHead) continue;   // (guided: the head is the model's own, below)
             float w = vx.weights[k] / 255.0f / wsum[i];
             if (g >= 0 && trunkLike(sg)) { trunkW += w; continue; }
             pts.push_back({at[i], sg, w * ak});
@@ -439,6 +441,25 @@ inline FleshMeasure measureFlesh(const M2Model& m, const std::vector<M2Vertex>& 
         if (g >= 0 && trunkW > 0)
             for (int k = 0; k < 4; ++k) if (guideShares[size_t(g)].seg[k] >= 0) pts.push_back({at[i], guideShares[size_t(g)].seg[k], trunkW * guideShares[size_t(g)].w[k] * ak});
     }
+    // (guided: the head and neck read on the model's own uncut body, by its weights, as its own body is read: she has no head
+    // of her own, and her neck's and shoulders' skin hung on the neck bone read 4 to 6 cm deeper behind lying down than the
+    // default woman's head, a measure of her neck, not of the head that rests on a bed)
+    if (from > 0)
+        for (size_t i = 0; i < from && i < baseShown.size(); ++i) {
+            if (!baseShown[i]) continue;
+            const M2Vertex& vx = verts[i];
+            V3 p(vx.pos[0], vx.pos[1], vx.pos[2]), q(0, 0, 0);
+            float w = 0, wh = 0;
+            for (int k = 0; k < 4; ++k) {
+                if (!vx.weights[k] || vx.bones[k] >= mats.size()) continue;
+                const float wk = vx.weights[k] / 255.0f;
+                q = q + mats[vx.bones[k]].point(p) * wk;
+                w += wk;
+                if (vx.bones[k] < segOf.size() && !dropped[vx.bones[k]] && segOf[vx.bones[k]] == kFleshHead) wh += wk;
+            }
+            if (w <= 0 || wh <= 0) continue;
+            pts.push_back({q * (1.0f / w), kFleshHead, wh / w});
+        }
     size_t shown = out.vertices;
     out = fleshOf(J, pts, stand.ground, stand.pelvis);
     out.vertices = shown;
