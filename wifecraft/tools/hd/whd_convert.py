@@ -455,11 +455,29 @@ def load_recipe(path):
     for table in ('weights', 'joints'):
         t = {}
         for k, v in r.get(table, {}).items():
-            if '{S}' in k or '{S}' in v:
-                for sd in ('L', 'R'): t[k.replace('{S}', sd)] = v.replace('{S}', sd)
+            vs = v if isinstance(v, list) else [v]
+            if '{S}' in k or any('{S}' in x for x in vs):
+                for sd in ('L', 'R'):
+                    e = [x.replace('{S}', sd) for x in vs]
+                    t[k.replace('{S}', sd)] = e if isinstance(v, list) else e[0]
             else: t[k] = v
         r[table] = t
     return r
+
+
+def plain(f):
+    """A texture's own name in a folder of converted copies ("Folder__Sub__name.jpg": name), without extension, lower case."""
+    return os.path.splitext(os.path.basename(f).split('__')[-1])[0].lower()
+
+
+def choices(spec):
+    """A recipe's choice list: {id, label, objects[]...} entries, or plain object names (labelled by their name)."""
+    out = []
+    for e in spec or []:
+        if isinstance(e, str):
+            out.append({'id': norm(e).replace('.', ''), 'label': e.replace('_', ' ').replace('.001', ' 2').strip(), 'objects': [e]})
+        else: out.append(e)
+    return out
 
 
 def open_source(path, texdir):
@@ -496,20 +514,22 @@ def convert(recipe_path, blend, texdir, out, opt):
         textures, tex_index, blobs = [], {}, []
         tex_max = recipe.get('textureMax', 1024)
         sizes = recipe.get('textureSize', {})
-        human = var.get('skin', {}).get('recolor') == 'human'
-        skin_images = set(sizes.keys()) if human else set()
+        # a variant's skin recoloured toward a tone (the human from the night elf, the lightforged from the draenei...): the
+        # images it names, else every image with a size of its own (the skins)
+        recolor = var.get('skin', {}).get('targetLab') is not None
+        skin_images = set(var['skin'].get('images', sizes.keys())) if recolor else set()
         gpu = [0]
 
         def tex_of_image(path, base=None):
             if path in tex_index: return tex_index[path]
             name = os.path.basename(path)
             w0, h0 = image_size(path)
-            lim = sizes.get(name, tex_max)
+            lim = {plain(k): v for k, v in sizes.items()}.get(plain(name), tex_max)
             s = min(1.0, lim / max(w0, h0))
             w, h = max(4, int(w0 * s)), max(4, int(h0 * s))
             rgba = read_rgba(path, '%dx%d!' % (w, h)).copy().reshape(h, w, 4)
             info = {'id': name, 'w': w, 'h': h}
-            if name in skin_images and 'Mouth' not in name:
+            if plain(name) in {plain(x) for x in skin_images} and 'Mouth' not in name:
                 rgba, med = recolor_skin(rgba, var['skin']['targetLab'])
                 info['recolored'] = [round(x, 1) for x in med.tolist()]
             fn = os.path.join(out, '_tex.png')
@@ -522,15 +542,21 @@ def convert(recipe_path, blend, texdir, out, opt):
             return tex_index[path]
 
         def find_image(name):
-            # (TEXTURE_DIR may list several folders, ':'-separated: a model's own first, then shared ones)
+            # (TEXTURE_DIR may list several folders, ':'-separated: a model's own first, then shared ones; the name as it is,
+            # else a converted copy of it: another extension, the folders it came from prefixed)
             for d in texdir.split(os.pathsep):
                 for root, _, files in os.walk(d):
                     if name in files: return os.path.join(root, name)
+            want = os.path.splitext(name)[0].lower()
+            for d in texdir.split(os.pathsep):
+                for root, _, files in os.walk(d):
+                    for f in sorted(files):
+                        if plain(f) == want: return os.path.join(root, f)
             return None
 
         def image_for(mt):
             # the recipe's own image for a material (an FBX's materials name none), else its Base Color's
-            name = (recipe.get('materialImages') or {}).get(mt.name if mt else '')
+            name = {**(recipe.get('materialImages') or {}), **(var.get('materialImages') or {})}.get(mt.name if mt else '')
             if name: return find_image(name)
             return image_of(mt, recipe.get('ignoreImages', []))
 
@@ -539,7 +565,9 @@ def convert(recipe_path, blend, texdir, out, opt):
             import fnmatch
             out_ = []
             if isinstance(spec, dict):
-                found = sorted(os.path.join(r_, f) for d in texdir.split(os.pathsep) for r_, _, fs in os.walk(d) for f in fs if fnmatch.fnmatch(f, spec['glob']))
+                g = os.path.splitext(spec['glob'])[0].lower()
+                found = sorted(os.path.join(r_, f) for d in texdir.split(os.pathsep) for r_, _, fs in os.walk(d) for f in fs
+                               if fnmatch.fnmatch(f, spec['glob']) or fnmatch.fnmatch(plain(f), g))
                 for i, f in enumerate(found): out_.append((spec.get('label', '{n}').replace('{n}', str(i + 1)), f))
             else:
                 for e in spec or []:
@@ -584,7 +612,7 @@ def convert(recipe_path, blend, texdir, out, opt):
             out_[0:4] = struct.pack('<I', n)
             return bytes(out_), n
 
-        shapes = [sh for sh in recipe.get('shapes', [])]
+        shapes = [sh for sh in var.get('shapes', recipe.get('shapes', []))]
         bodies_meta = []
         # the body's weights by position, for objects that have none
         kd = KDTree(len(body.pos))
@@ -624,9 +652,9 @@ def convert(recipe_path, blend, texdir, out, opt):
             meshes.append(ms)
             return ms
 
-        always = [add_group(g['id'], g['kind'], g['objects'], g.get('rigid')).id for g in recipe.get('always', [])]
+        always = [add_group(g['id'], g['kind'], g['objects'], g.get('rigid')).id for g in var.get('always', recipe.get('always', []))]
         eye_tex = []
-        for i, (label, p, e) in enumerate(images(recipe.get('eyeTextures', []))):
+        for i, (label, p, e) in enumerate(images(var.get('eyeTextures', recipe.get('eyeTextures', [])))):
             if p: eye_tex.append({'id': e.get('id', 'eyes%d' % (i + 1)), 'label': label, 'texture': tex_of_image(p)})
         # tint presets that are textures of their own (a skin's other tones, the hair's colours): {label, image} or a glob
         def presets(spec):
@@ -641,15 +669,16 @@ def convert(recipe_path, blend, texdir, out, opt):
         tints = presets(var.get('tints', recipe.get('tints', [])))
         hair_tints = presets(var.get('hairTints', recipe.get('hairTints', [])))
         def base_tex(key):
-            pth = find_image(recipe[key]) if recipe.get(key) else None
+            name = var.get(key, recipe.get(key))
+            pth = find_image(name) if name else None
             return tex_of_image(pth) if pth else -1
         skin_tex, hair_tex = base_tex('skinImage'), base_tex('hairImage')
         hair = []
-        for h in recipe.get('hair', []):
+        for h in choices(var.get('hair', recipe.get('hair', []))):
             ms = add_group('hair_' + h['id'], 'hair', h['objects'], h.get('rigid'), h.get('maxTris'))
             hair.append({'id': h['id'], 'label': h['label'], 'meshes': [ms.id]})
         outfits = []
-        for o in recipe.get('outfits', []):
+        for o in var.get('outfits', recipe.get('outfits', [])):
             parts = []
             for name in o['objects']:
                 ms = add_group('outfit_%s_%s' % (o['id'], len(parts)), 'outfit', [name], o.get('rigid'), o.get('maxTris'))
@@ -660,7 +689,7 @@ def convert(recipe_path, blend, texdir, out, opt):
                             'hideBlob': len(blobs) - 1, 'hidden': len(hide)})
             log('outfit', o['id'], 'hides %d of %d body triangles' % (len(hide), len(body.idx) // 3))
         jewelry = []
-        for j in recipe.get('jewelry', []):
+        for j in choices(var.get('jewelry', recipe.get('jewelry', []))):
             ms = add_group('jewel_' + j['id'], 'jewel', j['objects'], j.get('rigid'), j.get('maxTris'))
             jewelry.append({'id': j['id'], 'label': j['label'], 'meshes': [ms.id]})
         overlays = []
@@ -683,7 +712,10 @@ def convert(recipe_path, blend, texdir, out, opt):
         # the joints, in the same axes
         joints = {}
         for wow, b in recipe['joints'].items():
-            j = joints_b.get(b) or joints_n.get(norm(b))
+            j = None
+            for cand in (b if isinstance(b, list) else [b]):   # (the first of a list the rig has)
+                j = joints_b.get(cand) or joints_n.get(norm(cand))
+                if j: break
             if j: joints[wow] = [round(x, 5) for x in to_wow(j, fwd)]
         if var.get('ears') == 'human':
             for n in ('Ear.L', 'Ear.R'): pass
