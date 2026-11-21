@@ -1,0 +1,7 @@
+{
+  "_doc": "Liard's Art's pelvis-rooted rigs (the 2.5, 3.0 and 3.1 releases: M_Pelvis > M_Spine01..03(04) > M_Chest > M_Neck01/02 > M_Head; some spell them M_Neck_01, M_spine_01: names are matched without case or underscores). Extends liard_rig.json (the spine-rooted 4.0 rigs).",
+  "extends": "liard_rig.json",
+  "weights": {"M_Pelvis_Jnt": "Pelvis", "M_Spine01_Jnt": "Spine1", "M_Spine02_Jnt": "Spine1", "M_Spine03_Jnt": "Spine2", "M_Spine04_Jnt": "Spine2",
+              "M_Chest_Jnt": "Chest", "M_Neck01_Jnt": "Neck1", "M_Neck02_Jnt": "Neck2", "M_Neck_Lower_Jnt": "Neck1", "M_Neck_Upper_Jnt": "Neck2"},
+  "joints": {"Root": "M_Pelvis_Jnt", "Pelvis": "M_Pelvis_Jnt", "Spine1": "M_Spine01_Jnt", "Spine2": "M_Spine03_Jnt", "Chest": "M_Chest_Jnt"}
+}

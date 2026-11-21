@@ -1,0 +1,103 @@
+{
+ "extends": "liard_rig.json",
+ "id": "liard_undead_female",
+ "label": "Forsaken woman (HD)",
+ "source": "Undead Female 4.0 (UndeadFemale.fbx and its textures)",
+ "body": {
+  "object": "UndeadSkin4",
+  "label": "Body"
+ },
+ "bodies": [
+  {
+   "object": "UndeadSkin4_Bony",
+   "label": "Body: bones showing"
+  }
+ ],
+ "materialImages": {
+  "M_Skin1": "Skin4",
+  "M_Bones1": "Bones",
+  "M_Hair12": "hair00_00_hd",
+  "M_Eyes1": "eyes00_00_3484667",
+  "pasted__pasted__scourgefemalefeaturestexture1": "scourgefemalefeaturestexture"
+ },
+ "skinImage": "Skin4",
+ "hairImage": "hair00_00_hd",
+ "textureSize": {
+  "Skin4": 2048
+ },
+ "always": [
+  {
+   "id": "eyes",
+   "objects": [
+    "Eyes2"
+   ],
+   "kind": "eyes"
+  },
+  {
+   "id": "lashes",
+   "objects": [
+    "Lashes"
+   ],
+   "kind": "brows"
+  }
+ ],
+ "eyeTextures": {
+  "glob": "eyes00_*",
+  "label": "Eyes {n}"
+ },
+ "hair": [
+  "Boar_Tails",
+  "Bobbed",
+  "Dethrock",
+  "Knowledge_Bump",
+  "Long",
+  "Loose",
+  "Lost",
+  "Parted",
+  "Relaxing_Scream",
+  "Shaggy",
+  "Short",
+  "Soaked",
+  "Sprouts",
+  "Styled",
+  "The_Bride",
+  "Tomboy",
+  "Unkept",
+  "Wild",
+  "Windswept"
+ ],
+ "jewelry": [
+  "BackBone",
+  "Hipones",
+  "JointBones",
+  "ShoulderBones",
+  "BoneJawed",
+  "Putrid",
+  "Rotting",
+  "Strapped1",
+  "Strapped2"
+ ],
+ "variants": [
+  {
+   "file": "Undead_F.whd",
+   "race": 5,
+   "sex": 1,
+   "label": "Forsaken woman (HD)",
+   "tints": [
+    {
+     "label": "Her own",
+     "image": "Skin4"
+    },
+    {
+     "label": "Pallid",
+     "image": "Skin4",
+     "rgb": "E6EEE6"
+    }
+   ],
+   "hairTints": {
+    "glob": "hair00_*_hd",
+    "label": "Colour {n}"
+   }
+  }
+ ]
+}

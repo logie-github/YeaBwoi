@@ -85,7 +85,6 @@ internal fun AnimationBrowser(
 ) {
     var query by remember { mutableStateOf("") }
     // every animation is listed with its chip; this hides those that would play on the floor in place of their furniture
-    var onlyPlayable by remember { mutableStateOf(false) }
     var treating by remember { mutableStateOf<AnimationChoice?>(null) }
     var selection by remember { mutableStateOf<String?>(null) }
     var mode by remember { mutableStateOf(AnimationOrderMode.PLAY) }
@@ -95,10 +94,10 @@ internal fun AnimationBrowser(
     var tab by remember(tabs) { mutableIntStateOf(0) }
     val tabName = tabs.getOrElse(tab) { SceneHud.ALL_TAB }
     val selected = choices.firstOrNull { it.id == selection }
-    val grouped = remember(choices, query, tabName, onlyPlayable, availability) {
+    val grouped = remember(choices, query, tabName, availability) {
         val search = query.trim()
         choices.filter {
-            SceneHud.inTab(tabName, it.group, it.participantCount) && FurnitureAvailability.shown(availability[it.id], onlyPlayable) &&
+            SceneHud.inTab(tabName, it.group, it.participantCount) &&
                 (it.name.contains(search, ignoreCase = true) ||
                 it.group.contains(search, ignoreCase = true) || it.preview.clip.category.contains(search, ignoreCase = true) ||
                 it.setting.contains(search, ignoreCase = true))
@@ -134,7 +133,6 @@ internal fun AnimationBrowser(
                         if (availability.isNotEmpty()) {
                             Text(FurnitureAvailability.counter(choices.map { availability[it.id]?.state ?: PlayState.READY }),
                                 style = WifeTheme.captionStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            WifeSwitchRow("Show only playable here", onlyPlayable, { onlyPlayable = it }, Modifier.fillMaxWidth())
                         }
                         if (!split && onPlay != null) OrderModes(mode) { mode = it }
                         if (!split && onPlay != null && options != null) RepeatControls(options, onOptions)

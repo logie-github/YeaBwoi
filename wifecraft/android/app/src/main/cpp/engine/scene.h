@@ -194,6 +194,13 @@ public:
         HdFitStats stats;
     };
     bool hdStatus(int id, HdStatus& out) const;
+    // The HD body's own genital vertices (its chosen body's, from the set's genitalMask; null: none or not an HD figure):
+    // what setHdGenitalMask is given to draw the add-on parts in their place. Any non-empty setHdGenitalMask hides the
+    // set's own mask on the HD body (hdscene.cpp hdCheck: the fit leaves those triangles out).
+    const std::vector<uint32_t>* hdBodyGenitals(int id) const;
+    // The HD body's own genitals hidden while the add-on parts are drawn in their place (on), or shown again: applied at the
+    // next fit, which also gives setHdGenitalMask the set's own mask (kept across dress()).
+    void useHdGenitalMask(int id, bool on);
 
     // ---------------------------------------------------------------- body parts (bodypart.h)
     // A part file (.wcbp) read and kept: its handle (> 0), the same one again for a path already loaded; 0 and partError()
@@ -228,7 +235,7 @@ public:
     void setPartSkin(int id, int rgb);
     // An HD body's own genital vertices (indices into its body mesh, from the HD set's 'genital_mask': tools/hd), hidden while
     // the parts are drawn in their place; empty: the HD body as it is, no parts. hdscene.cpp's index buffers are to leave
-    // these triangles out (bodypart.h maskTriangles): NOT wired there yet.
+    // these triangles out: wired (hdscene.cpp hdCheck refits without the set's own genital triangles while this is non-empty).
     void setHdGenitalMask(int id, const std::vector<uint32_t>& vertices);
     const std::vector<uint32_t>* hdGenitalMask(int id) const;
     // Where to sample the actor's skin colour for its parts' tint: the skin texture coordinates (u, v pairs, v 0 at the top)

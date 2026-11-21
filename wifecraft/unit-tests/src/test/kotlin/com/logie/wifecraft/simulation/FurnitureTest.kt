@@ -143,11 +143,14 @@ class FurnitureTest {
             FurnitureAnimation("lean", "Lean", lean),
         )
         val bed = FurnitureSelection.listFor(at(FurnitureKind.BED_DOUBLE), library)
-        assertEquals(listOf("Lying", "Sitting"), bed.keys.toList())
+        // (what an animation is marked for is a preference: a standing pair is offered on the bed too, loosely)
+        assertEquals(listOf("Lying", "Sitting", "Standing"), bed.keys.toList())
         assertEquals(listOf("Floor pair", "Lie down"), bed.getValue("Lying").map { it.animation.name })
         val floor = FurnitureSelection.listFor(at(FurnitureKind.FLOOR), library)
         assertEquals(setOf("Lying", "Standing"), floor.keys)
-        assertEquals(listOf("Lean"), FurnitureSelection.listFor(at(FurnitureKind.TABLE), library).values.flatten().map { it.animation.name })
+        // a table offers its own lean first-class and the rest loosely: nothing marked for another surface is left out
+        val table = FurnitureSelection.listFor(at(FurnitureKind.TABLE), library).values.flatten().map { it.animation.name }
+        assertTrue("Lean" in table, table.toString())
     }
 
     @Test fun pickForChoosesAFittingAnimationAndTheNearestCast() {
@@ -157,14 +160,14 @@ class FurnitureTest {
         val npcs = listOf(NearbyNpc("far", 12f, 12f), NearbyNpc("near", 5.5f, 6.5f), NearbyNpc("mid", 6f, 3.5f))
         repeat(20) { seed ->
             val pick = FurnitureSelection.pickFor(bed, npcs, library, Random(seed))!!
-            assertNotEquals("hug", pick.animation.id)
             assertEquals(pick.animation.participants, pick.cast.size)
             assertEquals(pick.cast.size, pick.cast.toSet().size)
             assertFalse("far" in pick.cast, pick.cast.toString())
         }
         // only one free person: only the one-person animation
         assertEquals("lie", FurnitureSelection.pickFor(bed, npcs, library, Random(3), busy = setOf("near", "mid"))!!.animation.id)
-        assertNull(FurnitureSelection.pickFor(at(FurnitureKind.CHAIR), npcs, library, Random(1)))
+        // (a chair takes the standing pair loosely: marked for no furniture is no gate)
+        assertNotNull(FurnitureSelection.pickFor(at(FurnitureKind.CHAIR), npcs, library, Random(1)))
         // the cast: each role to the nearer person
         val fit = FurnitureFit("f", 0f, 0f, 0f, 0f, listOf("a", "b"), listOf(Vec3(0f, 0f, 0f), Vec3(5f, 0f, 0f)), 0f, 0f)
         assertEquals(listOf("A", "B"), FurnitureSelection.cast(fit, listOf(NearbyNpc("B", 4.5f, 0f), NearbyNpc("A", 0.5f, 0f))))

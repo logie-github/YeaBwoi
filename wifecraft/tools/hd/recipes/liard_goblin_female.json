@@ -1,0 +1,218 @@
+{
+ "extends": "liard_rig_a.json",
+ "id": "liard_goblin_female",
+ "label": "Goblin woman (HD)",
+ "source": "Goblin Female 2.5 (GoblinFemale.fbx and its textures)",
+ "body": {
+  "object": "Skin3_0"
+ },
+ "uvLayer": "map1",
+ "materialImages": {
+  "M_Skin": "Skin1",
+  "M_Nails": "Skin1",
+  "M_Eyes": "eyes00_00_3484633",
+  "M_Hairstyle": "hair00_00_hd"
+ },
+ "skinImage": "Skin1",
+ "hairImage": "hair00_00_hd",
+ "textureSize": {
+  "Skin1": 2048,
+  "Skin4": 2048,
+  "Skin6": 2048
+ },
+ "eyeTextures": {
+  "glob": "eyes00_*",
+  "label": "Eyes {n}"
+ },
+ "hair": [
+  {
+   "id": "h1",
+   "label": "Hair 1",
+   "objects": [
+    "Hairstyle_1"
+   ],
+   "rigid": "Head"
+  },
+  {
+   "id": "h2",
+   "label": "Hair 2",
+   "objects": [
+    "Hairstyle_2"
+   ],
+   "rigid": "Head"
+  },
+  {
+   "id": "h3",
+   "label": "Hair 3",
+   "objects": [
+    "Hairstyle_3"
+   ],
+   "rigid": "Head"
+  },
+  {
+   "id": "h4",
+   "label": "Hair 4",
+   "objects": [
+    "Hairstyle_4"
+   ],
+   "rigid": "Head"
+  },
+  {
+   "id": "h5",
+   "label": "Hair 5",
+   "objects": [
+    "Hairstyle_5"
+   ],
+   "rigid": "Head"
+  },
+  {
+   "id": "h6",
+   "label": "Hair 6",
+   "objects": [
+    "Hairstyle_6"
+   ],
+   "rigid": "Head"
+  },
+  {
+   "id": "h7",
+   "label": "Hair 7",
+   "objects": [
+    "Hairstyle_7"
+   ],
+   "rigid": "Head"
+  },
+  {
+   "id": "h8",
+   "label": "Hair 8",
+   "objects": [
+    "Hairstyle_8"
+   ],
+   "rigid": "Head"
+  },
+  {
+   "id": "h9",
+   "label": "Hair 9",
+   "objects": [
+    "Hairstyle_9"
+   ],
+   "rigid": "Head"
+  },
+  {
+   "id": "h10",
+   "label": "Hair 10",
+   "objects": [
+    "Hairstyle_10"
+   ],
+   "rigid": "Head"
+  },
+  {
+   "id": "h11",
+   "label": "Hair 11",
+   "objects": [
+    "Hairstyle_11"
+   ],
+   "rigid": "Head"
+  },
+  {
+   "id": "h12",
+   "label": "Hair 12",
+   "objects": [
+    "Hairstyle_12"
+   ],
+   "rigid": "Head"
+  },
+  {
+   "id": "h13",
+   "label": "Hair 13",
+   "objects": [
+    "Hairstyle_13"
+   ],
+   "rigid": "Head"
+  },
+  {
+   "id": "h14",
+   "label": "Hair 14",
+   "objects": [
+    "Hairstyle_14"
+   ],
+   "rigid": "Head"
+  },
+  {
+   "id": "h15",
+   "label": "Hair 15",
+   "objects": [
+    "Hairstyle_15"
+   ],
+   "rigid": "Head"
+  },
+  {
+   "id": "h16",
+   "label": "Hair 16",
+   "objects": [
+    "Hairstyle_16"
+   ],
+   "rigid": "Head"
+  },
+  {
+   "id": "h17",
+   "label": "Hair 17",
+   "objects": [
+    "Hairstyle_17"
+   ],
+   "rigid": "Head"
+  }
+ ],
+ "jewelry": [],
+ "shapes": [
+  {
+   "key": "Breasts_Small",
+   "label": "Breasts: small"
+  },
+  {
+   "key": "Breasts_Huge",
+   "label": "Breasts: huge"
+  },
+  {
+   "key": "Thighs_Small",
+   "label": "Thighs: slim"
+  },
+  {
+   "key": "Thighs_Huge",
+   "label": "Thighs: full"
+  },
+  {
+   "key": "Ass_Small",
+   "label": "Rear: small"
+  },
+  {
+   "key": "Ass_Huge",
+   "label": "Rear: huge"
+  }
+ ],
+ "variants": [
+  {
+   "file": "Goblin_F.whd",
+   "race": 9,
+   "sex": 1,
+   "label": "Goblin woman (HD)",
+   "tints": [
+    {
+     "label": "Green",
+     "image": "Skin1"
+    },
+    {
+     "label": "Tone 2",
+     "image": "Skin4"
+    },
+    {
+     "label": "Tone 3",
+     "image": "Skin6"
+    }
+   ],
+   "hairTints": {
+    "glob": "hair00_*_hd",
+    "label": "Colour {n}"
+   }
+  }
+ ]
+}

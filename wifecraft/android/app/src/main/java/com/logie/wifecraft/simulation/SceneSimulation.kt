@@ -8,6 +8,8 @@ import com.logie.wifecraft.anim.FleshProfile
 import com.logie.wifecraft.anim.HumanScale
 import com.logie.wifecraft.anim.Requirement
 import com.logie.wifecraft.anim.Surface
+import com.logie.wifecraft.characters.CreatureNpcs
+import com.logie.wifecraft.characters.CreatureSpec
 import com.logie.wifecraft.story.Vec3
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -242,6 +244,9 @@ class SceneSimulation(
         fun authored(i: Int, body: Actor): Float = ((r.actors.getOrNull(i)?.liftUnits ?: 0f) - base(i)) * bodyUnit(body)
         val placed = PairLifts.of(r, pair, floatArrayOf(raise(0, first), raise(1, second)), floatArrayOf(authored(0, first), authored(1, second)),
             touching(pair), hipsOf(pair.a, pair.slotA.z, first), hipsOf(pair.b, pair.slotB.z, second), floatArrayOf(bodyUnit(first), bodyUnit(second)))
+        // a creature is never raised: she stands on the floor under her
+        if (isCreature(first)) placed.lifts[0] = 0f
+        if (isCreature(second)) placed.lifts[1] = 0f
         return placed.lifts.takeIf { l -> l.any { abs(it) > 1e-4f } }
     }
 
@@ -317,7 +322,7 @@ class SceneSimulation(
     private fun floorLifts(r: Requirement, pair: PartnerPair, first: Actor, second: Actor): FloatArray {
         val own = roleLifts(r, pair, first, second, onFurniture = true)
         val drop = floorDropOf(pair) * bodyUnit(first, second)
-        return floatArrayOf((own?.getOrNull(0) ?: 0f) - drop, (own?.getOrNull(1) ?: 0f) - drop)
+        return floatArrayOf(if (isCreature(first)) 0f else (own?.getOrNull(0) ?: 0f) - drop, if (isCreature(second)) 0f else (own?.getOrNull(1) ?: 0f) - drop)
     }
 
     private val pieces = HashMap<SceneObject, Furniture>()
@@ -769,17 +774,17 @@ class SceneSimulation(
         if (before != null && !onFloor) {
             item = before.furniture
             val f = item?.let { furniture(it) }
-            fit = f?.let { fitFor(need, it, unit, pair, lead, other) ?: FurnitureFit.fit(need, it, unit, relaxed = true) } ?: before.fit
+            fit = f?.let { fitFor(need, it, unit, pair, lead, other) ?: FurnitureFit.fitAny(need, it, unit) } ?: before.fit
         } else if (!onFloor) {
             // the nearest free piece in reach it fits; else the nearest it nearly fits (a taller bed, a couch for a bed)
-            for (relaxed in listOf(false, true)) {
+            for (tier in 0..2) {
                 var best = Float.MAX_VALUE
                 for (candidate in SceneObject.entries) {
                     if (candidate !in objects || !freeFor(candidate, lead, other)) continue
                     val f = furniture(candidate) ?: continue
                     val d = hypot(f.x - lead.x, f.y - lead.y)
                     if (d > FURNITURE_RANGE || d >= best) continue
-                    val fits = (if (relaxed) FurnitureFit.fit(need, f, unit, relaxed = true) else fitFor(need, f, unit, pair, lead, other)) ?: continue
+                    val fits = (if (tier == 0) fitFor(need, f, unit, pair, lead, other) else FurnitureFit.fit(need, f, unit, relaxed = tier == 1, loose = tier == 2)) ?: continue
                     best = d; item = candidate; fit = fits
                 }
                 if (fit != null) break
@@ -1037,11 +1042,29 @@ class SceneSimulation(
     private fun remembered(animation: String, role: Int, actor: Actor, other: Actor?, furniture: SceneObject?): RoleDelta? =
         runCatching { placement?.invoke(animation, role, actor.id, other?.id, furniture) }.getOrNull()
 
+    /**
+     * The creature NPCs of the cast (actor id to [CreatureSpec]; Sindragosa's dragon): each is drawn by her own game
+     * model, plays only her own game animations (the screen never gives her a Sims clip) and, in either role of a two-person
+     * stage, is put by [creatureDelta] with her hindquarters on the role's marker and clear of the other body. No lift:
+     * she stands on the floor under her, never raised as a person lying on a bed is.
+     */
+    var creatures: Map<String, CreatureSpec> = emptyMap()
+
+    private fun isCreature(actor: Actor?): Boolean = actor != null && actor.id in creatures
+
+    /** [actor]'s creature move for the role [mine] against the role [theirs] (the pair's frame), else none. */
+    private fun creatureDelta(actor: Actor?, mine: PlaybackRole, theirs: PlaybackRole): RoleDelta {
+        val spec = actor?.let { creatures[it.id] } ?: return RoleDelta.ZERO
+        val d = CreatureNpcs.delta(spec, mine.offset.x, mine.offset.y, theirs.offset.x, theirs.offset.y, mine.facing)
+        return RoleDelta(d[0], d[1], 0f, 0f)
+    }
+
     /** The remembered correction and build mode's live nudge of role [index] of [p] (its z raises the body: [placed] can't). */
     private fun deltaOf(p: Performance, index: Int): RoleDelta {
         val actor = (if (index == 0) p.lead else p.other) ?: return RoleDelta.ZERO
         val other = if (index == 0) p.other else p.lead
-        return (remembered(p.name, index, actor, other, p.furniture) ?: RoleDelta.ZERO) + p.extra.getOrElse(index) { RoleDelta.ZERO }
+        val creature = if (isCreature(actor) && p.roles.size == 2) creatureDelta(actor, p.roles[index], p.roles[1 - index]) else RoleDelta.ZERO
+        return (remembered(p.name, index, actor, other, p.furniture) ?: RoleDelta.ZERO) + p.extra.getOrElse(index) { RoleDelta.ZERO } + creature
     }
 
     /** Role [index] of [p] as it is placed: the computed one with [deltaOf] on it (its place and facing; the raise: [deltaOf]'s dz). */
@@ -1775,6 +1798,8 @@ class SceneSimulation(
      */
     private fun pick(a: Actor, b: Actor, gate: ((name: String, emote: Int) -> Boolean)? = null): Boolean {
         val options = ArrayList<Option>()
+        // (what is marked for other furniture than the scene has: played all the same, but only when nothing fits as marked)
+        val fallbacks = ArrayList<Option>()
         val unit = bodyUnit(a, b)
         for (p in pairs) {
             if (gate != null && !gate(p.name, -1)) continue
@@ -1783,7 +1808,8 @@ class SceneSimulation(
             if (r != null && PairWater.needsWater(r, p)) continue
             if (r == null || !placed(r)) {
                 val place = furnitureFor(p, a, b)
-                if (place !== NO_PLACE) options += Option(p, place as SceneObject?, null)
+                // (marked for furniture the scene hasn't got free: played in a free spot all the same, never left out)
+                (if (place === NO_PLACE) fallbacks else options) += Option(p, if (place === NO_PLACE) null else place as SceneObject?, null)
                 continue
             }
             // the player's Treat as: standing where they are, or the floor, whatever was read
@@ -1795,20 +1821,23 @@ class SceneSimulation(
             val need = FurnitureAvailability.applied(r, treatAs[p.id])
             if (need.surface in Requirement.FLOOR_LEVEL) options += Option(p, null, null)
             val before = options.size
-            // where it fits, else where it nearly fits (a taller bed, a couch for a bed), else the floor when lowered it rests there
-            for (relaxed in if (need.surface in Requirement.FLOOR_LEVEL) listOf(false) else listOf(false, true)) {
+            // where it fits, else where it nearly fits (a taller bed, a couch for a bed), else loosely on any piece (what it is
+            // marked for is only a preference), else the floor, lowered onto it: never left out
+            for (tier in if (need.surface in Requirement.FLOOR_LEVEL) 0..0 else 0..2) {
+                val target = if (tier == 2) fallbacks else options
+                val mark = target.size
                 for (item in SceneObject.entries) {
                     if (item !in objects || !freeFor(item, a, b)) continue
                     val f = furniture(item) ?: continue
                     if (hypot(f.x - a.x, f.y - a.y) > FURNITURE_RANGE && hypot(f.x - b.x, f.y - b.y) > FURNITURE_RANGE) continue
-                    FurnitureFit.fit(need, f, unit, relaxed)?.let { options += Option(p, item, it) }
+                    FurnitureFit.fit(need, f, unit, relaxed = tier == 1, loose = tier == 2)?.let { target += Option(p, item, it) }
                 }
-                if (options.size > before) break
+                if (target.size > mark) break
             }
-            if (options.size == before && need.surface !in Requirement.FLOOR_LEVEL && FurnitureAvailability.floorRests(r, floorDropOf(p)))
-                options += Option(p, null, null)
+            if (options.size == before && need.surface !in Requirement.FLOOR_LEVEL && fallbacks.none { it.pair === p }) fallbacks += Option(p, null, null)
         }
         picked = null; pickedEmote = null; pickedFurniture = null; pickedFit = null
+        if (options.isEmpty()) options += fallbacks
         if (options.isNotEmpty()) {
             val o = options[random.nextInt(options.size)]
             picked = o.pair; pickedFurniture = o.item; pickedFit = o.fit
@@ -1852,7 +1881,7 @@ class SceneSimulation(
         val f = furniture(item) ?: return refuse("The $what isn't ready yet.")
         val r = needOf(pair) ?: return refuse("That animation is still being read.")
         // where it fits on it, else where it nearly fits (a bed taller than the clip's)
-        val fit = FurnitureFit.fit(r, f, bodyUnit(actor, other)) ?: FurnitureFit.fit(r, f, bodyUnit(actor, other), relaxed = true)
+        val fit = FurnitureFit.fitAny(r, f, bodyUnit(actor, other))
             ?: return refuse("That doesn't fit on the $what.")
         release(actor)
         release(other)
@@ -1955,8 +1984,8 @@ class SceneSimulation(
                    on: SceneObject? = item): List<PreviewPlace> {
             val floor = if (floorZ.isNaN()) anchor.z else floorZ
             // build mode's remembered placements, as play() lays them on
-            val dA = remembered(request.name, 0, lead, other, on) ?: RoleDelta.ZERO
-            val dB = remembered(request.name, 1, other, lead, on) ?: RoleDelta.ZERO
+            val dA = (remembered(request.name, 0, lead, other, on) ?: RoleDelta.ZERO) + creatureDelta(lead, computed[0], computed[1])
+            val dB = (remembered(request.name, 1, other, lead, on) ?: RoleDelta.ZERO) + creatureDelta(other, computed[1], computed[0])
             return listOf(place(lead, anchor, heading, dA.applyTo(computed[0]), (lifts?.getOrNull(0) ?: 0f) + dA.dz, floor),
                 place(other, anchor, heading, dB.applyTo(computed[1]), (lifts?.getOrNull(1) ?: 0f) + dB.dz, floor))
         }
@@ -1965,7 +1994,7 @@ class SceneSimulation(
             val f = furniture(item) ?: return null
             val r = requirementOf(pair) ?: return null
             val need = FurnitureAvailability.applied(r, treatAs[pair.id])
-            val fit = FurnitureFit.fit(need, f, bodyUnit(lead, other)) ?: FurnitureFit.fit(need, f, bodyUnit(lead, other), relaxed = true) ?: return null
+            val fit = FurnitureFit.fitAny(need, f, bodyUnit(lead, other)) ?: return null
             val spacedPair = spaced(pair, lead, other)
             val (slotA, slotB) = PairFit.slots(spacedPair.slotA, spacedPair.slotB, size(lead), size(other))
             val roles = listOf(role(PlaybackKeys.pair(pair.id, 0), slotA), role(PlaybackKeys.pair(pair.id, 1), slotB))
@@ -2003,7 +2032,7 @@ class SceneSimulation(
         if (request.partnerId != null || !valid(actor, request) || item !in objects) return false
         if (!freeFor(item, actor, null)) return refuse("The $what is in use.")
         val f = furniture(item) ?: return refuse("The $what isn't ready yet.")
-        val fit = FurnitureFit.fit(requirement, f, bodyUnit(actor)) ?: return refuse("That doesn't fit on the $what.")
+        val fit = FurnitureFit.fitAny(requirement, f, bodyUnit(actor)) ?: return refuse("That doesn't fit on the $what.")
         // raised (or let down) by what this body's own flesh changes of the lift (its single clip, when the screen gives it;
         // the screen's clip carries its role's lift in its Root track already)
         val body = fleshOf(actor)

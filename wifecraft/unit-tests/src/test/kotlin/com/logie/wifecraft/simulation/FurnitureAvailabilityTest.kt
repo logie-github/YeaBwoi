@@ -54,7 +54,7 @@ class FurnitureAvailabilityTest {
         val none = FurnitureAvailability.of(bedPair, emptyList(), unit)
         assertEquals(PlayState.FLOOR, none.state)
         assertEquals("No bed here: playing on the floor.", none.notice)
-        assertEquals("Needs a bed: floor", none.chip)
+        assertEquals("Floor", none.chip)
         // a chair only (nothing that takes two lying): the floor, and the notice says the chair doesn't take it
         val chairOnly = FurnitureAvailability.of(bedPair, listOf(chair), unit)
         assertEquals(PlayState.FLOOR, chairOnly.state)
@@ -96,12 +96,16 @@ class FurnitureAvailabilityTest {
         assertEquals(PlayState.ON_FURNITURE, near.state)
         assertTrue(near.relaxed)
         assertEquals("Plays on the couch, the nearest fit (its height differs from the animation's).", FurnitureAvailability.describe(near))
-        // the Embassy has only its study table: a bed's pair is never laid on it, it plays on the floor, lowered
+        // the Embassy has only its study table: what a bed pair is marked for is only a preference, so it is laid on it loosely
         val assets = File(System.getProperty("wifecraft.assets") ?: "../android/app/src/main/assets")
         val table = Furniture.of(LocationInfo.parseAll(File(assets, "locations.json").readText()).first { it.id == "embassy" }.furniture.single())!!
         val onFloor = FurnitureAvailability.of(bedPair, listOf(table), unit, drop = FurnitureAvailability.floorDrop(bodies(*lying)))
-        assertEquals(PlayState.FLOOR, onFloor.state); assertTrue(onFloor.floorRests)
-        assertEquals("Nothing here fits it as a bed: playing on the floor.", onFloor.notice)
+        assertEquals(PlayState.ON_FURNITURE, onFloor.state, "never refused for being marked for a bed")
+        assertTrue(onFloor.relaxed)
+        // with no furniture at all: the floor, lowered, with the notice
+        val bare = FurnitureAvailability.of(bedPair, emptyList(), unit, drop = FurnitureAvailability.floorDrop(bodies(*lying)))
+        assertEquals(PlayState.FLOOR, bare.state); assertTrue(bare.floorRests)
+        assertEquals("No bed here: playing on the floor.", bare.notice)
         // one with a partner standing beside it: lowered, it wouldn't rest on the floor; played where they stand, as made
         val edge = arrayOf(F.standing, moved(F.lyingBack(0.55), -0.7, 0.0))
         val a = FurnitureAvailability.of(req(*edge), emptyList(), unit, drop = FurnitureAvailability.floorDrop(bodies(*edge)))
@@ -151,11 +155,11 @@ class FurnitureAvailabilityTest {
 
     @Test fun theWindowsCounterAndFilter() {
         val states = listOf(PlayState.READY, PlayState.ON_FURNITURE, PlayState.FLOOR, PlayState.FLOOR)
-        assertEquals("2 of 4 playable here, 2 more on the floor", FurnitureAvailability.counter(states))
-        assertEquals("1 of 1 playable here", FurnitureAvailability.counter(listOf(PlayState.READY)))
+        assertEquals("4 playable here, 2 of them on the floor", FurnitureAvailability.counter(states))
+        assertEquals("1 playable here", FurnitureAvailability.counter(listOf(PlayState.READY)))
         val floor = Availability(PlayState.FLOOR, Surface.BED)
         assertTrue(FurnitureAvailability.shown(floor, onlyPlayable = false))
-        assertFalse(FurnitureAvailability.shown(floor, onlyPlayable = true))
+        assertTrue(FurnitureAvailability.shown(floor, onlyPlayable = true), "nothing is hidden")
         assertTrue(FurnitureAvailability.shown(null, onlyPlayable = true))
         assertTrue(FurnitureAvailability.shown(Availability(PlayState.READY, Surface.NONE), onlyPlayable = true))
         assertEquals("No bed here: playing on the floor.", FurnitureAvailability.describe(FurnitureAvailability.of(bedPair, emptyList(), unit)))
@@ -168,8 +172,8 @@ class FurnitureAvailabilityTest {
         val resting = AutoClip("bed", "On the bed", bedPair, floorRests = true)
         val hanging = AutoClip("edge", "Bed edge", req(F.standing, moved(F.lyingBack(0.55), -0.7, 0.0)), floorRests = false)
         val opts = AutoplayPlanner.options(listOf(floor), listOf(resting, hanging), unit)
-        assertEquals(listOf("bed"), opts.map { it.clip.id })
-        assertEquals("floor", opts.single().place.key)
+        assertEquals(listOf("bed", "edge"), opts.map { it.clip.id }, "a clip that hangs is no longer left out")
+        assertEquals(setOf("floor"), opts.map { it.place.key }.toSet())
         // with a bed, on the bed (not the floor)
         val bed = AutoPlace("BED", SceneObject.BED, piece(FurnitureKind.BED_DOUBLE))
         assertEquals(setOf("BED"), AutoplayPlanner.options(listOf(bed, floor), listOf(resting), unit).map { it.place.key }.toSet())

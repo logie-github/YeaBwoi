@@ -23,7 +23,7 @@
   },
   "joints": {
     "Root": "M_Spine01_Jnt", "Pelvis": "M_Spine01_Jnt", "Spine1": "M_Spine02_Jnt", "Spine2": "M_Spine04_Jnt", "Chest": "M_Spine05_Jnt",
-    "Neck1": "M_Neck_Lower_Jnt", "Neck2": "M_Neck_Jnt", "Head": "M_Head_Jnt", "Jaw": "M_Jaw_Jnt",
+    "Neck1": ["M_Neck_Lower_Jnt", "M_Neck01_Jnt"], "Neck2": ["M_Neck_Jnt", "M_Neck_Upper_Jnt", "M_Neck02_Jnt"], "Head": "M_Head_Jnt", "Jaw": "M_Jaw_Jnt",
     "{S}_Eye": "{S}_Eye_Jnt", "{S}_Breast": "{S}_Breast01_Jnt",
     "{S}_Clavicle": "{S}_Shoulder_Jnt", "{S}_UpperArm": "{S}_Bicep_Jnt", "{S}_Forearm": "{S}_Elbow_Jnt", "{S}_Hand": "{S}_Wrist_Jnt",
     "{S}_Thumb1": "{S}_Thumb_01_Jnt", "{S}_Thumb2": "{S}_Thumb_02_Jnt", "{S}_Index1": "{S}_IndexFinger_01_Jnt", "{S}_Index2": "{S}_IndexFinger_02_Jnt",

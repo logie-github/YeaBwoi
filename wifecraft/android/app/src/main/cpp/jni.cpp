@@ -259,14 +259,18 @@ JNIEXPORT jstring JNICALL FN(loadHdSet)(JNIEnv* env, jclass, jlong h, jstring pa
 JNIEXPORT void JNICALL FN(clearHdSets)(JNIEnv*, jclass, jlong h) { scene(h)->clearHdSets(); }
 
 JNIEXPORT void JNICALL FN(setHdBody)(JNIEnv* env, jclass, jlong h, jint id, jint race, jint sex, jboolean on, jint hair, jint outfit, jint eyes,
-                                     jint faceMark, jint bodyMarks, jint tint, jint hairTint, jintArray jewelry) {
+                                     jint faceMark, jint bodyMarks, jint tint, jint hairTint, jintArray jewelry, jint body, jfloatArray shapes) {
     wc::HdOptions o;
     o.on = on == JNI_TRUE;
     o.hair = hair; o.outfit = outfit; o.eyes = eyes; o.faceMark = faceMark; o.bodyMarks = bodyMarks;
-    o.tint = tint; o.hairTint = hairTint;
+    o.tint = tint; o.hairTint = hairTint; o.body = body;
     for (int j : ints(env, jewelry)) o.jewelry.push_back(j);
+    o.shapes = floats(env, shapes);
     scene(h)->setHdBody(id, race, sex, o);
 }
+
+// The HD body's own genitals hidden (`on`: the add-on parts drawn in their place, bodypart.h) or shown again.
+JNIEXPORT void JNICALL FN(useHdGenitalMask)(JNIEnv*, jclass, jlong h, jint id, jboolean on) { scene(h)->useHdGenitalMask(id, on == JNI_TRUE); }
 
 JNIEXPORT void JNICALL FN(clearHdBody)(JNIEnv*, jclass, jlong h, jint id) { scene(h)->clearHdBody(id); }
 
@@ -698,12 +702,13 @@ JNIEXPORT jstring JNICALL FN(thumbError)(JNIEnv* env, jclass, jlong) { return en
 
 // The HD figure (bodyparts/HdModels) on the next look picture only (thumbLook or thumbCard right after, on this thread).
 JNIEXPORT void JNICALL FN(thumbHd)(JNIEnv* env, jclass, jlong, jint race, jint sex, jboolean on, jint hair, jint outfit, jint eyes,
-                                   jint faceMark, jint bodyMarks, jint tint, jint hairTint, jintArray jewelry) {
+                                   jint faceMark, jint bodyMarks, jint tint, jint hairTint, jintArray jewelry, jint body, jfloatArray shapes) {
     HdOptions o;
     o.on = on == JNI_TRUE;
     o.hair = hair; o.outfit = outfit; o.eyes = eyes; o.faceMark = faceMark; o.bodyMarks = bodyMarks;
-    o.tint = tint; o.hairTint = hairTint;
+    o.tint = tint; o.hairTint = hairTint; o.body = body;
     for (int j : ints(env, jewelry)) o.jewelry.push_back(j);
+    o.shapes = floats(env, shapes);
     gThumbHd = o; gThumbHdRace = race; gThumbHdSex = sex;
 }
 

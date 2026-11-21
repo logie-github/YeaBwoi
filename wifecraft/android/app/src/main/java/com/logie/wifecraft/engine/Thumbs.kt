@@ -91,7 +91,7 @@ class Thumbs(
         val set = d.set ?: return
         val o = d.options ?: return
         Native.thumbHd(h, set.race, set.sex, true, o.hair, d.outfit, o.eyes, o.faceMark, if (o.bodyMarks) 1 else 0, o.tint, o.hairTint,
-            o.jewelry.toIntArray())
+            o.jewelry.toIntArray(), o.body, o.shapes.toFloatArray())
     }
 
     /** "_i<hash>" of the imports' signature (Overrides.signature), "" when nothing is imported. */

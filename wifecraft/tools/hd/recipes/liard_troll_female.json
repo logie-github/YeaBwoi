@@ -1,0 +1,148 @@
+{
+ "extends": "liard_rig.json",
+ "id": "liard_troll_female",
+ "label": "Troll woman (HD)",
+ "source": "Troll Female 4.0 (TrollFemale4.fbx and its textures)",
+ "body": {
+  "object": "Skin4_Female",
+  "label": "Body"
+ },
+ "bodies": [
+  {
+   "object": "Skin4_futa",
+   "label": "Body: With male parts"
+  }
+ ],
+ "genitalMask": {
+  "groups": "dick|balls",
+  "min": 0.5
+ },
+ "materialImages": {
+  "M_Skin_Female": "Skin_Base_color",
+  "M_SkinL": "Skin4_FutaL",
+  "M_SkinR": "Skin4_FutaR",
+  "data-6": "data-6",
+  "trollfemale_hd_3621968": "Accessories",
+  "mat_2": "Accessories",
+  "data-19": "data-19",
+  "pasted__blinn1": "data-6"
+ },
+ "skinImage": "Skin_Base_color",
+ "hairImage": "data-6",
+ "textureSize": {
+  "Skin_Base_color": 2048,
+  "Skin4_Zandalari1": 2048,
+  "Skin4_FutaL": 2048,
+  "Skin4_FutaR": 2048,
+  "Futa_Skin4_Zandalari1_Left": 2048,
+  "Futa_Skin4_Zandalari1_Right": 2048
+ },
+ "always": [
+  {
+   "id": "eyes",
+   "objects": [
+    "Eyes"
+   ],
+   "kind": "eyes"
+  },
+  {
+   "id": "lashes",
+   "objects": [
+    "lashes"
+   ],
+   "kind": "brows"
+  },
+  {
+   "id": "nails",
+   "objects": [
+    "NailsNormal"
+   ],
+   "kind": "nails"
+  }
+ ],
+ "eyeTextures": {
+  "glob": "eyes00_*",
+  "label": "Eyes {n}"
+ },
+ "hair": [
+  "Backblown",
+  "Bangs",
+  "Base",
+  "Braids",
+  "Crest",
+  "Fauxhawk",
+  "Flower",
+  "High_Tail",
+  "Long",
+  "Mohawk",
+  "Mota",
+  "Ponytail",
+  "Sticks",
+  "Swept_Braids",
+  "Top_Knot",
+  "Undercut",
+  "Wrapped"
+ ],
+ "jewelry": [
+  "Bone",
+  "Bone.001",
+  "Hoops",
+  "Ivory",
+  "Mixed",
+  "Ring",
+  "Rings",
+  "Studs",
+  "Tusks",
+  "Curved",
+  "Fangs",
+  "Nibblers",
+  "Short",
+  "Straight",
+  "Upturned"
+ ],
+ "variants": [
+  {
+   "file": "Troll_F.whd",
+   "race": 8,
+   "sex": 1,
+   "label": "Troll woman (HD)",
+   "tints": [
+    {
+     "label": "Her own",
+     "image": "Skin_Base_color"
+    },
+    {
+     "label": "Teal",
+     "image": "Skin_Base_color",
+     "rgb": "C8E6E0"
+    }
+   ],
+   "hairTints": {
+    "glob": "hair00_*_hd",
+    "label": "Colour {n}"
+   }
+  },
+  {
+   "file": "ZandalariTroll_F.whd",
+   "race": 31,
+   "sex": 1,
+   "label": "Zandalari troll woman (HD)",
+   "materialImages": {
+    "M_Skin_Female": "Skin4_Zandalari1",
+    "M_SkinL": "Futa_Skin4_Zandalari1_Left",
+    "M_SkinR": "Futa_Skin4_Zandalari1_Right"
+   },
+   "skinImage": "Skin4_Zandalari1",
+   "tints": [
+    {
+     "label": "Her own",
+     "image": "Skin4_Zandalari1"
+    }
+   ],
+   "hairTints": {
+    "glob": "zandalaritrollfemale_hair_color_*",
+    "label": "Colour {n}"
+   }
+  }
+ ]
+}

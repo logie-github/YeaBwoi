@@ -65,6 +65,12 @@ struct HdOverlay { std::string id, label, slot; int onto = -1; int blob = -1; };
 // set's base skin (a skin tint) or base hair texture (a hair tint): the model's own other skin tones and hair colours.
 struct HdTint { std::string id, label; uint32_t rgb = 0xFFFFFF; float lift = 0; int texture = -1; };
 
+// One of the figure's bodies (the first is its own; others: a tail's length, bones showing, male parts...), with its own
+// genitals' vertices (indices into that body mesh: hidden while the parts are drawn instead) and its shape keys' blobs (per
+// HdSet::shapes, -1 where it hasn't that key).
+struct HdBodyOption { std::string label; int mesh = -1; std::vector<uint32_t> genitals; std::vector<int> shapeBlobs; };
+struct HdShape { std::string key, label; };
+
 struct HdSet {
     std::string id, label;
     int race = 0, sex = 0;
@@ -77,6 +83,8 @@ struct HdSet {
     std::vector<HdChoice> hair, outfits, jewelry;
     std::vector<HdOverlay> overlays;
     std::vector<HdTint> tints, hairTints;
+    std::vector<HdBodyOption> bodies;      // at least the body itself
+    std::vector<HdShape> shapes;           // the shape keys offered as sliders (their changes per body: HdBodyOption::shapeBlobs)
     int skinTexture = -1, hairTexture = -1;   // the textures a tint with a texture of its own replaces (-1: none)
     std::string credit;                       // who made the model (shown with it)
     uint64_t gpuBytes = 0;
@@ -98,7 +106,10 @@ std::vector<uint8_t> writeWhd(const HdSet& set);
 struct HdOptions {
     bool on = false;
     int hair = -1, outfit = -1, eyes = -1, faceMark = -1, bodyMarks = 0, tint = 0, hairTint = 0;
+    int body = 0;                          // HdSet::bodies' index
+    bool hideGenitals = false;             // the body's own genitals left out (the add-on parts drawn instead: Scene's setHdGenitalMask)
     std::vector<int> jewelry;
+    std::vector<float> shapes;             // per HdSet::shapes, 0..1 (more or less is allowed: -1..2)
     uint64_t key() const;
 };
 
@@ -130,6 +141,7 @@ struct HdDraw {
     std::string status;              // why it isn't drawn ("" when it is)
     std::shared_ptr<const HdSet> set;
     HdFit fit;
+    bool hideGenitals = false;       // useHdGenitalMask: the body's own genitals hidden, the add-on parts drawn instead
     float skin[3] = {1, 1, 1};       // the skin's tint (linear gain on the skin's parts)
     unsigned vao = 0, vbo = 0, ibo = 0;
     std::vector<unsigned> tex;       // per drawn part (the scene's shared textures: not owned)

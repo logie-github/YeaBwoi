@@ -1,0 +1,208 @@
+{
+ "extends": "liard_rig_a.json",
+ "id": "liard_draenei_female",
+ "label": "Draenei woman (HD)",
+ "source": "Draenei Female 3.1 (DraeRelease3.1.fbx and its Tex folder)",
+ "body": {
+  "object": "Skin3_LongTail",
+  "label": "Tail: long"
+ },
+ "bodies": [
+  {
+   "object": "Skin3_Medium",
+   "label": "Tail: medium"
+  },
+  {
+   "object": "Skin3_ShortTail",
+   "label": "Tail: short"
+  }
+ ],
+ "uvLayer": "map1",
+ "materialImages": {
+  "M_Skin": "DraeSkinVag3.0",
+  "M_Nails": "DraeSkinVag3.0",
+  "Eyes": "eyesCustom",
+  "M_Hair": "draeneifemale_hd_hair_color_3483769",
+  "M_Jewelry": "draeneifemale_hd_jewelry_color_3621709",
+  "pasted__M_Jewelry": "draeneifemale_hd_jewelry_color_3621709",
+  "M_Lashes": "draeneifemale_hd_hair_color_3483769",
+  "M_BandAss": "draeneifemale_hd_jewelry_color_3621709"
+ },
+ "skinImage": "DraeSkinVag3.0",
+ "hairImage": "draeneifemale_hd_hair_color_3483769",
+ "textureSize": {
+  "DraeSkinVag3.0": 2048
+ },
+ "always": [
+  {
+   "id": "lashes",
+   "objects": [
+    "Lashes_New"
+   ],
+   "kind": "brows"
+  }
+ ],
+ "eyeTextures": [
+  {
+   "label": "Draenei",
+   "image": "eyesCustom"
+  },
+  {
+   "label": "Eyes 2",
+   "image": "eyes00_00_3486137"
+  }
+ ],
+ "hair": [
+  "Bangs",
+  "Bounce",
+  "Buns",
+  "Circlet",
+  "Cute",
+  "Donut_Bun",
+  "Elegant",
+  "Feathered",
+  "Flipped",
+  "Hairband",
+  "High_Bun",
+  "High_Tail",
+  "Nape",
+  "Sassy",
+  "Shy",
+  "Slicked",
+  "Soaked",
+  "Straight",
+  "Trouble",
+  "Braided",
+  "Ponytail",
+  "Pull_Through",
+  "TiedStrands"
+ ],
+ "jewelry": [
+  "Bejeweled_Bow",
+  "BraidedChain",
+  "Circlet.001",
+  "Band_Tentacles",
+  {
+   "id": "bandlong",
+   "label": "Tail bands (long)",
+   "objects": [
+    "Long_Ornate"
+   ]
+  },
+  {
+   "id": "bandmed",
+   "label": "Tail bands (medium)",
+   "objects": [
+    "Medium_Ornate"
+   ]
+  },
+  {
+   "id": "bandshort",
+   "label": "Tail bands (short)",
+   "objects": [
+    "Short_Ornate"
+   ]
+  }
+ ],
+ "shapes": [
+  {
+   "key": "TitsSmall",
+   "label": "Breasts: small"
+  },
+  {
+   "key": "TitsHuge",
+   "label": "Breasts: huge"
+  },
+  {
+   "key": "TitsEnormous",
+   "label": "Breasts: enormous"
+  },
+  {
+   "key": "ThighsThin",
+   "label": "Thighs: slim"
+  },
+  {
+   "key": "ThighsBig",
+   "label": "Thighs: full"
+  },
+  {
+   "key": "AssSmall",
+   "label": "Rear: small"
+  },
+  {
+   "key": "AssHuge",
+   "label": "Rear: huge"
+  },
+  {
+   "key": "LegsThin",
+   "label": "Legs: slim"
+  },
+  {
+   "key": "Muscular",
+   "label": "Muscular"
+  },
+  {
+   "key": "Pregnant",
+   "label": "Belly"
+  }
+ ],
+ "variants": [
+  {
+   "file": "Draenei_F.whd",
+   "race": 11,
+   "sex": 1,
+   "label": "Draenei woman (HD)",
+   "tints": [
+    {
+     "label": "Her own",
+     "image": "DraeSkinVag3.0"
+    },
+    {
+     "label": "Violet",
+     "image": "DraeSkinVag3.0",
+     "rgb": "E0D0F5"
+    },
+    {
+     "label": "Azure",
+     "image": "DraeSkinVag3.0",
+     "rgb": "C8DCF5"
+    }
+   ],
+   "hairTints": {
+    "glob": "draeneifemale_hd_hair_color_*",
+    "label": "Colour {n}"
+   }
+  },
+  {
+   "file": "LightforgedDraenei_F.whd",
+   "race": 30,
+   "sex": 1,
+   "label": "Lightforged draenei woman (HD, from the draenei)",
+   "skin": {
+    "targetLab": [
+     80,
+     3,
+     -9
+    ],
+    "images": [
+     "DraeSkinVag3.0"
+    ]
+   },
+   "tints": [
+    {
+     "label": "Light",
+     "image": "DraeSkinVag3.0"
+    },
+    {
+     "label": "Gold-touched",
+     "image": "DraeSkinVag3.0",
+     "rgb": "FFF2DC"
+    }
+   ],
+   "hairTints": {
+    "glob": "draeneifemale_hd_hair_color_*",
+    "label": "Colour {n}"
+   }
+  }
+ ]
+}

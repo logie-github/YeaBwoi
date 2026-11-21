@@ -194,7 +194,7 @@ class PartnerActivityTest {
         assertTrue(!none.partner("a", "b"))
     }
 
-    @Test fun pairsNeedingFurnitureTheSceneLacksAreSkipped() {
+    @Test fun pairsNeedingFurnitureTheSceneLacksAreOnlyPreferred() {
         val bed = pair("bed", locations = setOf("DOUBLE_BED"))
         val sofa = pair("sofa", locations = setOf("SOFA"))
         val floor = pair("floor", locations = setOf("FLOOR"))
@@ -205,10 +205,11 @@ class PartnerActivityTest {
             assertEquals("Pair sofa", s.partnerOf("a")!!.name)
             assertEquals(SceneObject.COUCH, s.partnerOf("a")!!.furniture)
         }
-        // no furniture: neither; the Warcraft emotes instead
+        // no furniture: both are played all the same, in a free spot (marked furniture is a preference, never a gate)
         val bare = sim(listOf("a", "b"), pairs = listOf(bed, sofa))
         assertTrue(bare.partner("a", "b"))
-        assertTrue(bare.partnerOf("a")!!.emote >= 0)
+        assertTrue(bare.partnerOf("a")!!.emote < 0)
+        assertNull(bare.partnerOf("a")!!.furniture)
         // an unknown location ("FLOOR") needs nothing
         val free = sim(listOf("a", "b"), pairs = listOf(bed, floor))
         assertTrue(free.partner("a", "b"))

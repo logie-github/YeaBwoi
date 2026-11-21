@@ -1,47 +1,419 @@
 {
-  "extends": "liard_rig.json",
-  "id": "liard_human_female",
-  "label": "Human woman (HD)",
-  "source": "Human Female 4.0 (HumanFemale4.0Beta.fbx and its Textures folder)",
-  "body": {"object": "Skin4"},
-  "materialImages": {"M_Skin": "skin4.0.png", "M_Nails": "skin4.0.png", "M_Eyes": "eyes00_00_3484643.png", "M_Hair": "hair00_00_hd.png",
-                     "M_Lashes": "hair00_00_hd.png", "M_humanfemalenecklace": "hair00_00_hd.png"},
-  "skinImage": "skin4.0.png",
-  "hairImage": "hair00_00_hd.png",
-  "textureSize": {"skin4.0.png": 2048, "skin4.01.png": 2048},
-  "always": [{"id": "lashes", "objects": ["Lashes_Extra"], "kind": "brows"}],
-  "eyeTextures": {"glob": "eyes00_*.png", "label": "Eyes {n}"},
-  "hair": [
-    {"id": "long", "label": "Long", "objects": ["Long"]}, {"id": "loose", "label": "Loose", "objects": ["Loose"]},
-    {"id": "bangs", "label": "Bangs", "objects": ["Bangs"]}, {"id": "cornrows", "label": "Corn rows", "objects": ["CornRows"]},
-    {"id": "curled", "label": "Curled", "objects": ["Curled"]}, {"id": "curlybob", "label": "Curly bob", "objects": ["Curly_Bob"]},
-    {"id": "curlybun", "label": "Curly bun", "objects": ["Curly_Bun"]}, {"id": "dreadlocks", "label": "Dreadlocks", "objects": ["Dreadlocks"]},
-    {"id": "flipped", "label": "Flipped", "objects": ["Flipped"]}, {"id": "flirty", "label": "Flirty", "objects": ["Flirty"]},
-    {"id": "full", "label": "Full", "objects": ["Full"]}, {"id": "layered", "label": "Layered", "objects": ["Layered"]},
-    {"id": "messybun", "label": "Messy bun", "objects": ["Messy_Bun"]}, {"id": "oxhorns", "label": "Ox horns", "objects": ["Ox_Horns"]},
-    {"id": "partedlong", "label": "Parted, long", "objects": ["Parted_Long"]}, {"id": "partedshort", "label": "Parted, short", "objects": ["Parted_Short"]},
-    {"id": "pixie", "label": "Pixie", "objects": ["Pixie"]}, {"id": "ponyleft", "label": "Ponytail, left", "objects": ["Pony_Left"]},
-    {"id": "ponyright", "label": "Ponytail, right", "objects": ["Pony_Right"]}, {"id": "raquel", "label": "Swept", "objects": ["Raquel"]},
-    {"id": "retro", "label": "Retro", "objects": ["Retro"]}, {"id": "rushed", "label": "Rushed", "objects": ["Rushed"]},
-    {"id": "short", "label": "Short", "objects": ["Short"]}, {"id": "sidepart", "label": "Side part", "objects": ["Side_Part"]},
-    {"id": "simple", "label": "Simple", "objects": ["Simple"]}, {"id": "soaked", "label": "Soaked", "objects": ["Soaked"]},
-    {"id": "straight", "label": "Straight", "objects": ["Straight"]}, {"id": "straightbob", "label": "Straight bob", "objects": ["Straight_Bob"]},
-    {"id": "styled", "label": "Styled", "objects": ["Styled"]}, {"id": "tomboy", "label": "Tomboy", "objects": ["Tomboy"]},
-    {"id": "waved", "label": "Waved", "objects": ["Waved"]}, {"id": "wavedbob", "label": "Waved bob", "objects": ["Waved_Bob"]}
-  ],
-  "outfits": [],
-  "jewelry": [
-    {"id": "locket", "label": "Locket", "objects": ["Locket"]}, {"id": "pendant", "label": "Pendant", "objects": ["Pendant"]},
-    {"id": "diamond", "label": "Diamond necklace", "objects": ["Diamond"]}, {"id": "diamonds", "label": "Diamond earrings", "objects": ["Diamonds"]},
-    {"id": "studs", "label": "Studs", "objects": ["Studs"]}, {"id": "discs", "label": "Disc earrings", "objects": ["Discs"]},
-    {"id": "double", "label": "Double earrings", "objects": ["Double"]}, {"id": "hoops", "label": "Earrings", "objects": ["Earrings.001"]},
-    {"id": "mixed", "label": "Mixed earrings", "objects": ["Mixed"]}, {"id": "upper", "label": "Upper ear rings", "objects": ["Upper"]},
-    {"id": "brow", "label": "Brow piercing", "objects": ["Eyebrow"]}, {"id": "nose", "label": "Nose ring", "objects": ["Nose"]}
-  ],
-  "variants": [
-    {"file": "Human_F.whd", "race": 1, "sex": 1, "label": "Human woman (HD)",
-     "tints": [{"id": "fair", "label": "Fair", "image": "skin4.0.png"}, {"id": "dark", "label": "Dark", "image": "skin4.01.png"},
-               {"id": "light", "label": "Fair, lighter", "image": "skin4.0.png", "rgb": "FFF4EC"}, {"id": "tan", "label": "Fair, tanned", "image": "skin4.0.png", "rgb": "E8CDB0"}],
-     "hairTints": {"glob": "hair00_*_hd.png", "label": "Colour {n}"}}
-  ]
+ "extends": "liard_rig.json",
+ "id": "liard_human_female",
+ "label": "Human woman (HD)",
+ "source": "Human Female 4.0 (HumanFemale4.0Beta.fbx and its Textures folder)",
+ "body": {
+  "object": "Skin4"
+ },
+ "materialImages": {
+  "M_Skin": "skin4.0.png",
+  "M_Nails": "skin4.0.png",
+  "M_Eyes": "eyes00_00_3484643.png",
+  "M_Hair": "hair00_00_hd.png",
+  "M_Lashes": "hair00_00_hd.png",
+  "M_humanfemalenecklace": "hair00_00_hd.png"
+ },
+ "skinImage": "skin4.0.png",
+ "hairImage": "hair00_00_hd.png",
+ "textureSize": {
+  "skin4.0.png": 2048,
+  "skin4.01.png": 2048
+ },
+ "always": [
+  {
+   "id": "lashes",
+   "objects": [
+    "Lashes_Extra"
+   ],
+   "kind": "brows"
+  }
+ ],
+ "eyeTextures": {
+  "glob": "eyes00_*.png",
+  "label": "Eyes {n}"
+ },
+ "hair": [
+  {
+   "id": "long",
+   "label": "Long",
+   "objects": [
+    "Long"
+   ]
+  },
+  {
+   "id": "loose",
+   "label": "Loose",
+   "objects": [
+    "Loose"
+   ]
+  },
+  {
+   "id": "bangs",
+   "label": "Bangs",
+   "objects": [
+    "Bangs"
+   ]
+  },
+  {
+   "id": "cornrows",
+   "label": "Corn rows",
+   "objects": [
+    "CornRows"
+   ]
+  },
+  {
+   "id": "curled",
+   "label": "Curled",
+   "objects": [
+    "Curled"
+   ]
+  },
+  {
+   "id": "curlybob",
+   "label": "Curly bob",
+   "objects": [
+    "Curly_Bob"
+   ]
+  },
+  {
+   "id": "curlybun",
+   "label": "Curly bun",
+   "objects": [
+    "Curly_Bun"
+   ]
+  },
+  {
+   "id": "dreadlocks",
+   "label": "Dreadlocks",
+   "objects": [
+    "Dreadlocks"
+   ]
+  },
+  {
+   "id": "flipped",
+   "label": "Flipped",
+   "objects": [
+    "Flipped"
+   ]
+  },
+  {
+   "id": "flirty",
+   "label": "Flirty",
+   "objects": [
+    "Flirty"
+   ]
+  },
+  {
+   "id": "full",
+   "label": "Full",
+   "objects": [
+    "Full"
+   ]
+  },
+  {
+   "id": "layered",
+   "label": "Layered",
+   "objects": [
+    "Layered"
+   ]
+  },
+  {
+   "id": "messybun",
+   "label": "Messy bun",
+   "objects": [
+    "Messy_Bun"
+   ]
+  },
+  {
+   "id": "oxhorns",
+   "label": "Ox horns",
+   "objects": [
+    "Ox_Horns"
+   ]
+  },
+  {
+   "id": "partedlong",
+   "label": "Parted, long",
+   "objects": [
+    "Parted_Long"
+   ]
+  },
+  {
+   "id": "partedshort",
+   "label": "Parted, short",
+   "objects": [
+    "Parted_Short"
+   ]
+  },
+  {
+   "id": "pixie",
+   "label": "Pixie",
+   "objects": [
+    "Pixie"
+   ]
+  },
+  {
+   "id": "ponyleft",
+   "label": "Ponytail, left",
+   "objects": [
+    "Pony_Left"
+   ]
+  },
+  {
+   "id": "ponyright",
+   "label": "Ponytail, right",
+   "objects": [
+    "Pony_Right"
+   ]
+  },
+  {
+   "id": "raquel",
+   "label": "Swept",
+   "objects": [
+    "Raquel"
+   ]
+  },
+  {
+   "id": "retro",
+   "label": "Retro",
+   "objects": [
+    "Retro"
+   ]
+  },
+  {
+   "id": "rushed",
+   "label": "Rushed",
+   "objects": [
+    "Rushed"
+   ]
+  },
+  {
+   "id": "short",
+   "label": "Short",
+   "objects": [
+    "Short"
+   ]
+  },
+  {
+   "id": "sidepart",
+   "label": "Side part",
+   "objects": [
+    "Side_Part"
+   ]
+  },
+  {
+   "id": "simple",
+   "label": "Simple",
+   "objects": [
+    "Simple"
+   ]
+  },
+  {
+   "id": "soaked",
+   "label": "Soaked",
+   "objects": [
+    "Soaked"
+   ]
+  },
+  {
+   "id": "straight",
+   "label": "Straight",
+   "objects": [
+    "Straight"
+   ]
+  },
+  {
+   "id": "straightbob",
+   "label": "Straight bob",
+   "objects": [
+    "Straight_Bob"
+   ]
+  },
+  {
+   "id": "styled",
+   "label": "Styled",
+   "objects": [
+    "Styled"
+   ]
+  },
+  {
+   "id": "tomboy",
+   "label": "Tomboy",
+   "objects": [
+    "Tomboy"
+   ]
+  },
+  {
+   "id": "waved",
+   "label": "Waved",
+   "objects": [
+    "Waved"
+   ]
+  },
+  {
+   "id": "wavedbob",
+   "label": "Waved bob",
+   "objects": [
+    "Waved_Bob"
+   ]
+  }
+ ],
+ "outfits": [],
+ "jewelry": [
+  {
+   "id": "locket",
+   "label": "Locket",
+   "objects": [
+    "Locket"
+   ]
+  },
+  {
+   "id": "pendant",
+   "label": "Pendant",
+   "objects": [
+    "Pendant"
+   ]
+  },
+  {
+   "id": "diamond",
+   "label": "Diamond necklace",
+   "objects": [
+    "Diamond"
+   ]
+  },
+  {
+   "id": "diamonds",
+   "label": "Diamond earrings",
+   "objects": [
+    "Diamonds"
+   ]
+  },
+  {
+   "id": "studs",
+   "label": "Studs",
+   "objects": [
+    "Studs"
+   ]
+  },
+  {
+   "id": "discs",
+   "label": "Disc earrings",
+   "objects": [
+    "Discs"
+   ]
+  },
+  {
+   "id": "double",
+   "label": "Double earrings",
+   "objects": [
+    "Double"
+   ]
+  },
+  {
+   "id": "hoops",
+   "label": "Earrings",
+   "objects": [
+    "Earrings.001"
+   ]
+  },
+  {
+   "id": "mixed",
+   "label": "Mixed earrings",
+   "objects": [
+    "Mixed"
+   ]
+  },
+  {
+   "id": "upper",
+   "label": "Upper ear rings",
+   "objects": [
+    "Upper"
+   ]
+  },
+  {
+   "id": "brow",
+   "label": "Brow piercing",
+   "objects": [
+    "Eyebrow"
+   ]
+  },
+  {
+   "id": "nose",
+   "label": "Nose ring",
+   "objects": [
+    "Nose"
+   ]
+  }
+ ],
+ "variants": [
+  {
+   "file": "Human_F.whd",
+   "race": 1,
+   "sex": 1,
+   "label": "Human woman (HD)",
+   "tints": [
+    {
+     "id": "fair",
+     "label": "Fair",
+     "image": "skin4.0.png"
+    },
+    {
+     "id": "dark",
+     "label": "Dark",
+     "image": "skin4.01.png"
+    },
+    {
+     "id": "light",
+     "label": "Fair, lighter",
+     "image": "skin4.0.png",
+     "rgb": "FFF4EC"
+    },
+    {
+     "id": "tan",
+     "label": "Fair, tanned",
+     "image": "skin4.0.png",
+     "rgb": "E8CDB0"
+    }
+   ],
+   "hairTints": {
+    "glob": "hair00_*_hd.png",
+    "label": "Colour {n}"
+   }
+  }
+ ],
+ "shapes": [
+  {
+   "key": "Breasts_Small",
+   "label": "Breasts: small"
+  },
+  {
+   "key": "Breasts_Huge",
+   "label": "Breasts: huge"
+  },
+  {
+   "key": "Waist_Small",
+   "label": "Waist: slim"
+  },
+  {
+   "key": "Waist_Huge",
+   "label": "Waist: full"
+  },
+  {
+   "key": "Thighs_Small",
+   "label": "Thighs: slim"
+  },
+  {
+   "key": "Thighs_Huge",
+   "label": "Thighs: full"
+  },
+  {
+   "key": "Ass_Small",
+   "label": "Rear: small"
+  },
+  {
+   "key": "Ass_Huge",
+   "label": "Rear: huge"
+  }
+ ]
 }

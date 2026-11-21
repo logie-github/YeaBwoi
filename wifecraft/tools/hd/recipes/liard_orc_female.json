@@ -1,0 +1,168 @@
+{
+ "extends": "liard_rig.json",
+ "id": "liard_orc_female",
+ "label": "Orc woman (HD)",
+ "source": "Orc Female 4.0 (OrcFemale.fbx and its textures)",
+ "body": {
+  "object": "Skin4_Vagina",
+  "label": "Body"
+ },
+ "bodies": [
+  {
+   "object": "Skin4_Futa",
+   "label": "Body: With male parts"
+  }
+ ],
+ "genitalMask": {
+  "groups": "dick|balls",
+  "min": 0.5
+ },
+ "materialImages": {
+  "M_Skin_L": "Skin4",
+  "M_Skin_R": "Skin4",
+  "M_Skin_Futa_L": "Skin4_FutaL",
+  "M_Skin_Futa_R": "Skin4_FutaR",
+  "M_hair01": "hair01",
+  "M_orcfemale_hd_3687546": "orcfemale_hd_3687546",
+  "orcfemale_hd_3687547": "orcfemale_hd_3687547",
+  "M_data_19": "data-19",
+  "lambert3": "hair01"
+ },
+ "skinImage": "Skin4",
+ "hairImage": "hair01",
+ "textureSize": {
+  "Skin4": 2048,
+  "SkinMaghar4": 2048,
+  "Skin4_FutaL": 2048,
+  "Skin4_FutaR": 2048,
+  "SkinMaghar4_FutaL": 2048,
+  "SkinMaghar4.1_FutaR": 2048
+ },
+ "always": [
+  {
+   "id": "eyes",
+   "objects": [
+    "Eyes"
+   ],
+   "kind": "eyes"
+  },
+  {
+   "id": "lashes",
+   "objects": [
+    "lashes"
+   ],
+   "kind": "brows"
+  }
+ ],
+ "eyeTextures": [
+  {
+   "label": "Eyes 1",
+   "image": "data-19"
+  }
+ ],
+ "hair": [
+  "Bangs",
+  "Boar_Tails_Long",
+  "Boar_Tails_Short",
+  "Braids",
+  "Cap",
+  "Crest",
+  "Dreadnaught",
+  "Flipped",
+  "Gronn_Breaker",
+  "High_Knot",
+  "Horns",
+  "Long",
+  "Loop",
+  "Majestic",
+  "Mane",
+  "Mohawk",
+  "Savage",
+  "Sleek",
+  "Strong",
+  "Styled",
+  "Tail",
+  "Thick",
+  "Tomboy",
+  "Topknot",
+  "Tufts",
+  "Undercut",
+  "Unbridled",
+  "Wild"
+ ],
+ "jewelry": [
+  "Assymetric",
+  "Bone_Helix",
+  "Bone_Pincher",
+  "Bones",
+  "Choker",
+  "Collar",
+  "Dangling",
+  "Gold_Helix",
+  "Gold_Hoops",
+  "Gold_Ring",
+  "Gold_Stack",
+  "Iron_Hangers",
+  "Iron_Hoops",
+  "Iron_Loops",
+  "Iron_Spiked",
+  "Iron_ring",
+  "Ivory",
+  "Mixed",
+  "Plugs",
+  "Spikes",
+  "Tusks",
+  "Fangs"
+ ],
+ "variants": [
+  {
+   "file": "Orc_F.whd",
+   "race": 2,
+   "sex": 1,
+   "label": "Orc woman (HD)",
+   "tints": [
+    {
+     "label": "Her own",
+     "image": "Skin4"
+    },
+    {
+     "label": "Darker",
+     "image": "Skin4",
+     "rgb": "C8C8B4"
+    }
+   ],
+   "hairTints": {
+    "glob": "hair*",
+    "label": "Colour {n}"
+   }
+  },
+  {
+   "file": "MagharOrc_F.whd",
+   "race": 36,
+   "sex": 1,
+   "label": "Mag'har orc woman (HD)",
+   "materialImages": {
+    "M_Skin_L": "SkinMaghar4",
+    "M_Skin_R": "SkinMaghar4",
+    "M_Skin_Futa_L": "SkinMaghar4_FutaL",
+    "M_Skin_Futa_R": "SkinMaghar4.1_FutaR"
+   },
+   "skinImage": "SkinMaghar4",
+   "tints": [
+    {
+     "label": "Her own",
+     "image": "SkinMaghar4"
+    },
+    {
+     "label": "Darker",
+     "image": "SkinMaghar4",
+     "rgb": "C8C0B4"
+    }
+   ],
+   "hairTints": {
+    "glob": "hair*",
+    "label": "Colour {n}"
+   }
+  }
+ ]
+}

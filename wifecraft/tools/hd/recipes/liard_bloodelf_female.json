@@ -1,0 +1,168 @@
+{
+ "extends": "liard_rig.json",
+ "id": "liard_bloodelf_female",
+ "label": "Blood elf woman (HD)",
+ "source": "Belf-Velf-Helf Female 4.0 (Belf Female 4 Beta.fbx and its Textures)",
+ "body": {
+  "object": "Skin_Female"
+ },
+ "materialImages": {
+  "M_Belf_skin": "Skin4",
+  "M_Nails": "Skin4",
+  "M_Eyes": "eyes00_00_3492879",
+  "M_Hair": "hair00_02_hd",
+  "M_Lashes": "hair00_02_hd"
+ },
+ "skinImage": "Skin4",
+ "hairImage": "hair00_02_hd",
+ "textureSize": {
+  "Skin4": 2048
+ },
+ "always": [
+  {
+   "id": "lashes",
+   "objects": [
+    "Lashes_Extra"
+   ],
+   "kind": "brows"
+  }
+ ],
+ "eyeTextures": {
+  "glob": "eyes00_*",
+  "label": "Eyes {n}"
+ },
+ "hair": [
+  "Awoken",
+  "Bangs",
+  "Boar_Tails",
+  "Braided_Tail",
+  "Bun",
+  "Circlet",
+  "Consuming",
+  "Controlled",
+  "Diva",
+  "Elaborate",
+  "Elegance",
+  "Falling_Tears",
+  "Full",
+  "Glabrous",
+  "Glamorous",
+  "HeadBand",
+  "Melancholy",
+  "Nape",
+  "Parted_Long",
+  "Parted_Short",
+  "Pensive",
+  "Pixie",
+  "Ponytail",
+  "Raquel",
+  "Scandal",
+  "Shy",
+  "Simple",
+  "Slicked_Back",
+  "Soaked",
+  "Tiara",
+  "Tied",
+  "Trouble",
+  "Unleashed",
+  "Wicked"
+ ],
+ "jewelry": [],
+ "shapes": [
+  {
+   "key": "Tits_Small",
+   "label": "Breasts: small"
+  },
+  {
+   "key": "Tits_Huge",
+   "label": "Breasts: huge"
+  },
+  {
+   "key": "Tits_Massive",
+   "label": "Breasts: massive"
+  },
+  {
+   "key": "Ass_Small",
+   "label": "Rear: small"
+  },
+  {
+   "key": "Ass_huge",
+   "label": "Rear: huge"
+  },
+  {
+   "key": "Thighs_Small",
+   "label": "Thighs: slim"
+  },
+  {
+   "key": "Thighs_Huge",
+   "label": "Thighs: full"
+  },
+  {
+   "key": "Pregnant",
+   "label": "Belly"
+  },
+  {
+   "key": "ShortEars",
+   "label": "Ears: short (high elf)"
+  }
+ ],
+ "variants": [
+  {
+   "file": "BloodElf_F.whd",
+   "race": 10,
+   "sex": 1,
+   "label": "Blood elf woman (HD)",
+   "tints": [
+    {
+     "label": "Her own",
+     "image": "Skin4"
+    },
+    {
+     "label": "Fair",
+     "image": "Skin4",
+     "rgb": "FFF4EA"
+    },
+    {
+     "label": "Sun-kissed",
+     "image": "Skin4",
+     "rgb": "EED4BC"
+    }
+   ],
+   "hairTints": {
+    "glob": "hair00_*_hd",
+    "label": "Colour {n}"
+   }
+  },
+  {
+   "file": "VoidElf_F.whd",
+   "race": 29,
+   "sex": 1,
+   "label": "Void elf woman (HD, from the blood elf)",
+   "skin": {
+    "targetLab": [
+     62,
+     14,
+     -30
+    ],
+    "images": [
+     "Skin4"
+    ]
+   },
+   "tints": [
+    {
+     "label": "Void",
+     "image": "Skin4"
+    },
+    {
+     "label": "Void, darker",
+     "image": "Skin4",
+     "rgb": "C8C0E6"
+    }
+   ],
+   "hairTints": {
+    "glob": "hair00_*_hd",
+    "label": "Colour {n}"
+   }
+  }
+ ]
+}
