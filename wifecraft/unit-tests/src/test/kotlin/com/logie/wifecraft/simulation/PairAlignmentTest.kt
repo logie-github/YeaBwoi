@@ -10,6 +10,7 @@ import com.logie.wifecraft.anim.PoseFixtures
 import com.logie.wifecraft.tools.PairAlignment
 import com.logie.wifecraft.tools.PairAlignmentAudit
 import java.io.File
+import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.random.Random
 import kotlin.test.Test
@@ -119,9 +120,10 @@ class PairAlignmentTest {
         repeat(((JoinEase.SETTLE + 0.05f) * 60f).toInt()) { sim.tick(1f / 60f) }
         sim.pose(0, p); val l0 = p.lift; val z0 = p.z
         sim.pose(1, p); val l1 = p.lift; val z1 = p.z
-        assertEquals(l0, l1, 1e-4f, "raised together: $l0 and $l1")
-        assertEquals(z0, z1, 1e-4f, "on one floor")
-        assertTrue(l0 > 0.05f, "by the bulky one's lift: $l0")
+        // raised together (one body's hips then matched by its own legs, at most PairHeight.MAX_RAISE more: PairLifts)
+        assertTrue(abs(l0 - l1) <= PairHeight.MAX_RAISE + 1e-4f, "raised together: $l0 and $l1")
+        assertEquals(z0 - l0, z1 - l1, 1e-4f, "on one floor (each at its own lift over it)")
+        assertTrue(minOf(l0, l1) > 0.05f, "by the bulky one's lift: $l0, $l1")
     }
 
     @Test fun eachClassKeepsItsPlacementForEveryBodyPair() {

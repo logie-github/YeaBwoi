@@ -57,11 +57,11 @@ class CreatorPresetsRealTest {
                     !materials[display.toString()].isNullOrEmpty()
                 assertTrue(draws, "${ch.id}/${p.key}: item display $display draws a model or a texture")
             }
-            // one tap in the Transmog panel: the outfit and the look, as the creator puts them on
+            // the preset's look as the creator puts it on, wearing the preset's own items as drawn
             val set = outfits.first { it.name == p.label }
             val m = CreatorModel(c, Appearance(p.raceId, p.sex))
-            m.setClothing(set.displays)
             assertTrue(m.applyLook(assertNotNull(set.look)))
+            m.edit { it.copy(clothing = set.displays, starterClothing = false) }
             for ((o, choice) in p.picks) assertEquals(choice, m.appearance.picks[o], "${ch.id}/${p.key}: option $o kept after the creator's checks")
             assertEquals(p.equipment, m.appearance.clothing)
             val look = m.resolved(t)

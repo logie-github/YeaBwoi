@@ -12,7 +12,7 @@ Each character has:
   written as its race, sex, kept choices (CreatureDisplayInfoOption) and worn items (NPCModelItemSlotDisplayInfo, by
   equipment slot), drawn through the creator's resolver and transmog; a display of a model of its own (creature/sylvanas,
   creature/jaina3...) is written as the display, drawn as the game's NPC is.
-- creator presets ("presets"): a body variant of a playable race offered by the creator's Transmog panel as a named
+- creator presets ("presets"): a body variant of a playable race offered by the creator's Presets window as a named
   outfit that also sets the character's own choices for that race and sex (characters/CreatorPresets.kt).
 - undressed variants (underwear: the creator's No Gear; bare: also without the skin colour's underwear layers): her own
   choices on the playable race's body. For a character the game draws with a model of its own, a stand-in: the closest
@@ -94,7 +94,7 @@ CHARACTERS = [
         "undressed": False,
         # the creator's preset (the user: "adding Chromie's hair and face and outfit to the character creator"): her Legion
         # gnome display (creature 124154) on the gnome woman's own model, its choices (all the player's own: face, skin,
-        # hair, eyes) and worn items, offered for a gnome woman as the Transmog outfit "Chromie". The era rule is about the
+        # hair, eyes) and worn items, offered for a gnome woman as the preset "Chromie". The era rule is about the
         # model drawn: here it is the creator's own current gnome body. Her Timewalker display 10008 and the later ones
         # (24877, 96559, 109398) are creature/chromie with no choices or items; 107733 and 107134 are a Highland Drake's.
         "presets": [(78231, "gnome", "Chromie", "her choices and worn items from display 78231 (creature 124154)")],

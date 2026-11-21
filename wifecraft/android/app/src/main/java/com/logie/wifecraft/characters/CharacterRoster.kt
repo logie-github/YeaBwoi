@@ -58,7 +58,7 @@ data class CharacterVariant(
 
 /**
  * A named character: her [variants], and her creator [presets] (body variants of a playable race, [VariantKind.OUTFIT]:
- * her choices and worn items, offered in the creator's Transmog panel as a named outfit: [CreatorPresets]).
+ * her choices and worn items, offered in the creator's Presets window: [CreatorPresets]).
  */
 data class Character(val id: String, val name: String, val variants: List<CharacterVariant>, val presets: List<CharacterVariant> = emptyList()) {
     fun variant(key: String): CharacterVariant? = variants.firstOrNull { it.key == key }

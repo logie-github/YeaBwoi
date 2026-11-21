@@ -26,7 +26,7 @@ object Decoders {
 }
 
 /**
- * The game's item and spell icons (the Transmog panel's tiles, the creator's race buttons): fetched when missing (four at
+ * The game's item and spell icons (the creator's race buttons, the life HUD): fetched when missing (four at
  * a time, on the IO pool), decoded on [Decoders.pool] into an [ImageCache] of up to 24 MB, newest asked first, never on
  * the main thread. The composition only reads what is decoded ([peek]).
  */

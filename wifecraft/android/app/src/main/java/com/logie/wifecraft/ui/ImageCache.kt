@@ -4,8 +4,8 @@ package com.logie.wifecraft.ui
 // the phone's bitmaps and a shared two-thread decoder.
 
 /**
- * Pictures decoded off the main thread into a cache bounded by bytes, for grids that scroll fast (the Transmog panel's
- * icons, the creator's race icons):
+ * Pictures decoded off the main thread into a cache bounded by bytes, for grids that scroll fast (the game's icons,
+ * the creator's race icons):
  * - [peek] is what a composition reads: an already-decoded picture or null, never a decode;
  * - [request] asks for one: cached, [onReady] is called at once; else it is queued, and [onReady] is called with the
  *   picture (or null: it couldn't be made) on the worker thread that made it;

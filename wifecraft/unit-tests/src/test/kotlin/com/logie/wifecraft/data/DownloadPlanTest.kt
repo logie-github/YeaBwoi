@@ -17,7 +17,10 @@ class DownloadPlanTest {
 
     @Test fun packsAreUniqueAndTheBigOnesOptional() {
         assertEquals(PackKey.entries.size, PackKey.entries.map { it.id }.toSet().size)
-        assertEquals(setOf(PackKey.TRANSMOG, PackKey.CREATURES, PackKey.PROPS, PackKey.BUILDINGS), PackKey.entries.filter { it.optional }.toSet())
+        assertEquals(setOf(PackKey.CREATURES, PackKey.PROPS, PackKey.BUILDINGS), PackKey.entries.filter { it.optional }.toSet())
+        // the Transmog packs went with the Transmog window (Gear on and off): a saved "transmog" pack is no pack
+        assertNull(PackKey.of("transmog"))
+        assertTrue(PackKey.entries.none { "Transmog" in it.label || "Transmog" in it.detail })
         // the required ones come first: the optional ones are the last of the run
         val firstOptional = PackKey.entries.indexOfFirst { it.optional }
         assertTrue(PackKey.entries.drop(firstOptional).all { it.optional })
@@ -32,8 +35,8 @@ class DownloadPlanTest {
     }
 
     @Test fun estimatesFromAListDropUnknownPacks() {
-        val e = DownloadPlan.estimates(mapOf("transmog" to (185_228 to 14_200_937_600L), "nonsense" to (1 to 2L)))
-        assertEquals(mapOf(PackKey.TRANSMOG to PackEstimate(185_228, 14_200_937_600L)), e)
+        val e = DownloadPlan.estimates(mapOf("creatures" to (185_228 to 14_200_937_600L), "transmog" to (3 to 4L), "nonsense" to (1 to 2L)))
+        assertEquals(mapOf(PackKey.CREATURES to PackEstimate(185_228, 14_200_937_600L)), e)
     }
 
     /** assets/files.json carries an estimate for every pack (tools/pack_sizes.py). */
@@ -67,15 +70,15 @@ class DownloadPlanTest {
     private val estimates = mapOf(
         PackKey.BASICS to PackEstimate(16_000, 6 * GB),
         PackKey.PLACES to PackEstimate(2_200, 200_000_000L),
-        PackKey.TRANSMOG to PackEstimate(185_000, 14 * GB),
+        PackKey.CREATURES to PackEstimate(185_000, 14 * GB),
     )
     private val records = mapOf(
         PackKey.BASICS to PackRecord(PackKey.BASICS, v, 16_013, 16_013, 5_900_000_000L),
-        PackKey.TRANSMOG to PackRecord(PackKey.TRANSMOG, v, 185_000, 92_500, 7 * GB),
+        PackKey.CREATURES to PackRecord(PackKey.CREATURES, v, 185_000, 92_500, 7 * GB),
     )
 
     @Test fun theTotalCountsCompletePacksExactlyAndTheRestByEstimate() {
-        val t = DownloadPlan.total(listOf(PackKey.BASICS, PackKey.PLACES, PackKey.TRANSMOG), estimates, records, v)
+        val t = DownloadPlan.total(listOf(PackKey.BASICS, PackKey.PLACES, PackKey.CREATURES), estimates, records, v)
         assertEquals(16_013 + 2_200 + 185_000, t.files)
         assertEquals(5_900_000_000L + 200_000_000L + 14 * GB, t.bytes)
         assertFalse(t.exact)
@@ -84,10 +87,10 @@ class DownloadPlanTest {
 
     @Test fun whatIsStillToComeLeavesOutWhatIsHere() {
         assertEquals(0L, DownloadPlan.remaining(estimates[PackKey.BASICS], records[PackKey.BASICS], v))
-        assertEquals(7 * GB, DownloadPlan.remaining(estimates[PackKey.TRANSMOG], records[PackKey.TRANSMOG], v))
+        assertEquals(7 * GB, DownloadPlan.remaining(estimates[PackKey.CREATURES], records[PackKey.CREATURES], v))
         assertEquals(200_000_000L, DownloadPlan.remaining(estimates[PackKey.PLACES], null, v))
         // a record of another version counts for nothing
-        assertEquals(14 * GB, DownloadPlan.remaining(estimates[PackKey.TRANSMOG], records[PackKey.TRANSMOG]!!.copy(version = "old"), v))
+        assertEquals(14 * GB, DownloadPlan.remaining(estimates[PackKey.CREATURES], records[PackKey.CREATURES]!!.copy(version = "old"), v))
         assertEquals(0L, DownloadPlan.remaining(null, null, v))
     }
 
@@ -105,20 +108,20 @@ class DownloadPlanTest {
     // ---- free space -----------------------------------------------------------------------------------------------
 
     @Test fun itFitsWhenTheFreeSpaceHoldsAllAndTheReserve() {
-        val needs = mapOf(PackKey.BASICS to 6 * GB, PackKey.TRANSMOG to 14 * GB)
+        val needs = mapOf(PackKey.BASICS to 6 * GB, PackKey.CREATURES to 14 * GB)
         assertEquals(SpaceCheck.Fits, SpaceCheck.check(21 * GB, needs))
         assertIs<SpaceCheck.TooBig>(SpaceCheck.check(20 * GB, needs))
     }
 
     @Test fun tooLittleRoomOffersTheRequiredPacksAndTheSmallOptionalOnes() {
-        val needs = mapOf(PackKey.BASICS to 6 * GB, PackKey.PLACES to GB / 5, PackKey.TRANSMOG to 14 * GB,
+        val needs = mapOf(PackKey.BASICS to 6 * GB, PackKey.PLACES to GB / 5, PackKey.CREATURES to 14 * GB,
             PackKey.PROPS to 4 * GB, PackKey.BUILDINGS to 22 * GB)
         val r = assertIs<SpaceCheck.TooBig>(SpaceCheck.check(15 * GB, needs))
         assertEquals(setOf(PackKey.BASICS, PackKey.PLACES, PackKey.PROPS), r.fits)
         assertEquals(46 * GB + GB / 5 + SpaceCheck.RESERVE_BYTES, r.needed)
-        assertEquals(listOf(PackKey.TRANSMOG, PackKey.BUILDINGS), r.leftOut(needs.keys))
+        assertEquals(listOf(PackKey.CREATURES, PackKey.BUILDINGS), r.leftOut(needs.keys))
         val msg = SpaceCheck.message(r, needs.keys)
-        assertTrue("Not enough room" in msg && "15 GB is free" in msg && "Without Transmog items (large), Library buildings (huge) it fits" in msg, msg)
+        assertTrue("Not enough room" in msg && "15 GB is free" in msg && "Without Library creatures (large), Library buildings (huge) it fits" in msg, msg)
     }
 
     @Test fun whenNotEvenTheRequiredPacksFitNothingIsOffered() {
@@ -201,8 +204,8 @@ class DownloadPlanTest {
     @Test fun afterTheAutomaticTriesItWaitsForRetryFailed() {
         var now = 0L
         val q = FailedQueue { now }
-        repeat(FailedQueue.MAX_AUTO + 1) { q.failed(9, PackKey.TRANSMOG, "timeout"); now += FailedQueue.MAX_MS }
-        q.failed(10, PackKey.TRANSMOG, "wago.tools has no file 10", permanent = true)
+        repeat(FailedQueue.MAX_AUTO + 1) { q.failed(9, PackKey.CREATURES, "timeout"); now += FailedQueue.MAX_MS }
+        q.failed(10, PackKey.CREATURES, "wago.tools has no file 10", permanent = true)
         now += FailedQueue.MAX_MS
         assertTrue(q.due().isEmpty())
         assertNull(q.nextDueIn())
@@ -216,9 +219,9 @@ class DownloadPlanTest {
 
     @Test fun theStateIsKeptAndReadBack() {
         val s = SavedState(
-            phase = Phase.WAITING_FOR_WIFI, chosen = setOf(PackKey.TRANSMOG, PackKey.PROPS), mobileData = true, prebuild = true,
-            current = PackKey.TRANSMOG, records = records,
-            failed = listOf(FailedQueue.Entry(123, PackKey.TRANSMOG, "wago.tools answered 503\nfor file 123", 2, 99_000L),
+            phase = Phase.WAITING_FOR_WIFI, chosen = setOf(PackKey.CREATURES, PackKey.PROPS), mobileData = true, prebuild = true,
+            current = PackKey.CREATURES, records = records,
+            failed = listOf(FailedQueue.Entry(123, PackKey.CREATURES, "wago.tools answered 503\nfor file 123", 2, 99_000L),
                 FailedQueue.Entry(456, null, "no such file", 1, 5L, permanent = true)),
             message = "Paused.\nFiles already here are kept.", stoppedBySystem = true, only = setOf(PackKey.PROPS),
         )

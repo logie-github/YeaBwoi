@@ -209,4 +209,28 @@ class EveStoreTest {
         assertNull(fit.whyNot(1, 1000764))
         assertNotNull(fit.whyNot(99))
     }
+
+    /** The table's defaults (engine/evebody.cpp reads them): she keeps the model's height, the seams stitched shut, the skin's
+     *  colour taken from her own body; the races left off say why in plain words. */
+    @Test
+    fun realFitTableDefaults() {
+        val root = JSONObject(fitJson)
+        val d = root.getJSONObject("defaults").getJSONObject("fit")
+        assertEquals(0.0, d.optDouble("heads", 0.0), "no head-count target: she stands as tall as the body she replaces")
+        assertTrue(d.getDouble("transfer") > 0.0, "the colour transfer is on")
+        assertEquals(1.0, d.getDouble("stitch"), "the seams are stitched")
+        val hip = d.getDouble("hipRatio")
+        assertTrue(hip in 0.5..0.6, "hip joints at $hip of her height")
+        val races = root.getJSONArray("races")
+        for (i in 0 until races.length()) {
+            val r = races.getJSONObject(i)
+            val f = r.optJSONObject("fit") ?: JSONObject()
+            if (r.getBoolean("enabled")) {
+                assertEquals(0.0, f.optDouble("heads", 0.0), "${r.getString("name")}: no row shortens her")
+                assertEquals(0.0, f.optDouble("split", 0.0), "${r.getString("name")}: no split fit is offered")
+            } else {
+                assertTrue(r.getString("reason").isNotBlank(), "${r.getString("name")}: off, with a reason")
+            }
+        }
+    }
 }

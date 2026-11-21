@@ -5,15 +5,21 @@
   "enabled: whether the Eve body is put on that model at all; reason says why not (shown in the menus), quality what the desktop renders showed.",
   "fit: factors on the measured fit (girth: every width over the measured hip and shoulder ratios; torso, hips, shoulders, thigh, calf, arm, forearm: one region's",
   "width; neckTuck, neckLift, neckBase, ankleLift: the seams). Numbers checked in desktop renders only (wifecraft/README.md, The Eve body).",
-  "defaults.fit: what every row's fit starts from. The proportions (heads, hipRatio, armRatio, handHeads, spread) edit the actor's skeleton while she wears Eve (engine/bodyrig.h): her height made `heads` of the model's own head heights (chin to crown), the hip joints at hipRatio of it, shoulder to fingertip armRatio of it, the hand handHeads head heights long, the clavicles spread by `spread`; 0 heads keeps the model's lengths. Chosen on the human woman from desktop renders: 7.3 heads (the game's own woman stands 8.7 of her head heights, a realistic woman 7 to 7.5)."
+  "defaults.fit: what every row's fit starts from. Proportions edit the actor's skeleton while she wears Eve (engine/bodyrig.h) at the model's own height: hip joints at hipRatio of her height (0: the model's), hands handHeads head heights long, clavicles spread by spread; heads > 0 would set her height in the model's head heights instead (none does: a shorter body under the game's head reads as a child). transfer: the reach (Sims metres) of the colour transfer that takes her skin's tones from the model's own; stitch: the seams joined to the model's cut-edge vertices."
  ],
  "defaults": {
   "fit": {
-   "heads": 7.3,
-   "hipRatio": 0.53,
-   "armRatio": 0.44,
+   "heads": 0,
+   "hipRatio": 0.55,
+   "armRatio": 0,
    "handHeads": 0.8,
-   "spread": 1.12
+   "spread": 1.12,
+   "transfer": 0.06,
+   "stitch": 1,
+   "ankleTuck": 0.0,
+   "ankleSink": 0.0,
+   "neckTuck": 0.0,
+   "neckLift": 0.0
   }
  },
  "races": [
@@ -32,7 +38,8 @@
     "shoulders": 1.15,
     "arm": 1.2,
     "forearm": 1.12,
-    "thigh": 0.95
+    "thigh": 1.03,
+    "calf": 1.05
    },
    "note": ""
   },
@@ -51,8 +58,9 @@
     "forearm": 1.288,
     "hips": 0.88,
     "shoulders": 1.0,
-    "thigh": 0.95,
-    "spread": 1.0
+    "thigh": 1.03,
+    "spread": 1.0,
+    "calf": 1.05
    },
    "note": "much slimmer than the orc build; the arms read thin"
   },
@@ -84,7 +92,8 @@
     "shoulders": 1.15,
     "arm": 1.2,
     "forearm": 1.12,
-    "thigh": 0.95
+    "thigh": 1.03,
+    "calf": 1.05
    },
    "note": ""
   },
@@ -103,7 +112,9 @@
     "shoulders": 1.15,
     "arm": 1.2,
     "forearm": 1.12,
-    "thigh": 0.95
+    "thigh": 1.03,
+    "calf": 1.05,
+    "transfer": 0.15
    },
    "note": "smooth all over: the undead body's exposed bones and stitches are lost"
   },
@@ -148,7 +159,8 @@
     "shoulders": 1.15,
     "arm": 1.2,
     "forearm": 1.12,
-    "thigh": 0.95
+    "thigh": 1.03,
+    "calf": 1.05
    },
    "note": "slim and long, as a troll is"
   },
@@ -180,8 +192,9 @@
     "shoulders": 1.0,
     "arm": 1.38,
     "forearm": 1.232,
-    "thigh": 0.95,
-    "spread": 1.05
+    "thigh": 1.03,
+    "spread": 1.05,
+    "calf": 1.05
    },
    "note": ""
   },
@@ -243,7 +256,8 @@
     "shoulders": 1.15,
     "arm": 1.2,
     "forearm": 1.12,
-    "thigh": 0.95
+    "thigh": 1.03,
+    "calf": 1.05
    },
    "note": ""
   },
@@ -275,8 +289,9 @@
     "shoulders": 1.0,
     "arm": 1.38,
     "forearm": 1.232,
-    "thigh": 0.95,
-    "spread": 1.05
+    "thigh": 1.03,
+    "spread": 1.05,
+    "calf": 1.05
    },
    "note": ""
   },
@@ -312,7 +327,8 @@
     "shoulders": 1.15,
     "arm": 1.2,
     "forearm": 1.12,
-    "thigh": 0.95
+    "thigh": 1.03,
+    "calf": 1.05
    },
    "note": "very tall and thin"
   },
@@ -326,13 +342,15 @@
    "quality": "acceptable",
    "reason": "",
    "fit": {
-    "girth": 1.357,
-    "arm": 1.38,
+    "girth": 1.5,
+    "arm": 1.5,
     "hips": 0.88,
     "shoulders": 0.9,
-    "forearm": 1.12,
-    "thigh": 0.95,
-    "spread": 1.0
+    "forearm": 1.25,
+    "thigh": 1.03,
+    "spread": 1.0,
+    "calf": 1.05,
+    "hipRatio": 0
    },
    "note": "slimmer than the Kul Tiran build"
   },

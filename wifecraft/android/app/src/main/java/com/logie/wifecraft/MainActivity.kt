@@ -59,6 +59,7 @@ import com.logie.wifecraft.bodyparts.EveStore
 import com.logie.wifecraft.bodyparts.ModelParts
 import com.logie.wifecraft.bodyparts.PartChoice
 import com.logie.wifecraft.bodyparts.PartStates
+import com.logie.wifecraft.characters.GearSwitch
 import com.logie.wifecraft.characters.NamedCast
 import com.logie.wifecraft.characters.NpcLooks
 import com.logie.wifecraft.characters.NpcRosterFile
@@ -70,6 +71,9 @@ import com.logie.wifecraft.ui.NpcActions
 import com.logie.wifecraft.ui.NpcDeleteWindow
 import com.logie.wifecraft.ui.NpcMenuWindow
 import com.logie.wifecraft.ui.PartControl
+import com.logie.wifecraft.ui.GearControl
+import com.logie.wifecraft.ui.LocalGearControl
+import com.logie.wifecraft.ui.classOutfits
 import com.logie.wifecraft.ui.PartImportSection
 import com.logie.wifecraft.ui.EveImportSection
 import com.logie.wifecraft.ui.casEveBinding
@@ -83,7 +87,6 @@ import com.logie.wifecraft.creator.Prefetch
 import com.logie.wifecraft.creator.Sex
 import com.logie.wifecraft.creator.GameTables
 import com.logie.wifecraft.creator.RaceBackdrop
-import com.logie.wifecraft.creator.TransmogCatalog
 import com.logie.wifecraft.data.DownloadHub
 import com.logie.wifecraft.data.SpaceCheck
 import com.logie.wifecraft.ui.DownloadActions
@@ -134,8 +137,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
@@ -315,26 +316,13 @@ class MainActivity : ComponentActivity() {
         for (name in NpcRosterFile.thumbnails(thumbs.list()?.toList().orEmpty(), id)) File(thumbs, name).delete()
     }
 
-    private val wardrobeLock = Mutex()
-    private var cachedWardrobe: TransmogCatalog? = null
-
-    private suspend fun loadWardrobe(): TransmogCatalog = wardrobeLock.withLock {
-        cachedWardrobe ?: withContext(Dispatchers.IO) {
-            GameTables.fetch(files.tablesDir, names = TransmogCatalog.TABLES)
-            TransmogCatalog.load(tables).also {
-                check(it.starter.keys.any { slot -> slot == 4 || slot == 5 }) { "The starter clothing could not be found in the downloaded tables." }
-            }
-        }.also { cachedWardrobe = it }
-    }
-
     @Composable
     private fun App() {
         val scope = rememberCoroutineScope()
         val icons = remember { GameIcons(files) }
         val menuArt = remember { WarArt.open(applicationContext) }
-        var wardrobe by remember { mutableStateOf<TransmogCatalog?>(null) }
-        var wardrobeStatus by remember { mutableStateOf<String?>(null) }
-        var wardrobeJob by remember { mutableStateOf<Job?>(null) }
+        // the Gear switch's clothing: each class's default outfit per race and sex (assets/class_outfits.json)
+        val outfits = remember { classOutfits(applicationContext) }
         var speed by remember { mutableIntStateOf(settings.downloadSpeed) }
         var mixShown by remember { mutableStateOf(mix) }
         // "Download everything": the free-space refusal shown on the Downloads page, and the packs that would fit
@@ -362,21 +350,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        fun loadTransmog() {
-            if (wardrobe != null || wardrobeJob?.isActive == true) return
-            wardrobeStatus = null
-            wardrobeJob = scope.launch {
-                try {
-                    wardrobe = loadWardrobe()
-                } catch (failure: CancellationException) { throw failure }
-                catch (failure: Exception) { wardrobeStatus = failure.message ?: "The clothing catalog could not be loaded." }
-            }
-        }
-
         var screen by remember { mutableStateOf(Screen.TITLE) }
-        LaunchedEffect(screen) {
-            if (screen == Screen.SETUP || screen == Screen.CREATOR) loadTransmog()
-        }
         var panel by remember { mutableStateOf(Panel.NONE) }
         var art by remember { mutableStateOf<WowArt?>(null) }
         var catalog by remember { mutableStateOf<Catalog?>(null) }
@@ -469,7 +443,8 @@ class MainActivity : ComponentActivity() {
         // the NPC picker's card menus: a named character's look, a man's body-part settings, Delete for the user's own NPCs
         val npcActions = remember(savedIds) {
             NpcActions(
-                hasMenu = { actor -> NpcRosterFile.canDelete(actor.id, savedIds) || NamedCast.isNamed(actor.id) || PartChoice.applies(actor.appearance) },
+                // every NPC has the Gear switch on its menu
+                hasMenu = { _ -> true },
                 open = { actor -> npcMenu = actor.id },
                 portraitDisplay = { actor -> namedCast.choiceOf(actor.appearance)?.display ?: 0 },
             )
@@ -536,12 +511,7 @@ class MainActivity : ComponentActivity() {
                             previewView = previewView,
                             locationLoader = locationLoader,
                             portraits = portraits,
-                            portraitActor = { actor ->
-                                val raw = actor.appearance
-                                val clothes = wardrobe
-                                val appearance = if (raw.starterClothing && raw.gear) clothes?.equipStarter(raw) else raw
-                                appearance?.let { actor.copy(appearance = it) }
-                            },
+                            portraitActor = { actor -> actor.copy(appearance = outfits.dressed(actor.appearance)) },
                             objects = objects,
                             onToggleObject = { item -> objects = if (item in objects) objects - item else objects + item },
                             onCreate = { screen = Screen.CREATOR },
@@ -564,15 +534,7 @@ class MainActivity : ComponentActivity() {
                                 when (step) {
                                     SetupStep.LOCATION -> step = SetupStep.CAST
                                     SetupStep.CAST -> step = SetupStep.OBJECTS
-                                    SetupStep.OBJECTS -> if (location != null && chosen.isNotEmpty()) {
-                                        if (wardrobe == null && chosen.any { it.appearance.starterClothing && it.appearance.gear }) {
-                                            val lastError = wardrobeStatus
-                                            loadTransmog()
-                                            problem = lastError ?: "Starter clothing is loading. Try Begin scene again once the clothes are ready."
-                                        } else {
-                                            screen = Screen.LIVE
-                                        }
-                                    }
+                                    SetupStep.OBJECTS -> if (location != null && chosen.isNotEmpty()) screen = Screen.LIVE
                                 }
                             },
                         ) }
@@ -639,20 +601,12 @@ class MainActivity : ComponentActivity() {
                             model, checkNotNull(art), view, tables,
                             actorKey = key,
                             onPreviewRace = { backdropRace = it },
-                            transmog = wardrobe,
-                            transmogStatus = wardrobeStatus,
-                            onLoadTransmog = ::loadTransmog,
                             iconSource = icons,
                             portraits = portraits,
-                            onLook = {
-                                val raw = model.appearance
-                                if (wardrobe != null || !raw.starterClothing || !raw.gear) {
-                                    dresser.dress(view, c, key, wardrobe?.equipStarter(raw) ?: raw)
-                                }
-                            },
+                            onLook = { dresser.dress(view, c, key, outfits.dressed(model.appearance)) },
                             onFinish = { name, appearance ->
-                                val dressed = wardrobe?.equipStarter(appearance) ?: appearance
-                                val npc = Actor(UUID.randomUUID().toString(), name.ifBlank { "New NPC" }, dressed)
+                                // kept as made (the Gear switch and class); dressed when drawn (ClassOutfits.dressed)
+                                val npc = Actor(UUID.randomUUID().toString(), name.ifBlank { "New NPC" }, appearance)
                                 runCatching { saveNpc(npc) }.onSuccess {
                                     savedRoster = savedRoster + npc
                                     savedIds = savedIds + npc.id
@@ -666,14 +620,6 @@ class MainActivity : ComponentActivity() {
                                 casEveBinding(eveStore.index()?.takeIf { eveLoaded }?.let { EveOptionsEditor(it, eveFit) }, eveDefaultOn)
                             },
                         )
-                        if (wardrobe == null) {
-                            val message = wardrobeStatus ?: "Loading starter clothing…"
-                            if (wardrobeStatus == null) {
-                                Text(message, Modifier.align(Alignment.TopCenter).padding(top = 78.dp), color = Color.White)
-                            } else {
-                                TextButton(::loadTransmog, Modifier.align(Alignment.TopCenter).padding(top = 74.dp)) { Text("Retry starter clothing") }
-                            }
-                        }
                         backdropStatus?.let { message ->
                             if (message.endsWith("Tap to retry.")) {
                                 TextButton({ backdropRetry++ }, Modifier.align(Alignment.TopCenter).padding(top = 40.dp)) { Text(message) }
@@ -688,12 +634,7 @@ class MainActivity : ComponentActivity() {
                             val actor = chosen.firstOrNull() ?: starters.firstOrNull()
                             val animationCatalog = catalog
                             if (actor != null && animationCatalog != null) {
-                                if (wardrobe == null && actor.appearance.starterClothing && actor.appearance.gear) {
-                                    Text(wardrobeStatus ?: "Loading starter clothing…", style = frizStyle(14.sp))
-                                } else {
-                                    val appearance = wardrobe?.equipStarter(actor.appearance) ?: actor.appearance
-                                    AnimationViewport(sceneView(), dresser, animationCatalog, appearance, actor.name, clip)
-                                }
+                                AnimationViewport(sceneView(), dresser, animationCatalog, outfits.dressed(actor.appearance), actor.name, clip)
                             } else {
                                 Text("Choose an NPC to preview animations.", style = frizStyle(14.sp))
                             }
@@ -735,6 +676,11 @@ class MainActivity : ComponentActivity() {
                         var loadedActors by remember(session) { mutableIntStateOf(0) }
                         var contactError by remember(session) { mutableStateOf<String?>(null) }
                         var spots by remember(session) { mutableStateOf(emptyMap<SceneObject, InteractionSpot>()) }
+                        // the scene's Gear switches (LocalGearControl): each NPC as switched in this scene (dressed again at once),
+                        // kept in npc-looks.json when the scene ends (characters/GearSwitch)
+                        var liveGear by remember(session) { mutableStateOf(emptyMap<String, Actor>()) }
+                        val chosenNow by rememberUpdatedState(chosen)
+                        val liveActor: (Actor) -> Actor = { a -> liveGear[a.id] ?: a }
                         DisposableEffect(session) {
                             var active = true
                             view.removeAll()
@@ -760,13 +706,18 @@ class MainActivity : ComponentActivity() {
                             }
                             val actionAnimations = objects.mapTo(mutableSetOf()) { it.action.animation }
                             for (actor in chosen) {
-                                val dressed = wardrobe?.equipStarter(actor.appearance) ?: actor.appearance
+                                val dressed = outfits.dressed(actor.appearance)
                                 dresser.dress(view, c, actorKey(actor.id), dressed, actionAnimations) {
                                     if (active) loadedActors++
                                 }
                             }
                             onDispose {
                                 active = false
+                                // the Gear switches set in this scene kept for the NPCs (their menus show them)
+                                val switched = chosen.filter { it.id in liveGear }
+                                if (switched.isNotEmpty()) saveLooks(switched.fold(npcLooks) { looks, a ->
+                                    GearSwitch.remember(looks, a, GearSwitch.isOn(liveActor(a).appearance, namedCast), namedCast)
+                                })
                                 locationLoader.cancel()
                                 for (actor in chosen) dresser.cancel(actorKey(actor.id))
                                 view.select(null)
@@ -783,6 +734,20 @@ class MainActivity : ComponentActivity() {
                         LaunchedEffect(partKeys, chosen) {
                             partStates = chosen.fold(partStates) { states, actor ->
                                 if (actorKey(actor.id) in partKeys) states.register(actor.id) else states.remove(actor.id)
+                            }
+                        }
+                        val gearControl = remember(session) {
+                            object : GearControl {
+                                override fun isOn(npcId: String): Boolean =
+                                    chosenNow.firstOrNull { it.id == npcId }?.let { GearSwitch.isOn(liveActor(it).appearance, namedCast) } ?: false
+                                override fun set(npcId: String, on: Boolean) {
+                                    val a = chosenNow.firstOrNull { it.id == npcId } ?: return
+                                    val next = GearSwitch.apply(liveActor(a), on, namedCast)
+                                    liveGear = liveGear + (npcId to next)
+                                    dresser.dress(view, c, actorKey(npcId), outfits.dressed(next.appearance), objects.mapTo(mutableSetOf()) { it.action.animation })
+                                }
+                                override fun allOn(): Boolean = GearSwitch.allOn(chosenNow.map(liveActor), namedCast)
+                                override fun setAll(on: Boolean) { for (a in chosenNow) set(a.id, on) }
                             }
                         }
                         val partControl = remember(session) {
@@ -831,7 +796,7 @@ class MainActivity : ComponentActivity() {
                                 c.apply(clockSettings)
                             }
                         }
-                        Collected(status) { liveStatus -> CompositionLocalProvider(LocalPartControl provides partControl) { LiveSceneScreen(
+                        Collected(status) { liveStatus -> CompositionLocalProvider(LocalPartControl provides partControl, LocalGearControl provides gearControl) { LiveSceneScreen(
                             view, camera, preset.name, chosen, objects, spots, actorKey, objectHits, toStage, toLocal, rotation,
                             onAnimate = { id, activity -> dresser.fetchAnim(actorKey(id), activity.animation) },
                             clips = availableClips,
@@ -855,11 +820,11 @@ class MainActivity : ComponentActivity() {
                             icons = icons,
                             immersive = immersiveSettings,
                             // the flow's undressing: what each wears (their outfit as dressed), what they keep on, dressed again without
-                            worn = { id -> chosen.firstOrNull { it.id == id }?.let { a -> (wardrobe?.equipStarter(a.appearance) ?: a.appearance).clothing.keys } ?: emptySet() },
+                            worn = { id -> chosen.firstOrNull { it.id == id }?.let { a -> outfits.dressed(liveActor(a).appearance).clothing.keys } ?: emptySet() },
                             keepOn = { id -> settings.keepOn(id) },
                             onUndress = { id, off ->
                                 chosen.firstOrNull { it.id == id }?.let { a ->
-                                    val dressed = wardrobe?.equipStarter(a.appearance) ?: a.appearance
+                                    val dressed = outfits.dressed(liveActor(a).appearance)
                                     val look = if (off.isEmpty()) dressed else dressed.copy(clothing = dressed.clothing - off, starterClothing = false)
                                     dresser.dress(view, c, actorKey(a.id), look, objects.mapTo(mutableSetOf()) { it.action.animation })
                                 }
@@ -997,6 +962,8 @@ class MainActivity : ComponentActivity() {
                         canDelete = canDelete,
                         onDelete = { npcDelete = actor },
                         onClose = { npcMenu = null },
+                        gear = GearSwitch.isOn(actor.appearance, namedCast),
+                        onGear = { on -> saveLooks(GearSwitch.remember(npcLooks, actor, on, namedCast)) },
                     )
                 }
                 OverlayFor(npcDelete, { npcDelete = null }) { actor ->

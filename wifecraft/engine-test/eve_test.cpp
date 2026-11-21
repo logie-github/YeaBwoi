@@ -257,7 +257,7 @@ int main(int argc, char** argv) {
                 }
             }
             // the twist helper resolved by its key bone; the breast (missing on this model) to the chest
-            CHECK(body.verts.back().bones[0] == kChest, "breast to chest: %d", body.verts.back().bones[0]);
+            CHECK(body.verts[e.vertexCount() - 1].bones[0] == kChest, "breast to chest: %d", body.verts[e.vertexCount() - 1].bones[0]);
             // weights sum to 255 everywhere
             bool sums = true;
             for (const M2Vertex& v : body.verts) sums &= v.weights[0] + v.weights[1] + v.weights[2] + v.weights[3] == 255;
@@ -307,7 +307,66 @@ int main(int argc, char** argv) {
         FileLookup look = [&](uint32_t id) { std::string p = files + "/" + std::to_string(id); FILE* f = std::fopen(p.c_str(), "rb"); if (!f) return std::string(); std::fclose(f); return p; };
         for (int i = 3; i < argc; ++i) {
             M2Model m;
+            // MODEL[:SKIN[:FIT_JSON]]: with its base skin's file, the skin's colour across the seams is checked too
+            std::string arg = argv[i];
+            uint32_t skinId = 0;
+            std::string fitPath;
+            {
+                size_t c1 = arg.find(':');
+                if (c1 != std::string::npos) {
+                    size_t c2 = arg.find(':', c1 + 1);
+                    skinId = uint32_t(std::strtoul(arg.substr(c1 + 1, c2 == std::string::npos ? std::string::npos : c2 - c1 - 1).c_str(), nullptr, 10));
+                    if (c2 != std::string::npos) fitPath = arg.substr(c2 + 1);
+                }
+            }
             if (!m.load(uint32_t(std::atoi(argv[i])), look)) { std::printf("model %s: %s\n", argv[i], m.error.c_str()); continue; }
+            // the real fit table's row (the app's defaults under it): height kept, seams stitched shut, the colour across them
+            if (!fitPath.empty() && skinId) {
+                Bytes fj; readFile(fitPath, fj);
+                EveFitTable table; std::string ferr;
+                CHECK(parseEveFitTable(std::string(fj.begin(), fj.end()), table, ferr), "fit table: %s", ferr.c_str());
+                const EveRaceFit* row = table.forModel(m.fileId);
+                if (row && row->enabled) {
+                    auto set = std::make_shared<EveSet>();
+                    set->dir = dir; set->index = ix;
+                    EveJob j;
+                    j.serial = 1; j.key = 1; j.model = &m; j.set = set; j.mesh = std::make_shared<EveMesh>(e); j.fit = *row;
+                    j.indices = m.indices; j.subs = m.submeshes;
+                    j.skinPath = look(skinId);
+                    EveResult res = eveCompute(j);
+                    CHECK(res.ok, "model %u: %s", m.fileId, res.status.c_str());
+                    if (res.ok) {
+                        const EveFitStats& st = res.body.stats;
+                        float heads = st.head > 0 ? st.heightAfter / st.head : 0;
+                        std::printf("  %s: height %.3f -> %.3f (%.2f heads), seams ΔE neck %.1f ankles %.1f/%.1f, stitched %d\n", row->name.c_str(), st.height,
+                                    st.heightAfter, heads, res.seamDE[0], res.seamDE[1], res.seamDE[2], st.stitched);
+                        CHECK(std::fabs(st.heightAfter - st.height) <= 0.02f * st.height, "%s: she stands as tall as the model (%.3f / %.3f)", row->name.c_str(),
+                              st.heightAfter, st.height);
+                        // (every geoset shown here: a model whose extra skin geosets hide its head isn't measured)
+                        CHECK(st.head > 0.2f * st.height || (heads >= 7.0f && heads <= 9.2f), "%s: %.2f head heights", row->name.c_str(), heads);
+                        for (int k = 0; k < 3; ++k)
+                            CHECK(res.seamDE[k] >= 0 && res.seamDE[k] < 3.0f, "%s: seam %d's colour ΔE %.1f under 3", row->name.c_str(), k, res.seamDE[k]);
+                        CHECK(st.stitched == 3, "%s: three seams stitched (%d)", row->name.c_str(), st.stitched);
+                        // the stitch: every vertex added past Eve's own sits exactly on a model vertex with its weights (no gap in any pose)
+                        size_t added = 0, off = 0;
+                        for (size_t v = e.vertexCount(); v < res.body.verts.size(); ++v) {
+                            ++added;
+                            const M2Vertex& x = res.body.verts[v];
+                            bool on = false;
+                            for (const M2Vertex& w : m.vertices) {
+                                if (std::fabs(w.pos[0] - x.pos[0]) > 1e-6f || std::fabs(w.pos[1] - x.pos[1]) > 1e-6f || std::fabs(w.pos[2] - x.pos[2]) > 1e-6f) continue;
+                                int same = 0;
+                                for (int a = 0; a < 4; ++a) for (int b = 0; b < 4; ++b)
+                                    if (w.bones[a] == x.bones[b] && w.weights[a] && std::abs(int(w.weights[a]) - int(x.weights[b])) <= 2) ++same;
+                                int nw = 0; for (int a = 0; a < 4; ++a) nw += w.weights[a] ? 1 : 0;
+                                if (same >= nw) { on = true; break; }
+                            }
+                            if (!on) ++off;
+                        }
+                        CHECK(added > 0 && off == 0, "%s: %zu stitch vertices, %zu off the model's edge", row->name.c_str(), added, off);
+                    }
+                }
+            }
             EveRaceFit fit;
             auto t0 = std::chrono::steady_clock::now();
             EveBody b = fitEve(m, m.vertices, m.indices, m.submeshes, {}, e, fit);

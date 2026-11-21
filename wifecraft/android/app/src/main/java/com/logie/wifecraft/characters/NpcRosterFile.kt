@@ -60,21 +60,33 @@ object NpcRosterFile {
 
 /**
  * What the user chose for the NPCs that aren't in npc-roster.json (the starters and the named characters):
- * files/npc-looks.json, `{"<actor id>": {"variant": "<key>", "parts": {...}}}`. Pure JVM; immutable.
+ * files/npc-looks.json, `{"<actor id>": {"variant": "<key>", "parts": {...}, "gear": false}}`, and the Gear switch set on
+ * the NPC's menu or in a scene for anyone not named (`"gear"`, characters/GearSwitch: over the NPC's own). Pure JVM; immutable.
  */
-data class NpcLooks(val variants: Map<String, String> = emptyMap(), val parts: Map<String, PartOptions> = emptyMap()) {
+data class NpcLooks(
+    val variants: Map<String, String> = emptyMap(),
+    val parts: Map<String, PartOptions> = emptyMap(),
+    val gear: Map<String, Boolean> = emptyMap(),
+) {
     fun withVariant(id: String, key: String) = copy(variants = variants + (id to key))
     fun withParts(id: String, options: PartOptions) = copy(parts = parts + (id to options))
+    fun withGear(id: String, on: Boolean) = copy(gear = gear + (id to on))
 
-    /** [actor] with its saved body-part settings. */
-    fun apply(actor: Actor): Actor = parts[actor.id]?.let { actor.copy(appearance = actor.appearance.copy(parts = it)) } ?: actor
+    /** [actor] with its saved body-part settings and Gear switch. */
+    fun apply(actor: Actor): Actor {
+        var a = actor.appearance
+        parts[actor.id]?.let { a = a.copy(parts = it) }
+        gear[actor.id]?.let { if (a.named == null) a = a.copy(gear = it) }
+        return if (a == actor.appearance) actor else actor.copy(appearance = a)
+    }
 
     fun toJson(): String {
         val o = JSONObject()
-        for (id in (variants.keys + parts.keys).sorted()) {
+        for (id in (variants.keys + parts.keys + gear.keys).sorted()) {
             val row = JSONObject()
             variants[id]?.let { row.put("variant", it) }
             parts[id]?.let { row.put("parts", it.toJson()) }
+            gear[id]?.let { row.put("gear", it) }
             o.put(id, row)
         }
         return o.toString()
@@ -86,12 +98,14 @@ data class NpcLooks(val variants: Map<String, String> = emptyMap(), val parts: M
             val o = runCatching { JSONObject(text) }.getOrNull() ?: return NpcLooks()
             val variants = LinkedHashMap<String, String>()
             val parts = LinkedHashMap<String, PartOptions>()
+            val gear = LinkedHashMap<String, Boolean>()
             for (id in o.keys()) {
                 val row = o.optJSONObject(id) ?: continue
                 row.optString("variant").takeIf { it.isNotEmpty() }?.let { variants[id] = it }
                 PartOptions.fromJson(row.optJSONObject("parts"))?.let { parts[id] = it }
+                if (row.has("gear")) gear[id] = row.optBoolean("gear", true)
             }
-            return NpcLooks(variants, parts)
+            return NpcLooks(variants, parts, gear)
         }
     }
 }

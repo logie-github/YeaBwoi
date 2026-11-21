@@ -36,13 +36,12 @@ class AssetDownloads(private val context: Context, private val tables: Tables, p
 
     private fun asset(name: String): String = context.assets.open(name).bufferedReader().use { it.readText() }
 
-    fun plan(pack: PackKey, wardrobe: () -> TransmogCatalog): Work = when (pack) {
+    fun plan(pack: PackKey): Work = when (pack) {
         PackKey.BASICS, PackKey.ART -> Work(emptyList(), emptyList(), Closure.NONE)
         PackKey.PLACES -> places()
         PackKey.SOUNDS -> Work(sounds(), emptyList(), Closure.NONE)
         PackKey.ANIMATIONS -> animations()
         PackKey.NAMED -> namedCharacters()
-        PackKey.TRANSMOG -> transmog(wardrobe())
         PackKey.CREATURES -> creatures()
         PackKey.PROPS -> Work(emptyList(), library("0"), Closure.PROP)
         PackKey.BUILDINGS -> Work(emptyList(), library("1"), Closure.PROP)
@@ -100,15 +99,6 @@ class AssetDownloads(private val context: Context, private val tables: Tables, p
         return looksWork(looks, sets)
     }
 
-    /** Every Transmog item's models (every race and sex) and textures, and the items' icons. */
-    private fun transmog(wardrobe: TransmogCatalog): Work {
-        val pieces = wardrobe.pieces
-        val displays = pieces.mapTo(HashSet()) { it.display }
-        val icons = pieces.mapNotNull { p -> p.icon.takeIf { it > 0 } }
-        val (models, textures) = CreatureLooks.clothingFiles(tables, displays)
-        return Work(LinkedHashSet(textures + icons), models, Closure.MODEL)
-    }
-
     /** The placement library's creature models (assets/catalog.tsv kind 2) and the game's named creatures, each display. */
     private fun creatures(): Work {
         val displays = LinkedHashSet<Int>()
@@ -154,8 +144,8 @@ class AssetDownloads(private val context: Context, private val tables: Tables, p
     }
 
     /**
-     * The art's files: the Transmog window's (files/transmog-art), the menus' (files/war-art) and the creator's
-     * (files/creator-art), each at its own file's build, as those classes keep them.
+     * The art's files: the menus' (files/war-art) and the creator's (files/creator-art), each at its own file's build, as
+     * those classes keep them.
      */
     fun art(): List<ArtFile> {
         val out = ArrayList<ArtFile>()
@@ -180,7 +170,6 @@ class AssetDownloads(private val context: Context, private val tables: Tables, p
         val IMMERSION_SOUNDS = listOf(565519, 538983, 4612169, 4612171, 4612173, 4612175, 4612177, 4612179, 4612181)
 
         private val ART = listOf(
-            Triple("transmog_art.json", "transmog-art", listOf("files")),
             Triple("ui_art.json", "war-art", listOf("icons")),
             Triple("creator_art.json", "creator-art", listOf("files")),
         )

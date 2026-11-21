@@ -68,6 +68,7 @@ import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.anim.AnimationChoice
 import com.logie.wifecraft.anim.BoneTrack
 import com.logie.wifecraft.anim.PairAnim
+import com.logie.wifecraft.anim.PairSync
 import com.logie.wifecraft.anim.Requirement
 import com.logie.wifecraft.anim.RequirementStore
 import com.logie.wifecraft.anim.Surface
@@ -593,7 +594,8 @@ fun LiveSceneScreen(
     fun request(other: String?, choice: AnimationChoice, options: PlayOptions): PerformanceOrder {
         // one choice's roles for the scene (its clips kept under their keys) and one play's seconds
         fun rolesOf(c: AnimationChoice): Pair<List<PlaybackRole>, Float> {
-            val animations = c.clips.map { checkNotNull(it.forPlayback()) }
+            // the roles' clips on one clock where their lengths differ (anim/PairSync: the shorter looped or held to the end)
+            val animations = PairSync.synced(c.clips.map { checkNotNull(it.forPlayback()) })
             val roles = c.roles.mapIndexed { index, role ->
                 val animation = animations[index].copy(loop = false)
                 val key = "${c.id}:$index"
@@ -1391,6 +1393,19 @@ fun LiveSceneScreen(
                         val partNpc = active?.id?.takeIf { partControl?.has(it) == true }
                         if (partControl != null && partNpc != null) {
                             WifeChip(if (partControl.isOn(partNpc)) "Off" else "On", { partControl.toggle(partNpc) }, trailing = null)
+                        }
+                        // the Gear switch (ui/GearUi.kt): the selected NPC's, and everyone's in the scene
+                        val gearControl = LocalGearControl.current
+                        if (gearControl != null) {
+                            val gearNpc = active?.id
+                            if (gearNpc != null) {
+                                val on = gearControl.isOn(gearNpc)
+                                WifeChip(if (on) "Gear off" else "Gear on", { gearControl.set(gearNpc, !on) }, trailing = null)
+                            }
+                            if (cast.size > 1) {
+                                val all = gearControl.allOn()
+                                WifeChip(if (all) "All gear off" else "All gear on", { gearControl.setAll(!all) }, trailing = null)
+                            }
                         }
                         // the life answer's toast said it already: the line keeps the help
                         val toastText = lifeToast?.first?.message

@@ -42,10 +42,11 @@ class ImportedLook(
 
 /**
  * The one step every dressing path takes to put the user's imports on a look: the live scene and the creator (engine/Dresser),
- * the cast's portraits, the library's pictures, the placing ghost and the Transmog window's cards (engine/Thumbs). Pure JVM.
+ * the cast's portraits, the library's pictures and the placing ghost (engine/Thumbs). Pure JVM.
  *
  * - A created NPC, a starter (Mira, Rowan) or an NPC of an older project: its appearance resolved with the imports
- *   (LookResolver with [Overrides]), then [apply].
+ *   (LookResolver with [Overrides]), then [apply]; with Gear off (Appearance.gear) without the skin colour's underwear
+ *   ([bare]): nude, as a named character's bare variant.
  * - A named character's body variant (outfit, underwear, bare, nude) and a partial look's stand-in: the variant's appearance,
  *   with the NPC's own Body options and Undead switch where it has them; a bare, nude or partial one without the skin
  *   colour's underwear, the imported underwear included ([bare]).
@@ -65,7 +66,9 @@ object ImportedLooks {
         if (choice != null && choice.display > 0) return ofDisplay(c, t, choice.display, o, a.body)
         val variant = choice?.let { CharacterLooks.appearance(it.variant) }
         val drawn = if (variant == null) a else ownOptions(variant, a)
-        return ofBody(c, t, drawn, choice?.bare == true, o).with(choice?.set)
+        // Gear off on a created NPC (or a starter) is nude: the skin colour's underwear goes too, as a bare variant's
+        val nude = choice == null && a.named == null && !a.gear
+        return ofBody(c, t, drawn, choice?.bare == true || nude, o).with(choice?.set)
     }
 
     /**

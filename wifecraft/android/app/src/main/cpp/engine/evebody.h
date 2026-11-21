@@ -79,10 +79,14 @@ struct EveRaceFit {
     // Her proportions under the Warcraft head (the skeleton edited per actor while she wears Eve: bodyrig.h): the body made
     // `heads` of the model's own head heights tall (chin to crown; 0: the model's own lengths), the hip joints at `hipRatio`
     // of that height, shoulder to fingertip `armRatio` of it, a hand `handHeads` head heights long, the clavicles `spread`.
-    float heads = 0, hipRatio = 0.53f, armRatio = 0.44f, handHeads = 0.8f, spread = 1.0f;
+    float heads = 0, hipRatio = 0, armRatio = 0, handHeads = 0, spread = 1.0f;   // (0: the model's own)
     // The split fit (> 0): Eve from the neck to this share of the way down the thigh (hip to knee), the model's own legs
     // below it (a draenei's hooves): eveSplitMesh trims her there, the model keeps its thighs below the cut and its calves.
     float split = 0;
+    // The colour transfer's reach (Sims metres, scaled; 0: off, the neutral skin tinted by one colour as before).
+    float transfer = 0.06f;
+    // The seams stitched to the model's own cut-edge vertices (1) or only snapped onto them (0).
+    float stitch = 1;
 };
 struct EveFitTable {
     std::vector<EveRaceFit> rows;
@@ -134,6 +138,7 @@ struct EveFitStats {
     float ringMoveMean[3] = {0, 0, 0}, ringMoveMax[3] = {0, 0, 0};
     float unit = 1;                 // model units per Sims metre (the hip height ratio)
     float head = 0, height = 0, heightAfter = 0;   // the model's head (chin to crown), its height, hers with the proportions
+    int stitched = 0;               // seams stitched to the model's edge
     float kHip = 1, kShoulder = 1;  // the measured width ratios
     double ms = 0;
 };
@@ -192,8 +197,24 @@ void eveFrontBack(const EveMesh& m, const std::vector<uint8_t>& rgba, int w, int
 // One actor's texture: `base` (the corrected neutral skin or tone, w x h) times `gain` (linear; 1,1,1 for a tone), the
 // overlay `ov` (ow x oh at rect x, y) blended at `opacity` after its colour is scaled by `ovGain` (linear, per channel), then the
 // seams faded to `neckRgb` / `ankleRgb` (0xRRGGBB; tinted space, as drawn). `ov` may be null.
+// A gain per texel (linear, per channel) over the texture, held coarse (gw x gh cells, bilinear): eveTransferMap's.
+struct EveGainMap { int gw = 0, gh = 0; std::vector<float> rgb; bool empty() const { return rgb.empty(); } };
 void eveCompose(const std::vector<uint8_t>& base, int w, int h, V3 gain, const uint8_t* ov, int ow, int oh, int ox, int oy,
-                float opacity, V3 ovGain, const EvePrep& prep, uint32_t neckRgb, uint32_t ankleRgb, std::vector<uint8_t>& out);
+                float opacity, V3 ovGain, const EvePrep& prep, uint32_t neckRgb, uint32_t ankleRgb, std::vector<uint8_t>& out,
+                const EveGainMap* map = nullptr);
+
+// The skin's colour taken from her own Warcraft body (the colour transfer): each fitted Eve vertex gets the colour of the
+// model's skin around the same place (its shown skin vertices within `radius` model units whose normals face the same way,
+// Gaussian weighted, their texture `skin` (sw x sh RGBA) blurred and `tint`ed), over Eve's own colour there (`base`, w x h,
+// blurred the same), as a per-channel gain map over Eve's texture. Eve keeps her detail; the body's tones (the tan of a
+// leg, the darker feet, an orc's painted greens) come from the model's, so they meet its head, hands and feet. `wow`:
+// the model's vertices; `use`: which of them are its shown skin.
+// `anchors`: near each (within its reach) the gain eases to the anchor's own (the one that matches the model's colour at that
+// seam's cut edge exactly), so the seams meet whatever the body's tones around them.
+struct EveGainAnchor { std::vector<V3> points; V3 gain; float reach = 0; };
+EveGainMap eveTransferMap(const EveBody& eve, const std::vector<uint8_t>& base, int w, int h, const std::vector<M2Vertex>& wow,
+                          const std::vector<uint8_t>& use, const uint8_t* skin, int sw, int sh, const float tint[3], float radius,
+                          const std::vector<EveGainAnchor>& anchors = {});
 
 // The mean colour (0xRRGGBB, averaged in linear light) of `rgba` around each (u, v) of `uvs` (radius 2 px); -1 when none is opaque.
 int eveSampleAt(const uint8_t* rgba, int w, int h, const std::vector<float>& uvs);
@@ -251,6 +272,8 @@ struct EveResult {
     int shade = -1;
     float shadeDist = 0;
     double composeMs = 0, totalMs = 0;
+    float seamDE[3] = {-1, -1, -1};            // the skin's colour across the neck and ankle seams (CIE76 ΔE: Eve 2 to 5 cm from
+                                               // the ring against the model's skin as far on its side; -1: not measured)
 };
 // The texture's mip levels below `rgba` (w x h): each the 2 x 2 mean of the one above, down to 1 x 1.
 std::vector<std::vector<uint8_t>> eveMips(const std::vector<uint8_t>& rgba, int w, int h);

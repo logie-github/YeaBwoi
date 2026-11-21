@@ -180,7 +180,7 @@ class CasHistory<T>(initial: T, val limit: Int = 100) {
  * Randomize with locks: every option of an unlocked tab a choice at random (kept right with each other as the dice's are:
  * [CreatorModel.randomize]), a locked tab's left as it is; on an unlocked Body the body options where she can have them and
  * the sculpt (only where the Eve body takes it: [sculptable]) a moderate value; on unlocked Personality three traits that go
- * together. The outfit is the screen's (it has the wardrobe): [outfitPick] chooses one of [outfits] when Outfit is unlocked.
+ * together. A locked Outfit keeps the Gear switch and the class.
  */
 object CasRandomizer {
     /** The sculpt's random reach: plausible bodies, never the sliders' far ends. */
@@ -211,8 +211,4 @@ object CasRandomizer {
         }
         if (CasTab.OUTFIT in locks) model.restoreOutfit(before)
     }
-
-    /** One of [outfits] at random (null: none, or Outfit locked). */
-    fun <T> outfitPick(outfits: List<T>, locks: Set<CasTab>, random: Random): T? =
-        if (CasTab.OUTFIT in locks || outfits.isEmpty()) null else outfits[random.nextInt(outfits.size)]
 }

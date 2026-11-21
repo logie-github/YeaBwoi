@@ -775,8 +775,8 @@ object CasCameraLayout {
 
 /**
  * Where the shell's parts go on a [w] x [h] dp screen (landscape: the rail down the left, the panel on the right, the stage
- * between; portrait: the stage on top, the rail across under it, the panel below). [outfit]: the Transmog window takes the
- * stage and the panel's place. Pure (no layout jumps: every box is fixed by the screen's size alone).
+ * between; portrait: the stage on top, the rail across under it, the panel below). [outfit]: the stage takes the panel's
+ * place too (the creator passes false since the Outfit tab is a panel like the others). Pure (no layout jumps: every box is fixed by the screen's size alone).
  */
 data class CasBox(val x: Float, val y: Float, val w: Float, val h: Float)
 

@@ -48,6 +48,11 @@ data class PartOptions(val size: PartSize = PartSize.MEDIUM, val cut: PartCut = 
  * to ChrCustomizationChoice id; an option not in [picks] is at its first choice), Wrath++'s body options and whether
  * the starting outfit shows. Saved in the project as
  * `{"race":4,"sex":"FEMALE","picks":{"123":456},"body":{"shape":0,"style":0,"density":0},"gear":true}`.
+ * [gear] is the Gear switch: on, the NPC wears its class's default clothing ([classId]: ClassOutfits, 0 Civilian: the
+ * recruit's shirt, pants and boots, saved as `"class":2` when not 0); off, nothing (the body drawn bare). [clothing] is
+ * never saved: it is what a look wears as drawn (ClassOutfits.dressed fills it; the scene's undressing takes pieces off
+ * it). Saves from before the switch kept a Transmog outfit in `"clothing"`: one with any piece loads as Gear on, one whose
+ * every slot was cleared (`"clothing":{}`) or saved with `"gear":false` as Gear off; their pieces are not kept.
  * Wrath++'s Undead switch ([undead], the imported undead skins: [undeadSkin] the one on, 0 the first) adds
  * `"undead":true,"undeadSkin":2` while it is on; without them (every look saved before) it is off. The skin colour picked
  * among the race's own stays in [picks], so turning Undead off goes back to it.
@@ -70,18 +75,19 @@ data class Appearance(
      * decides). Saved as `"eve":{...}` only when set: older saves load as null and are written back the same.
      */
     val eve: EveOptions? = null,
+    /** The class whose default clothing Gear on wears (ChrClasses id; [ClassOutfits.CIVILIAN] 0: none). */
+    val classId: Int = 0,
 ) {
     fun toJson(): JSONObject {
         val p = JSONObject()
         for ((k, v) in picks.toSortedMap()) p.put(k.toString(), v)
-        val outfit = JSONObject().also { json -> clothing.toSortedMap().forEach { (slot, id) -> json.put(slot.toString(), id) } }
         return JSONObject()
             .put("race", raceId)
             .put("sex", sex.name)
             .put("picks", p)
             .put("body", JSONObject().put("shape", body.shape).put("style", body.style).put("density", body.density))
             .put("gear", gear)
-            .also { if (!starterClothing || clothing.isNotEmpty()) it.put("clothing", outfit) }
+            .also { if (classId != 0) it.put("class", classId) }
             .also { if (undead) it.put("undead", true).put("undeadSkin", undeadSkin) }
             .also { json -> named?.let { json.put("named", JSONObject().put("character", it.character).put("variant", it.variant)) } }
             .also { json -> parts?.takeIf { it != PartOptions() }?.let { json.put("parts", it.toJson()) } }
@@ -97,18 +103,19 @@ data class Appearance(
             val b = o.optJSONObject("body")
             val body = if (b == null) Body() else Body(b.optInt("shape"), b.optInt("style"), b.optInt("density"))
             val sex = runCatching { Sex.valueOf(o.optString("sex", "FEMALE")) }.getOrDefault(Sex.FEMALE)
-            val clothing = o.optJSONObject("clothing")?.let { json ->
-                ClothingSlot.entries.mapNotNull { slot -> json.optInt(slot.id.toString()).takeIf { it > 0 }?.let { slot.id to it } }.toMap()
-            }.orEmpty()
+            // an older save's Transmog outfit: any piece is Gear on, every slot cleared is Gear off (Appearance's doc)
+            val cleared = o.optJSONObject("clothing")?.let { json ->
+                ClothingSlot.entries.none { slot -> json.optInt(slot.id.toString()) > 0 }
+            } ?: false
             val named = o.optJSONObject("named")?.let { n ->
                 val character = n.optString("character"); val variant = n.optString("variant")
                 if (character.isEmpty() || variant.isEmpty()) null else NamedLook(character, variant)
             }
-            return Appearance(o.getInt("race"), sex, picks, body, o.optBoolean("gear", true),
-                o.optBoolean("undead", false), o.optInt("undeadSkin", 0).coerceAtLeast(0), clothing, starterClothing = !o.has("clothing"),
+            return Appearance(o.getInt("race"), sex, picks, body, o.optBoolean("gear", true) && !cleared,
+                o.optBoolean("undead", false), o.optInt("undeadSkin", 0).coerceAtLeast(0),
                 named = named, parts = PartOptions.fromJson(o.optJSONObject("parts")),
                 sculpt = BodySculpt.fromJson(o.optJSONObject("sculpt")), personality = CasPersonality.fromJson(o.optJSONObject("personality")),
-                eve = o.optJSONObject("eve")?.let { EveOptions.fromJson(it) })
+                eve = o.optJSONObject("eve")?.let { EveOptions.fromJson(it) }, classId = o.optInt("class", 0).coerceAtLeast(0))
         }
     }
 }
