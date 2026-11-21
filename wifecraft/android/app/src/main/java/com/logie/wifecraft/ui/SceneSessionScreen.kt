@@ -1061,7 +1061,7 @@ fun LiveSceneScreen(
                 Hit.Kind.LOCATION, Hit.Kind.PROP -> hit.key?.let(objectHits::get)?.let { item ->
                     mapper.tapItem(item, furnitureMeasured[item] ?: spots[item]?.let { Furniture.of(item, it) }, toStage, stageRotation)
                 }
-                Hit.Kind.GROUND -> mapper.tapFloor(toLocal(Vec3(hit.x, hit.y, hit.z)), active?.position, toStage, stageRotation)
+                Hit.Kind.GROUND -> mapper.tapFloor(toLocal(Vec3(hit.x, hit.y, hit.z)), null, toStage, stageRotation)
                 else -> Unit
             }
             return@rememberUpdatedState
