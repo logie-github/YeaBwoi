@@ -1,0 +1,71 @@
+{
+ "extends": "liard_rig_a.json",
+ "id": "liard_gnome_female",
+ "label": "Gnome woman (HD)",
+ "source": "Gnome Female 2.5 (GnomeFemale2.5.fbx and its textures)",
+ "body": {
+  "object": "Gnome_Skin3_0"
+ },
+ "materialImages": {
+  "M_skin": "Gnome0",
+  "M_Nails": "Gnome0",
+  "M_Eyes1": "GreenEyes"
+ },
+ "skinImage": "Gnome0",
+ "textureSize": {
+  "Gnome0": 2048,
+  "Gnome2": 2048
+ },
+ "eyeTextures": [
+  {
+   "label": "Green",
+   "image": "GreenEyes"
+  }
+ ],
+ "hair": [],
+ "jewelry": [],
+ "shapes": [
+  {
+   "key": "Breasts_Small",
+   "label": "Breasts: small"
+  },
+  {
+   "key": "Breasts_Huge",
+   "label": "Breasts: huge"
+  },
+  {
+   "key": "Thighs_Small",
+   "label": "Thighs: slim"
+  },
+  {
+   "key": "Thighs_Huge",
+   "label": "Thighs: full"
+  },
+  {
+   "key": "Ass_Small",
+   "label": "Rear: small"
+  },
+  {
+   "key": "Ass_Huge",
+   "label": "Rear: huge"
+  }
+ ],
+ "variants": [
+  {
+   "file": "Gnome_F.whd",
+   "race": 7,
+   "sex": 1,
+   "label": "Gnome woman (HD)",
+   "tints": [
+    {
+     "label": "Her own",
+     "image": "Gnome0"
+    },
+    {
+     "label": "Tone 2",
+     "image": "Gnome2"
+    }
+   ]
+  }
+ ]
+}

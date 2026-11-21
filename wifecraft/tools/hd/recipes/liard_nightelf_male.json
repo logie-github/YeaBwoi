@@ -1,0 +1,151 @@
+{
+ "extends": "liard_rig_a.json",
+ "id": "liard_nightelf_male",
+ "label": "Night elf man (HD)",
+ "source": "Nelf-Nightborne Male 3.0 (NelfMale3_0Beta.fbx and its Textures)",
+ "body": {
+  "object": "Skin_NightElf_3_0"
+ },
+ "materialImages": {
+  "NESkin": "NelfMale3_0",
+  "M_NBNails": "NelfMale3_0",
+  "NelfEyes": "eyes00_00_3509222",
+  "Hair": "nightelfmale_hd_hair_color_3621924",
+  "DH_Horn": "DemonhunterHorns",
+  "NbHair": "NightborneHair",
+  "M_NB_Skin": "NightborneSkin",
+  "NB_Eyes": "eyes00_00_3692625",
+  "blinn2": "NBEarrings",
+  "lambert2": "NBEarrings"
+ },
+ "skinImage": "NelfMale3_0",
+ "hairImage": "nightelfmale_hd_hair_color_3621924",
+ "textureSize": {
+  "NelfMale3_0": 2048,
+  "NightborneSkin": 2048
+ },
+ "genitalMask": {
+  "groups": "dick|balls",
+  "min": 0.5
+ },
+ "always": [
+  {
+   "id": "brows",
+   "objects": [
+    "NE_Eyebrows"
+   ],
+   "kind": "brows"
+  }
+ ],
+ "eyeTextures": {
+  "glob": "eyes00_*_35*",
+  "label": "Eyes {n}"
+ },
+ "hair": [
+  "Hairstyle_01",
+  "Hairstyle_02",
+  "Hairstyle_03",
+  "Hairstyle_04",
+  "Hairstyle_05",
+  "Hairstyle_06",
+  "Hairstyle_07",
+  "Hairstyle_08",
+  "Hairstyle_09",
+  "Hairstyle_10",
+  "Hairstyle_11",
+  "Hairstyle_12"
+ ],
+ "jewelry": [
+  "Beard_01",
+  "Beard_02",
+  "Beard_03",
+  "Beard_04",
+  "Horns_1",
+  "Horns_2",
+  "Horns_3",
+  "Horns_6"
+ ],
+ "variants": [
+  {
+   "file": "NightElf_M.whd",
+   "race": 4,
+   "sex": 0,
+   "label": "Night elf man (HD)",
+   "tints": [
+    {
+     "label": "His own",
+     "image": "NelfMale3_0"
+    },
+    {
+     "label": "Dusk",
+     "image": "NelfMale3_0",
+     "rgb": "D2C3EB"
+    },
+    {
+     "label": "Pale",
+     "image": "NelfMale3_0",
+     "rgb": "F0E8FA"
+    }
+   ],
+   "hairTints": {
+    "glob": "nightelfmale_hd_hair_color_*",
+    "label": "Colour {n}"
+   }
+  },
+  {
+   "file": "Nightborne_M.whd",
+   "race": 27,
+   "sex": 0,
+   "label": "Nightborne man (HD)",
+   "body": {
+    "object": "Skin_Nightborne_3_0"
+   },
+   "skinImage": "NightborneSkin",
+   "hairImage": "NightborneHair",
+   "always": [
+    {
+     "id": "brows",
+     "objects": [
+      "NB_Eyebrows"
+     ],
+     "kind": "brows"
+    }
+   ],
+   "hair": [
+    "Hairstyle_Nb_01",
+    "Hairstyle_Nb_02",
+    "Hairstyle_Nb_03",
+    "Hairstyle_Nb_04",
+    "Hairstyle_Nb_05",
+    "Hairstyle_Nb_06"
+   ],
+   "jewelry": [
+    "Accessory_Nb_01",
+    "Accessory_Nb_02",
+    "Accessory_Nb_04",
+    "Accessory_Nb_05",
+    "Accessory_Nb_06",
+    "Horns_1",
+    "Horns_2",
+    "Horns_3",
+    "Horns_6"
+   ],
+   "eyeTextures": [
+    {
+     "label": "Nightborne",
+     "image": "eyes00_00_3692625"
+    }
+   ],
+   "tints": [
+    {
+     "label": "His own",
+     "image": "NightborneSkin"
+    }
+   ],
+   "hairTints": {
+    "glob": "nightbornehair00_*",
+    "label": "Colour {n}"
+   }
+  }
+ ]
+}

@@ -1,50 +1,406 @@
 {
-  "extends": "liard_rig.json",
-  "id": "liard_nightelf_female",
-  "label": "Night elf woman (HD)",
-  "source": "Nelf Female 4.0 (NelfFemBeta4.fbx and its Textures folder)",
-  "body": {"object": "Skin4_0"},
-  "weights": {"M_Neck_Upper_Jnt": "Neck2"},
-  "joints": {"Neck2": "M_Neck_Upper_Jnt", "{S}_Breast": "{S}_Breast_01_Jnt"},
-  "materialImages": {"M_Skin2": "Skin4.8 V1.png", "pasted__M_Nails1": "Skin4.8 V1.png", "pasted__M_Eyes_New1": "EyesCustom.png",
-                     "M_Hair": "nightelfmale_hd_hair_color_3621924.png", "M_Lashes": "nightelfmale_hd_hair_color_3621924.png",
-                     "M_Leafs_Lambert": "nightelffemale_hd_vine_color_3636573.png", "M_Accessories": "nightelffemale_hd_vine_color_3636573.png",
-                     "M_Demonhunter_Horns": "nelffem 2_nightelf_female_dh_horns.png"},
-  "skinImage": "Skin4.8 V1.png",
-  "hairImage": "nightelfmale_hd_hair_color_3621924.png",
-  "textureSize": {"Skin4.8 V1.png": 2048, "Skin4.8 V2.png": 2048, "EyesCustom.png": 512},
-  "always": [{"id": "brows", "objects": ["Eyebrows_Long"], "kind": "brows"}, {"id": "lashes", "objects": ["Lashes_New"], "kind": "brows"}],
-  "eyeTextures": [{"id": "custom", "label": "Silver glow", "image": "EyesCustom.png"}, {"id": "e0", "label": "Eyes 1", "image": "eyes00_00_3509222.png"},
-                  {"id": "e1", "label": "Eyes 2", "image": "eyes00_01_3509231.png"}, {"id": "e2", "label": "Eyes 3", "image": "eyes00_02_3509232.png"},
-                  {"id": "e4", "label": "Eyes 4", "image": "eyes00_04_3509233.png"}, {"id": "e5", "label": "Eyes 5", "image": "eyes00_05_3621579.png"},
-                  {"id": "e6", "label": "Eyes 6", "image": "eyes00_06_3509224.png"}, {"id": "e7", "label": "Eyes 7", "image": "eyes00_07_3621580.png"},
-                  {"id": "e8", "label": "Eyes 8", "image": "eyes00_08_3621581.png"}, {"id": "e10", "label": "Eyes 9", "image": "eyes00_10_3509226.png"}],
-  "hair": [
-    {"id": "long", "label": "Long, leaves", "objects": ["Long", "Long_Leafs"]}, {"id": "bob", "label": "Bob", "objects": ["Bob"]},
-    {"id": "braidedtail", "label": "Braided tail", "objects": ["Braided_Tail"]}, {"id": "braidedtails", "label": "Braided tails", "objects": ["Braided_Tails"]},
-    {"id": "gathered", "label": "Gathered", "objects": ["Gathered"]}, {"id": "hairband", "label": "Hairband", "objects": ["Hairband"]},
-    {"id": "hightail", "label": "High tail", "objects": ["High_Tail"]}, {"id": "looped", "label": "Looped", "objects": ["Looped"]},
-    {"id": "loosetail", "label": "Loose tail", "objects": ["Loose_Tail"]}, {"id": "pixie", "label": "Pixie", "objects": ["Pixie"]},
-    {"id": "sassybuns", "label": "Buns", "objects": ["Sassy_Buns"], "maxTris": 2500}, {"id": "sassytails", "label": "Twin tails", "objects": ["Sassy_Tails"]},
-    {"id": "shaggy", "label": "Shaggy, leaves", "objects": ["Shaggy", "Shaggy_Leafs"]}, {"id": "short", "label": "Short", "objects": ["Short"]},
-    {"id": "shorttail", "label": "Short tail", "objects": ["Short_Tail"]}, {"id": "soaked", "label": "Soaked", "objects": ["Soaked"]},
-    {"id": "sombra", "label": "Side swept", "objects": ["Sombra"]}, {"id": "tomboy", "label": "Tomboy", "objects": ["Tomboy"]}
-  ],
-  "outfits": [],
-  "jewelry": [
-    {"id": "circlet", "label": "Circlet", "objects": ["Circlet"]}, {"id": "choker", "label": "Choker", "objects": ["Choker"]},
-    {"id": "chain", "label": "Chain", "objects": ["Chain"]}, {"id": "crescent", "label": "Crescent", "objects": ["Crescent"]},
-    {"id": "rings", "label": "Ear rings", "objects": ["Rings"]}, {"id": "blades", "label": "Ear blades", "objects": ["Blades"]},
-    {"id": "leafband", "label": "Leaf band", "objects": ["Leaf_Hairband"]}, {"id": "vine", "label": "Vine", "objects": ["Vine"]},
-    {"id": "vine2", "label": "Neck vine", "objects": ["Vine.001"]},
-    {"id": "horns2", "label": "Horns 1", "objects": ["Horns_2"]}, {"id": "horns3", "label": "Horns 2", "objects": ["Horns_3"]},
-    {"id": "horns4", "label": "Horns 3", "objects": ["Horns_4"]}, {"id": "horns5", "label": "Horns 4", "objects": ["Horns_5"]},
-    {"id": "horns6", "label": "Horns 5", "objects": ["Horns_6"]}, {"id": "horns7", "label": "Horns 6", "objects": ["Horns_7"]}
-  ],
-  "variants": [
-    {"file": "NightElf_F.whd", "race": 4, "sex": 1, "label": "Night elf woman (HD)",
-     "tints": [{"id": "v1", "label": "Violet", "image": "Skin4.8 V1.png"}, {"id": "v2", "label": "Violet 2", "image": "Skin4.8 V2.png"},
-               {"id": "dusk", "label": "Dusk", "image": "Skin4.8 V1.png", "rgb": "D2C3EB"}, {"id": "blue", "label": "Blue", "image": "Skin4.8 V1.png", "rgb": "C8D2F5"}],
-     "hairTints": {"glob": "nightelfmale_hd_hair_color_*.png", "label": "Colour {n}"}}
-  ]
+ "extends": "liard_rig.json",
+ "id": "liard_nightelf_female",
+ "label": "Night elf woman (HD)",
+ "source": "Nelf Female 4.0 (NelfFemBeta4.fbx and its Textures folder)",
+ "body": {
+  "object": "Skin4_0"
+ },
+ "weights": {
+  "M_Neck_Upper_Jnt": "Neck2"
+ },
+ "joints": {
+  "Neck2": "M_Neck_Upper_Jnt",
+  "{S}_Breast": "{S}_Breast_01_Jnt"
+ },
+ "materialImages": {
+  "M_Skin2": "Skin4.8 V1.png",
+  "pasted__M_Nails1": "Skin4.8 V1.png",
+  "pasted__M_Eyes_New1": "EyesCustom.png",
+  "M_Hair": "nightelfmale_hd_hair_color_3621924.png",
+  "M_Lashes": "nightelfmale_hd_hair_color_3621924.png",
+  "M_Leafs_Lambert": "nightelffemale_hd_vine_color_3636573.png",
+  "M_Accessories": "nightelffemale_hd_vine_color_3636573.png",
+  "M_Demonhunter_Horns": "nelffem 2_nightelf_female_dh_horns.png"
+ },
+ "skinImage": "Skin4.8 V1.png",
+ "hairImage": "nightelfmale_hd_hair_color_3621924.png",
+ "textureSize": {
+  "Skin4.8 V1.png": 2048,
+  "Skin4.8 V2.png": 2048,
+  "EyesCustom.png": 512
+ },
+ "always": [
+  {
+   "id": "brows",
+   "objects": [
+    "Eyebrows_Long"
+   ],
+   "kind": "brows"
+  },
+  {
+   "id": "lashes",
+   "objects": [
+    "Lashes_New"
+   ],
+   "kind": "brows"
+  }
+ ],
+ "eyeTextures": [
+  {
+   "id": "custom",
+   "label": "Silver glow",
+   "image": "EyesCustom.png"
+  },
+  {
+   "id": "e0",
+   "label": "Eyes 1",
+   "image": "eyes00_00_3509222.png"
+  },
+  {
+   "id": "e1",
+   "label": "Eyes 2",
+   "image": "eyes00_01_3509231.png"
+  },
+  {
+   "id": "e2",
+   "label": "Eyes 3",
+   "image": "eyes00_02_3509232.png"
+  },
+  {
+   "id": "e4",
+   "label": "Eyes 4",
+   "image": "eyes00_04_3509233.png"
+  },
+  {
+   "id": "e5",
+   "label": "Eyes 5",
+   "image": "eyes00_05_3621579.png"
+  },
+  {
+   "id": "e6",
+   "label": "Eyes 6",
+   "image": "eyes00_06_3509224.png"
+  },
+  {
+   "id": "e7",
+   "label": "Eyes 7",
+   "image": "eyes00_07_3621580.png"
+  },
+  {
+   "id": "e8",
+   "label": "Eyes 8",
+   "image": "eyes00_08_3621581.png"
+  },
+  {
+   "id": "e10",
+   "label": "Eyes 9",
+   "image": "eyes00_10_3509226.png"
+  }
+ ],
+ "hair": [
+  {
+   "id": "long",
+   "label": "Long, leaves",
+   "objects": [
+    "Long",
+    "Long_Leafs"
+   ]
+  },
+  {
+   "id": "bob",
+   "label": "Bob",
+   "objects": [
+    "Bob"
+   ]
+  },
+  {
+   "id": "braidedtail",
+   "label": "Braided tail",
+   "objects": [
+    "Braided_Tail"
+   ]
+  },
+  {
+   "id": "braidedtails",
+   "label": "Braided tails",
+   "objects": [
+    "Braided_Tails"
+   ]
+  },
+  {
+   "id": "gathered",
+   "label": "Gathered",
+   "objects": [
+    "Gathered"
+   ]
+  },
+  {
+   "id": "hairband",
+   "label": "Hairband",
+   "objects": [
+    "Hairband"
+   ]
+  },
+  {
+   "id": "hightail",
+   "label": "High tail",
+   "objects": [
+    "High_Tail"
+   ]
+  },
+  {
+   "id": "looped",
+   "label": "Looped",
+   "objects": [
+    "Looped"
+   ]
+  },
+  {
+   "id": "loosetail",
+   "label": "Loose tail",
+   "objects": [
+    "Loose_Tail"
+   ]
+  },
+  {
+   "id": "pixie",
+   "label": "Pixie",
+   "objects": [
+    "Pixie"
+   ]
+  },
+  {
+   "id": "sassybuns",
+   "label": "Buns",
+   "objects": [
+    "Sassy_Buns"
+   ],
+   "maxTris": 2500
+  },
+  {
+   "id": "sassytails",
+   "label": "Twin tails",
+   "objects": [
+    "Sassy_Tails"
+   ]
+  },
+  {
+   "id": "shaggy",
+   "label": "Shaggy, leaves",
+   "objects": [
+    "Shaggy",
+    "Shaggy_Leafs"
+   ]
+  },
+  {
+   "id": "short",
+   "label": "Short",
+   "objects": [
+    "Short"
+   ]
+  },
+  {
+   "id": "shorttail",
+   "label": "Short tail",
+   "objects": [
+    "Short_Tail"
+   ]
+  },
+  {
+   "id": "soaked",
+   "label": "Soaked",
+   "objects": [
+    "Soaked"
+   ]
+  },
+  {
+   "id": "sombra",
+   "label": "Side swept",
+   "objects": [
+    "Sombra"
+   ]
+  },
+  {
+   "id": "tomboy",
+   "label": "Tomboy",
+   "objects": [
+    "Tomboy"
+   ]
+  }
+ ],
+ "outfits": [],
+ "jewelry": [
+  {
+   "id": "circlet",
+   "label": "Circlet",
+   "objects": [
+    "Circlet"
+   ]
+  },
+  {
+   "id": "choker",
+   "label": "Choker",
+   "objects": [
+    "Choker"
+   ]
+  },
+  {
+   "id": "chain",
+   "label": "Chain",
+   "objects": [
+    "Chain"
+   ]
+  },
+  {
+   "id": "crescent",
+   "label": "Crescent",
+   "objects": [
+    "Crescent"
+   ]
+  },
+  {
+   "id": "rings",
+   "label": "Ear rings",
+   "objects": [
+    "Rings"
+   ]
+  },
+  {
+   "id": "blades",
+   "label": "Ear blades",
+   "objects": [
+    "Blades"
+   ]
+  },
+  {
+   "id": "leafband",
+   "label": "Leaf band",
+   "objects": [
+    "Leaf_Hairband"
+   ]
+  },
+  {
+   "id": "vine",
+   "label": "Vine",
+   "objects": [
+    "Vine"
+   ]
+  },
+  {
+   "id": "vine2",
+   "label": "Neck vine",
+   "objects": [
+    "Vine.001"
+   ]
+  },
+  {
+   "id": "horns2",
+   "label": "Horns 1",
+   "objects": [
+    "Horns_2"
+   ]
+  },
+  {
+   "id": "horns3",
+   "label": "Horns 2",
+   "objects": [
+    "Horns_3"
+   ]
+  },
+  {
+   "id": "horns4",
+   "label": "Horns 3",
+   "objects": [
+    "Horns_4"
+   ]
+  },
+  {
+   "id": "horns5",
+   "label": "Horns 4",
+   "objects": [
+    "Horns_5"
+   ]
+  },
+  {
+   "id": "horns6",
+   "label": "Horns 5",
+   "objects": [
+    "Horns_6"
+   ]
+  },
+  {
+   "id": "horns7",
+   "label": "Horns 6",
+   "objects": [
+    "Horns_7"
+   ]
+  }
+ ],
+ "variants": [
+  {
+   "file": "NightElf_F.whd",
+   "race": 4,
+   "sex": 1,
+   "label": "Night elf woman (HD)",
+   "tints": [
+    {
+     "id": "v1",
+     "label": "Violet",
+     "image": "Skin4.8 V1.png"
+    },
+    {
+     "id": "v2",
+     "label": "Violet 2",
+     "image": "Skin4.8 V2.png"
+    },
+    {
+     "id": "dusk",
+     "label": "Dusk",
+     "image": "Skin4.8 V1.png",
+     "rgb": "D2C3EB"
+    },
+    {
+     "id": "blue",
+     "label": "Blue",
+     "image": "Skin4.8 V1.png",
+     "rgb": "C8D2F5"
+    }
+   ],
+   "hairTints": {
+    "glob": "nightelfmale_hd_hair_color_*.png",
+    "label": "Colour {n}"
+   }
+  }
+ ],
+ "shapes": [
+  {
+   "key": "Breasts_Small",
+   "label": "Breasts: small"
+  },
+  {
+   "key": "Breasts_Big",
+   "label": "Breasts: big"
+  },
+  {
+   "key": "Breasts_Huge",
+   "label": "Breasts: huge"
+  },
+  {
+   "key": "Thighs_Small",
+   "label": "Thighs: slim"
+  },
+  {
+   "key": "Thighs_Huge",
+   "label": "Thighs: full"
+  },
+  {
+   "key": "Ass_Small",
+   "label": "Rear: small"
+  },
+  {
+   "key": "Ass_Huge",
+   "label": "Rear: huge"
+  }
+ ]
 }

@@ -84,7 +84,7 @@ class AutoplayPlanner(seed: Long = Random.nextLong()) {
                 if (c.requirement.actors.size != 2) continue
                 val before = out.size
                 for (p in places) FurnitureFit.fit(c.requirement, p.furniture, bodyUnit)?.let { out += AutoOption(p, c, it) }
-                if (out.size > before || c.requirement.surface in Requirement.FLOOR_LEVEL) continue
+                if (out.size > before) continue
                 for (p in places) if (!p.floor) FurnitureFit.fit(c.requirement, p.furniture, bodyUnit, relaxed = true)?.let { out += AutoOption(p, c, it) }
                 if (out.size > before) continue
                 // what a clip is marked for is only a preference: loosely on any piece (the marked ones came first), else the floor

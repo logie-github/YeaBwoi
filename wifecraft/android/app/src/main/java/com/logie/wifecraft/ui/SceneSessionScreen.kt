@@ -1043,11 +1043,15 @@ fun LiveSceneScreen(
             else FurnitureAnimation(c.id, c.name, r)
         }
         val unit = SceneSimulation.HUMAN_BODY_UNIT * listOfNotNull(id, with).map { bodyScales[it] ?: 1f }.average().toFloat()
-        // a piece the player classified (Move mode) offers only what belongs on its class
+        // (a piece the player classified in Move or Build mode, or its own kind, no longer limits what it offers: what an animation
+        // is marked for is only a preference, so every one is listed, those that belong on its class first)
         val mappedAs = mapper.classOf(item)
         val builtAs = build.overrideOf(item)
-        val offered = if (builtAs != null) library.filter { ItemOverrides.compatible(builtAs, it.requirement) }
-            else if (mappedAs == null) library else library.filter { ItemOverrides.compatible(mappedAs, it.requirement) }
+        val belongs = (builtAs ?: mappedAs)
+        val offered = if (belongs == null) library else library.sortedBy { e ->
+            val ok = if (builtAs != null) ItemOverrides.compatible(builtAs, e.requirement) else ItemOverrides.compatible(mappedAs!!, e.requirement)
+            if (ok) 0 else 1
+        }
         val listed = if (f == null) emptyList() else FurnitureSelection.listFor(f, offered, unit)
             .flatMap { (group, entries) -> entries.mapNotNull { e -> byId[e.animation.id]?.copy(group = group) } }
         if (listed.isEmpty()) use(id, item) else furnitureMenu = FurnitureMenu(id, item, listed)

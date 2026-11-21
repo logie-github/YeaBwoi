@@ -1,0 +1,100 @@
+{
+ "extends": "liard_rig_a.json",
+ "id": "liard_pandaren_female",
+ "label": "Pandaren woman (HD)",
+ "source": "Pandaren Female 2.5 (PandarenFemale3.0.fbx and its textures)",
+ "body": {
+  "object": "Skin_3_0_Long",
+  "label": "Tail: long"
+ },
+ "bodies": [
+  {
+   "object": "Skin_3_0_Nub",
+   "label": "Tail: nub"
+  }
+ ],
+ "materialImages": {
+  "Pandaskin": "BlackWhite",
+  "M_Panda_Eyes": "BlackWhite"
+ },
+ "skinImage": "BlackWhite",
+ "textureSize": {
+  "BlackWhite": 2048,
+  "BlackDotted": 2048,
+  "BlackWhiteOrange": 2048,
+  "Brown": 2048
+ },
+ "hair": [],
+ "jewelry": [
+  {
+   "id": "ringlong",
+   "label": "Tail ring (long)",
+   "objects": [
+    "tail_ring_Long"
+   ]
+  },
+  {
+   "id": "ringnub",
+   "label": "Tail ring (nub)",
+   "objects": [
+    "tail_ring_Nub"
+   ]
+  }
+ ],
+ "shapes": [
+  {
+   "key": "Breasts_Small",
+   "label": "Breasts: small"
+  },
+  {
+   "key": "Breasts_huge",
+   "label": "Breasts: huge"
+  },
+  {
+   "key": "Thighs_Small",
+   "label": "Thighs: slim"
+  },
+  {
+   "key": "Thighs_Huge",
+   "label": "Thighs: full"
+  },
+  {
+   "key": "Ass_small",
+   "label": "Rear: small"
+  },
+  {
+   "key": "Ass_Huge",
+   "label": "Rear: huge"
+  },
+  {
+   "key": "Thin_Bodyshape",
+   "label": "Slender"
+  }
+ ],
+ "variants": [
+  {
+   "file": "Pandaren_F.whd",
+   "race": 24,
+   "sex": 1,
+   "label": "Pandaren woman (HD)",
+   "tints": [
+    {
+     "label": "Black and white",
+     "image": "BlackWhite"
+    },
+    {
+     "label": "Dotted",
+     "image": "BlackDotted"
+    },
+    {
+     "label": "Orange",
+     "image": "BlackWhiteOrange"
+    },
+    {
+     "label": "Brown",
+     "image": "Brown"
+    }
+   ]
+  }
+ ]
+}

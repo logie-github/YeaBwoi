@@ -1,0 +1,108 @@
+{
+ "extends": "liard_rig_a.json",
+ "id": "liard_bloodelf_male",
+ "label": "Blood elf man (HD)",
+ "source": "Belf Male 3.0 (Beta3_0.fbx and its textures)",
+ "body": {
+  "object": "Skin_3_0"
+ },
+ "materialImages": {
+  "M_Skin": "BelfMaleRelease3_0",
+  "M_Eyes": "eyes00_01_3492880",
+  "M_Hair": "BlondeHair"
+ },
+ "skinImage": "BelfMaleRelease3_0",
+ "hairImage": "BlondeHair",
+ "textureSize": {
+  "BelfMaleRelease3_0": 2048
+ },
+ "genitalMask": {
+  "groups": "dick|balls",
+  "min": 0.5
+ },
+ "always": [
+  {
+   "id": "brows",
+   "objects": [
+    "Eyebrows"
+   ],
+   "kind": "brows"
+  }
+ ],
+ "eyeTextures": {
+  "glob": "eyes00_*",
+  "label": "Eyes {n}"
+ },
+ "hair": [
+  "Be_Hair1",
+  "Be_Hair2",
+  "Be_Hair3",
+  "Be_Hair4",
+  "Be_Hair5",
+  "Be_Hair6",
+  "Be_Hair7",
+  "Be_Hair8",
+  "Be_Hair9",
+  "Be_Hair10",
+  "Be_Hair11",
+  "Be_Hair12",
+  "Be_Hair13",
+  "Be_Hair14",
+  "Be_Hair15",
+  "BE_Hair016",
+  "BE_Hair017"
+ ],
+ "jewelry": [
+  "BE_Beard02",
+  "BE_Beard03",
+  "BE_Beard04",
+  "BE_Beard05",
+  "BE_Beard06",
+  "BE_Beard07",
+  "BE_Beard08",
+  "BE_Beard09",
+  "BE_Beard10"
+ ],
+ "variants": [
+  {
+   "file": "BloodElf_M.whd",
+   "race": 10,
+   "sex": 0,
+   "label": "Blood elf man (HD)",
+   "tints": [
+    {
+     "label": "His own",
+     "image": "BelfMaleRelease3_0"
+    },
+    {
+     "label": "Fair",
+     "image": "BelfMaleRelease3_0",
+     "rgb": "FFF4EA"
+    },
+    {
+     "label": "Tanned",
+     "image": "BelfMaleRelease3_0",
+     "rgb": "E8CCB0"
+    }
+   ],
+   "hairTints": [
+    {
+     "label": "Blonde",
+     "image": "BlondeHair"
+    },
+    {
+     "label": "Black",
+     "image": "BlackHair"
+    },
+    {
+     "label": "Red",
+     "image": "RedHair"
+    },
+    {
+     "label": "Grey",
+     "image": "GrayHair"
+    }
+   ]
+  }
+ ]
+}

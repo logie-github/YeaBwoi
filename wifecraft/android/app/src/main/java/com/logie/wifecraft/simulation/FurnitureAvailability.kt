@@ -48,15 +48,15 @@ data class Availability(
     val chip: String get() = when (state) {
         PlayState.READY -> "Ready"
         PlayState.ON_FURNITURE -> "On the " + (furniture?.kind?.label?.lowercase() ?: "furniture")
-        PlayState.FLOOR -> if (needs in Requirement.FLOOR_LEVEL || needs == Surface.UNKNOWN) "Floor"
-            else "Needs ${FurnitureAvailability.placeName(needs)}: floor"
+        PlayState.FLOOR -> "Floor"
     }
 }
 
 /**
- * Which animations play in a scene and where (pure): every animation plays. One whose bodies need furniture plays on the
- * nearest piece it fits ([FurnitureFit.fit]), else on one it nearly fits ([FurnitureFit.fit] relaxed: a bed taller than the
- * clip's, a couch for a bed), else on the floor with a notice. The animation window's chips and counter, the placed orders,
+ * Which animations play in a scene and where (pure): every animation plays, anywhere: what one is marked for (bed, couch,
+ * table...) is only a preference, never a gate. One whose bodies need furniture plays on the nearest piece it fits
+ * ([FurnitureFit.fit]), else on one it nearly fits ([FurnitureFit.fit] relaxed: a bed taller than the clip's, a couch for a
+ * bed), else on any piece loosely (loose), else on the floor, lowered onto it, with a notice. The animation window's chips and counter, the placed orders,
  * the stage chain and cinematic auto-play all read it.
  */
 object FurnitureAvailability {
@@ -79,6 +79,10 @@ object FurnitureAvailability {
         val ordered = if (fromX.isNaN() || fromY.isNaN()) pieces else pieces.sortedBy { hypot(it.x - fromX, it.y - fromY) }
         for (f in ordered) FurnitureFit.fit(need, f, bodyUnit)?.let { return Availability(PlayState.ON_FURNITURE, need.surface, f, it, treatedAs = treatAs) }
         for (f in ordered) FurnitureFit.fit(need, f, bodyUnit, relaxed = true)?.let {
+            return Availability(PlayState.ON_FURNITURE, need.surface, f, it, relaxed = true, treatedAs = treatAs)
+        }
+        // what it is marked for is only a preference: any piece it can be put on loosely, before the floor
+        for (f in ordered) FurnitureFit.fit(need, f, bodyUnit, loose = true)?.let {
             return Availability(PlayState.ON_FURNITURE, need.surface, f, it, relaxed = true, treatedAs = treatAs)
         }
         return Availability(PlayState.FLOOR, need.surface, notice = notice(need.surface, pieces.isNotEmpty(), rests), treatedAs = treatAs,
@@ -128,17 +132,17 @@ object FurnitureAvailability {
     }
 
     /**
-     * The animation window's counter: "412 of 530 playable here" (those that play as made: where they are or on furniture
-     * here), then how many play on the floor in place of furniture: "412 of 530 playable here, 118 more on the floor".
+     * The animation window's counter: "530 playable here" (all of them), then how many play on the floor in place of
+     * furniture: "530 playable here, 118 of them on the floor".
      */
     fun counter(states: Collection<PlayState>): String {
-        val here = states.count { it != PlayState.FLOOR }
-        val floor = states.size - here
-        return "$here of ${states.size} playable here" + if (floor > 0) ", $floor more on the floor" else ""
+        val floor = states.count { it == PlayState.FLOOR }
+        return "${states.size} playable here" + if (floor > 0) ", $floor of them on the floor" else ""
     }
 
-    /** Whether the animation window lists one with [a] (null: not known) under "Show only playable here" ([onlyPlayable]). */
-    fun shown(a: Availability?, onlyPlayable: Boolean): Boolean = !onlyPlayable || a == null || a.state != PlayState.FLOOR
+    /** Whether the animation window lists one with [a] (null: not known) (every one is playable: nothing is hidden, [onlyPlayable] kept for the old setting). */
+    @Suppress("UNUSED_PARAMETER")
+    fun shown(a: Availability?, onlyPlayable: Boolean): Boolean = true
 
     /** One line for the animation window's details: where [a] plays here. */
     fun describe(a: Availability): String {
