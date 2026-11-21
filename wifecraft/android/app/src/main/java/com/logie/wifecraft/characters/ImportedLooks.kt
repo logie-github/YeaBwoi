@@ -39,6 +39,9 @@ class ImportedLook(
     /** The body's base skin file (the body parts' and model sets' skin match); 0: none. */
     val skin: Int get() = look.layers.firstOrNull { it.textureType == 1 && it.region == -1 }?.fileId ?: look.textures[1] ?: 0
 
+    /** The same look drawn with [look] in its place (its textures made HD). */
+    fun withLook(look: ResolvedLook) = ImportedLook(look, drawn, layout, character, set, display, creature)
+
     fun with(set: ModelParts.PartSet?) = ImportedLook(look, drawn, layout, character, set, display, creature)
 }
 

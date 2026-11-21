@@ -1046,7 +1046,7 @@ class SceneSimulation(
     /**
      * The creature NPCs of the cast (actor id to [CreatureSpec]; Sindragosa's dragon): each is drawn by her own game
      * model, plays only her own game animations (the screen never gives her a Sims clip) and, in either role of a two-person
-     * stage, is put by [creatureDelta] with her hindquarters on the role's marker and clear of the other body. No lift:
+     * stage, is put by [creatureDelta] side-on to the other with her hips' flank on the role's marker. No lift:
      * she stands on the floor under her, never raised as a person lying on a bed is.
      */
     var creatures: Map<String, CreatureSpec> = emptyMap()
@@ -1056,8 +1056,8 @@ class SceneSimulation(
     /** [actor]'s creature move for the role [mine] against the role [theirs] (the pair's frame), else none. */
     private fun creatureDelta(actor: Actor?, mine: PlaybackRole, theirs: PlaybackRole): RoleDelta {
         val spec = actor?.let { creatures[it.id] } ?: return RoleDelta.ZERO
-        val d = CreatureNpcs.delta(spec, mine.offset.x, mine.offset.y, theirs.offset.x, theirs.offset.y, mine.facing)
-        return RoleDelta(d[0], d[1], 0f, 0f)
+        val d = CreatureNpcs.place(spec, mine.offset.x, mine.offset.y, theirs.offset.x, theirs.offset.y, mine.facing)
+        return RoleDelta(d[0], d[1], 0f, d[2])
     }
 
     /** The remembered correction and build mode's live nudge of role [index] of [p] (its z raises the body: [placed] can't). */

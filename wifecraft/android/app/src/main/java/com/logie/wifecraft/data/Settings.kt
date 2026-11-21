@@ -126,6 +126,11 @@ class Settings(context: Context) {
         get() = prefs.getBoolean("hdModels", true)
         set(v) = prefs.edit().putBoolean("hdModels", v).apply()
 
+    /** Options' HD creature textures switch (creator/HdTextures): a creature's skins enlarged twice, made once per texture. Off by default. */
+    var hdCreatureTextures: Boolean
+        get() = prefs.getBoolean("hdCreatureTextures", false)
+        set(v) = prefs.edit().putBoolean("hdCreatureTextures", v).apply()
+
     /**
      * The placement editor's own switches, kept for the user ([name]: "place.panel" the side panel open, "place.tip.<id>"
      * a first-use tip dismissed). Only names starting with "place." are kept.

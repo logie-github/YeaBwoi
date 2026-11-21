@@ -188,6 +188,7 @@ class MainActivity : ComponentActivity() {
     private val hdStore by lazy { HdStore(partsRoot) }
     private val hdRunner by lazy { HdImportRunner(hdStore) }
     @Volatile private var hdOn = true
+    @Volatile private var hdTexOn = false
     /** The sets as last loaded into the 3D view (by race * 10 + sex); every dressing path asks [hdContext]. */
     @Volatile private var hdSets: Map<Int, HdSetInfo> = emptyMap()
 
@@ -230,6 +231,7 @@ class MainActivity : ComponentActivity() {
         imports = ImportStore(filesDir, listfile, supportedKinds = setOf(ImportKind.RALIA, ImportKind.BODY, ImportKind.UNDEAD))
         eveDefaultOn = settings.eveDefault
         hdOn = settings.hdModels
+        hdTexOn = settings.hdCreatureTextures
         com.logie.wifecraft.bodyparts.ArousalControl.mode = settings.partArousal
         // a finished HD import or a Remove: the sets (re)loaded into the 3D view
         hdRunner.listen { st -> if (st is HdImportRunner.State.Done) runOnUiThread { scene?.let { loadHd(it) } ?: run { hdSets = hdStore.sets().associateBy { it.key } } } }
@@ -238,6 +240,7 @@ class MainActivity : ComponentActivity() {
         dresser = Dresser(files, tables, imports, lifecycleScope).apply {
             eve = { eveContext() }
             hd = { hdContext() }
+            hdTextures = com.logie.wifecraft.creator.HdTextureCache(File(filesDir, "hdtex"), files.dir) { hdTexOn }
             named = namedCast
             manifestJson = assetText(ModelParts.ASSET)
             partsRoot = this@MainActivity.partsRoot
@@ -952,6 +955,10 @@ class MainActivity : ComponentActivity() {
                                 var hdSwitch by remember { mutableStateOf(settings.hdModels) }
                                 HdModelsSection(hdRunner, hdStore, hdSwitch, onSwitch = { on ->
                                     hdSwitch = on; settings.hdModels = on; hdOn = on
+                                })
+                                var hdTexSwitch by remember { mutableStateOf(settings.hdCreatureTextures) }
+                                com.logie.wifecraft.ui.HdTexturesSection(hdTexSwitch, onSwitch = { on ->
+                                    hdTexSwitch = on; settings.hdCreatureTextures = on; hdTexOn = on
                                 })
                                 PartImportSection(partsRoot, partSet, profileJson = { assetText("sims_profile.json").orEmpty() }, onChanged = { set ->
                                     partSet = set

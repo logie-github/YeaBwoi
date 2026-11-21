@@ -6,7 +6,9 @@ import com.logie.wifecraft.simulation.SceneObject
 import com.logie.wifecraft.simulation.SceneSimulation
 import com.logie.wifecraft.story.Vec3
 import java.io.File
+import kotlin.math.cos
 import kotlin.math.hypot
+import kotlin.math.sin
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -41,34 +43,42 @@ class CreatureNpcTest {
         // her model is 33.5 yards nose to tail at scale 1 (CreatureModelData GeoBox): the display's own 2.5 would be 84 yards
         val length = 33.5f * s.scale
         assertTrue(length in 5f..12f, "length $length")
-        assertTrue(s.shiftX > 0f && s.clearance > 0f && s.entryHeight in 0.3f..2f)
+        assertTrue(s.hipX < 0f && s.flank > 0f && s.clearance >= 0f && s.entryHeight in 0.3f..2f)
     }
 
-    @Test fun herMarkerIsFilledForEitherRoleAndStaysClearOfTheOther() {
+    private fun world(s: CreatureSpec, mx: Float, my: Float, d: FloatArray, facing: Float): FloatArray {
+        // her flank point as drawn: origin + hipX * forward + flank * left, at her final facing
+        val yaw = facing + Math.toRadians(d[2].toDouble()).toFloat()
+        val ox = mx + d[0]; val oy = my + d[1]
+        return floatArrayOf(ox + s.hipX * cos(yaw) - s.flank * sin(yaw), oy + s.hipX * sin(yaw) + s.flank * cos(yaw), yaw)
+    }
+
+    @Test fun herMarkerIsFilledForEitherRoleSideOnAndClearOfTheOther() {
         val s = CreatureNpcs.SINDRAGOSA
-        // her marker 1 yard in front of the other's, both facing each other (role B of a face-to-face stage)
-        val d = CreatureNpcs.delta(s, 0.5f, 0f, -0.5f, 0f, Math.PI.toFloat())
-        // her hindquarters shift along her own facing (backwards in the pair's frame) and she is pushed away from the other: net
-        assertTrue(d[0].isFinite() && d[1].isFinite())
-        assertEquals(-s.shiftX + s.clearance, d[0], 1e-4f)
-        assertEquals(0f, d[1], 1e-4f)
-        // the same roles the other way round (she is role A): symmetric
-        val e = CreatureNpcs.delta(s, -0.5f, 0f, 0.5f, 0f, 0f)
-        assertEquals(s.shiftX - s.clearance, e[0], 1e-4f)
-        // two roles on one spot: no clearance, no NaN
-        val z = CreatureNpcs.delta(s, 0f, 0f, 0f, 0f, 0.3f)
-        assertTrue(z[0].isFinite() && z[1].isFinite())
-        assertEquals(s.shiftX, hypot(z[0], z[1]), 1e-4f)
+        for ((mx, ox, facing) in listOf(Triple(0.5f, -0.5f, Math.PI.toFloat()), Triple(-0.5f, 0.5f, 0f), Triple(0f, 0f, 1.2f))) {
+            val d = CreatureNpcs.place(s, mx, 0f, ox, 0f, facing)
+            assertTrue(d.all { it.isFinite() })
+            assertTrue(d[2] in -180f..180f)
+            val w = world(s, mx, 0f, d, facing)
+            // her flank point is the marker pushed by the clearance away from the other person
+            val away = if (mx == ox) 0f else if (mx > ox) 1f else -1f
+            assertEquals(mx + away * s.clearance, w[0], 1e-4f)
+            assertEquals(0f, w[1], 1e-4f)
+            // and her left flank faces the other person (her left axis points at them)
+            if (mx != ox) {
+                val left = floatArrayOf(-sin(w[2]), cos(w[2]))
+                assertEquals(if (ox > mx) 1f else -1f, left[0], 1e-4f)
+            }
+        }
     }
 
     @Test fun theSimulationPutsHerAtTheRoleAndNeverRaisesHer() {
         val sim = SceneSimulation(listOf("a", "character:sindragosa"), emptySet<SceneObject>())
         sim.creatures = mapOf("character:sindragosa" to CreatureNpcs.SINDRAGOSA)
         assertEquals(setOf("character:sindragosa"), sim.creatures.keys)
-        // a pair role and her move: the pair's frame, as the two roles
         val mine = PlaybackRole("b", Vec3(0.4f, 0f, 0f), Math.PI.toFloat())
         val theirs = PlaybackRole("a", Vec3(-0.4f, 0f, 0f), 0f)
-        val d = CreatureNpcs.delta(CreatureNpcs.SINDRAGOSA, mine.offset.x, mine.offset.y, theirs.offset.x, theirs.offset.y, mine.facing)
-        assertTrue(hypot(d[0], d[1]) <= CreatureNpcs.SINDRAGOSA.shiftX + CreatureNpcs.SINDRAGOSA.clearance + 1e-3f)
+        val d = CreatureNpcs.place(CreatureNpcs.SINDRAGOSA, mine.offset.x, mine.offset.y, theirs.offset.x, theirs.offset.y, mine.facing)
+        assertTrue(hypot(d[0], d[1]) <= CreatureNpcs.SINDRAGOSA.run { -hipX + flank + clearance } + 1e-3f)
     }
 }
