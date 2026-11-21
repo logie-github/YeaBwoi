@@ -287,6 +287,8 @@ static void cineLocations(const Json& root) {
     int n = 0;
     float worstKey = 0;
     std::string worstAt;
+    float roomLo = 1, roomHi = 0;
+    std::string roomLoAt;
     for (const Json& e : root["locations"].a) {
         std::string id = e["id"].str();
         DayCycle c;
@@ -327,11 +329,33 @@ static void cineLocations(const Json& root) {
                 if (warmthOf(hue) < -0.15f) CHECK(warmthOf(p.key) < 0.05f, "%s: a cold place got a warm key", what);
                 if (warmthOf(hue) > 0.15f) CHECK(warmthOf(p.key) > 0, "%s: a warm place got a cold key", what);
                 if (in.practicals.flames == 0) CHECK(p.flicker == 0, "%s: flickers without a flame", what);
+                // a room moody but readable: a mid surface (albedo 0.45) in the room's light (its ambient raised to the
+                // floor, its baked light, the hour's and the profile's tint), graded, at the zone mood's 0 and 0.7
+                if (in.interior)
+                    for (float zm : {0.0f, 0.7f}) {
+                        CineInput zi = in;
+                        zi.hasZone = !area.zone.empty() && zm > 0;
+                        if (zi.hasZone) { sampleZone(area.zone, h, zi.zone); zi.zoneAmount = zm; }
+                        CineProfile q = cineProfile(zi, o.empty() ? nullptr : &o);
+                        float lit[3], before[3], out[3];
+                        for (int i = 0; i < 3; ++i) {
+                            before[i] = std::min(1.0f, 0.45f * (in.roomAmbient[i] * s.interior[i] + in.roomLight[i]));
+                            lit[i] = std::min(1.0f, 0.45f * ((in.roomAmbient[i] + q.roomFloor[i]) * s.interior[i] + in.roomLight[i]) * q.room[i]);
+                        }
+                        cineGradeColour(q, lit, out);
+                        const float l = cineLum(out), l0 = cineLum(before);
+                        roomLo = std::min(roomLo, l); roomHi = std::max(roomHi, l);
+                        if (l < roomLo + 1e-6f) roomLoAt = what;
+                        CHECK(l >= 0.12f, "%s zone %.1f: the room too dark to read (%.3f, before %.3f)", what, zm, l, l0);
+                        CHECK(l <= 0.50f, "%s zone %.1f: the room washed out (%.3f)", what, zm, l);
+                        CHECK(l >= 0.6f * l0, "%s zone %.1f: the room crushed against the look without it (%.3f < %.3f)", what, zm, l, l0);
+                    }
                 ++n;
             }
         }
     }
     std::printf("%d place-hours' cinematic profiles checked (the key at most %.3f from the area's hue: %s)\n", n, worstKey, worstAt.c_str());
+    std::printf("rooms' mid surface graded: %.3f (%s) .. %.3f\n", roomLo, roomLoAt.c_str(), roomHi);
 }
 
 int main(int argc, char** argv) {

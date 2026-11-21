@@ -656,10 +656,15 @@ CineProfile cineProfile(const CineInput& in0, const CineOverride* over) {
         float fh[3];
         mixHue(area, sky, 0.25f * day, fh);
         limitChroma(fh, 0.30f);
-        const float target = 0.46f - 0.03f * night;
-        const float need = std::max(0.0f, target - lit);
-        for (int i = 0; i < 3; ++i) p.roomFloor[i] = fh[i] * 0.9f * need;
-        p.exposure = 1.0f + 0.60f * dark;
+        // (the room's ambient as it is drawn: times the hour's tint, darker and warmer at night; the floor goes in under that
+        // tint too, so it is raised by what the tint takes)
+        float tint[3];
+        interiorTint(in.hour < 0 ? 12.0f : in.hour, tint);
+        const float tl = std::max(cineLum(tint), 0.2f);
+        const float drawn = cineLum(in.roomAmbient) * tl + cineLum(in.roomLight);
+        const float need = std::max(0.0f, 0.42f - drawn);
+        for (int i = 0; i < 3; ++i) p.roomFloor[i] = fh[i] * 0.9f * need / tl;
+        p.exposure = 1.0f + (0.60f + 0.10f * night) * dark;
     } else {
         p.exposure = 1.0f + 0.15f * night * dark;
     }
@@ -673,7 +678,7 @@ CineProfile cineProfile(const CineInput& in0, const CineOverride* over) {
             // the mid-tones the ambient's (its mauve), the highlights a little of the sun's glow (its pale green)
             p.lift[i] += za * ((0.030f + 0.012f * b) * (zt.hazeHue[i] - 1.0f) + 0.008f);
             p.mid[i] = 1.0f + za * (0.06f + 0.05f * b) * (zt.ambHue[i] - 1.0f);
-            p.shadowTint[i] = 1.0f + za * (1.0f + 0.3f * b) * (zt.shadowHue[i] - 1.0f);
+            p.shadowTint[i] = 1.0f + za * (0.85f + 0.4f * b) * (zt.shadowHue[i] - 1.0f);
             p.highTint[i] = 1.0f + za * (0.45f + 0.20f * b) * (zt.highHue[i] - 1.0f);
             p.gain[i] += za * 0.03f * (zt.skyHue[i] - 1.0f);
         }
@@ -808,6 +813,11 @@ void cineGradeColour(const CineProfile& p, const float in[3], float out[3]) {
     {
         float l0 = cineLum(c);
         float ws = 1.0f - smooth01(0.0f, 0.45f, l0), wh = smooth01(0.45f, 1.0f, l0);
+        // (skin and the warm things kept: a warm hue, red over green over blue, takes little of the shadows' colour, so
+        // a face in the shade stays a face and a candle-lit table stays warm)
+        const float warmHue = std::clamp(((c[0] - c[2]) / std::max(c[0], 1e-3f) - 0.08f) * 3.0f, 0.0f, 1.0f) *
+                              std::clamp((c[1] - c[2]) / std::max(c[0] - c[2], 1e-3f) * 3.0f, 0.0f, 1.0f);
+        ws *= 1.0f - 0.9f * warmHue;
         for (int i = 0; i < 3; ++i) c[i] *= lerpf(1.0f, p.shadowTint[i], ws) * lerpf(1.0f, p.highTint[i], wh);
     }
     float l = cineLum(c);

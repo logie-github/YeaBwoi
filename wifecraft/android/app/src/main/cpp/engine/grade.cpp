@@ -56,7 +56,11 @@ void main() {
     vec3 s = c * c * (3.0 - 2.0 * c);
     c = mix(c, s, uContrast);
     float l0 = dot(c, vec3(0.299, 0.587, 0.114));
-    c *= mix(vec3(1.0), uShadowTint, 1.0 - smoothstep(0.0, 0.45, l0)) * mix(vec3(1.0), uHighTint, smoothstep(0.45, 1.0, l0));
+    // (skin and the warm things keep their colour: a warm hue takes little of the shadows' tint; daylight.cpp's maths)
+    float warmHue = clamp(((c.r - c.b) / max(c.r, 1e-3) - 0.08) * 3.0, 0.0, 1.0) *
+                    clamp((c.g - c.b) / max(c.r - c.b, 1e-3) * 3.0, 0.0, 1.0);
+    float ws = (1.0 - smoothstep(0.0, 0.45, l0)) * (1.0 - 0.9 * warmHue);
+    c *= mix(vec3(1.0), uShadowTint, ws) * mix(vec3(1.0), uHighTint, smoothstep(0.45, 1.0, l0));
     float l = dot(c, vec3(0.299, 0.587, 0.114));
     c = mix(vec3(l), c, uSat);
     float mids = 4.0 * l * (1.0 - l);

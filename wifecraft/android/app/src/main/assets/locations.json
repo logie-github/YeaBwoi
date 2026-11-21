@@ -15436,6 +15436,9 @@
     ]
    },
    "cinematic": {
+    "exposure": {
+     "inside": 0.9
+    },
     "source": "tools/locations.py --cinematic: the practical lights near each view (doodads by file name); \"override\" is set by hand (cpp engine/daylight.h CineOverride)",
     "practicals": {
      "inside": {
@@ -19842,6 +19845,9 @@
     ]
    },
    "cinematic": {
+    "exposure": {
+     "outside": 1.15
+    },
     "source": "tools/locations.py --cinematic: the practical lights near each view (doodads by file name); \"override\" is set by hand (cpp engine/daylight.h CineOverride)",
     "practicals": {
      "inside": {
