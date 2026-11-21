@@ -9,6 +9,7 @@
 //   gfxtiming on|off | gfxstats                each pass timed with glFinish round it, and the last frame's timings printed
 //   cinematic MOOD VIGNETTE GRAIN LETTERBOX    cinematic mode's look (Scene::setCinematic), each 0..1; LETTERBOX 1: the
 //                                              2.39:1 bars of the next render's size (grade.h letterboxBars)
+//   zonemood STRENGTH [boost]                  cinematic mode's zone mood (Scene::setZoneMood): 0..1, boost its colours
 //   city ROOT GROUP,GROUP,...  X Y Z RADIUS [X Y Z ...]   Dalaran's groups and the props near the points
 //   actor N MODEL SCALE X Y Z FACING [tex T=F,T=F] [geo GROUP=VALUE,...]
 //   attach N ATTACHMENT MODEL T=F,...
@@ -794,10 +795,12 @@ int main(int argc, char** argv) {
             float hours; ss >> hours; scene.setTimeOfDay(hours);   // the world clock's hour on the location (negative: off)
         } else if (cmd == "cinematic") {
             ss >> cine[0] >> cine[1] >> cine[2] >> cine[3];
+        } else if (cmd == "zonemood") {   // zonemood STRENGTH [boost]: cinematic mode's zone mood (Scene::setZoneMood)
+            float z = 0.7f; std::string b; ss >> z >> b; scene.setZoneMood(z, b == "boost" || b == "1");
         } else if (cmd == "gfx") {   // gfx [off] [NAME=VALUE...]: Options' Graphics (graphics_settings.h's names, lower case)
             static const char* kNames[GraphicsSettings::kCount] = {"scale", "msaa", "aniso", "texture", "tonemap", "exposure",
                 "bloom", "dof", "aperture", "dofeditor", "ao", "aoquality", "contact", "shadows", "shadowquality", "skin", "hair",
-                "shafts", "haze", "vignette", "grain", "chroma", "sharpen", "timers"};
+                "shafts", "haze", "vignette", "grain", "chroma", "sharpen", "timers", "eyes", "thinskin"};
             static float gfxv[GraphicsSettings::kCount];
             static bool gfxInit = false;
             auto reset = [] { GraphicsSettings d; for (float& v : gfxv) v = 0; gfxv[GraphicsSettings::kRenderScale] = 1;
@@ -813,6 +816,17 @@ int main(int argc, char** argv) {
                     if (eq != std::string::npos && k == kNames[i]) gfxv[i] = std::stof(kv.substr(eq + 1));
             }
             scene.setGraphics(gfxv, GraphicsSettings::kCount);
+        } else if (cmd == "sheen") {       // sheen NAME VALUE: the person's skin sheen 0..1 (Scene::setSheen)
+            int name = 0; float v = 0; ss >> name >> v;
+            if (actors.count(name)) scene.setSheen(actors[name], v);
+        } else if (cmd == "sun") {         // prints where the sun is (the way toward it) and its colour: aim the camera at it
+            const Light& l = scene.light();
+            std::printf("sun toward %.3f %.3f %.3f colour %.2f %.2f %.2f\n", -l.sunDir[0], -l.sunDir[1], -l.sunDir[2],
+                        l.sunColor[0], l.sunColor[1], l.sunColor[2]);
+        } else if (cmd == "texmem") {      // prints the game textures loaded and their GPU bytes (texture detail's cost)
+            size_t n = 0, bytes = 0;
+            scene.textureMemory(n, bytes);
+            std::printf("texmem %zu textures %.1f MB\n", n, bytes / 1048576.0);
         } else if (cmd == "gfxtiming") {   // gfxtiming on|off: each pass timed with glFinish (software GL: not the phone's cost)
             std::string on; ss >> on;
             scene.setGraphicsSyncTiming(on == "on");

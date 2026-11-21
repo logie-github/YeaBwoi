@@ -70,6 +70,38 @@ void interiorTint(float hours, float out[3]);
 // Everything above at `hours`.
 DaySample sampleDay(const DayCycle& c, float hours, float frameYawDeg = 0);
 
+// ---- the zone's own light (cinematic mode's zone mood)
+//
+// The light the game itself draws at the place, by the hour (assets/zone_light.json, made by tools/zone_light.py; the
+// renderer reads the copy in the location's "cinematic": {"zone": {...}}): the zone's ZoneLight (else a point Light's
+// falloff, else the map's default) and its LightParams' LightData keyframes. Tirisfal's is a mauve ambient, a dim blue
+// moon-like sun, a dark teal sky and a deep purple fog all day; Teldrassil's violet; Durotar's dusty red. Cinematic mode
+// pulls the location's light, its fog and its grade toward it (cineProfile's zone part, by the "Zone mood" option).
+//
+//   zone: {source, glow, keys: [[hour, ambient rgb, direct rgb, sky top rgb, sky middle rgb, fog rgb, end fog rgb,
+//                                fog near, fog far (yards)], ...]}
+struct ZoneKey {
+    float hour = 0;
+    float ambient[3] = {0, 0, 0};
+    float direct[3] = {0, 0, 0};
+    float skyTop[3] = {0, 0, 0};
+    float skyMid[3] = {0, 0, 0};
+    float fog[3] = {0, 0, 0};
+    float endFog[3] = {0, 0, 0};
+    float fogNear = 0, fogFar = 500;
+};
+
+struct ZoneLight {
+    std::vector<ZoneKey> keys;   // sorted by hour, each in [0, 24)
+    float glow = 0;
+    bool empty() const { return keys.empty(); }
+};
+
+// "zone" read (an object with "keys"); false when it holds no key (a key with fewer than 21 numbers is skipped).
+bool parseZoneLight(const Json& j, ZoneLight& out);
+// The keys at `hours` (linear between neighbours, wrapping round midnight; negative hours: noon's). Empty: all zero.
+void sampleZone(const ZoneLight& z, float hours, ZoneKey& out);
+
 // ---- the cinematic look: the area's own light, made low-key (cinematic mode; Scene::setCinematic)
 //
 // Each place keeps its own mood: the look is a profile worked out from the place's light at the hour (cineProfile: the map
@@ -117,6 +149,15 @@ struct CineProfile {
     float vignette = 0;              // the vignette option times this
     float flicker = 0;               // 0..1: how much the practicals' flicker moves the room's light and the key
     float flickerColour[3] = {1, 1, 1};
+    // the zone mood (cineZoneLight; all neutral without a zone or at zone mood 0)
+    float mid[3] = {1, 1, 1};        // the grade's mid-tones by channel (over 1: that channel's mid-tones raised)
+    float zoneMix = 0;               // 0..1: the location's ambient, sun, sky and fog pulled toward these
+    float zoneAmbient[3] = {0, 0, 0};
+    float zoneSun[3] = {0, 0, 0};
+    float zoneSky[3] = {0, 0, 0};
+    float zoneFog[3] = {0, 0, 0};    // (also the sky at and under the horizon)
+    float fogMix = 0;                // 0..1: the fog's distances pulled in toward these (never pushed out past the area's)
+    float fogNear = 0, fogFar = 0;   // yards
 };
 
 // A field a location may set by hand (locations.json "cinematic": {"override": {"inside"|"outside": {name: value}}}):
@@ -134,6 +175,7 @@ struct CineOverride {
 struct CineArea {
     CinePracticals inside, outside;
     CineOverride overInside, overOutside;
+    ZoneLight zone;              // the zone's own light ("zone"; empty: none, the zone mood does nothing)
 };
 
 // "cinematic" read (missing or broken parts keep their defaults); false when it isn't an object.
@@ -152,6 +194,12 @@ struct CineInput {
     float roomLight[3] = {0, 0, 0};
     float hour = -1;                         // the world clock's hour (negative: no clock, as by day)
     CinePracticals practicals;
+    // the zone mood: the zone's light at the hour (sampleZone), how much of it (Options' Zone mood, 0..1: 0 changes nothing,
+    // exactly) and the Mood boost (its colours exaggerated: more saturation and contrast)
+    bool hasZone = false;
+    ZoneKey zone;
+    float zoneAmount = 0;
+    bool zoneBoost = false;
 };
 
 // The profile for a place at an hour, then `over` laid on it, then the limits (cineLimit). Continuous in every input but
@@ -173,6 +221,12 @@ void cineStep(CineProfile& now, const CineProfile& target, float dt, float tau =
 
 // The grade's transfer of one colour (0..1), as grade.cpp's shader does it, for a profile already at its strength.
 void cineGradeColour(const CineProfile& p, const float in[3], float out[3]);
+
+// The zone mood on the location's light at `strength` (before cineScene): the ambient, sun, sky top, fog and the sky at and
+// under the horizon pulled toward the profile's zone colours by zoneMix, the fog's start and end pulled in toward its
+// distances by fogMix (never past where they were: the end is the loaded area's edge). zoneMix 0: nothing changes.
+void cineZoneLight(const CineProfile& p, float strength, float ambient[3], float sun[3], float skyTop[3], float horizon[3],
+                   float below[3], float fog[3], float& fogStart, float& fogEnd);
 
 // The location's light under the profile at `strength`: each array changed in place; the flicker (-1..1) moves the room's
 // light by a few percent, toward the flames' colour.

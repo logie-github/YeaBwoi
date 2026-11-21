@@ -187,6 +187,12 @@ object Native {
      */
     @JvmStatic external fun cinematic(scene: Long, mood: Float, vignette: Float, grain: Float, bars: Float)
     /**
+     * Cinematic mode's zone mood (cpp engine/daylight.h ZoneLight): [strength] 0..1 how far the location's light, fog and
+     * grade are pulled toward the zone's own (locations.json's cinematic.zone, the game's ZoneLight/LightData), [boost] its
+     * colours exaggerated. Only while the look is on.
+     */
+    @JvmStatic external fun zoneMood(scene: Long, strength: Float, boost: Boolean)
+    /**
      * The body's additive motion for everyone it is on (cpp engine/motionlayer.h): Options' [breathing] and [idle] shares
      * 0..1 (weight shifts, head tilts) and eye contact ([lookAt]).
      */
@@ -210,6 +216,11 @@ object Native {
      * height). Nothing is allocated.
      */
     @JvmStatic external fun graphicsStats(scene: Long, out: FloatArray)
+    /**
+     * Actor [actor]'s skin sheen 0..1 (cpp Scene::setSheen: wet skin, glossier and a little darker; 0 as before). The scene
+     * drives it from the moment's intensity while Options' Graphics has Skin sheen follows intensity on (graphics/SkinSheen).
+     */
+    @JvmStatic external fun sheen(scene: Long, actor: Int, value: Float)
 
     // ---- locations and the editor's props (cpp engine/location.h, location.cpp, terrain.cpp)
 

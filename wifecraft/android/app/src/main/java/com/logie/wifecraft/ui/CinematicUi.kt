@@ -18,8 +18,46 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.IntSize
+import com.logie.wifecraft.anim.Requirement
+import com.logie.wifecraft.simulation.AutoClip
+import com.logie.wifecraft.simulation.AutoOption
+import com.logie.wifecraft.simulation.AutoPhase
+import com.logie.wifecraft.simulation.AutoPlace
+import com.logie.wifecraft.simulation.AutoStep
+import com.logie.wifecraft.simulation.AutoplayPlanner
+import com.logie.wifecraft.simulation.CinematicAutoplay
+import com.logie.wifecraft.simulation.CinematicDirector
+import com.logie.wifecraft.simulation.CinematicFrame
+import com.logie.wifecraft.simulation.CutStyle
+import com.logie.wifecraft.simulation.FilmFrame
+import com.logie.wifecraft.simulation.Furniture
+import com.logie.wifecraft.simulation.FurnitureKind
+import com.logie.wifecraft.simulation.FurnitureSpec
+import com.logie.wifecraft.simulation.LiveScene
+import com.logie.wifecraft.simulation.PartnerPair
+import com.logie.wifecraft.simulation.SceneObject
+import com.logie.wifecraft.simulation.SceneSimulation
+import com.logie.wifecraft.story.Vec3
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicReference
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,13 +84,19 @@ const val CINEMATIC_HUD_MS = 400
 /**
  * Cinematic mode's layer over the live scene: the Cinematic button (beside the camera button, in its look; lit while the mode
  * runs, dimmed while the HUD is hidden: pressing it ends the mode) and, while the HUD is hidden, a sheet over the view that
- * takes every touch: a tap brings the HUD back for a while ([onPeek]); no drag turns the camera under the director. Reports
- * the view's width over height ([onAspect]) for the director's framing.
+ * takes every touch (the black bars round the frame included): a tap brings the HUD back for a while ([onPeek]); no drag turns
+ * the camera under the director. Reports the 3D view's width over height ([onAspect]) for the director's framing and the film
+ * bars: its [frame]'s in the mode ([FilmFrame.fit]), the screen's otherwise.
  */
 @Composable
 fun CinematicLayer(on: Boolean, hudHidden: Boolean, shown: Boolean, onToggle: () -> Unit, onPeek: () -> Unit,
-                   onAspect: (Float) -> Unit, modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxSize().onSizeChanged { if (it.height > 0) onAspect(it.width.toFloat() / it.height) }) {
+                   onAspect: (Float) -> Unit, modifier: Modifier = Modifier, frame: CinematicFrame = CinematicFrame.FULL) {
+    var screen by remember { mutableStateOf(IntSize.Zero) }
+    val aspectOut by rememberUpdatedState(onAspect)
+    LaunchedEffect(screen, on, frame) {
+        if (screen.height > 0) aspectOut(FilmFrame.fit(screen.width, screen.height, if (on) frame.aspect else 0f).aspect)
+    }
+    Box(modifier.fillMaxSize().onSizeChanged { screen = it }) {
         if (hudHidden) {
             Box(Modifier.fillMaxSize().semantics { contentDescription = "Cinematic view: tap to show the controls" }
                 .pointerInput(Unit) { detectTapGestures(onTap = { onPeek() }) })
@@ -66,6 +110,147 @@ fun CinematicLayer(on: Boolean, hudHidden: Boolean, shown: Boolean, onToggle: ()
                     .padding(end = (SceneHud.MARGIN + SceneHud.CAMERA_W + 2 * SceneHud.CAMERA_GAP).dp, top = SceneHud.cameraTop(hud).dp))
             }
         }
+    }
+}
+
+/**
+ * The 3D view in cinematic mode's frame: measured at the largest rectangle of [frame]'s shape that fits ([FilmFrame.fit]),
+ * centred, with black round it; off ([on] false), the whole space as before. The view's own size changes with it (its picture,
+ * projection, effects and taps are the frame's: the bars are outside it and take no tap).
+ */
+fun Modifier.cinematicFrame(on: Boolean, frame: CinematicFrame): Modifier = this
+    .drawBehind { if (on) drawRect(Color.Black) }
+    .layout { measurable, constraints ->
+        val w = if (constraints.hasBoundedWidth) constraints.maxWidth else constraints.minWidth
+        val h = if (constraints.hasBoundedHeight) constraints.maxHeight else constraints.minHeight
+        val r = if (on && w > 0 && h > 0) FilmFrame.fit(w, h, frame.aspect) else FilmFrame.Rect(0, 0, w, h)
+        val placeable = measurable.measure(Constraints.fixed(r.width.coerceAtLeast(0), r.height.coerceAtLeast(0)))
+        layout(w, h) { placeable.place(r.x, r.y) }
+    }
+
+/**
+ * Cinematic auto-play over the live scene ([CinematicAutoplay]): while [on], [lead] and [partner] (else the first other of
+ * [castIds]) play the installed partner animations ([pairs], what each needs: [needs]) one after another on the places of
+ * [furniture] and the open floor where they fit, each change hidden under a cut: the picture to black (this layer), the next one
+ * started with both on their places at once (SceneSimulation.autoplay, GL thread), the camera cut to a new shot of it
+ * ([CinematicDirector.cutNow]), then shown again. With [controls] (the HUD up), its panel: what it plays from, Next scene,
+ * Pause, Stay on this animation and the pace.
+ */
+@Composable
+fun CinematicAutoplayHost(
+    on: Boolean, live: LiveScene, director: CinematicDirector, settings: CinematicSettings,
+    lead: String?, partner: String?, castIds: List<String>,
+    pairs: List<PartnerPair>, needs: Map<String, Requirement>, furniture: Map<SceneObject, Furniture>,
+    bodyScales: Map<String, Float>, controls: Boolean, modifier: Modifier = Modifier,
+) {
+    val auto = remember(live) { CinematicAutoplay() }
+    var cover by remember(live) { mutableFloatStateOf(0f) }
+    var pace by remember(live) { mutableIntStateOf(settings.pace) }
+    LaunchedEffect(settings.pace) { pace = settings.pace }
+    var paused by remember(live) { mutableStateOf(false) }
+    var stay by remember(live) { mutableStateOf(false) }
+    var playing by remember(live) { mutableStateOf<String?>(null) }
+    var notice by remember(live) { mutableStateOf<String?>(null) }
+    val a = lead ?: castIds.firstOrNull()
+    val b = partner?.takeIf { it != a } ?: castIds.firstOrNull { it != a }
+    val floorZ = furniture.values.firstOrNull()?.z ?: 0f
+    // every installed two-person animation on every place it fits these two bodies (off the main thread)
+    val options by produceState(emptyList<AutoOption>(), pairs, needs, furniture, a, b) {
+        value = withContext(Dispatchers.Default) {
+            val places = furniture.entries.sortedBy { it.key.ordinal }.map { (item, f) -> AutoPlace(item.name, item, f) } +
+                AutoPlace("floor", null, Furniture("floor", FurnitureSpec.standard(FurnitureKind.FLOOR), 0f, 0f, floorZ, 0f))
+            val clips = pairs.mapNotNull { p -> needs[p.id]?.takeIf { it.actors.size == 2 }?.let { AutoClip(p.id, p.name, it) } }
+            val unit = SceneSimulation.HUMAN_BODY_UNIT * listOfNotNull(a, b).map { bodyScales[it] ?: 1f }.ifEmpty { listOf(1f) }.average().toFloat()
+            AutoplayPlanner.options(places, clips, unit)
+        }
+    }
+    auto.options = options
+    auto.installed = pairs.size
+    auto.people = if (a != null && b != null) 2 else 1
+    auto.pace = pace
+    auto.cutStyle = settings.cutStyle
+    auto.showMovement = settings.showMovement
+    auto.paused = paused
+    auto.stay = stay
+    LaunchedEffect(live, on, a, b) {
+        val one: String? = a
+        val two: String? = b
+        if (!on || one == null) {
+            if (auto.phase != AutoPhase.OFF && one != null && two != null) {
+                val x: String = one; val y: String = two
+                live.command { sim -> sim.stopRepeat(x); sim.stopRepeat(y) }
+            }
+            auto.stop(); cover = 0f; playing = null
+            return@LaunchedEffect
+        }
+        val first: String = one
+        val swapResult = AtomicReference<Boolean?>(null)
+        val arrived = AtomicReference<Boolean?>(null)
+        val starts = AtomicReference<List<Vec3>>(emptyList())
+        live.command { sim -> starts.set(listOfNotNull(sim.position(first), two?.let { sim.position(it) })) }
+        val pieces = furniture.values.toList()
+        fun handle(steps: List<AutoStep>) {
+            for (s in steps) when (s) {
+                is AutoStep.Swap -> {
+                    val beat = s.beat
+                    val tele = s.teleport
+                    val other: String = two ?: continue
+                    swapResult.set(null)
+                    live.command { sim ->
+                        val spot = if (beat.place?.item == null) AutoplayPlanner.floorSpot(starts.get(), pieces, floorZ) else null
+                        swapResult.set(sim.autoplay(first, other, beat.clip?.id, beat.place?.item, tele, spot))
+                    }
+                }
+                is AutoStep.Cut -> director.cutNow(s.resetSide)
+            }
+        }
+        auto.stop()
+        handle(auto.start())
+        var last = 0L
+        var polled = 0f
+        while (true) {
+            val now = withFrameNanos { it }
+            val dt = if (last == 0L) 0f else ((now - last) / 1e9f).coerceIn(0f, 0.1f)
+            last = now
+            handle(auto.tick(dt))
+            swapResult.getAndSet(null)?.let { handle(auto.swapped(it)) }
+            if (auto.phase == AutoPhase.WALK) {
+                polled += dt
+                if (polled >= 0.25f && two != null) {
+                    polled = 0f
+                    live.command { sim -> if (sim.autoplayStarted(first)) arrived.set(true) }
+                }
+                if (arrived.getAndSet(null) == true) handle(auto.arrived())
+            }
+            cover = auto.cover
+            playing = auto.beat?.let { it.clip?.name ?: "A partner animation" }
+            notice = auto.notice.text
+        }
+    }
+    Box(modifier.fillMaxSize()) {
+        if (on) Box(Modifier.fillMaxSize().graphicsLayer { alpha = cover }.background(Color.Black))
+        if (on && controls) {
+            CinematicAutoplayPanel(playing, notice, paused, stay, pace, { auto.next() }, { paused = !paused }, { stay = !stay },
+                { pace = it }, Modifier.align(Alignment.BottomStart).windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(start = WifeTheme.gapL, bottom = WifeTheme.gapL))
+        }
+    }
+}
+
+/** Auto-play's controls while the HUD is up: what plays (or why the base ones do), Next scene, Pause, Stay, the pace. */
+@Composable
+fun CinematicAutoplayPanel(playing: String?, notice: String?, paused: Boolean, stay: Boolean, pace: Int,
+                           onNext: () -> Unit, onPause: () -> Unit, onStay: () -> Unit, onPace: (Int) -> Unit,
+                           modifier: Modifier = Modifier) {
+    Column(modifier.widthIn(max = 340.dp).wifeSurface().padding(WifeTheme.gapM), verticalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
+        Text(playing ?: "Choosing a scene", style = WifeTheme.labelStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (notice != null) Text(notice, style = WifeTheme.captionStyle(), maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Row(horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
+            WifeButton("Next scene", onNext)
+            WifeButton(if (paused) "Resume" else "Pause", onPause)
+            WifeButton(if (stay) "Move on" else "Stay", onStay)
+        }
+        WifeSliderRow("Pace", pace, onPace, valueText = when { pace < 34 -> "Slow"; pace < 67 -> "Steady"; else -> "Quick" })
     }
 }
 
@@ -98,6 +283,10 @@ fun CinematicPage(settings: CinematicSettings, onChange: (CinematicSettings) -> 
     WifeSectionHeader("Lighting")
     WifeSliderRow("Mood lighting", settings.lighting, { onChange(settings.copy(lighting = it)) })
     WifeNote("A warm, low light over the time of day's: less ambient light, a warm key from the side, a soft rim from behind, a slow candle-like flicker, a gentle grade and darker corners.")
+    WifeSliderRow("Zone mood", settings.zoneMood, { onChange(settings.copy(zoneMood = it)) })
+    WifeSwitchRow("Mood boost", settings.moodBoost, { onChange(settings.copy(moodBoost = it)) },
+        detail = "Exaggerates the zone's colours: more saturation and contrast, for a stylised look.")
+    WifeNote("The zone's own light from the game: Tirisfal's mauve and teal gloom over Brill, Teldrassil's violet, Durotar's dusty red. Its ambient, sun, sky and fog colour the place, its fog comes closer, and the grade takes its colours; candles and hearths stay the warm part.")
     WifeSectionHeader("Camera")
     val styles = CinematicStyle.entries
     WifeTabs(styles.map { it.label }, styles.indexOf(settings.style).coerceAtLeast(0), { onChange(settings.copy(style = styles[it])) })
@@ -117,8 +306,20 @@ fun CinematicPage(settings: CinematicSettings, onChange: (CinematicSettings) -> 
     WifeSwitchRow("Camera cuts", settings.allowCuts, { onChange(settings.copy(allowCuts = it)) },
         detail = if (settings.allowCuts) "Cuts allowed between shots" else "Smooth moves only")
     WifeNote("While an animation plays, the shots follow its position: a wide shot to set the scene, then medium, close-up and detail shots chosen for it, the camera kept on one side of the pair. Randomness loosens that order and lets each shot drift.")
+    WifeSectionHeader("Auto-play")
+    WifeSwitchRow("Auto-play scene", settings.autoplay, { onChange(settings.copy(autoplay = it)) },
+        detail = if (settings.autoplay) "The pair plays one animation after another" else "Only what you choose plays")
+    val cuts = CutStyle.entries
+    WifeTabs(cuts.map { it.label }, cuts.indexOf(settings.cutStyle).coerceAtLeast(0), { onChange(settings.copy(cutStyle = cuts[it])) })
+    WifeSliderRow("Pace", settings.pace, { onChange(settings.copy(pace = it)) },
+        valueText = AutoplayPlanner.dwellRange(settings.pace).let { "${it.start.toInt()}-${it.endInclusive.toInt()} s" })
+    WifeSwitchRow("Show movement", settings.showMovement, { onChange(settings.copy(showMovement = it)) },
+        detail = if (settings.showMovement) "They walk to the next place in view" else "A move to another place happens during the cut")
+    WifeNote("Once cinematic mode starts, the two play the installed partner animations on the bed, the couch, a chair, the table or the floor, wherever their bodies fit, each for a while. Every change happens during a cut to a new camera angle, so the switch is never seen.")
     WifeSectionHeader("Picture")
-    WifeSwitchRow("Letterbox", settings.letterbox, { onChange(settings.copy(letterbox = it)) }, detail = "Black bars for a wide film frame")
+    val frames = CinematicFrame.entries
+    WifeTabs(frames.map { it.label }, frames.indexOf(settings.frame).coerceAtLeast(0), { onChange(settings.copy(frame = frames[it])) })
+    WifeSwitchRow("Letterbox", settings.letterbox, { onChange(settings.copy(letterbox = it)) }, detail = "Thin black bars above and below the picture")
     WifeSwitchRow("Film grain", settings.grain, { onChange(settings.copy(grain = it)) })
     WifeSwitchRow("Hide names and bubbles", settings.hideWords, { onChange(settings.copy(hideWords = it)) },
         detail = "Speech and thought bubbles hidden while the mode runs")

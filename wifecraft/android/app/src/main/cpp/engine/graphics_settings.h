@@ -15,7 +15,7 @@ struct GraphicsSettings {
         kRenderScale = 0,   // 0.6..1.25 (1: the view's own size; above 1: supersampled)
         kMsaa,              // 0, 2 or 4 samples on the scene's target
         kAnisotropy,        // 1, 2, 4, 8 or 16 (texture filtering at grazing angles)
-        kTextureDetail,     // 1 or 2: the biggest texture kept for each kind of thing, times this (a larger mip of the file)
+        kTextureDetail,     // 1, 2 or 4: the biggest texture kept for each kind of thing, times this (a larger mip of the file)
         kTonemap,           // 0 off (clamped as before), 1 filmic highlight shoulder, 2 ACES fitted (mid-grey kept)
         kExposure,          // -2..2 EV
         kBloom,             // 0..1
@@ -36,6 +36,8 @@ struct GraphicsSettings {
         kChroma,            // 0..1 chromatic aberration at the edges
         kSharpen,           // 0..1 contrast-adaptive sharpening (after the render scale's resample)
         kTimers,            // 0/1: GPU timer queries per pass (the overlay, the governor)
+        kEyes,              // 0..1 eye highlights: a glint and a wet sheen on the eyes' own mesh (texture type 19)
+        kThinSkin,          // 0..1 thin-skin tint: ears, nose, lips, fingers lit through, warm (skinShade)
         kCount
     };
 
@@ -54,6 +56,7 @@ struct GraphicsSettings {
     float skin = 0, hair = 0, shafts = 0, haze = 0;
     float vignette = 0, grain = 0, chroma = 0, sharpen = 0;
     bool timers = false;
+    float eyes = 0, thinSkin = 0;
 
     static float unit(float v) { return std::isfinite(v) ? std::clamp(v, 0.0f, 1.0f) : 0.0f; }
 
@@ -66,7 +69,8 @@ struct GraphicsSettings {
         msaa = s >= 4 ? 4 : s >= 2 ? 2 : 0;
         int a = int(std::lround(at(kAnisotropy, 1)));
         anisotropy = a >= 16 ? 16 : a >= 8 ? 8 : a >= 4 ? 4 : a >= 2 ? 2 : 1;
-        textureDetail = at(kTextureDetail, 1) >= 1.5f ? 2.0f : 1.0f;
+        const float td = at(kTextureDetail, 1);
+        textureDetail = td >= 3.0f ? 4.0f : td >= 1.5f ? 2.0f : 1.0f;
         tonemap = std::clamp(int(std::lround(at(kTonemap, 0))), 0, 2);
         exposure = std::clamp(at(kExposure, 0), -2.0f, 2.0f);
         bloom = unit(at(kBloom, 0));
@@ -87,6 +91,8 @@ struct GraphicsSettings {
         chroma = unit(at(kChroma, 0));
         sharpen = unit(at(kSharpen, 0));
         timers = at(kTimers, 0) > 0.5f;
+        eyes = unit(at(kEyes, 0));
+        thinSkin = unit(at(kThinSkin, 0));
     }
 
     // Whether the frame goes through the offscreen chain (postfx.h) at all. False: drawn straight to the screen as before.
@@ -99,7 +105,8 @@ struct GraphicsSettings {
     bool lighting() const { return ao > 0 || contact > 0 || shadows > 0 || haze > 0; }
 
     // The biggest texture kept for a kind of thing (scene.cpp's kCityTex, kActorTex...) at this texture detail.
-    int textureCap(int maxSize) const { return textureDetail > 1.5f ? maxSize * 2 : maxSize; }
+    // 4: four times (the file's own top mip for nearly everything: the game's textures are at most 2048 or 4096 across).
+    int textureCap(int maxSize) const { return textureDetail > 3.0f ? maxSize * 4 : textureDetail > 1.5f ? maxSize * 2 : maxSize; }
 };
 
 // GL_EXT_texture_filter_anisotropic on the bound GL_TEXTURE_2D (`level` 1: off), within what the GPU allows. No extension:

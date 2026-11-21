@@ -34,6 +34,7 @@ namespace wc {
 struct GlTexture {
     unsigned id = 0;
     bool hasAlpha = false;
+    uint32_t bytes = 0;   // on the GPU, its mips included (0: the shared white)
 };
 
 // A model a look adds to a person: hung on an attachment point, or (attachment -1) skinned to the
@@ -242,12 +243,22 @@ public:
     // candle-like flicker) with the picture's grade; `vignette`, `grain` 0..1; `bars` each letterbox bar's share of the
     // height (0..0.5). All 0: off, the frame drawn straight to the screen as before. Cheap; the caller eases them in and out.
     void setCinematic(float mood, float vignette, float grain, float bars);
+    // Cinematic mode's zone mood (daylight.h ZoneLight, cineProfile's zone part): `strength` 0..1 how far the location's
+    // light, fog and grade are pulled toward the zone's own light (the game's ZoneLight/LightData for the place: Tirisfal's
+    // mauve and teal gloom, Teldrassil's violet), 0 none of it; `boost` its colours exaggerated (saturation, contrast).
+    // Only while the cinematic look is on (setCinematic's mood scales it). Cheap; default 0.7, no boost.
+    void setZoneMood(float strength, bool boost);
     // Options' Graphics page (graphics_settings.h: the array in its order; scene_gfx.cpp) and the last frame's timings
     // (cpu ms, each pass's GPU ms, timers available, the scene's drawn width and height: PostStats::kStages + 4 floats).
     void setGraphics(const float* values, int count);
     void graphicsStats(float* out, int count) const;
     // The harness: each pass timed with glFinish round it (software GL has no timer queries).
     void setGraphicsSyncTiming(bool on) { postfx_.setSyncTiming(on); }
+    // Actor `id`'s skin sheen 0..1 (wet: glossier, a little darker; the app drives it from the moment's intensity, eased).
+    // 0: as before. Drawn with the skin's shading whatever Options' Skin shading is.
+    void setSheen(int id, float sheen);
+    // The textures loaded from the game now and the bytes they hold on the GPU (mips included): texture detail's cost.
+    void textureMemory(size_t& count, size_t& bytes) const;
 
     // ---------------------------------------------------------------- body language and atmosphere (additive layers)
     // The body's additive motion (motionlayer.h) for everyone it is on: Options' breathing and idle shares, eye contact.
@@ -542,6 +553,9 @@ private:
         EveDraw eve;                   // the Eve body (evescene.cpp)
         std::vector<float> sculpt;     // the creator's sculpt sliders (setSculpt; sculpt.h): the Eve body fitted with them
         LegEdit legEdit;               // its Leg Length on the skeleton (bodyrig.h): made again when the slider or model changes
+        float sheen = 0;               // setSheen: the skin's wet sheen 0..1
+        int fxBones[5] = {-2, -2, -2, -2, -2};   // L_Eye, R_Eye, Head, L_Hand, R_Hand (-1: none) for fxModel (skinOf)
+        const void* fxModel = nullptr;
     };
     struct GroupGl {
         unsigned vao = 0, vbo = 0, ibo = 0;
@@ -674,6 +688,13 @@ private:
     bool cityShown_ = true;
     int softLevel_ = kSoftNatural;
     bool softBodyDraw_ = false;        // drawModel is drawing an actor's body with its soft body on
+    // The person drawModel is drawing (scene_gfx.cpp skinOf, each frame before they are drawn): kLitFs's uSkinActor (their
+    // sheen; 1 in w when their thin parts can be found), uEyeC (the eyeballs' centres, world; far away: none), uThinHead
+    // (world -> the head's frame, its flesh's front and side reach to 1) and uThinHands (each hand's joint, 1 / its length).
+    float drawSkin_[4] = {0, 0, 0, 0};
+    float drawEyes_[6] = {0, 0, -1e6f, 0, 0, -1e6f};
+    float drawThin_[24] = {};
+    void skinOf(Actor& a, const M4& world);
 
     V3 eye_{0, -10, 2}, target_{0, 0, 1};
     // pickBodyRegion's bone regions, for the model they were made for
@@ -706,6 +727,8 @@ private:
     Light dayLight_;
     float dayRoomTint_[3] = {1, 1, 1};
     CinePracticals cinePractical_;
+    float zoneMood_ = 0.7f;              // setZoneMood's
+    bool zoneBoost_ = false;
     void updateCinematic(uint32_t nowMs);
     // the additive layers: the body's motion (Options'), the motes and how bright, the clock they were last stepped at
     MotionParams motionParams_;

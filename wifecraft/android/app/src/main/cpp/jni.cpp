@@ -323,6 +323,11 @@ JNIEXPORT void JNICALL FN(cinematic)(JNIEnv*, jclass, jlong h, jfloat mood, jflo
     scene(h)->setCinematic(mood, vignette, grain, bars);
 }
 
+// Cinematic mode's zone mood (Scene::setZoneMood): its strength 0..1 and the boost.
+JNIEXPORT void JNICALL FN(zoneMood)(JNIEnv*, jclass, jlong h, jfloat strength, jboolean boost) {
+    scene(h)->setZoneMood(strength, boost == JNI_TRUE);
+}
+
 // The body's additive motion (engine/motionlayer.h): Options' shares for everyone, and one actor's intensity and look target.
 JNIEXPORT void JNICALL FN(motionParams)(JNIEnv*, jclass, jlong h, jfloat breathing, jfloat idle, jboolean lookAt) {
     wc::MotionParams p;
@@ -350,6 +355,9 @@ JNIEXPORT void JNICALL FN(graphicsStats)(JNIEnv* env, jclass, jlong h, jfloatArr
     scene(h)->graphicsStats(v, int(n));
     env->SetFloatArrayRegion(out, 0, n, v);
 }
+
+// One actor's skin sheen 0..1 (Scene::setSheen).
+JNIEXPORT void JNICALL FN(sheen)(JNIEnv*, jclass, jlong h, jint id, jfloat value) { scene(h)->setSheen(id, value); }
 
 // ---- locations and the editor's props (Native.kt documents them)
 

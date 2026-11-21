@@ -11,6 +11,7 @@ struct GradeParams {
     float mood = 0;       // 0..1: the grade's strength (over 0: the grade is drawn; its numbers below are at that strength)
     float lift[3] = {0, 0, 0};    // where black goes (daylight.h CineProfile, scaled by cineScaled)
     float gamma = 1;
+    float mid[3] = {1, 1, 1};     // the mid-tones by channel (the zone mood's tint: each channel's power is gamma / mid)
     float gain[3] = {1, 1, 1};    // where white goes
     float contrast = 0;           // the S-curve's share
     float saturation = 1;

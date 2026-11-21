@@ -756,6 +756,14 @@ void Scene::setTimeOfDay(float hours) {
     applyTimeOfDay();
 }
 
+void Scene::setZoneMood(float strength, bool boost) {
+    float z = std::isfinite(strength) ? std::clamp(strength, 0.0f, 1.0f) : 0.0f;
+    if (z == zoneMood_ && boost == zoneBoost_) return;
+    zoneMood_ = z;
+    zoneBoost_ = boost;
+    // the profile eases to the new mood (updateCinematic); the light follows it there
+}
+
 // The hour's change from noon added to the light as given: the entries' light is the map's LightData at noon, so at
 // noon nothing changes, and a view's own colours (a hand-made fog, say) keep their difference from the game's. The
 // sun's direction is the hour's; a room's own light is tinted (roomTint_), the baked vertex light kept as it is.
@@ -767,6 +775,9 @@ void Scene::applyTimeOfDay() {
         dayLight_ = light_;
         std::copy(roomTint_, roomTint_ + 3, dayRoomTint_);
         if (cineMood_ <= 0) return;
+        // the zone mood first (the zone's own light, its fog nearer: daylight.h cineZoneLight), then the profile's scaling
+        cineZoneLight(cineNow_, cineMood_, light_.ambient, light_.sunColor, light_.skyTop, light_.skyHorizon, light_.skyBelow,
+                      light_.fogColor, light_.fogStart, light_.fogEnd);
         cineScene(cineNow_, cineMood_, cineFlicker_, light_.ambient, light_.sunColor, light_.skyTop, light_.fogColor, roomTint_);
         for (int i = 0; i < 3; ++i) {
             float k = 1.0f + (cineNow_.sceneSky[i] - 1.0f) * cineMood_;
@@ -827,6 +838,13 @@ void Scene::updateCinematic(uint32_t nowMs) {
     in.practicals = location_ ? (room ? area.inside : area.outside) : CinePracticals();
     cinePractical_ = in.practicals;
     const CineOverride* over = location_ ? (room ? &area.overInside : &area.overOutside) : nullptr;
+    // the zone mood: the zone's own light at the hour (noon without a clock), by Options' Zone mood and Mood boost
+    if (location_ && !area.zone.empty() && zoneMood_ > 0) {
+        in.hasZone = true;
+        sampleZone(area.zone, timeOfDay_, in.zone);
+        in.zoneAmount = zoneMood_;
+        in.zoneBoost = zoneBoost_;
+    }
     CineProfile target = cineProfile(in, over && !over->empty() ? over : nullptr);
     if (!cineHas_) {
         cineNow_ = target;
@@ -843,6 +861,7 @@ void Scene::updateCinematic(uint32_t nowMs) {
     std::copy(g.lift, g.lift + 3, cineGrade_.lift);
     std::copy(g.gain, g.gain + 3, cineGrade_.gain);
     cineGrade_.gamma = g.gamma;
+    std::copy(g.mid, g.mid + 3, cineGrade_.mid);
     cineGrade_.contrast = g.contrast;
     cineGrade_.saturation = g.saturation;
     cineGrade_.vignette = std::clamp(cineVignette_ * cineNow_.vignette, 0.0f, 1.0f);

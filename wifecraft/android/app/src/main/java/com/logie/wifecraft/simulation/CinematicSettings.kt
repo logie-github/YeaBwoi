@@ -15,13 +15,37 @@ enum class CinematicStyle(val label: String) {
     }
 }
 
+/** How auto-play hides a change of animation: a hard cut through black, or a quick fade ([fadeS] seconds each way). */
+enum class CutStyle(val label: String, val fadeS: Float) {
+    HARD("Hard cut", 0f), FADE("Quick fade", 0.12f);
+
+    companion object {
+        fun of(name: String?): CutStyle = entries.firstOrNull { it.name == name } ?: FADE
+    }
+}
+
+/**
+ * Cinematic mode's picture frame: [aspect] the 3D view's shape fitted to the screen (black round it; 0: the whole screen) and
+ * [picture] the film frame inside it that the thin Letterbox bars make (FilmFrame.barScale; Full screen keeps the wide 2.39).
+ */
+enum class CinematicFrame(val label: String, val aspect: Float, val picture: Float) {
+    AUTO("Auto (4:3)", 4f / 3f, 1.43f), WIDE("Wide (16:9)", 16f / 9f, 1.9f), FULL("Full screen", 0f, 2.39f);
+
+    companion object {
+        fun of(name: String?): CinematicFrame = entries.firstOrNull { it.name == name } ?: AUTO
+    }
+}
+
 /**
  * Options' Cinematic page: [lighting] the look's strength 0..100 (the place's own cinematic light, its grade and vignette:
  * engine/daylight.h's area profile, every difference from neutral times this), the
  * camera's [style], [letterbox] bars, film [grain], [hideWords] (names, speech and thought bubbles hidden while it runs), each
  * shot [shortest]..[longest] seconds, and [motion] the camera's speed in percent (50..150: how far each shot moves and how
  * quickly it travels between shots); while an animation plays, the shot library's [shotStyle], its [randomness] (0..100: how
- * loosely the cadence and weights are followed and how far each shot drifts) and [allowCuts] (false: smooth moves only).
+ * loosely the cadence and weights are followed and how far each shot drifts) and [allowCuts] (false: smooth moves only);
+ * auto-play ([autoplay]: the pair plays one animation after another, CinematicAutoplay), how each change is hidden
+ * ([cutStyle]), whether a change of place is walked in the open ([showMovement]) and its [pace] (0..100: how long each
+ * animation plays, 50 as designed); the picture's [frame] (Auto 4:3, Wide 16:9, Full screen).
  */
 data class CinematicSettings(
     val lighting: Int = 70,
@@ -35,12 +59,22 @@ data class CinematicSettings(
     val shotStyle: ShotStyle = ShotStyle.CLASSIC,
     val randomness: Int = 40,
     val allowCuts: Boolean = true,
+    val autoplay: Boolean = true,
+    val cutStyle: CutStyle = CutStyle.FADE,
+    val showMovement: Boolean = false,
+    val pace: Int = 50,
+    val frame: CinematicFrame = CinematicFrame.AUTO,
+    /** 0..100: how far the zone's own light (engine/daylight.h ZoneLight: the game's for the place) colours the look. */
+    val zoneMood: Int = 70,
+    /** The zone's colours exaggerated (more saturation and contrast). */
+    val moodBoost: Boolean = false,
 ) {
     /** The settings brought within their limits (a hand-edited or old file can't break the director). */
     fun clamped(): CinematicSettings {
         val lo = shortest.coerceIn(SHOT_MIN, SHOT_MAX)
         return copy(lighting = lighting.coerceIn(0, 100), shortest = lo, longest = longest.coerceIn(lo, SHOT_MAX),
-            motion = motion.coerceIn(MOTION_MIN, MOTION_MAX), randomness = randomness.coerceIn(0, 100))
+            motion = motion.coerceIn(MOTION_MIN, MOTION_MAX), randomness = randomness.coerceIn(0, 100),
+            pace = pace.coerceIn(0, 100), zoneMood = zoneMood.coerceIn(0, 100))
     }
 
     /** The motion as a factor (1: as designed). */
@@ -49,6 +83,8 @@ data class CinematicSettings(
     fun toJson(): JSONObject = JSONObject().put("lighting", lighting).put("style", style.name).put("letterbox", letterbox)
         .put("grain", grain).put("hideWords", hideWords).put("shortest", shortest).put("longest", longest).put("motion", motion)
         .put("shotStyle", shotStyle.name).put("randomness", randomness).put("allowCuts", allowCuts)
+        .put("autoplay", autoplay).put("cutStyle", cutStyle.name).put("showMovement", showMovement).put("pace", pace)
+        .put("frame", frame.name).put("zoneMood", zoneMood).put("moodBoost", moodBoost)
 
     companion object {
         const val SHOT_MIN = 3
@@ -74,6 +110,13 @@ data class CinematicSettings(
                     shotStyle = ShotStyle.of(o.optString("shotStyle", DEFAULT.shotStyle.name)),
                     randomness = o.optInt("randomness", DEFAULT.randomness),
                     allowCuts = o.optBoolean("allowCuts", DEFAULT.allowCuts),
+                    autoplay = o.optBoolean("autoplay", DEFAULT.autoplay),
+                    cutStyle = CutStyle.of(o.optString("cutStyle", DEFAULT.cutStyle.name)),
+                    showMovement = o.optBoolean("showMovement", DEFAULT.showMovement),
+                    pace = o.optInt("pace", DEFAULT.pace),
+                    frame = CinematicFrame.of(o.optString("frame", DEFAULT.frame.name)),
+                    zoneMood = o.optInt("zoneMood", DEFAULT.zoneMood),
+                    moodBoost = o.optBoolean("moodBoost", DEFAULT.moodBoost),
                 ).clamped()
             } catch (e: Exception) { DEFAULT }
         }
@@ -99,10 +142,18 @@ class CinematicLook {
             val a = width.toFloat() / height
             return if (a >= ASPECT) 0f else 0.5f * (1f - a / ASPECT) * amount.coerceAtMost(1f)
         }
+
+        /** Each bar's share of a view of [viewAspect] that bars make a [picture] film frame in (0: it is that wide already). */
+        fun bars(viewAspect: Float, picture: Float): Float {
+            if (!(viewAspect > 0f) || !(picture > 0f)) return 0f
+            return if (viewAspect >= picture) 0f else 0.5f * (1f - viewAspect / picture)
+        }
     }
 
     @Volatile var on = false
     @Volatile var settings: CinematicSettings = CinematicSettings.DEFAULT
+    /** The 3D view's width over height in the mode (its frame: FilmFrame); 0: not known (the bars as for Full screen). */
+    @Volatile var viewAspect = 0f
     var amount = 0f
         private set
 
@@ -130,7 +181,16 @@ class CinematicLook {
 
     fun mood(): Float = eased * settings.clamped().lighting / 100f
     fun vignette(): Float = mood()
+    /** The zone mood's strength 0..1 (Native.zoneMood; the engine scales it by [mood]). */
+    fun zoneMood(): Float = settings.clamped().zoneMood / 100f
+    fun moodBoost(): Boolean = settings.moodBoost
     fun grain(): Float = if (settings.grain) eased * GRAIN else 0f
     /** 0..1: how far the letterbox bars are in (the engine sizes them for the view: grade.h letterboxBars). */
-    fun letterbox(): Float = if (settings.letterbox) eased else 0f
+    fun letterbox(): Float {
+        val s = settings
+        if (!s.letterbox) return 0f
+        // the engine draws 2.39 bars at 1: scaled down to the frame's thin ones (Auto, Wide); Full screen as before
+        val k = if (s.frame == CinematicFrame.FULL || !(viewAspect > 0f)) 1f else FilmFrame.barScale(viewAspect, s.frame.picture)
+        return eased * k
+    }
 }
