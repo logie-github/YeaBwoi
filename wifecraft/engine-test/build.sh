@@ -99,10 +99,13 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -DWC_NO_GL -I"$engine" \
     -o "$here/build/motionlayer_test"
 echo "$here/build/motionlayer_test"
 # The creator's sculpt sliders and tap-to-edit body pick (engine/sculpt.h, engine/bodypick.h) on a made-up symmetric body:
-# bounded, symmetric, no triangle turned over, the neck and ankle rings kept, each slider doing what it says; the bone
-# regions and the ray pick; the skeleton's edit (engine/bodyrig.h: Leg Length and the Eve body's proportions). build/sculpt_test, exit 0 when all pass. No GL, no game files.
+# bounded, symmetric, no triangle turned over, the neck and ankle rings kept, each slider doing what it says, the game's
+# bodies' path (every slider, the neck, one side's balance, the same twice); the bone regions and the ray pick; the
+# skeleton's edit (engine/bodyrig.h: Leg Length and the Eve body's proportions). With FILES_DIR MODEL... also the game's
+# default bodies (every slider at both ends: bounded, none turned over, symmetric skin, head/hands/feet kept, no seam opening
+# between geosets, a robe following the skin, the cost). build/sculpt_test [FILES_DIR MODEL...], exit 0 when all pass.
 g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
-    "$here/sculpt_test.cpp" "$engine/sculpt.cpp" "$engine/bodypick.cpp" \
+    "$here/sculpt_test.cpp" "$engine/sculpt.cpp" "$engine/bodypick.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" \
     -o "$here/build/sculpt_test"
 echo "$here/build/sculpt_test"
 # The Eve body without GL (engine/evebody.cpp: the .weve file, PNG, the colour maths, the texture, the fit on a synthetic

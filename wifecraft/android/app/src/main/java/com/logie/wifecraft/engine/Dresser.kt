@@ -135,7 +135,7 @@ class Dresser(
             // the look's sex and race: the live scene's NPCs stand at human scale, the dwarves and gnomes at their own
             // (SceneView.dress, anim/HumanScale); the creator's and the previews' keys keep each race's own size
             scene.dress(key, call.call, call.body, character = call.character, onReady = {
-                // the creator's sculpt sliders (creator/BodySculpt): the Eve body takes them as it is fitted (engine/sculpt.h)
+                // the creator's sculpt sliders (creator/BodySculpt): on the game's own body or the Eve body (engine/sculpt.h)
                 scene.setSculpt(key, a.sculpt?.toArray() ?: FloatArray(0))
                 onComplete?.invoke()
                 if (set != null || parts) extras[key] = scope.launch {

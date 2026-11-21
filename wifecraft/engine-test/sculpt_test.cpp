@@ -1,16 +1,17 @@
 // The creator's sculpt and body pick maths (engine/sculpt.h, engine/bodypick.h) on a made-up body: a torso, a bust, legs
-// and arms of rings, skinned to a small skeleton, mirror-symmetric. No GL, no game files. build/sculpt_test, exit 0 when all
-// pass. Checks: nothing moves at zero; every slider at both ends stays within its reach, keeps the body symmetric, turns no
-// triangle over, leaves the neck and ankle rings where they are and changes what it says it does; pinned vertices stay;
-// the bone regions, a triangle's region and the ray pick.
+// and arms of rings, skinned to a small skeleton, mirror-symmetric; and, given FILES_DIR MODEL..., the game's own default
+// bodies (realBody). build/sculpt_test [FILES_DIR MODEL...], exit 0 when all pass. Checks: nothing moves at zero; every
+// slider at both ends stays within its reach, keeps the body symmetric, turns no triangle over, leaves the neck and ankle
+// rings where they are and changes what it says it does; the game's bodies' path likewise (the neck too), the same twice,
+// one side's balance; pinned vertices stay; the bone regions, a triangle's region and the ray pick.
 #include <chrono>
 #include <cmath>
-#include <cstdlib>
-#include <string>
-#include <tuple>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <map>
+#include <string>
+#include <tuple>
 #include <vector>
 
 #include "bodypick.h"

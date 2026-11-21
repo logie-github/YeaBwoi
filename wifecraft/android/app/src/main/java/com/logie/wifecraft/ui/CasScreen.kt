@@ -44,10 +44,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -65,6 +67,9 @@ import com.logie.wifecraft.creator.CasTab
 import com.logie.wifecraft.creator.CasTabs
 import com.logie.wifecraft.creator.CreatorModel
 import com.logie.wifecraft.creator.ResolvedLook
+import com.logie.wifecraft.creator.SculptDrag
+import com.logie.wifecraft.creator.SculptDragSession
+import com.logie.wifecraft.creator.SculptPart
 import com.logie.wifecraft.creator.Sex
 import com.logie.wifecraft.creator.Tables
 import com.logie.wifecraft.engine.Placement
@@ -95,7 +100,7 @@ import kotlin.random.Random
  * it. Not run on a phone or a desktop: Compose can't be run here.
  */
 
-/** The live sculpt's rate while a slider is dragged: the Eve body is fitted again at most this often (ms). */
+/** The live sculpt's rate while a slider or a part of her is dragged: the body is sculpted again at most this often (ms). */
 private const val SCULPT_SEND_MS = 160L
 
 /** The turntable's speed (degrees a second). */
@@ -144,6 +149,9 @@ fun CasScreen(
     var glowAt by remember { mutableStateOf<Offset?>(null) }
     val glow = remember { Animatable(0f) }
     val view = remember { ViewState() }
+    val sculptUi = remember { CasSculptState() }
+    var dragAt by remember { mutableStateOf<Offset?>(null) }
+    val haptic = LocalHapticFeedback.current
 
     fun changed(look: Boolean = true) {
         history.push(model.appearance)
@@ -223,16 +231,89 @@ fun CasScreen(
             }
         }
 
-        // the stage: a finger turns her, two bring her nearer, a tap on her opens the part's tab
+        // the stage: a finger turns her, two bring her nearer, a tap on her opens the part's tab; on the Body tab a finger held
+        // still on her picks the part under it and the drag that follows sculpts it (creator/SculptDrag.kt)
         Box(Modifier.fillMaxSize().pointerInput(Unit) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
+                var first: androidx.compose.ui.input.pointer.PointerEvent? = null
+                if (tab == CasTab.BODY) {
+                    val slop = SculptDrag.SLOP_DP * density.density
+                    // the first event that moves past the slop, lifts or brings a second finger (null: the finger stayed)
+                    first = withTimeoutOrNull(SculptDrag.LONG_PRESS_MS) {
+                        var got = awaitPointerEvent()
+                        while (true) {
+                            val c = got.changes.firstOrNull { it.id == down.id }
+                            if (c == null || !c.pressed || got.changes.count { it.pressed } > 1) break
+                            if (hypot(c.position.x - down.position.x, c.position.y - down.position.y) > slop) break
+                            got = awaitPointerEvent()
+                        }
+                        got
+                    }
+                    if (first == null) {
+                        // held: the part under the finger (the pick answers on the main thread), then the drag sculpts it
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        var picked: Int? = null
+                        scene.pickBodyRegion(actorKey, down.position.x, down.position.y, wPx.roundToInt(), hPx.roundToInt()) { code -> picked = code }
+                        var session: SculptDragSession? = null
+                        var turning = false
+                        var lastX = down.position.x; var lastT = down.uptimeMillis
+                        var lastSend = 0L
+                        dragAt = down.position
+                        while (true) {
+                            val e = awaitPointerEvent()
+                            val live = e.changes.filter { it.pressed }
+                            if (live.isEmpty()) break
+                            val code = picked
+                            if (session == null && !turning && code != null) {
+                                val region = BodyRegion.of(code)
+                                val part = SculptPart.of(region)
+                                if (part == null) { turning = true; view.fingerDown() }   // (not a part the sculpt has: she turns as ever)
+                                else {
+                                    focusRegion = region
+                                    sculptUi.part = part
+                                    session = SculptDragSession(model.appearance.sculpt ?: BodySculpt(), part, model.appearance.sex == Sex.FEMALE,
+                                        sculptUi.lift, if (sculptUi.symmetry) null else SculptDrag.sideOf(code), hPx, slop)
+                                    rev++
+                                }
+                            }
+                            val c = live.firstOrNull { it.id == down.id } ?: live[0]
+                            if (turning) {
+                                val dt = max(0f, (c.uptimeMillis - lastT) / 1000f)
+                                view.fingerMoved(c.position.x - lastX, 0f, dt)
+                                lastX = c.position.x; lastT = c.uptimeMillis
+                            }
+                            val sd = session
+                            if (sd != null) {
+                                val dx = c.position.x - down.position.x; val dy = c.position.y - down.position.y
+                                if (live.size >= 2 && !sd.lift) sd.liftMode(true, dx, dy)   // a second finger: the lift
+                                if (sd.move(dx, dy)) {
+                                    model.setSculpt(sd.sculpt.takeIf { !it.isNeutral })
+                                    val now = System.currentTimeMillis()
+                                    if (now - lastSend >= SCULPT_SEND_MS) { lastSend = now; sendSculpt() }
+                                    rev++
+                                }
+                                if (sd.tick) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                sculptUi.dragLabel = sd.label
+                                dragAt = c.position
+                            }
+                            e.changes.forEach { it.consume() }
+                        }
+                        if (turning) view.fingerUp()
+                        val sd = session
+                        if (sd != null && sd.sculpt != sd.start) { changed(look = false); sendSculpt() }   // (one Undo for the drag)
+                        sculptUi.dragLabel = null
+                        dragAt = null
+                        return@awaitEachGesture
+                    }
+                }
                 view.fingerDown()
                 var lastX = down.position.x; var lastY = down.position.y
                 var lastT = down.uptimeMillis; var lastSpan = 0f
                 var travelled = 0f; var multi = false
                 while (true) {
-                    val e = awaitPointerEvent()
+                    val e = first ?: awaitPointerEvent()
+                    first = null
                     val live = e.changes.filter { it.pressed }
                     if (live.isEmpty() || e.changes.all { it.changedToUp() }) break
                     if (live.size >= 2) {
@@ -266,6 +347,15 @@ fun CasScreen(
                 }
             }
         })
+
+        // what a drag on her is changing, by the finger
+        val dragLabel = sculptUi.dragLabel
+        val dragPoint = dragAt
+        if (dragLabel != null && dragPoint != null) {
+            Box(Modifier.offset { IntOffset((dragPoint.x + 30.dp.toPx()).roundToInt(), (dragPoint.y - 56.dp.toPx()).roundToInt()) }) {
+                CasTag(dragLabel)
+            }
+        }
 
         // the soft ring where she was touched, fading
         glowAt?.let { p ->
@@ -314,6 +404,7 @@ fun CasScreen(
                     },
                     sculptRateMs = SCULPT_SEND_MS,
                     eve = eve,
+                    sculptUi = sculptUi,
                 )
             }
         }
@@ -327,7 +418,7 @@ fun CasScreen(
                 locked = locks.size, compact = !landscape || screenW < 760.dp,
                 onRandom = {
                     val traits = Trait.entries.map { it.name }
-                    CasRandomizer.randomize(model, locks, Random(System.nanoTime()), sculptable = eveBody, traits = traits,
+                    CasRandomizer.randomize(model, locks, Random(System.nanoTime()), sculptable = true, traits = traits,
                         opposed = { a, b -> Traits.opposed(Trait.valueOf(a), Trait.valueOf(b)) })
                     changed(); sendSculpt()
                 },

@@ -59,7 +59,7 @@ class CasTest {
         assertEquals(CasCamera.UPPER, CasTabs.cameraFor(BodyRegion.CHEST)); assertEquals(CasCamera.UPPER, CasTabs.cameraFor(BodyRegion.WAIST))
         assertEquals(CasCamera.LEGS, CasTabs.cameraFor(BodyRegion.HIPS)); assertEquals(CasCamera.LEGS, CasTabs.cameraFor(BodyRegion.LEGS))
         assertNull(CasTabs.tabFor(BodyRegion.NONE))
-        assertEquals(listOf(SculptSlider.HIPS, SculptSlider.BUTT), CasTabs.slidersFor(BodyRegion.HIPS))
+        assertEquals(listOf(SculptSlider.HIPS, SculptSlider.BUTT, SculptSlider.BUTT_LIFT), CasTabs.slidersFor(BodyRegion.HIPS))
         assertEquals(SculptSlider.BUST_SIZE, CasTabs.slidersFor(BodyRegion.CHEST).first())
         // the engine's codes (bodypick.h) both ways
         for (r in BodyRegion.entries) assertEquals(r, BodyRegion.of(r.code))
@@ -145,21 +145,18 @@ class CasTest {
         assertEquals(1f, s[SculptSlider.HIPS]); assertEquals(-0.26f, s[SculptSlider.WAIST]); assertEquals(0f, s[SculptSlider.BELLY])
         assertFalse(SculptSlider.BELLY in s.values)                 // zeros aren't kept
         assertTrue(BodySculpt().with(SculptSlider.ARMS, 0.3f).with(SculptSlider.ARMS, 0f).isNeutral)
-        assertEquals(SculptSlider.entries.size, s.toArray().size)
+        assertEquals(2 * SculptSlider.entries.size, s.toArray().size)   // (the sliders, then each one's side balance)
         assertEquals(1f, s.toArray()[SculptSlider.HIPS.ordinal])
         assertEquals(1.06f, BodySculpt().with(SculptSlider.HEIGHT, 1f).heightScale, 1e-6f)
         assertEquals(0.94f, BodySculpt().with(SculptSlider.HEIGHT, -1f).heightScale, 1e-6f)
-        assertEquals(setOf(SculptSlider.HEIGHT, SculptSlider.LEG_LENGTH),
-            s.with(SculptSlider.HEIGHT, 0.5f).with(SculptSlider.LEG_LENGTH, -0.4f).forWarcraftBody().values.keys)
         assertEquals(s, BodySculpt.fromJson(s.toJson()))
         assertNull(BodySculpt.fromJson(JSONObject()))
     }
 
-    @Test fun warcraftBodiesTakeTheHeightAndLegLength() {
-        assertTrue(SculptSupport.supports(SculptSlider.HEIGHT, eveBody = false))
-        for (k in SculptSlider.entries.filter { it != SculptSlider.HEIGHT && it != SculptSlider.LEG_LENGTH && it.drawn }) {
-            assertFalse(SculptSupport.supports(k, eveBody = false)); assertTrue(SculptSupport.supports(k, eveBody = true))
-            assertEquals(BodySculptApplier.NEEDS_EVE, SculptSupport.why(k, eveBody = false)); assertNull(SculptSupport.why(k, eveBody = true))
+    @Test fun everyBodyTakesEverySlider() {
+        // the game's own bodies take the whole sculpt now (cpp/engine/sculpt.h, SculptOptions::gameBody), as the Eve body does
+        for (k in SculptSlider.entries) for (eve in listOf(false, true)) {
+            assertTrue(SculptSupport.supports(k, eveBody = eve), "$k"); assertNull(SculptSupport.why(k, eveBody = eve), "$k")
         }
         // leg length is the skeleton's (engine/bodyrig.h): live on every body, never greyed, never randomized
         for (eve in listOf(false, true)) {
@@ -170,7 +167,7 @@ class CasTest {
         for (seed in 1..10) assertEquals(0f, BodySculpt.random(Random(seed), 0.5f)[SculptSlider.LEG_LENGTH])
         val s = BodySculpt().with(SculptSlider.HEIGHT, 0.2f).with(SculptSlider.HIPS, 0.5f)
         val wow = RecordingSculptApplier(false); wow.apply("a", s)
-        assertEquals(BodySculpt().with(SculptSlider.HEIGHT, 0.2f), wow.applied.single().second)
+        assertEquals(s, wow.applied.single().second)
         val eve = RecordingSculptApplier(true); eve.apply("a", s)
         assertEquals(s, eve.applied.single().second)
     }

@@ -830,7 +830,10 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     /** [setSculpt] by the Eve body's name for it: the sculpt is drawn on the fitted Eve mesh (engine/sculpt.h, evescene.cpp). */
     fun setEveSculpt(key: String, values: FloatArray) = setSculpt(key, values)
 
-    /** The creator's sculpt sliders on actor [key] (creator/BodySculpt.toArray): the Eve body takes them as it is fitted. */
+    /**
+     * The creator's sculpt sliders on actor [key] (creator/BodySculpt.toArray: the sliders, then their sides): the game's own
+     * body is sculpted again (at most six times a second while they change), the Eve body takes them as it is fitted.
+     */
     fun setSculpt(key: String, values: FloatArray) = post { handle, ids ->
         ids[key]?.let { Native.setSculpt(handle, it, values) }
     }
