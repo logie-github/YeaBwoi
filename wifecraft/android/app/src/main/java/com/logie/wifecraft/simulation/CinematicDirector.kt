@@ -1,5 +1,7 @@
 package com.logie.wifecraft.simulation
 
+import com.logie.wifecraft.anim.ActorRequirement
+import com.logie.wifecraft.anim.Posture
 import com.logie.wifecraft.story.Vec3
 import kotlin.math.PI
 import kotlin.math.abs
@@ -54,6 +56,11 @@ class CinematicStage(capacity: Int) {
     var floorZ = Float.NaN
     var ceilingZ = Float.NaN
     var obstacles: List<Pair<Vec3, Vec3>> = emptyList()
+    /**
+     * What the eye can't see through ([PropSolids]: each piece's base up to its surface, its measured solid parts, a canopy's
+     * roof and valance), every piece's, the one in use too; empty: the [obstacles] (but the one in use) are used instead.
+     */
+    var solids: List<Pair<Vec3, Vec3>> = emptyList()
     var clearance: CameraClearance? = null
     var aspect = 16f / 9f
     var eyeX = 0f; var eyeY = 0f; var eyeZ = 0f
@@ -86,11 +93,138 @@ class CinematicStage(capacity: Int) {
 
 /**
  * The furniture the action is on: [id] (a new piece is a new focus), the middle of its people, its views, how far it reaches
- * from its middle ([radius]) and its box on the floor ([box], world: the walls' test starts beside it; null: a circle of
- * [radius]).
+ * from its middle ([radius]), its box on the floor ([box], world: the walls' test starts beside it; null: a circle of
+ * [radius]) and the height of the surface its people rest on ([surfaceZ]: a bed's mattress, a seat; NaN: none known).
  */
 data class FurnitureFocus(val id: String, val centre: Vec3, val presets: List<FurniturePreset>, val radius: Float,
-                          val box: Pair<Vec3, Vec3>? = null)
+                          val box: Pair<Vec3, Vec3>? = null, val surfaceZ: Float = Float.NaN)
+
+/**
+ * What of a piece of furniture the eye can't see through, from its real extent (FurnitureSpec.measured: the model's
+ * footprint, surface, solid parts and full height): its base up to its surface (a bed's frame and mattress, a seat), each
+ * solid part from the floor to its top (a headboard, a footboard, posts, a chair's back), and, on a piece much taller than
+ * its parts' surface ([CANOPY_RISE] over it: a canopy bed), the canopy over its whole footprint from its top down by a
+ * share of its rise (its roof and the valance and drapes hung from it). The measure keeps no hung drapes apart (only what
+ * stands up from below the surface), so a canopy's sides are open where no part stands. Pure.
+ */
+object PropSolids {
+    /** A piece this much taller than its surface (yards) carries a canopy. */
+    const val CANOPY_RISE = 1.4f
+    /** The canopy's depth: this share of its rise over the surface, within these (yards). */
+    const val CANOPY_SHARE = 0.3f
+    const val CANOPY_MIN = 0.45f
+    const val CANOPY_MAX = 1.0f
+
+    /** The boxes in the piece's own frame: each [minX, maxX, minY, maxY, z0, z1] over its floor (world units). */
+    fun local(spec: FurnitureSpec): List<FloatArray> {
+        if (spec.kind == FurnitureKind.FLOOR) return emptyList()
+        val u = spec.unitsPerMetre / FurnitureSpec.YARDS_PER_METRE
+        val out = ArrayList<FloatArray>()
+        val sf = spec.regions.firstOrNull()
+        val top = spec.surface
+        if (sf == null || top <= 0.05f * u) {
+            out += floatArrayOf(-spec.halfX, spec.halfX, -spec.halfY, spec.halfY, 0f, spec.top)
+            return out
+        }
+        out += floatArrayOf(sf.minX, sf.maxX, sf.minY, sf.maxY, 0f, top)
+        var tallest = top
+        for (r in spec.regions.drop(1)) {
+            if (r.height <= top + 0.05f * u) continue
+            out += floatArrayOf(r.minX, r.maxX, r.minY, r.maxY, 0f, r.height)
+            tallest = max(tallest, r.height)
+        }
+        val rise = spec.top - top
+        if (rise >= CANOPY_RISE * u) {
+            val depth = (rise * CANOPY_SHARE).coerceIn(CANOPY_MIN * u, CANOPY_MAX * u)
+            out += floatArrayOf(-spec.halfX, spec.halfX, -spec.halfY, spec.halfY, spec.top - depth, spec.top)
+        }
+        return out
+    }
+
+    /** [f]'s boxes in the world (each the box round its four corners turned there). */
+    fun world(f: Furniture): List<Pair<Vec3, Vec3>> = local(f.spec).map { b ->
+        val pts = listOf(f.toWorld(b[0], b[2]), f.toWorld(b[0], b[3]), f.toWorld(b[1], b[2]), f.toWorld(b[1], b[3]))
+        Vec3(pts.minOf { it.x }, pts.minOf { it.y }, f.z + b[4]) to Vec3(pts.maxOf { it.x }, pts.maxOf { it.y }, f.z + b[5])
+    }
+
+    /** Whether [f] carries a canopy ([CANOPY_RISE]). */
+    fun canopy(f: Furniture): Boolean = f.spec.top - f.spec.surface >= CANOPY_RISE * f.spec.unitsPerMetre / FurnitureSpec.YARDS_PER_METRE &&
+        f.spec.regions.isNotEmpty()
+}
+
+/**
+ * The director's hip and head points of a body (yards, a human's size; [scale] the body's), by what it is doing: from the
+ * playing clip's own skeleton as anim/Requirements read it (its pelvis and head over the ground, in the pair's shared frame,
+ * body units) where that is known, else an estimate by its posture. Pure.
+ */
+object CinematicAnchors {
+    /** How high the pelvis is over what the body rests on (the floor for a standing or leaning one). */
+    fun pelvisOver(p: Posture): Float = when (p) {
+        Posture.STAND -> 1.12f
+        Posture.LEAN -> 1.05f
+        Posture.SIT, Posture.SIT_ON_SURFACE -> 0.12f
+        Posture.KNEEL -> 0.62f
+        Posture.CROUCH -> 0.45f
+        Posture.ALL_FOURS -> 0.62f
+        Posture.LIE_BACK, Posture.LIE_FRONT -> 0.12f
+        Posture.LIE_SIDE -> 0.18f
+        Posture.UNKNOWN -> 0.6f
+    }
+
+    /** How high the head's middle is over the pelvis. */
+    fun headOver(p: Posture): Float = when (p) {
+        Posture.STAND, Posture.SIT, Posture.SIT_ON_SURFACE -> 0.72f
+        Posture.LEAN -> 0.55f
+        Posture.KNEEL -> 0.7f
+        Posture.CROUCH -> 0.55f
+        Posture.ALL_FOURS -> 0.05f
+        Posture.LIE_BACK, Posture.LIE_FRONT -> 0.06f
+        Posture.LIE_SIDE -> 0.1f
+        Posture.UNKNOWN -> 0.65f
+    }
+
+    /** How far the head is from the pelvis along the ground when the body is laid out (lying, on all fours). */
+    fun headReach(p: Posture): Float = when (p) {
+        Posture.LIE_BACK, Posture.LIE_FRONT, Posture.LIE_SIDE -> 0.72f
+        Posture.ALL_FOURS -> 0.7f
+        else -> 0f
+    }
+
+    /**
+     * A performer's points from their clip ([a]: the pair's shared frame, body units; [ox], [oy] and [heading] the frame's
+     * origin and turn in the scene, [unit] world units a body unit), the clip's origin [originZ] high over the floor [floorZ]:
+     * [out] = hip x, y, z, head x, y, z. False: the reading is not usable (a head far from its pelvis).
+     */
+    fun performer(a: ActorRequirement, ox: Float, oy: Float, heading: Float, unit: Float, scale: Float, originZ: Float, floorZ: Float,
+                  out: FloatArray): Boolean {
+        val c = cos(heading); val s = sin(heading)
+        val hx = ox + (a.headX * c - a.headY * s) * unit; val hy = oy + (a.headX * s + a.headY * c) * unit
+        // (a leaning body's support is its hands: its pelvis is taken under its head)
+        val lean = a.posture == Posture.LEAN
+        val px = if (lean) hx else ox + (a.x * c - a.y * s) * unit
+        val py = if (lean) hy else oy + (a.x * s + a.y * c) * unit
+        if (!(px.isFinite() && py.isFinite() && hx.isFinite() && hy.isFinite()) || a.posture == Posture.UNKNOWN) return false
+        if (hypot(hx - px, hy - py) > 1.3f * scale) return false
+        val support = max(floorZ, originZ + a.restUnits * unit)
+        val base = if (a.posture == Posture.STAND || lean) floorZ else support
+        val hz = base + pelvisOver(a.posture) * scale
+        out[0] = px; out[1] = py; out[2] = hz
+        out[3] = hx; out[4] = hy; out[5] = hz + headOver(a.posture) * scale
+        return true
+    }
+
+    /**
+     * Without the clip's reading: a body of [posture] resting at [x], [y] on [restZ] (the floor or the furniture under it),
+     * facing [facing] (a lying body's facing is toward its head, as a bed's lying places have it): its head over its pelvis,
+     * or along the facing for a body laid out.
+     */
+    fun estimate(posture: Posture, x: Float, y: Float, restZ: Float, facing: Float, scale: Float, out: FloatArray) {
+        val hz = restZ + pelvisOver(posture) * scale
+        val reach = headReach(posture) * scale
+        out[0] = x; out[1] = y; out[2] = hz
+        out[3] = x + cos(facing) * reach; out[4] = y + sin(facing) * reach; out[5] = hz + headOver(posture) * scale
+    }
+}
 
 /** The framing's maths: a point's place in a camera's picture (-1..1 each way), and whether points are inside with a margin. */
 object CinematicFraming {
@@ -140,6 +274,80 @@ object CinematicFraming {
     }
 
     fun eye(at: Vec3, yaw: Float, pitch: Float, distance: Float): Vec3 = FurnitureCameras.eyeOf(at, yaw, pitch, distance)
+
+    /** Whether the segment from [a] to [b] (its last [endGap] yards left out) passes through the box [lo]..[hi]. */
+    fun segmentHits(a: Vec3, b: Vec3, lo: Vec3, hi: Vec3, endGap: Float = 0f): Boolean {
+        val dx = b.x - a.x; val dy = b.y - a.y; val dz = b.z - a.z
+        val len = sqrt(dx * dx + dy * dy + dz * dz)
+        if (len < 1e-5f) return false
+        var t0 = 0f
+        var t1 = 1f - endGap / len
+        if (t1 <= 0f) return false
+        for (k in 0..2) {
+            val o = when (k) { 0 -> a.x; 1 -> a.y; else -> a.z }
+            val d = when (k) { 0 -> dx; 1 -> dy; else -> dz }
+            val mn = when (k) { 0 -> lo.x; 1 -> lo.y; else -> lo.z }
+            val mx = when (k) { 0 -> hi.x; 1 -> hi.y; else -> hi.z }
+            if (abs(d) < 1e-7f) {
+                if (o <= mn || o >= mx) return false
+            } else {
+                var ta = (mn - o) / d; var tb = (mx - o) / d
+                if (ta > tb) { val sw = ta; ta = tb; tb = sw }
+                t0 = max(t0, ta); t1 = min(t1, tb)
+                if (t0 >= t1) return false
+            }
+        }
+        return true
+    }
+
+    /** The body's bounding spheres along its hips to its head: the head, the shoulders, the chest, the hips (radius, yards). */
+    private val BODY = floatArrayOf(1f, 0.12f, -0.27f, 0.21f, 0.45f, 0.19f, 0f, 0.19f)
+
+    /**
+     * The share of the picture (0..1) a body from [hip] to [head] covers, seen from [eye] looking at [at] ([fovDeg] high,
+     * [aspect] wide): its bounding spheres (head, shoulders, chest, hips) projected, their union counted on a 48 x 27 grid;
+     * 1 when the eye is inside one of them.
+     */
+    fun coverage(eye: Vec3, at: Vec3, fovDeg: Float, aspect: Float, hip: Vec3, head: Vec3): Float {
+        val bx = head.x - hip.x; val by = head.y - hip.y; val bz = head.z - hip.z
+        val bl = sqrt(bx * bx + by * by + bz * bz).coerceAtLeast(1e-4f)
+        var fx = at.x - eye.x; var fy = at.y - eye.y; var fz = at.z - eye.z
+        val fl = sqrt(fx * fx + fy * fy + fz * fz)
+        if (fl < 1e-5f) return 1f
+        fx /= fl; fy /= fl; fz /= fl
+        val t = tan(Math.toRadians(fovDeg / 2.0).toFloat())
+        val n = BODY.size / 2
+        val cx = FloatArray(n); val cy = FloatArray(n); val rx = FloatArray(n); val ry = FloatArray(n)
+        val ok = BooleanArray(n)
+        val p = FloatArray(2)
+        for (k in 0 until n) {
+            val u = BODY[2 * k]; val r = BODY[2 * k + 1]
+            // u: a share of the way from the hips (1: the head); negative: yards down from the head
+            val c = if (u >= 0f) Vec3(hip.x + bx * u, hip.y + by * u, hip.z + bz * u)
+                else Vec3(head.x + bx / bl * u, head.y + by / bl * u, head.z + bz / bl * u)
+            val vx = c.x - eye.x; val vy = c.y - eye.y; val vz = c.z - eye.z
+            if (sqrt(vx * vx + vy * vy + vz * vz) <= r * 1.05f) return 1f
+            val depth = vx * fx + vy * fy + vz * fz
+            if (depth <= r || !project(eye, at, fovDeg, aspect, c, p)) continue
+            ok[k] = true
+            cx[k] = p[0]; cy[k] = p[1]
+            ry[k] = r / (depth * t); rx[k] = ry[k] / aspect
+        }
+        var hit = 0
+        val gw = 48; val gh = 27
+        for (j in 0 until gh) {
+            val y = -1f + (j + 0.5f) * 2f / gh
+            for (i in 0 until gw) {
+                val x = -1f + (i + 0.5f) * 2f / gw
+                for (k in 0 until n) {
+                    if (!ok[k]) continue
+                    val ax = (x - cx[k]) / rx[k]; val ay = (y - cy[k]) / ry[k]
+                    if (ax * ax + ay * ay <= 1f) { hit++; break }
+                }
+            }
+        }
+        return hit.toFloat() / (gw * gh)
+    }
 }
 
 /**
@@ -183,9 +391,14 @@ class FloorReach(private val clear: CameraClearance) {
         val dx = eye.x - cx; val dy = eye.y - cy
         val d = hypot(dx, dy)
         if (d <= 1e-4f || d <= start(dx / d, dy / d)) return true
-        val deg = Math.toDegrees(atan2(dy, dx).toDouble())
-        val key = Math.floorDiv((deg + 360.0).roundToInt(), BUCKET_DEG)
-        val far = reach.getOrPut(key) {
+        return d <= toward(atan2(dy, dx))
+    }
+
+    /** How far from the focus the floor is clear toward [yaw] (yards). */
+    fun toward(yaw: Float): Float {
+        val deg = Math.toDegrees(OrbitMath.wrap(yaw).toDouble())
+        val key = Math.floorDiv((deg + 360.0).roundToInt(), BUCKET_DEG) % (360 / BUCKET_DEG)
+        return reach.getOrPut(key) {
             val a = Math.toRadians(key * BUCKET_DEG.toDouble() + BUCKET_DEG / 2.0)
             val ux = cos(a).toFloat(); val uy = sin(a).toFloat()
             val out = start(ux, uy)
@@ -200,7 +413,6 @@ class FloorReach(private val clear: CameraClearance) {
             }
             r
         }
-        return d <= far
     }
 }
 
@@ -262,6 +474,23 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
         const val DRIFT_DIST = 0.08f
         /** A shoulder shot's line to the face passes no nearer the shoulder's own head than this (yards). */
         const val OVER_HEAD_GAP = 0.24f
+        /**
+         * The most of the picture the near person may cover in a shot over their shoulder (or one that may have them in the
+         * line to the face), and in a steep point of view looking down past them.
+         */
+        const val MAX_NEAR_COVER = 0.25f
+        const val MAX_POV_COVER = 0.40f
+        /** A shot this steep (radians) looking past the near person is a point of view (it is meant to show them). */
+        const val POV_PITCH = 0.5f
+        /** A sight line's end this near what it looks at (yards) may touch a box (the people rest on and against them). */
+        const val SIGHT_END = 0.15f
+        /** A surface lower than this over the floor (yards) is the floor (a shot set by the surface is left out). */
+        const val MIN_SURFACE = 0.3f
+        /** A wide shot fitted to its room keeps this far inside the floor's reach (yards), and comes no nearer (body heights). */
+        const val ROOM_MARGIN = 0.3f
+        const val WIDE_MIN = 0.9f
+        /** A corner's high shot looks down at least this much (radians, about 15 degrees). */
+        const val CORNER_PITCH = 0.26f
         /** The presets of the library's shots start with this. */
         const val LIBRARY = "LIB:"
         private const val TAU = (2.0 * PI).toFloat()
@@ -559,7 +788,9 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
                 if (dl < 0.3f) return null
                 val bx = dx / dl; val by = dy / dl              // from B toward A (behind A, seen from B)
                 val side = if (random.nextBoolean()) 1f else -1f
-                val eye = Vec3(ha.x + bx * 0.55f - by * 0.32f * side, ha.y + by * 0.55f + bx * 0.32f * side, ha.z + 0.12f)
+                // back from the near head, well off to its side and over it: the shoulder a sliver at the picture's edge
+                // (MAX_NEAR_COVER), not a wall in front of the face
+                val eye = Vec3(ha.x + bx * 0.8f - by * 0.5f * side, ha.y + by * 0.8f + bx * 0.5f * side, ha.z + 0.2f)
                 val at = Vec3(hb.x, hb.y, hb.z - 0.1f)
                 val f = frameOf(eye, at, 45f, focus)
                 shot("$a>$b${if (side > 0) "R" else "L"}", f, f.copy(distance = f.distance * (1f - 0.08f * m)))
@@ -619,18 +850,24 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
                 }
             }
         }
-        // a library shot: the near person's head (the shoulder looked over) clear of the line to the face, and no piece of
-        // furniture (but the one the action is on) between the eye and what it looks at
-        if (framed != null) {
-            for (k in 0..2) {
-                val f = shot.from.toward(shot.to, k / 2f, shot.to.yaw - shot.from.yaw)
-                val at = focus + f.at
-                val eye = CinematicFraming.eye(at, f.yaw, f.pitch, f.distance)
-                // (a shot looking steeply down over the head, the point of view's, is meant to have it in the picture)
-                if (overIdx >= 0 && faceOwners != null && f.pitch < 0.5f) for (o in faceOwners) {
-                    if (o != overIdx && bodyDistance(stage.head(overIdx), eye, stage.head(o)) < OVER_HEAD_GAP) return reject(shot, "shoulder in the way")
-                }
-                if (sightBlocked(stage, eye, at)) return reject(shot, "furniture in the way")
+        // a library shot: the near person's head (the shoulder looked over) clear of the line to the face; every shot: nothing
+        // solid between the eye and what it looks at or the faces it frames (a canopy's roof or drapes, a headboard, another
+        // piece: [CinematicStage.solids]); the near person (the shoulder looked over) at most a sliver of the picture
+        val nearIdx = if (framed != null) overIdx else shoulder(shot)
+        for (k in 0..2) {
+            val f = shot.from.toward(shot.to, k / 2f, shot.to.yaw - shot.from.yaw)
+            val at = focus + f.at
+            val eye = CinematicFraming.eye(at, f.yaw, f.pitch, f.distance)
+            // (a shot looking steeply down over the head, the point of view's, is meant to have it in the picture)
+            if (framed != null && overIdx >= 0 && faceOwners != null && f.pitch < POV_PITCH) for (o in faceOwners) {
+                if (o != overIdx && bodyDistance(stage.head(overIdx), eye, stage.head(o)) < OVER_HEAD_GAP) return reject(shot, "shoulder in the way")
+            }
+            if (sightBlocked(stage, eye, at)) return reject(shot, "furniture in the way")
+            if (faceOwners != null) for (o in faceOwners) if (sightBlocked(stage, eye, stage.head(o))) return reject(shot, "furniture in the way")
+            if (nearIdx in 0 until stage.count) {
+                val limit = if (f.pitch >= POV_PITCH) MAX_POV_COVER else MAX_NEAR_COVER
+                if (CinematicFraming.coverage(eye, at, fov, stage.aspect, stage.hip(nearIdx), stage.head(nearIdx)) > limit)
+                    return reject(shot, "near person covers the picture")
             }
         }
         val sized = shot.copy(from = shot.from.copy(fov = fov), to = shot.to.copy(fov = fov))
@@ -746,6 +983,8 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
             else if (cands.size >= 4 && sp.id in ids) w *= 0.3f
             if (!still && (sp.size == ShotSize.CLOSE || sp.size == ShotSize.DETAIL)) w = 0f
             if (!two && (sp.anchor == ShotAnchor.HEAD_B || sp.anchor == ShotAnchor.HIP_B)) w = 0f
+            // a shot set by the surface the pair is on: not on the floor
+            if (sp.overSurface != null && surfaceZ(stage).isNaN()) w = 0f
             w
         }
         // the randomness flattens the weights toward their mean (100%: every candidate nearly as likely)
@@ -820,18 +1059,91 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
             if (cos(az0 * deg - faceAz) < 0f) az0 = 180f - az0
         }
         val arc = sp.orbit.pick(random) * seconds * m * (if (random.nextBoolean()) 1f else -1f)
-        val az1 = (az0 + arc).coerceIn(edge, 180f - edge)
-        val pitch = (sp.pitch.pick(random) * deg).coerceIn(MIN_PITCH + 0.01f, MAX_PITCH - 0.01f)
+        var az1 = (az0 + arc).coerceIn(edge, 180f - edge)
+        var pitch = (sp.pitch.pick(random) * deg).coerceIn(MIN_PITCH + 0.01f, MAX_PITCH - 0.01f)
         val bh = stage.bodyHeight.coerceIn(0.5f, 4f)
-        val d0 = sp.distance.pick(random) * bh * nearer
-        val d1 = (d0 * (1f - sp.push.pick(random) * m)).coerceAtLeast(0.5f)
+        var d0 = sp.distance.pick(random) * bh * nearer
+        val push = sp.push.pick(random) * m
         val fov = sp.fov.pick(random)
+        var tag = ""
+        // a shot set by the surface the pair is on (a low detail just over a bed's or couch's top): its eye that high over it,
+        // the pitch made to fit; never on the floor (the eye would be under it)
+        val overSurf = sp.overSurface
+        if (overSurf != null) {
+            val sz = surfaceZ(stage)
+            if (sz.isNaN()) return null
+            val dz = sz + overSurf.pick(random) - anchor.z
+            if (abs(dz) > 0.9f * d0) return null
+            pitch = asin(dz / d0).coerceIn(MIN_PITCH + 0.01f, MAX_PITCH - 0.01f)
+        }
+        // a wide shot of the pair kept inside the room (the floor's reach that way, the ceiling); where the room is too small
+        // that way, from the corner with the most room, as high as the shot goes
+        var dMax = Float.MAX_VALUE
+        if (sp.size == ShotSize.WIDE && sp.anchor == ShotAnchor.PAIR) {
+            dMax = roomDistance(stage, anchor, lineYaw + lineSide * az0 * deg, pitch)
+            val least = WIDE_MIN * bh
+            if (dMax < least) {
+                // the corner: the eye as high as the ceiling lets it and as far as the floor reaches, the way with most room
+                // (no farther than the shot's own distance), looking down at whatever angle that makes (but not flat)
+                val up = if (stage.floorZ.isNaN()) Float.MAX_VALUE else ceiling(stage) - CEILING_GAP - 0.05f - anchor.z
+                var best = -1f; var bestAz = az0; var bestPitch = pitch
+                var az = edge + 4f
+                while (az <= 180f - edge - 4f + 1e-3f) {
+                    val yaw = lineYaw + lineSide * az * deg
+                    val h = min(roomReach(stage, anchor, yaw), d0 * cos(pitch))
+                    val v = min(up, d0 * sin(pitch))
+                    if (h > 0f && v > 0f) {
+                        val p = atan2(v, h).coerceIn(CORNER_PITCH, MAX_PITCH - 0.01f)
+                        val r = min(hypot(h, v), roomDistance(stage, anchor, yaw, p))
+                        if (r > best) { best = r; bestAz = az; bestPitch = p }
+                    }
+                    az += 8f
+                }
+                if (best < least) return null
+                az0 = bestAz; az1 = bestAz; pitch = bestPitch; dMax = best; tag = ":corner"
+            }
+            d0 = min(d0, dMax)
+        }
+        val d1 = (d0 * (1f - push)).coerceIn(0.5f, max(0.5f, dMax))
         val at = anchor - focus
         val yaw0 = lineYaw + lineSide * az0 * deg
         val yaw1 = lineYaw + lineSide * az1 * deg
-        val shot = CinematicShot(sp.type, "$LIBRARY${sp.id}:${sector(yaw0)}", ShotFrame(yaw0, pitch, d0, at, fov),
+        val shot = CinematicShot(sp.type, "$LIBRARY${sp.id}:${sector(yaw0)}$tag", ShotFrame(yaw0, pitch, d0, at, fov),
             ShotFrame(yaw1, pitch, d1, at, fov), seconds, cut = false)
         return Built(shot, framed, faces, over)
+    }
+
+    /** The surface the pair is on (the furniture in use's: a bed's mattress, a seat; stage z), NaN on the floor or none. */
+    private fun surfaceZ(stage: CinematicStage): Float {
+        val z = stage.furniture?.surfaceZ ?: return Float.NaN
+        if (z.isNaN() || (!stage.floorZ.isNaN() && z - stage.floorZ < MIN_SURFACE)) return Float.NaN
+        return z
+    }
+
+    /**
+     * The farthest an eye looking at [at] from [yaw] and [pitch] may be and stay in the room: under the ceiling (and over the
+     * floor), and over the floor's clear reach that way less [ROOM_MARGIN] (the walls' test; none: no limit).
+     */
+    private fun roomDistance(stage: CinematicStage, at: Vec3, yaw: Float, pitch: Float): Float {
+        var d = Float.MAX_VALUE
+        val floor = stage.floorZ
+        val sp = sin(pitch); val cp = cos(pitch)
+        if (!floor.isNaN()) {
+            if (sp > 1e-3f) d = min(d, (ceiling(stage) - CEILING_GAP - 0.05f - at.z) / sp)
+            if (sp < -1e-3f) d = min(d, (floor + FLOOR_GAP + 0.05f - at.z) / sp)
+        }
+        if (cp > 1e-3f) d = min(d, roomReach(stage, at, yaw) / cp)
+        return d
+    }
+
+    /** How far from [at] toward [yaw] an eye's floor point may be: the floor's clear reach less [ROOM_MARGIN] (no test: no limit). */
+    private fun roomReach(stage: CinematicStage, at: Vec3, yaw: Float): Float {
+        val c = stage.clearance
+        if (c == null || stage.floorZ.isNaN()) return Float.MAX_VALUE
+        val r = reachFor(stage, c)
+        // (the reach is from its own centre: what is looked at may stand a little off it)
+        val off = (at.x - reachAt.x) * cos(yaw) + (at.y - reachAt.y) * sin(yaw)
+        return r.toward(yaw) - off - ROOM_MARGIN
     }
 
     /** Where the eye is round the line of action now (degrees, 0..180 on the scene's side; negative: the other side). */
@@ -867,7 +1179,8 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
             distance = f.distance * (1f + dd * dAmp))
         val az = azimuthOf(g)
         val edge = if (sp.crossLine) -1f else LINE_EDGE * 0.5f
-        if ((sp.crossLine || (az >= edge && az <= 180f - edge)) && eyeGood(stage, focus, g, emptyList())) return g
+        if ((sp.crossLine || (az >= edge && az <= 180f - edge)) && eyeGood(stage, focus, g, emptyList()) &&
+            !sightBlocked(stage, CinematicFraming.eye(focus + g.at, g.yaw, g.pitch, g.distance), focus + g.at)) return g
         du *= 0.5f; dp *= 0.5f; dd *= 0.5f
         return f
     }
@@ -880,10 +1193,22 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
     }
 
     /**
-     * Whether the line from [eye] to [at] passes through a piece of furniture's box (the one the action is on, or that holds
-     * [at], left out: the people are on it), sampled every tenth of the way.
+     * Whether the line from [eye] to [at] passes through something solid: the stage's [CinematicStage.solids] (every piece's,
+     * the one in use too: its canopy, its headboard; a box holding [at] left out, and the line's last [SIGHT_END]), else a
+     * piece of furniture's box (the one the action is on, or that holds [at], left out: the people are on it), sampled every
+     * tenth of the way.
      */
     private fun sightBlocked(stage: CinematicStage, eye: Vec3, at: Vec3): Boolean {
+        val solids = stage.solids
+        if (solids.isNotEmpty()) {
+            for ((lo, hi) in solids) {
+                // (a box holding what is looked at: the people rest in it, a lying head against a headboard)
+                val g = 0.05f
+                if (at.x > lo.x - g && at.x < hi.x + g && at.y > lo.y - g && at.y < hi.y + g && at.z > lo.z - g && at.z < hi.z + g) continue
+                if (CinematicFraming.segmentHits(eye, at, lo, hi, SIGHT_END)) return true
+            }
+            return false
+        }
         for ((lo, hi) in stage.obstacles) {
             if (at.x >= lo.x && at.x <= hi.x && at.y >= lo.y && at.y <= hi.y) continue
             val fb = stage.furniture?.box

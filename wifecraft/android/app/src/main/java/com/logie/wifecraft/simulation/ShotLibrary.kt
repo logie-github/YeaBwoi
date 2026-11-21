@@ -57,13 +57,16 @@ data class Span(val lo: Float, val hi: Float) {
  * anchor, [fov] degrees; its move: [orbit] degrees a second round the anchor (random way), [push] the share of the distance
  * closed over the shot (negative: a pull out), [sway] degrees of handheld sway; [dwell] seconds; [transition]; [over] the
  * person whose shoulder it looks over ("A", "B": they may stand in the line to the face); [crossLine]: a top-down or end-on
- * shot that may sit on the line. [type] is the director's ShotType it is reported as.
+ * shot that may sit on the line; [overSurface] ("eyeOverSurface"): the eye this many yards over the surface the pair is on
+ * (a bed's or couch's top; the pitch is made to fit) and the shot left out on the floor. [type] is the director's ShotType
+ * it is reported as.
  */
 data class ShotSpec(
     val id: String, val size: ShotSize, val anchor: ShotAnchor, val type: ShotType,
     val azimuth: Span, val pitch: Span, val distance: Span, val fov: Span,
     val orbit: Span, val push: Span, val sway: Float, val dwell: Span,
     val transition: ShotTransition, val over: Int = -1, val crossLine: Boolean = false,
+    val overSurface: Span? = null,
 )
 
 /** One candidate of a class's set and its weight. */
@@ -204,6 +207,7 @@ class ShotLibrary(
                 transition = ShotTransition.entries.firstOrNull { it.name == s.optString("transition") } ?: ShotTransition.ANY,
                 over = when (s.optString("over")) { "A" -> 0; "B" -> 1; else -> -1 },
                 crossLine = s.optBoolean("crossLine", false),
+                overSurface = if (s.has("eyeOverSurface")) Span.of(s, "eyeOverSurface", Span(0.05f, 0.3f)) else null,
             )
         }
     }

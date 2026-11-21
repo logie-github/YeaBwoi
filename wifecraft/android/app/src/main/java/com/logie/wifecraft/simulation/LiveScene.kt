@@ -1,5 +1,7 @@
 package com.logie.wifecraft.simulation
 
+import com.logie.wifecraft.anim.ActorRequirement
+import com.logie.wifecraft.anim.Posture
 import com.logie.wifecraft.story.CameraPose
 import com.logie.wifecraft.story.Vec3
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -346,19 +348,34 @@ class LiveScene(
         cineWas = on
         val st = cineStage ?: CinematicStage(n).also { cineStage = it }
         st.count = n
+        if (cinePlay.size != n) { cinePlay = arrayOfNulls(n); cineReads = arrayOfNulls(n); cineFrames = FloatArray(4 * n); cineActionRead = false }
         for (i in 0 until n) {
             simulation.pose(i, pose)
+            if (cinePlay[i] !== pose.playback) { cinePlay[i] = pose.playback; cineActionRead = false; cineRead(i) }
             val sx = stageX(curX[i], curY[i]); val sy = stageY(curX[i], curY[i]); val z = oz + curZ[i]
+            st.facing[i] = pose.facing + rotation
+            // the hips and head: from the playing clip's skeleton as it was read (anim/Requirements: its pelvis, its head over
+            // the ground, its posture), else by what they do (a body resting on a bed laid out toward its head)
+            val read = cineReads[i]
+            val scale = simulation.bodyScales[simulation.id(i)] ?: 1f
+            if (read != null && pose.playback != null && CinematicAnchors.performer(read, cineFrames[4 * i], cineFrames[4 * i + 1],
+                    cineFrames[4 * i + 2], cineFrames[4 * i + 3], scale, pose.z, pose.floor, cinePoint)) {
+                val p = cinePoint
+                st.person(i, stageX(p[0], p[1]), stageY(p[0], p[1]), oz + p[2], stageX(p[3], p[4]), stageY(p[3], p[4]), oz + p[5])
+                continue
+            }
+            if (pose.activity == Activity.REST) {
+                CinematicAnchors.estimate(Posture.LIE_BACK, sx, sy, z + 0.23f, pose.facing + rotation, scale, cinePoint)
+                val p = cinePoint
+                st.person(i, p[0], p[1], p[2], p[3], p[4], p[5])
+                continue
+            }
             val (hip, head) = when {
-                pose.activity == Activity.REST -> 0.35f to 0.5f
                 pose.activity == Activity.SIT -> 0.5f to 1.15f
                 pose.playback != null -> 0.6f to 1.25f
                 else -> 1.0f to 1.65f
             }
             st.person(i, sx, sy, z + hip, sx, sy, z + head)
-            st.facing[i] = pose.facing + rotation
-            if (cinePlay.size != n) { cinePlay = arrayOfNulls(n); cineActionRead = false }
-            if (cinePlay[i] !== pose.playback) { cinePlay[i] = pose.playback; cineActionRead = false }
         }
         if (!cineActionRead) { cineActionRead = true; cineAction(st, dir.library) }
         val version = simulation.version
@@ -379,9 +396,13 @@ class LiveScene(
                 }
                 val c = if (pts.isNotEmpty()) stage(Vec3(pts.map { it.x }.average().toFloat(), pts.map { it.y }.average().toFloat(),
                     pts.map { it.z }.average().toFloat())) else stage(f.toWorld(0f, 0f, f.spec.surface))
-                FurnitureFocus(f.id, c, views, hypot(f.spec.halfX, f.spec.halfY), stageBox(f))
+                // the surface its people rest on (a bed's mattress, a seat; FurnitureFit's), for the shots set by it
+                val surface = if (f.kind != FurnitureKind.FLOOR && f.spec.surface > 0.05f) oz + f.z + f.spec.surface else Float.NaN
+                FurnitureFocus(f.id, c, views, hypot(f.spec.halfX, f.spec.halfY), stageBox(f), surface)
             }
             st.obstacles = simulation.objects.mapNotNull { item -> simulation.furniture(item)?.let(::stageBox) }
+            // what the eye can't see through: each piece's real solid parts and a canopy's roof and drapes (PropSolids)
+            st.solids = simulation.objects.flatMap { item -> simulation.furniture(item)?.let { f -> PropSolids.world(f).map(::stageBoxOf) } ?: emptyList() }
         }
         st.floorZ = camera.floorZ
         st.ceilingZ = Float.NaN
@@ -392,6 +413,38 @@ class LiveScene(
     }
 
     private var cineActionRead = false
+    // each person's clip as it was read (anim/Requirements; null: not known) and its frame (origin x, y, turn, world units a
+    // body unit), read again when their clip changes; a point scratch
+    private var cineReads = arrayOfNulls<ActorRequirement>(0)
+    private var cineFrames = FloatArray(0)
+    private val cinePoint = FloatArray(6)
+
+    /**
+     * Person [i]'s clip as anim/Requirements read its skeleton (only when their clip changed: allocates): a pair's role
+     * ("pair:<id>:<role>") in its shared frame, placed where the performance put that frame (its anchor and heading).
+     */
+    private fun cineRead(i: Int) {
+        cineReads[i] = null
+        val clip = cinePlay[i]?.clip ?: return
+        if (!clip.startsWith("pair:")) return
+        val pairId = clip.removePrefix("pair:").substringBeforeLast(':')
+        val role = clip.substringAfterLast(':').toIntOrNull() ?: return
+        val id = simulation.id(i)
+        val pv = simulation.partnerOf(id) ?: return
+        val pair = simulation.pairs.firstOrNull { it.id == pairId } ?: return
+        val read = runCatching { simulation.requirementOf(pair) }.getOrNull()?.actors?.getOrNull(role) ?: return
+        val scales = simulation.bodyScales
+        val unit = SceneSimulation.HUMAN_BODY_UNIT * ((scales[id] ?: 1f) + (scales[pv.partner] ?: 1f)) / 2f
+        cineReads[i] = read
+        cineFrames[4 * i] = pv.ox; cineFrames[4 * i + 1] = pv.oy; cineFrames[4 * i + 2] = pv.yaw; cineFrames[4 * i + 3] = unit
+    }
+
+    /** A box of the scene's frame on the stage: the box round its four corners turned there. */
+    private fun stageBoxOf(b: Pair<Vec3, Vec3>): Pair<Vec3, Vec3> {
+        val (lo, hi) = b
+        val c = listOf(stage(Vec3(lo.x, lo.y, lo.z)), stage(Vec3(lo.x, hi.y, lo.z)), stage(Vec3(hi.x, lo.y, lo.z)), stage(Vec3(hi.x, hi.y, hi.z)))
+        return Vec3(c.minOf { it.x }, c.minOf { it.y }, oz + lo.z) to Vec3(c.maxOf { it.x }, c.maxOf { it.y }, oz + hi.z)
+    }
 
     /**
      * What the cast plays, for the director's shot library (only when someone's clip changed: allocates): the class of the

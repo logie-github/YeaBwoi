@@ -8,6 +8,8 @@
 #include <cmath>
 
 #include "daylight.h"
+#include "flesh.h"
+#include "skin.h"
 
 namespace wc {
 
@@ -49,6 +51,94 @@ void Scene::graphicsStats(float* out, int n) const {
     v[2 + PostStats::kStages] = float(postfx_.active() ? s.sceneW : viewW_);
     v[3 + PostStats::kStages] = float(postfx_.active() ? s.sceneH : viewH_);
     for (int i = 0; i < n; ++i) out[i] = i < int(sizeof v / sizeof v[0]) ? v[i] : 0.0f;
+}
+
+void Scene::setSheen(int id, float sheen) {
+    auto it = actors_.find(id);
+    if (it != actors_.end()) it->second.sheen = std::isfinite(sheen) ? std::clamp(sheen, 0.0f, 1.0f) : 0.0f;
+}
+
+void Scene::textureMemory(size_t& count, size_t& bytes) const {
+    count = 0; bytes = 0;
+    for (const auto& [key, t] : textures_)
+        if (t.bytes) { ++count; bytes += t.bytes; }
+}
+
+void Scene::skinOf(Actor& a, const M4& world) {
+    float* out = drawSkin_;
+    out[0] = a.sheen;
+    out[1] = out[2] = out[3] = 0;
+    for (int k = 0; k < 2; ++k) { drawEyes_[k * 3] = 0; drawEyes_[k * 3 + 1] = 0; drawEyes_[k * 3 + 2] = -1e6f; }
+    const M2Model* m = a.mesh ? a.mesh->model.get() : nullptr;
+    if (!m || (gfx_.eyes <= 0 && gfx_.thinSkin <= 0)) return;
+    if (a.fxModel != m) {
+        a.fxModel = m;
+        const char* names[5] = {"L_Eye", "R_Eye", "Head", "L_Hand", "R_Hand"};
+        for (int k = 0; k < 5; ++k) a.fxBones[k] = m->findWowBone(names[k]);
+    }
+    auto posed = [&](int k, M4& out) {
+        const int b = a.fxBones[k];
+        if (b < 0 || size_t(b) >= a.mats.size() || size_t(b) >= m->bones.size()) return false;
+        out = world * a.mats[size_t(b)];
+        return true;
+    };
+    auto joint = [&](int k, V3& c) {
+        M4 t;
+        if (!posed(k, t)) return false;
+        c = t.point(m->bones[size_t(a.fxBones[k])].pivot);
+        return true;
+    };
+    // the eyeballs' centres: their bones' pivots, posed
+    if (gfx_.eyes > 0)
+        for (int k = 0; k < 2; ++k) {
+            V3 c;
+            if (joint(k, c)) { drawEyes_[k * 3] = c.x; drawEyes_[k * 3 + 1] = c.y; drawEyes_[k * 3 + 2] = c.z; }
+        }
+    if (gfx_.thinSkin <= 0) return;
+    // the thin parts are found on the HD skin's layout alone (a 2048 x 1024 material: the face on its right half, the
+    // hands in the band under the arms)
+    bool hd = false;
+    for (const SkinLayer& l : a.layers)
+        if (l.textureType == 1 && l.materialW == 2048 && l.materialH == 1024) { hd = true; break; }
+    if (!hd) return;
+    // The flesh profile (flesh.h's pack: the pelvis in model units, each segment's reaches in body units; measured once for
+    // the look, actorFlesh keeps it) is the thickness proxy: what sticks out past the head's measured flesh in front (the
+    // nose, the lips) or at its sides (the ears), and a hand past the middle of its own length (the fingers), is thin.
+    if (a.flesh.empty())
+        for (auto& [id, other] : actors_)
+            if (&other == &a) { std::vector<float> tmp; actorFlesh(id, tmp); break; }
+    const std::vector<float>& f = a.flesh;
+    constexpr size_t kSeg0 = 4, kSegSize = 7;
+    auto reach = [&](int seg, int field) {   // 1 front, 3 side, 6 tip; model units (0: not measured)
+        const size_t i = kSeg0 + size_t(seg) * kSegSize;
+        return f.size() > i + 6 && f[1] > 0 && f[i] > 0.5f ? f[i + size_t(field)] * f[1] : 0.0f;
+    };
+    float front = reach(kFleshHead, 1), side = reach(kFleshHead, 3);
+    float hand = std::max(reach(kFleshLHand, 6), reach(kFleshRHand, 6));
+    if (front < 0.02f) front = 0.1f;   // (a human's, until the look is measured)
+    if (side < 0.02f) side = 0.075f;
+    if (hand < 0.02f) hand = 0.09f;
+    M4 head;
+    V3 hc, hl, hr;
+    if (!posed(2, head) || !joint(2, hc)) return;
+    // world -> the head's own frame (x its front, y its side, as the model stands), its reaches to 1
+    V3 ax[3];
+    for (int c = 0; c < 3; ++c) ax[c] = V3(head.at(0, c), head.at(1, c), head.at(2, c)).normalized();
+    const float sx = 1.0f / (front * a.scale), sy = 1.0f / (side * a.scale);
+    M4 t;
+    for (int r = 0; r < 3; ++r) {
+        const float k = r == 0 ? sx : r == 1 ? sy : 1.0f;
+        t.at(r, 0) = ax[r].x * k; t.at(r, 1) = ax[r].y * k; t.at(r, 2) = ax[r].z * k;
+        t.at(r, 3) = -ax[r].dot(hc) * k;
+    }
+    std::copy(t.m, t.m + 16, drawThin_);
+    const float inv = 1.0f / (hand * a.scale);
+    const bool l = joint(3, hl), r = joint(4, hr);
+    if (!l) hl = V3(0, 0, -1e6f);
+    if (!r) hr = V3(0, 0, -1e6f);
+    const float hands[8] = {hl.x, hl.y, hl.z, inv, hr.x, hr.y, hr.z, inv};
+    std::copy(hands, hands + 8, drawThin_ + 16);
+    out[3] = 1;
 }
 
 V3 Scene::keyLightTravel() const {
@@ -101,6 +191,7 @@ bool Scene::gfxBegin(int& width, int& height, uint32_t nowMs) {
     if (m2Prog_) {
         glUseProgram(m2Prog_);
         glUniform4f(gl::loc(m2Prog_, "uSkinFx"), 0.5f * gfx_.skin, gfx_.skin, gfx_.skin, gfx_.hair);
+        glUniform4f(gl::loc(m2Prog_, "uSkinFx2"), gfx_.eyes, gfx_.thinSkin, 0, 0);
     }
     if (!postfx_.active()) return false;
     if (postfx_.wantsShadows()) renderShadows(nowMs);

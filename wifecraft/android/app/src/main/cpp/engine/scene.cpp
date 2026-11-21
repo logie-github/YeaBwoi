@@ -119,24 +119,75 @@ uniform vec4 uGhost;   // the placement editor's ghost: its colour mixed toward 
 uniform vec3 uRimColor;   // cinematic mode's rim light on a person (0: none) and the way toward it
 uniform vec3 uRimDir;
 // Options' Graphics (scene_gfx.cpp): a person's skin (uSkinKind 1) and hair (2) shaded with uSkinFx (wrap, sheen, warm
-// scatter, hair's highlight); 0 everywhere else, and all 0 at Standard: the light as before
+// scatter, hair's highlight); 0 everywhere else, and all 0 at Standard: the light as before. uSkinFx2: the eyes' highlights
+// (uSkinKind 3, the eyes' own mesh: texture type 19) and the thin-skin tint. uSkinActor, the person drawn: their sheen
+// (0..1) and 1 in w when their skin has the HD layout (the face on the texture's right half, the hands in the band under
+// the arms: CharComponentTextureSections), where their thin parts are found by the flesh profile (uThinHead, uThinHands:
+// scene_gfx.cpp skinOf).
 uniform int uSkinKind;
 uniform vec4 uSkinFx;
+uniform vec4 uSkinFx2;
+uniform vec4 uSkinActor;
+uniform mat4 uThinHead;
+uniform vec4 uThinHands[2];
+uniform vec3 uEyeC[2];   // the eyeballs' centres (world; their bones' pivots): the eyes' mesh is a flat lens, its normal not
+                         // the ball's
 out vec4 fragColor;
 vec3 skinShade(vec3 albedo, vec3 lit, vec3 n, float d) {
     vec3 v = normalize(uEye - vWorld);
     vec3 l = -uSunDir;
     float nl = dot(n, l);
     if (uSkinKind == 1) {
-        float w = uSkinFx.x;
+        float sheen = uSkinActor.x;
+        vec3 alb = albedo * (1.0 - 0.1 * sheen);   // wet skin reads a little darker
+        // thin parts: in the face, past the head's measured flesh in front (the nose, the lips) or at the sides (the ears);
+        // in the hands, past the middle of the hand's length (the fingers)
+        float thin = 0.0;
+        if (uSkinFx2.y > 0.0 && uSkinActor.w > 0.5) {
+            if (vUv.x > 0.5) {
+                vec3 q = (uThinHead * vec4(vWorld, 1.0)).xyz;
+                thin = max(smoothstep(0.9, 1.3, abs(q.y)), smoothstep(0.98, 1.25, q.x));
+            } else if (vUv.x < 0.25 && vUv.y > 0.5 && vUv.y < 0.625) {
+                float r = min(distance(vWorld, uThinHands[0].xyz), distance(vWorld, uThinHands[1].xyz)) * uThinHands[0].w;
+                thin = smoothstep(0.45, 0.95, r);
+            }
+            thin *= uSkinFx2.y;
+        }
+        float w = uSkinFx.x + 0.35 * thin;
         float wrap = max((nl + w) / (1.0 + w), 0.0);
-        vec3 c = albedo * (uAmbient + uSunColor * wrap);
-        c += albedo * uSunColor * vec3(0.85, 0.28, 0.14) * max(wrap - d, 0.0) * uSkinFx.z;
+        vec3 c = alb * (uAmbient + uSunColor * wrap);
+        c += alb * uSunColor * vec3(0.85, 0.28, 0.14) * max(wrap - d, 0.0) * max(uSkinFx.z, thin);
+        // the key light through a thin part, toward the eye (from behind it)
+        c += alb * uSunColor * vec3(1.0, 0.3, 0.16) * pow(clamp(dot(v, uSunDir), 0.0, 1.0), 3.0) * thin * 0.5;
         float fres = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 4.0);
-        c += (uAmbient * 0.6 + uSunColor * 0.4) * fres * uSkinFx.y * 0.12;
+        c += (uAmbient * 0.6 + uSunColor * 0.4) * fres * (uSkinFx.y + 0.6 * sheen) * 0.12;
         vec3 h = normalize(l + v);
-        c += uSunColor * pow(max(dot(n, h), 0.0), 28.0) * 0.05 * uSkinFx.y * d;
+        c += uSunColor * pow(max(dot(n, h), 0.0), mix(28.0, 96.0, sheen)) * (0.05 * uSkinFx.y + 0.2 * sheen) * d;
+        // wet skin also mirrors the room's light from above, whatever side the key is on
+        float hu = max(dot(n, normalize(vec3(0.0, 0.0, 1.0) + v)), 0.0);
+        c += (uAmbient + uSunColor * 0.3) * pow(hu, 40.0) * 0.18 * sheen;
         return c;
+    }
+    if (uSkinKind == 3) {
+        // the eyes: a catchlight on the eyeball (its normal from the ball's centre), on the key light's side of the point
+        // that faces the camera and a little under it (where the lids leave it seen), as a film's eye light puts it: shown
+        // whichever way the key comes from, brighter as it faces the eye; and a broad wet sheen on the cornea
+        vec3 e0 = vWorld - uEyeC[0], e1 = vWorld - uEyeC[1];
+        vec3 e = dot(e0, e0) < dot(e1, e1) ? e0 : e1;
+        if (dot(e, e) > 1e-10) n = normalize(e);
+        vec3 across = l - v * dot(l, v);
+        float al = length(across);
+        vec3 up = vec3(0.0, 0.0, 1.0) - v * v.z;
+        float ul = length(up);
+        vec3 off = (al > 1e-3 ? across / al : vec3(0.0)) * 0.65 - (ul > 1e-3 ? up / ul : vec3(0.0)) * 0.75;
+        float ol = length(off);
+        vec3 lc = normalize(v + (ol > 1e-3 ? off / ol : vec3(0.0)) * 0.32);
+        float nh = max(dot(n, normalize(lc + v)), 0.0);
+        float nv = clamp(dot(n, v), 0.0, 1.0);
+        float glint = pow(nh, 900.0) * 1.6 + pow(nh, 160.0) * 0.22;
+        float wet = pow(nh, 14.0) * 0.05 + pow(1.0 - nv, 3.0) * 0.06;
+        vec3 key = uSunColor + uAmbient * 0.6;
+        return lit + key * (glint + wet) * uSkinFx2.x * (0.55 + 0.45 * smoothstep(-0.4, 0.4, dot(l, v)));
     }
     vec3 t = vec3(0.0, 0.0, 1.0) - n * n.z;
     t = dot(t, t) > 1e-6 ? normalize(t) : vec3(1.0, 0.0, 0.0);
@@ -395,6 +446,7 @@ GlTexture Scene::texture(uint32_t fileId, int maxSize) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
         if (gfx_.anisotropy > 1) applyAnisotropy(gfx_.anisotropy);
         t.hasAlpha = img.hasAlpha;
+        t.bytes = uint32_t(std::min<size_t>(n * (opaque ? 2 : 4) * 4 / 3, UINT32_MAX));
     } else {
         t.id = white_;
     }
@@ -1468,8 +1520,18 @@ void Scene::drawModel(ModelGl& mg, const M4& world, const std::map<uint32_t, uin
         // nearer the eye, it stays over the skin and the trousers there instead of fighting them in steps.
         const bool flap = geosets && sm.id / 100 == kTabardGroup;
         if (flap) { glEnable(GL_POLYGON_OFFSET_FILL); glPolygonOffset(kTabardOffsetFactor, kTabardOffsetUnits); }
-        // Options' Graphics: a person's skin (texture type 1) and hair (6) shaded as such (kLitFs's skinShade)
-        const int skinKind = gfx_.skin > 0 && tex.type == 1 ? 1 : gfx_.hair > 0 && tex.type == 6 ? 2 : 0;
+        // Options' Graphics: a person's skin (texture type 1), hair (6) and eyes (19) shaded as such (kLitFs's skinShade);
+        // the skin also while the person drawn has a sheen or the thin-skin tint can find their thin parts
+        const bool skinFx = gfx_.skin > 0 || (drawSkin_[3] > 0.5f && gfx_.thinSkin > 0) || drawSkin_[0] > 0;
+        const int skinKind = skinFx && tex.type == 1 ? 1 : gfx_.hair > 0 && tex.type == 6 ? 2 : gfx_.eyes > 0 && tex.type == 19 ? 3 : 0;
+        if (skinKind == 1) {
+            glUniform4fv(loc(p, "uSkinActor"), 1, drawSkin_);
+            if (drawSkin_[3] > 0.5f) {
+                glUniformMatrix4fv(loc(p, "uThinHead"), 1, GL_FALSE, drawThin_);
+                glUniform4fv(loc(p, "uThinHands"), 2, drawThin_ + 16);
+            }
+        }
+        if (skinKind == 3) glUniform3fv(loc(p, "uEyeC"), 2, drawEyes_);
         if (skinKind) glUniform1i(loc(p, "uSkinKind"), skinKind);
         glDrawElements(GL_TRIANGLES, GLsizei(sm.indexCount), GL_UNSIGNED_INT, (void*)(size_t(sm.indexStart) * 4));
         if (skinKind) glUniform1i(loc(p, "uSkinKind"), 0);
@@ -1505,6 +1567,7 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     bool soft = a.soft.active();
     if (soft) { glUseProgram(m2Prog_); a.soft.uniforms(m2Prog_, a.soft.bodyGate()); }
     softBodyDraw_ = soft;
+    skinOf(a, w);   // (scene_gfx.cpp: the sheen, the eyes, the thin parts)
     // (a flap hung as cloth is drawn from its simulated points instead of skinned: drawCloth)
     const bool cloth = a.cloth.active();
     drawModel(*a.mesh, w, &a.drawTextures, cloth ? &a.cloth.bodyGeosets : &a.geosets, a.boneTex, a.seq, a.animTime % dur, nowMs, bodyTint,
@@ -1513,7 +1576,7 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     if (!transparent && a.eve.active) drawEve(a, w, bodyTint);   // (with the soft body's uniforms still set)
     softBodyDraw_ = false;
     if (soft) SoftDraw::setGain(m2Prog_, 1.0f);
-    if (transparent) drawBodyLayer(a, w);
+    if (transparent) drawBodyLayer(a, w);   // (the skinned models below are the person's too: drawSkin_ still theirs)
     for (size_t i = 0; i < a.skinned.size(); ++i) {
         Skinned& e = a.skinned[i];
         std::map<uint32_t, uint32_t> tex = a.drawTextures;
@@ -1524,6 +1587,7 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
         drawModel(*e.mesh, w, &tex, &e.geosets, e.boneTex, -1, 0, nowMs, bodyTint, transparent, kActorTex, &a.composed);
     }
     if (soft) SoftDraw::off(m2Prog_);
+    std::fill(drawSkin_, drawSkin_ + 4, 0.0f);
     drawAttached(a, w, nowMs, transparent);
     drawParts(a, w, transparent);
 }

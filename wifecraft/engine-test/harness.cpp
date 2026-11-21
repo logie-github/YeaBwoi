@@ -797,7 +797,7 @@ int main(int argc, char** argv) {
         } else if (cmd == "gfx") {   // gfx [off] [NAME=VALUE...]: Options' Graphics (graphics_settings.h's names, lower case)
             static const char* kNames[GraphicsSettings::kCount] = {"scale", "msaa", "aniso", "texture", "tonemap", "exposure",
                 "bloom", "dof", "aperture", "dofeditor", "ao", "aoquality", "contact", "shadows", "shadowquality", "skin", "hair",
-                "shafts", "haze", "vignette", "grain", "chroma", "sharpen", "timers"};
+                "shafts", "haze", "vignette", "grain", "chroma", "sharpen", "timers", "eyes", "thinskin"};
             static float gfxv[GraphicsSettings::kCount];
             static bool gfxInit = false;
             auto reset = [] { GraphicsSettings d; for (float& v : gfxv) v = 0; gfxv[GraphicsSettings::kRenderScale] = 1;
@@ -813,6 +813,13 @@ int main(int argc, char** argv) {
                     if (eq != std::string::npos && k == kNames[i]) gfxv[i] = std::stof(kv.substr(eq + 1));
             }
             scene.setGraphics(gfxv, GraphicsSettings::kCount);
+        } else if (cmd == "sheen") {       // sheen NAME VALUE: the person's skin sheen 0..1 (Scene::setSheen)
+            int name = 0; float v = 0; ss >> name >> v;
+            if (actors.count(name)) scene.setSheen(actors[name], v);
+        } else if (cmd == "texmem") {      // prints the game textures loaded and their GPU bytes (texture detail's cost)
+            size_t n = 0, bytes = 0;
+            scene.textureMemory(n, bytes);
+            std::printf("texmem %zu textures %.1f MB\n", n, bytes / 1048576.0);
         } else if (cmd == "gfxtiming") {   // gfxtiming on|off: each pass timed with glFinish (software GL: not the phone's cost)
             std::string on; ss >> on;
             scene.setGraphicsSyncTiming(on == "on");

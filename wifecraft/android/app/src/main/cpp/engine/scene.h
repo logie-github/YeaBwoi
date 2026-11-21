@@ -34,6 +34,7 @@ namespace wc {
 struct GlTexture {
     unsigned id = 0;
     bool hasAlpha = false;
+    uint32_t bytes = 0;   // on the GPU, its mips included (0: the shared white)
 };
 
 // A model a look adds to a person: hung on an attachment point, or (attachment -1) skinned to the
@@ -248,6 +249,11 @@ public:
     void graphicsStats(float* out, int count) const;
     // The harness: each pass timed with glFinish round it (software GL has no timer queries).
     void setGraphicsSyncTiming(bool on) { postfx_.setSyncTiming(on); }
+    // Actor `id`'s skin sheen 0..1 (wet: glossier, a little darker; the app drives it from the moment's intensity, eased).
+    // 0: as before. Drawn with the skin's shading whatever Options' Skin shading is.
+    void setSheen(int id, float sheen);
+    // The textures loaded from the game now and the bytes they hold on the GPU (mips included): texture detail's cost.
+    void textureMemory(size_t& count, size_t& bytes) const;
 
     // ---------------------------------------------------------------- body language and atmosphere (additive layers)
     // The body's additive motion (motionlayer.h) for everyone it is on: Options' breathing and idle shares, eye contact.
@@ -542,6 +548,9 @@ private:
         EveDraw eve;                   // the Eve body (evescene.cpp)
         std::vector<float> sculpt;     // the creator's sculpt sliders (setSculpt; sculpt.h): the Eve body fitted with them
         LegEdit legEdit;               // its Leg Length on the skeleton (bodyrig.h): made again when the slider or model changes
+        float sheen = 0;               // setSheen: the skin's wet sheen 0..1
+        int fxBones[5] = {-2, -2, -2, -2, -2};   // L_Eye, R_Eye, Head, L_Hand, R_Hand (-1: none) for fxModel (skinOf)
+        const void* fxModel = nullptr;
     };
     struct GroupGl {
         unsigned vao = 0, vbo = 0, ibo = 0;
@@ -674,6 +683,13 @@ private:
     bool cityShown_ = true;
     int softLevel_ = kSoftNatural;
     bool softBodyDraw_ = false;        // drawModel is drawing an actor's body with its soft body on
+    // The person drawModel is drawing (scene_gfx.cpp skinOf, each frame before they are drawn): kLitFs's uSkinActor (their
+    // sheen; 1 in w when their thin parts can be found), uEyeC (the eyeballs' centres, world; far away: none), uThinHead
+    // (world -> the head's frame, its flesh's front and side reach to 1) and uThinHands (each hand's joint, 1 / its length).
+    float drawSkin_[4] = {0, 0, 0, 0};
+    float drawEyes_[6] = {0, 0, -1e6f, 0, 0, -1e6f};
+    float drawThin_[24] = {};
+    void skinOf(Actor& a, const M4& world);
 
     V3 eye_{0, -10, 2}, target_{0, 0, 1};
     // pickBodyRegion's bone regions, for the model they were made for
