@@ -1778,42 +1778,46 @@ EveDetailLayer eveDetailLayer(const EveBody& eve, int w, int h, const std::vecto
     // the model's body triangles, each with a bounding sphere, in a grid of cells by their centres
     struct Tri { uint32_t v[3]; V3 c; float r; };
     std::vector<Tri> mt;
-    float rmax = 0;
     for (size_t t = 0; t + 2 < tris.size(); t += 3) {
         Tri x{{tris[t], tris[t + 1], tris[t + 2]}, V3(), 0};
         if (x.v[0] >= nv || x.v[1] >= nv || x.v[2] >= nv) continue;
         V3 a = posOf(wow[x.v[0]]), b = posOf(wow[x.v[1]]), c = posOf(wow[x.v[2]]);
         x.c = (a + b + c) * (1.0f / 3);
         x.r = std::max({(a - x.c).length(), (b - x.c).length(), (c - x.c).length()});
-        rmax = std::max(rmax, x.r);
         mt.push_back(x);
     }
     if (mt.empty()) return out;
-    // (a dense grid over their centres, cells a third of the reach: a query looks at a few hundred cells by index)
-    const float cs = reach / 3;
+    // (a dense grid, cells a quarter of the reach, each triangle in every cell its sphere reaches: a query looks at its own few)
+    const float cs = reach / 4;
     V3 lo3 = mt[0].c, hi3 = mt[0].c;
     for (const Tri& x : mt) {
-        lo3 = V3(std::min(lo3.x, x.c.x), std::min(lo3.y, x.c.y), std::min(lo3.z, x.c.z));
-        hi3 = V3(std::max(hi3.x, x.c.x), std::max(hi3.y, x.c.y), std::max(hi3.z, x.c.z));
+        lo3 = V3(std::min(lo3.x, x.c.x - x.r), std::min(lo3.y, x.c.y - x.r), std::min(lo3.z, x.c.z - x.r));
+        hi3 = V3(std::max(hi3.x, x.c.x + x.r), std::max(hi3.y, x.c.y + x.r), std::max(hi3.z, x.c.z + x.r));
     }
     const int gx = int((hi3.x - lo3.x) / cs) + 1, gy = int((hi3.y - lo3.y) / cs) + 1, gz = int((hi3.z - lo3.z) / cs) + 1;
     if (size_t(gx) * gy * gz > (1u << 22)) return out;   // (a model this large for its reach: nothing sensible to do)
     auto cellOf = [&](V3 p, int k) { float f = k == 0 ? (p.x - lo3.x) : k == 1 ? (p.y - lo3.y) : (p.z - lo3.z); return int(std::floor(f / cs)); };
-    std::vector<uint32_t> start(size_t(gx) * gy * gz + 1, 0), items(mt.size());
-    auto cellIndex = [&](const V3& c) {
-        int x = std::clamp(cellOf(c, 0), 0, gx - 1), y = std::clamp(cellOf(c, 1), 0, gy - 1), z = std::clamp(cellOf(c, 2), 0, gz - 1);
-        return (size_t(z) * gy + y) * gx + x;
+    std::vector<uint32_t> start(size_t(gx) * gy * gz + 1, 0), items;
+    auto cells = [&](const Tri& t, auto f) {
+        int x0 = std::max(0, cellOf(t.c - V3(t.r, t.r, t.r), 0)), x1 = std::min(gx - 1, cellOf(t.c + V3(t.r, t.r, t.r), 0));
+        int y0 = std::max(0, cellOf(t.c - V3(t.r, t.r, t.r), 1)), y1 = std::min(gy - 1, cellOf(t.c + V3(t.r, t.r, t.r), 1));
+        int z0 = std::max(0, cellOf(t.c - V3(t.r, t.r, t.r), 2)), z1 = std::min(gz - 1, cellOf(t.c + V3(t.r, t.r, t.r), 2));
+        for (int z = z0; z <= z1; ++z) for (int y = y0; y <= y1; ++y) for (int x = x0; x <= x1; ++x) f((size_t(z) * gy + y) * gx + x);
     };
-    for (const Tri& x : mt) ++start[cellIndex(x.c) + 1];
+    for (const Tri& x : mt) cells(x, [&](size_t c) { ++start[c + 1]; });
     for (size_t i = 1; i < start.size(); ++i) start[i] += start[i - 1];
+    items.resize(start.back());
     {
         std::vector<uint32_t> fill(start.begin(), start.end() - 1);
-        for (size_t i = 0; i < mt.size(); ++i) items[fill[cellIndex(mt[i].c)]++] = uint32_t(i);
+        for (size_t i = 0; i < mt.size(); ++i) cells(mt[i], [&](size_t c) { items[fill[c]++] = uint32_t(i); });
     }
-    // the model's triangles whose spheres come within `rad` of p
+    std::vector<uint32_t> stamp(mt.size(), 0);
+    uint32_t query = 0;
+    // the model's triangles whose spheres come within `rad` of p (each once)
     auto gather = [&](V3 p, float rad, std::vector<uint32_t>& outList) {
         outList.clear();
-        float span = rad + rmax;
+        ++query;
+        float span = rad;
         int x0 = std::max(0, cellOf(p - V3(span, span, span), 0)), x1 = std::min(gx - 1, cellOf(p + V3(span, span, span), 0));
         int y0 = std::max(0, cellOf(p - V3(span, span, span), 1)), y1 = std::min(gy - 1, cellOf(p + V3(span, span, span), 1));
         int z0 = std::max(0, cellOf(p - V3(span, span, span), 2)), z1 = std::min(gz - 1, cellOf(p + V3(span, span, span), 2));
@@ -1821,6 +1825,8 @@ EveDetailLayer eveDetailLayer(const EveBody& eve, int w, int h, const std::vecto
             size_t c = (size_t(z) * gy + y) * gx + x;
             for (uint32_t k = start[c]; k < start[c + 1]; ++k) {
                 uint32_t i = items[k];
+                if (stamp[i] == query) continue;
+                stamp[i] = query;
                 if ((mt[i].c - p).length() - mt[i].r <= rad) outList.push_back(i);
             }
         }
