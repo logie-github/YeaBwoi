@@ -875,6 +875,8 @@ class MainActivity : ComponentActivity() {
                 if (screen == Screen.CREATOR && npcLoading) {
                     Text("Loading NPC preview…", Modifier.align(Alignment.TopCenter).padding(12.dp), color = Color.White)
                 }
+                // Options' Graphics: the performance overlay (only while switched on)
+                com.logie.wifecraft.ui.PerformanceOverlay(Modifier.align(Alignment.TopStart))
                 // composed after the screens' own (the creator's): the last composed wins, so Back closes a panel first
                 BackHandler(panel != Panel.NONE || screen == Screen.GATHER) {
                     if (panel != Panel.NONE) panel = Panel.NONE else screen = Screen.TITLE
@@ -928,6 +930,7 @@ class MainActivity : ComponentActivity() {
                         onImmersive = { immersiveSettings = it; settings.immersive = it },
                         keepOn = keepOnAll,
                         onKeepOn = { keepOnAll = it; settings.keepOnAll = it },
+                        graphics = { com.logie.wifecraft.ui.GraphicsPage() },
                         mods = {
                             Column {
                                 ImportsSection(imports, listfile)

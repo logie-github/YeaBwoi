@@ -73,7 +73,7 @@ fun <T> StateFlow<T>.collectThrottled(urgent: (T?, T) -> Boolean = { _, _ -> fal
     return throttled.collectAsStateWithLifecycle(value)
 }
 
-private enum class Page(val label: String) { SOUND("Sound"), IMMERSION("Immersion"), TIME("Time"), CINEMATIC("Cinematic"), DOWNLOADS("Downloads"), MODS("Mods") }
+private enum class Page(val label: String) { SOUND("Sound"), GRAPHICS("Graphics"), IMMERSION("Immersion"), TIME("Time"), CINEMATIC("Cinematic"), DOWNLOADS("Downloads"), MODS("Mods") }
 
 /** What the Downloads page's controls do (data/DownloadHub's commands, wired by the activity). */
 class DownloadActions(
@@ -130,11 +130,13 @@ fun DownloadOptions(
     onImmersive: (ImmersiveSettings) -> Unit = {},
     keepOn: Set<Int> = emptySet(),
     onKeepOn: (Set<Int>) -> Unit = {},
+    /** The Graphics page (ui/GraphicsOptions.kt's GraphicsPage; null: no Graphics page). */
+    graphics: (@Composable () -> Unit)? = null,
 ) {
     var page by remember { mutableStateOf(Page.SOUND) }
-    val pages = remember(clock != null, cinematic != null, immersive != null) {
+    val pages = remember(clock != null, cinematic != null, immersive != null, graphics != null) {
         Page.entries.filter { (it != Page.TIME || clock != null) && (it != Page.CINEMATIC || cinematic != null) &&
-            (it != Page.IMMERSION || immersive != null) }
+            (it != Page.IMMERSION || immersive != null) && (it != Page.GRAPHICS || graphics != null) }
     }
     val reduced = reduceMotion()
     Overlay(onClose) {
@@ -181,6 +183,7 @@ fun DownloadOptions(
                             Page.CINEMATIC -> if (cinematic != null) CinematicPage(cinematic, onCinematic)
                             Page.IMMERSION -> if (immersive != null) ImmersionPage(immersive, onImmersive, keepOn, onKeepOn)
                             Page.MODS -> mods()
+                            Page.GRAPHICS -> graphics?.invoke()
                         }
                     }
                 }

@@ -147,9 +147,47 @@ A live scene opens immersive (Options > **Immersion**; `simulation/Immersion.kt`
 
 **Sound that carries the mood.** The scene's intensity (its most intense person's) sets the mix through the same mixer: the music swells from 55% to full as it rises, the room's ambience recedes to 70%, slowly (one music bed's levels, not stems or other tracks: the game has no quiet and full layers of these tracks); the partner sounds follow it by **Voice intensity** (0: always their own volume; at 100% a quiet moment plays them at 35%). **Atmosphere sounds** plays a small fire's crackle under the scene (the game's `sound/doodad/campfiresmallloop.ogg`, file 565519) and, with **Rain outside**, light rain (`rainlightloop.ogg`, 538983); the cloth sounds are `sound/foley/cloth/10.0_foley_cloth_movementlong_01..07`. These are files of the game by their ids, fetched like the rest; none was made up. The partner sounds' playback rate is not changed.
 
-**Atmosphere.** **Glowing motes** (and, by default, always in cinematic mode): 48 embers and dust motes drifting slowly up through the light round what the camera looks at, fading in and out, soft and additive under the cinematic grade (`cpp/engine/particles.h`; seeded, so the same every time). **Camera sway**: in cinematic mode the camera drifts a little as if held (at most about 3.5 cm at the eye, half at the target, from slow sines; `HandheldSway`). The light's flicker is cinematic mode's own. No depth of field.
+**Atmosphere.** **Glowing motes** (and, by default, always in cinematic mode): 48 embers and dust motes drifting slowly up through the light round what the camera looks at, fading in and out, soft and additive under the cinematic grade (`cpp/engine/particles.h`; seeded, so the same every time). **Camera sway**: in cinematic mode the camera drifts a little as if held (at most about 3.5 cm at the eye, half at the target, from slow sines; `HandheldSway`). The light's flicker is cinematic mode's own. Depth of field and the other picture effects are Options' Graphics page (Graphics and performance, below).
 
 Tested on the desktop only: the settings and their migration, the intensity, its easing, the HUD's timing, the soft controls, the mix numbers, the sway (`unit-tests/.../simulation/ImmersionTest`), the flow (`SceneFlowTest`), the motion layer's maths and the motes' determinism and bounds (`engine-test/motionlayer_test`), and stills of two clothed NPCs in the Lion's Pride bedroom with the layer off and on (their heads turn to each other) and with the motes in cinematic light (they are small and few). The screens, the flow's orders, the re-dressing and the sound are compiled by CI only; none of it has run on a phone, and how it feels is yours to judge: every layer has its switch or slider.
+
+## Cinematic mode: the camera
+
+While an animation plays, cinematic mode's camera uses a shot library made from the usual camera conventions for each kind
+of position. Its research and per-position table are in `docs/cinematic-shots.md`; its data is
+`assets/shot_library.json`. Each animation is sorted into a class: kissing, partner-facing lying, from behind, on top,
+seated, standing, side by side, oral, manual, two people otherwise, or one person. The class comes from the animation's
+names, or from its bodies' postures when no name says it (`simulation/ShotLibrary.kt`). Each class has 3 to 6 candidate
+shots with weights: an establishing wide, profile and three-quarter mediums, low and top-down angles, face close-ups and
+reactions, over the shoulder, a high POV-like view, and hip and hand details.
+
+The director picks again when the animation or its stage changes. In **Classic film** it follows a cadence: a wide shot,
+then medium, close and detail shots. It never picks the same shot twice running. It keeps the camera on one side of the
+pair for the whole scene (the 180-degree rule), preferring the side they face and the side with more room. Face shots are
+taken from in front of the face.
+
+Each shot drifts on a seeded random walk round, up and in, within its own range. Every eye passes the director's
+clearance tests: walls, furniture boxes, the floor and ceiling, no one blocking a face, and no furniture between the camera
+and the action. With nothing playing, the director uses its own mix of shots, as before.
+
+Options > Cinematic adds three settings under **Shots during animations**:
+
+- **Shot style**: Classic film, Intimate, Close-ups, Wide or Random.
+- **Randomness**: how loosely the cadence and weights are followed, and how far each shot drifts.
+- **Camera cuts**: on allows cuts between shots; off allows smooth moves only.
+
+The existing settings keep working. Slow orbit only still orbits, and Cuts still cuts everything.
+
+Tested on the desktop only. JVM tests (`ShotLibraryTest`) cover the classification, each class's shots, the style
+weights, no repeats, the side kept, clearance, the drift's bounds and determinism. Preview stills were rendered with the
+desktop engine in the Lion's Pride Inn room, using synthetic clothed poses on the floor (`tools/ShotPreviewRecorder.kt`).
+
+Not yet checked:
+
+- No phone test.
+- No real animation packs. The app's head and hip points for a playing animation are estimates, so close-ups of lying
+  poses may sit off-centre.
+- Bed canopies and drapes are unknown to the clearance tests. Only furniture boxes and the walls along the floor are known.
 
 ## Life simulation
 
@@ -170,6 +208,26 @@ Tested on the desktop only (`unit-tests/.../simulation/LifeSimTest`): each need 
 ## Partner sounds
 
 Options > Sound > Partner sounds plays sounds with partner animations from the user's own files. A clip's sound event carries a sound name; put audio files (ogg, wav, mp3, m4a, aac, flac), single or in a zip, through Add sounds, named after those names (the exact name, the name without a `vo_` or `sfx_` prefix, numbered variants `name_01`, `name_02` of which one is picked at random, a file named by the name's 32- or 64-bit FNV-1a hash in hex, or a file called `default` for the rest). A sound with no file is simply silent. The files are kept in `files/partner-sounds`; there is an On box, a volume and Remove all. The game's own EA audio (SNR/SNS) is not decoded yet. The folder (`audio/PartnerSounds`, `SoundNames`) is unit-tested; the playback (`SceneAudio.partnerSound`) and the Options rows are compiled by CI only and have not run on a phone.
+
+## Graphics and performance
+
+Options > **Graphics** (`ui/GraphicsOptions.kt`; `graphics/GraphicsSettings.kt`, kept as JSON in the app's preferences under `graphics`) has preset chips (**Standard**, **High**, **Ultra**, **Custom**), the **Target frame rate** (60, 90 or 120; 60 by default), **Adaptive quality** (on by default), **Show performance overlay**, a line saying what the governor has lowered now, **Test for 10 seconds** (average fps, the 95th-percentile frame time, late frames), and a switch or slider for each effect. Moving one makes the preset Custom (or the preset it now matches). **Standard draws exactly as before**: with every effect off the frame goes straight to the screen (checked pixel for pixel against the previous build's render). High and Ultra turn on:
+
+- **Render scale** (60 to 125 %; Ultra 125 %, supersampled) with contrast-adaptive sharpening on the resample (**Sharpen**, and more by itself below 100 %).
+- **Anti-aliasing**: 2x or 4x MSAA on the scene's target (multisampled renderbuffers, resolved by a blit).
+- **Texture filtering**: 2x to 16x anisotropic (GL_EXT_texture_filter_anisotropic) on every texture the scene loads and on composed skins; every texture loaded from the game is mipmapped. **High-resolution textures** takes a mip twice the size of the file's where it has one (people 2048, places and props 1024 and 512; for what is loaded after the change).
+- **Tone curve** on a half-float (RGBA16F, else RGBA8) picture: **Filmic** leaves everything under the brightest light as it was (skin tones kept) and rolls the highlights off; **ACES** is the fitted ACES curve with mid-grey kept (deeper shadows); **Exposure** in stops.
+- **Bloom**: a soft threshold and a dual-filter (Kawase) pyramid from half size down to 1/32; subtle (windows, candles, the sky).
+- **Depth of field**: each pixel's circle of confusion from its depth, zero over the band from the nearest to the farthest person near the camera's target (feet to head, a little either side: the pair stays sharp), a 24-tap disc gather at half size that keeps a sharp near thing from taking the blur behind it; **Aperture** sets how shallow. Off in the creator and the placement editor unless **Depth of field in the creator** is on.
+- **Ambient occlusion** (half size, from the depth with normals from its neighbours; 6, 10 or 16 samples by **Occlusion quality**; a depth-aware blur) and **Contact shadows** (a short march toward the key light in the depth), both weighted to the light's ambient share.
+- **Shadows**: the key light's shadow map (the sun or moon; in cinematic mode its key) over a box 2.6 yards round the camera's target, 1024 px, or 2048 px with **Soft shadows** (PCSS-lite: the penumbra widens with the blocker's distance), sloped bias and a normal offset. In a room only the people cast (the room's own light is baked into it); outside, the walls, props and ground near them cast too. Applied in screen space from the depth (the lit picture darkened by the key light's share), so the scene's own shaders are unchanged.
+- **Skin shading** (wrap light, a warm scatter at the light's edge, a soft Fresnel sheen and highlight) and **Hair highlights** (Kajiya-Kay, the strands taken as running down) on the people's skin and hair textures (types 1 and 6; the composed skin includes clothes painted on it, so they get it too); the Eve body and cloth flaps keep the plain light.
+- **Light shafts** (the bright sky and windows blurred toward the sun's place on the screen, quarter size, only with the sun ahead) and **Haze** (depth haze in the area's fog colour): Ultra only by default. The atmosphere's motes are Options' Immersion (Glowing motes).
+- **Vignette** (High and Ultra, light), **Film grain** and **Chromatic aberration** (off). While cinematic mode's grade is on it draws its own vignette and grain and these are left to it; the chain hands it the finished picture (`engine/grade.cpp` grades after `engine/postfx.cpp`).
+
+**Frames.** The scene view is paced on the screen's vsync (`graphics/Graphics.kt`: a Choreographer callback asks for a frame on every n-th vsync, 60 fps on a 120 Hz screen being every second one; the screen is also asked for the target's rate on Android 11 and later). Each pass is timed on the GPU where the driver has EXT_disjoint_timer_query. The **governor** (`graphics/Governor.kt`) takes the 95th percentile of the last half second of frames four times a second: over budget (frames missed, or the work over 97 % of the frame) for 1.5 s, it lowers one step, then waits 2 s; with 30 % to spare for 8 s it raises one back, and a step up that doesn't hold doubles that wait (up to 64 s). The steps, in order: render scale to 85 %, AO and shadow quality, bloom, depth of field, MSAA, light shafts and haze, render scale to 70 %, AO and shadows, skin and hair shading. The phone's thermal status (moderate, severe, or headroom nearly gone) keeps one or two steps down. Adaptive quality off: the settings are drawn as set.
+
+What each effect cost in the desktop harness (`engine-test`: `gfx`, `gfxtiming`, `gfxstats`; Mesa llvmpipe, software GL on a 4-core VM, 1280x720, the Lion's Pride bedroom with two people; the frame itself took about 72 ms): the chain with tone mapping alone about +13 ms, bloom +13, depth of field +19, AO +25 to +40, contact shadows +25, shadows +16, skin and hair 0, shafts and haze +9, 4x MSAA +61, render scale 70 % -5, 125 % +15, everything at once about 230 ms. **These are software-rendering numbers and say nothing about a phone's GPU; no effect has been measured on a phone.** 60 fps on a Snapdragon 8 Elite-class phone is the design target the governor holds to by lowering effects, not a measured fact. The settings, presets, steps, governor and pacing arithmetic are unit-tested (`unit-tests/.../graphics/`); the effects were rendered on and off in the harness with no GL error and looked at; the Options page, the pacer and the overlay are compiled by CI only.
 
 ## Building
 

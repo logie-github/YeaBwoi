@@ -199,6 +199,17 @@ object Native {
     @JvmStatic external fun clearMotion(scene: Long, actor: Int)
     /** The atmosphere's glowing motes (cpp engine/particles.h): [count] (0: none) round the camera's target, [strength] 0..1. */
     @JvmStatic external fun particles(scene: Long, count: Int, strength: Float)
+    /**
+     * Options' Graphics page as the renderer takes it (graphics/GraphicsSettings.toNative: cpp engine/graphics_settings.h's
+     * order, [values] of GraphicsSettings.NATIVE_COUNT): the governor's steps already laid on. Every effect off: drawn as before.
+     */
+    @JvmStatic external fun graphics(scene: Long, values: FloatArray)
+    /**
+     * The last frame's timings into [out] (12 floats: the render's CPU ms, the GPU ms of the shadow, scene, AO, lighting,
+     * bloom, depth of field, shafts and final passes (NaN: not timed), 1 when GPU timers work, the scene's drawn width and
+     * height). Nothing is allocated.
+     */
+    @JvmStatic external fun graphicsStats(scene: Long, out: FloatArray)
 
     // ---- locations and the editor's props (cpp engine/location.h, location.cpp, terrain.cpp)
 

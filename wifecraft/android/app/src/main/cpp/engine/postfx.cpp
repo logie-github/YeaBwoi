@@ -529,6 +529,13 @@ void PostFx::quad() {
 void PostFx::cpuBegin() {
     cpuStart_ = nowMs();
     if (syncTiming_) for (float& g : stats_.gpu) g = NAN;
+    if (!active()) {
+        // the chain off: nothing of it timed (the Kotlin side then goes by the frames' intervals alone)
+        stats_.cpuMs = NAN;
+        for (float& g : stats_.gpu) g = NAN;
+        stats_.timersAvailable = false;
+        return;
+    }
     if (!s_.timers && !syncTiming_) return;
     if (!timersTried_) {
         timersTried_ = true;

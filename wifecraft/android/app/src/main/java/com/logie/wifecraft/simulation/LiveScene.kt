@@ -356,6 +356,7 @@ class LiveScene(
                 else -> 1.0f to 1.65f
             }
             st.person(i, sx, sy, z + hip, sx, sy, z + head)
+            st.facing[i] = pose.facing + rotation
             if (cinePlay.size != n) { cinePlay = arrayOfNulls(n); cineActionRead = false }
             if (cinePlay[i] !== pose.playback) { cinePlay[i] = pose.playback; cineActionRead = false }
         }

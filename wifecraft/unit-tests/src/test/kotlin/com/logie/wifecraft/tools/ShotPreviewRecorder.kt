@@ -65,9 +65,12 @@ class ShotPreviewRecorder {
         ShotClass.ORAL to listOf(Body("stand", 0f, 0f, 0f, 1.0f, 1.75f), Body("kneel", 0.45f, 0f, pi, 0.55f, 1.3f)),
     )
 
+    // the arms down at the sides (the fixtures leave them out straight: their framing would be judged by a T)
+    private val armsDown = mapOf("L_UpperArm" to PoseFixtures.rotX(-75.0), "R_UpperArm" to PoseFixtures.rotX(75.0))
+
     private fun clipOf(name: String): Anim = when (name) {
-        "stand" -> PoseFixtures.standing
-        "kneel" -> PoseFixtures.kneeling(0.0, name = "kneel")
+        "stand" -> PoseFixtures.pose("stand", armsDown, 1.0)
+        "kneel" -> PoseFixtures.pose("kneel", armsDown + mapOf("L_Calf" to PoseFixtures.rotY(90.0), "R_Calf" to PoseFixtures.rotY(90.0)), 0.567)
         "lieback" -> PoseFixtures.lyingBack(0.0, name = "lieback")
         "allfours" -> PoseFixtures.allFours(name = "allfours")
         "sit" -> PoseFixtures.sitting(0.0, name = "sit")
@@ -131,7 +134,7 @@ class ShotPreviewRecorder {
                 val hx = x + cos(face) * b.headU * dir; val hy = y + sin(face) * b.headU * dir
                 floatArrayOf(x, y, face, hx, hy, floor + b.hip, floor + b.head)
             }
-            for ((i, p) in placed.withIndex()) st.person(i, p[0], p[1], p[5], p[3], p[4], p[6])
+            for ((i, p) in placed.withIndex()) { st.person(i, p[0], p[1], p[5], p[3], p[4], p[6]); st.facing[i] = p[2] }
             st.floorZ = floor
             st.clearance = clearance
             st.obstacles = boxes

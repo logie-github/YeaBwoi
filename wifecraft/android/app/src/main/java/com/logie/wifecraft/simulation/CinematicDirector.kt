@@ -69,6 +69,8 @@ class CinematicStage(capacity: Int) {
     var roleB = 1
     var lineYaw = Float.NaN
     var bodyHeight = 1.8f
+    /** Where each person faces (stage yaw, radians; NaN: not known): the side the pair faces, and the front of a face. */
+    val facing = FloatArray(capacity) { Float.NaN }
 
     fun person(i: Int, hx: Float, hy: Float, hz: Float, ex: Float, ey: Float, ez: Float) {
         hipX[i] = hx; hipY[i] = hy; hipZ[i] = hz; headX[i] = ex; headY[i] = ey; headZ[i] = ez
@@ -258,6 +260,8 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
         const val DRIFT_AZ_MAX = 12f
         const val DRIFT_PITCH_MAX = 5f
         const val DRIFT_DIST = 0.08f
+        /** A shoulder shot's line to the face passes no nearer the shoulder's own head than this (yards). */
+        const val OVER_HEAD_GAP = 0.24f
         /** The presets of the library's shots start with this. */
         const val LIBRARY = "LIB:"
         private const val TAU = (2.0 * PI).toFloat()
@@ -615,6 +619,20 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
                 }
             }
         }
+        // a library shot: the near person's head (the shoulder looked over) clear of the line to the face, and no piece of
+        // furniture (but the one the action is on) between the eye and what it looks at
+        if (framed != null) {
+            for (k in 0..2) {
+                val f = shot.from.toward(shot.to, k / 2f, shot.to.yaw - shot.from.yaw)
+                val at = focus + f.at
+                val eye = CinematicFraming.eye(at, f.yaw, f.pitch, f.distance)
+                // (a shot looking steeply down over the head, the point of view's, is meant to have it in the picture)
+                if (overIdx >= 0 && faceOwners != null && f.pitch < 0.5f) for (o in faceOwners) {
+                    if (o != overIdx && bodyDistance(stage.head(overIdx), eye, stage.head(o)) < OVER_HEAD_GAP) return reject(shot, "shoulder in the way")
+                }
+                if (sightBlocked(stage, eye, at)) return reject(shot, "furniture in the way")
+            }
+        }
         val sized = shot.copy(from = shot.from.copy(fov = fov), to = shot.to.copy(fov = fov))
         if (settings.style == CinematicStyle.CUTS || forceCut) return sized.copy(cut = true)
         // the last pass ([cut]): a longer move first, a cut only when no move at all is clear
@@ -676,12 +694,25 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
                 eyeGood(stage, focus, ShotFrame(lineYaw + side * az, 0.3f, d, Vec3(0f, 0f, 0f), 50f), emptyList())
             }
             val left = room(1f); val right = room(-1f)
+            // both facing the same way (side by side): the side they face, unless it has much less room
+            val front = front(stage)
+            val faced = if (front.isNaN()) 0f else if (cos(front - (lineYaw + PI.toFloat() / 2f)) >= 0f) 1f else -1f
             lineSide = when {
+                faced != 0f && (if (faced > 0f) left >= right - 1 else right >= left - 1) && max(left, right) > 0 -> faced
                 left > right -> 1f
                 right > left -> -1f
                 else -> if (random.nextBoolean()) 1f else -1f
             }
         }
+    }
+
+    /** The way the pair faces when both face about the same way (side by side), else NaN. */
+    private fun front(stage: CinematicStage): Float {
+        val a = roleA(stage); val b = roleB(stage)
+        val fa = stage.facing.getOrElse(a) { Float.NaN }; val fb = stage.facing.getOrElse(b) { Float.NaN }
+        if (fa.isNaN() || fb.isNaN() || a == b) return Float.NaN
+        val x = cos(fa) + cos(fb); val y = sin(fa) + sin(fb)
+        return if (hypot(x, y) > 1.4f) atan2(y, x) else Float.NaN
     }
 
     /**
@@ -779,7 +810,15 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
         val s = settings.clamped()
         val seconds = sp.dwell.pick(random).coerceIn(s.shortest.toFloat(), s.longest.toFloat())
         val edge = if (sp.crossLine) 0f else LINE_EDGE
-        val az0 = sp.azimuth.pick(random).coerceIn(edge, 180f - edge)
+        var az0 = sp.azimuth.pick(random).coerceIn(edge, 180f - edge)
+        // a face's shot from in front of it: where its person faces away from the shot's side of the line, the azimuth is
+        // mirrored about the square (the same side of the line, the other end)
+        val faceOf = when (sp.anchor) { ShotAnchor.HEAD_A -> a; ShotAnchor.HEAD_B -> b; else -> -1 }
+        val fy = if (faceOf >= 0) stage.facing.getOrElse(faceOf) { Float.NaN } else Float.NaN
+        if (!fy.isNaN()) {
+            val faceAz = OrbitMath.wrap(fy - lineYaw) * lineSide
+            if (cos(az0 * deg - faceAz) < 0f) az0 = 180f - az0
+        }
         val arc = sp.orbit.pick(random) * seconds * m * (if (random.nextBoolean()) 1f else -1f)
         val az1 = (az0 + arc).coerceIn(edge, 180f - edge)
         val pitch = (sp.pitch.pick(random) * deg).coerceIn(MIN_PITCH + 0.01f, MAX_PITCH - 0.01f)
@@ -838,6 +877,24 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
         val u = wander.nextDouble().coerceAtLeast(1e-9)
         val v = wander.nextDouble()
         return (sqrt(-2.0 * kotlin.math.ln(u)) * cos(2.0 * PI * v)).toFloat()
+    }
+
+    /**
+     * Whether the line from [eye] to [at] passes through a piece of furniture's box (the one the action is on, or that holds
+     * [at], left out: the people are on it), sampled every tenth of the way.
+     */
+    private fun sightBlocked(stage: CinematicStage, eye: Vec3, at: Vec3): Boolean {
+        for ((lo, hi) in stage.obstacles) {
+            if (at.x >= lo.x && at.x <= hi.x && at.y >= lo.y && at.y <= hi.y) continue
+            val fb = stage.furniture?.box
+            if (fb != null && fb.first == lo && fb.second == hi) continue
+            for (k in 1..9) {
+                val t = k / 10f
+                val x = eye.x + (at.x - eye.x) * t; val y = eye.y + (at.y - eye.y) * t; val z = eye.z + (at.z - eye.z) * t
+                if (x > lo.x && x < hi.x && y > lo.y && y < hi.y && z > lo.z && z < hi.z) return true
+            }
+        }
+        return false
     }
 
     /** Why shots were turned down, by type and reason (tests and the film's report). */
