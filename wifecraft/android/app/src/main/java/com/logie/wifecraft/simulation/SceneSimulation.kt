@@ -229,16 +229,38 @@ class SceneSimulation(
      * false) the whole lift its own flesh needs ([FleshLift]); on furniture, where the fit already put the clip's support on
      * the seat or bed for the generic body, the difference its own flesh makes (a bulky body up, a slim one down onto it).
      * Two bodies that meet ([PairSpacing.touching]) are raised together, by the more either needs ([PairLift]), so the
-     * contact their author made stays where it was.
+     * contact their author made stays where it was; so is a stage made in water ([PairWater]). Then, where neither stands,
+     * the one whose hips come too low against the other's by their own legs is raised a little ([PairHeight]). All of it
+     * is [PairLifts.of], which the audit runs the same way.
      */
     private fun roleLifts(r: Requirement, pair: PartnerPair, first: Actor, second: Actor, onFurniture: Boolean): FloatArray? {
         val own = forBodies(r, pair, fleshOf(first), fleshOf(second)).actors
-        fun raise(i: Int, body: Actor): Float {
-            val mine = own.getOrNull(i)?.liftUnits ?: 0f
-            val base = if (onFurniture) r.actors.getOrNull(i)?.liftUnits ?: 0f else 0f
-            return (mine - base) * bodyUnit(body)
-        }
-        return PairLift.shared(raise(0, first), raise(1, second), touching(pair)).takeIf { l -> l.any { abs(it) > 1e-4f } }
+        fun base(i: Int) = if (onFurniture) r.actors.getOrNull(i)?.liftUnits ?: 0f else 0f
+        fun raise(i: Int, body: Actor): Float = ((own.getOrNull(i)?.liftUnits ?: 0f) - base(i)) * bodyUnit(body)
+        // as the reference bodies would be lifted (the classifier's own lifts): what the hips are matched against
+        fun authored(i: Int, body: Actor): Float = ((r.actors.getOrNull(i)?.liftUnits ?: 0f) - base(i)) * bodyUnit(body)
+        val placed = PairLifts.of(r, pair, floatArrayOf(raise(0, first), raise(1, second)), floatArrayOf(authored(0, first), authored(1, second)),
+            touching(pair), hipsOf(pair.a, pair.slotA.z, first), hipsOf(pair.b, pair.slotB.z, second), floatArrayOf(bodyUnit(first), bodyUnit(second)))
+        return placed.lifts.takeIf { l -> l.any { abs(it) > 1e-4f } }
+    }
+
+    /** One role's hips worked out for one body ([PairHeight.hips]), kept as [LiftKey] keeps a lift. */
+    private class HipKey(val anim: Anim, val z: Float, val body: FleshProfile, val unit: Float) {
+        override fun equals(other: Any?) = other is HipKey && other.anim === anim && other.z == z && other.body === body && other.unit == unit
+        override fun hashCode() = (System.identityHashCode(anim) * 31 + z.hashCode()) * 31 + System.identityHashCode(body)
+    }
+    private val hipCache = HashMap<HipKey, PairHeight.Hips?>()
+
+    /**
+     * [anim]'s hips (its slot [z] high) on [actor]'s own body, drawn by its measured standing pelvis, against the reference
+     * body at its size (an unmeasured body's are the reference's: nothing of its own to match).
+     */
+    private fun hipsOf(anim: Anim, z: Float, actor: Actor): PairHeight.Hips? {
+        val body = fleshOf(actor)
+        val authored = bodyUnit(actor)
+        val unit = if (body.measured && body.pelvis > 0f && body.pelvis.isFinite()) body.pelvis else authored
+        if (hipCache.size > 512) hipCache.clear()
+        return hipCache.getOrPut(HipKey(anim, z, body, unit)) { PairHeight.hips(anim, z, body, unit, authored) }
     }
 
     private val touchingPairs = java.util.IdentityHashMap<PartnerPair, Boolean>()
@@ -1570,6 +1592,8 @@ class SceneSimulation(
         for (p in pairs) {
             if (gate != null && !gate(p.name, -1)) continue
             val r = requirementOf(p)
+            // made in water with one body in it and one out (a pool's edge): nothing here shows it so (PairWater)
+            if (r != null && PairWater.needsWater(r, p)) continue
             if (r == null || !placed(r)) {
                 val place = furnitureFor(p, a, b)
                 if (place !== NO_PLACE) options += Option(p, place as SceneObject?, null)

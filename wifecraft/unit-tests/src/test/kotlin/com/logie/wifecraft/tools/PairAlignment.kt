@@ -212,8 +212,8 @@ object PairAlignment {
         (limbA && limbB && !(a in FleshPart.THIGHS && b in FleshPart.THIGHS)) || a == FleshPart.HEAD || b == FleshPart.HEAD
     }
 
-    /** The lowest flesh of [p] over the floor (yards). */
-    fun lowest(p: Pose): Double = (p.flesh.lowest(p.frame, CONTACT_PARTS + listOf(FleshPart.L_FOOT, FleshPart.R_FOOT)) ?: 0.0) * p.unit
+    /** The lowest flesh of [p] over the floor (yards; the feet by their soles: [FleshProfile.footBias]). */
+    fun lowest(p: Pose): Double = (p.flesh.lowestOver(p.frame, CONTACT_PARTS + listOf(FleshPart.L_FOOT, FleshPart.R_FOOT)) ?: 0.0) * p.unit
 
     /**
      * Which way [p] faces (radians, the pair's frame): square to its hips (the right hip joint to the left one, turned a

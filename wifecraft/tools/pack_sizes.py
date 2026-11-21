@@ -6,16 +6,14 @@ the phone (wago.tools sends no sizes ahead, so a pack's exact size is known only
     python3 tools/pack_sizes.py TABLES_DIR
 
 TABLES_DIR holds the game's tables as CSV at the app's build (12.1.7.70892, wago.tools' db2/<name>/csv):
-ItemSparse, ItemModifiedAppearance, ItemAppearance, ItemDisplayInfo, ItemDisplayInfoMaterialRes,
-ModelFileData, TextureFileData, Creature, CreatureDisplayInfo, CreatureModelData, ChrModel. It also reads
+Creature, CreatureDisplayInfo, CreatureModelData, ChrModel. It also reads
 the app's assets (files.json, locations.json, catalog.tsv, characters.json, emotes.json, sounds.json and
-the three art files). Only ids, counts and sizes are written: nothing of the game is in the repository.
+the two art files). Only ids, counts and sizes are written: nothing of the game is in the repository.
 
 The counts are the tables' (exact: what each pack asks for at first); what a model names inside itself
 (its skins, skeleton, animations, a building's rooms and doodads) is read from the model on the phone, so
 those files are counted at the averages below, measured on files fetched while making the app (November
 2026, build 12.1.7.70892):
-  - 167 item models 131.5 KB, 432 item textures 69.8 KB (the Transmog cards' renders, 1,153 files);
   - 581 placement-library props of the eleven places: model and skin 15.8 KB, about one texture each, 64.3 KB;
   - 87 library buildings: 8.4 rooms each, a room 135 KB (the rest of each building's files guessed);
   - 216 character and creature models 1.45 MB with their first skin 65.5 KB (the body models weigh most);
@@ -33,10 +31,6 @@ ASSETS = os.path.join(HERE, "..", "android", "app", "src", "main", "assets")
 
 KB = 1000
 MB = 1000 * KB
-ITEM_MODEL = 131_500
-ITEM_SKIN = 40_000            # guess: an item model's first skin
-ITEM_TEXTURE = 69_800
-ICON = 12_000                 # guess: a 64 x 64 BLP icon
 PROP = 15_800                 # model and skin
 PROP_TEXTURE = 64_300
 PROP_TEXTURES_EACH = 0.9      # unique textures a prop brings (568 for 581 in the places; shared more in all)
@@ -51,7 +45,7 @@ ANIM_FILE = 250_000           # guess: an external .anim
 ANIMS_PER_MODEL = 58          # measured: 11 character skeletons name 50 to 76 animation files each
 SOUND = 35_000                # guess: an emote's voice line (.ogg)
 NAMED_MODEL = 15_250_000      # creator/Prefetch's model average (the named characters' are character-sized)
-ART_SHEET = 260_000           # guess: an atlas sheet (BLP), 9 MB for the Transmog window's 17 sheets measured
+ART_SHEET = 260_000           # guess: an atlas sheet (BLP), 9 MB for 17 sheets measured
 LOOKS_FILES, LOOKS_BYTES = 16_013, 5_900_000_000
 TABLES_FILES, TABLES_BYTES = 43, 19_500_000
 
@@ -71,51 +65,6 @@ def num(r, k):
 def asset(name):
     with open(os.path.join(ASSETS, name), encoding="utf-8") as f:
         return f.read()
-
-
-def transmog(tables):
-    looks = {num(r, "ID"): (num(r, "ItemDisplayInfoID"), num(r, "DefaultIconFileDataID")) for r in rows(tables, "ItemAppearance")}
-    items = {}
-    for r in rows(tables, "ItemModifiedAppearance"):
-        v = looks.get(num(r, "ItemAppearanceID"))
-        if not v or v[0] <= 0:
-            continue
-        item, mod = num(r, "ItemID"), num(r, "ItemAppearanceModifierID")
-        if item not in items or mod < items[item][0]:
-            items[item] = (mod, v)
-    slots = {1, 3, 4, 5, 20, 6, 7, 8, 9, 10, 16, 19}      # creator/Transmog's ClothingSlot.fromInventory
-    displays, icons = set(), set()
-    for r in rows(tables, "ItemSparse"):
-        if num(r, "InventoryType") not in slots or not (r.get("Display_lang") or "").strip():
-            continue
-        v = items.get(num(r, "ID"))
-        if not v:
-            continue
-        displays.add(v[1][0])
-        if v[1][1] > 0:
-            icons.add(v[1][1])
-    by_model, by_material, materials = {}, {}, {}
-    for r in rows(tables, "ModelFileData"):
-        by_model.setdefault(num(r, "ModelResourcesID"), []).append(num(r, "FileDataID"))
-    for r in rows(tables, "TextureFileData"):
-        by_material.setdefault(num(r, "MaterialResourcesID"), []).append(num(r, "FileDataID"))
-    for r in rows(tables, "ItemDisplayInfoMaterialRes"):
-        materials.setdefault(num(r, "ItemDisplayInfoID"), []).append(num(r, "MaterialResourcesID"))
-    models, textures = set(), set()
-    for r in rows(tables, "ItemDisplayInfo"):
-        d = num(r, "ID")
-        if d not in displays:
-            continue
-        for k in (0, 1):
-            models.update(by_model.get(num(r, "ModelResourcesID_%d" % k), []))
-            textures.update(by_material.get(num(r, "ModelMaterialResourcesID_%d" % k), []))
-        for m in materials.get(d, []):
-            textures.update(by_material.get(m, []))
-    models.discard(0)
-    textures.discard(0)
-    files = len(models) * 2 + len(textures) + len(icons)
-    size = len(models) * (ITEM_MODEL + ITEM_SKIN) + len(textures) * ITEM_TEXTURE + len(icons) * ICON
-    return files, size, "%d displays: %d models, %d textures, %d icons" % (len(displays), len(models), len(textures), len(icons))
 
 
 def catalog_rows():
@@ -174,14 +123,14 @@ def main():
                      "%d locations' files (exact) and %d race backdrops" % (len(places), backdrops))
 
     art = set()
-    for name, keys in (("transmog_art.json", ("files",)), ("ui_art.json", ("icons",)), ("creator_art.json", ("files",))):
+    for name, keys in (("ui_art.json", ("icons",)), ("creator_art.json", ("files",))):
         doc = json.loads(asset(name))
         art |= {int(k) for k in doc["sheets"]}
         for k in keys:
             art |= {v["f"] for v in doc.get(k, {}).values()}
         if "mask" in doc:
             art.add(doc["mask"])
-    est["art"] = (len(art), len(art) * ART_SHEET, "%d sheets and pieces of the three art files" % len(art))
+    est["art"] = (len(art), len(art) * ART_SHEET, "%d sheets and pieces of the two art files" % len(art))
 
     sounds = set()
 
@@ -219,9 +168,6 @@ def main():
     named_models = {m for m in model_of.values() if m}
     est["named"] = (len(named) * 4 + len(named_models) * 2, len(named_models) * NAMED_MODEL + len(named) * 3 * 300 * KB,
                     "%d displays, %d models" % (len(named), len(named_models)))
-
-    t = transmog(tables)
-    est["transmog"] = t
 
     cat = catalog_rows()
     est["creatures"] = creatures(tables, cat)

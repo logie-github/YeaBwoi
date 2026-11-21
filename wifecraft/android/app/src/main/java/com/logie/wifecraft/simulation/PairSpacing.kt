@@ -296,4 +296,10 @@ object PairSpacing {
 object PairLift {
     fun shared(first: Float, second: Float, touching: Boolean): FloatArray =
         if (touching) maxOf(first, second).let { floatArrayOf(it, it) } else floatArrayOf(first, second)
+
+    /**
+     * [shared], and a stage made in water ([water]: [PairWater]) raised together too, touching or not: its bodies were
+     * placed against one water line (a body on the pool's edge, one standing in the pool) and are taken out of it as one.
+     */
+    fun lifts(first: Float, second: Float, touching: Boolean, water: Boolean): FloatArray = shared(first, second, touching || water)
 }

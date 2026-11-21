@@ -106,7 +106,7 @@ class CasTest {
         val sculpt = BodySculpt().with(SculptSlider.BUST_SIZE, 0.3f)
         m.setSculpt(sculpt)
         m.setPersonality(CasPersonality(listOf("CALM")))
-        m.setClothing(mapOf(5 to 77))
+        m.setGear(false); m.setClass(8)
         val locks = setOf(CasTab.HAIR, CasTab.BODY, CasTab.OUTFIT, CasTab.PERSONALITY)
         val hairBefore = hairIds.associateWith { m.appearance.picks[it] }
         val seen = HashSet<Map<Int, Int>>()
@@ -115,7 +115,7 @@ class CasTest {
             assertEquals(hairBefore, hairIds.associateWith { m.appearance.picks[it] }, "seed $seed")
             assertEquals(sculpt, m.appearance.sculpt)
             assertEquals(listOf("CALM"), m.appearance.personality!!.traits)
-            assertEquals(mapOf(5 to 77), m.appearance.clothing)
+            assertFalse(m.appearance.gear); assertEquals(8, m.appearance.classId)
             seen += m.appearance.picks.filterKeys { it !in hairIds }
         }
         assertTrue(seen.size > 1, "the unlocked tabs changed")
@@ -136,12 +136,6 @@ class CasTest {
         // the dice alone on a Warcraft body: the height only
         CasRandomizer.randomize(m, emptySet(), Random(3), sculptable = false)
         assertTrue((m.appearance.sculpt ?: BodySculpt()).values.keys.all { it == SculptSlider.HEIGHT })
-    }
-
-    @Test fun outfitPickRespectsTheLock() {
-        assertNull(CasRandomizer.outfitPick(listOf(1, 2), setOf(CasTab.OUTFIT), Random(1)))
-        assertNotNull(CasRandomizer.outfitPick(listOf(1, 2), emptySet(), Random(1)))
-        assertNull(CasRandomizer.outfitPick(emptyList<Int>(), emptySet(), Random(1)))
     }
 
     // ---- sculpt
@@ -211,7 +205,8 @@ class CasTest {
         for (text in old) {
             val a = Appearance.fromJson(JSONObject(text))
             assertNull(a.sculpt); assertNull(a.personality)
-            assertEquals(JSONObject(text).toMap(), a.toJson().toMap(), text)        // written back exactly as it was
+            // written back exactly as it was, less an older save's Transmog outfit ("clothing": the Gear switch's now)
+            assertEquals(JSONObject(text).toMap() - "clothing", a.toJson().toMap(), text)
         }
     }
 
@@ -241,7 +236,7 @@ class CasTest {
         try {
             val store = CasPresetStore(dir)
             assertTrue(store.list().isEmpty())
-            val a = Appearance(1, Sex.FEMALE, mapOf(10 to 100), clothing = mapOf(5 to 9), starterClothing = false,
+            val a = Appearance(1, Sex.FEMALE, mapOf(10 to 100), classId = 9,
                 sculpt = BodySculpt().with(SculptSlider.HIPS, 0.4f), personality = CasPersonality(listOf("PLAYFUL")))
             val p = CasPreset("Evening / Look", a, "Elaria")
             store.save(p)
@@ -270,8 +265,8 @@ class CasTest {
         assertTrue(b.single().builtIn)
         assertEquals(7, b.single().appearance.raceId)
         assertEquals(CustomChoices.CHROMIE_HAIR, b.single().appearance.picks[1])
-        assertEquals(mapOf(5 to 42), b.single().appearance.clothing)
-        assertNotEquals(true, b.single().appearance.starterClothing)
+        assertTrue(b.single().appearance.gear, "a named preset loads with Gear on")
+        assertTrue(b.single().appearance.clothing.isEmpty(), "its clothing is the class's, put on as it is drawn")
     }
 
     @Test fun legLengthMapsAsTheEngineDoes() {

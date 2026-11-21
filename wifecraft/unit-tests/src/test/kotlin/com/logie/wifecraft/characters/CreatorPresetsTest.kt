@@ -2,14 +2,10 @@ package com.logie.wifecraft.characters
 
 import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.Catalog
-import com.logie.wifecraft.creator.ClothingPiece
-import com.logie.wifecraft.creator.ClothingSet
-import com.logie.wifecraft.creator.ClothingSlot
 import com.logie.wifecraft.creator.CreatorModel
 import com.logie.wifecraft.creator.CsvTables
 import com.logie.wifecraft.creator.LookPreset
 import com.logie.wifecraft.creator.Sex
-import com.logie.wifecraft.creator.TransmogCatalog
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -49,29 +45,15 @@ class CreatorPresetsTest {
         assertTrue(CreatorPresets.outfits(null as String?).isEmpty())
     }
 
-    @Test fun namedOutfitsComeFirstWithTheirTorsosIcon() {
-        val catalog = TransmogCatalog(
-            listOf(ClothingPiece(1, 31, "Robe", ClothingSlot.TORSO, icon = 77), ClothingPiece(2, 41, "Gloves", ClothingSlot.GLOVES, icon = 78)),
-            listOf(ClothingSet(7, "Silk", mapOf(5 to 31, 10 to 41), 77)),
-        )
-        val named = catalog.withNamed(CreatorPresets.outfits(CharacterRoster.parse(json)))
-        assertEquals(listOf(-1, 7), named.outfits.map { it.id })
-        assertEquals(77, named.outfits.first().icon)
-        assertEquals(catalog.pieces, named.pieces)
-        assertEquals(catalog, catalog.withNamed(emptyList()))
-    }
-
     @Test fun theLookIsPutOnOnlyForItsRaceAndSex() {
         val set = CreatorPresets.outfits(CharacterRoster.parse(json)).single()
         val m = CreatorModel(catalog, Appearance(1, Sex.FEMALE))
-        m.setClothing(set.displays)
         assertTrue(m.applyLook(assertNotNull(set.look)))
         assertEquals(101, m.appearance.picks[10])
         assertEquals(111, m.appearance.picks[11])
         assertEquals(121, m.appearance.picks[12])
         assertNull(m.appearance.picks[999], "an option the creator doesn't show is left out")
-        assertEquals(mapOf(5 to 31, 10 to 41), m.appearance.clothing)
-        assertTrue(m.appearance.gear)
+        assertTrue(m.appearance.gear, "the look leaves the Gear switch as it was")
 
         val man = CreatorModel(catalog, Appearance(1, Sex.MALE))
         val before = man.appearance

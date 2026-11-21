@@ -73,8 +73,11 @@ data class Requirement(
     val primary: Int get() = actors.indexOfFirst { it.surface !in FLOOR_LEVEL }.takeIf { it >= 0 } ?: 0
 
     companion object {
-        /** Raised when the classifier changes so stored results are made again (2: [ActorRequirement.liftUnits]). */
-        const val VERSION = 2
+        /**
+         * Raised when the classifier changes so stored results are made again (2: [ActorRequirement.liftUnits]; 3: a body
+         * lying with its pelvis on the surface is lifted by its trunk, head, arms and knees, not its hanging feet).
+         */
+        const val VERSION = 3
         val FLOOR_LEVEL = setOf(Surface.FLOOR, Surface.NONE)
     }
 }
@@ -285,8 +288,13 @@ object RequirementClassifier {
             median(held.map { it.fx }).toFloat(), median(held.map { it.fy }).toFloat(),
             feetOnFloor, conf.coerceIn(0.05, 0.99).toFloat(), why.toString(),
             // standing, leaning, crouching: the feet carry them, on the floor; a seat bears the hips; the rest lie or kneel on it
+            // (lying with the pelvis on it: on the trunk, head, arms and knees; the shins and feet may hang off its edge)
             (if (final in setOf(Posture.STAND, Posture.LEAN, Posture.CROUCH)) groundLift(frames)
-            else groundLift(frames, support, if (final.seated && metres >= FLOOR_SIT_MAX) HIPS else FLESH.keys)).toFloat(),
+            else groundLift(frames, support, when {
+                final.seated && metres >= FLOOR_SIT_MAX -> HIPS
+                final.lying && pelvisRests(frames, support) -> LYING
+                else -> FLESH.keys
+            })).toFloat(),
         )
     }
 
@@ -301,6 +309,26 @@ object RequirementClassifier {
         "L_Hand" to 0.02, "R_Hand" to 0.02, "L_Thigh" to 0.1, "R_Thigh" to 0.1, "L_Calf" to 0.05, "R_Calf" to 0.05,
         "L_Foot" to 0.06, "R_Foot" to 0.06, "L_Toe" to 0.015, "R_Toe" to 0.015,
     )
+
+    /**
+     * What a body lying with its pelvis on the surface rests on ([pelvisRests]): every joint but the hands, the ankles and
+     * the toes. Its knees count (the Calf joints), its shins and feet don't: a body lying across a bed with its legs over the
+     * edge, as many stages are made, was raised by its hanging feet (the audit: up to 50 cm over the bed).
+     */
+    val LYING: Set<String> = FLESH.keys - setOf("L_Hand", "R_Hand", "L_Foot", "R_Foot", "L_Toe", "R_Toe")
+
+    /**
+     * How far over its support (body units) a lying body's pelvis (its Root) may be for most of a clip and still rest on it
+     * ([pelvisRests]): a lying pelvis is about 0.1 to 0.2 over it; one held higher is a bridge or hips raised on the knees
+     * or feet, which then bear it.
+     */
+    const val PELVIS_REST = 0.3
+
+    /** Whether [frames]' pelvis rests on the support at [support] (body units) for most of the clip: its median height over it under [PELVIS_REST]. */
+    fun pelvisRests(frames: List<BodyFrame>, support: Double): Boolean {
+        val over = frames.mapNotNull { f -> f["Root"]?.let { it[2] - support } }
+        return over.isNotEmpty() && median(over) < PELVIS_REST
+    }
 
     /** What a seat bears: the hips and thighs (the shins and feet hang in front of it). */
     val HIPS = setOf("Root", "Pelvis", "L_Thigh", "R_Thigh")

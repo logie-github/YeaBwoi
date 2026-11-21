@@ -341,7 +341,7 @@ class GameFiles(private val context: Context) {
     }
 
     /**
-     * Fetches file [id] at [build] into [target] (the art caches: files/transmog-art, files/war-art, files/creator-art
+     * Fetches file [id] at [build] into [target] (the art caches: files/war-art, files/creator-art
      * keep `<id>-<build>`), through the same limiter and tries as the game's files; nothing when it is already there.
      */
     fun fetchTo(id: Int, build: String, target: File, stop: AtomicBoolean) {

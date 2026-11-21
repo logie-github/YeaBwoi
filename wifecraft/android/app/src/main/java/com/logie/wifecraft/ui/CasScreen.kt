@@ -1,6 +1,5 @@
 package com.logie.wifecraft.ui
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -68,8 +67,6 @@ import com.logie.wifecraft.creator.CreatorModel
 import com.logie.wifecraft.creator.ResolvedLook
 import com.logie.wifecraft.creator.Sex
 import com.logie.wifecraft.creator.Tables
-import com.logie.wifecraft.creator.TransmogCatalog
-import com.logie.wifecraft.creator.TransmogFrame
 import com.logie.wifecraft.engine.Placement
 import com.logie.wifecraft.engine.SceneView
 import com.logie.wifecraft.engine.Thumbs
@@ -92,7 +89,7 @@ import kotlin.random.Random
  * panel, a top bar with Back, the name, Undo, Redo, Randomize (the locked tabs kept) and Done, and the camera's buttons. A
  * tap on her opens the part's tab (the engine's body pick) and brings the camera to it; a drag turns her, a pinch brings her
  * nearer. Underneath it is the same [CreatorModel] as before: every race, sex, option and choice, the body options, the
- * Chromie preset and custom colours, the imports, the Transmog window (the Outfit tab: [TransmogPanel] as it is).
+ * Chromie preset and custom colours, the imports, and the Outfit tab's Gear switch and class (ui/GearUi.kt).
  *
  * The logic is pure and tested (creator/CasTabs.kt, BodySculpt.kt, CasPersonality.kt, CasPresets.kt); this file only draws
  * it. Not run on a phone or a desktop: Compose can't be run here.
@@ -117,9 +114,6 @@ fun CasScreen(
     actorKey: String = "creator",
     randomName: (() -> String)? = null,
     onPreviewRace: (Int) -> Unit = {},
-    transmog: TransmogCatalog? = null,
-    transmogStatus: String? = null,
-    onLoadTransmog: () -> Unit = {},
     iconSource: GameIcons? = null,
     portraits: Thumbs? = null,
     onLook: (ResolvedLook) -> Unit = {},
@@ -128,12 +122,10 @@ fun CasScreen(
     val context = LocalContext.current
     val atlas2 = atlas ?: remember { ArtAtlas.open(context) }
     LaunchedEffect(atlas2) { atlas2.load() }
-    val transmogArt = remember { TransmogArt.open(context) }
     val presetOutfits = remember {
         com.logie.wifecraft.characters.CreatorPresets.outfits(
             runCatching { context.assets.open("characters.json").bufferedReader().use { it.readText() } }.getOrNull())
     }
-    val wardrobe = remember(transmog, presetOutfits) { transmog?.withNamed(presetOutfits) }
     val scope = rememberCoroutineScope()
 
     var tab by remember { mutableStateOf(CasTab.BODY) }
@@ -152,8 +144,6 @@ fun CasScreen(
     var glowAt by remember { mutableStateOf<Offset?>(null) }
     val glow = remember { Animatable(0f) }
     val view = remember { ViewState() }
-    // the Transmog window's unsaved changes are put back as it closes (the Outfit tab left), as the creator's always were
-    var transmogBefore by remember { mutableStateOf<Appearance?>(null) }
 
     fun changed(look: Boolean = true) {
         history.push(model.appearance)
@@ -174,28 +164,12 @@ fun CasScreen(
         if (c == CasCamera.FULL) view.facing = CL.RESET_FACING
     }
 
-    fun leaveOutfit() {
-        val before = transmogBefore ?: return
-        val now = model.appearance
-        if (now.clothing != before.clothing || now.gear != before.gear || now.starterClothing != before.starterClothing) {
-            model.setClothing(if (before.starterClothing) wardrobe?.starter ?: before.clothing else before.clothing)
-            model.setGear(before.gear)
-        }
-        if (now.picks != before.picks && now.raceId == before.raceId && now.sex == before.sex)
-            model.applyLook(com.logie.wifecraft.creator.LookPreset(before.raceId, before.sex, before.picks))
-        transmogBefore = null
-        changed()
-    }
-
     fun selectTab(t: CasTab) {
         if (t == tab) return
-        if (tab == CasTab.OUTFIT) leaveOutfit()
-        if (t == CasTab.OUTFIT) { transmogBefore = model.appearance; onLoadTransmog() }
         tab = t
         focusRegion = BodyRegion.NONE
         goCamera(CasTabs.cameraOf(t))
     }
-    BackHandler(tab == CasTab.OUTFIT) { selectTab(CasTab.BODY) }
 
     fun restore(a: Appearance?) {
         if (a == null) return
@@ -206,10 +180,9 @@ fun CasScreen(
 
     val previewRace = remember(rev) { model.appearance.raceId }
     LaunchedEffect(previewRace) { onPreviewRace(previewRace) }
-    LaunchedEffect(tab) { if (tab == CasTab.OUTFIT) transmogArt.load() }
 
     // the look, resolved where the table work is cheap to wait for; then the sculpt on the body dressed, and whether it is Eve's
-    LaunchedEffect(lookRev, transmog) {
+    LaunchedEffect(lookRev) {
         val look = withContext(Dispatchers.Default) { runCatching { model.resolved(tables) }.getOrNull() }
         if (look != null) onLook(look)
         sendSculpt()
@@ -223,15 +196,9 @@ fun CasScreen(
         val wPx = constraints.maxWidth.toFloat(); val hPx = constraints.maxHeight.toFloat()
         val screenW = maxWidth
         val landscape = maxWidth >= maxHeight
-        val layout = CasLayout.of(maxWidth.value, maxHeight.value, tab == CasTab.OUTFIT)
-        // where she stands: the middle of the space the panels leave (the Outfit tab: the Transmog window's character column)
-        val frameFit = remember(wPx, hPx, layout) {
-            TransmogFrame.fit(layout.stage.w * density.density, layout.stage.h * density.density)
-        }
-        val centreX = if (tab == CasTab.OUTFIT) {
-            val column = frameFit.box(TransmogFrame.PREVIEW)
-            (layout.stage.x * density.density + column.x + column.w / 2f) / wPx
-        } else (layout.stage.x + layout.stage.w / 2f) / maxWidth.value
+        val layout = CasLayout.of(maxWidth.value, maxHeight.value, false)
+        // where she stands: the middle of the space the panels leave
+        val centreX = (layout.stage.x + layout.stage.w / 2f) / maxWidth.value
         val centreNow by rememberUpdatedState(centreX)
         val aspect = wPx / max(1f, hPx)
         val aspectNow by rememberUpdatedState(aspect)
@@ -257,7 +224,6 @@ fun CasScreen(
         }
 
         // the stage: a finger turns her, two bring her nearer, a tap on her opens the part's tab
-        val tabNow by rememberUpdatedState(tab)
         Box(Modifier.fillMaxSize().pointerInput(Unit) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
@@ -286,7 +252,7 @@ fun CasScreen(
                 }
                 view.fingerUp()
                 // a tap (no drag, one finger): which part of her it landed on
-                if (!multi && travelled < 18f * density.density && tabNow != CasTab.OUTFIT) {
+                if (!multi && travelled < 18f * density.density) {
                     val at = Offset(down.position.x, down.position.y)
                     scene.pickBodyRegion(actorKey, at.x, at.y, wPx.roundToInt(), hPx.roundToInt()) { code ->
                         val region = BodyRegion.of(code)
@@ -318,37 +284,6 @@ fun CasScreen(
             }
         }
 
-        // the Outfit tab: the Transmog window as it is, over the stage and the panel's place
-        if (tab == CasTab.OUTFIT) {
-            Box(Modifier.offset(layout.stage.x.dp, layout.stage.y.dp).size(layout.stage.w.dp, layout.stage.h.dp)) {
-                TransmogPanel(
-                    wardrobe, wardrobe?.equipStarter(model.appearance)?.clothing?.takeIf { model.appearance.gear }.orEmpty(),
-                    transmogStatus, onLoadTransmog,
-                    onPreview = { model.setClothing(it); changed() },
-                    onPreset = { outfit ->
-                        model.setClothing(outfit.displays)
-                        outfit.look?.let { model.applyLook(it) }
-                        changed()
-                    },
-                    onSave = { transmogBefore = model.appearance },
-                    onClose = { selectTab(CasTab.BODY) },
-                    icons = iconSource,
-                    art = transmogArt,
-                    fit = frameFit,
-                    font = art.friz,
-                    outfitName = name.trim().ifEmpty { "Outfit 1" },
-                    thumbs = portraits,
-                    look = rev.let { model.appearance },
-                )
-                // Gear on or off (the creator's Gear row) at the window's foot
-                Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 6.dp)) {
-                    CasPill(if (model.appearance.gear) "Gear shown" else "Gear hidden", on = rev.let { model.appearance.gear }) {
-                        model.setGear(!model.appearance.gear); changed()
-                    }
-                }
-            }
-        }
-
         // the tab rail
         Box(Modifier.offset(layout.rail.x.dp, layout.rail.y.dp).size(layout.rail.w.dp, layout.rail.h.dp)) {
             CasRail(
@@ -360,15 +295,13 @@ fun CasScreen(
         }
 
         // the camera's buttons
-        if (tab != CasTab.OUTFIT) {
-            Box(Modifier.offset(layout.cameras.x.dp, layout.cameras.y.dp).size(layout.cameras.w.dp, layout.cameras.h.dp)) {
-                CasCameraButtons(camera, turntable, warmLight, vertical = !landscape,
-                    onCamera = { goCamera(it) }, onTurntable = { turntable = !turntable }, onLight = { warmLight = !warmLight })
-            }
+        Box(Modifier.offset(layout.cameras.x.dp, layout.cameras.y.dp).size(layout.cameras.w.dp, layout.cameras.h.dp)) {
+            CasCameraButtons(camera, turntable, warmLight, vertical = !landscape,
+                onCamera = { goCamera(it) }, onTurntable = { turntable = !turntable }, onLight = { warmLight = !warmLight })
         }
 
-        // the panel
-        if (tab != CasTab.OUTFIT) {
+        // the panel (the Outfit tab's: the Gear switch and the class, ui/GearUi.kt)
+        run {
             Box(Modifier.offset(layout.panel.x.dp, layout.panel.y.dp).size(layout.panel.w.dp, layout.panel.h.dp)) {
                 CasPanel(
                     tab = tab, model = model, rev = rev, atlas = atlas2, icons = iconSource, portraits = portraits,
@@ -396,12 +329,11 @@ fun CasScreen(
                     val traits = Trait.entries.map { it.name }
                     CasRandomizer.randomize(model, locks, Random(System.nanoTime()), sculptable = eveBody, traits = traits,
                         opposed = { a, b -> Traits.opposed(Trait.valueOf(a), Trait.valueOf(b)) })
-                    CasRandomizer.outfitPick(wardrobe?.outfits.orEmpty(), locks, Random(System.nanoTime()))?.let { model.setClothing(it.displays) }
                     changed(); sendSculpt()
                 },
                 onPresets = { presetsOpen = true },
                 onBack = onBack,
-                onDone = { if (tab == CasTab.OUTFIT) leaveOutfit(); onFinish(name, model.appearance) },
+                onDone = { onFinish(name, model.appearance) },
             )
         }
 
@@ -583,7 +515,7 @@ fun CasIconButton(description: String, enabled: Boolean = true, repeatable: Bool
     }
 }
 
-/** A rounded on/off pill (the Outfit tab's Gear). */
+/** A rounded on/off pill. */
 @Composable
 fun CasPill(text: String, on: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(50)

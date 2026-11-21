@@ -114,6 +114,7 @@ fun CasPanel(
                 CasTab.RACE -> CasRaceSection(model, rev, atlas, onChanged)
                 CasTab.BODY -> CasBodySection(model, rev, atlas, eveBody, focus, onChanged, onSculpt, sculptRateMs, eve)
                 CasTab.PERSONALITY -> CasPersonalitySection(model, rev, icons, onChanged)
+                CasTab.OUTFIT -> CasGearSection(model, rev, onChanged)
                 else -> CasRows(remember(rev, tab, model.appearance.raceId, model.appearance.sex) { CasTabs.rows(model, tab) }, model, atlas, onChanged)
             }
             Spacer(Modifier.height(12.dp))

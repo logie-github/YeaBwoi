@@ -113,7 +113,7 @@ class ImportedLooksTest {
 
     @Test fun aCreatedNpcIsTheCreatorsLookUnchanged() {
         // the regression: a created NPC, a starter (Mira) or an older project's NPC is drawn exactly as the creator resolves it
-        val a = Appearance(1, Sex.FEMALE, mapOf(10 to 101), gear = false)
+        val a = Appearance(1, Sex.FEMALE, mapOf(10 to 101), gear = true)
         for (o in listOf(none, ralia)) {
             val plan = ImportedLooks.of(catalog, tables, a, cast, o)
             assertEquals(LookResolver.resolve(catalog, tables, a, o), plan.look)
@@ -123,6 +123,21 @@ class ImportedLooksTest {
         }
         assertTrue(2_000_000_001 in files(ImportedLooks.of(catalog, tables, a, null, ralia).look), "Ralia's skin on a created NPC")
         assertEquals(setOf(3001, 3002), files(ImportedLooks.of(catalog, tables, a, null, none).look) intersect setOf(3001, 3002, 2_000_000_001))
+    }
+
+    @Test fun gearOffOnACreatedNpcIsNude() {
+        // the Gear switch off: the skin colour's underwear goes too (the game's and the import's), as a bare variant's
+        val off = Appearance(1, Sex.FEMALE, mapOf(10 to 101), gear = false)
+        for (o in listOf(none, ralia)) {
+            val plan = ImportedLooks.of(catalog, tables, off, cast, o)
+            val f = files(plan.look)
+            assertFalse(3002 in f || 2_000_000_002 in f, "no underwear: $f")
+            assertEquals(ImportedLooks.ofBody(catalog, tables, off, true, o).look, plan.look)
+            assertSame(off, plan.drawn)
+        }
+        assertTrue(2_000_000_001 in files(ImportedLooks.of(catalog, tables, off, null, ralia).look), "the imported skin kept")
+        // a named character's choice decides for her, whatever her roster appearance's switch says
+        assertTrue(2_000_000_002 in files(ImportedLooks.of(catalog, tables, named("underwear"), cast, ralia).look))
     }
 
     @Test fun everyBodyChoiceOfANamedCharacterWearsTheImports() {
@@ -224,8 +239,8 @@ class ImportedLooksTest {
     }
 
     @Test fun thePicturesAndCardsTakeTheSameStep() {
-        // Thumbs.look (portraits, the library's pictures, the placing ghost) and Thumbs.card (the Transmog cards) are
-        // ImportedLooks.of for an NPC and ofDisplay for a creature: a card's look is a created appearance wearing pieces
+        // Thumbs.look (portraits, the library's pictures, the placing ghost) is ImportedLooks.of for an NPC and ofDisplay
+        // for a creature: a dressed look (ClassOutfits.dressed) is a created appearance wearing pieces
         val card = Appearance(1, Sex.FEMALE, mapOf(10 to 101), gear = true, clothing = mapOf(1 to 70), starterClothing = false)
         val plan = ImportedLooks.of(catalog, tables, card, null, ralia)
         assertTrue(2_000_000_001 in files(plan.look))

@@ -319,6 +319,9 @@ internal fun NpcMenuWindow(
     canDelete: Boolean,
     onDelete: () -> Unit,
     onClose: () -> Unit,
+    /** The Gear switch (characters/GearSwitch): on, class clothing or a named character's outfit; off, nude. Null: none. */
+    gear: Boolean? = null,
+    onGear: (Boolean) -> Unit = {},
 ) {
     WifeWindow(
         actor.name, onClose, Modifier.widthIn(max = 520.dp).heightIn(max = 560.dp).padding(16.dp),
@@ -329,6 +332,7 @@ internal fun NpcMenuWindow(
         },
     ) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
+            if (gear != null) NpcGearRow(gear, onGear, named = variants.isNotEmpty())
             if (variants.isNotEmpty()) {
                 WifeSectionHeader("Look")
                 for ((key, label) in variants) {
@@ -344,7 +348,7 @@ internal fun NpcMenuWindow(
                 PartRow("Cut", PartCut.values().map { it.label }, parts.cut.ordinal) { onParts(parts.copy(cut = PartCut.values()[it])) }
                 PartRow("Scrotum", PartPlacement.values().map { it.label }, parts.placement.ordinal) { onParts(parts.copy(placement = PartPlacement.values()[it])) }
             }
-            if (variants.isEmpty() && parts == null && canDelete) {
+            if (variants.isEmpty() && parts == null && gear == null && canDelete) {
                 WifeNote("Delete takes this NPC out of your roster for good.")
             }
         }

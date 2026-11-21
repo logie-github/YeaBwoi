@@ -1394,6 +1394,19 @@ fun LiveSceneScreen(
                         if (partControl != null && partNpc != null) {
                             WifeChip(if (partControl.isOn(partNpc)) "Off" else "On", { partControl.toggle(partNpc) }, trailing = null)
                         }
+                        // the Gear switch (ui/GearUi.kt): the selected NPC's, and everyone's in the scene
+                        val gearControl = LocalGearControl.current
+                        if (gearControl != null) {
+                            val gearNpc = active?.id
+                            if (gearNpc != null) {
+                                val on = gearControl.isOn(gearNpc)
+                                WifeChip(if (on) "Gear off" else "Gear on", { gearControl.set(gearNpc, !on) }, trailing = null)
+                            }
+                            if (cast.size > 1) {
+                                val all = gearControl.allOn()
+                                WifeChip(if (all) "All gear off" else "All gear on", { gearControl.setAll(!all) }, trailing = null)
+                            }
+                        }
                         // the life answer's toast said it already: the line keeps the help
                         val toastText = lifeToast?.first?.message
                         // while an animation plays: its part and loop counter ("Stage 2 · Cowgirl · Loop 3/5")

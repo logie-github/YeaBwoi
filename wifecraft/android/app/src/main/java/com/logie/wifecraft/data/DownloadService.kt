@@ -22,7 +22,6 @@ import com.logie.wifecraft.creator.GameTables
 import com.logie.wifecraft.creator.ImportStore
 import com.logie.wifecraft.creator.M2Files
 import com.logie.wifecraft.creator.Prefetch
-import com.logie.wifecraft.creator.TransmogCatalog
 import com.logie.wifecraft.engine.PropLoader
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -389,10 +388,7 @@ object DownloadHub {
                 else -> {
                     ensureTables()
                     if (halted.get()) return
-                    val work = planner.plan(pack) {
-                        GameTables.fetch(files.tablesDir, names = TransmogCatalog.TABLES)
-                        TransmogCatalog.load(tables)
-                    }
+                    val work = planner.plan(pack)
                     gate = gateFor(pack)
                     total.set(work.direct.size + work.models.size)
                     for (batch in work.direct.chunked(BATCH)) {

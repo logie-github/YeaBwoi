@@ -327,7 +327,7 @@ object Native {
         layerMeta: IntArray, tintColours: IntArray, extraModels: IntArray, morph: FloatArray?, k: Float, fold: Float, size: Int,
     ): IntArray?
     /**
-     * A look's picture framed as a Transmog card (creator/TransmogCards.Shot): the body's band [lo] to [hi] (fractions of
+     * A look's picture framed on a band of the body (unused by the app since the Transmog cards went; kept for engine-test): the body's band [lo] to [hi] (fractions of
      * its height, feet 0) from azimuth [az] and elevation [el] (radians), [fitWidth] keeping the band's width in too; [clear]:
      * transparent around her (straight alpha). [width] x [height] 16 to 512: [width, height, ARGB...] or null ([thumbError]).
      */

@@ -150,7 +150,7 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
         val undead = appearance.undead && skins.isNotEmpty()
         appearance = Appearance(next.race.id, next.sex, picks, body, appearance.gear, undead,
             if (undead) appearance.undeadSkin.coerceIn(0, skins.size - 1) else 0, appearance.clothing, appearance.starterClothing,
-            sculpt = appearance.sculpt, personality = appearance.personality)
+            sculpt = appearance.sculpt, personality = appearance.personality, classId = appearance.classId)
         normalize(null)
     }
 
@@ -288,13 +288,13 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
         appearance = transform(appearance).copy(raceId = model.race.id, sex = model.sex)
     }
 
-    /** What [before] wore put back (Randomize with Outfit locked). */
+    /** [before]'s Gear switch and class put back (Randomize with Outfit locked). */
     fun restoreOutfit(before: Appearance) {
-        appearance = appearance.copy(clothing = before.clothing, gear = before.gear, starterClothing = before.starterClothing)
+        appearance = appearance.copy(gear = before.gear, classId = before.classId)
     }
 
     /**
-     * A named character's choices ([LookPreset], the Transmog panel's presets) put on, when the character is of the
+     * A named character's choices ([LookPreset], the Presets window's named presets) put on, when the character is of the
      * preset's race and sex: each pick of an option the creator shows, with a choice of that option's; the others stay.
      * The choices are then kept right with each other as after the dice. False (nothing changed) for another race or sex.
      */
@@ -308,9 +308,10 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
         return true
     }
 
-    fun setClothing(items: Map<Int, Int>) { appearance = appearance.copy(clothing = items, gear = true, starterClothing = false) }
-
     fun setGear(on: Boolean) { appearance = appearance.copy(gear = on) }
+
+    /** The class whose default clothing Gear on wears (ClassOutfits; 0 Civilian). */
+    fun setClass(classId: Int) { appearance = appearance.copy(classId = classId.coerceAtLeast(0)) }
 
     fun resolved(t: Tables): ResolvedLook = LookResolver.resolve(catalog, t, appearance)
 

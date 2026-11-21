@@ -18,7 +18,9 @@ import com.logie.wifecraft.sims.SimsHash
 import com.logie.wifecraft.sims.SimsReader
 import com.logie.wifecraft.simulation.FurnitureAnimation
 import com.logie.wifecraft.simulation.PairFit
-import com.logie.wifecraft.simulation.PairLift
+import com.logie.wifecraft.simulation.PairHeight
+import com.logie.wifecraft.simulation.PairLifts
+import com.logie.wifecraft.simulation.PairWater
 import com.logie.wifecraft.simulation.PairSpacing
 import com.logie.wifecraft.simulation.PartnerPair
 import com.logie.wifecraft.simulation.PartnerSlot
@@ -129,13 +131,17 @@ class PairAlignmentAudit {
         val csv = File(out, "stages.csv").printWriter()
         csv.println("pack,id,hash,name,group,setting,class,postureA,postureB,surface,combo,way,frames,durA,durB," +
             "retarget_cm,retargetHips_cm,hips_cm,body_cm,place_cm,placeV_cm,push_yd,liftA_cm,liftB_cm,contact_auth_cm,contact_app_cm,contact_err_cm," +
-            "pen_auth_cm,pen_app_cm,pen_extra_cm,facing_err_deg,sink_cm,float_cm,drift_err_cm,relAuth_x,relAuth_y,relAuth_z,flags")
+            "pen_auth_cm,pen_app_cm,pen_extra_cm,facing_err_deg,sink_cm,float_cm,drift_err_cm,relAuth_x,relAuth_y,relAuth_z," +
+            "water,needs_water,syncA,syncB,hipRaise_cm,restA_cm,restB_cm,hipsV_cm,flags")
         class Row(val cls: String, val combo: String, val way: String, val flags: List<String>, val score: Double, val line: String, val id: String, val name: String)
         val rows = ArrayList<Row>()
         var skipped = 0
         for (c in two) {
-            val anA = c.clips[0].forPlayback() ?: continue
-            val anB = c.clips[1].forPlayback() ?: continue
+            val rawA = c.clips[0].forPlayback() ?: continue
+            val rawB = c.clips[1].forPlayback() ?: continue
+            // the two clips on one clock as the app plays them (PairSync: the shorter looped or held to the longer's end)
+            val sync = com.logie.wifecraft.anim.PairSync.ways(listOf(rawA, rawB))
+            val (anA, anB) = com.logie.wifecraft.anim.PairSync.synced(rawA, rawB)
             val sa = sims[anA.sourceName.lowercase()]; val sb = sims[anB.sourceName.lowercase()]
             if (sa == null || sb == null) { skipped++; continue }
             val ra = c.roles[0]; val rb = c.roles[1]
@@ -180,6 +186,7 @@ class PairAlignmentAudit {
                     f(retargetHips * CM_PER_YARD)).joinToString(","))
             }
             val touching = PairSpacing.touching(pp)
+            val needsWater = PairWater.needsWater(req, pp)
             val authContact = times.indices.map { i -> PairAlignment.surface(authA[i], authB[i], PairAlignment.HIP_PARTS, PairAlignment.HIP_PARTS) }
             val authPen = times.indices.map { i -> PairAlignment.surface(authA[i], authB[i], skip = PairAlignment.mayTouch) }
 
@@ -192,15 +199,48 @@ class PairAlignmentAudit {
                 val spaced = PairSpacing.spaced(pp, combo.a.flesh, combo.b.flesh)
                 val push = PairAlignment.horiz(doubleArrayOf((spaced.slotB.x - pp.slotB.x).toDouble(), (spaced.slotB.y - pp.slotB.y).toDouble(), 0.0))
                 val (sA, sB) = PairFit.slots(spaced.slotA, spaced.slotB, combo.sizeA, combo.sizeB)
+                // each role's lift for its own flesh, shared, the hips matched: PairLifts.of, as SceneSimulation.roleLifts runs it
                 fun lift(i: Int, body: Body, slot: PartnerSlot, anim: com.logie.wifecraft.anim.Anim, unit: Double): Double {
                     val need = req.actors.getOrNull(i) ?: return 0.0
                     val own = if (body.flesh.measured) FleshLift.adjusted(need, BodyGeometry.frames(anim, z = slot.z.toDouble(), flesh = body.flesh), body.flesh).liftUnits
                         else need.liftUnits
                     return ((own - if (floorLevel) 0f else need.liftUnits) * unit)
                 }
-                val shared = PairLift.shared(lift(0, combo.a, spaced.slotA, anA, SceneUnit.HUMAN * combo.scaleA).toFloat(),
-                    lift(1, combo.b, spaced.slotB, anB, SceneUnit.HUMAN * combo.scaleB).toFloat(), touching)
-                val la = shared[0].toDouble(); val lb = shared[1].toDouble()
+                fun authoredLift(i: Int, unit: Double): Float = if (floorLevel) ((req.actors.getOrNull(i)?.liftUnits ?: 0f) * unit).toFloat() else 0f
+                val unitA = SceneUnit.HUMAN * combo.scaleA; val unitB = SceneUnit.HUMAN * combo.scaleB
+                fun hipsOf(body: Body, anim: com.logie.wifecraft.anim.Anim, slot: PartnerSlot, unit: Double) =
+                    PairHeight.hips(anim, slot.z, body.flesh, if (body.flesh.measured) body.pelvis.toFloat() else unit.toFloat(), unit.toFloat())
+                val placed = PairLifts.of(req, pp, floatArrayOf(lift(0, combo.a, spaced.slotA, anA, unitA).toFloat(), lift(1, combo.b, spaced.slotB, anB, unitB).toFloat()),
+                    floatArrayOf(authoredLift(0, unitA), authoredLift(1, unitB)), touching,
+                    hipsOf(combo.a, anA, spaced.slotA, unitA), hipsOf(combo.b, anB, spaced.slotB, unitB), floatArrayOf(unitA.toFloat(), unitB.toFloat()))
+                val la = placed.lifts[0].toDouble(); val lb = placed.lifts[1].toDouble()
+                val hipRaise = max(placed.hipRaise[0], placed.hipRaise[1]).toDouble()
+                // how far each resting role's flesh is over its support as placed (yards; negative: in it), the role's bearing
+                // parts (FleshLift's) at their lowest over the clip: the support where the fit (or the floor) puts it
+                fun rest(i: Int, body: Body, anim: com.logie.wifecraft.anim.Anim, slot: PartnerSlot, unit: Double, lifted: Double): Double {
+                    val need = req.actors.getOrNull(i) ?: return Double.NaN
+                    if (need.posture == com.logie.wifecraft.anim.Posture.STAND || need.posture == com.logie.wifecraft.anim.Posture.LEAN ||
+                        need.posture == com.logie.wifecraft.anim.Posture.CROUCH || need.posture == com.logie.wifecraft.anim.Posture.UNKNOWN) return Double.NaN
+                    // a body on top of the other (sitting or kneeling astride one lying under it, its support read higher):
+                    // it rests on that body, not on the surface
+                    val other = req.actors.getOrNull(1 - i)
+                    if (!need.posture.lying && other != null && other.posture.lying && other.heightUnits < need.heightUnits - 0.05f) return Double.NaN
+                    val frames = BodyGeometry.frames(anim, z = slot.z.toDouble(), flesh = body.flesh.takeIf { it.measured })
+                    val seat = need.posture.seated && need.height >= com.logie.wifecraft.anim.RequirementClassifier.FLOOR_SIT_MAX
+                    val parts = when {
+                        seat -> com.logie.wifecraft.anim.FleshProfile.SEAT
+                        need.posture.lying && com.logie.wifecraft.anim.RequirementClassifier.pelvisRests(frames, need.heightUnits.toDouble()) -> FleshLift.LYING
+                        else -> FleshLift.BEARING
+                    }
+                    val low = frames.minOfOrNull { f -> body.flesh.lowestOver(f, parts, if (seat) com.logie.wifecraft.anim.FleshProfile.HALF else emptySet(),
+                        if (seat) com.logie.wifecraft.anim.FleshProfile.SEAT_BARE else emptySet()) ?: Double.MAX_VALUE } ?: return Double.NaN
+                    // body units on the body's own skeleton, drawn by its own pelvis. The support: on the floor the floor;
+                    // on furniture where the fit put it (the role's support, its height less the classifier's lift, on the
+                    // surface), the body raised by its applied lift past the fit's
+                    val drawn = if (body.flesh.measured) body.pelvis else unit
+                    return if (floorLevel) low * drawn + lifted else low * drawn + lifted - (need.heightUnits - need.liftUnits) * unit
+                }
+                val restA = rest(0, combo.a, anA, spaced.slotA, unitA, la); val restB = rest(1, combo.b, anB, spaced.slotB, unitB, lb)
                 val pairA = PairAlignment.played(anA, combo.a, times, sA.x.toDouble(), sA.y.toDouble(), sA.z.toDouble(), sA.yawDeg.toDouble(), la)
                 val pairB = PairAlignment.played(anB, combo.b, times, sB.x.toDouble(), sB.y.toDouble(), sB.z.toDouble(), sB.yawDeg.toDouble(), lb)
 
@@ -239,12 +279,13 @@ class PairAlignmentAudit {
                     File(dir, "caption.txt").writeText("${c.name} | $cls | ${req.surface} ${pa}/${pb}\n")
                 }
                 for ((way, appA, appB) in listOf(Triple("order", orderA, orderB), Triple("pair", pairA, pairB))) {
-                    var hips = 0.0
+                    var hips = 0.0; var hipsV = 0.0
                     var body = 0.0; var place = 0.0; var placeV = 0.0; var cErr = 0.0; var cApp = Double.MAX_VALUE; var cAuth = Double.MAX_VALUE
                     var penApp = 0.0; var penAuth = 0.0; var penExtra = 0.0; var facing = 0.0; var sink = 0.0; var float = Double.MAX_VALUE
                     for (i in times.indices) {
                         body = max(body, relErr(appA[i], appB[i], authA[i], authB[i]).first)
                         hips = max(hips, hipsErr(appA[i], appB[i], authA[i], authB[i]))
+                        hipsV = max(hipsV, abs(hipsErrV(appA[i], appB[i], authA[i], authB[i])))
                         val pe = relErr(appA[i], appB[i], orderA[i], orderB[i])
                         place = max(place, pe.first); placeV = max(placeV, pe.second)
                         val ca = authContact[i]
@@ -279,13 +320,18 @@ class PairAlignmentAudit {
                     if (float * cm > Tol.FLOAT_CM && req.actors.all { it.posture != com.logie.wifecraft.anim.Posture.STAND }) flags += "FLOAT"
                     if (drift * cm > Tol.DRIFT_CM) flags += "DRIFT"
                     if (abs(sa.duration - sb.duration) > max(sa.tickLength, sb.tickLength) + 1e-4f) flags += "LENGTH"
+                    if (placed.water) flags += if (needsWater) "NEEDS_WATER" else "WATER"
+                    // a resting body more than the sink or float tolerance off its support (not 55 cm over or under a bed)
+                    if (way == "pair" && listOf(restA, restB).any { it.isFinite() && (it * cm < -Tol.SINK_CM || it * cm > Tol.FLOAT_CM) }) flags += "REST"
                     val ra0 = rel(authA[mid], authB[mid])
                     val line = listOf(q(label), q(c.id), hash, q(c.name), q(c.group), q(c.setting), q(cls), pa, pb, req.surface, combo.name, way, times.size,
                         f(anA.duration.toDouble()), f(anB.duration.toDouble()), f(retarget * cm), f(retargetHips * cm), f(hips * cm), f(body * cm), f(place * cm), f(placeV * cm),
                         String.format(locale, "%.3f", push), f(la * cm), f(lb * cm), f(cAuth * cm), f(cApp * cm), f(cErr * cm),
                         f(penAuth * cm), f(penApp * cm), f(penExtra * cm), f(facing), f(sink * cm), f(float * cm), f(drift * cm),
                         String.format(locale, "%.4f", ra0[0]), String.format(locale, "%.4f", ra0[1]), String.format(locale, "%.4f", ra0[2]),
-                        flags.joinToString("|")).joinToString(",")
+                        placed.water, needsWater, sync[0], sync[1], f(if (way == "pair") hipRaise * cm else 0.0),
+                        if (way == "pair" && restA.isFinite()) f(restA * cm) else "", if (way == "pair" && restB.isFinite()) f(restB * cm) else "",
+                        f(hipsV * cm), flags.joinToString("|")).joinToString(",")
                     csv.println(line)
                     val score = max(max(place, hips), max(penExtra, sink)) * cm + facing / 5
                     rows += Row(cls, combo.name, way, flags, score, line, c.id, c.name)
@@ -347,6 +393,9 @@ class PairAlignmentAudit {
     })
 
     private fun hips(p: Pose) = PairAlignment.lerp(p["L_Thigh"]!!, p["R_Thigh"]!!, 0.5)
+
+    /** How far B's hip joints are above where they should be against A's (yards; negative: below). */
+    private fun hipsErrV(a: Pose, b: Pose, a0: Pose, b0: Pose): Double = (hips(b)[2] - hips(a)[2]) - (hips(b0)[2] - hips(a0)[2])
 
     /** How far B's hip joints are from where they should be against A's (yards). */
     private fun hipsErr(a: Pose, b: Pose, a0: Pose, b0: Pose): Double =

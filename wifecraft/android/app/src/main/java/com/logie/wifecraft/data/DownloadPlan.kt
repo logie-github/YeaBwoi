@@ -14,11 +14,10 @@ package com.logie.wifecraft.data
 enum class PackKey(val id: String, val label: String, val detail: String, val optional: Boolean = false, val onByDefault: Boolean = true) {
     BASICS("basics", "Game basics", "The interface, the game's tables, Dalaran, every character creator option, the title's music"),
     PLACES("places", "Places", "All eleven locations and every race's backdrop"),
-    ART("art", "Menu and Transmog art", "The Transmog window's, the creator's and the menus' art"),
+    ART("art", "Menu and creator art", "The creator's and the menus' art"),
     SOUNDS("sounds", "Music, ambience and voices", "Every place's music and ambience, time of day, fire, rain, cloth, the emotes' voices"),
     ANIMATIONS("animations", "Character animations", "Every animation of every character model"),
     NAMED("named", "Named characters", "Every look the named characters are drawn as or cut from"),
-    TRANSMOG("transmog", "Transmog items (large)", "Every item's models and textures for every race and sex, and the icons", optional = true),
     CREATURES("creatures", "Library creatures (large)", "The placement library's creature models and the game's named creatures", optional = true),
     PROPS("props", "Library props (very large)", "Every prop of the placement library", optional = true),
     BUILDINGS("buildings", "Library buildings (huge)", "Every building of the placement library, with its rooms", optional = true);

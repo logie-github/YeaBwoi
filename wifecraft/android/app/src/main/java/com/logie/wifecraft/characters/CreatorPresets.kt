@@ -4,10 +4,9 @@ import com.logie.wifecraft.creator.ClothingSet
 import com.logie.wifecraft.creator.LookPreset
 
 /**
- * The named characters' creator presets (assets/characters.json's "presets": Chromie's gnome look) as named outfits of the
- * creator's Transmog panel ([com.logie.wifecraft.creator.TransmogCatalog.withNamed]): the preset's worn items, and its
- * choices as a [LookPreset] that the creator puts on a character of the preset's race and sex. Ids are negative (-1 the
- * roster's first preset), apart from the game's item sets. Pure JVM.
+ * The named characters' creator presets (assets/characters.json's "presets": Chromie's gnome look), offered in the
+ * creator's Presets window (CasPresets.builtIns): the preset's worn items, and its choices as a [LookPreset] that the
+ * creator puts on a character of the preset's race and sex. Ids are negative (-1 the roster's first preset). Pure JVM.
  */
 object CreatorPresets {
     fun outfits(roster: List<Character>): List<ClothingSet> {

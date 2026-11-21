@@ -387,6 +387,7 @@ void Scene::eveSwap(Actor& a, EveResult& r, bool inRefresh, bool staged) {
                  "GL thread %.2f ms (snapshot and swap; the upload's slices at most %.2f ms a frame), swapped in after %u frames\n",
                  e.body.stats.ms, e.composeMs, r.totalMs, e.sync ? "at once" : "on the worker", e.body.indices.size() / 3, b.indices.size() / 3,
                  e.neckRgb, e.ankleRgb, e.shade, e.glMs, staged ? e.stageMs : 0.0, e.sync ? 0u : e.waitFrames);
+    std::fprintf(stderr, "eve seams: colour across the neck %.1f, ankles %.1f / %.1f (CIE76 ΔE)\n", r.seamDE[0], r.seamDE[1], r.seamDE[2]);
     const BodyScale& k = e.body.scale;
     std::fprintf(stderr, "eve proportions: head %.3f, height %.3f (%.2f heads) -> %.3f (%.2f heads); legs %.3f torso %.3f arms %.3f hands %.3f spread %.3f\n",
                  e.body.stats.head, e.body.stats.height, e.body.stats.height / std::max(e.body.stats.head, 1e-3f), e.body.stats.heightAfter,

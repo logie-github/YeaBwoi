@@ -41,7 +41,7 @@ data class ResolvedLook(
  * TextureFileData), skinned models, face bones and another model (ChrCustomizationCondModel: Upright). A row hanging on a
  * picked choice wins over a row of the same choice that hangs on none.
  *
- * Equipment groups start at their bare variants. Transmog then applies the selected display IDs and clothing layers.
+ * Equipment groups start at their bare variants. The worn clothing (Gear on: ClassOutfits) then applies its display IDs and clothing layers.
  */
 object LookResolver {
     private val EQUIPMENT_GROUPS = intArrayOf(4, 5, 8, 10, 13, 22, 23, 28)
@@ -231,8 +231,8 @@ object LookResolver {
      * the skin, texture type 1) go to [CLOTH_LAYER] plus their place among the clothing layers, so nothing of it is painted on
      * the chest or the belly (the game paints a tabard's whole front on the torso, its flap drawing from a strip of it the
      * belly shares) and the flap keeps its pattern. Any other look, and a look with gear off, comes back as it is. Applied to
-     * the named characters' tabard-only looks (ImportedLooks.ofBody, a bare body wearing a tabard); a created NPC or a
-     * Transmog card wearing a tabard keeps it painted on the torso as the game does. The user's imports
+     * the named characters' tabard-only looks (ImportedLooks.ofBody, a bare body wearing a tabard); a created NPC wearing
+     * a tabard keeps it painted on the torso as the game does. The user's imports
      * (ImportedLooks.apply) change only the files, never the layer, so an imported look keeps it.
      */
     fun hangingCloth(t: Tables, a: Appearance, look: ResolvedLook): ResolvedLook {

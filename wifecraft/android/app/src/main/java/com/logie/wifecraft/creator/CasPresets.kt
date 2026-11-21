@@ -26,10 +26,10 @@ data class CasPreset(val name: String, val appearance: Appearance, val character
             if (name.isEmpty()) null else CasPreset(name, a, o.optString("character").trim().take(MAX_NAME))
         }.getOrNull()
 
-        /** The named characters' looks ([LookPreset]s of the Transmog panel's named outfits) as presets, built in. */
+        /** The named characters' looks ([LookPreset]s of their presets) as presets, built in: her choices, Gear on. */
         fun builtIns(named: List<ClothingSet>): List<CasPreset> = named.mapNotNull { set ->
             val look = set.look ?: return@mapNotNull null
-            CasPreset(set.name, Appearance(look.raceId, look.sex, look.picks, clothing = set.displays, starterClothing = set.displays.isEmpty()), builtIn = true)
+            CasPreset(set.name, Appearance(look.raceId, look.sex, look.picks), builtIn = true)
         }
     }
 }

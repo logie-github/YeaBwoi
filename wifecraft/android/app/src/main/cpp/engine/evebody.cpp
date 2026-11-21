@@ -194,7 +194,7 @@ bool parseEveFitTable(const std::string& json, EveFitTable& out, std::string& er
         num("calf", f.calf); num("arm", f.arm); num("forearm", f.forearm); num("neckTuck", f.neckTuck); num("neckLift", f.neckLift);
         num("neckBase", f.neckBase); num("ankleLift", f.ankleLift); num("ankleTuck", f.ankleTuck); num("ankleSink", f.ankleSink);
         num("heads", f.heads); num("hipRatio", f.hipRatio); num("armRatio", f.armRatio); num("handHeads", f.handHeads); num("spread", f.spread);
-        num("split", f.split);
+        num("split", f.split); num("transfer", f.transfer); num("stitch", f.stitch);
     };
     if (j.has("defaults")) readFit(j["defaults"]["fit"], defaults);
     for (const Json& r : rows.a) {
@@ -576,7 +576,8 @@ static BodyScale eveProportions(const M2Model& m, const std::vector<M2Vertex>& v
     st.head = H > 0 ? H : 0;
     st.height = crown;
     st.heightAfter = crown;
-    if (!(H > 0.02f) || !(fit.heads > 0) || !(crown > H * 5)) return k;   // (a "head" over a fifth of her: no head measured)
+    if (!(H > 0.02f) || !(crown > H * 5)) return k;   // (a "head" over a fifth of her: no head measured)
+    if (!(fit.heads > 0) && !(fit.hipRatio > 0)) return k;
     // her hand as fitted: the farthest of Eve's vertices the hand's bones carry, from the wrist
     float handLen = 0;
     for (const M2Vertex& v : body.verts) {
@@ -584,14 +585,17 @@ static BodyScale eveProportions(const M2Model& m, const std::vector<M2Vertex>& v
         for (int q = 1; q < 4; ++q) if (v.weights[q] > v.weights[best]) best = q;
         if (under(v.bones[best], hand)) handLen = std::max(handLen, (V3(v.pos[0], v.pos[1], v.pos[2]) - wrist).length());
     }
-    const float total = fit.heads * H, hipZ = (hipL.z + hipR.z) * 0.5f, above = crown - neck.z;
-    const float hip2 = std::clamp(fit.hipRatio, 0.3f, 0.7f) * total;
+    // her height: `heads` of the model's head heights, or (0) the model's own: she stands as tall as the body she replaces
+    const float total = fit.heads > 0 ? fit.heads * H : crown, hipZ = (hipL.z + hipR.z) * 0.5f, above = crown - neck.z;
+    const float hip2 = fit.hipRatio > 0 ? std::clamp(fit.hipRatio, 0.3f, 0.7f) * total : hipZ * total / crown;
     k.legs = std::clamp(hip2 / std::max(hipZ, 1e-3f), 0.6f, 1.3f);
     const float neck2 = total - above;
     k.torso = std::clamp((neck2 - hipZ * k.legs) / std::max(neck.z - hipZ, 1e-3f), 0.7f, 1.3f);
-    if (handLen > 1e-3f) k.hands = std::clamp(fit.handHeads * H / handLen, 0.6f, 1.3f);
+    if (handLen > 1e-3f && fit.handHeads > 0) k.hands = std::clamp(fit.handHeads * H / handLen, 0.6f, 1.3f);
     const float upper = (elbow - shoulder).length() + (wrist - elbow).length();
-    if (upper > 1e-3f) k.arms = std::clamp((fit.armRatio * total - handLen * k.hands) / upper, 0.6f, 1.3f);
+    const float arm0 = upper + handLen;   // (the model's own reach, scaled with her height when no ratio is asked)
+    const float armWant = fit.armRatio > 0 ? fit.armRatio * total : arm0 * total / crown;
+    if (upper > 1e-3f && fit.armRatio > 0) k.arms = std::clamp((armWant - handLen * k.hands) / upper, 0.6f, 1.3f);
     k.spread = std::clamp(fit.spread, 0.7f, 1.4f);
     st.heightAfter = hipZ * k.legs + (neck.z - hipZ) * k.torso + above;
     return k;
@@ -1010,14 +1014,148 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
             }
         }
     }
+    // ---- the seams stitched: a thin strip from each Eve ring to the model's own cut-edge vertices (their places, weights and
+    // normals exactly), triangulated round the ring by angle. The model's edge zigzags between Eve's ring vertices; without
+    // the strip that zigzag shows as a hairline of light, wider in a stride.
+    std::vector<V3> XP, XN;
+    std::vector<WMap> XW;
+    std::vector<float> XUV, XUV2;
+    std::vector<uint32_t> XI;
+    if (fit.stitch > 0) for (int r = 0; r < 3; ++r) {
+        const std::vector<uint32_t>* ring = eve.ring(ringNames[r]);
+        const RingEdges& we = *ringEdges[r];
+        if (!ring || ring->size() < 3 || we.e.size() < 3) continue;
+        // the ring's centre and axis: the model's edge (its centre; up for the neck and ankles, the thigh's line for a split)
+        V3 c;
+        std::vector<uint32_t> wv;
+        for (const auto& e : we.e) for (uint32_t v : {e.first, e.second}) if (std::find(wv.begin(), wv.end(), v) == wv.end()) wv.push_back(v);
+        for (uint32_t v : wv) c = c + posOf(verts[v]);
+        c = c * (1.0f / float(wv.size()));
+        auto angle = [&](V3 p) { return std::atan2(p.y - c.y, p.x - c.x); };
+        // Eve's ring by place (UV copies grouped), each with its angle
+        std::map<int64_t, std::vector<uint32_t>> groups;
+        for (uint32_t v : *ring) groups[weldKey(P0[v], 1e-5f)].push_back(v);
+        struct A { float a; std::vector<uint32_t> copies; };
+        std::vector<A> ea;
+        for (auto& [k, g] : groups) ea.push_back({angle(P[g[0]]), g});
+        struct B { float a; uint32_t v; };
+        std::vector<B> wb;
+        std::sort(ea.begin(), ea.end(), [](const A& x, const A& y) { return x.a < y.a; });
+        if (ea.size() < 3) continue;
+        // the model's edge in its own order (walked edge to edge, so the strip's edges are the model's), its parameter the
+        // share of the loop's length from the vertex nearest Eve's first, the way round her angles go; Eve's by her angles
+        {
+            std::map<uint32_t, std::vector<uint32_t>> adj;
+            for (const auto& e : we.e) { adj[e.first].push_back(e.second); adj[e.second].push_back(e.first); }
+            bool simple = true;
+            for (auto& [v, nb] : adj) if (nb.size() != 2) { simple = false; break; }
+            std::vector<uint32_t> loop;
+            if (simple) {
+                uint32_t prev = UINT32_MAX, cur = adj.begin()->first;
+                for (size_t guard = 0; guard <= adj.size(); ++guard) {
+                    loop.push_back(cur);
+                    const auto& nb = adj[cur];
+                    uint32_t nx = nb[0] != prev ? nb[0] : nb[1];
+                    prev = cur; cur = nx;
+                    if (cur == loop[0]) break;
+                }
+                simple = loop.size() == adj.size();
+            }
+            if (simple) {
+                // the way round: as Eve's angles grow
+                float turn = 0;
+                for (size_t k = 0; k < loop.size(); ++k) {
+                    float d = angle(posOf(verts[loop[(k + 1) % loop.size()]])) - angle(posOf(verts[loop[k]]));
+                    while (d > 3.14159265f) d -= 6.2831853f;
+                    while (d < -3.14159265f) d += 6.2831853f;
+                    turn += d;
+                }
+                if (turn < 0) std::reverse(loop.begin(), loop.end());
+                // start nearest Eve's first vertex's angle
+                size_t s0 = 0; float bd = 1e30f;
+                for (size_t k = 0; k < loop.size(); ++k) {
+                    float d = std::fabs(std::remainder(angle(posOf(verts[loop[k]])) - ea[0].a, 6.2831853f));
+                    if (d < bd) { bd = d; s0 = k; }
+                }
+                std::rotate(loop.begin(), loop.begin() + long(s0), loop.end());
+                std::vector<float> len(loop.size() + 1, 0);
+                for (size_t k = 0; k < loop.size(); ++k) len[k + 1] = len[k] + (posOf(verts[loop[(k + 1) % loop.size()]]) - posOf(verts[loop[k]])).length();
+                for (size_t k = 0; k < loop.size(); ++k) wb.push_back({len[k] / std::max(len.back(), 1e-6f), loop[k]});
+                // Eve's: her angles from her first, as shares of a turn
+                for (A& x : ea) { float d = x.a - ea[0].a; if (d < 0) d += 6.2831853f; x.a = d / 6.2831853f; }
+            } else {
+                for (uint32_t v : wv) wb.push_back({angle(posOf(verts[v])), v});
+                std::sort(wb.begin(), wb.end(), [](const B& x, const B& y) { return x.a < y.a; });
+            }
+            if (wb.size() < 3) continue;
+            if (simple) { for (B& b : wb) b.a *= 6.2831853f; for (A& x : ea) x.a *= 6.2831853f; }   // (the walk below counts in turns of 2 pi)
+        }
+        // the copy of `g` nearest in UV to (u, v)
+        auto copyNear = [&](const std::vector<uint32_t>& g, float u, float v) {
+            uint32_t best = g[0]; float bd = 1e30f;
+            for (uint32_t x : g) { float du = eve.uv[x * 2] - u, dv = eve.uv[x * 2 + 1] - v, d = du * du + dv * dv; if (d < bd) { bd = d; best = x; } }
+            return best;
+        };
+        auto addW = [&](uint32_t mv, float u, float v, float u2, float v2) {
+            const M2Vertex& w = verts[mv];
+            XP.push_back(posOf(w));
+            XN.push_back(V3(w.normal[0], w.normal[1], w.normal[2]).normalized());
+            WMap m4;
+            for (int k = 0; k < 4; ++k) m4.add(w.bones[k], w.weights[k] / 255.0f);
+            XW.push_back(m4);
+            XUV.insert(XUV.end(), {u, v}); XUV2.insert(XUV2.end(), {u2, v2});
+            return uint32_t(nv + XP.size() - 1);
+        };
+        // walk both loops by angle (from the lowest of either, once round)
+        const float two = 6.2831853f;
+        size_t i = 0, j = 0;
+        float start = std::min(ea[0].a, wb[0].a);   // (both lists ascend within one turn)
+        auto aAt = [&](size_t k) { return ea[k % ea.size()].a + (k >= ea.size() ? two : 0.0f) - start; };
+        auto bAt = [&](size_t k) { return wb[k % wb.size()].a + (k >= wb.size() ? two : 0.0f) - start; };
+        uint32_t ca = ea[0].copies[0];
+        while (i < ea.size() || j < wb.size()) {
+            const A& a0 = ea[i % ea.size()];
+            const B& b0 = wb[j % wb.size()];
+            bool stepA = j >= wb.size() || (i < ea.size() && aAt(i + 1) <= bAt(j + 1));
+            if (stepA) {
+                const A& a1 = ea[(i + 1) % ea.size()];
+                uint32_t c0 = copyNear(a0.copies, eve.uv[ca * 2], eve.uv[ca * 2 + 1]);
+                uint32_t c1 = copyNear(a1.copies, eve.uv[c0 * 2], eve.uv[c0 * 2 + 1]);
+                // the model's vertex takes the UV between the two by its angle
+                float span = aAt(i + 1) - aAt(i), f = span > 1e-6f ? std::clamp((bAt(j) - aAt(i)) / span, 0.0f, 1.0f) : 0.5f;
+                auto lerpUv = [&](const std::vector<float>& uv, uint32_t x, uint32_t y, int k) { return uv.size() > size_t(y) * 2 + 1 ? uv[x * 2 + k] + (uv[y * 2 + k] - uv[x * 2 + k]) * f : 0.0f; };
+                uint32_t bw = addW(b0.v, lerpUv(eve.uv, c0, c1, 0), lerpUv(eve.uv, c0, c1, 1), lerpUv(eve.uv2, c0, c1, 0), lerpUv(eve.uv2, c0, c1, 1));
+                XI.insert(XI.end(), {c0, bw, c1});
+                ca = c1;
+                ++i;
+            } else {
+                const B& b1 = wb[(j + 1) % wb.size()];
+                uint32_t c0 = copyNear(a0.copies, eve.uv[ca * 2], eve.uv[ca * 2 + 1]);
+                float u = eve.uv[c0 * 2], v = eve.uv[c0 * 2 + 1];
+                float u2 = eve.uv2.size() > size_t(c0) * 2 + 1 ? eve.uv2[c0 * 2] : 0.0f, v2 = eve.uv2.size() > size_t(c0) * 2 + 1 ? eve.uv2[c0 * 2 + 1] : 0.0f;
+                uint32_t w0 = addW(b0.v, u, v, u2, v2), w1 = addW(b1.v, u, v, u2, v2);
+                XI.insert(XI.end(), {c0, w0, w1});
+                ca = c0;
+                ++j;
+            }
+        }
+        ++out.stats.stitched;
+    }
     // ---- the vertices: four weights at most (summing to 255)
-    out.verts.resize(nv);
-    for (size_t v = 0; v < nv; ++v) {
+    for (size_t x = 0; x < XP.size(); ++x) { P.push_back(XP[x]); N.push_back(XN[x]); WM.push_back(XW[x]); }
+    const size_t nall = P.size();
+    out.verts.resize(nall);
+    for (size_t v = 0; v < nall; ++v) {
         M2Vertex& o = out.verts[v];
         o.pos[0] = P[v].x; o.pos[1] = P[v].y; o.pos[2] = P[v].z;
         o.normal[0] = N[v].x; o.normal[1] = N[v].y; o.normal[2] = N[v].z;
-        o.uv[0] = eve.uv[v * 2]; o.uv[1] = eve.uv[v * 2 + 1];
-        o.uv2[0] = eve.uv2.size() > v * 2 + 1 ? eve.uv2[v * 2] : 0.0f; o.uv2[1] = eve.uv2.size() > v * 2 + 1 ? eve.uv2[v * 2 + 1] : 0.0f;
+        if (v < nv) {
+            o.uv[0] = eve.uv[v * 2]; o.uv[1] = eve.uv[v * 2 + 1];
+            o.uv2[0] = eve.uv2.size() > v * 2 + 1 ? eve.uv2[v * 2] : 0.0f; o.uv2[1] = eve.uv2.size() > v * 2 + 1 ? eve.uv2[v * 2 + 1] : 0.0f;
+        } else {
+            size_t x = v - nv;
+            o.uv[0] = XUV[x * 2]; o.uv[1] = XUV[x * 2 + 1]; o.uv2[0] = XUV2[x * 2]; o.uv2[1] = XUV2[x * 2 + 1];
+        }
         WMap w = WM[v];
         std::sort(w.e.begin(), w.e.begin() + w.n, [](auto& a, auto& b) { return a.second > b.second; });
         int k = std::min(w.n, 4);
@@ -1033,6 +1171,7 @@ EveBody fitEve(const M2Model& m, const std::vector<M2Vertex>& verts, const std::
         }
     }
     out.indices = eve.idx;
+    out.indices.insert(out.indices.end(), XI.begin(), XI.end());
     out.scale = eveProportions(m, verts, indices, subs, geosets, out, fit, W[0].hip, W[1].hip, neckW, W[0].shoulder, W[0].elbow, W[0].wrist, out.stats);
     out.ok = true;
     out.stats.ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
@@ -1287,17 +1426,40 @@ void eveApplyCorrection(const EvePrep& p, std::vector<uint8_t>& rgba) {
 }
 
 void eveCompose(const std::vector<uint8_t>& base, int w, int h, V3 gain, const uint8_t* ov, int ow, int oh, int ox, int oy,
-                float opacity, V3 ovGain, const EvePrep& prep, uint32_t neckRgb, uint32_t ankleRgb, std::vector<uint8_t>& out) {
+                float opacity, V3 ovGain, const EvePrep& prep, uint32_t neckRgb, uint32_t ankleRgb, std::vector<uint8_t>& out,
+                const EveGainMap* map) {
     const Lut& L = lut();
     out.resize(size_t(w) * h * 4);
     uint8_t tab[3][256];
     float g[3] = {gain.x, gain.y, gain.z};
     for (int c = 0; c < 3; ++c) for (int i = 0; i < 256; ++i) tab[c][i] = L.toByte(L.lin[i] * g[c]);
     const size_t n = size_t(w) * h;
-    for (size_t i = 0; i < n; ++i) {
-        const uint8_t* s = &base[i * 4];
-        uint8_t* d = &out[i * 4];
-        d[0] = tab[0][s[0]]; d[1] = tab[1][s[1]]; d[2] = tab[2][s[2]]; d[3] = 255;
+    if (map && !map->empty()) {
+        // the colour transfer's gain, bilinear over its cells, on top of `gain`
+        for (int y = 0; y < h; ++y) {
+            float gy = (y + 0.5f) / float(h) * map->gh - 0.5f;
+            int y0 = std::clamp(int(std::floor(gy)), 0, map->gh - 1), y1 = std::min(y0 + 1, map->gh - 1);
+            float fy = std::clamp(gy - float(y0), 0.0f, 1.0f);
+            for (int x = 0; x < w; ++x) {
+                float gx = (x + 0.5f) / float(w) * map->gw - 0.5f;
+                int x0 = std::clamp(int(std::floor(gx)), 0, map->gw - 1), x1 = std::min(x0 + 1, map->gw - 1);
+                float fx = std::clamp(gx - float(x0), 0.0f, 1.0f);
+                const uint8_t* s = &base[(size_t(y) * w + x) * 4];
+                uint8_t* d = &out[(size_t(y) * w + x) * 4];
+                for (int c = 0; c < 3; ++c) {
+                    auto at = [&](int cx, int cy) { return map->rgb[(size_t(cy) * map->gw + cx) * 3 + c]; };
+                    float m = (at(x0, y0) * (1 - fx) + at(x1, y0) * fx) * (1 - fy) + (at(x0, y1) * (1 - fx) + at(x1, y1) * fx) * fy;
+                    d[c] = L.toByte(L.lin[s[c]] * g[c] * m);
+                }
+                d[3] = 255;
+            }
+        }
+    } else {
+        for (size_t i = 0; i < n; ++i) {
+            const uint8_t* s = &base[i * 4];
+            uint8_t* d = &out[i * 4];
+            d[0] = tab[0][s[0]]; d[1] = tab[1][s[1]]; d[2] = tab[2][s[2]]; d[3] = 255;
+        }
     }
     if (ov && ow > 0 && oh > 0 && opacity > 0) {
         for (int y = 0; y < oh; ++y) {
@@ -1326,6 +1488,155 @@ void eveCompose(const std::vector<uint8_t>& base, int w, int h, V3 gain, const u
         d[1] = L.toByte(c.y * (1 - f) + L.lin[d[1]] * f);
         d[2] = L.toByte(c.z * (1 - f) + L.lin[d[2]] * f);
     }
+}
+
+namespace {
+// The mean linear colour of `rgba` in a (2r+1)^2 box at (u, v); false when nothing there is opaque.
+bool boxLinear(const uint8_t* rgba, int w, int h, float u, float v, int r, V3& out) {
+    const Lut& L = lut();
+    int cx = std::clamp(int(u * w), 0, w - 1), cy = std::clamp(int(v * h), 0, h - 1);
+    double s[3] = {0, 0, 0}; int n = 0;
+    for (int y = std::max(0, cy - r); y <= std::min(h - 1, cy + r); ++y)
+        for (int x = std::max(0, cx - r); x <= std::min(w - 1, cx + r); ++x) {
+            const uint8_t* p = &rgba[(size_t(y) * w + x) * 4];
+            if (p[3] < 128) continue;
+            s[0] += L.lin[p[0]]; s[1] += L.lin[p[1]]; s[2] += L.lin[p[2]]; ++n;
+        }
+    if (!n) return false;
+    out = V3(float(s[0] / n), float(s[1] / n), float(s[2] / n));
+    return true;
+}
+} // namespace
+
+EveGainMap eveTransferMap(const EveBody& eve, const std::vector<uint8_t>& base, int w, int h, const std::vector<M2Vertex>& wow,
+                          const std::vector<uint8_t>& use, const uint8_t* skin, int sw, int sh, const float tint[3], float radius,
+                          const std::vector<EveGainAnchor>& anchors) {
+    EveGainMap map;
+    if (eve.verts.empty() || !skin || sw <= 0 || sh <= 0 || w <= 0 || h <= 0 || !(radius > 0)) return map;
+    // the model's skin samples, in a grid of cells `radius` wide
+    struct Smp { V3 p, n, c; };
+    std::vector<Smp> smp;
+    const int rb = std::max(2, sw / 96);   // (about 1% of the texture: its painted shading kept, its pores not)
+    for (size_t i = 0; i < wow.size() && i < use.size(); ++i) {
+        if (!use[i]) continue;
+        const M2Vertex& v = wow[i];
+        V3 c;
+        if (!boxLinear(skin, sw, sh, v.uv[0], v.uv[1], rb, c)) continue;
+        smp.push_back({V3(v.pos[0], v.pos[1], v.pos[2]), V3(v.normal[0], v.normal[1], v.normal[2]).normalized(),
+                       V3(c.x * tint[0], c.y * tint[1], c.z * tint[2])});
+    }
+    if (smp.empty()) return map;
+    auto cell = [&](V3 p) { return std::array<int, 3>{int(std::floor(p.x / radius)), int(std::floor(p.y / radius)), int(std::floor(p.z / radius))}; };
+    std::map<std::array<int, 3>, std::vector<uint32_t>> grid;
+    for (size_t i = 0; i < smp.size(); ++i) grid[cell(smp[i].p)].push_back(uint32_t(i));
+    // each Eve vertex: the model's colour about it over Eve's own
+    const size_t nv = eve.verts.size();
+    std::vector<V3> gain(nv, V3(1, 1, 1));
+    std::vector<uint8_t> have(nv, 0);
+    const int re = std::max(2, w / 96);
+    const float s2 = radius * radius * 0.25f;   // (sigma: half the radius)
+    for (size_t v = 0; v < nv; ++v) {
+        const M2Vertex& ev = eve.verts[v];
+        V3 p(ev.pos[0], ev.pos[1], ev.pos[2]), n = V3(ev.normal[0], ev.normal[1], ev.normal[2]).normalized(), own;
+        if (!boxLinear(base.data(), w, h, ev.uv[0], ev.uv[1], re, own)) continue;
+        auto c0 = cell(p);
+        V3 acc; float wsum = 0; float best = 1e30f; V3 nearest; bool any = false;
+        for (int dx = -1; dx <= 1; ++dx) for (int dy = -1; dy <= 1; ++dy) for (int dz = -1; dz <= 1; ++dz) {
+            auto it = grid.find({c0[0] + dx, c0[1] + dy, c0[2] + dz});
+            if (it == grid.end()) continue;
+            for (uint32_t i : it->second) {
+                const Smp& q = smp[i];
+                float d2 = (q.p - p).dot(q.p - p);
+                if (d2 < best) { best = d2; nearest = q.c; any = true; }
+                if (d2 > radius * radius) continue;
+                float facing = q.n.dot(n);
+                if (facing <= 0.2f) continue;
+                float wt = std::exp(-d2 / (2 * s2)) * facing;
+                acc = acc + q.c * wt; wsum += wt;
+            }
+        }
+        V3 target = wsum > 1e-6f ? acc * (1.0f / wsum) : (any ? nearest : V3());
+        if (!(wsum > 1e-6f) && !any) continue;
+        gain[v] = V3(std::clamp(target.x / std::max(own.x, 1e-4f), 0.01f, 6.0f), std::clamp(target.y / std::max(own.y, 1e-4f), 0.01f, 6.0f),
+                     std::clamp(target.z / std::max(own.z, 1e-4f), 0.01f, 6.0f));
+        have[v] = 1;
+    }
+    // the seams' own gains near them (smoothstep over each anchor's reach)
+    for (size_t v = 0; v < nv; ++v) {
+        V3 p = posOf(eve.verts[v]);
+        for (const EveGainAnchor& an : anchors) {
+            if (!(an.reach > 0) || an.points.empty()) continue;
+            float d = 1e30f;
+            for (const V3& q : an.points) d = std::min(d, (q - p).length());
+            if (d >= an.reach) continue;
+            float t = d / an.reach;
+            t = t * t * (3 - 2 * t);
+            gain[v] = have[v] ? an.gain * (1 - t) + gain[v] * t : an.gain;
+            have[v] = 1;
+        }
+    }
+    // over Eve's texture: each triangle's corners' gains, interpolated into cells of 8 x 8 texels, then filled and smoothed
+    map.gw = std::max(1, w / 8); map.gh = std::max(1, h / 8);
+    std::vector<double> acc(size_t(map.gw) * map.gh * 3, 0.0), wts(size_t(map.gw) * map.gh, 0.0);
+    for (size_t t = 0; t + 2 < eve.indices.size(); t += 3) {
+        uint32_t a = eve.indices[t], b = eve.indices[t + 1], c = eve.indices[t + 2];
+        if (a >= nv || b >= nv || c >= nv || !have[a] || !have[b] || !have[c]) continue;
+        raster(eve.verts[a].uv[0] * map.gw, eve.verts[a].uv[1] * map.gh, eve.verts[b].uv[0] * map.gw, eve.verts[b].uv[1] * map.gh,
+               eve.verts[c].uv[0] * map.gw, eve.verts[c].uv[1] * map.gh, map.gw, map.gh, [&](int x, int y, float b0, float b1, float b2) {
+                   V3 g = gain[a] * b0 + gain[b] * b1 + gain[c] * b2;
+                   size_t i = size_t(y) * map.gw + x;
+                   acc[i * 3] += g.x; acc[i * 3 + 1] += g.y; acc[i * 3 + 2] += g.z; wts[i] += 1;
+               });
+        // (a triangle smaller than a cell still marks its corners' cells)
+        for (uint32_t k : {a, b, c}) {
+            int x = std::clamp(int(eve.verts[k].uv[0] * map.gw), 0, map.gw - 1), y = std::clamp(int(eve.verts[k].uv[1] * map.gh), 0, map.gh - 1);
+            size_t i = size_t(y) * map.gw + x;
+            acc[i * 3] += gain[k].x; acc[i * 3 + 1] += gain[k].y; acc[i * 3 + 2] += gain[k].z; wts[i] += 1;
+        }
+    }
+    map.rgb.assign(size_t(map.gw) * map.gh * 3, 0.0f);
+    std::vector<uint8_t> filled(size_t(map.gw) * map.gh, 0);
+    for (size_t i = 0; i < wts.size(); ++i)
+        if (wts[i] > 0) { for (int c = 0; c < 3; ++c) map.rgb[i * 3 + c] = float(acc[i * 3 + c] / wts[i]); filled[i] = 1; }
+    // empty cells (between the UV islands): the mean of their filled neighbours, a ring at a time (bilinear reads stay sane)
+    for (int pass = 0; pass < 6; ++pass) {
+        std::vector<float> nrgb = map.rgb;
+        std::vector<uint8_t> nf = filled;
+        for (int y = 0; y < map.gh; ++y) for (int x = 0; x < map.gw; ++x) {
+            size_t i = size_t(y) * map.gw + x;
+            if (filled[i]) continue;
+            float s3[3] = {0, 0, 0}; int k = 0;
+            for (int dy = -1; dy <= 1; ++dy) for (int dx = -1; dx <= 1; ++dx) {
+                int xx = x + dx, yy = y + dy;
+                if (xx < 0 || yy < 0 || xx >= map.gw || yy >= map.gh) continue;
+                size_t j = size_t(yy) * map.gw + xx;
+                if (!filled[j]) continue;
+                for (int c = 0; c < 3; ++c) s3[c] += map.rgb[j * 3 + c];
+                ++k;
+            }
+            if (k) { for (int c = 0; c < 3; ++c) nrgb[i * 3 + c] = s3[c] / k; nf[i] = 1; }
+        }
+        map.rgb.swap(nrgb); filled.swap(nf);
+    }
+    for (size_t i = 0; i < filled.size(); ++i) if (!filled[i]) for (int c = 0; c < 3; ++c) map.rgb[i * 3 + c] = 1.0f;
+    // smoothed once within the islands (3 x 3, filled cells only): no triangle edges in it
+    {
+        std::vector<float> sm = map.rgb;
+        for (int y = 0; y < map.gh; ++y) for (int x = 0; x < map.gw; ++x) {
+            size_t i = size_t(y) * map.gw + x;
+            if (!wts[i]) continue;
+            float s3[3] = {0, 0, 0}; int k = 0;
+            for (int dy = -1; dy <= 1; ++dy) for (int dx = -1; dx <= 1; ++dx) {
+                int xx = x + dx, yy = y + dy;
+                if (xx < 0 || yy < 0 || xx >= map.gw || yy >= map.gh || !wts[size_t(yy) * map.gw + xx]) continue;
+                for (int c = 0; c < 3; ++c) s3[c] += map.rgb[(size_t(yy) * map.gw + xx) * 3 + c];
+                ++k;
+            }
+            for (int c = 0; c < 3; ++c) sm[i * 3 + c] = s3[c] / k;
+        }
+        map.rgb.swap(sm);
+    }
+    return map;
 }
 
 int eveSampleAt(const uint8_t* rgba, int w, int h, const std::vector<float>& uvs) {
@@ -1425,10 +1736,12 @@ EveResult eveCompute(const EveJob& job) {
     // the actor's own skin where Eve meets it: its base skin layer sampled at the cut edges
     const EveSetIndex& ix = set.index;
     uint32_t neck = ix.skin.neck, ankle = ix.skin.ankle;
+    Image img;   // (the model's base skin: the seams' colours, the colour transfer)
+    bool haveImg = false;
     {
         Bytes blp;
-        Image img;
         if (!job.skinPath.empty() && readFile(job.skinPath, blp) && decodeBlp(blp, 512, img)) {
+            haveImg = true;
             int n = eveSampleAt(img.rgba.data(), img.width, img.height, body.neckUvs);
             int k = eveSampleAt(img.rgba.data(), img.width, img.height, body.ankleUvs);
             auto tinted = [&](int c) {
@@ -1477,8 +1790,70 @@ EveResult eveCompute(const EveJob& job) {
         float f = std::clamp((d - 12.0f) / 18.0f, 0.0f, 1.0f);
         ovGain = V3(bright, bright, bright) * (1 - f) + full * f;
     }
+    // the model's shown skin (its type-1 sections in the shown geosets), cut or kept
+    std::vector<uint8_t> use(verts.size(), 0);
+    {
+        bool all = job.geosets.empty() || (job.geosets.size() == 1 && job.geosets[0] == 0xFFFF);
+        std::vector<uint8_t> skinSub(job.subs.size(), 0);
+        for (const M2Batch& bt : m.batches) {
+            if (bt.submesh >= job.subs.size() || bt.textureCombo >= m.textureCombos.size()) continue;
+            uint16_t ti = m.textureCombos[bt.textureCombo];
+            if (ti < m.textures.size() && m.textures[ti].type == 1) skinSub[bt.submesh] = 1;
+        }
+        for (size_t sI = 0; sI < job.subs.size(); ++sI) {
+            if (!skinSub[sI] || (!all && std::find(job.geosets.begin(), job.geosets.end(), job.subs[sI].id) == job.geosets.end())) continue;
+            for (uint32_t t = job.subs[sI].indexStart; t < job.subs[sI].indexStart + job.subs[sI].indexCount && t < job.indices.size(); ++t)
+                if (job.indices[t] < use.size()) use[job.indices[t]] = 1;
+        }
+    }
+    // the colour transfer (her own skin, tinted): Eve takes the model's skin tones where she lies
+    EveGainMap map;
+    if (!tone && haveImg && job.fit.transfer > 0) {
+        // the neck and the ankles anchored to the gains that match the model's skin at their cut edges
+        std::vector<EveGainAnchor> anchors;
+        const char* rn[3] = {"neck", "L_ankle", "R_ankle"};
+        for (int k = 0; k < 3; ++k) {
+            const std::vector<uint32_t>* ring = mesh.ring(rn[k]);
+            if (!ring || ring->empty()) continue;
+            EveGainAnchor an;
+            for (uint32_t v : *ring) if (v < body.verts.size()) an.points.push_back(posOf(body.verts[v]));
+            uint32_t ref = k ? (tex->prep.ankle ? tex->prep.ankle : r.reference) : r.reference;
+            an.gain = eveGain(k ? ankle : neck, ref);
+            an.reach = 0.10f * body.stats.unit;
+            anchors.push_back(an);
+        }
+        map = eveTransferMap(body, tex->rgba, tex->w, tex->h, verts, use, img.rgba.data(), img.width, img.height, job.tint,
+                             job.fit.transfer * body.stats.unit, anchors);
+        if (!map.empty()) gain = V3(1, 1, 1);
+    }
     eveCompose(tex->rgba, tex->w, tex->h, gain, ov ? ov->rgba.data() : nullptr, ov ? ov->w : 0, ov ? ov->h : 0, shade ? shade->rect[0] : 0,
-               shade ? shade->rect[1] : 0, std::clamp(job.opt.opacity, 0.0f, 1.0f), ovGain, tex->prep, neck, ankle, r.rgba);
+               shade ? shade->rect[1] : 0, std::clamp(job.opt.opacity, 0.0f, 1.0f), ovGain, tex->prep, neck, ankle, r.rgba, &map);
+    // the seams measured: Eve's skin 1.5 to 8 cm from each ring against the model's own at its cut edge there (what meets her)
+    if (haveImg) {
+        const char* rn[3] = {"neck", "L_ankle", "R_ankle"};
+        const float u = body.stats.unit;
+        for (int k = 0; k < 3; ++k) {
+            const std::vector<uint32_t>* ring = mesh.ring(rn[k]);
+            if (!ring || ring->empty()) continue;
+            // her skin 4 cm in from the ring: along each edge from a ring vertex into the body (the mesh is sparse there)
+            std::vector<uint8_t> onRing(body.verts.size(), 0);
+            for (uint32_t v : *ring) if (v < onRing.size()) onRing[v] = 1;
+            V3 e3; int ne = 0;
+            for (size_t t = 0; t + 2 < body.indices.size(); t += 3)
+                for (int a = 0; a < 3; ++a) {
+                    uint32_t v0 = body.indices[t + a], v1 = body.indices[t + (a + 1) % 3];
+                    if (v0 >= onRing.size() || v1 >= onRing.size() || !onRing[v0] || onRing[v1]) continue;
+                    const M2Vertex& A = body.verts[v0];
+                    const M2Vertex& B = body.verts[v1];
+                    float len = (posOf(B) - posOf(A)).length();
+                    if (len < 1e-5f) continue;
+                    float f = std::min(1.0f, 0.04f * u / len);
+                    V3 c;
+                    if (boxLinear(r.rgba.data(), tex->w, tex->h, A.uv[0] + (B.uv[0] - A.uv[0]) * f, A.uv[1] + (B.uv[1] - A.uv[1]) * f, 2, c)) { e3 = e3 + c; ++ne; }
+                }
+            if (ne) r.seamDE[k] = (eveLab(eveRgb(e3 * (1.0f / ne))) - eveLab(k ? ankle : neck)).length();
+        }
+    }
     r.w = tex->w; r.h = tex->h;
     if (job.mips) r.mips = eveMips(r.rgba, r.w, r.h);
     r.neckRgb = neck; r.ankleRgb = ankle;
