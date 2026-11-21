@@ -2041,6 +2041,57 @@ private fun HudPick(title: String, options: List<Pair<String, String>>, visible:
     }
 }
 
+/**
+ * Before a two-person animation plays: who plays role A and role B ([confirm]'s lead and other: each one's name and sex),
+ * with Switch positions (only for two roles), Play and Cancel, at the bottom so the scene above shows the two in their
+ * places (LiveScene.preview). Fades in and out ([visible]).
+ */
+@Composable
+private fun PairConfirmPanel(confirm: PairConfirm, title: String, names: Map<String, String>, female: Map<String, Boolean>,
+    visible: Boolean, onSwitch: () -> Unit, onPlay: () -> Unit, onCancel: () -> Unit) {
+    val reduced = reduceMotion()
+    val shown by animateFloatAsState(if (visible) 1f else 0f, tween(MenuMotion.duration(MenuMotion.PAGE_MS, reduced)), label = "pairPanel")
+    if (shown <= 0f) return
+    Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(WifeTheme.gapL).graphicsLayer { alpha = shown },
+        contentAlignment = Alignment.BottomCenter) {
+        WifeWindow("Ready to play", onCancel, Modifier.widthIn(max = 560.dp).fillMaxWidth(), subtitle = title, footer = {
+            WifeButton("Cancel", onCancel, Modifier.widthIn(min = 96.dp), sound = "close")
+            if (confirm.switchable) WifeButton("Switch positions", onSwitch, Modifier.widthIn(min = 96.dp))
+            WifeButton("Play", onPlay, Modifier.widthIn(min = 96.dp), kind = WifeButtonKind.PRIMARY, sound = "ok")
+        }) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
+                RoleChip("A", names[confirm.lead] ?: "", female[confirm.lead], Modifier.weight(1f))
+                RoleChip("B", names[confirm.other] ?: "", female[confirm.other], Modifier.weight(1f))
+            }
+            Text("Shown in the scene where each starts, at the animation's first moment.", style = WifeTheme.captionStyle(),
+                modifier = Modifier.padding(top = WifeTheme.gapS))
+        }
+    }
+}
+
+/** One role of the preview: its letter, the sex of who plays it and their name. */
+@Composable
+private fun RoleChip(role: String, name: String, female: Boolean?, modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(WifeTheme.buttonRadius)
+    Row(modifier.heightIn(min = WifeTheme.touch).clip(shape).background(WifeTheme.slateRaised.copy(alpha = 0.6f))
+        .border(WifeTheme.trimWidth, WifeTheme.trimSoft, shape).padding(horizontal = WifeTheme.gapM, vertical = WifeTheme.gapS)
+        .semantics { contentDescription = "Role $role: $name" },
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
+        Box(Modifier.size(28.dp).clip(CircleShape).background(if (role == "A") WifeTheme.primaryTop else WifeTheme.secondaryTop)
+            .border(WifeTheme.trimWidth, WifeTheme.trim, CircleShape), contentAlignment = Alignment.Center) {
+            Text(role, style = WifeTheme.labelStyle(WifeTheme.gold))
+        }
+        if (female != null) Text(if (female) "\u2640" else "\u2642", style = WifeTheme.labelStyle(if (female) PartnerRose else MaleBlue))
+        Column(Modifier.weight(1f)) {
+            Text(name, style = WifeTheme.labelStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("Role $role", style = WifeTheme.captionStyle(), maxLines = 1)
+        }
+    }
+}
+
+/** The male sign's colour on the preview's role chips. */
+private val MaleBlue = Color(0xFF8AB8E8)
+
 /** The live screen's ground (behind the view while it starts). */
 private val SceneGround = Color(0xFF191719)
 /** The partner's colour on the cast frames (the controlled one is gold). */

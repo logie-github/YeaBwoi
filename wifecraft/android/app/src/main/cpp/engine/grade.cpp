@@ -29,6 +29,7 @@ uniform sampler2D uTex;
 uniform vec3 uLift;
 uniform vec3 uGain;
 uniform float uGamma;
+uniform vec3 uMid;
 uniform float uContrast;
 uniform float uSat;
 uniform float uVignette;
@@ -47,7 +48,7 @@ void main() {
     // the area's grade (daylight.cpp cineGradeColour): black to the lift, white to the gain, the mid-tones' power, a gentle
     // S-curve, the saturation
     c = uLift + c * (uGain - uLift);
-    c = pow(max(c, vec3(0.0)), vec3(uGamma));
+    c = pow(max(c, vec3(0.0)), vec3(uGamma) / max(uMid, vec3(0.5)));
     vec3 s = c * c * (3.0 - 2.0 * c);
     c = mix(c, s, uContrast);
     float l = dot(c, vec3(0.299, 0.587, 0.114));
