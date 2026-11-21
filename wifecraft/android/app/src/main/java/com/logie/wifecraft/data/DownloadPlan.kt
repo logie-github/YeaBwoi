@@ -169,6 +169,37 @@ object SpaceCheck {
 /** Where the download is. */
 enum class Phase { IDLE, DOWNLOADING, WAITING_FOR_WIFI, PAUSED, VERIFYING, FAILED, COMPLETE }
 
+/** The Downloads page's buttons, by [actions]. */
+enum class PageAction(val label: String) {
+    DOWNLOAD_EVERYTHING("Download everything"), PAUSE("Pause"), RESUME("Resume"), CANCEL("Cancel"),
+    RETRY_FAILED("Retry failed"), VERIFY("Verify"),
+}
+
+object DownloadPage {
+    /** The buttons for [phase] (the first is the primary one): [failed] files waiting, [anyHere] some pack downloaded. */
+    fun actions(phase: Phase, failed: Int, anyHere: Boolean): List<PageAction> = when (phase) {
+        Phase.DOWNLOADING, Phase.WAITING_FOR_WIFI, Phase.VERIFYING -> listOf(PageAction.PAUSE, PageAction.CANCEL)
+        Phase.PAUSED -> listOf(PageAction.RESUME, PageAction.CANCEL)
+        Phase.FAILED -> listOfNotNull(if (failed > 0) PageAction.RETRY_FAILED else PageAction.DOWNLOAD_EVERYTHING, PageAction.VERIFY.takeIf { anyHere })
+        Phase.COMPLETE -> listOf(PageAction.VERIFY, PageAction.DOWNLOAD_EVERYTHING)
+        Phase.IDLE -> listOfNotNull(PageAction.DOWNLOAD_EVERYTHING, PageAction.VERIFY.takeIf { anyHere })
+    }
+
+    /** The line over the bar. */
+    fun title(phase: Phase, current: PackKey?, number: Int, count: Int): String {
+        val where = current?.let { " ${it.label}" + if (count > 1) " ($number of $count)" else "" } ?: ""
+        return when (phase) {
+            Phase.IDLE -> "Nothing downloading"
+            Phase.DOWNLOADING -> "Downloading:$where"
+            Phase.WAITING_FOR_WIFI -> "Waiting for Wi-Fi:$where"
+            Phase.PAUSED -> "Paused"
+            Phase.VERIFYING -> "Checking every file:$where"
+            Phase.FAILED -> "Some files are missing"
+            Phase.COMPLETE -> "Everything is here"
+        }
+    }
+}
+
 /** What happens to it. */
 enum class DownloadEvent {
     START, PAUSE, RESUME, CANCEL, NO_WIFI, WIFI_BACK,
@@ -269,7 +300,12 @@ data class SavedState(
     val message: String? = null,
     /** Android stopped the service at its time limit: carried on when the app is opened. */
     val stoppedBySystem: Boolean = false,
+    /** A run of these packs alone (a pack's own Download button); null: everything ticked. */
+    val only: Set<PackKey>? = null,
 ) {
+    /** The packs this run fetches, in order. */
+    val packs: List<PackKey> get() = only?.let { o -> PackKey.entries.filter { it in o } } ?: PackKey.selection(chosen)
+
     fun encode(): String = buildString {
         append(HEADER).append('\n')
         append("phase ").append(phase.name).append('\n')
@@ -278,6 +314,7 @@ data class SavedState(
         append("prebuild ").append(if (prebuild) 1 else 0).append('\n')
         append("system ").append(if (stoppedBySystem) 1 else 0).append('\n')
         current?.let { append("current ").append(it.id).append('\n') }
+        only?.let { o -> append("only ").append(o.joinToString(",") { it.id }).append('\n') }
         for (r in records.values) {
             append("record ").append(r.pack.id).append(' ').append(r.version.replace(' ', '_')).append(' ')
                 .append(r.planned).append(' ').append(r.have).append(' ').append(r.bytes).append(' ').append(if (r.verified) 1 else 0).append('\n')
@@ -312,6 +349,7 @@ data class SavedState(
                         "prebuild" -> s = s.copy(prebuild = rest.trim() == "1")
                         "system" -> s = s.copy(stoppedBySystem = rest.trim() == "1")
                         "current" -> s = s.copy(current = PackKey.of(rest.trim()))
+                        "only" -> s = s.copy(only = rest.split(',').mapNotNull { PackKey.of(it.trim()) }.toSet().takeIf { it.isNotEmpty() })
                         "message" -> s = s.copy(message = rest)
                         "record" -> {
                             val f = rest.split(' ')

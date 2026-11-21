@@ -123,9 +123,12 @@ class ShotLibrary(
             if (known.size < 2) return null
             val s = known.toSet()
             return when {
-                Posture.ALL_FOURS in s || Posture.LEAN in s || Posture.LIE_FRONT in s -> ShotClass.REAR
+                Posture.ALL_FOURS in s || Posture.LEAN in s -> ShotClass.REAR
+                Posture.LIE_BACK in s && Posture.LIE_FRONT in s -> ShotClass.FACING_LYING
+                Posture.LIE_FRONT in s -> ShotClass.REAR
                 Posture.LIE_SIDE in s -> ShotClass.SIDE_LYING
-                Posture.LIE_BACK in s && (Posture.KNEEL in s || Posture.CROUCH in s) && known.count { it == Posture.LIE_BACK } == 1 -> ShotClass.RIDING
+                // a squat over someone lying is a straddle; kneeling between or over them reads as partner-facing
+                Posture.LIE_BACK in s && Posture.CROUCH in s -> ShotClass.RIDING
                 Posture.LIE_BACK in s -> ShotClass.FACING_LYING
                 Posture.KNEEL in s && Posture.STAND in s -> ShotClass.ORAL
                 s.any { it.seated } -> ShotClass.SEATED

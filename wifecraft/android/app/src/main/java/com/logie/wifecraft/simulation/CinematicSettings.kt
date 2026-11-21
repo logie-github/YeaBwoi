@@ -19,7 +19,8 @@ enum class CinematicStyle(val label: String) {
  * Options' Cinematic page: [lighting] the mood's strength 0..100 (the warm low-key light, the grade and the vignette), the
  * camera's [style], [letterbox] bars, film [grain], [hideWords] (names, speech and thought bubbles hidden while it runs), each
  * shot [shortest]..[longest] seconds, and [motion] the camera's speed in percent (50..150: how far each shot moves and how
- * quickly it travels between shots).
+ * quickly it travels between shots); while an animation plays, the shot library's [shotStyle], its [randomness] (0..100: how
+ * loosely the cadence and weights are followed and how far each shot drifts) and [allowCuts] (false: smooth moves only).
  */
 data class CinematicSettings(
     val lighting: Int = 70,
@@ -30,12 +31,15 @@ data class CinematicSettings(
     val shortest: Int = 4,
     val longest: Int = 9,
     val motion: Int = 100,
+    val shotStyle: ShotStyle = ShotStyle.CLASSIC,
+    val randomness: Int = 40,
+    val allowCuts: Boolean = true,
 ) {
     /** The settings brought within their limits (a hand-edited or old file can't break the director). */
     fun clamped(): CinematicSettings {
         val lo = shortest.coerceIn(SHOT_MIN, SHOT_MAX)
         return copy(lighting = lighting.coerceIn(0, 100), shortest = lo, longest = longest.coerceIn(lo, SHOT_MAX),
-            motion = motion.coerceIn(MOTION_MIN, MOTION_MAX))
+            motion = motion.coerceIn(MOTION_MIN, MOTION_MAX), randomness = randomness.coerceIn(0, 100))
     }
 
     /** The motion as a factor (1: as designed). */
@@ -43,6 +47,7 @@ data class CinematicSettings(
 
     fun toJson(): JSONObject = JSONObject().put("lighting", lighting).put("style", style.name).put("letterbox", letterbox)
         .put("grain", grain).put("hideWords", hideWords).put("shortest", shortest).put("longest", longest).put("motion", motion)
+        .put("shotStyle", shotStyle.name).put("randomness", randomness).put("allowCuts", allowCuts)
 
     companion object {
         const val SHOT_MIN = 3
@@ -65,6 +70,9 @@ data class CinematicSettings(
                     shortest = o.optInt("shortest", DEFAULT.shortest),
                     longest = o.optInt("longest", DEFAULT.longest),
                     motion = o.optInt("motion", DEFAULT.motion),
+                    shotStyle = ShotStyle.of(o.optString("shotStyle", DEFAULT.shotStyle.name)),
+                    randomness = o.optInt("randomness", DEFAULT.randomness),
+                    allowCuts = o.optBoolean("allowCuts", DEFAULT.allowCuts),
                 ).clamped()
             } catch (e: Exception) { DEFAULT }
         }

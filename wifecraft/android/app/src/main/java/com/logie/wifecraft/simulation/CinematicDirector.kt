@@ -59,6 +59,16 @@ class CinematicStage(capacity: Int) {
     var eyeX = 0f; var eyeY = 0f; var eyeZ = 0f
     var atX = 0f; var atY = 0f; var atZ = 0f
     var fov = 50f
+    /**
+     * What is being played (null: nothing: the director's own mix of shots), who plays its roles ([roleA]: the lead, [roleB]),
+     * the line of action's yaw ([lineYaw]: the performance's heading; NaN: from A's hips to B's), and a standing body's height
+     * in yards ([bodyHeight]: the shot library's unit).
+     */
+    var action: ShotAction? = null
+    var roleA = 0
+    var roleB = 1
+    var lineYaw = Float.NaN
+    var bodyHeight = 1.8f
 
     fun person(i: Int, hx: Float, hy: Float, hz: Float, ex: Float, ey: Float, ez: Float) {
         hipX[i] = hx; hipY[i] = hy; hipZ[i] = hz; headX[i] = ex; headY[i] = ey; headZ[i] = ez
@@ -240,11 +250,40 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
         const val RECHECK_S = 0.5f
         /** The people within this of the action's middle are framed (yards). */
         const val NEAR = 3.5f
+        /** A library shot's eye keeps this far (degrees) off the line of action unless the shot may sit on it. */
+        const val LINE_EDGE = 2f
+        /** The random drift: its pull back to the shot (1/s), its noise, and its widest reach round, up and in (degrees, share). */
+        const val DRIFT_PULL = 0.35f
+        const val DRIFT_NOISE = 0.55f
+        const val DRIFT_AZ_MAX = 12f
+        const val DRIFT_PITCH_MAX = 5f
+        const val DRIFT_DIST = 0.08f
+        /** The presets of the library's shots start with this. */
+        const val LIBRARY = "LIB:"
         private const val TAU = (2.0 * PI).toFloat()
     }
 
     @Volatile var settings: CinematicSettings = settings
     private val random = Random(seed)
+    /** The shot library (assets/shot_library.json): its shots for what is being played ([CinematicStage.action]); null: the mix only. */
+    @Volatile var library: ShotLibrary? = null
+    // the drift's own random numbers (seeded: the same seed, the same film), so drifting never changes which shots are picked
+    private val wander = Random(seed xor 0x5DEECE66DL)
+    /** The library shot now (null: one of the mix's). */
+    var spec: ShotSpec? = null
+        private set
+    private var actionKey: String? = null
+    private var actionCls: ShotClass? = null
+    private var repick = false
+    private var cadenceAt = 0
+    /** The 180-degree rule: the side of the line of action the library's shots keep (+1 left of A to B, -1 right; 0 not yet), the line's yaw. */
+    var lineSide = 0f
+        private set
+    var lineYaw = 0f
+        private set
+    // the drift's walk (each -1..1: round, up, in) and its clock
+    private var du = 0f; private var dp = 0f; private var dd = 0f
+    private var clock = 0f
 
     /** The pose (written by [update]). */
     var eyeX = 0f; private set
@@ -281,6 +320,8 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
     private var walking = 0f
     /** The frame shown last (relative to the focus), where a shot left early hands over from. */
     private var lastFrame: ShotFrame? = null
+    /** The frame shown last, the drift included (tests). */
+    val frameNow: ShotFrame? get() = lastFrame
 
     /** The next [update] starts afresh from the stage's camera (entering cinematic mode). */
     fun restart() { started = false }
@@ -319,11 +360,19 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
         walking += (fastest - walking) * (1f - kotlin.math.exp(-step / 1f))
         shotTime += step
         recheck += step
+        // what is played changed (another animation, or its next stage): the library's shots are picked again
+        val act = stage.action
+        if (act?.key != actionKey) {
+            if (act != null && (act.cls != actionCls || lineSide == 0f)) { cadenceAt = 0; line(stage) }
+            actionKey = act?.key; actionCls = act?.cls
+            repick = act != null || spec != null
+        }
         val s = shot
         // a new shot: this one is over; or, once it has been seen a while ([MIN_HOLD_S]) and its move is done, the furniture
         // in use changed or its eye is no longer good (people walking: the shot follows them on the focus's spring, and is
         // left only when its eye would go into a wall or a piece of furniture)
         var leave = s == null || shotTime >= s.seconds
+        if (!leave && repick && s != null && shotTime >= 1f) leave = true
         if (!leave && s != null && shotTime >= max(MIN_HOLD_S, if (s.cut) 0f else s.travel)) {
             if (furn != furnitureId) leave = true
             else if (recheck >= RECHECK_S) {
@@ -335,7 +384,9 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
             furnitureId = furn
             next(stage, focus, lastFrame ?: frameAt(shotTime))
         }
-        val f = frameAt(shotTime)
+        var f = frameAt(shotTime)
+        val sp = spec
+        if (sp != null) f = drifted(stage, focus, f, sp, step)
         lastFrame = f
         val at = focus + f.at
         var eye = CinematicFraming.eye(at, f.yaw, f.pitch, f.distance)
@@ -372,6 +423,8 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
     // ---------------------------------------------------------------------------------------------- choosing a shot
 
     private fun next(stage: CinematicStage, focus: Vec3, from: ShotFrame) {
+        repick = false
+        du = 0f; dp = 0f; dd = 0f
         val chosen = choose(stage, focus, from)
         start = from
         shot = chosen
@@ -397,6 +450,11 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
     }
 
     private fun choose(stage: CinematicStage, focus: Vec3, from: ShotFrame): CinematicShot {
+        val act = stage.action
+        if (act != null && library != null && settings.style != CinematicStyle.SLOW_ORBIT) {
+            chooseLibrary(stage, focus, from, act)?.let { return it }
+        }
+        spec = null
         val all = types(stage)
         val lastType = history.lastOrNull()?.type
         val recent = history.takeLast(3).map { it.preset }.toSet()
@@ -518,8 +576,9 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
      * and the way to it from [from]: a move whose eyes are good too (the short way round, else the long way), else a cut
      * when [cut] allows it; null: it can't be had.
      */
-    private fun place(shot: CinematicShot, stage: CinematicStage, focus: Vec3, pts: List<Vec3>, from: ShotFrame, cut: Boolean): CinematicShot? {
-        val framing = when (shot.type) {
+    private fun place(shot: CinematicShot, stage: CinematicStage, focus: Vec3, pts: List<Vec3>, from: ShotFrame, cut: Boolean,
+                      framed: List<Vec3>? = null, faces: List<Int>? = null, overIdx: Int = -1, forceCut: Boolean = false): CinematicShot? {
+        val framing = framed ?: when (shot.type) {
             ShotType.CLOSE_UP, ShotType.OVER_SHOULDER -> heads(stage, shot)
             else -> pts
         }
@@ -534,15 +593,16 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
         }
         // a close-up or a shoulder shot: nobody else's body between the camera and the face, and the floor from under the
         // camera to just before the person it frames clear (no wall between them: they may stand away from the focus)
-        if (shot.type == ShotType.CLOSE_UP || shot.type == ShotType.OVER_SHOULDER) {
-            val except = shoulder(shot)
+        val faceOwners = if (framed != null) faces else if (shot.type == ShotType.CLOSE_UP || shot.type == ShotType.OVER_SHOULDER) owners(stage, shot) else null
+        if (faceOwners != null) {
+            val except = if (framed != null) overIdx else shoulder(shot)
             val c = stage.clearance
             val floor = stage.floorZ
             for (k in 0..2) {
                 val f = shot.from.toward(shot.to, k / 2f, shot.to.yaw - shot.from.yaw)
                 val at = focus + f.at
                 val eye = CinematicFraming.eye(at, f.yaw, f.pitch, f.distance)
-                for (o in owners(stage, shot)) {
+                for (o in faceOwners) {
                     if (occluded(stage, eye, stage.head(o), o, except)) return reject(shot, "occluded")
                     if (c != null && !floor.isNaN() && k != 1) {
                         val dx = eye.x - stage.hipX[o]; val dy = eye.y - stage.hipY[o]
@@ -556,7 +616,7 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
             }
         }
         val sized = shot.copy(from = shot.from.copy(fov = fov), to = shot.to.copy(fov = fov))
-        if (settings.style == CinematicStyle.CUTS) return sized.copy(cut = true)
+        if (settings.style == CinematicStyle.CUTS || forceCut) return sized.copy(cut = true)
         // the last pass ([cut]): a longer move first, a cut only when no move at all is clear
         val limit = if (cut) MAX_TRAVEL_S * 1.6f else MAX_TRAVEL_S
         val short = OrbitMath.wrap(sized.from.yaw - from.yaw)
@@ -582,6 +642,185 @@ class CinematicDirector(settings: CinematicSettings = CinematicSettings.DEFAULT,
             if (abs(turn) > PI.toFloat() * 1.5f) break
         }
         return if (cut) sized.copy(cut = true) else reject(shot, "no clear move")
+    }
+
+    // ---------------------------------------------------------------------------------------------- the shot library
+
+    /** The lead's and the other role's person (the other: someone else than the lead when there are two or more). */
+    private fun roleA(stage: CinematicStage): Int = stage.roleA.coerceIn(0, max(0, stage.count - 1))
+    private fun roleB(stage: CinematicStage): Int {
+        if (stage.count < 2) return roleA(stage)
+        val a = roleA(stage)
+        val b = stage.roleB.coerceIn(0, stage.count - 1)
+        return if (b == a) (a + 1) % stage.count else b
+    }
+
+    /**
+     * The line of action for the 180-degree rule: the stage's (the performance's heading), else from A's hips to B's when
+     * they stand apart, else the line it was; its side is picked once (at random) and kept for the scene.
+     */
+    private fun line(stage: CinematicStage) {
+        val a = roleA(stage); val b = roleB(stage)
+        val dx = stage.hipX[b] - stage.hipX[a]; val dy = stage.hipY[b] - stage.hipY[a]
+        lineYaw = when {
+            stage.lineYaw.isFinite() -> stage.lineYaw
+            a != b && hypot(dx, dy) > 0.25f -> atan2(dy, dx)
+            else -> lineYaw
+        }
+        if (lineSide == 0f) lineSide = if (random.nextBoolean()) 1f else -1f
+    }
+
+    /**
+     * A library shot for [act]: its class's set weighed by the style, the stage and the cadence (a wide, a medium, a close, a
+     * detail...: Classic follows it, Randomness loosens it), never the shot just seen, close and detail shots only while
+     * nobody walks; each tried with its random framing and placed as the mix's are (every eye clear, the people in the
+     * picture, no one in the line to a face). Null: none fitted (the mix is used).
+     */
+    private fun chooseLibrary(stage: CinematicStage, focus: Vec3, from: ShotFrame, act: ShotAction): CinematicShot? {
+        val lib = library ?: return null
+        if (lineSide == 0f || actionKey != act.key) {
+            if (act.cls != actionCls || lineSide == 0f) { cadenceAt = 0; line(stage) }
+            actionKey = act.key; actionCls = act.cls
+        }
+        val cands = lib.set(act.cls)
+        if (cands.isEmpty()) return null
+        val st = settings.clamped()
+        val style = st.shotStyle
+        val r = if (style == ShotStyle.RANDOM) 1f else st.randomness / 100f
+        val ids = history.takeLast(2).map { libraryId(it.preset) }
+        val lastId = ids.lastOrNull()
+        val still = walking < STILL_SPEED
+        val want = lib.cadence[cadenceAt % lib.cadence.size]
+        val two = stage.count >= 2
+        val raw = FloatArray(cands.size) { k ->
+            val (sp, w0) = cands[k]
+            var w = w0 * lib.styleWeight(style, sp.size) * lib.stageWeight(act.part, sp.size)
+            if (style != ShotStyle.RANDOM && sp.size == want) w *= 1f + 3f * (1f - r)
+            if (sp.id == lastId) w = 0f
+            else if (cands.size >= 4 && sp.id in ids) w *= 0.3f
+            if (!still && (sp.size == ShotSize.CLOSE || sp.size == ShotSize.DETAIL)) w = 0f
+            if (!two && (sp.anchor == ShotAnchor.HEAD_B || sp.anchor == ShotAnchor.HIP_B)) w = 0f
+            w
+        }
+        // the randomness flattens the weights toward their mean (100%: every candidate nearly as likely)
+        val live = raw.filter { it > 0f }
+        if (live.isEmpty()) return null
+        val mean = live.average().toFloat()
+        val weights = FloatArray(raw.size) { if (raw[it] > 0f) raw[it] * (1f - 0.7f * r) + mean * 0.7f * r else 0f }
+        val cutsOk = st.style == CinematicStyle.CUTS || st.allowCuts
+        val pts = people(stage)
+        repeat(cands.size) {
+            val total = weights.sum()
+            if (total <= 0f) return null
+            var x = random.nextFloat() * total
+            var k = 0
+            while (k < weights.size - 1 && (weights[k] <= 0f || x > weights[k])) { if (weights[k] > 0f) x -= weights[k]; k++ }
+            if (weights[k] <= 0f) k = weights.indexOfLast { it > 0f }
+            if (k < 0) return null
+            weights[k] = 0f
+            val sp = cands[k].first
+            val wantCut = st.style == CinematicStyle.CUTS || (cutsOk && when (sp.transition) {
+                ShotTransition.CUT -> true; ShotTransition.BLEND -> false; ShotTransition.ANY -> random.nextFloat() < 0.5f
+            })
+            repeat(3) {
+                val built = buildLibrary(sp, stage, focus) ?: return@repeat
+                val placed = place(built.shot, stage, focus, pts, from, cut = cutsOk, framed = built.framed, faces = built.faces,
+                    overIdx = built.over, forceCut = wantCut) ?: return@repeat
+                spec = sp
+                cadenceAt++
+                return placed
+            }
+        }
+        return null
+    }
+
+    private class Built(val shot: CinematicShot, val framed: List<Vec3>, val faces: List<Int>?, val over: Int)
+
+    /** The library's id of a shot's [preset] (null: one of the mix's). */
+    private fun libraryId(preset: String): String? =
+        if (preset.startsWith(LIBRARY)) preset.removePrefix(LIBRARY).substringBefore(':') else null
+
+    /** [sp] made a shot with its random framing: round the line on the scene's side, its height, distance, lens and move. */
+    private fun buildLibrary(sp: ShotSpec, stage: CinematicStage, focus: Vec3): Built? {
+        val a = roleA(stage); val b = roleB(stage)
+        val m = settings.motionScale
+        fun face(i: Int) = stage.head(i).let { Vec3(it.x, it.y, it.z - 0.08f) }
+        val (anchor, framed, faces) = when (sp.anchor) {
+            ShotAnchor.PAIR -> Triple(focus, people(stage), null)
+            ShotAnchor.FACES -> {
+                val fa = face(a); val fb = face(b)
+                Triple(fa.lerp(fb, 0.5f), listOf(fa, fb), null)
+            }
+            ShotAnchor.HEAD_A -> Triple(face(a), listOf(face(a)), listOf(a))
+            ShotAnchor.HEAD_B -> Triple(face(b), listOf(face(b)), listOf(b))
+            ShotAnchor.PELVIS -> Triple(stage.hip(a).lerp(stage.hip(b), 0.5f), listOf(stage.hip(a), stage.hip(b)), null)
+            ShotAnchor.HIP_A -> Triple(stage.hip(a), listOf(stage.hip(a)), null)
+            ShotAnchor.HIP_B -> Triple(stage.hip(b), listOf(stage.hip(b)), null)
+        }
+        val over = when (sp.over) { 0 -> a; 1 -> b; else -> -1 }.takeIf { it >= 0 && a != b } ?: -1
+        val deg = (PI / 180).toFloat()
+        val s = settings.clamped()
+        val seconds = sp.dwell.pick(random).coerceIn(s.shortest.toFloat(), s.longest.toFloat())
+        val edge = if (sp.crossLine) 0f else LINE_EDGE
+        val az0 = sp.azimuth.pick(random).coerceIn(edge, 180f - edge)
+        val arc = sp.orbit.pick(random) * seconds * m * (if (random.nextBoolean()) 1f else -1f)
+        val az1 = (az0 + arc).coerceIn(edge, 180f - edge)
+        val pitch = (sp.pitch.pick(random) * deg).coerceIn(MIN_PITCH + 0.01f, MAX_PITCH - 0.01f)
+        val bh = stage.bodyHeight.coerceIn(0.5f, 4f)
+        val d0 = sp.distance.pick(random) * bh
+        val d1 = (d0 * (1f - sp.push.pick(random) * m)).coerceAtLeast(0.5f)
+        val fov = sp.fov.pick(random)
+        val at = anchor - focus
+        val yaw0 = lineYaw + lineSide * az0 * deg
+        val yaw1 = lineYaw + lineSide * az1 * deg
+        val shot = CinematicShot(sp.type, "$LIBRARY${sp.id}:${sector(yaw0)}", ShotFrame(yaw0, pitch, d0, at, fov),
+            ShotFrame(yaw1, pitch, d1, at, fov), seconds, cut = false)
+        return Built(shot, framed, faces, over)
+    }
+
+    /** Where the eye is round the line of action now (degrees, 0..180 on the scene's side; negative: the other side). */
+    fun azimuthOf(f: ShotFrame): Float = Math.toDegrees((OrbitMath.wrap(f.yaw - lineYaw) * lineSide).toDouble()).toFloat()
+
+    /**
+     * The library shot's frame [f] moved by the random drift: a seeded walk round, up and in, pulled back to the shot, within
+     * the shot's own ranges (half of each, at most [DRIFT_AZ_MAX] and [DRIFT_PITCH_MAX] degrees and [DRIFT_DIST] of the
+     * distance) scaled by Randomness, plus the shot's handheld [ShotSpec.sway]; eased in as the shot is reached, kept on the
+     * scene's side of the line, and given up (halved) where the drifted eye would not be clear.
+     */
+    private fun drifted(stage: CinematicStage, focus: Vec3, f: ShotFrame, sp: ShotSpec, step: Float): ShotFrame {
+        val s = shot ?: return f
+        clock += step
+        val r = settings.clamped().randomness / 100f
+        if (r <= 0f && sp.sway <= 0f) return f
+        if (step > 0f) {
+            val pull = DRIFT_PULL * step
+            val noise = DRIFT_NOISE * sqrt(step)
+            du = (du - du * pull + noise * gauss()).coerceIn(-1f, 1f)
+            dp = (dp - dp * pull + noise * gauss()).coerceIn(-1f, 1f)
+            dd = (dd - dd * pull + noise * gauss()).coerceIn(-1f, 1f)
+        }
+        val w = if (s.cut || s.travel <= 0f) 1f else easeInOut((shotTime / s.travel).coerceIn(0f, 1f))
+        val deg = (PI / 180).toFloat()
+        val azAmp = min(sp.azimuth.half, DRIFT_AZ_MAX) * r * w * deg
+        val pAmp = min(sp.pitch.half, DRIFT_PITCH_MAX) * r * w * deg
+        val dAmp = DRIFT_DIST * r * w
+        val sway = sp.sway * deg * w * (0.5f + 0.5f * r)
+        val sy = sway * (0.6f * sin(clock * 0.83f) + 0.4f * sin(clock * 1.71f + 1.3f))
+        val sp2 = sway * 0.6f * (0.6f * sin(clock * 0.67f + 0.4f) + 0.4f * sin(clock * 1.37f + 2.1f))
+        val g = f.copy(yaw = f.yaw + du * azAmp + sy, pitch = (f.pitch + dp * pAmp + sp2).coerceIn(MIN_PITCH, MAX_PITCH),
+            distance = f.distance * (1f + dd * dAmp))
+        val az = azimuthOf(g)
+        val edge = if (sp.crossLine) -1f else LINE_EDGE * 0.5f
+        if ((sp.crossLine || (az >= edge && az <= 180f - edge)) && eyeGood(stage, focus, g, emptyList())) return g
+        du *= 0.5f; dp *= 0.5f; dd *= 0.5f
+        return f
+    }
+
+    /** A standard normal number from the drift's random numbers (Box-Muller). */
+    private fun gauss(): Float {
+        val u = wander.nextDouble().coerceAtLeast(1e-9)
+        val v = wander.nextDouble()
+        return (sqrt(-2.0 * kotlin.math.ln(u)) * cos(2.0 * PI * v)).toFloat()
     }
 
     /** Why shots were turned down, by type and reason (tests and the film's report). */

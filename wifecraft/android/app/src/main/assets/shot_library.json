@@ -1,0 +1,64 @@
+{
+  "_comment": "Cinematic mode's shot library (simulation/ShotLibrary.kt; the conventions: docs/cinematic-shots.md). azimuth: degrees round the line of action from B's end (0) through the profile (90) to A's end (180), always on the scene's one side; pitch: degrees up; distance: body heights from the anchor; fov: degrees; orbit: degrees a second; push: share of the distance closed over the shot (negative: pull out); sway: degrees; dwell: seconds (inside Options' shot lengths).",
+  "cadence": ["WIDE", "MEDIUM", "CLOSE", "DETAIL", "MEDIUM", "CLOSE", "MEDIUM", "DETAIL"],
+  "styles": {
+    "CLASSIC": {},
+    "INTIMATE": {"WIDE": 0.4, "MEDIUM": 1.0, "CLOSE": 2.0, "DETAIL": 1.3},
+    "CLOSE_UPS": {"WIDE": 0.15, "MEDIUM": 0.5, "CLOSE": 3.0, "DETAIL": 2.5},
+    "WIDE": {"WIDE": 3.0, "MEDIUM": 2.0, "CLOSE": 0.3, "DETAIL": 0.15},
+    "RANDOM": {}
+  },
+  "stages": {
+    "START": {"WIDE": 2.5, "MEDIUM": 1.5, "CLOSE": 1.0, "DETAIL": 0.3},
+    "LOOP": {},
+    "END": {"WIDE": 1.2, "MEDIUM": 1.0, "CLOSE": 2.5, "DETAIL": 0.4}
+  },
+  "shots": {
+    "establish_wide":  {"size": "WIDE",   "anchor": "PAIR",   "type": "WIDE",          "azimuth": [50, 130], "pitch": [18, 30], "distance": [3.0, 3.8],  "fov": [50, 55], "orbit": [1, 2],   "push": [0.03, 0.06], "dwell": [4, 7], "transition": "ANY"},
+    "high_wide":       {"size": "WIDE",   "anchor": "PAIR",   "type": "HIGH_ANGLE",    "azimuth": [30, 150], "pitch": [40, 55], "distance": [2.2, 2.8],  "fov": [50, 55], "orbit": [1, 2.5], "push": [0.0, 0.05],  "dwell": [4, 7], "transition": "ANY"},
+    "profile_medium":  {"size": "MEDIUM", "anchor": "PAIR",   "type": "ORBIT",         "azimuth": [78, 102], "pitch": [8, 18],  "distance": [1.2, 1.6],  "fov": [45, 50], "orbit": [1.5, 3], "push": [0.04, 0.1],  "dwell": [5, 9], "transition": "BLEND"},
+    "three_quarter_a": {"size": "MEDIUM", "anchor": "PAIR",   "type": "ORBIT",         "azimuth": [122, 150],"pitch": [12, 24], "distance": [1.2, 1.5],  "fov": [45, 50], "orbit": [1, 2.5], "push": [0.03, 0.08], "dwell": [5, 8], "transition": "ANY"},
+    "three_quarter_b": {"size": "MEDIUM", "anchor": "PAIR",   "type": "ORBIT",         "azimuth": [30, 58],  "pitch": [12, 24], "distance": [1.2, 1.5],  "fov": [45, 50], "orbit": [1, 2.5], "push": [0.03, 0.08], "dwell": [5, 8], "transition": "ANY"},
+    "end_a_medium":    {"size": "MEDIUM", "anchor": "PAIR",   "type": "ORBIT",         "azimuth": [158, 176],"pitch": [15, 30], "distance": [1.2, 1.5],  "fov": [45, 50], "orbit": [0.5, 1.5],"push": [0.03, 0.08],"dwell": [4, 7], "transition": "ANY", "crossLine": true},
+    "end_b_medium":    {"size": "MEDIUM", "anchor": "PAIR",   "type": "ORBIT",         "azimuth": [4, 22],   "pitch": [12, 26], "distance": [1.2, 1.5],  "fov": [45, 50], "orbit": [0.5, 1.5],"push": [0.03, 0.08],"dwell": [4, 7], "transition": "ANY", "crossLine": true},
+    "low_medium":      {"size": "MEDIUM", "anchor": "PAIR",   "type": "LOW_ANGLE",     "azimuth": [55, 125], "pitch": [-12, -4],"distance": [1.2, 1.5],  "fov": [50, 55], "orbit": [0.5, 2], "push": [0.02, 0.06], "dwell": [4, 7], "transition": "ANY"},
+    "top_down":        {"size": "MEDIUM", "anchor": "PAIR",   "type": "HIGH_ANGLE",    "azimuth": [60, 120], "pitch": [55, 63], "distance": [1.2, 1.6],  "fov": [48, 54], "orbit": [1, 3],   "push": [0.0, 0.06],  "dwell": [4, 7], "transition": "ANY", "crossLine": true},
+    "handheld_medium": {"size": "MEDIUM", "anchor": "PAIR",   "type": "ORBIT",         "azimuth": [40, 140], "pitch": [10, 22], "distance": [1.1, 1.4],  "fov": [45, 50], "orbit": [2, 4],   "push": [0.02, 0.08], "sway": 1.2, "dwell": [4, 7], "transition": "ANY"},
+    "dolly_in":        {"size": "MEDIUM", "anchor": "FACES",  "type": "DOLLY_IN",      "azimuth": [65, 115], "pitch": [8, 18],  "distance": [1.3, 1.6],  "fov": [42, 46], "orbit": [0, 1],   "push": [0.25, 0.35], "dwell": [6, 9], "transition": "BLEND"},
+    "dolly_out":       {"size": "WIDE",   "anchor": "PAIR",   "type": "DOLLY_OUT",     "azimuth": [55, 125], "pitch": [15, 25], "distance": [1.5, 1.9],  "fov": [48, 52], "orbit": [0, 1],   "push": [-0.35, -0.25],"dwell": [6, 9], "transition": "BLEND"},
+    "faces_close":     {"size": "CLOSE",  "anchor": "FACES",  "type": "CLOSE_UP",      "azimuth": [75, 105], "pitch": [0, 12],  "distance": [0.6, 0.8],  "fov": [38, 42], "orbit": [0, 1],   "push": [0.03, 0.08], "dwell": [4, 7], "transition": "ANY"},
+    "face_a_close":    {"size": "CLOSE",  "anchor": "HEAD_A", "type": "CLOSE_UP",      "azimuth": [12, 40],  "pitch": [4, 14],  "distance": [0.6, 0.8],  "fov": [38, 42], "orbit": [0, 1],   "push": [0.03, 0.08], "dwell": [3, 6], "transition": "CUT", "over": "B"},
+    "face_b_close":    {"size": "CLOSE",  "anchor": "HEAD_B", "type": "CLOSE_UP",      "azimuth": [140, 168],"pitch": [4, 14],  "distance": [0.6, 0.8],  "fov": [38, 42], "orbit": [0, 1],   "push": [0.03, 0.08], "dwell": [3, 6], "transition": "CUT", "over": "A"},
+    "over_shoulder_a": {"size": "CLOSE",  "anchor": "HEAD_B", "type": "OVER_SHOULDER", "azimuth": [155, 172],"pitch": [8, 18],  "distance": [0.85, 1.05],"fov": [42, 46], "orbit": [0, 0.8], "push": [0.02, 0.06], "dwell": [4, 7], "transition": "CUT", "over": "A"},
+    "pov_high_a":      {"size": "CLOSE",  "anchor": "HEAD_B", "type": "HIGH_ANGLE",    "azimuth": [160, 176],"pitch": [35, 50], "distance": [0.75, 0.95],"fov": [48, 54], "orbit": [0, 0.8], "push": [0.0, 0.05],  "sway": 0.8, "dwell": [4, 7], "transition": "CUT", "over": "A", "crossLine": true},
+    "pelvis_side":     {"size": "DETAIL", "anchor": "PELVIS", "type": "CLOSE_UP",      "azimuth": [75, 105], "pitch": [0, 15],  "distance": [0.45, 0.6], "fov": [40, 45], "orbit": [0, 1.5], "push": [0.03, 0.06], "sway": 0.4, "dwell": [3, 6], "transition": "CUT"},
+    "pelvis_low":      {"size": "DETAIL", "anchor": "PELVIS", "type": "LOW_ANGLE",     "azimuth": [60, 120], "pitch": [-12, -3],"distance": [0.5, 0.65], "fov": [42, 48], "orbit": [0, 1],   "push": [0.02, 0.05], "dwell": [3, 6], "transition": "CUT"},
+    "pelvis_end_a":    {"size": "DETAIL", "anchor": "PELVIS", "type": "CLOSE_UP",      "azimuth": [155, 172],"pitch": [10, 25], "distance": [0.5, 0.65], "fov": [42, 48], "orbit": [0, 1],   "push": [0.02, 0.05], "dwell": [3, 6], "transition": "CUT", "crossLine": true},
+    "hands_detail":    {"size": "DETAIL", "anchor": "PELVIS", "type": "HIGH_ANGLE",    "azimuth": [95, 140], "pitch": [25, 40], "distance": [0.5, 0.6],  "fov": [40, 45], "orbit": [0, 1],   "push": [0.02, 0.05], "dwell": [3, 6], "transition": "CUT"}
+  },
+  "sets": {
+    "KISS":         {"faces_close": 3, "profile_medium": 2, "face_a_close": 1.5, "face_b_close": 1.5, "over_shoulder_a": 1, "dolly_in": 1, "establish_wide": 1},
+    "FACING_LYING": {"profile_medium": 3, "top_down": 2, "over_shoulder_a": 1.5, "end_a_medium": 1.5, "pelvis_side": 1.5, "low_medium": 1, "establish_wide": 1},
+    "REAR":         {"profile_medium": 3, "end_a_medium": 2, "end_b_medium": 1.5, "face_b_close": 1.5, "pelvis_end_a": 1, "high_wide": 1, "establish_wide": 1},
+    "RIDING":       {"low_medium": 2.5, "profile_medium": 2, "three_quarter_a": 1.5, "three_quarter_b": 1.5, "face_b_close": 1, "pelvis_low": 1, "establish_wide": 1},
+    "SEATED":       {"three_quarter_a": 2, "three_quarter_b": 2, "profile_medium": 2, "faces_close": 1.5, "low_medium": 1, "pelvis_side": 1, "establish_wide": 1},
+    "STANDING":     {"profile_medium": 2.5, "low_medium": 2, "handheld_medium": 1.5, "faces_close": 1.5, "over_shoulder_a": 1, "pelvis_side": 1, "establish_wide": 1.5},
+    "SIDE_LYING":   {"three_quarter_b": 2, "top_down": 2, "faces_close": 2, "profile_medium": 1.5, "pelvis_side": 1, "high_wide": 1, "establish_wide": 1},
+    "ORAL":         {"pov_high_a": 3, "profile_medium": 2.5, "face_b_close": 2, "three_quarter_a": 1.5, "low_medium": 1, "establish_wide": 1},
+    "MANUAL":       {"hands_detail": 2.5, "faces_close": 2, "profile_medium": 2, "three_quarter_a": 1.5, "face_a_close": 1.5, "establish_wide": 1},
+    "PARTNER":      {"profile_medium": 2, "three_quarter_a": 1.5, "three_quarter_b": 1.5, "faces_close": 1.5, "high_wide": 1, "low_medium": 1, "dolly_in": 1, "establish_wide": 1},
+    "SOLO":         {"handheld_medium": 2, "low_medium": 2, "face_a_close": 1.5, "three_quarter_b": 1.5, "dolly_out": 1, "high_wide": 1, "establish_wide": 1}
+  },
+  "classOrder": ["ORAL", "MANUAL", "RIDING", "REAR", "SIDE_LYING", "FACING_LYING", "SEATED", "STANDING", "KISS"],
+  "words": {
+    "KISS": ["kiss", "kissing", "makeout", "makingout", "smooch", "foreplay", "cuddle", "cuddling", "hug", "hugging", "embrace", "caress", "snuggle", "romance", "flirt"],
+    "FACING_LYING": ["missionary", "matingpress", "legsup"],
+    "REAR": ["doggy", "doggystyle", "doggie", "behind", "rear", "backshots", "bentover", "prone", "pronebone", "allfours"],
+    "RIDING": ["cowgirl", "reversecowgirl", "riding", "ride", "ontop", "straddle", "straddling"],
+    "SEATED": ["lap", "lapdance", "lotus", "seated", "sitting", "sit"],
+    "STANDING": ["standing", "stand", "wall", "against", "carry", "lifted"],
+    "SIDE_LYING": ["spoon", "spooning", "sideways"],
+    "ORAL": ["oral", "blowjob", "bj", "fellatio", "cunnilingus", "licking", "lick", "deepthroat", "facesitting", "69", "sixtynine"],
+    "MANUAL": ["handjob", "fingering", "fingers", "rub", "rubbing", "massage", "stroke", "stroking", "grope", "groping", "touching"]
+  }
+}

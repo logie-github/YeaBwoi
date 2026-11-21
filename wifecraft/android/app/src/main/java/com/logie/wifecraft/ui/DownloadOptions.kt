@@ -13,7 +13,14 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.logie.wifecraft.data.AssetDownloads
+import com.logie.wifecraft.data.ByteSize
+import com.logie.wifecraft.data.DownloadPage
+import com.logie.wifecraft.data.DownloadPlan
+import com.logie.wifecraft.data.DownloadSnapshot
+import com.logie.wifecraft.data.PackKey
+import com.logie.wifecraft.data.PackStatus
+import com.logie.wifecraft.data.PageAction
+import com.logie.wifecraft.data.Phase
 import com.logie.wifecraft.audio.MixLevels
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
@@ -68,23 +75,43 @@ fun <T> StateFlow<T>.collectThrottled(urgent: (T?, T) -> Boolean = { _, _ -> fal
 
 private enum class Page(val label: String) { SOUND("Sound"), IMMERSION("Immersion"), TIME("Time"), CINEMATIC("Cinematic"), DOWNLOADS("Downloads"), MODS("Mods") }
 
+/** What the Downloads page's controls do (data/DownloadHub's commands, wired by the activity). */
+class DownloadActions(
+    val everything: () -> Unit,
+    val pack: (PackKey) -> Unit,
+    val pause: () -> Unit,
+    val resume: () -> Unit,
+    val cancel: () -> Unit,
+    val retryFailed: () -> Unit,
+    val verify: () -> Unit,
+    val chosen: (Set<PackKey>) -> Unit,
+    val wifiOnly: (Boolean) -> Unit,
+    val mobileData: (Boolean) -> Unit,
+    val prebuild: (Boolean) -> Unit,
+    /** The free-space refusal's "Download what fits" (the packs that fit ticked, then the download started). */
+    val fit: () -> Unit,
+    val dismissSpace: () -> Unit,
+)
+
 /**
  * Options, in the front menus' look (WifeWindow): Sound (the game's own Sound page: Enable Sound, Master, Music, Ambience, Sound
- * effects, Dialog; then the partner sounds), Downloads (the speed, the packs, the bar) and Mods. Every change applies at once.
+ * effects, Dialog; then the partner sounds), Downloads (the speed, "Download everything" and its packs) and Mods. Every change
+ * applies at once.
  */
 @Composable
 fun DownloadOptions(
-    progress: AssetDownloads.Progress?,
-    status: String?,
-    downloading: Boolean,
-    canDownload: Boolean,
+    /** "Download everything"'s state (data/DownloadHub.snapshot, at most 4 times a second). */
+    downloads: DownloadSnapshot,
     speed: Int,
     onSpeed: (Int) -> Unit,
+    wifiOnly: Boolean,
+    actions: DownloadActions,
+    /** The free-space refusal, and whether some packs fit ("Download what fits"). */
+    spaceProblem: String?,
+    canFit: Boolean,
     /** The Sound page's levels and their change (applied at once, kept by the caller). */
     mix: MixLevels,
     onMix: (MixLevels) -> Unit,
-    onDownload: (List<AssetDownloads.Pack>) -> Unit,
-    onPause: () -> Unit,
     onClose: () -> Unit,
     mods: @Composable () -> Unit,
     /** Extra blocks under the Sound page's sliders (the partner sounds). */
@@ -117,8 +144,8 @@ fun DownloadOptions(
                 "Options", onClose, Modifier.width(layout.optionsW.dp).height(layout.optionsH.dp),
                 tabs = pages.map { it.label }, tab = pages.indexOf(page).coerceAtLeast(0), onTab = { page = pages[it] },
                 footer = {
-                    if (page != Page.DOWNLOADS && downloading) Text(
-                        "Downloading ${progress?.pack?.label?.lowercase() ?: "game files"}…",
+                    if (page != Page.DOWNLOADS && downloads.running) Text(
+                        "Downloading ${downloads.state.current?.label?.lowercase() ?: "game files"}…",
                         style = WifeTheme.captionStyle(), maxLines = 1, modifier = Modifier.weight(1f),
                     )
                     WifeButton("Okay", onClose, Modifier.widthIn(min = 132.dp), kind = WifeButtonKind.PRIMARY, sound = "ok")
@@ -148,34 +175,7 @@ fun DownloadOptions(
                                     WowDropdown(OptionsModel.DOWNLOAD.firstOrNull { it.first == speed }?.second ?: "$speed at once",
                                         OptionsModel.DOWNLOAD, onSpeed, Modifier.weight(1.1f))
                                 }
-                                // The block is always here, the same height (its texts keep their lines): starting a download
-                                // never pushes the buttons down under the finger, and Pause takes Download all's place.
-                                val current = progress
-                                val fraction = current?.fraction?.coerceIn(0f, 1f) ?: 0f
-                                WifeSectionHeader("Game files")
-                                Text(current?.let { "${it.pack.label} (${it.packNumber} of ${it.packCount})" } ?: "Nothing downloading",
-                                    style = WifeTheme.labelStyle(WifeTheme.gold), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                WifeProgress(fraction, Modifier.padding(vertical = WifeTheme.gapXs).semantics {
-                                    progressBarRangeInfo = if (current != null && current.total == 0 && downloading) ProgressBarRangeInfo.Indeterminate
-                                        else ProgressBarRangeInfo(fraction, 0f..1f)
-                                })
-                                val line = current?.let {
-                                    val mb = "%.1f MB".format(it.bytes / 1_000_000.0)
-                                    val checked = if (it.total > 0) " · ${it.done} of ${it.total} entries checked" else " · Finding files…"
-                                    val failed = if (it.failed > 0) " · ${it.failed} failed" else ""
-                                    "${it.files} files downloaded ($mb)$checked$failed"
-                                } ?: "Pick what to download; files already here are skipped."
-                                Text(line, style = WifeTheme.captionStyle(WifeTheme.text), minLines = 2, maxLines = 2)
-                                Text(status ?: "", style = WifeTheme.captionStyle(WifeTheme.text), minLines = 2, maxLines = 3)
-                                if (downloading) {
-                                    WifeButton("Pause", onPause, Modifier.fillMaxWidth(), kind = WifeButtonKind.PRIMARY)
-                                } else {
-                                    WifeButton("Download all", { onDownload(AssetDownloads.Pack.entries) }, Modifier.fillMaxWidth(), enabled = canDownload, kind = WifeButtonKind.PRIMARY)
-                                }
-                                for (pack in AssetDownloads.Pack.entries) {
-                                    WifeButton(pack.label, { onDownload(listOf(pack)) }, Modifier.fillMaxWidth(), enabled = canDownload && !downloading)
-                                }
-                                if (!canDownload) WifeNote("Gather the character tables first.")
+                                DownloadsPage(downloads, wifiOnly, actions, spaceProblem, canFit)
                             }
                             Page.TIME -> if (clock != null) TimePage(clock, onClock, lifeSimulation, onLifeSimulation)
                             Page.CINEMATIC -> if (cinematic != null) CinematicPage(cinematic, onCinematic)
@@ -213,3 +213,93 @@ private fun TimePage(clock: ClockSettings, onClock: (ClockSettings) -> Unit, lif
     WifeSwitchRow("Day/night cycle", clock.cycle, { onClock(clock.copy(cycle = it)) },
         detail = "Off: the light and the sounds keep the start hour while the clock still runs")
 }
+
+/**
+ * Options' Downloads page below the speed: "Download everything" (every pack this app can fetch from wago.tools, the big
+ * ones ticked or not), its bar and what it is doing, Pause/Resume/Cancel, Retry failed, Verify, the network switches, the
+ * pre-build step, each pack's row (files, size, state, its own Download) and the files that failed. The block over the
+ * buttons keeps its lines whatever it says, so the buttons never move under the finger.
+ */
+@Composable
+private fun DownloadsPage(d: DownloadSnapshot, wifiOnly: Boolean, actions: DownloadActions, spaceProblem: String?, canFit: Boolean) {
+    val s = d.state
+    val running = d.running
+    val ticked = PackKey.selection(s.chosen)
+    val total = DownloadPlan.total(ticked, d.estimates, s.records, d.version)
+    val fraction = if (s.phase == Phase.COMPLETE) 1f else d.fraction.coerceIn(0f, 1f)
+
+    WifeSectionHeader("Download everything")
+    Text(DownloadPage.title(s.phase, s.current, d.packNumber, d.packCount), style = WifeTheme.labelStyle(WifeTheme.gold),
+        maxLines = 1, overflow = TextOverflow.Ellipsis)
+    WifeProgress(fraction, Modifier.padding(vertical = WifeTheme.gapXs).semantics {
+        progressBarRangeInfo = if (running && d.total == 0) ProgressBarRangeInfo.Indeterminate else ProgressBarRangeInfo(fraction, 0f..1f)
+    })
+    val line = if (running || d.files > 0) {
+        val entries = if (d.total > 0) " · ${ByteSize.count(d.done)} of ${ByteSize.count(d.total)} in this pack" else " · Finding files…"
+        val failed = if (s.failed.isNotEmpty()) " · ${ByteSize.count(s.failed.size)} failed" else ""
+        "${ByteSize.count(d.files)} files downloaded (${ByteSize.format(d.bytes)})$entries$failed"
+    } else "Everything ticked: ${ByteSize.totalLine(total.bytes, total.exact)}. Files already here are skipped."
+    Text(line, style = WifeTheme.captionStyle(WifeTheme.text), minLines = 2, maxLines = 2)
+    Text(s.message ?: "${ByteSize.format(d.free)} free on the phone.", style = WifeTheme.captionStyle(WifeTheme.text), minLines = 2, maxLines = 3)
+
+    if (spaceProblem != null && !running) {
+        WifeNote(spaceProblem, color = WifeTheme.gold)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
+            if (canFit) WifeButton("Download what fits", actions.fit, Modifier.weight(1f), kind = WifeButtonKind.PRIMARY)
+            WifeButton("Pick packs", actions.dismissSpace, Modifier.weight(1f))
+        }
+    }
+
+    val anyHere = s.records.values.any { it.have > 0 }
+    val buttons = DownloadPage.actions(s.phase, s.failed.size, anyHere)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
+        buttons.forEachIndexed { i, a ->
+            val label = if (a == PageAction.RETRY_FAILED) "${a.label} (${ByteSize.count(s.failed.size)})" else a.label
+            val run: () -> Unit = when (a) {
+                PageAction.DOWNLOAD_EVERYTHING -> actions.everything
+                PageAction.PAUSE -> actions.pause
+                PageAction.RESUME -> actions.resume
+                PageAction.CANCEL -> actions.cancel
+                PageAction.RETRY_FAILED -> actions.retryFailed
+                PageAction.VERIFY -> actions.verify
+            }
+            WifeButton(label, run, Modifier.weight(1f), kind = if (i == 0) WifeButtonKind.PRIMARY else WifeButtonKind.SECONDARY)
+        }
+    }
+
+    WifeSwitchRow("Wi-Fi only", wifiOnly, actions.wifiOnly, detail = "Wait for Wi-Fi before fetching the game's files")
+    WifeSwitchRow("Also on mobile data", s.mobileData, actions.mobileData, enabled = wifiOnly,
+        detail = "Let this download go on over mobile data too")
+    WifeSwitchRow("Pre-build caches", s.prebuild, actions.prebuild,
+        detail = "When everything is here, also prepare the scene sounds' index (off: made the first time a sound plays)")
+
+    WifeSectionHeader("Packs")
+    for (pack in PackKey.entries) {
+        val record = s.records[pack]
+        val view = DownloadPlan.view(record, d.version)
+        val weight = DownloadPlan.weight(d.estimates[pack], record, d.version)
+        val size = (if (weight.exact) "" else "about ") + ByteSize.format(weight.bytes)
+        val state = if (running && s.current == pack && d.total > 0) "Downloading ${(d.done * 100L / d.total).toInt()}%" else view.label
+        val detail = "${ByteSize.count(weight.files)} files · $size · $state"
+        val included = !pack.optional || pack in s.chosen
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
+            WowCheckRow(pack.label, included, { on -> actions.chosen(if (on) s.chosen + pack else s.chosen - pack) },
+                Modifier.weight(1f), enabled = pack.optional && !running, detail = detail)
+            WifeButton(if (view.status == PackStatus.NEEDS_UPDATE) "Update" else "Download", { actions.pack(pack) },
+                Modifier.widthIn(min = 112.dp), enabled = !running && view.status != PackStatus.COMPLETE, kind = WifeButtonKind.QUIET)
+        }
+    }
+    WifeNote("Sizes marked \"about\" are estimates (wago.tools gives no sizes ahead); each is replaced by the real count once its pack is here. " +
+        "The download goes on in the background with a notification. Community animation packs are installed from the Animation library, not here.")
+
+    if (s.failed.isNotEmpty()) {
+        WifeSectionHeader("Failed files")
+        for (f in s.failed.take(FAILED_SHOWN)) {
+            Text("File ${f.id}${f.pack?.let { " (${it.label})" } ?: ""}: ${f.reason}", style = WifeTheme.captionStyle(WifeTheme.text),
+                maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        if (s.failed.size > FAILED_SHOWN) WifeNote("and ${ByteSize.count(s.failed.size - FAILED_SHOWN)} more")
+    }
+}
+
+private const val FAILED_SHOWN = 12

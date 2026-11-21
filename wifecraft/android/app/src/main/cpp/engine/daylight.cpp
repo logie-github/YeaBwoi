@@ -414,7 +414,8 @@ CineProfile cineProfile(const CineInput& in, const CineOverride* over) {
         p.vignette = 1.0f;
         p.flicker = flames * (0.55f + 0.45f * night);
     } else {
-        // the key: the sun (by night the moon), a little of the area's own colour; by night a flame nearby warms it a little
+        // the key: the sun (by night the moon) and the area's own colour; by night a flame nearby warms it a little (its
+        // warmth shows on the rim and in the flicker, the moon stays the key)
         float sun[3];
         float dw = smooth01(0.02f, 0.10f, cineLum(in.direct));
         float ha[3];
@@ -423,8 +424,8 @@ CineProfile cineProfile(const CineInput& in, const CineOverride* over) {
         cineHue(in.direct, hd);
         mixHue(ha, hd, dw, sun);
         float k0[3];
-        mixHue(sun, area, 0.45f, k0);
-        mixHue(k0, prac, 0.35f * night * flames, p.key);
+        mixHue(sun, area, 0.5f + 0.2f * night, k0);
+        mixHue(k0, prac, 0.15f * night * flames, p.key);
         limitChroma(p.key, 0.28f + 0.14f * night);
         p.keyGain = 1.0f * day + 0.95f * night;
         p.sunBias = 0.45f * day + 0.25f * night;
@@ -433,7 +434,9 @@ CineProfile cineProfile(const CineInput& in, const CineOverride* over) {
         float rd[3], rn[3];
         mixHue(sky, sun, 0.4f, rd);
         mixHue(area, sun, 0.5f, rn);
-        mixHue(rd, rn, night, p.rim);
+        float rnf[3];
+        mixHue(rn, prac, 0.6f * flames, rnf);
+        mixHue(rd, rnf, night, p.rim);
         p.rimGain = 0.32f * day + 0.50f * night;
         p.actorAmbient = 0.80f * day + 0.65f * night;
         tinted(area, 0.10f, 0.95f * day + 0.80f * night, p.sceneAmbient);

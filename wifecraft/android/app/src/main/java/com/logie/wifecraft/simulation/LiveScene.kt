@@ -197,6 +197,8 @@ class LiveScene(
     private var cineStage: CinematicStage? = null
     private var cineVersion = -1L
     private var cineWas = false
+    // what each person played when the director's action was last read (a new clip: read again; ShotLibrary)
+    private var cinePlay = arrayOfNulls<ClipPlayback>(0)
     // the cast framing: the room view it was made for, where it is going, what is shown, when it is looked at again
     private var framedFor: CameraPose? = null
     private var framedGoal: CameraPose? = null
@@ -354,7 +356,10 @@ class LiveScene(
                 else -> 1.0f to 1.65f
             }
             st.person(i, sx, sy, z + hip, sx, sy, z + head)
+            if (cinePlay.size != n) { cinePlay = arrayOfNulls(n); cineActionRead = false }
+            if (cinePlay[i] !== pose.playback) { cinePlay[i] = pose.playback; cineActionRead = false }
         }
+        if (!cineActionRead) { cineActionRead = true; cineAction(st, dir.library) }
         val version = simulation.version
         if (version != cineVersion) {
             cineVersion = version
@@ -383,6 +388,40 @@ class LiveScene(
         st.aspect = aspect
         st.camera(camera.eyeX, camera.eyeY, camera.eyeZ, camera.atX, camera.atY, camera.atZ, camera.fov)
         if (dir.update(dt, st)) camera.directPose(dir.eyeX, dir.eyeY, dir.eyeZ, dir.atX, dir.atY, dir.atZ, dir.fov)
+    }
+
+    private var cineActionRead = false
+
+    /**
+     * What the cast plays, for the director's shot library (only when someone's clip changed: allocates): the class of the
+     * animation from its names (the clips' keys, the partner animation's name), who leads it (role A) and who is with them
+     * (role B), the line of action (the performance's heading on the stage), its stage part where a clip's name says it.
+     */
+    private fun cineAction(st: CinematicStage, lib: ShotLibrary?) {
+        val playing = (0 until n).filter { cinePlay[it] != null }
+        if (lib == null || playing.isEmpty()) { st.action = null; st.lineYaw = Float.NaN; return }
+        val names = ArrayList<String>()
+        var lead = playing[0]
+        var other = -1
+        var heading = Float.NaN
+        for (i in playing) {
+            val id = simulation.id(i)
+            names += cinePlay[i]?.clip ?: ""
+            val pv = simulation.partnerOf(id) ?: continue
+            names += pv.name
+            if (pv.role == 0) {
+                lead = i
+                heading = pv.yaw + rotation
+                other = (0 until n).firstOrNull { simulation.id(it) == pv.partner } ?: -1
+            }
+        }
+        val cls = lib.classify(names, emptyList(), if (other >= 0) 2 else playing.size)
+        val part = names.firstNotNullOfOrNull { com.logie.wifecraft.anim.StageRules.parse(it.substringAfterLast('/').substringAfterLast(':'))?.part }
+            ?.let { p -> SegmentKind.entries.firstOrNull { it.name == p.name } }
+        st.roleA = lead
+        st.roleB = if (other >= 0) other else playing.firstOrNull { it != lead } ?: lead
+        st.lineYaw = heading
+        st.action = ShotAction(cls, part, cls.name + "|" + names.sorted().joinToString("|"))
     }
 
     /** The room's view this frame: [roomView], or brought in to the cast ([CastFraming]: looked at once a second, glided). */
