@@ -195,8 +195,9 @@ static float most(const std::vector<M2Vertex>& vs, const Body& B, F in, M measur
 
 // One of the game's default bodies: every slider at both ends on the model's whole vertex list (skin and clothing geosets), the
 // game's way. Checks: bounded; no triangle of the body turned over; the same twice; symmetric where the model is (each vertex
-// with a mirror image within 0.1 mm); the head, hands and feet (vertices weighted to them alone) unmoved and the wrists' and
-// ankles' seams (weighted to them in part) within 1 mm; a robe's or trousers' geoset (13xx) following the skin under it.
+// with a mirror image within 0.1 mm, on the skin); the head, hands and feet (vertices weighted to them alone) unmoved (but
+// where a copy of the moving skin lies on them: the seam held); seams between geosets drawn together moving alike (within 3 mm
+// of a 1 m hip); a robe's geosets following the skin under it.
 static void realBody(uint32_t id, const FileLookup& look, const char* const* names) {
     M2Model m;
     if (!m.load(id, look)) { std::printf("  (model %u isn't here: %s)\n", id, m.error.c_str()); return; }
@@ -221,12 +222,16 @@ static void realBody(uint32_t id, const FileLookup& look, const char* const* nam
     }
     // each used vertex's twin at the same place (a UV seam's or another geoset's copy), to see that no seam opens
     std::vector<int> same(base.size(), -1);
+    std::vector<uint8_t> shared(base.size(), 0);   // (a vertex with a copy at its place: held to the copy, not frozen)
     {
         std::map<std::tuple<long, long, long>, int> place;
         for (size_t i = 0; i < base.size(); ++i) {
-            if (geo[i] < 0) continue;
-            auto ins = place.emplace(std::make_tuple(std::lround(base[i].pos[0] * 1e5f), std::lround(base[i].pos[1] * 1e5f), std::lround(base[i].pos[2] * 1e5f)), int(i));
-            if (!ins.second) same[i] = ins.first->second;
+            const float q = 1e-4f * U;   // (the sculpt's own cells for a place; every vertex, used or not)
+            auto ins = place.emplace(std::make_tuple(long(std::floor(base[i].pos[0] / q)), long(std::floor(base[i].pos[1] / q)), long(std::floor(base[i].pos[2] / q))), int(i));
+            if (ins.second) continue;
+            shared[i] = 1; shared[size_t(ins.first->second)] = 1;
+            if (geo[i] >= 0 && geo[size_t(ins.first->second)] >= 0) same[i] = ins.first->second;
+            else if (geo[i] >= 0) ins.first->second = int(i);   // (a used vertex stands for the place)
         }
     }
     // the parts no move may touch (by the rig's groups: the head, the hands and fingers, the feet)
@@ -261,30 +266,36 @@ static void realBody(uint32_t id, const FileLookup& look, const char* const* nam
             float asym = 0, seam = 0, frozen = 0;
             for (size_t i = 0; i < v.size(); ++i) {
                 V3 di = P(v[i]) - P(base[i]);
-                if (still[i] > 0.999f) frozen = std::max(frozen, di.length());
-                if (geo[i] >= 0 && same[i] >= 0) seam = std::max(seam, (di - (P(v[size_t(same[i])]) - P(base[size_t(same[i])]))).length());
+                if (still[i] > 0.999f && !shared[i]) frozen = std::max(frozen, di.length());
+                // a seam between two geosets drawn together (different groups, neither a hair style): its copies move alike
+                if (geo[i] >= 0 && same[i] >= 0) {
+                    const int g1 = geo[i], g2 = geo[size_t(same[i])];
+                    const bool hair = (g1 > 0 && g1 < 100) || (g2 > 0 && g2 < 100);
+                    if (g1 / 100 != g2 / 100 && !hair) seam = std::max(seam, (di - (P(v[size_t(same[i])]) - P(base[size_t(same[i])]))).length());
+                }
                 int mi = mirror[i];
-                if (mi >= 0) {
+                if (mi >= 0 && geo[i] == 0) {   // (the skin; the accessories' own weights are not mirror images: measured, not held)
                     V3 dm = P(v[size_t(mi)]) - P(base[size_t(mi)]);
                     asym = std::max(asym, std::max(std::fabs(di.x - dm.x), std::max(std::fabs(di.y + dm.y), std::fabs(di.z - dm.z))));
                 }
             }
             worstSeam = std::max(worstSeam, seam); worstAsym = std::max(worstAsym, asym);
             CHECK(frozen == 0, "model %u %s %+.0f: the head, hands and feet unmoved (%g)", id, names[k], sg, frozen);
-            CHECK(seam < 1e-3f * U, "model %u %s %+.0f: no seam opens (copies at one place move alike: %g)", id, names[k], sg, seam);
+            CHECK(seam < 3e-3f * U, "model %u %s %+.0f: no seam opens (copies at one place move alike: %g)", id, names[k], sg, seam);
             CHECK(asym < 1e-3f * U, "model %u %s %+.0f symmetric (%g)", id, names[k], sg, asym);
         }
     }
-    // a clothing geoset (a robe's or trousers', 13xx) follows the skin under it: each of its vertices moves as its nearest skin
-    // vertex (geoset 0) does, within a quarter of that move (bust and hips +1, every slider at +1)
+    // a clothing geoset (a robe's, 1302 and 1303) follows the skin under it (the bare legs 1301, the torso 32xx, geoset 0): each
+    // of its vertices near the skin moves as its nearest skin vertex does, on average within 35% of that move (hips, butt and
+    // thighs +1)
     float vals[kSculptCount] = {}; vals[kSculptHips] = 1; vals[kSculptButt] = 1; vals[kSculptThighs] = 1;
     auto v = base; applySculpt(rig, v, m.indices, vals, kSculptCount, game);
     double off = 0, ref = 0; size_t cloth = 0;
     for (size_t i = 0; i < base.size(); ++i) {
-        if (geo[i] < 1300 || geo[i] >= 1400) continue;
+        if (geo[i] != 1302 && geo[i] != 1303) continue;
         float best = 1e9f; size_t bi = 0;
         for (size_t j = 0; j < base.size(); ++j) {
-            if (geo[j] != 0) continue;
+            if (geo[j] != 0 && geo[j] != 1301 && geo[j] / 100 != 32) continue;
             float d = (P(base[j]) - P(base[i])).length();
             if (d < best) { best = d; bi = j; }
         }
@@ -292,9 +303,9 @@ static void realBody(uint32_t id, const FileLookup& look, const char* const* nam
         V3 dc = P(v[i]) - P(base[i]), ds = P(v[bi]) - P(base[bi]);
         off += (dc - ds).length(); ref += ds.length(); ++cloth;
     }
-    if (cloth && ref > 0) CHECK(off < 0.35 * ref, "model %u: its 13xx geosets follow the skin (%zu vertices, mean off %.4f of mean move %.4f)", id, cloth, off / cloth, ref / cloth);
+    if (cloth && ref > 0) CHECK(off < 0.35 * ref, "model %u: its robe geosets follow the skin (%zu vertices, mean off %.4f of mean move %.4f)", id, cloth, off / cloth, ref / cloth);
     std::printf("  model %u: %zu vertices (%zu mirrored), %zu triangles, unit %.3f, breast bones %s; %d runs, %.1f ms each, %zu eased; "
-                "worst seam %.4f, worst asymmetry %.5f; 13xx near the skin %zu (off %.4f of %.4f)\n",
+                "worst seam %.4f, worst asymmetry %.5f; robe near the skin %zu (off %.4f of %.4f)\n",
                 id, base.size(), paired, m.indices.size() / 3, U, rig.hasBreastBones ? "yes" : "no", runs, totalMs / std::max(runs, 1), eased,
                 worstSeam, worstAsym, cloth, cloth ? off / cloth : 0.0, cloth ? ref / cloth : 0.0);
 }

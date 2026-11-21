@@ -350,6 +350,19 @@ size_t applySculpt(const SculptRig& rig, std::vector<M2Vertex>& verts, const std
             auto ins = placeOf.emplace(key(before[i]), uint32_t(placeOf.size()));
             place[i] = ins.first->second;
         }
+        if (opt.gameBody && !placeOf.empty()) {
+            // copies at one place (two geosets meeting, weighted differently) move as one: their moves averaged, a copy
+            // that would stay included, so no seam opens between sections drawn together
+            for (size_t i = 0; i < verts.size(); ++i) {
+                if (moves[i] || pinned[i]) continue;
+                auto it = placeOf.find(key(before[i]));
+                if (it != placeOf.end()) { place[i] = it->second; moves[i] = 1; }
+            }
+            std::vector<V3> sum(placeOf.size());
+            std::vector<uint16_t> n(placeOf.size(), 0);
+            for (size_t i = 0; i < verts.size(); ++i) if (moves[i]) { sum[place[i]] = sum[place[i]] + disp[i]; if (n[place[i]] < 65535) ++n[place[i]]; }
+            for (size_t i = 0; i < verts.size(); ++i) if (moves[i] && n[place[i]] > 1) disp[i] = sum[place[i]] * (1.0f / n[place[i]]);
+        }
         std::vector<float> ease(placeOf.size() + 1, 1.0f);
         for (int round = 0; round < 7; ++round) {
             size_t bad = 0;

@@ -6,7 +6,8 @@
   "fit: factors on the measured fit (girth: every width over the measured hip and shoulder ratios; torso, hips, shoulders, thigh, calf, arm, forearm: one region's",
   "width; neckTuck, neckLift, neckBase, ankleLift: the seams). Numbers checked in desktop renders only (wifecraft/README.md, The Eve body).",
   "defaults.fit: what every row's fit starts from. Proportions edit the actor's skeleton while she wears Eve (engine/bodyrig.h) at the model's own height: hip joints at hipRatio of her height (0: the model's), hands handHeads head heights long, clavicles spread by spread; heads > 0 would set her height in the model's head heights instead (none does: a shorter body under the game's head reads as a child). transfer: the reach (Sims metres) of the colour transfer that takes her skin's tones from the model's own; stitch: the seams joined to the model's cut-edge vertices.",
-  "rig: 1 puts Eve on her own rig (the Sims adult rig's joints she was skinned for, scaled to the model's neck height; engine/evebody.cpp kEveSimsRig): the model's animation runs about her joints, her weights as authored, the head and feet the model's own; the widths, proportions, rezone and limbs factors apply only with rig 0 (the old fit onto the model's skeleton)."
+  "rig: 1 puts Eve on her own rig (the Sims adult rig's joints she was skinned for, scaled to the model's neck height; engine/evebody.cpp kEveSimsRig): the model's animation runs about her joints, her weights as authored, the head and feet the model's own; the widths, proportions, rezone and limbs factors apply only with rig 0 (the old fit onto the model's skeleton).",
+  "On rig 1: lengths (0..1) stretches her upper arms, forearms, thighs and shins along themselves to the model's own lengths (her trunk's height following the hips, the pelvis's pivot the model's); spine (0..1) puts her Spine1, Spine2 and Chest joints at the model's; ankleMatch (0..1) adds two loops above each ankle ring (eveRefineAnkles) and draws them onto the model's own lower leg. bulk: her build for a bigger race (arm, forearm, thigh, calf: each limb thickened by that factor of her median radius; hips, waist, chest, shoulders: the trunk's width by height, the clavicles' spread; hipDepth, waistDepth, chestDepth; inset: the thighs' flesh drawn in under hip joints set wider than hers; follow: the hips' sides moved out with them), set from the standard body's measured radii (wifecraft/README.md, Her own rig)."
  ],
  "defaults": {
   "fit": {
@@ -73,7 +74,7 @@
      "arm": 1.7,
      "forearm": 1.9,
      "thigh": 1.45,
-     "calf": 1.4,
+     "calf": 1.3,
      "hips": 0.95,
      "waist": 1.2,
      "chest": 1.2,
@@ -83,7 +84,7 @@
      "chestDepth": 1.12
     }
    },
-   "note": "much slimmer than the orc build; the arms read thin"
+   "note": "bulk from the orc body's measured girths: arms, thighs and calves at 90-100% of its radii; shoulders' traps and big hands stay Eve's"
   },
   {
    "race": 3,
@@ -191,7 +192,7 @@
      "hips": 0.92
     }
    },
-   "note": "slim and long, as a troll is"
+   "note": "long and slim as a troll; arms, forearms and thighs thickened to the troll body's, hips a little narrower"
   },
   {
    "race": 9,
@@ -366,7 +367,7 @@
      "hips": 0.92
     }
    },
-   "note": "very tall and thin"
+   "note": "tall; arms, forearms and thighs thickened to the Zandalari body's, hips a little narrower"
   },
   {
    "race": 32,
@@ -391,7 +392,7 @@
      "arm": 1.6,
      "forearm": 1.8,
      "thigh": 1.55,
-     "calf": 1.45,
+     "calf": 1.25,
      "hips": 0.9,
      "waist": 1.65,
      "chest": 1.4,
@@ -401,7 +402,7 @@
      "chestDepth": 1.25
     }
    },
-   "note": "slimmer than the Kul Tiran build"
+   "note": "stocky: belly, broad waist and chest, column thighs drawn in under the wide hip joints (no hip ledge); her shins stay a little slimmer"
   },
   {
    "race": 34,
