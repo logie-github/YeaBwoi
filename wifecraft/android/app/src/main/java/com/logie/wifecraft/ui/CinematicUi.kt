@@ -67,6 +67,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.changedToDown
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.contentDescription
@@ -79,7 +81,7 @@ import com.logie.wifecraft.simulation.CinematicSettings
 import com.logie.wifecraft.simulation.CinematicStyle
 import com.logie.wifecraft.simulation.ShotStyle
 
-/** How long the HUD stays after a tap in cinematic mode before it hides again (ms). */
+/** How long the interface stays after the last touch in cinematic mode (Build mode off) before it hides (ms): CinematicIdle.DEFAULT_MS. */
 const val CINEMATIC_PEEK_MS = 5_000L
 /** The HUD's fade out and in as cinematic mode hides and shows it (ms). */
 const val CINEMATIC_HUD_MS = 400
@@ -103,12 +105,13 @@ fun CinematicLayer(on: Boolean, hudHidden: Boolean, shown: Boolean, onToggle: ()
     }
     Box(modifier.fillMaxSize().onSizeChanged { screen = it }) {
         if (hudHidden) {
-            Box(Modifier.fillMaxSize().semantics { contentDescription = "Cinematic view: tap to show the controls" }
-                .pointerInput(Unit) { detectTapGestures(onTap = { onPeek() }) })
+            // the interface is hidden: this sheet takes every touch (the touch that shows it again is no tap in the scene)
+            Box(Modifier.fillMaxSize().semantics { contentDescription = "Cinematic view: touch to show the controls" }
+                .pointerInput(Unit) { detectTapGestures(onPress = { onPeek(); tryAwaitRelease() }) })
         }
-        if (shown) {
-            val buttonAlpha by animateFloatAsState(if (hudHidden) 0.45f else 1f, tween(MenuMotion.duration(MenuMotion.WINDOW_IN_MS, reduceMotion())),
-                label = "cinematicButton")
+        // hidden, the button goes with the rest of the interface
+        if (shown && !hudHidden) {
+            val buttonAlpha = 1f
             BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
                 val hud = SceneHud.layout(maxWidth.value, maxHeight.value)
                 // in the top bar's kept room (it covers no other control), else beside the camera's buttons
@@ -116,6 +119,19 @@ fun CinematicLayer(on: Boolean, hudHidden: Boolean, shown: Boolean, onToggle: ()
                     else Modifier.padding(end = (SceneHud.MARGIN + SceneHud.CAMERA_W + 2 * SceneHud.CAMERA_GAP).dp, top = SceneHud.cameraTop(hud).dp)
                 CinematicButton(on, onToggle, Modifier.align(Alignment.TopEnd).graphicsLayer { alpha = buttonAlpha }.then(place))
             }
+        }
+    }
+}
+
+/**
+ * Sees every touch on this container's area (any finger down or moving) without taking it: [onTouch] is called for each event
+ * with a finger down, in the initial pass, so the children still get it. Used for cinematic mode's idle count ([CinematicIdle]).
+ */
+fun Modifier.observeTouches(onTouch: () -> Unit): Modifier = this.pointerInput(Unit) {
+    awaitPointerEventScope {
+        while (true) {
+            val event = awaitPointerEvent(PointerEventPass.Initial)
+            if (event.changes.any { it.pressed || it.changedToDown() }) onTouch()
         }
     }
 }
@@ -151,6 +167,8 @@ fun CinematicAutoplayHost(
     bodyScales: Map<String, Float>, controls: Boolean, modifier: Modifier = Modifier,
     /** The player's "Treat as" per pair id (each played as that, not as read). */
     treatAs: Map<String, TreatAs> = emptyMap(),
+    /** Build mode is on: the sequence stands on its current shot ([CinematicAutoplay.hold]; nothing changes until it is left). */
+    hold: Boolean = false,
 ) {
     val auto = remember(live) { CinematicAutoplay() }
     var cover by remember(live) { mutableFloatStateOf(0f) }
@@ -187,6 +205,7 @@ fun CinematicAutoplayHost(
     auto.cutStyle = settings.cutStyle
     auto.showMovement = settings.showMovement
     auto.paused = paused
+    auto.hold = hold
     auto.stay = stay
     LaunchedEffect(live, on, a, b) {
         val one: String? = a

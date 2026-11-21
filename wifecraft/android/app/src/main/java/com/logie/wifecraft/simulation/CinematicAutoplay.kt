@@ -226,6 +226,12 @@ class CinematicAutoplay(private val planner: AutoplayPlanner = AutoplayPlanner()
     var cutStyle = CutStyle.FADE
     var showMovement = false
     var paused = false
+    /**
+     * Build mode is on: the sequence stands on the current shot. Nothing is chosen, timed or replaced (the dwell does not run,
+     * Next scene does nothing, a first animation waits, a walk is not timed out); a change already under way finishes. Off
+     * again, the dwell goes on where it was.
+     */
+    var hold = false
     /** Keep the animation now playing until this is off again (its dwell then starts afresh). */
     var stay = false
         set(v) { if (field && !v) elapsed = 0f; field = v }
@@ -265,7 +271,7 @@ class CinematicAutoplay(private val planner: AutoplayPlanner = AutoplayPlanner()
         beat = null
         elapsed = 0f
         phase = AutoPhase.PLAY
-        return begin()
+        return if (hold) emptyList() else begin()
     }
 
     /** Cinematic mode ended: nothing more is changed (what plays goes on), the cover goes at once. */
@@ -276,7 +282,7 @@ class CinematicAutoplay(private val planner: AutoplayPlanner = AutoplayPlanner()
     }
 
     /** Next scene: the change now (while an animation plays). */
-    fun next(): List<AutoStep> = if (phase == AutoPhase.PLAY) begin() else emptyList()
+    fun next(): List<AutoStep> = if (phase == AutoPhase.PLAY && !hold) begin() else emptyList()
 
     fun tick(dt: Float): List<AutoStep> {
         if (phase == AutoPhase.OFF || !(dt >= 0f) || !dt.isFinite()) return emptyList()
@@ -285,9 +291,10 @@ class CinematicAutoplay(private val planner: AutoplayPlanner = AutoplayPlanner()
         val fade = cutStyle.fadeS
         return when (phase) {
             AutoPhase.PLAY -> {
-                if (!paused && !stay && beat != null) elapsed += d
+                if (!paused && !stay && !hold && beat != null) elapsed += d
                 val b = beat
-                if (people >= 2 && (b == null || (elapsed >= b.dwell && !paused && !stay))) begin() else emptyList()
+                if (hold) emptyList()
+                else if (people >= 2 && (b == null || (elapsed >= b.dwell && !paused && !stay))) begin() else emptyList()
             }
             AutoPhase.COVER -> {
                 cover = if (fade <= 0f) 1f else (t / fade).coerceAtMost(1f)
@@ -324,7 +331,7 @@ class CinematicAutoplay(private val planner: AutoplayPlanner = AutoplayPlanner()
                 }
                 emptyList()
             }
-            AutoPhase.WALK -> if (t >= WALK_TIMEOUT_S) arrived() else emptyList()
+            AutoPhase.WALK -> if (t >= WALK_TIMEOUT_S && !hold) arrived() else emptyList()
             AutoPhase.OFF -> emptyList()
         }
     }

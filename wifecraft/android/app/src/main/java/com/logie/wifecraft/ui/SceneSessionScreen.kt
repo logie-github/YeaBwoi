@@ -104,6 +104,7 @@ import com.logie.wifecraft.location.FurniturePiece
 import com.logie.wifecraft.location.LocationInfo
 import com.logie.wifecraft.simulation.CameraClearance
 import com.logie.wifecraft.simulation.CinematicDirector
+import com.logie.wifecraft.simulation.CinematicIdle
 import com.logie.wifecraft.simulation.ShotLibrary
 import com.logie.wifecraft.simulation.CinematicLook
 import com.logie.wifecraft.simulation.CinematicSettings
@@ -569,17 +570,19 @@ fun LiveSceneScreen(
         }
     }
     var cinematic by remember(live) { mutableStateOf(false) }
-    var cinePeek by remember(live) { mutableStateOf(false) }
+    // cinematic mode's idle hide (CinematicIdle): all the interface goes after 5 s untouched, Build mode off, until the next touch
+    val cineIdleClock = remember(live) { CinematicIdle { SystemClock.uptimeMillis() } }
+    var cineIdle by remember(live) { mutableStateOf(false) }
     val cineNotify by rememberUpdatedState(onCinematic)
     SideEffect {
         cineLook.settings = cinematicSettings
         cineDirector.settings = cinematicSettings
         live.director = cineDirector
         cineLook.on = cinematic
-        live.directing = cinematic
+        // Build mode's orbit round the selection is the camera while it is on (the film frame, light and shots stay)
+        live.directing = BuildEntry.directorCamera(cinematic, build.on)
     }
-    LaunchedEffect(live, cinematic) { cineNotify(cinematic); if (!cinematic) cinePeek = false }
-    LaunchedEffect(cinePeek) { if (cinePeek) { delay(CINEMATIC_PEEK_MS); cinePeek = false } }
+    LaunchedEffect(live, cinematic) { cineNotify(cinematic) }
     DisposableEffect(live, view) { onDispose { live.directing = false; view.clearCinematic(); cineNotify(false) } }
     // who the player controls and that NPC's partner (SceneControl: a tap on another NPC makes it the partner)
     var control by remember { mutableStateOf(SceneControl()) }
@@ -632,7 +635,7 @@ fun LiveSceneScreen(
     SideEffect { live.furnitureView = views.getOrNull(furnitureView) }
 
     BackHandler {
-        if (cinematic) cinematic = false
+        if (cinematic && !build.on) cinematic = false
         else if (radial != null) radial = null
         else if (lifeWindow != null) lifeWindow = null
         else if (speedOpen) speedOpen = false
@@ -1242,7 +1245,7 @@ fun LiveSceneScreen(
         buildHintSeen = true
         try { buildPrefs.edit().putBoolean(BuildEntry.KEY_HINT_SEEN, true).apply() } catch (e: Exception) { }
     }
-    // the one way in (the HUD chip and the scene menu): ends cinematic mode, then the orbit camera round what is selected
+    // the one way in (the HUD chip and the scene menu): cinematic mode goes on (BuildEntry.cinematicAfterEnter), then the orbit camera round what is selected
     fun enterBuild() {
         if (BuildEntry.cinematicAfterEnter(cinematic) != cinematic) cinematic = false
         menu = false
@@ -1254,6 +1257,18 @@ fun LiveSceneScreen(
     }
     val windowOpen = choosingAnimation != null || furnitureMenu != null || saying != null || chatting != null ||
         choosingPartner != null || pairPlay != null || menu || ending || mapper.on || build.on
+    // cinematic mode's idle hide: counted while cinematic, not building, no window open; any touch restarts it (see observeTouches below)
+    SideEffect { cineIdleClock.mode(cinematic, build.on, windowOpen) }
+    LaunchedEffect(live, cinematic, build.on, windowOpen) {
+        cineIdleClock.mode(cinematic, build.on, windowOpen)
+        while (true) {
+            cineIdle = cineIdleClock.hidden()
+            delay(100)
+        }
+    }
+    // Build mode: no animation ends (the simulation loops what plays, auto-play stands on its shot)
+    val holdAnimations = BuildEntry.holdAnimations(build.on)
+    SideEffect { live.holdAnimations = holdAnimations }
     LaunchedEffect(revealTick, windowOpen, immersive.hudSeconds, immersiveHud) {
         if (!immersiveHud) { hudUp = true; return@LaunchedEffect }
         hudReveal.holdMs = immersive.clamped().hudSeconds * 1000L
@@ -1363,7 +1378,7 @@ fun LiveSceneScreen(
     }
 
     val reduced = reduceMotion()
-    Box(Modifier.fillMaxSize().background(SceneGround)) {
+    Box(Modifier.fillMaxSize().background(SceneGround).observeTouches { if (cineIdleClock.touch()) cineIdle = false }) {
         AndroidView(
             { (view.parent as? ViewGroup)?.removeView(view); view },
             Modifier.fillMaxSize().cinematicFrame(cinematic, cinematicSettings.frame).onSizeChanged { speechSpots.width = it.width.toFloat(); speechSpots.height = it.height.toFloat() }.pointerInput(view, live) {
@@ -1475,7 +1490,7 @@ fun LiveSceneScreen(
         // the HUD, inside the screen's safe area (cut-outs, the hinge's bars, the gesture bar)
         val shown by animateFloatAsState(if (revealed) 1f else 0f, tween(MenuMotion.duration(MenuMotion.WINDOW_IN_MS, reduced)), label = "hud")
         // cinematic mode hides it (the layer over it takes the touches; a tap brings it back a while)
-        val cineHidden = cinematic && !cinePeek
+        val cineHidden = cinematic && cineIdle && !build.on
         // immersive mode hides it too until a tap (HudReveal); hidden, it isn't there to be touched
         val hudHidden = cineHidden || (!cinematic && immersiveHud && !hudUp)
         val hudAlpha by animateFloatAsState(if (hudHidden) 0f else 1f, tween(MenuMotion.duration(CINEMATIC_HUD_MS, reduced)), label = "cinematicHud")
@@ -1632,11 +1647,11 @@ fun LiveSceneScreen(
         // cinematic auto-play: the pair's animations one after another, each change under a cut (CinematicUi, CinematicAutoplay)
         CinematicAutoplayHost(cinematic && cinematicSettings.autoplay, live, cineDirector, cinematicSettings,
             selected ?: flow?.a, partnerId ?: flow?.b, cast.map { it.id }, partnerPairs, needs.pairs, furnitureAt, bodyScales,
-            controls = cinematic && !cineHidden && revealed, treatAs = treatAs)
-        CinematicLayer(cinematic, cineHidden, revealed && shown > 0f && (cinematic || !immersiveHud || hudUp) && !build.on, {
+            controls = cinematic && !cineHidden && revealed, treatAs = treatAs, hold = holdAnimations)
+        CinematicLayer(cinematic, cineHidden, revealed && shown > 0f && (cinematic || !immersiveHud || hudUp), {
             cinematic = !cinematic
-            if (cinematic) { radial = null; speedOpen = false; feedOpen = false; menu = false; build.leave() }
-        }, { cinePeek = true }, { live.aspect = it; cineLook.viewAspect = it }, frame = cinematicSettings.frame,
+            if (cinematic) { radial = null; speedOpen = false; feedOpen = false; menu = false }
+        }, { cineIdleClock.touch(); cineIdle = false }, { live.aspect = it; cineLook.viewAspect = it }, frame = cinematicSettings.frame,
             // in the top bar, left of the feed and the gear (the bar keeps the room free: SceneTopBar's reserveEnd)
             topBarEnd = SceneHud.MARGIN + TOP_ICON_W * (if (lifeOn) 2 else 1) + CINEMATIC_GAP)
     }

@@ -974,6 +974,7 @@ class SceneSimulation(
     private fun continuedAnchor(previous: Vec3, z: Float): Vec3 = Vec3(previous.x, previous.y, z)
 
     private fun startQueuedPerformance(actor: Actor) {
+        if (holdAnimations) return
         if (actor.performance != null || actor.directed) return
         if (actor.queue.isEmpty()) return
         // shuffled: any of the queue next; a repeated queue plays each again after the rest (whole: start, loops, end)
@@ -1177,10 +1178,19 @@ class SceneSimulation(
         }
     }
 
+    /**
+     * Build mode: no animation ends. While on, nothing is replaced, timed out or advanced: a performance keeps looping its
+     * current part (its clock keeps running, each pass replayed on the one clock as the loops are), a walk stands where it
+     * is, a wait, a conversation and a stay on furniture are not counted down, nobody picks anything new, queued orders and
+     * the life simulation's invitations wait. Leaving it lets everything go on where it was. Player orders (Stop, Play) still act.
+     */
+    @Volatile var holdAnimations = false
+
     fun tick(seconds: Float) {
         val dt = if (seconds.isNaN()) 0f else seconds.coerceIn(0f, 0.1f)
         steps++
         time += dt
+        val hold = holdAnimations
         for (actor in order) startQueuedPerformance(actor)
         for (actor in order) {
             if (actor.easeTime < actor.easeLength) actor.easeTime += dt
@@ -1188,10 +1198,12 @@ class SceneSimulation(
             if (actor.chatCooldown > 0f) actor.chatCooldown -= dt
             when (actor.phase) {
                 Phase.WAITING -> {
+                    if (hold) continue
                     actor.remaining -= dt
                     if (actor.remaining <= 0f) choose(actor)
                 }
                 Phase.MOVING -> {
+                    if (hold) continue
                     val dx = actor.destination.x - actor.x
                     val dy = actor.destination.y - actor.y
                     val step = dt * WALK_SPEED
@@ -1221,6 +1233,7 @@ class SceneSimulation(
                     }
                     val talk = actor.talk
                     if (talk != null && performance == null) {
+                        if (hold) continue
                         if (talk.a === actor && talk.conversation.started) {
                             val begun = talk.conversation.advance(dt)
                             if (begun >= 0) speak(talk, begun)
@@ -1235,13 +1248,21 @@ class SceneSimulation(
                         if (talk.a === actor || talk.b === actor) continue
                     }
                     if (actor.activity == Activity.LISTEN || (performance != null && performance.lead !== actor)) continue
+                    if (hold && performance == null) continue
                     val before = if (performance != null) performance.seconds - actor.remaining else 0f
                     actor.remaining -= dt
                     if (performance != null) {
                         performance.clock += dt
                         fire(performance, before, minOf(performance.seconds - actor.remaining, performance.seconds))
                     }
-                    if (actor.remaining <= 0f) {
+                    if (actor.remaining <= 0f && hold && performance != null) {
+                        // held: this part plays round again on the same clock (the overshoot kept, as a repeat's loops are), never over
+                        val over = actor.remaining
+                        performance.enter(performance.cursor.index)
+                        play(performance)
+                        actor.remaining += over
+                        fire(performance, 0f, -over)
+                    } else if (actor.remaining <= 0f) {
                         if (performance != null) performance.loops++
                         val repeat = performance?.repeat == true && actor.queue.isEmpty() &&
                             performance.other?.queue?.isNotEmpty() != true
@@ -1264,7 +1285,7 @@ class SceneSimulation(
                 }
             }
         }
-        pendingInvite?.let { p -> retryInvite(p) }
+        if (!hold) pendingInvite?.let { p -> retryInvite(p) }
         val l = life
         if (l != null && l.enabled) {
             for (a in order) l.observe(a.index, observed(a), a.phase == Phase.MOVING, a.directed, a.target.takeIf { a.phase == Phase.ACTING })
