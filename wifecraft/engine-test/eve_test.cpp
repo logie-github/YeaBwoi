@@ -421,6 +421,89 @@ int main(int argc, char** argv) {
         CHECK(d.forModel(1) && std::fabs(d.forModel(1)->heads - 7.3f) < 1e-6f && std::fabs(d.forModel(1)->girth - 1.2f) < 1e-6f &&
               std::fabs(d.forModel(2)->girth - 1.3f) < 1e-6f && std::fabs(d.forModel(2)->hipRatio - 0.52f) < 1e-6f, "defaults under each row");
     }
+    // ---- Keep undead bones (eveDetailMask, eveDetailLayer): a flat "model" body of skin with a red wound painted on it and a
+    // tan bone piece (an island of its own), Eve's square 1 cm in front of it on a texture of her own
+    {
+        auto vtx = [](float x, float y, float z, float u, float v) {
+            M2Vertex m{}; m.pos[0] = x; m.pos[1] = y; m.pos[2] = z; m.normal[0] = 1; m.uv[0] = u; m.uv[1] = v; m.weights[0] = 255; return m;
+        };
+        // the model: its skin a quad over (0,0)..(1,1) of its texture, on the plane x = 0 facing +x; the piece a small quad of
+        // its own (separate vertices) mapped to the texture's corner (0.875..1, 0..0.125), standing in front of the skin
+        std::vector<M2Vertex> wow = {vtx(0, 0, 0, 0, 0.25f), vtx(0, 1, 0, 0.75f, 0.25f), vtx(0, 1, 1, 0.75f, 1), vtx(0, 0, 1, 0, 1),
+                                     vtx(0.004f, 0.7f, 0.7f, 0.875f, 0), vtx(0.004f, 0.95f, 0.7f, 1, 0), vtx(0.004f, 0.95f, 0.95f, 1, 0.125f),
+                                     vtx(0.004f, 0.7f, 0.95f, 0.875f, 0.125f)};
+        std::vector<uint32_t> tris = {0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7};
+        const int sw = 64, sh = 64;
+        std::vector<uint8_t> skin(size_t(sw) * sh * 4);
+        for (int y = 0; y < sh; ++y) for (int x = 0; x < sw; ++x) {
+            uint8_t* p = &skin[(size_t(y) * sw + x) * 4];
+            uint32_t c = 0xACB3A5;                                               // the Forsaken's pale tone
+            if (x >= 16 && x < 24 && y >= 32 && y < 40) c = 0x8A1E3C;            // a wound (u 0.25..0.375, v 0.5..0.625)
+            if (x >= 56 && y < 8) c = (x + y) % 3 ? 0xB89A6A : 0xD8D0C0;         // the bone piece: tan with pale highlights
+            if (x >= 8 && x < 10 && y >= 50 && y < 52) c = 0xA4AC9E;             // a shading shift: no detail
+            p[0] = uint8_t(c >> 16); p[1] = uint8_t(c >> 8); p[2] = uint8_t(c); p[3] = 255;
+        }
+        EveDetailMask dm = eveDetailMask(wow, tris, skin.data(), sw, sh);
+        CHECK(!dm.empty() && dm.tone == 0xACB3A5u, "the skin's tone found: %06X", dm.tone);
+        CHECK(dm.pieces == 1 && dm.piece[4] && dm.piece[7] && !dm.piece[0] && !dm.piece[3], "the bone piece found by its island (%zu)", dm.pieces);
+        CHECK(dm.a[size_t(36) * sw + 20] == 255 && dm.a[size_t(20) * sw + 30] == 0 && dm.a[size_t(50) * sw + 8] == 0,
+              "the wound is detail, the skin and its shading are not (%d %d %d)", dm.a[size_t(36) * sw + 20], dm.a[size_t(20) * sw + 30], dm.a[size_t(50) * sw + 8]);
+        CHECK(dm.a[size_t(1) * sw + 60] == 255 && dm.a[size_t(0) * sw + 56] == 255, "all of the piece is detail, its highlights too");
+        // Eve: one quad 1 cm in front (x = 0.01), on the left half of her 40 x 40 texture (u 0.1..0.5, v 0.1..0.9)
+        EveBody eb;
+        eb.verts = {vtx(0.01f, 0, 0, 0.1f, 0.1f), vtx(0.01f, 1, 0, 0.5f, 0.1f), vtx(0.01f, 1, 1, 0.5f, 0.9f), vtx(0.01f, 0, 1, 0.1f, 0.9f)};
+        eb.indices = {0, 1, 2, 0, 2, 3};
+        const float tint[3] = {1, 1, 1};
+        const int w = 40, h = 40;
+        EveDetailLayer L1 = eveDetailLayer(eb, w, h, wow, tris, skin.data(), sw, sh, dm, tint, 0.1f);
+        EveDetailLayer L2 = eveDetailLayer(eb, w, h, wow, tris, skin.data(), sw, sh, dm, tint, 0.1f);
+        CHECK(!L1.empty() && L1.rgba == L2.rgba && L1.covered == L2.covered, "the transfer is deterministic (%zu covered)", L1.covered);
+        // (the LUT's round trip: a byte may come back one off)
+        auto near1 = [](int a, uint32_t want) { return std::abs(a - int(want)) <= 1; };
+        // the wound's place on the model (y and z 0.333..0.5) is Eve's u 0.233..0.3, v 0.367..0.5
+        auto at = [&](float u, float v) { return &L1.rgba[(size_t(v * h) * w + size_t(u * w)) * 4]; };
+        const uint8_t* wound = at(0.255f, 0.43f);
+        CHECK(wound[3] > 200 && near1(wound[0], 0x8A) && near1(wound[1], 0x1E) && near1(wound[2], 0x3C), "the wound on Eve, its own colour, no blur (%02X%02X%02X a %d)",
+              wound[0], wound[1], wound[2], wound[3]);
+        CHECK(at(0.2f, 0.75f)[3] == 0, "her skin elsewhere untouched by the layer");
+        const uint8_t* bone = at(0.44f, 0.76f);   // (the piece over y, z 0.7..0.95: Eve's u 0.38..0.48, v 0.66..0.86)
+        CHECK(bone[3] > 200 && (near1(bone[0], 0xB8) || near1(bone[0], 0xD8)), "the bone piece on Eve (%02X%02X%02X a %d)", bone[0], bone[1], bone[2], bone[3]);
+        // the gap fill: her island is texels 4..19 of a row; the layer grown into 1..3 and 20..22 (her colour there, so no mip
+        // level reads bare black past her edge), nothing beyond
+        int y = int(0.43f * h);
+        bool grownOk = L1.grown > 0;
+        for (int x = 0; x < w; ++x) {
+            const uint8_t* q = &L1.rgba[(size_t(y) * w + x) * 4];
+            bool inside = x >= 4 && x < 20, near = (x >= 1 && x < 4) || (x >= 20 && x < 23);
+            if (near) grownOk &= q[0] > 0 && q[1] > 0;
+            else if (!inside) grownOk &= q[0] == 0 && q[3] == 0;
+        }
+        CHECK(grownOk, "grown 3 texels past her island, nothing beyond (%zu grown)", L1.grown);
+        // layer off: eveCompose with none, or with a layer that covers nothing, gives the same bytes as before
+        {
+            std::vector<uint8_t> base(size_t(w) * h * 4, 150), a, b, c;
+            for (size_t i = 3; i < base.size(); i += 4) base[i] = 255;
+            EvePrep prep; prep.w = w; prep.h = h;
+            eveCompose(base, w, h, V3(1.1f, 0.9f, 1.0f), nullptr, 0, 0, 0, 0, 0, V3(1, 1, 1), prep, 0, 0, a);
+            eveCompose(base, w, h, V3(1.1f, 0.9f, 1.0f), nullptr, 0, 0, 0, 0, 0, V3(1, 1, 1), prep, 0, 0, b, nullptr, nullptr);
+            EveDetailLayer none = L1;
+            for (size_t i = 3; i < none.rgba.size(); i += 4) none.rgba[i] = 0;
+            eveCompose(base, w, h, V3(1.1f, 0.9f, 1.0f), nullptr, 0, 0, 0, 0, 0, V3(1, 1, 1), prep, 0, 0, c, nullptr, &none);
+            CHECK(a == b && a == c, "the layer off (or covering nothing): the same bytes");
+            std::vector<uint8_t> d;
+            eveCompose(base, w, h, V3(1.1f, 0.9f, 1.0f), nullptr, 0, 0, 0, 0, 0, V3(1, 1, 1), prep, 0, 0, d, nullptr, &L1);
+            size_t wi = (size_t(int(0.43f * h)) * w + size_t(0.255f * w)) * 4;
+            CHECK(d != a && std::abs(int(d[wi]) - 0x8A) <= 2 && std::abs(int(d[wi + 1]) - 0x1E) <= 2, "the layer on: the wound composed in (%02X%02X%02X)",
+                  d[wi], d[wi + 1], d[wi + 2]);
+        }
+        // the clean: the wound and the piece eased to the tone (the colour transfer reads that), the skin as it was
+        std::vector<uint8_t> cl = skin;
+        eveDetailClean(cl.data(), sw, sh, dm);
+        auto rgbOf = [&](const std::vector<uint8_t>& px, int x, int yy) { const uint8_t* q = &px[(size_t(yy) * sw + x) * 4]; return uint32_t(q[0]) << 16 | uint32_t(q[1]) << 8 | q[2]; };
+        auto nearRgb = [&](uint32_t a, uint32_t b) { return near1(int(a >> 16), b >> 16) && near1(int((a >> 8) & 255), (b >> 8) & 255) && near1(int(a & 255), b & 255); };
+        CHECK(nearRgb(rgbOf(cl, 20, 36), 0xACB3A5) && nearRgb(rgbOf(cl, 60, 2), 0xACB3A5) && rgbOf(cl, 30, 20) == 0xACB3A5u && rgbOf(cl, 8, 50) == 0xA4AC9Eu,
+              "the clean: %06X %06X", rgbOf(cl, 20, 36), rgbOf(cl, 60, 2));
+    }
     // ---- a real set on real models (optional): SET_DIR FILES_DIR MODEL...
     if (argc >= 4) {
         std::string dir = argv[1], files = argv[2];
@@ -492,6 +575,28 @@ int main(int argc, char** argv) {
                         }
                         CHECK(added > 0 && off == 0, "%s: %zu stitch vertices, %zu off the model's edge", row->name.c_str(), added, off);
                         posedSeams(m, look, res, e.vertexCount(), row->name);
+                        // Keep undead bones (a row with "detail"): its details carried, the seams' colour as with them off (within 3)
+                        if (row->detail > 0) {
+                            EveJob off = j;
+                            off.opt.bones = false;
+                            EveResult r0 = eveCompute(off);
+                            std::printf("  %s: Keep undead bones: %zu pieces, %zu vertices kept, %zu texels, %.1f ms; seams ΔE off %.1f/%.1f/%.1f\n", row->name.c_str(),
+                                        res.detailPieces, res.detailKept, res.detailCovered, res.detailMs, r0.seamDE[0], r0.seamDE[1], r0.seamDE[2]);
+                            CHECK(res.detail && res.detailPieces > 0 && res.detailCovered > 0 && (row->detail < 2 || res.detailKept > 0), "%s: details carried", row->name.c_str());
+                            CHECK(r0.ok && !r0.detail && r0.rgba != res.rgba, "%s: off, none", row->name.c_str());
+                            for (int k = 0; k < 3; ++k)
+                                CHECK(std::fabs(res.seamDE[k] - r0.seamDE[k]) <= 3.0f, "%s: seam %d's ΔE %.1f with them, %.1f without", row->name.c_str(), k,
+                                      res.seamDE[k], r0.seamDE[k]);
+                            // the set's cache: the same body again is the same bytes, made no slower than the first
+                            EveResult again = eveCompute(j);
+                            CHECK(again.rgba == res.rgba && again.cutIndices == res.cutIndices, "%s: the cached layer gives the same bytes (%.1f ms)", row->name.c_str(),
+                                  again.detailMs);
+                            // off is exactly the table without the row's details
+                            EveJob plain = j;
+                            plain.fit.detail = 0;
+                            EveResult rp = eveCompute(plain);
+                            CHECK(rp.rgba == r0.rgba && rp.cutIndices == r0.cutIndices, "%s: off is the body as it was", row->name.c_str());
+                        }
                     }
                 }
             }

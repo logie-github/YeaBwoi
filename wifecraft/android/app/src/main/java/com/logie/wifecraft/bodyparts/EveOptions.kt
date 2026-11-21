@@ -12,7 +12,8 @@ import kotlin.math.sqrt
  * [on]; the lower body [bottom] (a variant of the converted set: "plain", "animated", "fairy", ...; a variant the set
  * lacks takes its first); [tone] -1 for the neutral skin tinted to the NPC's own skin, else a skin tone of the set's table
  * (its index, as it is); [overlaySlot] -1 for none, else an overlay slot of the set (its index) with [overlayShade] -1 for
- * the shade nearest her skin (by Lab distance) or a shade's index; [opacity] the overlay's, 0..1 (60% by default).
+ * the shade nearest her skin (by Lab distance) or a shade's index; [opacity] the overlay's, 0..1 (60% by default); [bones]
+ * Keep undead bones (on by default; only a Forsaken woman's look has any: [EveBones]).
  */
 data class EveOptions(
     val on: Boolean = false,
@@ -21,17 +22,35 @@ data class EveOptions(
     val overlaySlot: Int = -1,
     val overlayShade: Int = -1,
     val opacity: Float = DEFAULT_OPACITY,
+    val bones: Boolean = true,
 ) {
     fun toJson(): JSONObject = JSONObject().put("on", on).put("bottom", bottom).put("tone", tone).put("overlaySlot", overlaySlot)
-        .put("overlayShade", overlayShade).put("opacity", opacity.toDouble())
+        .put("overlayShade", overlayShade).put("opacity", opacity.toDouble()).also { if (!bones) it.put("bones", false) }
 
     companion object {
         const val DEFAULT_OPACITY = 0.6f
 
         fun fromJson(o: JSONObject?): EveOptions = if (o == null) EveOptions() else EveOptions(
             o.optBoolean("on", false), o.optString("bottom", "plain").ifEmpty { "plain" }, o.optInt("tone", -1), o.optInt("overlaySlot", -1),
-            o.optInt("overlayShade", -1), o.optDouble("opacity", DEFAULT_OPACITY.toDouble()).toFloat().coerceIn(0f, 1f))
+            o.optInt("overlayShade", -1), o.optDouble("opacity", DEFAULT_OPACITY.toDouble()).toFloat().coerceIn(0f, 1f),
+            o.optBoolean("bones", true))
     }
+}
+
+/**
+ * Keep undead bones ([EveOptions.bones]): a Forsaken woman's bone pieces (knees, spine, the spurs at her shoulders, elbows
+ * and hips), torn rims and wounds carried onto the Eve body (the engine's fit table row with "detail": engine/evebody.cpp
+ * eveDetailLayer). Only her look has them, so the switch is shown for her alone; on until it is turned off (saved as
+ * `"bones":false` in her `"eve"` options; a look saved before it has none and keeps them).
+ */
+object EveBones {
+    /** The Forsaken (ChrRaces 5): the one race whose woman's body has bones of its own to keep. */
+    const val UNDEAD = 5
+
+    fun applies(a: Appearance): Boolean = a.raceId == UNDEAD && a.sex == Sex.FEMALE
+
+    /** The switch for [a] with [o]: on unless turned off; null where it is not shown (any other race, a man). */
+    fun shown(a: Appearance, o: EveOptions?): Boolean? = if (applies(a)) o?.bones ?: true else null
 }
 
 /**

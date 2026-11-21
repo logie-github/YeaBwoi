@@ -289,6 +289,10 @@ private fun CasEveSection(model: CreatorModel, rev: Int, eve: CasEveBinding?, on
     fun set(next: com.logie.wifecraft.bodyparts.EveOptions) { model.edit { eve.write(it, next) }; onChanged(true) }
     WifeSwitchRow("Eve body", o.on, { set(o.copy(on = it)) }, detail = "Drawn while she wears nothing over her body")
     if (!o.on) return
+    // Keep undead bones (a Forsaken woman's alone: bodyparts/EveBones), on until turned off
+    com.logie.wifecraft.bodyparts.EveBones.shown(model.appearance, o)?.let { keep ->
+        WifeSwitchRow("Keep undead bones", keep, { set(o.copy(bones = it)) }, detail = "Her bones, torn skin and wounds on the Eve body")
+    }
     @Composable
     fun stepper(label: String, names: List<String>, at: Int, onAt: (Int) -> Unit) {
         Row(Modifier.fillMaxWidth().heightIn(min = 52.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {

@@ -178,7 +178,7 @@ class Thumbs(
             val p = look(job.kind, job.asset, job.appearance)
             val call = p.call ?: run { fail(job, p.error ?: "it has no look"); return null }
             pixels = onGl(view) { h ->
-                p.eve?.let { e -> Native.thumbEve(h, e.on, e.bottom, e.tone, e.overlaySlot, e.overlayShade, e.opacity) }
+                p.eve?.let { e -> Native.thumbEve(h, e.on, e.bottom, e.tone, e.overlaySlot, e.overlayShade, e.opacity, e.bones) }
                 Native.thumbLook(h, call.model, call.scale, call.geosetKeys, call.geosetValues, call.layerFiles, call.layerMeta,
                     call.tintColours, call.extraModels, p.body.morph, p.body.k, p.body.fold, job.size)
                     ?: run { fail(job, Native.thumbError(h)); null }
