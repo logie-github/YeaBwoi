@@ -624,6 +624,17 @@ class SceneSimulation(
      * before: its own places, on the floor). False: no free furniture in reach fits it ([refusal] says so).
      */
     private fun startPlacedOrder(lead: Actor, request: PerformanceOrder, previous: Performance?): Boolean? {
+        val plan = planPlaced(lead, request, previous) ?: return null
+        val setup = plan.setup ?: return refuse(plan.refusal ?: "That can't be played here.")
+        return startPerformance(lead, plan.request, previous?.takeIf { it.other === plan.other && it.furniture != null && it.fit != null }, setup) ||
+            refuse("They can't reach the ${plan.item?.label?.lowercase() ?: "furniture"} from where they stand.")
+    }
+
+    /** A placed order's plan ([planPlaced]): the order as played and its setup on [item], or why not ([refusal], [setup] null). */
+    private class PlacedPlan(val request: PerformanceOrder, val setup: Setup?, val item: SceneObject?, val other: Actor?, val refusal: String? = null)
+
+    /** [startPlacedOrder]'s choice, made without starting anything (the preview reads it too). Null: not a placed order. */
+    private fun planPlaced(lead: Actor, request: PerformanceOrder, previous: Performance?): PlacedPlan? {
         val pairId = request.pairId ?: return null
         val other = request.partnerId?.let(actors::get) ?: return null
         if (request.roles.size != 2 || other === lead) return null
@@ -649,7 +660,8 @@ class SceneSimulation(
                 best = d; item = candidate; fit = fits
             }
         }
-        if (item == null || fit == null) return refuse("Nothing free here fits ${request.name.ifBlank { "that" }}: it needs ${placeName(r.surface)}.")
+        if (item == null || fit == null)
+            return PlacedPlan(request, null, null, other, "Nothing free here fits ${request.name.ifBlank { "that" }}: it needs ${placeName(r.surface)}.")
         val floorZ = furniture(item)?.z ?: spots[item]?.entry?.z ?: fit.z
         // the pair's own slots, kept apart for these two bodies and fitted to their sizes (as startPartner's)
         val spacedPair = spaced(pair, lead, other)
@@ -659,7 +671,7 @@ class SceneSimulation(
             segments = emptyList())
         val setup = Setup(before?.anchor ?: Vec3(fit.x, fit.y, fit.z), before?.heading ?: fit.yaw, item, -1, lead, true,
             partner = false, floorZ = floorZ, fit = fit, lifts = roleLifts(r, pair, lead, other, onFurniture = true))
-        return startPerformance(lead, placedRequest, before, setup) || refuse("They can't reach the ${item.label.lowercase()} from where they stand.")
+        return PlacedPlan(placedRequest, setup, item, other)
     }
 
     /** "a bed", "a seat"... for a placed order's refusal. */
@@ -1531,6 +1543,8 @@ class SceneSimulation(
     private var pickedEmote: PartnerEmote? = null
     private var pickedFurniture: SceneObject? = null
     private var pickedFit: FurnitureFit? = null
+    // [partnerOn] with the player's roles: its lead plays actor 0, never re-cast by the nearer place
+    private var pickedFixed = false
 
     /** One way to play a pair: on the free floor ([item] null), on [item] where [fit] puts it, or on [item] by its names ([fit] null). */
     private class Option(val pair: PartnerPair, val item: SceneObject?, val fit: FurnitureFit?)
@@ -1589,10 +1603,11 @@ class SceneSimulation(
 
     /**
      * The player's Play animation on furniture: [id] (and [otherId], else the nearest other free to join) play [pairId] on
-     * [item], where it fits, each on the role whose place is nearer. False: no such pair or person, the furniture is held
-     * by someone else, the other is busy with an order, or it doesn't fit there.
+     * [item], where it fits, each on the role whose place is nearer ([fixedRoles]: [id] plays the pair's actor 0 and the other
+     * actor 1, as the player set them with Switch positions). False: no such pair or person, the furniture is held by someone
+     * else, the other is busy with an order, or it doesn't fit there.
      */
-    fun partnerOn(item: SceneObject, pairId: String, id: String, otherId: String?): Boolean {
+    fun partnerOn(item: SceneObject, pairId: String, id: String, otherId: String?, fixedRoles: Boolean = false): Boolean {
         refusal = null
         val actor = actors[id] ?: return false
         val pair = pairs.firstOrNull { it.id == pairId } ?: return false
@@ -1607,8 +1622,79 @@ class SceneSimulation(
         val fit = FurnitureFit.fit(r, f, bodyUnit(actor, other)) ?: return refuse("That doesn't fit on the $what.")
         release(actor)
         release(other)
-        picked = pair; pickedEmote = null; pickedFurniture = item; pickedFit = fit
-        return startPartner(actor, other, directed = true) || refuse("They can't reach the $what from where they stand.")
+        picked = pair; pickedEmote = null; pickedFurniture = item; pickedFit = fit; pickedFixed = fixedRoles
+        val started = startPartner(actor, other, directed = true)
+        pickedFixed = false
+        return started || refuse("They can't reach the $what from where they stand.")
+    }
+
+    /**
+     * Switch positions mid-play: [id]'s two-person animation started again from its first part with the two people in each
+     * other's roles (role A's clip, slot and facing to the one who played B, and B's to the other), on the same spot, heading
+     * and furniture; each is eased from where they were drawn onto their new place ([JoinEase]). Sizes refitted ([RoleSwitch.refit]).
+     * False: nothing two-person plays yet (still walking, or one both play alike: a shared emote).
+     */
+    fun switchRoles(id: String): Boolean {
+        val p = actors[id]?.performance ?: return false
+        val newLead = p.other ?: return false
+        if (!p.started || p.emote >= 0) return false
+        val was = p.lead
+        val sa = size(was); val sb = size(newLead)
+        val parts = p.segments.map { it.copy(roles = RoleSwitch.refit(it.roles, sa, sb)) }
+        val first = parts.first()
+        val q = Performance(newLead, was, first.roles, first.seconds, p.anchor, p.heading, p.repeat, p.cursor.wanted, p.directed,
+            p.name, p.sounds, p.partnerActivity, p.initiator?.let { if (it === was) newLead else was }, p.furniture, p.emote,
+            p.floorZ, p.fit, p.lifts, if (p.staged) parts else emptyList())
+        q.lifeKind = p.lifeKind
+        newLead.partner = was
+        was.partner = newLead
+        newLead.performance = q
+        was.performance = q
+        play(q)
+        return true
+    }
+
+    /**
+     * Where [request] led by [id] would start both people, without starting it (the preview before Play): cast index, place,
+     * floor, facing and first clip of each role (A, then B). On [item] ([pairId] of [request]): as [partnerOn] with fixed
+     * roles places it; a pair read as needing furniture: as its placed order; any other: from the lead's spot and facing,
+     * as [perform] plays it. Null: not a two-person order, or nothing fits.
+     */
+    fun previewPlaces(id: String, request: PerformanceOrder, item: SceneObject? = null): List<PreviewPlace>? {
+        val lead = actors[id] ?: return null
+        val other = request.partnerId?.let(actors::get) ?: return null
+        if (other === lead || request.roles.size != 2) return null
+        fun place(actor: Actor, anchor: Vec3, heading: Float, role: PlaybackRole, lift: Float, floor: Float): PreviewPlace {
+            val c = cos(heading); val s = sin(heading)
+            val x = anchor.x + role.offset.x * c - role.offset.y * s
+            val y = anchor.y + role.offset.x * s + role.offset.y * c
+            return PreviewPlace(actor.index, x, y, anchor.z + lift, floor, heading + role.facing, role.clip)
+        }
+        fun places(anchor: Vec3, heading: Float, roles: List<PlaybackRole>, lifts: FloatArray?, floorZ: Float): List<PreviewPlace> {
+            val floor = if (floorZ.isNaN()) anchor.z else floorZ
+            return listOf(place(lead, anchor, heading, roles[0], lifts?.getOrNull(0) ?: 0f, floor),
+                place(other, anchor, heading, roles[1], lifts?.getOrNull(1) ?: 0f, floor))
+        }
+        if (item != null) {
+            val pair = pairs.firstOrNull { it.id == request.pairId } ?: return null
+            val f = furniture(item) ?: return null
+            val r = requirementOf(pair) ?: return null
+            val fit = FurnitureFit.fit(r, f, bodyUnit(lead, other)) ?: return null
+            val spacedPair = spaced(pair, lead, other)
+            val (slotA, slotB) = PairFit.slots(spacedPair.slotA, spacedPair.slotB, size(lead), size(other))
+            val roles = listOf(role(PlaybackKeys.pair(pair.id, 0), slotA), role(PlaybackKeys.pair(pair.id, 1), slotB))
+            return places(Vec3(fit.x, fit.y, fit.z), fit.yaw, roles, roleLifts(r, pair, lead, other, onFurniture = true),
+                f.z)
+        }
+        planPlaced(lead, request, null)?.let { plan ->
+            val setup = plan.setup ?: return null
+            return places(setup.anchor, setup.heading, plan.request.roles, setup.lifts, setup.floorZ)
+        }
+        // as startPerformance: its first part (a staged one's start), fitted to the two bodies, from the lead's spot
+        val firstRoles = request.segments.firstOrNull { it.kind == SegmentKind.START }?.roles
+            ?: request.segments.firstOrNull { it.kind == SegmentKind.LOOP }?.roles ?: request.roles
+        val roles = PairFit.roles(firstRoles, floatArrayOf(size(lead), size(other)))
+        return places(movementOrigin(lead), lead.facing, roles, null, Float.NaN)
     }
 
     /** Why the last [partnerOn] or [performOn] was refused (for the player's notice), or null; taken once. */
@@ -1688,7 +1774,7 @@ class SceneSimulation(
         // who plays the pair's actor 0 ([playA], the one who goes) and actor 1 ([playB], the performance's lead)
         var playA = initiator
         var playB = target
-        if (fit != null) {
+        if (fit != null && !pickedFixed) {
             val cast = FurnitureSelection.cast(fit, listOf(NearbyNpc(initiator.id, initiator.x, initiator.y), NearbyNpc(target.id, target.x, target.y)))
             if (cast != null && cast[0] == target.id) { playA = target; playB = initiator }
         }
