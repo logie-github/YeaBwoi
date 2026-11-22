@@ -25,8 +25,11 @@ data class JoiPrior(val cinematic: Boolean, val cameraMode: String = "", val cam
 sealed class JoiEvent {
     /** Ask the engine for the next line of [stage] (answer with [JoiMode.offerLine] and this [serial]); [countdownFrom]: the count to come. */
     data class NeedLine(val stage: String, val serial: Int, val countdownFrom: Int?) : JoiEvent()
-    /** A solo animation is due ([JoiAnimationPicker.pick] with this [energy], 0..1, the [stage]'s). */
-    data class AnimationDue(val energy: Float, val stage: String) : JoiEvent()
+    /**
+     * A solo animation is due ([JoiAnimationPicker.pick] with this [energy], 0..1, the [stage]'s); [stageLeft]: seconds the stage
+     * has left (a handjob runs as long: [JoiHandjobs.runSeconds]).
+     */
+    data class AnimationDue(val energy: Float, val stage: String, val stageLeft: Float = 0f) : JoiEvent()
     data class StageStarted(val stage: String, val index: Int, val of: Int) : JoiEvent()
     /** The count's number now ([n] from the start down to 1). */
     data class CountdownBeat(val n: Int) : JoiEvent()
@@ -144,6 +147,11 @@ class JoiMode(
         private set
     val steer = LinkedHashSet<JoiSteer>()
     val subtitles = JoiSubtitles()
+    /** The hand stroke she gives when a handjob is picked: its tempo follows the stage, her words and the chips ([JoiStroke]). */
+    val stroke = JoiStroke()
+    /** Seconds no solo animation is due (the host holds them while a handjob runs). */
+    private var soloHold = 0f
+    private var heardCue: JoiSubtitles.Cue? = null
     var prior = JoiPrior(false)
         private set
     /** The speaker's id, whether she is a creature (the dragon: her own camera and words). */
@@ -210,6 +218,7 @@ class JoiMode(
     fun leave(): JoiPrior {
         phase = JoiPhase.OFF
         subtitles.clear(); events.clear(); awaiting = false; count = null; stageIndex = -1; stages = emptyList()
+        stroke.stop(); soloHold = 0f
         actor = null; creature = false
         return prior
     }
@@ -220,7 +229,13 @@ class JoiMode(
 
     fun setFraming(f: JoiFraming) { framing = f }
 
-    fun toggleSteer(s: JoiSteer) { if (!steer.add(s)) steer.remove(s) }
+    fun toggleSteer(s: JoiSteer) { if (!steer.add(s)) steer.remove(s); stroke.steer(steer) }
+
+    /** No solo animation is due for [seconds] (a handjob is running); 0 releases it. */
+    fun holdSolos(seconds: Float) { soloHold = seconds.coerceAtLeast(0f) }
+
+    /** What she is doing with her hands now, in words for her next line (null: nothing the lines must match). */
+    fun action(): String? = if (creature) null else stroke.action()
 
     /**
      * Another comfort band: a JOI in progress goes on from the same stage in the new plan when it has it, else from the
@@ -249,7 +264,8 @@ class JoiMode(
         stageIndex++
         awaiting = false; linesInStage = 0; stageClock = 0f; introDone = false; count = null
         val st = stage
-        if (st == null) { events += JoiEvent.Finished; phase = JoiPhase.OFF; return }
+        if (st == null) { events += JoiEvent.Finished; phase = JoiPhase.OFF; stroke.stop(); return }
+        stroke.onStage(st)
         stageBudget = JoiPacing.seconds(st, band, rnd)
         if (st == "countdown") {
             val (from, ms) = countdown(band, seed)
@@ -287,12 +303,16 @@ class JoiMode(
         val st = stage ?: return
         stageClock += step
         subtitles.advance(step)
+        // what she says as it is shown: "slower", "faster" and "stop" change the stroke's tempo
+        subtitles.current?.let { c -> if (c !== heardCue) { heardCue = c; if (!c.number) stroke.hear(c.text) } }
         if (awaiting) askedFor += step
         // solo animations: due now and then, by the stage's energy
         animClock += step
+        stroke.advance(step)
+        if (soloHold > 0f) soloHold = (soloHold - step).coerceAtLeast(0f)
         if (animClock >= animGap) {
             animClock = 0f; animGap = JoiPacing.animationGap(st, rnd)
-            events += JoiEvent.AnimationDue(JoiPacing.energy(st), st)
+            if (soloHold <= 0f) events += JoiEvent.AnimationDue(JoiPacing.energy(st), st, stageLeft(st))
         }
         if (st == "countdown") { updateCount(step); return }
         val due = !awaiting && subtitles.queued == 0 && subtitles.remaining <= LEAD
@@ -301,6 +321,10 @@ class JoiMode(
         if (due && (stageClock < stageBudget || linesInStage == 0)) ask(st, null)
         else if (awaiting && askedFor >= ASK_TIMEOUT) { awaiting = false; misses++; if (misses >= MAX_MISSES) { phase = JoiPhase.NEEDS_MODEL; events += JoiEvent.ModelLost } }
     }
+
+    /** Seconds the stage has left (the count's: its beats and the line before them). */
+    private fun stageLeft(st: String): Float =
+        if (st == "countdown") ((count ?: countStart) * beatSeconds + 2f).coerceAtLeast(0f) else (stageBudget - stageClock).coerceAtLeast(0f)
 
     private fun ask(st: String, from: Int?) {
         serial++; awaiting = true; askedFor = 0f

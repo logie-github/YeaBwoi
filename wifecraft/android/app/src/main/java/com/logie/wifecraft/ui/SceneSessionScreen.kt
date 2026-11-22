@@ -136,6 +136,10 @@ import com.logie.wifecraft.simulation.JoiAnimationPicker
 import com.logie.wifecraft.simulation.JoiAnimations
 import com.logie.wifecraft.simulation.JoiCamera
 import com.logie.wifecraft.simulation.JoiClip
+import com.logie.wifecraft.simulation.JoiFraming
+import com.logie.wifecraft.simulation.JoiHandjobs
+import com.logie.wifecraft.simulation.JoiStroke
+import com.logie.wifecraft.simulation.StrokeHands
 import com.logie.wifecraft.simulation.JoiMode
 import com.logie.wifecraft.simulation.JoiPacing
 import com.logie.wifecraft.simulation.JoiPrior
@@ -1294,7 +1298,9 @@ fun LiveSceneScreen(
         val imported = choices.filter { it.participantCount == 1 && it.playable }
             .map { JoiClip(it.id, it.name, it.group, it.preview.clip.duration.takeIf { d -> d > 0f } ?: 6f) }
         val emote = PartnerEmotes.ALL.map { JoiClip(PlaybackKeys.emote(it.anim), it.name, "Emotes", if (it.loop) 8f else 3.5f, it.loop, emote = true) }
-        JoiAnimations.catalogue(imported + emote)
+        // the handjobs: the library's partner stages (the giving role alone) and the procedural stroke, always there
+        val hands = choices.mapNotNull { runCatching { JoiHandjobs.fromChoice(it) }.getOrNull() } + JoiClip.stroke()
+        JoiAnimations.catalogue(imported + emote + hands)
     }
     // (the engine is the runtime's, when a model is loaded: DialogueRuntime.engine; Options > Mods > Dialogue model downloads it)
     fun joiEngine(): DialogueEngine? = com.logie.wifecraft.dialogue.DialogueRuntime.engine?.takeIf { it.ready }
@@ -1323,7 +1329,8 @@ fun LiveSceneScreen(
         val id = joiActor ?: return
         val prior = joiMode.leave()
         live.joiCamera = null; live.joiActor = -1
-        if (live.joiCreature != null) view.queueEvent { view.glBoneLayer(actorKey(id), null) }
+        if (live.joiCreature != null || strokeBaked >= 0) view.queueEvent { view.glBoneLayer(actorKey(id), null) }
+        strokeBaked = -1
         live.joiCreature = null
         live.joiRelease(id)
         cinematic = prior.cinematic
@@ -1335,16 +1342,69 @@ fun LiveSceneScreen(
     LaunchedEffect(joiLeave) { if (joiLeave) leaveJoi() }
     // the camera follows the framing chosen on the controls
     SideEffect { joiCamera.framing = joiMode.framing }
-    fun playJoiSolo(energy: Float) {
+    // the procedural hand stroke (JoiStroke): its layer is baked ahead a few seconds at a time from the stroke's own state, and again
+    // whenever the stage, what she says or a chip changes the tempo; it ends with its stage's segment and the arms come down
+    var strokeBaked by remember(live) { mutableIntStateOf(-1) }
+    var strokeBakedAt by remember(live) { mutableLongStateOf(0L) }
+    var strokeEnds by remember(live) { mutableLongStateOf(0L) }
+    var strokeRuns by remember(live) { mutableIntStateOf(0) }
+    fun bakeStroke() {
+        val id = joiActor ?: return
+        val anim = joiMode.stroke.bake()
+        strokeBaked = joiMode.stroke.generation; strokeBakedAt = SystemClock.uptimeMillis()
+        val arrays = AnimArrays.of(anim)
+        view.queueEvent { view.glBoneLayer(actorKey(id), arrays) }
+    }
+    fun startStroke(stage: String, stageLeft: Float) {
+        val id = joiActor ?: return
+        val seconds = JoiHandjobs.runSeconds(stageLeft)
+        strokeRuns++
+        val r = kotlin.random.Random(seed.toLong() * 31 + strokeRuns)
+        val hands = when { r.nextFloat() < 0.5f -> StrokeHands.BOTH; r.nextFloat() < 0.7f -> StrokeHands.RIGHT; else -> StrokeHands.LEFT }
+        live.order { sim -> sim.stopAll(id); null }
+        joiMode.stroke.start(stage, hands)
+        joiMode.holdSolos(seconds + 2f)
+        strokeEnds = SystemClock.uptimeMillis() + (seconds * 1000).toLong()
+        bakeStroke()
+    }
+    LaunchedEffect(joiActor, joiMode) {
+        while (true) {
+            delay(100)
+            val id = joiActor ?: continue
+            val st = joiMode.stroke
+            if (!st.running) { if (strokeBaked >= 0) { strokeBaked = -1; view.queueEvent { view.glBoneLayer(actorKey(id), null) } }; continue }
+            if (st.active && SystemClock.uptimeMillis() >= strokeEnds) { st.stop(); joiMode.holdSolos(0f) }
+            val stale = SystemClock.uptimeMillis() - strokeBakedAt >= ((JoiStroke.CHUNK - 1f) * 1000).toLong()
+            if (st.generation != strokeBaked || stale) bakeStroke()
+        }
+    }
+    fun playJoiSolo(energy: Float, stage: String, stageLeft: Float) {
         val id = joiActor ?: return
         if (live.joiCreature != null) return
-        val clip = joiPicker.pick(joiSolos, energy, SystemClock.uptimeMillis() / 1000f) ?: return
+        val clip = joiPicker.pick(joiSolos, energy, SystemClock.uptimeMillis() / 1000f, stage, joiCamera.shot?.framing ?: joiMode.framing.takeIf { it != JoiFraming.AUTO }) ?: return
+        if (clip.procedural) { startStroke(stage, stageLeft); return }
+        if (clip.giver >= 0) {
+            // a library handjob: the giving role's own track, alone, turned as little from the camera as the unseen receiver allows
+            val c = choices.firstOrNull { it.id == clip.key } ?: return
+            val animations = PairSync.synced(c.clips.map { it.forPlayback() ?: return })
+            val role = c.roles[clip.giver]
+            val key = "${c.id}:${clip.giver}"
+            playback[key] = lifted(animations[clip.giver].copy(loop = false), role.offset.z * c.roleScale)
+            val turn = Math.toRadians(JoiHandjobs.turn(JoiHandjobs.ghostAngle(clip.ghostForward, clip.ghostSide)).toDouble()).toFloat()
+            val cycle = animations.maxOf { it.duration }.takeIf { it > 0f } ?: 6f
+            val seconds = JoiHandjobs.runSeconds(stageLeft)
+            val order = PerformanceOrder(null, listOf(PlaybackRole(key, Vec3(0f, 0f, role.offset.z * c.roleScale), role.facing + turn)), cycle,
+                repetitions = kotlin.math.ceil(seconds / cycle).toInt().coerceAtLeast(1), name = c.name)
+            joiMode.holdSolos(cycle * kotlin.math.ceil(seconds / cycle).toInt().coerceAtLeast(1) + 2f)
+            live.order { sim -> sim.perform(id, order); null }
+            return
+        }
         val choice = choices.firstOrNull { it.id == clip.key && it.participantCount == 1 }
         val order = if (choice != null) request(null, choice, PlayOptions())
             else PerformanceOrder(null, listOf(PlaybackRole(clip.key, Vec3(0f, 0f, 0f), 0f)), clip.seconds)
         live.order { sim -> sim.perform(id, order); null }
     }
-    JoiRunner(joiMode, joiActor != null, { joiEngine() }, kink, joiPersona, { energy, _ -> playJoiSolo(energy) }, { joiLeave = true }, { joiTick++ })
+    JoiRunner(joiMode, joiActor != null, { joiEngine() }, kink, joiPersona, { energy, stage, left -> playJoiSolo(energy, stage, left) }, { joiLeave = true }, { joiTick++ })
     fun act(id: String, slot: HudSlot) {
         when (slot.order) {
             HudOrder.WALK -> {

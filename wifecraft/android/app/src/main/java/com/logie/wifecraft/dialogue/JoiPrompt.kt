@@ -40,6 +40,8 @@ data class JoiLineRequest(
     val countdownFrom: Int? = null,
     /** The speaker's id in the scene (the runtime keeps a state per NPC). */
     val npcId: String = "",
+    /** What she is doing with her hands as she speaks (JoiMode.action: "your hand is stroking them, slowly"); null: nothing the line must match. */
+    val action: String? = null,
 )
 
 object JoiPrompt {
@@ -79,6 +81,7 @@ object JoiPrompt {
     fun user(r: JoiLineRequest): String {
         val sb = StringBuilder()
         if (r.recent.isNotEmpty()) sb.append("You already said:\n").append(r.recent.takeLast(3).joinToString("\n") { "- $it" }).append("\n")
+        if (r.action != null && !r.persona.dragon) sb.append("Right now ").append(r.action).append(". Let your words match what your hand is doing: if it is slow, say it slowly; if it is quick, make it quick.\n")
         when {
             r.countdownFrom != null -> sb.append("Say one short line before you begin counting down from ${r.countdownFrom}, firm and slow.")
             r.stage == "permit" -> sb.append("Say the line that lets you finish, warm and certain.")
