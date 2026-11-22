@@ -602,6 +602,10 @@ fun LiveSceneScreen(
     var joiActor by remember(live) { mutableStateOf<String?>(null) }
     val joiCamera = remember(live) { JoiCamera(seed.toLong()) }
     var joiTick by remember(live) { mutableIntStateOf(0) }
+    var strokeBaked by remember(live) { mutableIntStateOf(-1) }
+    var strokeBakedAt by remember(live) { mutableLongStateOf(0L) }
+    var strokeEnds by remember(live) { mutableLongStateOf(0L) }
+    var strokeRuns by remember(live) { mutableIntStateOf(0) }
     var joiLeave by remember(live) { mutableStateOf(false) }
     var joiPersona by remember(live) { mutableStateOf<JoiPersona?>(null) }
     // cinematic mode's idle hide (CinematicIdle): all the interface goes after 5 s untouched, Build mode off, until the next touch
@@ -1344,10 +1348,6 @@ fun LiveSceneScreen(
     SideEffect { joiCamera.framing = joiMode.framing }
     // the procedural hand stroke (JoiStroke): its layer is baked ahead a few seconds at a time from the stroke's own state, and again
     // whenever the stage, what she says or a chip changes the tempo; it ends with its stage's segment and the arms come down
-    var strokeBaked by remember(live) { mutableIntStateOf(-1) }
-    var strokeBakedAt by remember(live) { mutableLongStateOf(0L) }
-    var strokeEnds by remember(live) { mutableLongStateOf(0L) }
-    var strokeRuns by remember(live) { mutableIntStateOf(0) }
     fun bakeStroke() {
         val id = joiActor ?: return
         val anim = joiMode.stroke.bake()
