@@ -1,0 +1,1068 @@
+{
+ "version": 1,
+ "entries": [
+  {
+   "id": "role-dom",
+   "cat": "roles",
+   "i": 2,
+   "role": "dom",
+   "band": "acquaintances",
+   "tags": [
+    "dominant",
+    "lead",
+    "command"
+   ],
+   "concept": "A dominant leads by calm certainty, not volume. They set the pace, notice the partner's breath and limits, and take responsibility for the scene as much as control of it.",
+   "voice": {
+    "order": "Come here. Slowly.",
+    "praise": "Good. Exactly so."
+   },
+   "tw": {
+    "orc": "Orc command is plain: a level voice that expects to be heard.",
+    "warrior": "Drill-sergeant cadence: stand, hold, count it out.",
+    "paladin": "A steady, righteous tone; rules are vows."
+   }
+  },
+  {
+   "id": "role-sub",
+   "cat": "roles",
+   "i": 2,
+   "role": "sub",
+   "band": "acquaintances",
+   "tags": [
+    "submissive",
+    "yield",
+    "obey"
+   ],
+   "concept": "A submissive chooses to hand over control, and the choice is the heart of it. They can be eager, shy or quietly stubborn, and they can always stop the scene with a word.",
+   "voice": {
+    "beg": "Tell me what you want of me.",
+    "talk": "I'd rather you decided."
+   },
+   "tw": {
+    "priest": "Gives themselves over like a penitent, a willing kind of humility.",
+    "nightelf": "Quiet, dignified surrender, never meek."
+   }
+  },
+  {
+   "id": "role-switch",
+   "cat": "roles",
+   "i": 2,
+   "role": "any",
+   "band": "friendly",
+   "tags": [
+    "switch",
+    "trade",
+    "balance"
+   ],
+   "concept": "A switch enjoys both leading and yielding, sometimes in one evening. The fun is the trade: who holds the reins is negotiated, teased over, and won back.",
+   "voice": {
+    "talk": "Tonight I lead. Tomorrow you may try to take it back."
+   },
+   "tw": {
+    "rogue": "Steals the lead and hands it back with a grin.",
+    "druid": "Shifts roles like shapes: wolf, then deer."
+   }
+  },
+  {
+   "id": "role-brat",
+   "cat": "roles",
+   "i": 2,
+   "role": "sub",
+   "band": "friendly",
+   "tags": [
+    "brat",
+    "defy",
+    "tease",
+    "tamer"
+   ],
+   "concept": "A brat plays at defiance to be caught and handled, and it is play, not real disrespect. The tamer stays patient, amused and firm; neither takes the teasing personally.",
+   "voice": {
+    "talk": "Make me.",
+    "order": "That mouth will cost you. Gently."
+   },
+   "tw": {
+    "gnome": "Sasses from boot height and enjoys being lifted.",
+    "rogue": "Slips the leash, leaves a dagger-bright smirk.",
+    "bloodelf": "Imperious, delighted to be corrected."
+   }
+  },
+  {
+   "id": "role-tamer",
+   "cat": "roles",
+   "i": 3,
+   "role": "dom",
+   "band": "friendly",
+   "tags": [
+    "tamer",
+    "brat",
+    "firm",
+    "patient"
+   ],
+   "concept": "A brat-tamer meets defiance with amusement and steady limits. They do not lose their temper; they enjoy the chase and reward the moment the brat gives in.",
+   "voice": {
+    "order": "You are testing me. Do go on.",
+    "praise": "There. That wasn't so hard."
+   },
+   "tw": {
+    "hunter": "Treats it like gentling a skittish beast: patience, then reward.",
+    "orc": "Booming amusement; never genuinely angry."
+   }
+  },
+  {
+   "id": "role-sadomaso",
+   "cat": "roles",
+   "i": 3,
+   "role": "any",
+   "band": "intimate",
+   "tags": [
+    "sadist",
+    "masochist",
+    "pain",
+    "limits"
+   ],
+   "concept": "A sadist enjoys giving intense sensation and a masochist enjoys receiving it; both rely on trust and limits. The care is in the pacing, the watching, and the stop.",
+   "voice": {
+    "talk": "Tell me how much, and I'll give exactly that."
+   },
+   "tw": {
+    "warlock": "Pain as currency, spent knowingly.",
+    "deathknight": "Cold hands, honest about limits; pain is old company."
+   }
+  },
+  {
+   "id": "role-rigger",
+   "cat": "roles",
+   "i": 3,
+   "role": "dom",
+   "band": "intimate",
+   "tags": [
+    "rigger",
+    "rope",
+    "knots"
+   ],
+   "concept": "A rigger ties with skill and attention, caring as much about comfort and circulation as the look of the knots. Good riggers check often and keep a blade close.",
+   "voice": {
+    "order": "Hold still. Breathe. Tell me if anything tingles."
+   },
+   "tw": {
+    "rogue": "Quick clever hands, fond of neat knots.",
+    "hunter": "Snare-craft turned gentle; knows rope and knots."
+   }
+  },
+  {
+   "id": "role-power",
+   "cat": "power",
+   "i": 2,
+   "role": "any",
+   "band": "friendly",
+   "tags": [
+    "power exchange",
+    "dynamic",
+    "agreement"
+   ],
+   "concept": "Power exchange means one partner agrees to give and the other agrees to hold authority over agreed things. It is a standing agreement, spoken openly and revisited.",
+   "voice": {
+    "talk": "We agreed what is mine to decide, and what is yours to refuse."
+   },
+   "tw": {
+    "warlock": "A contract with clauses and an exit.",
+    "paladin": "An oath, kept both ways."
+   }
+  },
+  {
+   "id": "pet-handler",
+   "cat": "pet",
+   "i": 3,
+   "role": "any",
+   "band": "intimate",
+   "tags": [
+    "pet",
+    "handler",
+    "collar",
+    "animal"
+   ],
+   "concept": "In pet play an adult takes an animal persona, such as a hound, cat or hawk, while the partner handles, trains and praises. It is roleplay between adults, never about real animals.",
+   "voice": {
+    "order": "Heel. Sit. Good hound.",
+    "beg": "Please, may I stay by your feet?"
+   },
+   "tw": {
+    "worgen": "A natural fit, all growl and loyalty.",
+    "hunter": "The handler knows the craft of training.",
+    "druid": "Takes the shape, keeps the mind."
+   }
+  },
+  {
+   "id": "dds-little",
+   "cat": "pet",
+   "i": 3,
+   "role": "any",
+   "band": "uninhibited",
+   "tags": [
+    "caregiver",
+    "little",
+    "gentle",
+    "age-play-adult"
+   ],
+   "concept": "Some adults enjoy a nurturing caregiver dynamic: being fussed over, tucked in, told they are doing well. Both are grown, and the tone is soft care, never childishness about real minors.",
+   "voice": {
+    "praise": "You did so well today. Rest now."
+   },
+   "tw": {
+    "priest": "Tender, motherly Light-blessings.",
+    "draenei": "Gentle, protective, hands warm as a hearth."
+   }
+  },
+  {
+   "id": "bond-rope",
+   "cat": "bondage",
+   "i": 3,
+   "role": "dom",
+   "band": "intimate",
+   "tags": [
+    "rope",
+    "tie",
+    "restraint",
+    "bondage"
+   ],
+   "concept": "Rope restraint is about the surrender of movement. Keep ties off the inner arm and neck, check hands for warmth and feeling, and keep shears at hand.",
+   "voice": {
+    "order": "Wrists together. There. Can you feel your fingers?",
+    "beg": "Tighter, if you please."
+   },
+   "tw": {
+    "rogue": "Ties like a smuggler, neat and quick.",
+    "hunter": "Trapper's knots, gentle ones.",
+    "orc": "Chain and leather rather than silk."
+   }
+  },
+  {
+   "id": "bond-cuffs",
+   "cat": "bondage",
+   "i": 3,
+   "role": "dom",
+   "band": "intimate",
+   "tags": [
+    "cuffs",
+    "chains",
+    "restraint",
+    "manacles"
+   ],
+   "concept": "Cuffs and manacles give firm restraint with little fuss. Padded cuffs are kinder; keep the key within sight, and let the one restrained say what is too tight.",
+   "voice": {
+    "order": "Hands up. The key stays with me. Say 'red' and it's off."
+   },
+   "tw": {
+    "paladin": "Silvered cuffs of the Argent kind, a little holy.",
+    "warlock": "Fel-forged and warm; runes that gleam."
+   }
+  },
+  {
+   "id": "bond-spreader",
+   "cat": "bondage",
+   "i": 4,
+   "role": "dom",
+   "band": "intimate",
+   "tags": [
+    "spreader bar",
+    "restraint",
+    "exposed"
+   ],
+   "concept": "A spreader bar holds the legs or arms apart so the wearer cannot close or hide. The thrill is being open and held; mind the knees and the circulation.",
+   "voice": {
+    "order": "Open for me. Hold it. Good."
+   },
+   "tw": {
+    "bloodelf": "Proud, poised, reluctant to be seen shaking.",
+    "draenei": "Hooves braced, tail twitching."
+   }
+  },
+  {
+   "id": "bond-blind",
+   "cat": "bondage",
+   "i": 2,
+   "role": "dom",
+   "band": "friendly",
+   "tags": [
+    "blindfold",
+    "sight",
+    "anticipation"
+   ],
+   "concept": "A blindfold takes sight away and makes every touch a surprise. Say what will happen first or let the surprise live in the timing, and offer to lift it at any time.",
+   "voice": {
+    "order": "Eyes closed. Don't peek.",
+    "beg": "What are you going to do?"
+   },
+   "tw": {
+    "nightelf": "Moon-silk scarf; the shaded dark is no stranger.",
+    "mage": "Dims candles, sharpens the hearing."
+   }
+  },
+  {
+   "id": "impact-spank",
+   "cat": "impact",
+   "i": 3,
+   "role": "dom",
+   "band": "intimate",
+   "tags": [
+    "spank",
+    "impact",
+    "hand"
+   ],
+   "concept": "Spanking and other impact play trades sting for heat and release. Start light, warm up, stay on the meaty parts like the rump and thighs, and never strike joints or spine.",
+   "voice": {
+    "order": "Count them for me.",
+    "beg": "One more, please."
+   },
+   "tw": {
+    "tauren": "Broad hand, gentle, planned.",
+    "warrior": "Crisp and measured; counts aloud."
+   }
+  },
+  {
+   "id": "impact-implement",
+   "cat": "impact",
+   "i": 4,
+   "role": "dom",
+   "band": "uninhibited",
+   "tags": [
+    "crop",
+    "flogger",
+    "cane",
+    "impact"
+   ],
+   "concept": "A riding crop, flogger or paddle gives different sensations from thud to sting. Warm up first, aim at the fleshy parts, and check in as the intensity climbs.",
+   "voice": {
+    "order": "Hold still. This one stings.",
+    "praise": "You took that beautifully."
+   },
+   "tw": {
+    "hunter": "Uses a riding crop, like gentling a mount.",
+    "orc": "Leather strap, heavy and honest."
+   }
+  },
+  {
+   "id": "sens-wax",
+   "cat": "sensation",
+   "i": 3,
+   "role": "dom",
+   "band": "intimate",
+   "tags": [
+    "wax",
+    "heat",
+    "drip",
+    "sensation"
+   ],
+   "concept": "Candle wax is heat that drips on bare skin. Use low-temperature candles, let it fall from a height, test it on your own arm first, and keep it away from face, eyes and the most tender places.",
+   "voice": {
+    "order": "Hold still. Feel it bloom, then fade."
+   },
+   "tw": {
+    "mage": "Warms the wax with a flicker of fire; careful about the heat.",
+    "priest": "Votive candles, a ritual twist."
+   }
+  },
+  {
+   "id": "sens-ice",
+   "cat": "sensation",
+   "i": 2,
+   "role": "dom",
+   "band": "friendly",
+   "tags": [
+    "ice",
+    "cold",
+    "sensation",
+    "tease"
+   ],
+   "concept": "Ice or something cold on bare skin is a shock that melts into heat. Keep it moving, avoid one spot too long, and watch the shiver for comfort or complaint.",
+   "voice": {
+    "order": "Cold. Hold still while it melts."
+   },
+   "tw": {
+    "mage": "Frost conjured in the palm, a trick turned tender.",
+    "deathknight": "Cold hands, a different kind of chill.",
+    "undead": "Chilled skin already, they borrow warmth."
+   }
+  },
+  {
+   "id": "sens-feather",
+   "cat": "sensation",
+   "i": 1,
+   "role": "dom",
+   "band": "acquaintances",
+   "tags": [
+    "feather",
+    "tickle",
+    "light",
+    "sensation"
+   ],
+   "concept": "Feathers, fingertips and breath make a light touch that teases the nerves. It builds anticipation without pain and suits those still learning each other.",
+   "voice": {
+    "order": "Still. I'll tease as long as I like.",
+    "beg": "That's too gentle; please."
+   },
+   "tw": {
+    "nightelf": "A hawk's feather, the soft gift of the wilds.",
+    "druid": "Pollen, moss and petals instead of silks."
+   }
+  },
+  {
+   "id": "oc-denial",
+   "cat": "orgasm control",
+   "i": 4,
+   "role": "dom",
+   "band": "intimate",
+   "tags": [
+    "denial",
+    "edging",
+    "release",
+    "tease",
+    "control"
+   ],
+   "concept": "Denial means the one in control decides when the other may finish, and edging brings them to the brink and back. It builds need over hours; the reward is permission, given with care.",
+   "voice": {
+    "order": "Not yet. Hold on. Breathe.",
+    "beg": "Please, may I?"
+   },
+   "tw": {
+    "paladin": "Denial feels like a vow of patience, with a sly smile.",
+    "warlock": "The release is a bargain, struck with relish."
+   }
+  },
+  {
+   "id": "oc-ruin",
+   "cat": "orgasm control",
+   "i": 5,
+   "role": "dom",
+   "band": "uninhibited",
+   "tags": [
+    "ruin",
+    "tease",
+    "control",
+    "negotiated"
+   ],
+   "concept": "A ruined orgasm is stopped at the last moment so the pleasure fades unfinished. It is a hard limit for many people, so it is negotiated first and used rarely.",
+   "voice": {
+    "order": "Hands off. Look at me.",
+    "talk": "Only if we agreed."
+   },
+   "tw": {
+    "warlock": "A demon's cruelty, a luxury she asks to indulge."
+   }
+  },
+  {
+   "id": "oc-permit",
+   "cat": "orgasm control",
+   "i": 3,
+   "role": "dom",
+   "band": "intimate",
+   "tags": [
+    "permission",
+    "release",
+    "reward",
+    "good"
+   ],
+   "concept": "Permission is the sweet end of control: a word, a nod, a count, and then release. Giving it warmly, not stingily, is what makes denial a gift.",
+   "voice": {
+    "order": "Now. Let go for me.",
+    "praise": "There you are. Well done."
+   },
+   "tw": {
+    "priest": "Absolution given, the release a blessing."
+   }
+  },
+  {
+   "id": "praise-core",
+   "cat": "praise",
+   "i": 2,
+   "role": "dom",
+   "band": "acquaintances",
+   "tags": [
+    "praise",
+    "good",
+    "reward"
+   ],
+   "concept": "Praise is a reward in itself for some adults: being told they are good, clever, lovely. It's warm and specific; the praiser means it.",
+   "voice": {
+    "praise": "Good. You do that so well."
+   },
+   "tw": {
+    "paladin": "Says it with proud warmth, Light-bright.",
+    "priest": "A blessing in the shape of a compliment."
+   }
+  },
+  {
+   "id": "degrade-play",
+   "cat": "degradation",
+   "i": 4,
+   "role": "dom",
+   "band": "uninhibited",
+   "tags": [
+    "degrade",
+    "humiliate",
+    "names",
+    "consent"
+   ],
+   "concept": "Degradation is agreed name-calling and status play that turns shame into heat. It is negotiated and in character; it never means real contempt, and it ends with warmth.",
+   "voice": {
+    "order": "On your knees where you belong.",
+    "care": "After: you are not those words; I say them because we both like them."
+   },
+   "tw": {
+    "orc": "Gruff insults, plain, never cruel for cruelty's sake.",
+    "bloodelf": "Disdainful hauteur, played to the hilt."
+   }
+  },
+  {
+   "id": "humiliate-soft",
+   "cat": "degradation",
+   "i": 3,
+   "role": "dom",
+   "band": "intimate",
+   "tags": [
+    "tease",
+    "flustered",
+    "humiliation",
+    "blush"
+   ],
+   "concept": "Light humiliation is teasing that makes someone blush: pointing out how eager they are, or how they can't keep still. The line is wit, not wounds.",
+   "voice": {
+    "order": "Look how you blush. Lovely.",
+    "talk": "Ears red already."
+   },
+   "tw": {
+    "gnome": "Laughs warmly at the size difference.",
+    "goblin": "Needles with a grin and a price."
+   }
+  },
+  {
+   "id": "service-core",
+   "cat": "service",
+   "i": 2,
+   "role": "sub",
+   "band": "acquaintances",
+   "tags": [
+    "service",
+    "serve",
+    "attend",
+    "tidy"
+   ],
+   "concept": "Service is the pleasure of doing for another: pouring, dressing, kneeling to help. It is a gift freely given, and the receiver notices and thanks it.",
+   "voice": {
+    "beg": "May I attend you?",
+    "praise": "Thank you. That was thoughtful."
+   },
+   "tw": {
+    "priest": "Service as devotion.",
+    "paladin": "Squire and lord, a chivalrous game."
+   }
+  },
+  {
+   "id": "protocol",
+   "cat": "protocol",
+   "i": 3,
+   "role": "any",
+   "band": "intimate",
+   "tags": [
+    "protocol",
+    "titles",
+    "kneel",
+    "rules",
+    "ritual"
+   ],
+   "concept": "Protocol is agreed ritual: titles, kneeling, asking permission, small rules to keep. It gives the dynamic shape and makes ordinary moments charged, but the rules bend to real life.",
+   "voice": {
+    "order": "Address me properly.",
+    "talk": "The rule is the rule, Mistress."
+   },
+   "tw": {
+    "paladin": "Vows and titles come naturally.",
+    "warlock": "Contract clauses: spelled out and signed.",
+    "warrior": "Drill and discipline."
+   }
+  },
+  {
+   "id": "collar",
+   "cat": "protocol",
+   "i": 3,
+   "role": "any",
+   "band": "intimate",
+   "tags": [
+    "collar",
+    "ownership",
+    "token",
+    "belong"
+   ],
+   "concept": "A collar is a token of a standing agreement, worn as a promise or an ornament. Giving one is a quiet ceremony, and taking it off is always the wearer's right.",
+   "voice": {
+    "talk": "Wear it only if you mean it.",
+    "beg": "I would be proud to wear it."
+   },
+   "tw": {
+    "worgen": "A collar for the beast, a mark of belonging.",
+    "draenei": "Crystal-set collar, almost a jewel."
+   }
+  },
+  {
+   "id": "rp-captive",
+   "cat": "roleplay",
+   "i": 3,
+   "role": "any",
+   "band": "intimate",
+   "tags": [
+    "captive",
+    "prisoner",
+    "capture",
+    "interrogation"
+   ],
+   "concept": "A captive scene stages a capture and a stern captor, both agreeing to the game first. It is a play of power and tension, with a safeword at the ready.",
+   "voice": {
+    "order": "You're in my hands now. Speak.",
+    "beg": "I won't tell you anything."
+   },
+   "tw": {
+    "rogue": "A silent capture in the dark, rope at the ready.",
+    "deathknight": "The cold interrogator."
+   }
+  },
+  {
+   "id": "rp-interrogate",
+   "cat": "roleplay",
+   "i": 3,
+   "role": "dom",
+   "band": "intimate",
+   "tags": [
+    "interrogation",
+    "confession",
+    "questions",
+    "stern"
+   ],
+   "concept": "An interrogation scene is a play of questions and pressure, where answers are coaxed and the captive may hold out for the pleasure of being broken down gently. Agree the limits first.",
+   "voice": {
+    "order": "Again. Where were you last night?"
+   },
+   "tw": {
+    "priest": "Confession and penance.",
+    "warlock": "Demands names, true ones."
+   }
+  },
+  {
+   "id": "rp-monster",
+   "cat": "roleplay",
+   "i": 4,
+   "role": "dom",
+   "band": "uninhibited",
+   "tags": [
+    "monster",
+    "beast",
+    "predator",
+    "prey"
+   ],
+   "concept": "Predator and prey is a chase game: the hunter stalks, the prey runs, and both enjoy getting caught. The fear is theatre and the trust is real.",
+   "voice": {
+    "order": "Run. I like it when you run.",
+    "beg": "Don't let me go."
+   },
+   "tw": {
+    "worgen": "Growls and pins, ever careful.",
+    "hunter": "The classic stalk and snare.",
+    "rogue": "Sneaks from the dark."
+   }
+  },
+  {
+   "id": "rp-cnc",
+   "cat": "roleplay",
+   "i": 5,
+   "role": "any",
+   "band": "uninhibited",
+   "tags": [
+    "cnc",
+    "force",
+    "fantasy",
+    "negotiated"
+   ],
+   "concept": "Consensual non-consent is a heavily negotiated game of pretended resistance. It needs a firm safeword, strong trust and explicit limits agreed away from the scene.",
+   "voice": {
+    "care": "Say the word and it ends, always."
+   },
+   "tw": {}
+  },
+  {
+   "id": "exhib",
+   "cat": "exhibition",
+   "i": 3,
+   "role": "any",
+   "band": "intimate",
+   "tags": [
+    "exhibition",
+    "display",
+    "watched",
+    "voyeur"
+   ],
+   "concept": "Exhibition is the thrill of being seen, voyeurism the thrill of watching. Both are best with the watcher's and the shown one's clear consent and a privacy that holds.",
+   "voice": {
+    "order": "Stay where you are. Let me look.",
+    "beg": "Do you like what you see?"
+   },
+   "tw": {
+    "bloodelf": "Vain and generous with a gaze.",
+    "gnome": "Shy until they aren't."
+   }
+  },
+  {
+   "id": "breed",
+   "cat": "breeding",
+   "i": 4,
+   "role": "any",
+   "band": "uninhibited",
+   "tags": [
+    "breeding",
+    "impregnation",
+    "fertility",
+    "fantasy"
+   ],
+   "concept": "Breeding play is a fantasy about fertility and being claimed, in talk and teasing. Real pregnancy needs a sober separate talk; the fantasy is play.",
+   "voice": {
+    "order": "I'll fill you.",
+    "beg": "Make me yours."
+   },
+   "tw": {
+    "orc": "Fierce, ancestral pride in kin.",
+    "troll": "Voodoo fertility charms and cheerful boasting."
+   }
+  },
+  {
+   "id": "size",
+   "cat": "size",
+   "i": 3,
+   "role": "any",
+   "band": "intimate",
+   "tags": [
+    "size",
+    "height",
+    "macro",
+    "micro",
+    "giant",
+    "tiny"
+   ],
+   "concept": "Size play is the charge of one partner being much bigger or smaller: lifted, pinned, dwarfed. Gnome and tauren pairings let the world do the staging.",
+   "voice": {
+    "talk": "I could hold you in one hand.",
+    "beg": "Pick me up."
+   },
+   "tw": {
+    "gnome": "Small, bold, fearless about it.",
+    "tauren": "Hoof and arm span make the difference plain.",
+    "goblin": "Swagger the whole time."
+   }
+  },
+  {
+   "id": "creature",
+   "cat": "creature",
+   "i": 4,
+   "role": "any",
+   "band": "intimate",
+   "tags": [
+    "monster",
+    "creature",
+    "hooves",
+    "tails",
+    "fur",
+    "fangs"
+   ],
+   "concept": "Monster and creature fantasies enjoy the otherness of horns, claws, hooves, fur and heat, treated with delight and care. A partner's body is explored with curiosity.",
+   "voice": {
+    "talk": "I like your teeth.",
+    "order": "Come closer. Let me feel your fur."
+   },
+   "tw": {
+    "draenei": "Hooves, tail and glowing skin: all curiosity.",
+    "worgen": "Heat and fur; moon-driven need.",
+    "undead": "Cold, stitched skin and a hollow chest; strangely tender.",
+    "tauren": "Warm hide, a big heart.",
+    "troll": "Tusk, tail and swagger."
+   }
+  },
+  {
+   "id": "fantasy-magic",
+   "cat": "fantasy",
+   "i": 3,
+   "role": "any",
+   "band": "intimate",
+   "tags": [
+    "magic",
+    "enchant",
+    "spell",
+    "arcane",
+    "charm"
+   ],
+   "concept": "Fantasy-world kinks use magic as a prop: a charm that makes someone obey, a gently bound spell, a glow that pulses. Always mutual and always reversible by the one who cast it.",
+   "voice": {
+    "order": "The binding holds until I say."
+   },
+   "tw": {
+    "mage": "Arcane tethers that hum.",
+    "warlock": "A demon in the rafters: bound pleasure.",
+    "shaman": "Spirits as witnesses."
+   }
+  },
+  {
+   "id": "fantasy-lightchaste",
+   "cat": "fantasy",
+   "i": 3,
+   "role": "any",
+   "band": "intimate",
+   "tags": [
+    "chastity",
+    "vow",
+    "holy",
+    "corruption",
+    "light"
+   ],
+   "concept": "A paladin's vow of restraint is a delicious irony: the more they hold back, the more it builds. Chastity play, where permitted, is a vow kept together and broken by choice.",
+   "voice": {
+    "order": "You swore. I'm only holding you to it."
+   },
+   "tw": {
+    "paladin": "Sworn to patience until the vow is eased.",
+    "priest": "Confession as release."
+   }
+  },
+  {
+   "id": "fantasy-contract",
+   "cat": "fantasy",
+   "i": 3,
+   "role": "any",
+   "band": "friendly",
+   "tags": [
+    "contract",
+    "bargain",
+    "deal",
+    "price"
+   ],
+   "concept": "A bargain scene makes a game of terms: favour for favour, a price named and paid. Both sides read the terms aloud and either may void the deal.",
+   "voice": {
+    "order": "The price is one kiss. Do we agree?"
+   },
+   "tw": {
+    "warlock": "Demon-trade cheek, read the fine print.",
+    "goblin": "Always negotiating, enjoys it."
+   }
+  },
+  {
+   "id": "fantasy-wild",
+   "cat": "fantasy",
+   "i": 4,
+   "role": "any",
+   "band": "uninhibited",
+   "tags": [
+    "wild",
+    "heat",
+    "feral",
+    "shift"
+   ],
+   "concept": "Feral play lets the animal side out: biting, growling, chasing, heat. The wildness is a mood, not a loss of care.",
+   "voice": {
+    "talk": "I'll be gentle. Mostly."
+   },
+   "tw": {
+    "worgen": "The moon heat; they hold the thread of control.",
+    "druid": "Shapeshift, paw to hand.",
+    "hunter": "Runs with the pack."
+   }
+  },
+  {
+   "id": "fantasy-spirit",
+   "cat": "fantasy",
+   "i": 2,
+   "role": "any",
+   "band": "friendly",
+   "tags": [
+    "spirit",
+    "ritual",
+    "shaman",
+    "earth"
+   ],
+   "concept": "A spirit-ritual setting brings candles, chant and symbols to bind partners in a shared ceremony of pleasure. The elements are witnesses.",
+   "voice": {
+    "order": "Face me. Breathe with the drums."
+   },
+   "tw": {
+    "shaman": "Totems and elemental charge.",
+    "tauren": "Earth-mother blessing."
+   }
+  },
+  {
+   "id": "kiss-tease",
+   "cat": "tease",
+   "i": 1,
+   "role": "any",
+   "band": "strangers",
+   "tags": [
+    "tease",
+    "flirt",
+    "kiss",
+    "glance"
+   ],
+   "concept": "Flirting is the soft edge of all this: eye contact, a lingering touch, a promise in the voice. Match the other's pace; let silence do half the work.",
+   "voice": {
+    "talk": "You keep looking at my mouth.",
+    "beg": "Stay a moment more."
+   },
+   "tw": {
+    "bloodelf": "Poised and amused.",
+    "human": "Warm and plain-spoken."
+   }
+  },
+  {
+   "id": "hold-wrists",
+   "cat": "tease",
+   "i": 2,
+   "role": "dom",
+   "band": "acquaintances",
+   "tags": [
+    "pin",
+    "hold",
+    "hands",
+    "wrists"
+   ],
+   "concept": "Holding wrists is a small command: the partner is held, not hurt, and knows they can say to let go. It is a bridge from teasing to real restraint.",
+   "voice": {
+    "order": "Stay. Let me look at you."
+   },
+   "tw": {
+    "orc": "Big, careful hands.",
+    "rogue": "Quick catch, softer hold."
+   }
+  },
+  {
+   "id": "sensory-deprive",
+   "cat": "sensation",
+   "i": 3,
+   "role": "dom",
+   "band": "intimate",
+   "tags": [
+    "sensory",
+    "silence",
+    "hearing",
+    "quiet"
+   ],
+   "concept": "Taking away sight or sound heightens everything left. It is a quiet, slow game and the partner's breathing is the signal.",
+   "voice": {
+    "order": "Not a sound. Only breathe."
+   },
+   "tw": {
+    "nightelf": "Shadowed groves, soft dark.",
+    "mage": "A hush spell, soft as velvet."
+   }
+  },
+  {
+   "id": "rough",
+   "cat": "impact",
+   "i": 4,
+   "role": "any",
+   "band": "uninhibited",
+   "tags": [
+    "rough",
+    "hair",
+    "grab",
+    "hard"
+   ],
+   "concept": "Rough play is hair-pulling, pinning, firm grips and hard play. It lives on trust, and the soft word after matters as much as the hard hand.",
+   "voice": {
+    "order": "Hold on to me.",
+    "beg": "Harder."
+   },
+   "tw": {
+    "orc": "Broad hands, careful about bruises.",
+    "warrior": "Skilled with the grip."
+   }
+  },
+  {
+   "id": "wrestle",
+   "cat": "impact",
+   "i": 3,
+   "role": "any",
+   "band": "friendly",
+   "tags": [
+    "wrestle",
+    "spar",
+    "struggle",
+    "fight"
+   ],
+   "concept": "Sparring as foreplay: a playful struggle, a pin, a laugh. Whoever ends on top may be negotiated beforehand, and both can tap out.",
+   "voice": {
+    "talk": "Best of three. Loser does the washing up."
+   },
+   "tw": {
+    "warrior": "Spar first, play after.",
+    "orc": "Orcish challenge."
+   }
+  },
+  {
+   "id": "body-worship",
+   "cat": "service",
+   "i": 3,
+   "role": "sub",
+   "band": "intimate",
+   "tags": [
+    "worship",
+    "adore",
+    "attention",
+    "kneel"
+   ],
+   "concept": "Worship is giving a partner long, unhurried attention: kisses, massage, hands, murmured admiration. It can be devotion or a service game.",
+   "voice": {
+    "beg": "Let me look after you.",
+    "praise": "You are beautiful."
+   },
+   "tw": {
+    "priest": "Reverent, like prayer.",
+    "draenei": "Admires the glow of skin."
+   }
+  },
+  {
+   "id": "rule-chores",
+   "cat": "protocol",
+   "i": 2,
+   "role": "any",
+   "band": "friendly",
+   "tags": [
+    "rule",
+    "task",
+    "assignment",
+    "reward"
+   ],
+   "concept": "Small rules and tasks give a dynamic a thread through the day: wear this, ask that, report back. Rewards and gentle penalties keep it a game.",
+   "voice": {
+    "order": "Report to me at dusk."
+   },
+   "tw": {
+    "warrior": "Drill orders.",
+    "rogue": "Notes slipped in a pocket."
+   }
+  },
+  {
+   "id": "aftercare-bond",
+   "cat": "care",
+   "i": 1,
+   "role": "any",
+   "band": "acquaintances",
+   "tags": [
+    "aftercare",
+    "tender",
+    "hold",
+    "water"
+   ],
+   "concept": "After intense play, the partners come back down together: a blanket, water, a kiss, soft words. Aftercare is part of the scene, not an extra.",
+   "voice": {
+    "care": "Come here. Drink something. I've got you."
+   },
+   "tw": {
+    "priest": "Light-warmed hands and a hymn hum.",
+    "druid": "Herbal tea, moss pillow."
+   }
+  }
+ ]
+}
