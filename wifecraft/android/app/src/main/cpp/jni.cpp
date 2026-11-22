@@ -204,6 +204,15 @@ JNIEXPORT jint JNICALL FN(boneLayer)(JNIEnv* env, jclass, jlong h, jint id, jobj
 JNIEXPORT void JNICALL FN(clearBoneLayer)(JNIEnv*, jclass, jlong h, jint id) { scene(h)->clearBoneLayer(id); }
 
 // A reach (Native.reach): the actor's arm on a point of another actor's body, its weight and offsets keyed in the arrays.
+// Where an actor's head, chest and pelvis bones are as last drawn (Native.bonePoints; world x, y, z each), or null.
+JNIEXPORT jfloatArray JNICALL FN(bonePoints)(JNIEnv* env, jclass, jlong h, jint id) {
+    float p[9];
+    if (!scene(h)->actorBonePoints(id, p)) return nullptr;
+    jfloatArray out = env->NewFloatArray(9);
+    if (out) env->SetFloatArrayRegion(out, 0, 9, p);
+    return out;
+}
+
 JNIEXPORT jint JNICALL FN(reach)(JNIEnv* env, jclass, jlong h, jint id, jint target, jint targetBone, jboolean left,
                                  jobjectArray bones, jintArray channels, jintArray keyCounts, jfloatArray times,
                                  jfloatArray values, jfloat duration, jboolean loop, jint now) {

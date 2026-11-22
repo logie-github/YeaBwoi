@@ -241,6 +241,15 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         com.logie.wifecraft.graphics.Graphics.attach(this)
     }
 
+    /** GL thread: the actor [key]'s head, chest and pelvis bones as last drawn (world x, y, z each) into [out] (9 floats); false when unknown. */
+    fun glBonePoints(key: String, out: FloatArray): Boolean {
+        val id = ids[key] ?: return false
+        val p = Native.bonePoints(handle, id) ?: return false
+        if (p.size < 9 || out.size < 9) return false
+        System.arraycopy(p, 0, out, 0, 9)
+        return true
+    }
+
     /**
      * GL thread, after a frame is drawn (a body's shape is made as it is drawn): one waiting person's flesh measured
      * ([Native.actorFlesh], the engine's once per look), at most one a frame; one that can't be measured (a creature's

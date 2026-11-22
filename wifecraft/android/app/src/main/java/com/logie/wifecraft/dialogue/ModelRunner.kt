@@ -27,8 +27,9 @@ class ModelRunner(private val engineOf: () -> DialogueEngine?) {
     fun count(kind: String? = null): Int = pending.count { kind == null || it.kind == kind } + (if (busy.get() && (kind == null || runningKind == kind)) 1 else 0)
     private var runningKind: String? = null
 
-    fun submit(priority: Int, kind: String, req: DialogueRequest, ttl: Double = 20.0, cb: (String?) -> Unit) {
-        pending += Job(priority, seq++, req, kind, clock + ttl, cb)
+    /** [urgency] goes to the runtime on the request ([DialogueRequest.priority]): the selected NPC and a sexual-stage pair first, a talking pair next, nearby, then ambient. */
+    fun submit(priority: Int, kind: String, req: DialogueRequest, ttl: Double = 20.0, urgency: DialoguePriority = DialoguePriority.AMBIENT, cb: (String?) -> Unit) {
+        pending += Job(priority, seq++, req.copy(priority = urgency), kind, clock + ttl, cb)
     }
 
     /** Drops the waiting requests of [kind] (their callbacks get null). A running one finishes and is handed over as usual. */
@@ -49,7 +50,8 @@ class ModelRunner(private val engineOf: () -> DialogueEngine?) {
             if (!busy.get() && pending.isNotEmpty()) {
                 val job = pending.poll()
                 val engine = engineOf()
-                if (engine == null) { job.cb(null); progressed = true; continue }
+                // no model, or one still loading: the answer is nothing, at once (the asker waits its own pause before it asks again)
+                if (engine == null || !engine.ready) { job.cb(null); progressed = true; continue }
                 busy.set(true); runningKind = job.kind
                 val finish = { r: String? -> done.add { busy.set(false); runningKind = null; job.cb(r) }; Unit }
                 try {

@@ -35,6 +35,7 @@
 //   furnish N sit|lie SX SY SZ FACING          person N's pelvis on a seat or bed at that surface point (Scene::placeActor)
 //   soft off|subtle|natural|strong             Options' Soft body (Scene::setSoftBody; the scene's default: natural)
 //   render OUT.ppm|OUT.png WIDTH HEIGHT TIME_MS
+//   bonepoints N                              prints person N's head, chest and pelvis in world coordinates as last drawn (Scene::actorBonePoints: JOI mode's camera)
 //   bonepos N MODEL BONE...                   prints where those bones' pivots are as person N was last drawn (WoW-side names)
 //   location JSONFILE [ID [VIEW]]              a location (Scene::loadLocation; ID chooses the entry, VIEW its light/fog)
 //   view NAME                                  the loaded location's view: its light and fog, and its camera
@@ -1480,6 +1481,12 @@ int main(int argc, char** argv) {
                 std::printf("handhead %s over %zu frames at full weight: mean %.4f min %.4f max %.4f yards\n", what, v.size(), sum / v.size(), mn, mx);
             };
             stats("palm-to-aim", dAim); stats("palm-to-skull (signed)", dPalm); stats("lowest of palm/wrist/fingers (signed)", dMin);
+        } else if (cmd == "bonepoints") {
+            int name; ss >> name;
+            float p[9];
+            if (actors.count(name) && scene.actorBonePoints(actors[name], p))
+                std::printf("bonepoints %d head=(%.3f,%.3f,%.3f) chest=(%.3f,%.3f,%.3f) pelvis=(%.3f,%.3f,%.3f)\n", name, p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8]);
+            else std::printf("bonepoints %d: none\n", name);
         } else if (cmd == "bonepos") {
             // bonepos N MODEL BONE...: where each WoW-side bone's pivot is as person N was last drawn (model space)
             int name; uint32_t model; ss >> name >> model;

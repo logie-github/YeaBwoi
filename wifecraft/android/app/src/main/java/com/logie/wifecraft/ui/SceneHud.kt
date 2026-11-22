@@ -11,7 +11,7 @@ import kotlin.math.min
 // Play animation window's category tabs.
 
 /** What an action-bar slot does. */
-enum class HudOrder { WALK, PLAY, PARTNER, SAY, CHAT, STOP_REPEAT, CLEAR_QUEUE, RELEASE, USE, FREE_WILL, LIFE, STOP, SKIP }
+enum class HudOrder { WALK, PLAY, PARTNER, JOI, SAY, CHAT, STOP_REPEAT, CLEAR_QUEUE, RELEASE, USE, FREE_WILL, LIFE, STOP, SKIP }
 
 /** One slot of the action bar: what it does, its words, [lit] while it is on (Walk), [target] the object it uses. */
 data class HudSlot(val order: HudOrder, val label: String, val lit: Boolean = false, val target: String? = null) {
@@ -78,11 +78,14 @@ object SceneHud {
         uses: List<Pair<String, String>> = emptyList(),
         life: Boolean = false,
         performing: Boolean = false,
+        /** The JOI order (the NPC gives a JOI to someone in the room, filmed): offered on the live scene's bar. */
+        joi: Boolean = false,
     ): List<HudSlot> = buildList {
         add(HudSlot(HudOrder.WALK, "Walk", lit = walking))
         if (life) add(HudSlot(HudOrder.LIFE, "Actions"))
         add(HudSlot(HudOrder.PLAY, "Play animation"))
         if (partner) add(HudSlot(HudOrder.PARTNER, "Partner animation"))
+        if (joi) add(HudSlot(HudOrder.JOI, "JOI"))
         add(HudSlot(HudOrder.SAY, "Say…"))
         if (others > 0) add(HudSlot(HudOrder.CHAT, "Chat with…"))
         if (performing) add(HudSlot(HudOrder.STOP, "Stop"))
