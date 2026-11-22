@@ -61,6 +61,12 @@ val pureGraphics = tasks.register<Copy>("pureGraphics") {
     into(layout.buildDirectory.dir("gen/pureGraphics"))
 }
 
+// dialogue/: the whole package is pure (persona, lore, director, willingness, steers, the kink and JOI pack): copied as it is.
+val pureDialogue = tasks.register<Copy>("pureDialogue") {
+    from("../android/app/src/main/java/com/logie/wifecraft/dialogue") { include("*.kt") }
+    into(layout.buildDirectory.dir("gen/pureDialogue"))
+}
+
 // play/ is Android (Compose) but for the placed things' host, which is pure.
 val purePlay = tasks.register<Copy>("purePlay") {
     from("../android/app/src/main/java/com/logie/wifecraft/play/PlaceHost.kt")
@@ -87,6 +93,7 @@ sourceSets {
         kotlin.srcDir(pureData.map { it.destinationDir })
         kotlin.srcDir(pureAudio.map { it.destinationDir })
         kotlin.srcDir(purePlay.map { it.destinationDir })
+        kotlin.srcDir(pureDialogue.map { it.destinationDir })
         kotlin.srcDir(pureGraphics.map { it.destinationDir })
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/editor")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/story")
@@ -101,8 +108,8 @@ sourceSets {
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/simulation")
         // Sims 4 CAS body parts: GEOM meshes, CASP descriptions, RLE2/LRLE/DST textures, recolour, part files (bodyparts/)
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/bodyparts")
-        // the on-device dialogue model: the engine contract, the request queue, the model catalogue and the resumable download (dialogue/)
-        kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/dialogue")
+        // the dialogue runtime's JNI binding and the model wrapper (dialogue/native/: they compile on the JVM, the library is never loaded here)
+        kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/dialogue/native")
     }
 }
 

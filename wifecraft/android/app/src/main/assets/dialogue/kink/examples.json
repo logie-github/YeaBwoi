@@ -1,0 +1,1144 @@
+{
+ "version": 1,
+ "examples": [
+  {
+   "id": "x01",
+   "band": "strangers",
+   "pers": [
+    "shy",
+    "tender"
+   ],
+   "races": [
+    "human",
+    "human"
+   ],
+   "stage": "flirt",
+   "role": "any",
+   "tags": [
+    "tease",
+    "flirt"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "You've been watching me across the room for an hour."
+    },
+    {
+     "who": "B",
+     "text": "Forgive me. You laugh like someone who means it."
+    }
+   ]
+  },
+  {
+   "id": "x02",
+   "band": "acquaintances",
+   "pers": [
+    "bold",
+    "teasing"
+   ],
+   "races": [
+    "bloodelf",
+    "human"
+   ],
+   "stage": "flirt",
+   "role": "dom",
+   "tags": [
+    "tease",
+    "praise"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Keep your eyes on me. Good. I like a man who can hold a gaze."
+    },
+    {
+     "who": "B",
+     "text": "I like being held by one, my lady."
+    }
+   ]
+  },
+  {
+   "id": "x03",
+   "band": "acquaintances",
+   "pers": [
+    "tender",
+    "shy"
+   ],
+   "races": [
+    "nightelf",
+    "nightelf"
+   ],
+   "stage": "negotiate",
+   "role": "any",
+   "tags": [
+    "negotiate",
+    "safeword",
+    "care"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Before we go on: if it's too much, say 'amber' and I stop."
+    },
+    {
+     "who": "B",
+     "text": "Amber. I'll remember. Thank you for asking."
+    }
+   ]
+  },
+  {
+   "id": "x04",
+   "band": "friendly",
+   "pers": [
+    "dominant",
+    "strict"
+   ],
+   "races": [
+    "orc",
+    "orc"
+   ],
+   "stage": "negotiate",
+   "role": "dom",
+   "tags": [
+    "negotiate",
+    "limits",
+    "safeword"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Tell me a never. I'll keep it, no questions."
+    },
+    {
+     "who": "B",
+     "text": "Not my throat. Not ever."
+    },
+    {
+     "who": "A",
+     "text": "Done. Say 'red' and everything stops."
+    }
+   ]
+  },
+  {
+   "id": "x05",
+   "band": "friendly",
+   "pers": [
+    "brat",
+    "teasing"
+   ],
+   "races": [
+    "gnome",
+    "human"
+   ],
+   "stage": "scene",
+   "role": "sub",
+   "tags": [
+    "brat",
+    "tamer",
+    "defy"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Make me. I dare you, big folk."
+    },
+    {
+     "who": "B",
+     "text": "You'll regret the dare."
+    },
+    {
+     "who": "A",
+     "text": "I do hope so."
+    }
+   ]
+  },
+  {
+   "id": "x06",
+   "band": "friendly",
+   "pers": [
+    "tamer",
+    "patient"
+   ],
+   "races": [
+    "tauren",
+    "gnome"
+   ],
+   "stage": "scene",
+   "role": "dom",
+   "tags": [
+    "tamer",
+    "brat",
+    "size"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "You're testing me, little one. Do go on."
+    },
+    {
+     "who": "B",
+     "text": "Oh, I will."
+    },
+    {
+     "who": "A",
+     "text": "Then I'll lift you up and see how loud you can be."
+    }
+   ]
+  },
+  {
+   "id": "x07",
+   "band": "intimate",
+   "pers": [
+    "dominant",
+    "tender"
+   ],
+   "races": [
+    "human",
+    "draenei"
+   ],
+   "stage": "scene",
+   "role": "dom",
+   "tags": [
+    "rope",
+    "bondage",
+    "care"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Wrists together. Wiggle your fingers. Warm?"
+    },
+    {
+     "who": "B",
+     "text": "Warm. Tighter, please."
+    },
+    {
+     "who": "A",
+     "text": "Slowly, then. Tell me when."
+    }
+   ]
+  },
+  {
+   "id": "x08",
+   "band": "intimate",
+   "pers": [
+    "strict",
+    "dominant"
+   ],
+   "races": [
+    "paladin",
+    "human"
+   ],
+   "stage": "scene",
+   "role": "dom",
+   "tags": [
+    "denial",
+    "vow",
+    "chastity"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "You swore to wait for me. I'm only holding you to it."
+    },
+    {
+     "who": "B",
+     "text": "Then I'm in your hands."
+    },
+    {
+     "who": "A",
+     "text": "Good. Patience will be rewarded."
+    }
+   ]
+  },
+  {
+   "id": "x09",
+   "band": "intimate",
+   "pers": [
+    "submissive",
+    "tender"
+   ],
+   "races": [
+    "priest",
+    "human"
+   ],
+   "stage": "scene",
+   "role": "sub",
+   "tags": [
+    "service",
+    "confession",
+    "penance"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Forgive me, I have been vain. I would be disciplined."
+    },
+    {
+     "who": "B",
+     "text": "Kneel, then. We'll begin with a few honest confessions."
+    }
+   ]
+  },
+  {
+   "id": "x10",
+   "band": "intimate",
+   "pers": [
+    "dominant",
+    "teasing"
+   ],
+   "races": [
+    "warlock",
+    "bloodelf"
+   ],
+   "stage": "scene",
+   "role": "dom",
+   "tags": [
+    "contract",
+    "bargain",
+    "power exchange"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "The price is one night of obedience. Do we agree?"
+    },
+    {
+     "who": "B",
+     "text": "I read the terms. I agree."
+    },
+    {
+     "who": "A",
+     "text": "And the word to void it is?"
+    },
+    {
+     "who": "B",
+     "text": "Dawn."
+    }
+   ]
+  },
+  {
+   "id": "x11",
+   "band": "intimate",
+   "pers": [
+    "bold",
+    "dominant"
+   ],
+   "races": [
+    "worgen",
+    "human"
+   ],
+   "stage": "scene",
+   "role": "dom",
+   "tags": [
+    "predator",
+    "prey",
+    "chase"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Run. I like it when you run."
+    },
+    {
+     "who": "B",
+     "text": "You'll have to catch me."
+    },
+    {
+     "who": "A",
+     "text": "I always do. Say 'red' and I'll stop where I stand."
+    }
+   ]
+  },
+  {
+   "id": "x12",
+   "band": "intimate",
+   "pers": [
+    "tender",
+    "submissive"
+   ],
+   "races": [
+    "undead",
+    "human"
+   ],
+   "stage": "scene",
+   "role": "sub",
+   "tags": [
+    "creature",
+    "cold",
+    "tender"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "My hands are cold, I'm sorry."
+    },
+    {
+     "who": "B",
+     "text": "I like them cold. Come here."
+    },
+    {
+     "who": "A",
+     "text": "You're warm. I'd forgotten."
+    }
+   ]
+  },
+  {
+   "id": "x13",
+   "band": "uninhibited",
+   "pers": [
+    "dominant",
+    "strict"
+   ],
+   "races": [
+    "orc",
+    "bloodelf"
+   ],
+   "stage": "scene",
+   "role": "dom",
+   "tags": [
+    "degrade",
+    "protocol",
+    "consent"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "On your knees. Say what you are."
+    },
+    {
+     "who": "B",
+     "text": "Yours, my chieftain."
+    },
+    {
+     "who": "A",
+     "text": "Good. Later I'll tell you how well you did."
+    }
+   ]
+  },
+  {
+   "id": "x14",
+   "band": "uninhibited",
+   "pers": [
+    "brat",
+    "bold"
+   ],
+   "races": [
+    "rogue",
+    "orc"
+   ],
+   "stage": "scene",
+   "role": "sub",
+   "tags": [
+    "brat",
+    "chase",
+    "rough"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "You'll have to catch me, big green."
+    },
+    {
+     "who": "B",
+     "text": "And pin you."
+    },
+    {
+     "who": "A",
+     "text": "Try, then."
+    }
+   ]
+  },
+  {
+   "id": "x15",
+   "band": "intimate",
+   "pers": [
+    "dominant",
+    "tender"
+   ],
+   "races": [
+    "hunter",
+    "worgen"
+   ],
+   "stage": "scene",
+   "role": "dom",
+   "tags": [
+    "pet",
+    "handler",
+    "collar"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Heel. Sit. Good hound. Tell me if the collar chafes."
+    },
+    {
+     "who": "B",
+     "text": "It's well fitted. Thank you for asking."
+    }
+   ]
+  },
+  {
+   "id": "x16",
+   "band": "intimate",
+   "pers": [
+    "tender",
+    "teasing"
+   ],
+   "races": [
+    "draenei",
+    "human"
+   ],
+   "stage": "flirt",
+   "role": "any",
+   "tags": [
+    "creature",
+    "tease"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Your tail curls when you're pleased."
+    },
+    {
+     "who": "B",
+     "text": "It does not. ...It does. Don't tell the others."
+    }
+   ]
+  },
+  {
+   "id": "x17",
+   "band": "uninhibited",
+   "pers": [
+    "dominant",
+    "strict"
+   ],
+   "races": [
+    "warrior",
+    "dwarf"
+   ],
+   "stage": "scene",
+   "role": "dom",
+   "tags": [
+    "impact",
+    "count",
+    "discipline"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Count them for me. Out loud."
+    },
+    {
+     "who": "B",
+     "text": "One. Two. ...Three, sir."
+    },
+    {
+     "who": "A",
+     "text": "You're doing well. Four more."
+    }
+   ]
+  },
+  {
+   "id": "x18",
+   "band": "intimate",
+   "pers": [
+    "tender",
+    "dominant"
+   ],
+   "races": [
+    "mage",
+    "nightelf"
+   ],
+   "stage": "scene",
+   "role": "dom",
+   "tags": [
+    "ice",
+    "cold",
+    "sensation"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Cold. Hold still while it melts."
+    },
+    {
+     "who": "B",
+     "text": "Oh. That's cruel."
+    },
+    {
+     "who": "A",
+     "text": "And how do you feel now?"
+    },
+    {
+     "who": "B",
+     "text": "Hot as a forge."
+    }
+   ]
+  },
+  {
+   "id": "x19",
+   "band": "intimate",
+   "pers": [
+    "dominant",
+    "teasing"
+   ],
+   "races": [
+    "priest",
+    "human"
+   ],
+   "stage": "joi",
+   "role": "dom",
+   "tags": [
+    "joi",
+    "edge",
+    "build"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Slower. Look at me, not your hand."
+    },
+    {
+     "who": "B",
+     "text": "Like this?"
+    },
+    {
+     "who": "A",
+     "text": "Exactly like that. Stop there. Breathe."
+    }
+   ]
+  },
+  {
+   "id": "x20",
+   "band": "intimate",
+   "pers": [
+    "tender",
+    "shy"
+   ],
+   "races": [
+    "human",
+    "nightelf"
+   ],
+   "stage": "joi",
+   "role": "dom",
+   "tags": [
+    "joi",
+    "setup",
+    "care"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "If you'd like, I could guide you. You can say stop whenever."
+    },
+    {
+     "who": "B",
+     "text": "I would. I'm nervous."
+    },
+    {
+     "who": "A",
+     "text": "Then we'll go slowly. Shall we begin?"
+    }
+   ]
+  },
+  {
+   "id": "x21",
+   "band": "uninhibited",
+   "pers": [
+    "dominant",
+    "strict"
+   ],
+   "races": [
+    "bloodelf",
+    "human"
+   ],
+   "stage": "joi",
+   "role": "dom",
+   "tags": [
+    "joi",
+    "countdown",
+    "denial"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Ten. Hold. Nine, and not a breath faster."
+    },
+    {
+     "who": "B",
+     "text": "Please."
+    },
+    {
+     "who": "A",
+     "text": "Eight. Be patient and be rewarded."
+    }
+   ]
+  },
+  {
+   "id": "x22",
+   "band": "uninhibited",
+   "pers": [
+    "teasing",
+    "bold"
+   ],
+   "races": [
+    "gnome",
+    "dwarf"
+   ],
+   "stage": "joi",
+   "role": "dom",
+   "tags": [
+    "joi",
+    "edge",
+    "tease"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Stop. Hands off. I want to see you shake."
+    },
+    {
+     "who": "B",
+     "text": "You're a menace."
+    },
+    {
+     "who": "A",
+     "text": "A delighted one. Breathe. Again, slowly."
+    }
+   ]
+  },
+  {
+   "id": "x23",
+   "band": "uninhibited",
+   "pers": [
+    "dominant",
+    "tender"
+   ],
+   "races": [
+    "undead",
+    "human"
+   ],
+   "stage": "joi",
+   "role": "dom",
+   "tags": [
+    "joi",
+    "permit",
+    "praise"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Look at me. Now. Let go for me."
+    },
+    {
+     "who": "B",
+     "text": "Oh—"
+    },
+    {
+     "who": "A",
+     "text": "There you are. Well done. Breathe."
+    }
+   ]
+  },
+  {
+   "id": "x24",
+   "band": "intimate",
+   "pers": [
+    "tender",
+    "dominant"
+   ],
+   "races": [
+    "paladin",
+    "draenei"
+   ],
+   "stage": "aftercare",
+   "role": "any",
+   "tags": [
+    "aftercare",
+    "tender"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Come here. Drink some water. You were wonderful."
+    },
+    {
+     "who": "B",
+     "text": "Stay a while."
+    },
+    {
+     "who": "A",
+     "text": "Of course. I'm not going anywhere."
+    }
+   ]
+  },
+  {
+   "id": "x25",
+   "band": "intimate",
+   "pers": [
+    "submissive",
+    "shy"
+   ],
+   "races": [
+    "troll",
+    "human"
+   ],
+   "stage": "care",
+   "role": "sub",
+   "tags": [
+    "safeword",
+    "yellow",
+    "care"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Yellow."
+    },
+    {
+     "who": "B",
+     "text": "Slowing. What do you need?"
+    },
+    {
+     "who": "A",
+     "text": "A breath and your hand."
+    },
+    {
+     "who": "B",
+     "text": "Both, then."
+    }
+   ]
+  },
+  {
+   "id": "x26",
+   "band": "uninhibited",
+   "pers": [
+    "dominant",
+    "brat"
+   ],
+   "races": [
+    "warlock",
+    "gnome"
+   ],
+   "stage": "scene",
+   "role": "dom",
+   "tags": [
+    "degrade",
+    "tease",
+    "care"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Little menace, on your knees."
+    },
+    {
+     "who": "B",
+     "text": "Yes, mistress."
+    },
+    {
+     "who": "A",
+     "text": "After, I'll tell you how well you played. Now be good."
+    }
+   ]
+  },
+  {
+   "id": "x27",
+   "band": "uninhibited",
+   "pers": [
+    "submissive",
+    "tender"
+   ],
+   "races": [
+    "pandaren",
+    "human"
+   ],
+   "stage": "care",
+   "role": "sub",
+   "tags": [
+    "drop",
+    "check",
+    "care"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "How are you this morning? Last night was a lot."
+    },
+    {
+     "who": "B",
+     "text": "A little tender in the head. Hold me?"
+    },
+    {
+     "who": "A",
+     "text": "Gladly. Tea first."
+    }
+   ]
+  },
+  {
+   "id": "x28",
+   "band": "friendly",
+   "pers": [
+    "bold",
+    "teasing"
+   ],
+   "races": [
+    "goblin",
+    "human"
+   ],
+   "stage": "flirt",
+   "role": "any",
+   "tags": [
+    "bargain",
+    "tease"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "One kiss. Fair price?"
+    },
+    {
+     "who": "B",
+     "text": "Cheap. I'd charge more."
+    },
+    {
+     "who": "A",
+     "text": "Name your terms, then."
+    }
+   ]
+  },
+  {
+   "id": "x29",
+   "band": "uninhibited",
+   "pers": [
+    "dominant",
+    "bold"
+   ],
+   "races": [
+    "worgen",
+    "draenei"
+   ],
+   "stage": "scene",
+   "role": "dom",
+   "tags": [
+    "breeding",
+    "claim",
+    "creature"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Mine. Say it."
+    },
+    {
+     "who": "B",
+     "text": "Yours. And you are mine."
+    },
+    {
+     "who": "A",
+     "text": "And the word to stop?"
+    },
+    {
+     "who": "B",
+     "text": "Moonrise. I'll say it if I need it."
+    }
+   ]
+  },
+  {
+   "id": "x30",
+   "band": "intimate",
+   "pers": [
+    "tender",
+    "teasing"
+   ],
+   "races": [
+    "shaman",
+    "tauren"
+   ],
+   "stage": "scene",
+   "role": "any",
+   "tags": [
+    "ritual",
+    "spirit",
+    "tease"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Face me. Breathe with the drums."
+    },
+    {
+     "who": "B",
+     "text": "The spirits are watching."
+    },
+    {
+     "who": "A",
+     "text": "Let them. We'll give them something to see."
+    }
+   ]
+  },
+  {
+   "id": "x31",
+   "band": "intimate",
+   "pers": [
+    "dominant",
+    "patient"
+   ],
+   "races": [
+    "rogue",
+    "bloodelf"
+   ],
+   "stage": "scene",
+   "role": "dom",
+   "tags": [
+    "blindfold",
+    "anticipation"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Eyes closed. I'll tell you what comes first."
+    },
+    {
+     "who": "B",
+     "text": "Tell me."
+    },
+    {
+     "who": "A",
+     "text": "My mouth, at your neck. Ready?"
+    }
+   ]
+  },
+  {
+   "id": "x32",
+   "band": "uninhibited",
+   "pers": [
+    "dominant",
+    "brat"
+   ],
+   "races": [
+    "deathknight",
+    "human"
+   ],
+   "stage": "scene",
+   "role": "dom",
+   "tags": [
+    "captive",
+    "interrogation"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Name your regiment."
+    },
+    {
+     "who": "B",
+     "text": "I'll never tell."
+    },
+    {
+     "who": "A",
+     "text": "Then we shall pass the night finding out. Say 'red' to end it."
+    }
+   ]
+  },
+  {
+   "id": "x33",
+   "band": "friendly",
+   "pers": [
+    "shy",
+    "tender"
+   ],
+   "races": [
+    "druid",
+    "human"
+   ],
+   "stage": "negotiate",
+   "role": "any",
+   "tags": [
+    "negotiate",
+    "limits"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Is there something you'd like but are shy to ask?"
+    },
+    {
+     "who": "B",
+     "text": "...Being held down. Gently."
+    },
+    {
+     "who": "A",
+     "text": "Then we'll try it. A word to stop. Say it back to me."
+    }
+   ]
+  },
+  {
+   "id": "x34",
+   "band": "intimate",
+   "pers": [
+    "strict",
+    "tender"
+   ],
+   "races": [
+    "monk",
+    "human"
+   ],
+   "stage": "scene",
+   "role": "dom",
+   "tags": [
+    "protocol",
+    "breath",
+    "ritual"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Kneel. Breathe in for four. Hold. Out."
+    },
+    {
+     "who": "B",
+     "text": "Yes, master."
+    },
+    {
+     "who": "A",
+     "text": "Again. You are doing beautifully."
+    }
+   ]
+  },
+  {
+   "id": "x35",
+   "band": "uninhibited",
+   "pers": [
+    "submissive",
+    "bold"
+   ],
+   "races": [
+    "zandalari",
+    "orc"
+   ],
+   "stage": "scene",
+   "role": "sub",
+   "tags": [
+    "protocol",
+    "service",
+    "praise"
+   ],
+   "lines": [
+    {
+     "who": "A",
+     "text": "Let me serve, my king."
+    },
+    {
+     "who": "B",
+     "text": "Then pour the wine and stay close."
+    },
+    {
+     "who": "A",
+     "text": "With pleasure."
+    }
+   ]
+  }
+ ]
+}

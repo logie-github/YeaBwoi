@@ -1,64 +1,34 @@
 package com.logie.wifecraft.dialogue
 
-/*
- * THE CONTRACT between the NPCs' dialogue layer (personas, prompts, what an NPC says and decides) and the model that
- * answers it. Pure Kotlin with no dependencies (not even coroutines): the persona code is written against [DialogueEngine]
- * and tested with [FakeDialogueEngine]; the app wires the real one (DialogueModel: one shared llama.cpp model, a KV
- * sequence per NPC) and, until a model is downloaded and loaded, [NoDialogueEngine], which answers null so the game goes
- * on silent.
+/**
+ * The on-device language model as the dialogue layer sees it: one call, one answer. The runtime (llama.cpp, one shared model)
+ * implements it; the layer above ([DialogueDirector], [ConsentCoordinator]) is written against this alone and is tested with
+ * a scripted one. This file is the single source of truth for the interface: the runtime merges onto it. Pure JVM.
  */
-
-enum class DialogueRole { SYSTEM, USER, ASSISTANT }
-
-data class DialogueMessage(val role: DialogueRole, val content: String) {
-    companion object {
-        fun user(text: String) = DialogueMessage(DialogueRole.USER, text)
-        fun assistant(text: String) = DialogueMessage(DialogueRole.ASSISTANT, text)
-    }
+data class DialogueTurn(val role: Role, val text: String) {
+    enum class Role { USER, ASSISTANT }
 }
 
 /**
- * Who is waiting for the answer, most urgent first. The queue serves the lowest ordinal first, and the scheduler promotes a
- * request on its own when its NPC is the selected one or half of a talking pair (DialogueScheduler.setFocus).
- */
-enum class DialoguePriority {
-    /** The NPC the player has selected, or is talking to: answered before anything else, never held back by the budget. */
-    SELECTED,
-    /** Two NPCs talking to each other in front of the player (both halves), or a pair at a partner animation. */
-    PAIR,
-    /** An NPC on screen, speaking unprompted. */
-    NEARBY,
-    /** Background chatter and decisions of NPCs nobody is watching: dropped first, paced by the token budget. */
-    AMBIENT,
-}
-
-/**
- * One request for one NPC's next words.
- *
- * The prompt is [system] + [history] + [user], in that order. For the model to skip re-reading what it has already read,
- * keep the start of the prompt IDENTICAL from turn to turn: put what never changes (the world, the persona) in [system],
- * append to [history] and never edit or reorder what is already in it (trim only from the front, all at once, when the
- * budget is full: the whole prefix is read again then). The text of a request that begins with the same words as another
- * NPC's (a shared world preamble) is read once for both.
+ * One request. [system] is the NPC's persona prompt (its first part is stable per NPC so the runtime can cache its prefix),
+ * [history] the short rolling talk so far, [user] what to answer now, [maxTokens] the most it may write.
  */
 data class DialogueRequest(
-    /** The NPC's stable id (the npc roster's): its conversation state is kept under this. */
     val npcId: String,
     val system: String,
-    val history: List<DialogueMessage> = emptyList(),
-    /** What the NPC is being told or asked now (a line of the player's, what another NPC said, the situation); may be empty. */
-    val user: String = "",
-    /** Most tokens of the answer. A line or two is 40 to 100; the scheduler never allows less than 1. */
-    val maxTokens: Int = 120,
-    /** Text at which generation ends, the stop text itself not included. The turn's own end is always a stop. */
-    val stop: List<String> = emptyList(),
+    val history: List<DialogueTurn> = emptyList(),
+    val user: String,
+    val maxTokens: Int = 60,
     val temperature: Float = 0.8f,
+    val stop: List<String> = emptyList(),
+    // ---- added by the runtime (DialogueScheduler); all optional, so the layer above is unchanged ----
     val topP: Float = 0.92f,
     val repeatPenalty: Float = 1.08f,
     /** 0: a different answer every time; any other number repeats the answer. */
     val seed: Int = 0,
+    /** Who is waiting, most urgent first. The scheduler also promotes the selected NPC and a talking pair on its own (setFocus). */
     val priority: DialoguePriority = DialoguePriority.AMBIENT,
-    /** How long the request may wait in the queue before it is given up (null: by priority; 0 or less: for ever). */
+    /** How long the request may wait in the queue (null: by priority; 0 or less: for ever). */
     val maxWaitMs: Long? = null,
     /** True: read the prompt into the NPC's state and answer nothing (warms an NPC as it is loaded). */
     val prefillOnly: Boolean = false,
@@ -67,12 +37,10 @@ data class DialogueRequest(
 )
 
 interface DialogueEngine {
-    /**
-     * The NPC's next words, or null when there are none: no model on the phone (or not loaded), the request cancelled, given
-     * up in the queue, or failed. Never throws for those: the game goes on without the line. Cancelling the calling
-     * coroutine cancels the request, running or queued.
-     */
+    /** The model's answer, or null when it can't answer now (not loaded, busy, failed): the caller then stays silent. */
     suspend fun complete(req: DialogueRequest): String?
+
+    // ---- added by the runtime; defaults so a scripted engine needs only complete() ----
 
     /** True when a model is loaded and requests are being answered. */
     val ready: Boolean get() = true
@@ -84,45 +52,4 @@ interface DialogueEngine {
     fun setFocus(selected: String?, pair: Set<String> = emptySet()) {}
 }
 
-/** The engine used while no model is loaded: every request is answered with nothing. */
-object NoDialogueEngine : DialogueEngine {
-    override suspend fun complete(req: DialogueRequest): String? = null
-    override val ready: Boolean get() = false
-}
-
-/**
- * A scripted engine for the persona code's tests: [reply] answers each request (null: no answer), every request is kept in
- * [requests], and the answer is handed to the request's [DialogueRequest.onPartial] a word at a time first.
- */
-class FakeDialogueEngine(private val reply: (DialogueRequest) -> String?) : DialogueEngine {
-    /** The scripted answers in order (the last one repeats), whoever asks; with none, "...". */
-    constructor(vararg answers: String) : this(scripted(answers.toList()))
-
-    private companion object {
-        fun scripted(answers: List<String>): (DialogueRequest) -> String? {
-            var i = 0
-            return { _ -> if (answers.isEmpty()) "..." else answers[minOf(i++, answers.size - 1)] }
-        }
-    }
-
-    private val seen = ArrayList<DialogueRequest>()
-    val requests: List<DialogueRequest> get() = synchronized(seen) { seen.toList() }
-    val forgotten = ArrayList<String>()
-    var focusSelected: String? = null
-        private set
-    var focusPair: Set<String> = emptySet()
-        private set
-    override var ready: Boolean = true
-
-    override suspend fun complete(req: DialogueRequest): String? {
-        synchronized(seen) { seen.add(req) }
-        if (!ready || req.prefillOnly) return null
-        val text = reply(req) ?: return null
-        req.onPartial?.let { cb -> Regex("\\S+\\s*").findAll(text).forEach { cb(it.value) } }
-        return text
-    }
-
-    override fun forget(npcId: String) { forgotten.add(npcId) }
-
-    override fun setFocus(selected: String?, pair: Set<String>) { focusSelected = selected; focusPair = pair }
-}
+/** Cancelling the calling coroutine cancels the request, running or queued; a request given up in the queue answers null. */

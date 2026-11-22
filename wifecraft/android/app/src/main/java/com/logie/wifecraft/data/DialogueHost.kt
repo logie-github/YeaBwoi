@@ -58,7 +58,7 @@ object DialogueHost {
         refresh()
     }
 
-    val config: DialogueConfig get() = settings.dialogue
+    val config: DialogueConfig get() = settings.dialogueModel
 
     fun totalRam(): Long = memory().totalMem
     private fun memory(): ActivityManager.MemoryInfo =
@@ -94,8 +94,7 @@ object DialogueHost {
     }
 
     fun setConfig(cfg: DialogueConfig) {
-        settings.dialogue = cfg
-        model.engine.let { }   // (the model is replaced only by load)
+        settings.dialogueModel = cfg
         refresh()
     }
 
@@ -182,7 +181,7 @@ object DialogueHost {
             return s
         } finally {
             downloading = false
-            if (_state.value.phase == DialogueUiState.Phase.READY) { settings.dialogue = config.copy(enabled = true); loadAsync() }
+            if (_state.value.phase == DialogueUiState.Phase.READY) { settings.dialogueModel = config.copy(enabled = true); loadAsync() }
         }
     }
 

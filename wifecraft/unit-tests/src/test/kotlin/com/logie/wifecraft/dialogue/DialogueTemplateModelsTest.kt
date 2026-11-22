@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
 
 class DialogueTemplateTest {
     @Test fun rendersChatMl() {
-        val p = ChatTemplate.CHATML.render("You are Thalia.", listOf(DialogueMessage.user("Hi"), DialogueMessage.assistant("Hello.")), "Who are you?")
+        val p = ChatTemplate.CHATML.render("You are Thalia.", listOf(DialogueTurn(DialogueTurn.Role.USER, "Hi"), DialogueTurn(DialogueTurn.Role.ASSISTANT, "Hello.")), "Who are you?")
         assertEquals("<|im_start|>system\nYou are Thalia.<|im_end|>\n<|im_start|>user\nHi<|im_end|>\n<|im_start|>assistant\nHello.<|im_end|>\n" +
             "<|im_start|>user\nWho are you?<|im_end|>\n<|im_start|>assistant\n", p)
     }
@@ -22,9 +22,9 @@ class DialogueTemplateTest {
 
     @Test fun aTurnsPromptIsAPrefixOfTheNextTurnsPrompt() {
         val sys = "World. You are Korg."
-        val h1 = listOf(DialogueMessage.user("a"))
+        val h1 = listOf(DialogueTurn(DialogueTurn.Role.USER, "a"))
         val p1 = ChatTemplate.CHATML.render(sys, emptyList(), "a")
-        val p2 = ChatTemplate.CHATML.render(sys, h1 + DialogueMessage.assistant("b"), "c")
+        val p2 = ChatTemplate.CHATML.render(sys, h1 + DialogueTurn(DialogueTurn.Role.ASSISTANT, "b"), "c")
         // turn 1's prompt without its open "assistant" line is the start of turn 2's
         assertTrue(p2.startsWith(p1.removeSuffix("<|im_start|>assistant\n")))
     }
@@ -80,7 +80,7 @@ class DialogueModelsTest {
             DialogueMessage(DialogueRole.SYSTEM, "A"), DialogueMessage(DialogueRole.SYSTEM, "B"), DialogueMessage.user("q1"),
             DialogueMessage.assistant("a1"), DialogueMessage.user("q2")), 50, listOf("\n\n"), 0.5f, DialoguePriority.NEARBY)
         assertEquals("A\n\nB", r.system)
-        assertEquals(listOf(DialogueMessage.user("q1"), DialogueMessage.assistant("a1")), r.history)
+        assertEquals(listOf(DialogueTurn(DialogueTurn.Role.USER, "q1"), DialogueTurn(DialogueTurn.Role.ASSISTANT, "a1")), r.history)
         assertEquals("q2", r.user)
         assertEquals(DialoguePriority.NEARBY, r.priority)
         assertEquals(LoadLevel.OK, DialogueModel.loadFromGovernor(0)); assertEquals(LoadLevel.BUSY, DialogueModel.loadFromGovernor(1)); assertEquals(LoadLevel.STRUGGLING, DialogueModel.loadFromGovernor(3))
@@ -89,13 +89,13 @@ class DialogueModelsTest {
     @Test fun theFakeEngineScriptsAnswersAndRemembersRequests() = runBlocking {
         val f = FakeDialogueEngine("one", "two")
         val seen = StringBuilder()
-        assertEquals("one", f.complete(DialogueRequest("a", "s", onPartial = { seen.append(it) })))
-        assertEquals("two", f.complete(DialogueRequest("b", "s")))
-        assertEquals("two", f.complete(DialogueRequest("c", "s")))
+        assertEquals("one", f.complete(DialogueRequest("a", "s", user = "", onPartial = { seen.append(it) })))
+        assertEquals("two", f.complete(DialogueRequest("b", "s", user = "")))
+        assertEquals("two", f.complete(DialogueRequest("c", "s", user = "")))
         assertEquals("one", seen.toString())
         assertEquals(listOf("a", "b", "c"), f.requests.map { it.npcId })
         f.ready = false
-        assertNull(f.complete(DialogueRequest("d", "s")))
+        assertNull(f.complete(DialogueRequest("d", "s", user = "")))
         f.setFocus("a", setOf("b")); f.forget("a")
         assertEquals("a", f.focusSelected); assertEquals(listOf("a"), f.forgotten)
     }

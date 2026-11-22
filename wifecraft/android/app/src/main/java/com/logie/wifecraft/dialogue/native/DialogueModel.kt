@@ -48,6 +48,7 @@ class DialogueModel(
             this.spec = spec
             scheduler = DialogueScheduler(b, spec.template, TokenBudget(ambientTokensPerMinute), loadSignal)
         }
+        DialogueRuntime.engine = engine   // the scenes' directors read it each call
         return null
     }
 
@@ -55,6 +56,7 @@ class DialogueModel(
     fun unload() {
         val s: DialogueScheduler?
         synchronized(lock) { s = scheduler; scheduler = null; backend = null; spec = null }
+        if (DialogueRuntime.engine === engine) DialogueRuntime.engine = null
         s?.let { it.flush(); it.close() }
     }
 
@@ -83,7 +85,8 @@ class DialogueModel(
             var rest = messages.drop(messages.takeWhile { it.role == DialogueRole.SYSTEM }.size)
             val user = if (rest.lastOrNull()?.role == DialogueRole.USER) rest.last().content else ""
             if (user.isNotEmpty()) rest = rest.dropLast(1)
-            return DialogueRequest(npcId, system, rest, user, maxTokens, stop, temperature, priority = priority)
+            val turns = rest.filter { it.role != DialogueRole.SYSTEM }.map { DialogueTurn(if (it.role == DialogueRole.USER) DialogueTurn.Role.USER else DialogueTurn.Role.ASSISTANT, it.content) }
+            return DialogueRequest(npcId, system, turns, user, maxTokens, temperature, stop, priority = priority)
         }
 
         /** The governor's quality step as a load level: 0 nothing stepped down, 1 a step, 2 or more (or the thermal floor) struggling. */

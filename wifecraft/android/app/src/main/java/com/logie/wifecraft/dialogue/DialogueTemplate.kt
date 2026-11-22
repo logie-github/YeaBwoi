@@ -11,14 +11,10 @@ enum class ChatTemplate(val thinkOff: Boolean) {
     /** ChatML with the answer opened by an empty think block (Qwen3 hybrids). */
     CHATML_NO_THINK(true);
 
-    fun render(system: String, history: List<DialogueMessage>, user: String): String {
+    fun render(system: String, history: List<DialogueTurn>, user: String): String {
         val sb = StringBuilder(system.length + user.length + 64 * (history.size + 2))
         if (system.isNotEmpty()) turn(sb, "system", system)
-        for (m in history) turn(sb, when (m.role) {
-            DialogueRole.SYSTEM -> "system"
-            DialogueRole.USER -> "user"
-            DialogueRole.ASSISTANT -> "assistant"
-        }, clean(m.content))
+        for (m in history) turn(sb, if (m.role == DialogueTurn.Role.USER) "user" else "assistant", clean(m.text))
         if (user.isNotEmpty()) turn(sb, "user", clean(user))
         sb.append("<|im_start|>assistant\n")
         if (thinkOff) sb.append("<think>\n\n</think>\n\n")
