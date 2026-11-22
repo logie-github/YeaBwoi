@@ -135,3 +135,9 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/bonelayer_test.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" \
     -o "$here/build/bonelayer_test"
 echo "$here/build/bonelayer_test"
+# The interactable sparkles' maths (engine/sparkle.h: motes over a footprint, rising and fading, the density and a spot's
+# strength; no GL, no game files): build/sparkle_test, exit 0 when all pass.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -DWC_NO_GL -I"$engine" \
+    "$here/sparkle_test.cpp" "$engine/sparkle.cpp" \
+    -o "$here/build/sparkle_test"
+echo "$here/build/sparkle_test"

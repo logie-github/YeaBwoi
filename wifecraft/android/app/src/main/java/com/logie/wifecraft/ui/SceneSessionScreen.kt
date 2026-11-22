@@ -136,6 +136,10 @@ import com.logie.wifecraft.simulation.JoiAnimationPicker
 import com.logie.wifecraft.simulation.JoiAnimations
 import com.logie.wifecraft.simulation.JoiCamera
 import com.logie.wifecraft.simulation.JoiClip
+import com.logie.wifecraft.simulation.JoiFraming
+import com.logie.wifecraft.simulation.JoiHandjobs
+import com.logie.wifecraft.simulation.JoiStroke
+import com.logie.wifecraft.simulation.StrokeHands
 import com.logie.wifecraft.simulation.JoiMode
 import com.logie.wifecraft.simulation.JoiPacing
 import com.logie.wifecraft.simulation.JoiPrior
@@ -170,6 +174,8 @@ import com.logie.wifecraft.simulation.FlowStep
 import com.logie.wifecraft.simulation.HudReveal
 import com.logie.wifecraft.simulation.ImmersiveSettings
 import com.logie.wifecraft.graphics.Graphics
+import com.logie.wifecraft.simulation.Sparkles
+import androidx.compose.runtime.collectAsState
 import com.logie.wifecraft.graphics.SkinSheen
 import com.logie.wifecraft.simulation.IntensityEase
 import com.logie.wifecraft.simulation.IntensityModel
@@ -497,7 +503,7 @@ fun LiveSceneScreen(
         build.cast = cast.associate { it.id to RoleActor(it.appearance.raceId, it.appearance.sex == Sex.FEMALE) }
         build.names = cast.associate { it.id to it.name }
     }
-    val furnitureAt = remember(furnitureMeasured, mapper.local, mapper.shipped, mapper.placeId, build.items) {
+    val furnitureAt = remember(furnitureMeasured, mapper.local, mapper.shipped, mapper.placeId, build.items, build.spotSig) {
         build.overlay(mapper.overridden(furnitureMeasured))
     }
     build.furnitureOf = { furnitureAt[it] }
@@ -611,6 +617,14 @@ fun LiveSceneScreen(
         live.directing = BuildEntry.directorCamera(cinematic, build.on)
     }
     LaunchedEffect(live, cinematic) { cineNotify(cinematic) }
+    // interactable sparkles (engine/sparkle.h): WoW-style twinkles over every spot a body can use (the scene's usable furniture and the
+    // New tab's spots), hidden while one is occupied; off in Build mode, in cinematic mode and with the switch off; fewer as the governor lowers effects
+    val graphicsNow by Graphics.live.collectAsState()
+    LaunchedEffect(view, build.sparklesOn, build.on, cinematic, snapshot.holders, snapshot.usable, furnitureAt, build.spotSig, graphicsNow.lowered.size) {
+        val show = Sparkles.shown(build.sparklesOn, build.on, cinematic)
+        view.setSparkles(Sparkles.floats(build.sparkleSources(furnitureAt, snapshot.usable, snapshot.holders.keys), show), Sparkles.density(graphicsNow.lowered.size))
+    }
+    DisposableEffect(view) { onDispose { view.setSparkles(FloatArray(0), 0f) } }
     DisposableEffect(live, view) { onDispose { live.directing = false; view.clearCinematic(); cineNotify(false) } }
     // who the player controls and that NPC's partner (SceneControl: a tap on another NPC makes it the partner)
     var control by remember { mutableStateOf(SceneControl()) }
@@ -1011,6 +1025,8 @@ fun LiveSceneScreen(
     }
     LaunchedEffect(live, spots) {
         for ((item, spot) in spots) live.command { it.setSpot(item, spot) }
+        build.baseSpots = spots
+        build.applySpots()
     }
     // the life and the clock kept every half minute (GL thread: where both are driven)
     LaunchedEffect(live) {
@@ -1100,8 +1116,8 @@ fun LiveSceneScreen(
      * the posture on it (Lying, Sitting...): two-person ones with the partner (else the nearest who can join). Nothing fits
      * (or nothing is classified yet): it is used, as before.
      */
-    fun openFurniture(id: String, item: SceneObject) {
-        val f = furnitureAt[item] ?: spots[item]?.let { Furniture.of(item, it) }
+    fun openFurniture(id: String, item: SceneObject, override: Furniture? = null) {
+        val f = override ?: furnitureAt[item] ?: spots[item]?.let { Furniture.of(item, it) }
         val with = partnerId?.takeIf { it != id }
         val known = needs.choices
         val byId = choices.associateBy { it.id }
@@ -1220,13 +1236,23 @@ fun LiveSceneScreen(
             }
             return@rememberUpdatedState
         }
+        // a spot made in Build mode's New tab: tapped, it is the one in use for its object and offers what plays on it
+        val spotHit = hit?.takeIf { it.kind != Hit.Kind.ACTOR && ready }?.let { build.spotUnder(it.x, it.y, it.z) }
+        if (spotHit != null) {
+            val id = selected
+            if (id != null) { build.activate(spotHit); openFurniture(id, spotHit.slot, build.spotFurniture(spotHit)) }
+            else if (hit?.kind == Hit.Kind.GROUND && !walking) control = control.release()
+            return@rememberUpdatedState
+        }
         when (hit?.kind) {
             // nobody controlled: take control; one controlled: the tapped NPC becomes (or, tapped again, stops being) its partner
             Hit.Kind.ACTOR -> cast.firstOrNull { actorKey(it.id) == hit.key }?.let { other -> control = control.tapNpc(other.id) }
             Hit.Kind.LOCATION, Hit.Kind.PROP -> if (ready) {
                 val item = hit.key?.let(objectHits::get)
                 val id = selected
-                if (item != null && id != null) openFurniture(id, item)
+                // (a spot that stood in for it no longer does: the scene's own object again)
+                val own = if (item != null && build.deactivate(item)) build.overlay(mapper.overridden(furnitureMeasured))[item] else null
+                if (item != null && id != null) openFurniture(id, item, own)
             }
             Hit.Kind.GROUND -> {
                 val id = selected
@@ -1272,7 +1298,9 @@ fun LiveSceneScreen(
         val imported = choices.filter { it.participantCount == 1 && it.playable }
             .map { JoiClip(it.id, it.name, it.group, it.preview.clip.duration.takeIf { d -> d > 0f } ?: 6f) }
         val emote = PartnerEmotes.ALL.map { JoiClip(PlaybackKeys.emote(it.anim), it.name, "Emotes", if (it.loop) 8f else 3.5f, it.loop, emote = true) }
-        JoiAnimations.catalogue(imported + emote)
+        // the handjobs: the library's partner stages (the giving role alone) and the procedural stroke, always there
+        val hands = choices.mapNotNull { runCatching { JoiHandjobs.fromChoice(it) }.getOrNull() } + JoiClip.stroke()
+        JoiAnimations.catalogue(imported + emote + hands)
     }
     // (the engine is the runtime's, when a model is loaded: DialogueRuntime.engine; Options > Mods > Dialogue model downloads it)
     fun joiEngine(): DialogueEngine? = com.logie.wifecraft.dialogue.DialogueRuntime.engine?.takeIf { it.ready }
@@ -1301,7 +1329,8 @@ fun LiveSceneScreen(
         val id = joiActor ?: return
         val prior = joiMode.leave()
         live.joiCamera = null; live.joiActor = -1
-        if (live.joiCreature != null) view.queueEvent { view.glBoneLayer(actorKey(id), null) }
+        if (live.joiCreature != null || strokeBaked >= 0) view.queueEvent { view.glBoneLayer(actorKey(id), null) }
+        strokeBaked = -1
         live.joiCreature = null
         live.joiRelease(id)
         cinematic = prior.cinematic
@@ -1313,16 +1342,69 @@ fun LiveSceneScreen(
     LaunchedEffect(joiLeave) { if (joiLeave) leaveJoi() }
     // the camera follows the framing chosen on the controls
     SideEffect { joiCamera.framing = joiMode.framing }
-    fun playJoiSolo(energy: Float) {
+    // the procedural hand stroke (JoiStroke): its layer is baked ahead a few seconds at a time from the stroke's own state, and again
+    // whenever the stage, what she says or a chip changes the tempo; it ends with its stage's segment and the arms come down
+    var strokeBaked by remember(live) { mutableIntStateOf(-1) }
+    var strokeBakedAt by remember(live) { mutableLongStateOf(0L) }
+    var strokeEnds by remember(live) { mutableLongStateOf(0L) }
+    var strokeRuns by remember(live) { mutableIntStateOf(0) }
+    fun bakeStroke() {
+        val id = joiActor ?: return
+        val anim = joiMode.stroke.bake()
+        strokeBaked = joiMode.stroke.generation; strokeBakedAt = SystemClock.uptimeMillis()
+        val arrays = AnimArrays.of(anim)
+        view.queueEvent { view.glBoneLayer(actorKey(id), arrays) }
+    }
+    fun startStroke(stage: String, stageLeft: Float) {
+        val id = joiActor ?: return
+        val seconds = JoiHandjobs.runSeconds(stageLeft)
+        strokeRuns++
+        val r = kotlin.random.Random(seed.toLong() * 31 + strokeRuns)
+        val hands = when { r.nextFloat() < 0.5f -> StrokeHands.BOTH; r.nextFloat() < 0.7f -> StrokeHands.RIGHT; else -> StrokeHands.LEFT }
+        live.order { sim -> sim.stopAll(id); null }
+        joiMode.stroke.start(stage, hands)
+        joiMode.holdSolos(seconds + 2f)
+        strokeEnds = SystemClock.uptimeMillis() + (seconds * 1000).toLong()
+        bakeStroke()
+    }
+    LaunchedEffect(joiActor, joiMode) {
+        while (true) {
+            delay(100)
+            val id = joiActor ?: continue
+            val st = joiMode.stroke
+            if (!st.running) { if (strokeBaked >= 0) { strokeBaked = -1; view.queueEvent { view.glBoneLayer(actorKey(id), null) } }; continue }
+            if (st.active && SystemClock.uptimeMillis() >= strokeEnds) { st.stop(); joiMode.holdSolos(0f) }
+            val stale = SystemClock.uptimeMillis() - strokeBakedAt >= ((JoiStroke.CHUNK - 1f) * 1000).toLong()
+            if (st.generation != strokeBaked || stale) bakeStroke()
+        }
+    }
+    fun playJoiSolo(energy: Float, stage: String, stageLeft: Float) {
         val id = joiActor ?: return
         if (live.joiCreature != null) return
-        val clip = joiPicker.pick(joiSolos, energy, SystemClock.uptimeMillis() / 1000f) ?: return
+        val clip = joiPicker.pick(joiSolos, energy, SystemClock.uptimeMillis() / 1000f, stage, joiCamera.shot?.framing ?: joiMode.framing.takeIf { it != JoiFraming.AUTO }) ?: return
+        if (clip.procedural) { startStroke(stage, stageLeft); return }
+        if (clip.giver >= 0) {
+            // a library handjob: the giving role's own track, alone, turned as little from the camera as the unseen receiver allows
+            val c = choices.firstOrNull { it.id == clip.key } ?: return
+            val animations = PairSync.synced(c.clips.map { it.forPlayback() ?: return })
+            val role = c.roles[clip.giver]
+            val key = "${c.id}:${clip.giver}"
+            playback[key] = lifted(animations[clip.giver].copy(loop = false), role.offset.z * c.roleScale)
+            val turn = Math.toRadians(JoiHandjobs.turn(JoiHandjobs.ghostAngle(clip.ghostForward, clip.ghostSide)).toDouble()).toFloat()
+            val cycle = animations.maxOf { it.duration }.takeIf { it > 0f } ?: 6f
+            val seconds = JoiHandjobs.runSeconds(stageLeft)
+            val order = PerformanceOrder(null, listOf(PlaybackRole(key, Vec3(0f, 0f, role.offset.z * c.roleScale), role.facing + turn)), cycle,
+                repetitions = kotlin.math.ceil(seconds / cycle).toInt().coerceAtLeast(1), name = c.name)
+            joiMode.holdSolos(cycle * kotlin.math.ceil(seconds / cycle).toInt().coerceAtLeast(1) + 2f)
+            live.order { sim -> sim.perform(id, order); null }
+            return
+        }
         val choice = choices.firstOrNull { it.id == clip.key && it.participantCount == 1 }
         val order = if (choice != null) request(null, choice, PlayOptions())
             else PerformanceOrder(null, listOf(PlaybackRole(clip.key, Vec3(0f, 0f, 0f), 0f)), clip.seconds)
         live.order { sim -> sim.perform(id, order); null }
     }
-    JoiRunner(joiMode, joiActor != null, { joiEngine() }, kink, joiPersona, { energy, _ -> playJoiSolo(energy) }, { joiLeave = true }, { joiTick++ })
+    JoiRunner(joiMode, joiActor != null, { joiEngine() }, kink, joiPersona, { energy, stage, left -> playJoiSolo(energy, stage, left) }, { joiLeave = true }, { joiTick++ })
     fun act(id: String, slot: HudSlot) {
         when (slot.order) {
             HudOrder.WALK -> {
@@ -1390,6 +1472,7 @@ fun LiveSceneScreen(
     }
     // Build mode: no animation ends (the simulation loops what plays, auto-play stands on its shot)
     val holdAnimations = BuildEntry.holdAnimations(build.on)
+    val holdNow by rememberUpdatedState(holdAnimations)
     SideEffect { live.holdAnimations = holdAnimations }
     LaunchedEffect(revealTick, windowOpen, immersive.hudSeconds, immersiveHud) {
         if (!immersiveHud) { hudUp = true; return@LaunchedEffect }
@@ -1447,6 +1530,8 @@ fun LiveSceneScreen(
         while (true) {
             delay(FLOW_TICK_MS)
             val now = SystemClock.uptimeMillis()
+            // Build mode on: the flow's own timers stand still (no phase moves on; Continue still acts)
+            if (holdNow) { last = now; continue }
             f.auto = immersiveNow.autoFlow
             val steps = f.tick((now - last) / 1000f)
             last = now
@@ -1457,6 +1542,7 @@ fun LiveSceneScreen(
     var flowSawPlaying by remember(live) { mutableStateOf(false) }
     LaunchedEffect(snapshot, flowPhase) {
         val f = flow ?: return@LaunchedEffect
+        if (holdNow) return@LaunchedEffect
         if (f.phase != FlowPhase.STAGE) { flowSawPlaying = false; return@LaunchedEffect }
         val lead = snapshot.people.firstOrNull { it.id == f.a } ?: return@LaunchedEffect
         if (lead.performing || lead.queued > 0) flowSawPlaying = true
@@ -1677,10 +1763,9 @@ fun LiveSceneScreen(
                         ?: if (immersiveHud) null else (active?.playing ?: hint.takeIf { active != null })).orEmpty()
                     Row(Modifier.fillMaxWidth().height(WifeTheme.touch), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
-                        // the chips scroll sideways, so none is ever clipped on a narrow phone; Build comes first, always in reach
+                        // the chips scroll sideways, so none is ever clipped on a narrow phone (Build is under the Cinematic button, top right)
                         Row(Modifier.weight(if (line.isEmpty()) 1f else 2f, fill = false).horizontalScroll(rememberScrollState()),
                             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
-                        if (!mapper.on && BuildEntry.chipShown(mapper.on)) WifeChip(BuildEntry.CHIP, { enterBuild() }, trailing = null)
                         AnimatedVisibility(mate != null && active != null, enter = fadeIn(tween(MenuMotion.duration(FrontMotion.GLOW_MS, reduced))),
                             exit = fadeOut(tween(MenuMotion.duration(FrontMotion.GLOW_MS, reduced)))) {
                             WifeChip("Partner: ${rememberHeld(mate)?.let { names[it] } ?: ""}", { control = control.clearPartner() })
@@ -1757,7 +1842,7 @@ fun LiveSceneScreen(
                 // left of the camera's buttons, on their row (it never covers them; Cinematic sits in the top bar)
                 WifeButton("Switch positions", { switchPlaying(active.id, playingWith) },
                     Modifier.align(Alignment.TopEnd)
-                        .padding(top = SceneHud.cameraTop(hud).dp, end = (SceneHud.MARGIN + SceneHud.CAMERA_W + 2 * SceneHud.CAMERA_GAP).dp))
+                        .padding(top = (SceneHud.cameraTop(hud) + SWITCH_BELOW_BUILD).dp, end = (SceneHud.MARGIN + SceneHud.CAMERA_W + 2 * SceneHud.CAMERA_GAP).dp))
             }
         }
         // the soft controls: with a partner chosen or a flow under way, while the HUD is up
@@ -1778,7 +1863,8 @@ fun LiveSceneScreen(
             }
         }, { cineIdleClock.touch(); cineIdle = false }, { live.aspect = it; cineLook.viewAspect = it }, frame = cinematicSettings.frame,
             // in the top bar, left of the feed and the gear (the bar keeps the room free: SceneTopBar's reserveEnd)
-            topBarEnd = SceneHud.MARGIN + TOP_ICON_W * (if (lifeOn) 2 else 1) + CINEMATIC_GAP)
+            topBarEnd = SceneHud.MARGIN + TOP_ICON_W * (if (lifeOn) 2 else 1) + CINEMATIC_GAP,
+            onBuild = if (BuildEntry.chipShown(mapper.on)) ({ if (build.on) build.leave() else enterBuild() }) else null, buildOn = build.on)
         // JOI mode: the subtitles in the film frame's lower third, and (the interface up) its controls
         if (joiActor != null) JoiLayer(joiMode, joiTick, cinematicSettings.frame, controls = !cineHidden && revealed,
             creature = live.joiCreature != null, onDownloadModel = { com.logie.wifecraft.data.DialogueHost.startDownload() },
@@ -2589,6 +2675,8 @@ private class ImmersionFeed {
 }
 
 /** The camera's buttons' height under cameraTop: the mode button, then two rows of 48 dp buttons (build mode's panel goes under). */
+/** Switch positions sits below the Build button (which hangs under the Cinematic button), dp. */
+private const val SWITCH_BELOW_BUILD = 48f
 private const val CAMERA_BLOCK_H = 48f + 4f + 2 * 48f + 4f + 8f
 /** The top bar's feed and gear buttons (48 dp each), the Cinematic button's slot in the bar and its gap. */
 private const val TOP_ICON_W = 48f

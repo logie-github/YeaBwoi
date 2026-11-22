@@ -32,7 +32,15 @@ import com.logie.wifecraft.BuildConfig
 import com.logie.wifecraft.engine.Hit
 import com.logie.wifecraft.engine.Native
 import com.logie.wifecraft.engine.SceneView
+import com.logie.wifecraft.simulation.BuildActors
 import com.logie.wifecraft.simulation.BuildBarTool
+import com.logie.wifecraft.simulation.InteractionSpot
+import com.logie.wifecraft.simulation.MoveTarget
+import com.logie.wifecraft.simulation.SpotEdits
+import com.logie.wifecraft.simulation.SpotKind
+import com.logie.wifecraft.simulation.Spots
+import com.logie.wifecraft.simulation.Sparkles
+import com.logie.wifecraft.simulation.UserSpot
 import com.logie.wifecraft.simulation.BuildDoc
 import com.logie.wifecraft.simulation.BuildDocs
 import com.logie.wifecraft.simulation.BuildEdits
@@ -124,6 +132,29 @@ class BuildController internal constructor(
     var notes by mutableStateOf("")
     /** The new marker's type (Marker tool). */
     var markerType by mutableStateOf(MarkerType.STAND)
+    /** Who a gizmo drag moves in a pair: both (the shared origin), the selected NPC alone or its partner alone. */
+    var target by mutableStateOf(MoveTarget.BOTH)
+    /** Where the selected NPC stands when it plays nothing (the gizmo moves it alone). */
+    var soloPose by mutableStateOf<BuildPose?>(null)
+        private set
+    /** The New tab: the type picked, a custom label and its class, and whether the next tap in the scene places it. */
+    var newKind by mutableStateOf(SpotKind.CHAIR)
+    var newLabel by mutableStateOf("")
+    var newClass by mutableStateOf(ItemClass.FLOOR)
+    var armed by mutableStateOf(false)
+    /** Spots shipped with the app (assets/user_spots.json) for this place; the spot in use for each scene object (the one last tapped). */
+    var shippedSpots by mutableStateOf<List<UserSpot>>(emptyList())
+        private set
+    var activeSpots by mutableStateOf<Map<SceneObject, String>>(emptyMap())
+        private set
+    /** The global switch for sparkles (Options' Graphics and the New tab); default on. */
+    val sparklesOn: Boolean get() = SparkleSwitch.on
+    /** The scene's own spots as measured (the simulation's frame): what a scene object goes back to when no spot is in use. */
+    internal var baseSpots: Map<SceneObject, InteractionSpot> = emptyMap()
+    /** Every spot of this place: the shipped, then the player's. */
+    val allSpots: List<UserSpot> get() = shippedSpots + state.doc.spots.values
+    /** Changes whenever the spots or the one in use change (the screen's furniture is made again). */
+    val spotSig: Int get() = allSpots.hashCode() * 31 + activeSpots.hashCode()
 
     // the screen's world: the place's id and name, the simulation's frame, the cast
     var placeId = ""
@@ -168,6 +199,7 @@ class BuildController internal constructor(
     fun leave() {
         if (!on) return
         endDragIfAny()
+        armed = false
         on = false
         state = state.select(null)
         live.camera.clearPivot()
@@ -182,7 +214,7 @@ class BuildController internal constructor(
     fun refreshCamera() {
         view.cameraState { c -> camera = Triple(c.eye, c.target, c.fovY) }
         val sel = state.selection
-        if (sel is BuildSelection.Npc && sel.playing) refreshPlaying(sel.key)
+        if (sel is BuildSelection.Npc) refreshPlaying(sel.key)
     }
 
     fun viewSize(w: Float, h: Float) { viewW = w.coerceAtLeast(1f); viewH = h.coerceAtLeast(1f) }
@@ -208,6 +240,8 @@ class BuildController internal constructor(
             raceLocal = mine; raceMine = mine
             raceShipped = ship
             shipped = marks
+            shippedSpots = runCatching { context.assets.open("user_spots.json").bufferedReader().use { Spots.shipped(it.readText())[id] } }.getOrNull().orEmpty()
+            SparkleSwitch.load(context)
             showMarkers = runCatching { prefs.getBoolean(KEY_SHOW, false) }.getOrDefault(false)
             installPlacement()
             push()
@@ -245,6 +279,59 @@ class BuildController internal constructor(
                 at.x, at.y, at.z, ItemFrame.wrapRad(i.frame.yaw - stageRotation))
             out[slot] = ItemOverrides.apply(base, i.override())
         }
+        // a spot made in the New tab stands in for its scene object while it is the one in use (or when the scene has none of its own)
+        for (sp in allSpots) {
+            val slot = sp.slot
+            val inUse = activeSpots[slot] == sp.id
+            val orphan = raw[slot] == null && out[slot] == null && activeSpots[slot] == null && allSpots.first { it.slot == slot } === sp
+            if (inUse || orphan) out[slot] = sp.furniture(toLocal, stageRotation)
+        }
+        return out
+    }
+
+    /** The spot under a stage point ([x], [y], [z]) that a body could use, or null. */
+    fun spotUnder(x: Float, y: Float, z: Float): UserSpot? = Spots.hit(allSpots, x, y, z)
+
+    /** [sp] is the one in use for its scene object: its furniture and floor spot take the place of the scene's own. */
+    fun activate(sp: UserSpot) {
+        if (activeSpots[sp.slot] == sp.id) return
+        activeSpots = activeSpots + (sp.slot to sp.id)
+        applySpots()
+    }
+
+    /** The scene's own object [slot] was used: a spot no longer stands in for it. */
+    fun deactivate(slot: SceneObject): Boolean {
+        if (slot !in activeSpots) return false
+        activeSpots = activeSpots - slot
+        applySpots()
+        return true
+    }
+
+    /** The simulation's interaction spots set for the scene objects a spot stands in for (back to the scene's own when none is). */
+    fun applySpots() {
+        val active = activeSpots.mapNotNull { (slot, id) -> allSpots.firstOrNull { it.id == id }?.let { slot to Spots.interactionSpot(slot, it.furniture(toLocal, stageRotation)) } }.toMap()
+        val base = baseSpots
+        live.command { sim ->
+            for (slot in SceneObject.entries) (active[slot] ?: base[slot])?.let { sim.setSpot(slot, it) }
+        }
+    }
+
+    /** The furniture [sp] is, in the simulation's frame. */
+    fun spotFurniture(sp: UserSpot): Furniture = sp.furniture(toLocal, stageRotation)
+
+    /** The sparkles' sources: the scene's usable furniture (not while held) and the spots, in the stage's frame. */
+    fun sparkleSources(furniture: Map<SceneObject, Furniture>, usable: Set<SceneObject>, holders: Set<SceneObject>): List<Sparkles.Source> {
+        val out = ArrayList<Sparkles.Source>()
+        for (sp in allSpots) {
+            out += Sparkles.Source(sp.key, Vec3(sp.x, sp.y, sp.top), sp.halfX, sp.halfY, sp.yaw, occupied = sp.slot in holders && activeSpots[sp.slot] == sp.id, enabled = sp.sparkle)
+        }
+        for ((item, f) in furniture) {
+            if (item !in usable || !Sparkles.usable(f)) continue
+            // (a spot standing in for it is drawn as the spot)
+            if (allSpots.any { it.slot == item && kotlin.math.abs(spotFurniture(it).x - f.x) < 1e-3f && kotlin.math.abs(spotFurniture(it).y - f.y) < 1e-3f }) continue
+            val at = toStage(Vec3(f.x, f.y, f.z + f.spec.surface))
+            out += Sparkles.Source("scene:${item.name}", at, f.spec.halfX, f.spec.halfY, ItemFrame.wrapRad(f.yaw + stageRotation), occupied = item in holders)
+        }
         return out
     }
 
@@ -276,7 +363,8 @@ class BuildController internal constructor(
         val sel = state.selection
         val markers = if (!visible) null else {
             val list = shipped + state.doc.markers
-            FloatArray(list.size * 8).also { a ->
+            val spots = if (on) allSpots else emptyList()
+            FloatArray((list.size + spots.size) * 8).also { a ->
                 list.forEachIndexed { i, m ->
                     val k = i * 8
                     a[k] = m.pose.x; a[k + 1] = m.pose.y; a[k + 2] = m.pose.z; a[k + 3] = m.pose.yaw
@@ -284,11 +372,21 @@ class BuildController internal constructor(
                     a[k + 4] = m.type.r * dim; a[k + 5] = m.type.g * dim; a[k + 6] = m.type.b * dim
                     a[k + 7] = if (on && sel is BuildSelection.Marker && sel.key == m.id) 1f else 0f
                 }
+                // the New tab's spots: gold pins on their surfaces
+                spots.forEachIndexed { i, sp ->
+                    val k = (list.size + i) * 8
+                    a[k] = sp.x; a[k + 1] = sp.y; a[k + 2] = sp.top; a[k + 3] = sp.yaw
+                    a[k + 4] = 1f; a[k + 5] = 0.82f; a[k + 6] = 0.25f
+                    a[k + 7] = if (sel is BuildSelection.Spot && sel.key == sp.id) 1f else 0f
+                }
             }
         }
         val box = (sel as? BuildSelection.Item)?.takeIf { on }?.let { i ->
             val c = i.frame.toWorld(LocalOffset(0f, 0f, i.top / 2f, 0f)).first
             floatArrayOf(c.x, c.y, c.z, i.halfX, i.halfY, i.top / 2f, i.frame.yaw)
+        } ?: (sel as? BuildSelection.Spot)?.takeIf { on }?.let { sp -> allSpots.firstOrNull { it.id == sp.key } }?.let { sp ->
+            val h = maxOf(sp.surface, 0.04f) / 2f
+            floatArrayOf(sp.x, sp.y, sp.z + h, sp.halfX, sp.halfY, h, sp.yaw)
         }
         val pose = if (on) gizmoPose() else null
         val flags = if (pose == null) 0 else Native.BUILD_ARROWS or Native.BUILD_RING
@@ -302,7 +400,14 @@ class BuildController internal constructor(
             val (at, yaw) = s.frame.toWorld(i.anchor)
             BuildPose.of(at, yaw)
         }
-        is BuildSelection.Npc -> playing?.takeIf { s.playing }?.let { p -> BuildPose.of(toStage(p.anchor), p.heading + stageRotation) }
+        is BuildSelection.Npc -> playing?.takeIf { s.playing }?.let { p ->
+            val role = target.role(p.roleOf(s.key)).takeIf { it in p.roles.indices }
+            if (role == null) BuildPose.of(toStage(p.anchor), p.heading + stageRotation) else {
+                val w = BuildActors.poseOf(p.anchor, p.heading, p.roles[role], p.fixed.getOrElse(role) { RoleDelta.ZERO }, p.extra.getOrElse(role) { RoleDelta.ZERO })
+                BuildPose.of(toStage(w.at), w.yaw + stageRotation)
+            }
+        } ?: soloPose
+        is BuildSelection.Spot -> allSpots.firstOrNull { it.id == s.key }?.let { BuildPose(it.x, it.y, it.top, it.yawDeg) }
         null -> null
     }
 
@@ -363,9 +468,17 @@ class BuildController internal constructor(
      */
     fun onTap(hit: Hit?, objectHits: Map<String, SceneObject>, actorOf: (String) -> String?) {
         if (!on || state.phase == BuildPhase.DRAGGING) return
+        // the New tab armed: this tap places the spot (on the floor or on whatever was hit); otherwise a spot under the tap is selected
+        if (hit != null && hit.kind != Hit.Kind.ACTOR) {
+            if (armed && state.tool == BuildBarTool.NEW) { placeSpot(hit); return }
+            val sp = spotUnder(hit.x, hit.y, hit.z)
+            if (sp != null && hit.kind == Hit.Kind.GROUND) { selectSpot(sp); return }
+        }
         when (hit?.kind) {
             Hit.Kind.ACTOR -> {
                 val id = hit.key?.let(actorOf) ?: return
+                target = MoveTarget.BOTH
+                armed = false
                 state = state.select(BuildSelection.Npc(id, names[id] ?: id, false))
                 live.camera.setPivot(hit.x, hit.y, hit.z)
                 refreshPlaying(id)
@@ -429,10 +542,13 @@ class BuildController internal constructor(
     private fun refreshPlaying(id: String) {
         live.command { sim ->
             val p = sim.playingOf(id)
+            val at = if (p == null) sim.placeOf(id) else null
             main.post {
                 val sel = state.selection
                 if (sel is BuildSelection.Npc && sel.key == id) {
                     playing = p
+                    if (state.phase != BuildPhase.DRAGGING) soloPose = at?.let { (v, f) -> BuildPose.of(toStage(v), f + stageRotation) }
+                    if (p == null && target != MoveTarget.BOTH) target = MoveTarget.BOTH
                     if (sel.playing != (p != null)) state = state.copy(selection = BuildSelection.Npc(id, sel.name, p != null))
                     push()
                 }
@@ -468,15 +584,39 @@ class BuildController internal constructor(
                     BuildEdits.setItem(d, i.copy(anchor = local, surface = surface))
                 }
             }
+            is BuildSelection.Spot -> return { d -> SpotEdits.move(d, s.key, p) }
             is BuildSelection.Npc -> {
-                val pair = playing ?: return null
-                val local = toLocal(p.at)
-                val heading = ItemFrame.wrapRad(p.yaw - stageRotation)
-                live.command { sim -> sim.movePlaying(s.key, local, heading) }
-                val from = BuildPose.of(toStage(pair.baseAnchor), pair.baseHeading + stageRotation)
+                val pair = playing
+                if (pair == null || !s.playing) {
+                    // not playing: put where it stands (it stays there; nothing sends it on while Build mode holds the scene)
+                    val local = toLocal(p.at)
+                    val facing = ItemFrame.wrapRad(p.yaw - stageRotation)
+                    live.command { sim -> sim.placeActor(s.key, local, facing) }
+                    soloPose = p
+                    return { d -> BuildEdits.moveNpc(d, s.key, p) }
+                }
+                val role = target.role(pair.roleOf(s.key)).takeIf { it in pair.roles.indices }
                 val roles = listOfNotNull(pair.lead, pair.other).map { cast[it] ?: RoleActor(0, false) }
-                playing = pair.copy(anchor = local, heading = heading)
-                val move = PairMove(s.key, pair.name, roles, from, p, pair.furniture?.let { runCatching { keyOf(it) }.getOrNull() })
+                val from = BuildPose.of(toStage(pair.baseAnchor), pair.baseHeading + stageRotation)
+                val itemKey = pair.furniture?.let { runCatching { keyOf(it) }.getOrNull() }
+                if (role == null) {
+                    // both: the shared origin (each one's own nudge stays as it was)
+                    val local = toLocal(p.at)
+                    val heading = ItemFrame.wrapRad(p.yaw - stageRotation)
+                    live.command { sim -> sim.movePlaying(s.key, local, heading) }
+                    val now = pair.copy(anchor = local, heading = heading)
+                    playing = now
+                    val move = PairMove(s.key, pair.name, roles, from, p, itemKey, now.extra, BuildActors.moveKind(now))
+                    return { d -> BuildEdits.movePair(d, move) }
+                }
+                // one alone: its own nudge from the pair's placement, both clips on the same clock, the origin where it was
+                val sim = BuildPose(toLocal(p.at).x, toLocal(p.at).y, toLocal(p.at).z, ItemFrame.wrapDeg(p.yawDeg - Math.toDegrees(stageRotation.toDouble()).toFloat()))
+                val extra = BuildActors.extraFor(pair.anchor, pair.heading, pair.roles[role], pair.fixed.getOrElse(role) { RoleDelta.ZERO }, sim)
+                val extras = BuildActors.withExtra(pair.extra, role, extra)
+                live.command { m -> m.movePlaying(s.key, pair.anchor, pair.heading, extras) }
+                val now = pair.copy(extra = extras)
+                playing = now
+                val move = PairMove(s.key, pair.name, roles, from, BuildPose.of(toStage(pair.anchor), pair.heading + stageRotation), itemKey, extras, BuildActors.moveKind(now))
                 return { d -> BuildEdits.movePair(d, move) }
             }
             null -> return null
@@ -498,10 +638,19 @@ class BuildController internal constructor(
             if (m != null) {
                 val local = toLocal(m.to.at)
                 val heading = ItemFrame.wrapRad(m.to.yaw - stageRotation)
-                live.command { sim -> sim.movePlaying(sel.key, local, heading) }
+                val extras = BuildActors.withExtra(BuildActors.withExtra(m.roleDeltas, 0, m.roleDeltas.getOrElse(0) { RoleDelta.ZERO }), 1, m.roleDeltas.getOrElse(1) { RoleDelta.ZERO })
+                live.command { sim -> sim.movePlaying(sel.key, local, heading, extras) }
             } else live.command { sim -> sim.resetPlaying(sel.key) }
             refreshPlaying(sel.key)
+        } else if (sel is BuildSelection.Npc) {
+            state.doc.npcMoves[sel.key]?.let { p ->
+                val local = toLocal(p.at); val facing = ItemFrame.wrapRad(p.yaw - stageRotation)
+                live.command { sim -> sim.placeActor(sel.key, local, facing) }
+                refreshPlaying(sel.key)
+            }
         }
+        if (sel is BuildSelection.Spot && state.doc.spots[sel.key] == null) state = state.select(null)
+        applySpots()
         persist()
     }
 
@@ -524,6 +673,70 @@ class BuildController internal constructor(
             ?: camera?.let { (_, target, _) -> BuildPose(target.x, target.y, target.z, cameraFacingDeg(target)) }
             ?: return
         addMarkerAt(pose.copy(yawDeg = if (pose.yawDeg == 0f) cameraFacingDeg(pose.at) else pose.yawDeg))
+    }
+
+    // ---- the New tab: spots
+
+    /** The type picked: the next tap in the scene places it (a Custom one needs its label first). */
+    fun arm(kind: SpotKind) {
+        newKind = kind
+        armed = true
+        state = state.select(null).withTool(BuildBarTool.NEW)
+        push()
+    }
+
+    /** A spot of the picked type at the engine's hit (the floor, or any prop: its top gives the surface's height). */
+    fun placeSpot(hit: Hit) {
+        val floorZ = toStage(Vec3(0f, 0f, 0f)).z
+        val onFloor = hit.kind == Hit.Kind.GROUND
+        val sp = Spots.make("s" + newId().take(8), newKind, newLabel, newClass, hit.x, hit.y, if (onFloor) hit.z else floorZ,
+            hit.z, cameraFacingDeg(Vec3(hit.x, hit.y, hit.z)))
+        // (the floor under a prop's hit: the stage's floor; a spot on the ground has none above it)
+        armed = false
+        state = state.edit { SpotEdits.add(it, sp) }.select(BuildSelection.Spot(sp.id, sp.name))
+        live.camera.setPivot(sp.x, sp.y, sp.top)
+        persist()
+        applySpots()
+    }
+
+    fun selectSpot(sp: UserSpot) {
+        armed = false
+        state = state.select(BuildSelection.Spot(sp.id, sp.name))
+        live.camera.setPivot(sp.x, sp.y, sp.top)
+        push()
+    }
+
+    private fun editSpot(id: String, change: (UserSpot) -> UserSpot) {
+        val cur = state.doc.spots[id] ?: return
+        val next = change(cur)
+        if (next == cur) return
+        state = state.edit { SpotEdits.update(it, next) }
+        val sel = state.selection
+        if (sel is BuildSelection.Spot && sel.key == id && sel.name != next.name) state = state.copy(selection = BuildSelection.Spot(id, next.name))
+        persist()
+        applySpots()
+    }
+
+    /** Width (y) and depth (x) changed by presses of + (1) or - (-1). */
+    fun resizeSpot(id: String, widthSteps: Int, depthSteps: Int) = editSpot(id) { Spots.resize(it, widthSteps, depthSteps) }
+    fun setSpotSurface(id: String, surface: Float) = editSpot(id) { Spots.setSurface(it, surface) }
+    fun setSpotSparkle(id: String, on: Boolean) = editSpot(id) { it.copy(sparkle = on) }
+    fun renameSpot(id: String, label: String) = editSpot(id) { it.copy(label = label.trim().take(BuildDocs.MAX_NAME)) }
+    fun setSpotKind(id: String, kind: SpotKind, cls: ItemClass?) = editSpot(id) {
+        val c = if (kind == SpotKind.CUSTOM) (cls ?: it.cls) else kind.cls
+        it.copy(kind = kind, cls = c, label = if (kind == SpotKind.CUSTOM) it.label else "")
+    }
+    fun deleteSpot(id: String) {
+        state = state.edit { SpotEdits.remove(it, id) }
+        if ((state.selection as? BuildSelection.Spot)?.key == id) state = state.select(null)
+        activeSpots = activeSpots.filterValues { it != id }
+        persist()
+        applySpots()
+    }
+
+    /** The global Show sparkles switch (kept on the phone; Options' Graphics page has it too). */
+    fun changeSparkles(v: Boolean) {
+        SparkleSwitch.set(context, v)
     }
 
     fun renameMarker(id: String, name: String) { state = state.edit { BuildEdits.renameMarker(it, id, name) }; persist() }
@@ -572,6 +785,51 @@ class BuildController internal constructor(
         persist()
     }
 
+    /** Reset (the Both / This NPC only / Partner only choice): the shared placement back on its computed place, or just that one's own nudge gone. */
+    fun resetTarget() {
+        val s = state.selection as? BuildSelection.Npc ?: return
+        val pair = playing ?: return replacePair()
+        val role = target.role(pair.roleOf(s.key)).takeIf { it in pair.roles.indices } ?: return replacePair()
+        val extras = BuildActors.withExtra(pair.extra, role, RoleDelta.ZERO)
+        live.command { m -> m.movePlaying(s.key, pair.anchor, pair.heading, extras) }
+        val now = pair.copy(extra = extras)
+        playing = now
+        val roles = listOfNotNull(pair.lead, pair.other).map { cast[it] ?: RoleActor(0, false) }
+        val move = PairMove(s.key, pair.name, roles, BuildPose.of(toStage(pair.baseAnchor), pair.baseHeading + stageRotation),
+            BuildPose.of(toStage(pair.anchor), pair.heading + stageRotation), pair.furniture?.let { runCatching { keyOf(it) }.getOrNull() }, extras, BuildActors.moveKind(now))
+        state = state.edit { d -> if (now.moved) BuildEdits.movePair(d, move) else BuildEdits.resetPair(d, s.key) }
+        refreshPlaying(s.key)
+        persist()
+    }
+
+    /** The targets offered for the selected NPC, and the label of each (A / B with names). */
+    fun targets(): List<MoveTarget> {
+        val s = state.selection as? BuildSelection.Npc ?: return emptyList()
+        return BuildActors.targets(playing.takeIf { s.playing }, s.key)
+    }
+
+    fun targetLabel(t: MoveTarget): String {
+        val s = state.selection as? BuildSelection.Npc ?: return t.label
+        val p = playing ?: return t.label
+        fun who(id: String?) = id?.let { names[it] ?: it } ?: ""
+        val mine = p.roleOf(s.key)
+        return when (t) {
+            MoveTarget.BOTH -> "Both"
+            MoveTarget.THIS -> "${if (mine == 1) "B" else "A"}: ${who(s.key)} only"
+            MoveTarget.PARTNER -> "${if (mine == 1) "A" else "B"}: ${who(if (mine == 1) p.lead else p.other)} only"
+        }
+    }
+
+    /** The own offset of the target role from the pair's placement (the numeric fields show it), null when Both or alone. */
+    fun targetOffset(): RoleDelta? {
+        val s = state.selection as? BuildSelection.Npc ?: return null
+        val p = playing ?: return null
+        val role = target.role(p.roleOf(s.key)).takeIf { it in p.roles.indices } ?: return null
+        return p.extra.getOrElse(role) { RoleDelta.ZERO }
+    }
+
+    fun changeTarget(t: MoveTarget) { if (t in targets()) { target = t; push() } }
+
     /** Reset to default placement: the remembered placements of this animation for these two forgotten, and Re-place. */
     fun resetPlacement() {
         val p = playing ?: return
@@ -601,9 +859,14 @@ class BuildController internal constructor(
             // the correction on top of what was already remembered for it (that one stays laid on by the simulation)
             val already = RaceOffsets.lookup(raceMine, raceShipped, p.name, i, who.copy(otherRace = other?.race ?: -1),
                 RaceOffsets.furnitureClass(p.furniture), p.furniture?.let(keyOf)).first?.delta ?: RoleDelta.ZERO
-            val d = already + RaceOffsets.deltaFor(already.applyTo(role), p.baseAnchor, p.baseHeading, p.anchor, p.heading, p.extra.getOrElse(i) { RoleDelta.ZERO })
+            val change = RaceOffsets.deltaFor(already.applyTo(role), p.baseAnchor, p.baseHeading, p.anchor, p.heading, p.extra.getOrElse(i) { RoleDelta.ZERO })
+            // a role that wasn't moved (the other one was moved alone) keeps what it had remembered
+            if (change.none) continue
+            val d = already + change
+            val kind = BuildActors.moveKind(p)
             val o = RaceOffset(p.name, p.name, i, who.race, who.female, if (scope == RaceScope.PAIR) other?.race ?: -1 else -1,
-                RaceOffsets.furnitureClass(p.furniture), if (p.other == null) p.furniture?.let(keyOf) else null, scope, d, at = now)
+                RaceOffsets.furnitureClass(p.furniture), if (p.other == null) p.furniture?.let(keyOf) else null, scope, d, at = now,
+                move = if (kind == "A" || kind == "B") "single" else kind)
             list = RaceOffsets.upsert(list, o)
             made += o
         }
@@ -704,7 +967,7 @@ fun rememberBuildController(live: LiveScene, view: SceneView): BuildController {
         if (build.on) build.flush()
         while (build.on) { build.refreshCamera(); delay(66) }
     }
-    DisposableEffect(build) { onDispose { build.leave(); view.clearBuild(); live.command { it.placement = null } } }
+    DisposableEffect(build) { onDispose { build.leave(); view.clearBuild(); view.setSparkles(FloatArray(0), 0f); live.command { it.placement = null } } }
     return build
 }
 
@@ -740,10 +1003,12 @@ fun BuildPanel(build: BuildController, onHold: ((SceneObject) -> Unit)?, modifie
             when (s.tool) {
                 BuildBarTool.SEND -> SendPage(build)
                 BuildBarTool.MARKER -> MarkerPage(build)
+                BuildBarTool.NEW -> NewPage(build)
                 else -> when (sel) {
                     null -> WifeNote("Tap anything in the room: a prop, a piece of furniture, an NPC, a marker. One finger orbits round it, two pan and pinch.")
                     is BuildSelection.Item -> ItemPage(build, sel, onHold)
                     is BuildSelection.Marker -> MarkerDetail(build, sel)
+                    is BuildSelection.Spot -> SpotDetail(build, sel)
                     is BuildSelection.Npc -> NpcPage(build, sel)
                 }
             }
@@ -764,6 +1029,9 @@ private fun GizmoFields(build: BuildController) {
     val pose = build.gizmoPose() ?: return
     WifeSectionHeader("Position")
     WifeNote(String.format(Locale.ROOT, "x %.2f  y %.2f  z %.2f yd  ·  %.0f°", pose.x, pose.y, pose.z, pose.yawDeg))
+    build.targetOffset()?.let { d ->
+        WifeNote(String.format(Locale.ROOT, "Offset from the pair's placement: %+.2f %+.2f %+.2f yd  ·  %+.0f°", d.dx, d.dy, d.dz, d.dyawDeg))
+    }
     WifeChip("Snap: ${build.state.snap.label}", { build.setSnap(build.state.snap.next()) }, trailing = null)
     WifeNote("Drag an arrow to move along it (X red, Y green, Z blue), the gold ring to turn (15° steps; Fine: 1°).")
     var x by remember(pose) { mutableStateOf(buildFmt(pose.x)) }
@@ -862,24 +1130,35 @@ private fun MarkerPage(build: BuildController) {
     WifeSwitchRow("Show markers", build.showMarkers, { build.changeShowMarkers(it) }, detail = "Small, outside build mode too.")
 }
 
-/** A selected NPC: playing, its pair is moved live with the gizmo; Re-place, Reset, and Remember for the races in it. */
+/**
+ * A selected NPC: playing, the gizmo moves the pair (Both), this NPC alone or its partner alone (the clips keep playing on the
+ * one clock); not playing, it moves the NPC where it stands. Re-place, Reset, and Remember for the races in it.
+ */
 @Composable
 private fun NpcPage(build: BuildController, sel: BuildSelection.Npc) {
     val p = build.playing
     if (!sel.playing || p == null) {
-        WifeNote("Not playing an animation. Give them one (or a partner animation): the gizmo then moves it while it plays.")
+        WifeNote("Not playing an animation: the gizmo puts " + sel.name + " where you want them (they stay there while Build mode is on). Give them an animation and it moves while it plays.")
+        if (build.state.doc.npcMoves.containsKey(sel.key)) WifeNote("Moved.")
         return
     }
-    WifeNote("Playing ${p.name.ifEmpty { "an animation" }}${p.furniture?.let { " on the ${it.label.lowercase()}" } ?: ""}. The gizmo moves its shared origin and turns it; it keeps playing." +
+    WifeNote("Playing ${p.name.ifEmpty { "an animation" }}${p.furniture?.let { " on the ${it.label.lowercase()}" } ?: ""}. The gizmo moves who you pick below; it keeps playing." +
         if (p.moved) " Moved." else "")
+    val targets = build.targets()
+    if (targets.size > 1) {
+        WifeSectionHeader("Move")
+        for (t in targets) WifeChip((if (t == build.target) "● " else "") + build.targetLabel(t), { build.changeTarget(t) }, Modifier.fillMaxWidth(), trailing = null)
+    }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
-        WifeButton("Re-place", { build.replacePair() }, Modifier.weight(1f))
+        WifeButton(if (build.target == MoveTarget.BOTH) "Re-place" else "Reset this one", { build.resetTarget() }, Modifier.weight(1f))
         WifeButton("Reset to default placement", { build.resetPlacement() }, Modifier.weight(1f), kind = WifeButtonKind.QUIET)
     }
     WifeSectionHeader("Remember")
     val names = build.roleNames()
     var scope by remember(sel.key) { mutableStateOf(RaceScope.ROLE) }
-    var roles by remember(sel.key, names.size) { mutableStateOf((names.indices).toSet()) }
+    // the roles that were moved come ticked (one moved alone: only that one; the pair moved: both)
+    val changed = BuildActors.changedRoles(p)
+    var roles by remember(sel.key, names.size, changed) { mutableStateOf(changed.ifEmpty { names.indices.toSet() }) }
     for (sc in RaceScope.entries) WifeChip((if (sc == scope) "● " else "") + sc.label, { scope = sc }, Modifier.fillMaxWidth(), trailing = null)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
         names.forEachIndexed { i, n ->
@@ -892,7 +1171,64 @@ private fun NpcPage(build: BuildController, sel: BuildSelection.Npc) {
     }
     WifeButton("Remember for ${who.joinToString(" and ").ifEmpty { "…" }}", { build.remember(scope, roles) }, Modifier.fillMaxWidth(),
         enabled = roles.isNotEmpty(), kind = WifeButtonKind.PRIMARY)
-    WifeNote("Next time these play it, they start where they are now (the animation itself is not changed).")
+    WifeNote("Next time these play it, they start where they are now (the animation itself is not changed). One moved alone is saved as its own role's offset; the pair moved together as a shared one.")
+}
+
+/** The New tab: pick a type, tap the scene to place it; the sparkles switch. */
+@Composable
+private fun NewPage(build: BuildController) {
+    WifeNote("Pick what the spot is, then tap the floor or any prop in the scene to put it there. From then on that space is clickable: NPCs can use it" +
+        " and it sparkles outside Build mode.")
+    for (row in SpotKind.entries.chunked(2)) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
+        for (k in row) WifeChip((if (k == build.newKind) "● " else "") + k.label, { build.newKind = k }, Modifier.weight(1f), trailing = null)
+    }
+    if (build.newKind == SpotKind.CUSTOM) {
+        WarField(build.newLabel, { build.newLabel = it.take(BuildDocs.MAX_NAME) }, "Label", Modifier.fillMaxWidth(), label = "Label")
+        WifeNote("Acts as:")
+        for (row in SpotKind.CLASSES.chunked(2)) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
+            for (c in row) WifeChip((if (c == build.newClass) "● " else "") + SpotKind.classLabel(c), { build.newClass = c }, Modifier.weight(1f), trailing = null)
+        }
+    }
+    WifeButton(if (build.armed) "Tap the scene to place…" else "Place ${build.newKind.label.lowercase()}", { build.arm(build.newKind) }, Modifier.fillMaxWidth(),
+        kind = if (build.armed) WifeButtonKind.SECONDARY else WifeButtonKind.PRIMARY)
+    (build.state.selection as? BuildSelection.Spot)?.let { SpotDetail(build, it) }
+    WifeSectionHeader("Spots")
+    val all = build.allSpots
+    if (all.isEmpty()) WifeNote("None yet.")
+    for (sp in all) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
+        Text("${sp.name} · ${SpotKind.classLabel(sp.cls)}${if (sp.shipped) " · shipped" else ""}", Modifier.weight(1f), style = WifeTheme.labelStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        WifeButton("Go", { build.selectSpot(sp) }, kind = WifeButtonKind.QUIET)
+        if (!sp.shipped) WifeButton("×", { build.deleteSpot(sp.id) }, kind = WifeButtonKind.QUIET)
+    }
+    WifeSwitchRow("Show sparkles", build.sparklesOn, { build.changeSparkles(it) }, detail = "On every spot a body can use, outside Build mode. Off in cinematic mode.")
+}
+
+/** A selected spot: its name, size (+ and -), surface height, sparkles (per spot) and Delete; the gizmo moves and turns it. */
+@Composable
+private fun SpotDetail(build: BuildController, sel: BuildSelection.Spot) {
+    val sp = build.state.doc.spots[sel.key]
+    if (sp == null) { WifeNote("A shipped spot (assets/user_spots.json): shown, not edited."); return }
+    WifeNote(String.format(Locale.ROOT, "%s · %.2f × %.2f yd · surface %.2f yd", SpotKind.classLabel(sp.cls), 2 * sp.halfX, 2 * sp.halfY, sp.surface))
+    if (sp.kind == SpotKind.CUSTOM) {
+        var label by remember(sp.id) { mutableStateOf(sp.label) }
+        WarField(label, { label = it }, "Label", Modifier.fillMaxWidth(), label = "Label")
+        WifeButton("Rename", { build.renameSpot(sp.id, label) }, Modifier.fillMaxWidth())
+    }
+    WifeSectionHeader("Size")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs), verticalAlignment = Alignment.CenterVertically) {
+        WifeButton("−", { build.resizeSpot(sp.id, -1, 0) }); Text("Width", Modifier.weight(1f), style = WifeTheme.labelStyle()); WifeButton("+", { build.resizeSpot(sp.id, 1, 0) })
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs), verticalAlignment = Alignment.CenterVertically) {
+        WifeButton("−", { build.resizeSpot(sp.id, 0, -1) }); Text("Depth", Modifier.weight(1f), style = WifeTheme.labelStyle()); WifeButton("+", { build.resizeSpot(sp.id, 0, 1) })
+    }
+    WifeSectionHeader("Surface height")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs), verticalAlignment = Alignment.CenterVertically) {
+        WifeButton("−", { build.setSpotSurface(sp.id, sp.surface - 0.02f) })
+        Text(String.format(Locale.ROOT, "%.2f yd", sp.surface), Modifier.weight(1f), style = WifeTheme.labelStyle())
+        WifeButton("+", { build.setSpotSurface(sp.id, sp.surface + 0.02f) })
+    }
+    WifeSwitchRow("Sparkles on this spot", sp.sparkle, { build.setSpotSparkle(sp.id, it) }, detail = "Shown outside Build mode while the global switch is on.")
+    WifeButton("Delete spot", { build.deleteSpot(sp.id) }, Modifier.fillMaxWidth(), kind = WifeButtonKind.QUIET)
 }
 
 /** Send: what goes, the notes, Save and send; the remembered placements; Show markers. */
@@ -945,4 +1281,23 @@ fun RaceOffsetsSection() {
     LaunchedEffect(Unit) { reload() }
     RaceOffsetsList(list, { o -> scope.launch { withContext(Dispatchers.IO) { runCatching { RaceOffsetStore(file).delete(o.key) } }; reload() } },
         { scope.launch { withContext(Dispatchers.IO) { runCatching { RaceOffsetStore(file).reset() } }; reload() } })
+}
+
+/** The global Show sparkles switch (Options' Graphics page and the New tab): on by default, kept on the phone. */
+object SparkleSwitch {
+    var on by mutableStateOf(true)
+        private set
+    private var loaded = false
+
+    fun load(context: Context) {
+        if (loaded) return
+        loaded = true
+        on = try { context.applicationContext.getSharedPreferences(Sparkles.PREFS, Context.MODE_PRIVATE).getBoolean(Sparkles.KEY_ON, true) } catch (e: Exception) { true }
+    }
+
+    fun set(context: Context, v: Boolean) {
+        loaded = true
+        on = v
+        try { context.applicationContext.getSharedPreferences(Sparkles.PREFS, Context.MODE_PRIVATE).edit().putBoolean(Sparkles.KEY_ON, v).apply() } catch (e: Exception) { }
+    }
 }

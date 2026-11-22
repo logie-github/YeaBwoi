@@ -1,17 +1,20 @@
 package com.logie.wifecraft.ui
 
 // Pure Kotlin (JVM-tested: unit-tests/.../ui/BuildEntryTest): where Build mode can be entered from in a live scene and the
-// first-run hint that points to it. The Build chip sits first in the HUD's chip row (which scrolls sideways), the scene menu
+// first-run hint that points to it. The Build button sits right under the Cinematic button in the top right, the scene menu
 // (the top bar's gear) has a Build mode button too, and a one-line hint shows until it is dismissed or Build mode was entered.
 
 object BuildEntry {
-    /** The HUD chip's words. */
+    /** The button's words: it sits right under the Cinematic button in the top right, and says so while Build mode is on. */
     const val CHIP = "Build"
+    fun chipLabel(on: Boolean): String = if (on) "Building" else CHIP
+    /** The button's top edge (dp): the Cinematic button's bottom (it sits centred in the top bar of [topBarH], 48 dp tall). */
+    fun buttonTop(topBarH: Float, touch: Float = 48f): Float = ((topBarH - touch) / 2f).coerceAtLeast(0f) + touch
     /** The scene menu's button: it enters, or leaves when Build mode is on. */
     fun menuLabel(on: Boolean): String = if (on) "Leave Build mode" else "Build mode"
     /** The scene menu's line under the button. */
     fun menuDetail(on: Boolean): String = if (on) "Back to the scene's own controls" else "Move things, mark places, make props interactive"
-    const val HINT = "New: Build mode. Tap Build in the row above the action bar, or open it from the gear menu."
+    const val HINT = "New: Build mode. Tap Build under the Cinematic button in the top right, or open it from the gear menu."
     const val PREFS = "build_entry"
     const val KEY_HINT_SEEN = "hint_seen"
 

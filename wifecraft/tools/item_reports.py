@@ -12,7 +12,7 @@ Build mode's reports (issues labelled `build-report`, schema 2: one per Save and
 class, the animation classes ticked, the surface's height, the anchor) join the item reports in item_overrides.json (the
 class most gave, the median anchor, the commonest set of ticks); their markers are merged into
 `assets/place_markers.json` by place (markers of the same type and name: the median place and facing, far ones flagged
-as outliers); their remembered race placements into `assets/race_offsets.json` (one per animation, role, race or size
+as outliers); their New-tab spots (items flagged "user") into `assets/user_spots.json` (by place; the app shows them with their own sparkles); their remembered race placements into `assets/race_offsets.json` (one per animation, role, race or size
 class, scope, furniture class and item: the median delta, far ones flagged). The app reads all three.
 
 Issues are never closed or changed here: close them yourself once their item is merged.
@@ -40,6 +40,7 @@ LABEL = "item-report"
 BUILD_LABEL = "build-report"
 CLASSES = ("seat", "tabletop", "floor", "bed", "wall", "other")
 SUPPORTS = ("lying", "sitting", "kneeling", "standing", "leaning")
+SPOT_KINDS = ("surface", "chair", "table", "bed", "custom")
 MARKER_TYPES = ("stand", "sit", "lie", "kneel", "pair_origin", "camera")
 SCOPES = ("pair", "role", "size")
 POSES = ("stand", "sit", "lie")
@@ -50,6 +51,7 @@ ASSETS = os.path.join(HERE, "..", "android", "app", "src", "main", "assets")
 DEFAULT_OUT = os.path.join(ASSETS, "item_overrides.json")
 DEFAULT_MARKERS = os.path.join(ASSETS, "place_markers.json")
 DEFAULT_RACE = os.path.join(ASSETS, "race_offsets.json")
+DEFAULT_SPOTS = os.path.join(ASSETS, "user_spots.json")
 BLOCK = re.compile(r"```json\s*\n(.*?)\n```", re.S)
 
 
@@ -208,6 +210,8 @@ def build_samples(o, issue):
     place = o["place"]["id"]
     items, markers, races, bad = [], [], [], []
     for i in o.get("items") or []:
+        if i.get("user"):
+            continue   # a spot made in the New tab: user_spots(), not a game item
         a = i.get("anchor") or {}
         if not i.get("key") or i.get("class") not in CLASSES or not all(num(a.get(k)) for k in ("x", "y", "z", "yaw")):
             bad.append("an item without a key, class or anchor")
@@ -232,8 +236,54 @@ def build_samples(o, issue):
     return items, markers, races, bad
 
 
-def read_build(issues):
-    """Build reports: (item samples by key, markers by place, race offsets, problems)."""
+def user_spots(o, issue):
+    """A build report's New-tab spots (items flagged "user"): (place, spot sample) pairs; bad ones are named in the second list."""
+    place = o["place"]["id"]
+    out, bad = [], []
+    for i in o.get("items") or []:
+        if not i.get("user"):
+            continue
+        p = i.get("position") or []
+        box = i.get("box") or {}
+        if i.get("kind") not in SPOT_KINDS or i.get("class") not in CLASSES or len(p) != 3 or not all(num(v) for v in p) \
+                or not all(num(box.get(k)) for k in ("x", "y")):
+            bad.append("a spot without a kind, class, place or size")
+            continue
+        out.append((place, {"issue": issue, "kind": i["kind"], "label": (i.get("label") or "")[:40], "class": i["class"],
+                            "x": float(p[0]), "y": float(p[1]), "z": float(p[2]), "yaw": float(i.get("yawDeg") or 0),
+                            "w": float(box["x"]), "d": float(box["y"]), "surface": float(i["surface"]) if num(i.get("surface")) else 0.0,
+                            "sparkle": bool(i.get("sparkle", True))}))
+    return out, bad
+
+
+def merge_spots(spots):
+    """Each place's spots: those of one kind, label and class near each other (within a yard) merged to the median; far ones are others."""
+    out = {}
+    for place in sorted(spots):
+        groups = []
+        for s in spots[place]:
+            for g in groups:
+                h = g[0]
+                if (h["kind"], h["label"], h["class"]) == (s["kind"], s["label"], s["class"]) and math.hypot(h["x"] - s["x"], h["y"] - s["y"]) <= 1.0:
+                    g.append(s)
+                    break
+            else:
+                groups.append([s])
+        merged = []
+        for n, g in enumerate(sorted(groups, key=lambda g: (g[0]["kind"], g[0]["label"], g[0]["x"], g[0]["y"]))):
+            m = {k: median([s[k] for s in g]) for k in ("x", "y", "z", "yaw", "w", "d", "surface")}
+            o = {"user": True, "id": "%s_%d" % (g[0]["kind"], n + 1), "kind": g[0]["kind"], "label": g[0]["label"], "class": g[0]["class"],
+                 "position": [round(m["x"], 3), round(m["y"], 3), round(m["z"], 3)], "yawDeg": round(m["yaw"], 1),
+                 "box": {"x": round(m["w"], 3), "y": round(m["d"], 3), "z": round(m["surface"], 3)}, "surface": round(m["surface"], 3),
+                 "sparkle": sum(1 for s in g if s["sparkle"]) * 2 >= len(g), "reports": len(g), "issues": sorted({s["issue"] for s in g})}
+            merged.append(o)
+        out[place] = merged
+    return {"schema": 1, "comment": "Made by wifecraft/tools/item_reports.py from the build-report issues (build mode's New tab spots). "
+            "Do not edit by hand: run the tool again.", "places": out}
+
+
+def read_build(issues, spots=None):
+    """Build reports: (item samples by key, markers by place, race offsets, problems). [spots]: a dict that gets the New tab's spots by place."""
     by_key, markers, races, problems = {}, {}, [], []
     for issue in issues:
         if not is_build(issue):
@@ -253,6 +303,11 @@ def read_build(issues):
             problems.append((number, bad))
             continue
         items, marks, rs, bad = build_samples(o, number)
+        if spots is not None:
+            sp, sbad = user_spots(o, number)
+            for place, one in sp:
+                spots.setdefault(place, []).append(one)
+            bad = bad + sbad
         for key, s in items:
             by_key.setdefault(key, []).append(s)
         for place, mk in marks:
@@ -320,7 +375,8 @@ def merge_races(races):
             med = median_place(kept)
         newest = max(group, key=lambda g: g["issue"])
         o = {k: newest.get(k) for k in ("animationId", "animationName", "role", "race", "sex", "otherRace", "furnitureClass", "item",
-                                        "scope", "sizeClass")}
+                                        "scope", "sizeClass", "move")}
+        o = {k: v for k, v in o.items() if v is not None or k != "move"}
         o.update({"dx": round(med["x"], 3), "dy": round(med["y"], 3), "dz": round(med["z"], 3), "dyawDeg": round(med["yaw"], 1),
                   "reports": len(kept), "outliers": outliers, "issues": sorted({g["issue"] for g in group}), "at": newest["issue"]})
         out.append(o)
@@ -427,6 +483,7 @@ def main(argv=None):
     ap.add_argument("--state", default="open", choices=("open", "all"))
     ap.add_argument("--markers-out", default=DEFAULT_MARKERS)
     ap.add_argument("--race-out", default=DEFAULT_RACE)
+    ap.add_argument("--spots-out", default=DEFAULT_SPOTS)
     a = ap.parse_args(argv)
     if a.from_json:
         with open(a.from_json) as f:
@@ -440,13 +497,15 @@ def main(argv=None):
         seen = {i.get("number") for i in issues}
         issues += [i for i in fetch_issues(repo, tok, a.state, BUILD_LABEL) if i.get("number") not in seen]
     by_key, problems = read_reports(issues)
-    built, markers, races, build_problems = read_build(issues)
+    spots = {}
+    built, markers, races, build_problems = read_build(issues, spots)
     for key, samples in built.items():
         by_key.setdefault(key, []).extend(samples)
     problems += build_problems
     data = build(by_key)
     marker_data = merge_markers(markers)
     race_data = merge_races(races)
+    spot_data = merge_spots(spots)
     print(summary(data, problems, issues))
     for place, ms in marker_data["places"].items():
         for m in ms:
@@ -457,8 +516,12 @@ def main(argv=None):
         print("  race offset %s role %s %s %s: %+.2f %+.2f %+.2f %+.0f from %d report(s)%s" % (
             r["animationId"], r["role"], r["scope"], r.get("sizeClass") if r["scope"] == "size" else "%s %s" % (r.get("race"), r.get("sex")),
             r["dx"], r["dy"], r["dz"], r["dyawDeg"], r["reports"], (", outliers %s" % r["outliers"]) if r["outliers"] else ""))
+    for place, ss in spot_data["places"].items():
+        for sp in ss:
+            print("  spot %s: %s (%s, %s) at x %.2f y %.2f z %.2f from %d report(s)" % (place, sp["label"] or sp["kind"], sp["kind"], sp["class"],
+                  sp["position"][0], sp["position"][1], sp["position"][2], sp["reports"]))
     if not a.dry_run:
-        for path, d in ((a.out, data), (a.markers_out, marker_data), (a.race_out, race_data)):
+        for path, d in ((a.out, data), (a.markers_out, marker_data), (a.race_out, race_data), (a.spots_out, spot_data)):
             with open(path, "w") as f:
                 json.dump(d, f, indent=1)
                 f.write("\n")

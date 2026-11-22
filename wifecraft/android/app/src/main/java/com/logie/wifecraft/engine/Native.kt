@@ -257,6 +257,8 @@ object Native {
     @JvmStatic external fun clearMotion(scene: Long, actor: Int)
     /** The atmosphere's glowing motes (cpp engine/particles.h): [count] (0: none) round the camera's target, [strength] 0..1. */
     @JvmStatic external fun particles(scene: Long, count: Int, strength: Float)
+    /** Interactable sparkles (cpp engine/sparkle.h): spots of 8 floats (x, y, z, halfX, halfY, yaw, strength, seed); empty or null: none; [density] 0..1. */
+    @JvmStatic external fun sparkles(scene: Long, data: FloatArray?, density: Float)
     /**
      * Options' Graphics page as the renderer takes it (graphics/GraphicsSettings.toNative: cpp engine/graphics_settings.h's
      * order, [values] of GraphicsSettings.NATIVE_COUNT): the governor's steps already laid on. Every effect off: drawn as before.

@@ -97,7 +97,9 @@ const val CINEMATIC_HUD_MS = 400
 fun CinematicLayer(on: Boolean, hudHidden: Boolean, shown: Boolean, onToggle: () -> Unit, onPeek: () -> Unit,
                    onAspect: (Float) -> Unit, modifier: Modifier = Modifier, frame: CinematicFrame = CinematicFrame.FULL,
                    /** dp from the end to the button's right edge in the top bar (null: beside the camera's buttons, as before). */
-                   topBarEnd: Float? = null) {
+                   topBarEnd: Float? = null,
+                   /** The Build button directly under the Cinematic button (same look and size): null hides it; [buildOn] lights it. */
+                   onBuild: (() -> Unit)? = null, buildOn: Boolean = false) {
     var screen by remember { mutableStateOf(IntSize.Zero) }
     val aspectOut by rememberUpdatedState(onAspect)
     LaunchedEffect(screen, on, frame) {
@@ -118,6 +120,11 @@ fun CinematicLayer(on: Boolean, hudHidden: Boolean, shown: Boolean, onToggle: ()
                 val place = if (topBarEnd != null) Modifier.padding(end = topBarEnd.dp, top = ((SceneHud.TOP_H - 48f) / 2f).coerceAtLeast(0f).dp)
                     else Modifier.padding(end = (SceneHud.MARGIN + SceneHud.CAMERA_W + 2 * SceneHud.CAMERA_GAP).dp, top = SceneHud.cameraTop(hud).dp)
                 CinematicButton(on, onToggle, Modifier.align(Alignment.TopEnd).graphicsLayer { alpha = buttonAlpha }.then(place))
+                // Build, stacked right under it (the same column, the same end), lit while Build mode is on
+                if (onBuild != null && topBarEnd != null) {
+                    BuildChipButton(buildOn, onBuild, Modifier.align(Alignment.TopEnd)
+                        .padding(end = topBarEnd.dp, top = (BuildEntry.buttonTop(SceneHud.TOP_H)).dp))
+                }
             }
         }
     }
@@ -303,6 +310,24 @@ fun CinematicButton(on: Boolean, onClick: () -> Unit, modifier: Modifier = Modif
         contentAlignment = Alignment.Center,
     ) {
         Text("Cinematic", style = frizStyle(13.sp, if (on) Color.White else WifeTheme.gold), maxLines = 1,
+            overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+    }
+}
+
+/** The Build button: the Cinematic button's pill, lit gold while Build mode is on ("Building"), "Build" otherwise. */
+@Composable
+fun BuildChipButton(on: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val pill = RoundedCornerShape(50)
+    Box(
+        modifier.width(CINEMATIC_BUTTON_W.dp).height(WifeTheme.touch)
+            .semantics { contentDescription = if (on) "Build mode on: leave it" else "Build mode" }
+            .warPress(sound = "tab", onClick = onClick)
+            .padding(vertical = 4.dp)
+            .clip(pill).background(Brush.verticalGradient(listOf(WifeTheme.secondaryTop, WifeTheme.secondaryBottom)))
+            .border(if (on) 2.dp else WifeTheme.trimWidth, if (on) WifeTheme.gold else WifeTheme.trim, pill),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(BuildEntry.chipLabel(on), style = frizStyle(13.sp, if (on) Color.White else WifeTheme.gold), maxLines = 1,
             overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
     }
 }

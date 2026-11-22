@@ -1133,7 +1133,27 @@ class SceneSimulation(
         val a = actors[id] ?: return null
         val p = a.performance?.takeIf { a.playback != null } ?: return null
         return PlayingPair(p.name, p.lead.id, p.other?.id, p.anchor, p.heading, p.baseAnchor ?: p.anchor,
-            if (p.baseAnchor != null) p.baseHeading else p.heading, p.furniture, p.roles, p.extra.toList())
+            if (p.baseAnchor != null) p.baseHeading else p.heading, p.furniture, p.roles, p.extra.toList(),
+            p.roles.indices.map { i -> deltaOf(p, i) - p.extra.getOrElse(i) { RoleDelta.ZERO } })
+    }
+
+    /** Where [id] stands and faces now (the simulation's frame), or null. */
+    fun placeOf(id: String): Pair<Vec3, Float>? = actors[id]?.let { it.position to it.facing }
+
+    /**
+     * Build mode: [id] (not playing: standing, waiting, walking) put at [position] facing [facing] where they are, the walk
+     * they were on dropped (they stay put; while Build mode holds the scene nothing sends them on). False: unknown or in an
+     * animation (that is [movePlaying]'s).
+     */
+    fun placeActor(id: String, position: Vec3, facing: Float): Boolean {
+        val a = actors[id] ?: return false
+        if (a.performance != null) return false
+        if (!position.x.isFinite() || !position.y.isFinite() || !position.z.isFinite() || !facing.isFinite()) return false
+        a.position = position
+        a.facing = facing
+        if (a.phase == Phase.MOVING) { a.destination = position; a.waypoints = listOf(position); a.waypoint = 0 }
+        version++
+        return true
     }
 
     /**
@@ -1626,8 +1646,9 @@ class SceneSimulation(
         override fun freeSpot(item: SceneObject, index: Int): Vec3? =
             if (item in objects && available(item, order[index].id)) spots[item]?.entry else null
         override fun approachable(index: Int) = canApproach(order[index])
-        override fun finish(index: Int) = finishLife(order[index])
-        override fun excuse(index: Int, line: String) = excuseTalk(order[index], line)
+        // (Build mode: no animation ends, so the life simulation's own endings and excuses wait; they are asked again after it)
+        override fun finish(index: Int) { if (!holdAnimations) finishLife(order[index]) }
+        override fun excuse(index: Int, line: String) { if (!holdAnimations) excuseTalk(order[index], line) }
         override val chatterOn: Boolean get() = chatterChance > 0f
         override val pairsOn: Boolean get() = partnerChance > 0f
     }

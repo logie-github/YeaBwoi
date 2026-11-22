@@ -29,6 +29,7 @@ add_library(wcengine SHARED
     engine/modelpart.cpp
     engine/motionlayer.cpp
     engine/particles.cpp
+    engine/sparkle.cpp
     engine/postfx.cpp
     engine/scene.cpp
     engine/scene_gfx.cpp

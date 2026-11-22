@@ -111,10 +111,20 @@ data class ItemInteraction(
  * on ([itemKey]).
  */
 data class PairMove(val actorId: String, val animation: String, val roles: List<RoleActor>, val from: BuildPose, val to: BuildPose,
-                    val itemKey: String? = null) {
+                    val itemKey: String? = null,
+                    /** Each role's own nudge from the pair's placement (A, then B), in the pair's frame: one actor moved alone. */
+                    val roleDeltas: List<RoleDelta> = emptyList(),
+                    /** What was moved: "both" (the shared origin), "A" or "B" (that role alone), "mixed". */
+                    val kind: String = "both") {
     fun toJson(): JSONObject = JSONObject().put("animationId", animation).put("animationName", animation)
         .put("roles", JSONArray(roles.mapIndexed { i, r -> JSONObject().put("role", if (i == 0) "A" else "B").put("race", r.race).put("sex", if (r.female) "female" else "male") }))
-        .put("origin", pose(to)).put("computed", pose(from)).put("item", itemKey ?: JSONObject.NULL)
+        .put("origin", pose(to)).put("computed", pose(from)).put("item", itemKey ?: JSONObject.NULL).also { o ->
+            // (schema 2 stays: a report without these is a both-move, as before)
+            o.put("move", kind)
+            if (roleDeltas.any { !it.none }) o.put("roleDeltas", JSONArray(roleDeltas.mapIndexed { i, d ->
+                JSONObject().put("role", if (i == 0) "A" else "B").put("dx", rd3(d.dx)).put("dy", rd3(d.dy)).put("dz", rd3(d.dz)).put("dyawDeg", rd3(d.dyawDeg))
+            }))
+        }
 
     companion object {
         private fun pose(p: BuildPose) = JSONObject().put("x", rd3(p.x)).put("y", rd3(p.y)).put("z", rd3(p.z)).put("yawDeg", rd3(p.yawDeg))
@@ -126,7 +136,19 @@ data class PairMove(val actorId: String, val animation: String, val roles: List<
             val to = poseOf(o.optJSONObject("origin")) ?: return null
             val from = poseOf(o.optJSONObject("computed")) ?: to
             val roles = o.optJSONArray("roles")?.let { a -> (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { RoleActor(it.optInt("race"), it.optString("sex") == "female") } } }.orEmpty()
-            return PairMove("", o.optString("animationId"), roles, from, to, o.optString("item").takeIf { o.has("item") && !o.isNull("item") })
+            val deltas = ArrayList<RoleDelta>().also { l ->
+                o.optJSONArray("roleDeltas")?.let { a ->
+                    for (i in 0 until a.length()) {
+                        val d = a.optJSONObject(i) ?: continue
+                        val at = if (d.optString("role") == "B") 1 else 0
+                        while (l.size <= at) l += RoleDelta.ZERO
+                        val v = RoleDelta(d.optDouble("dx", 0.0).toFloat(), d.optDouble("dy", 0.0).toFloat(), d.optDouble("dz", 0.0).toFloat(), d.optDouble("dyawDeg", 0.0).toFloat())
+                        if (v.dx.isFinite() && v.dy.isFinite() && v.dz.isFinite() && v.dyawDeg.isFinite()) l[at] = v
+                    }
+                }
+            }
+            return PairMove("", o.optString("animationId"), roles, from, to, o.optString("item").takeIf { o.has("item") && !o.isNull("item") },
+                deltas, o.optString("move").ifEmpty { "both" })
         }
     }
 }
@@ -139,24 +161,34 @@ data class BuildDoc(
     val items: Map<String, ItemInteraction> = emptyMap(),
     val pairs: Map<String, PairMove> = emptyMap(),
     val raceOffsets: List<RaceOffset> = emptyList(),
+    /** The New tab's spots (by id). */
+    val spots: Map<String, UserSpot> = emptyMap(),
+    /** NPCs put somewhere while they were not playing (by id; session only: undo's, never in a report). */
+    val npcMoves: Map<String, BuildPose> = emptyMap(),
 ) {
-    val empty: Boolean get() = markers.isEmpty() && items.isEmpty() && pairs.isEmpty() && raceOffsets.isEmpty()
-    val count: Int get() = markers.size + items.size + pairs.size + raceOffsets.size
+    val empty: Boolean get() = markers.isEmpty() && items.isEmpty() && pairs.isEmpty() && raceOffsets.isEmpty() && spots.isEmpty()
+    val count: Int get() = markers.size + items.size + pairs.size + raceOffsets.size + spots.size
 
     fun toJson(placeId: String, placeName: String): JSONObject = JSONObject().put("schema", BuildDocs.SCHEMA)
         .put("place", JSONObject().put("id", placeId).put("name", placeName))
         .put("markers", JSONArray(markers.map { it.toJson() }))
-        .put("items", JSONArray(items.values.map { it.toJson() }))
+        .put("items", JSONArray(items.values.map { it.toJson() } + spots.values.map { it.toJson() }))
         .put("pairs", JSONArray(pairs.values.map { it.toJson().put("actor", it.actorId) }))
         .put("raceOffsets", JSONArray(raceOffsets.map { it.toJson() }))
+        .put("npcMoves", JSONArray(npcMoves.map { (id, p) -> JSONObject().put("actor", id).put("x", rd3(p.x)).put("y", rd3(p.y)).put("z", rd3(p.z)).put("yawDeg", rd3(p.yawDeg)) }))
 
     companion object {
         fun of(o: JSONObject): BuildDoc {
             fun <T> list(name: String, f: (JSONObject) -> T?): List<T> =
                 o.optJSONArray(name)?.let { a -> (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let(f) } }.orEmpty()
-            return BuildDoc(list("markers") { BuildMarker.of(it) }, list("items") { ItemInteraction.of(it) }.associateBy { it.key },
+            return BuildDoc(list("markers") { BuildMarker.of(it) },
+                list("items") { if (it.optBoolean("user", false)) null else ItemInteraction.of(it) }.associateBy { it.key },
                 list("pairs") { j -> PairMove.of(j)?.copy(actorId = j.optString("actor")) }.associateBy { it.actorId },
-                list("raceOffsets") { RaceOffset.of(it) })
+                list("raceOffsets") { RaceOffset.of(it) },
+                list("items") { UserSpot.of(it) }.associateBy { it.id },
+                list("npcMoves") { j -> BuildPose(j.optDouble("x", Double.NaN).toFloat(), j.optDouble("y", Double.NaN).toFloat(), j.optDouble("z", Double.NaN).toFloat(),
+                    j.optDouble("yawDeg", 0.0).toFloat()).takeIf { it.x.isFinite() && it.y.isFinite() && it.z.isFinite() }?.let { p -> j.optString("actor") to p } }
+                    .filter { it.first.isNotEmpty() }.toMap())
         }
     }
 }
@@ -228,6 +260,8 @@ data class PlayingPair(
     val name: String, val lead: String, val other: String?, val anchor: com.logie.wifecraft.story.Vec3, val heading: Float,
     val baseAnchor: com.logie.wifecraft.story.Vec3, val baseHeading: Float, val furniture: SceneObject?,
     val roles: List<PlaybackRole>, val extra: List<RoleDelta>,
+    /** What each role carries besides the live nudge (a remembered placement, a creature's side-on place): the nudge is laid on it. */
+    val fixed: List<RoleDelta> = emptyList(),
 ) {
     val moved: Boolean get() = baseAnchor != anchor || baseHeading != heading || extra.any { !it.none }
     /** The role [id] plays (0 the lead's, 1 the other's; -1 neither). */

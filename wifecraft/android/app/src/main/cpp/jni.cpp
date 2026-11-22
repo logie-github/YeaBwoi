@@ -435,6 +435,17 @@ JNIEXPORT void JNICALL FN(particles)(JNIEnv*, jclass, jlong h, jint count, jfloa
     scene(h)->setParticles(count, strength);
 }
 
+// Interactable sparkles (engine/sparkle.h): spots of 8 floats (x, y, z, halfX, halfY, yaw, strength, seed), the density 0..1.
+JNIEXPORT void JNICALL FN(sparkles)(JNIEnv* env, jclass, jlong h, jfloatArray data, jfloat density) {
+    std::vector<float> v;
+    if (data) {
+        jsize n = env->GetArrayLength(data);
+        v.resize(size_t(n));
+        if (n > 0) env->GetFloatArrayRegion(data, 0, n, v.data());
+    }
+    scene(h)->setSparkles(v.data(), int(v.size()) / SparkleField::kStride, density);
+}
+
 JNIEXPORT void JNICALL FN(graphics)(JNIEnv* env, jclass, jlong h, jfloatArray values) {
     auto v = floats(env, values);
     scene(h)->setGraphics(v.data(), int(v.size()));
