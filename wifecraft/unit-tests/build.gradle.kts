@@ -101,6 +101,8 @@ sourceSets {
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/simulation")
         // Sims 4 CAS body parts: GEOM meshes, CASP descriptions, RLE2/LRLE/DST textures, recolour, part files (bodyparts/)
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/bodyparts")
+        // the on-device dialogue model: the engine contract, the request queue, the model catalogue and the resumable download (dialogue/)
+        kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/dialogue")
     }
 }
 
@@ -110,6 +112,8 @@ dependencies {
     // Sims animation import: archives
     implementation("org.apache.commons:commons-compress:1.27.1")
     implementation("org.tukaani:xz:1.10")
+    // the dialogue model's request queue and streaming (on Android the app already has coroutines through Compose)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     testImplementation(kotlin("test"))
     testImplementation("org.json:json:20240303")
 }

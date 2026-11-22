@@ -1,0 +1,10 @@
+# Desktop build of the dialogue core and its test (see dialogue_build.sh): llama.cpp from a local checkout of the app's tag.
+cmake_minimum_required(VERSION 3.22)
+project(wcdialogue_test CXX C)
+set(CMAKE_CXX_STANDARD 17)
+if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../android/app/src/main/cpp/dialogue ${CMAKE_CURRENT_BINARY_DIR}/dialogue)
+add_executable(dialogue_test ../dialogue_test.cpp)
+target_link_libraries(dialogue_test PRIVATE wcdialogue_core)

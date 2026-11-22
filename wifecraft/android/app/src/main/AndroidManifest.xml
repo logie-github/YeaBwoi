@@ -44,6 +44,12 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Options → Mods → Dialogue model: the language model's one big file, downloaded in the background -->
+        <service
+            android:name=".data.ModelDownloadService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.filesprovider"

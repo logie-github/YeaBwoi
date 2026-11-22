@@ -88,6 +88,11 @@ class Settings(context: Context) {
         get() = prefs.getBoolean("wifiOnly", true)
         set(v) = prefs.edit().putBoolean("wifiOnly", v).apply()
 
+    /** Options → Mods → Dialogue model: the on-device language model that drives the NPCs' talk (dialogue/DialogueModels DialogueConfig), as JSON. */
+    var dialogue: com.logie.wifecraft.dialogue.DialogueConfig
+        get() = com.logie.wifecraft.dialogue.DialogueConfig.parse(prefs.getString("dialogue", null))
+        set(v) = prefs.edit().putString("dialogue", v.toJson().toString()).apply()
+
     /** Options' Soft body: 0 Off, 1 Subtle, 2 Natural (the default), 3 Strong (engine/Native.SOFT_*). */
     var softBody: Int
         get() = prefs.getInt("softBody", SOFT_NATURAL).let { if (it in 0..3) it else SOFT_NATURAL }
