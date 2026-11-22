@@ -259,6 +259,15 @@ object Native {
     @JvmStatic external fun particles(scene: Long, count: Int, strength: Float)
     /** Interactable sparkles (cpp engine/sparkle.h): spots of 8 floats (x, y, z, halfX, halfY, yaw, strength, seed); empty or null: none; [density] 0..1. */
     @JvmStatic external fun sparkles(scene: Long, data: FloatArray?, density: Float)
+
+    /** A prop file (props/PropFile: a Sims object as a ".wcprop") kept under the object's id; "" when it was taken, else why not. */
+    @JvmStatic external fun loadProp(scene: Long, id: Long, data: ByteArray): String
+
+    /** Forgets a prop. */
+    @JvmStatic external fun unloadProp(scene: Long, id: Long)
+
+    /** This frame's props (cpp engine/propmesh.h): [ids] and, for each, 16 floats of a column-major matrix (the prop's Warcraft axes to the scene's); none to clear. */
+    @JvmStatic external fun props(scene: Long, ids: LongArray?, matrices: FloatArray?)
     /**
      * Options' Graphics page as the renderer takes it (graphics/GraphicsSettings.toNative: cpp engine/graphics_settings.h's
      * order, [values] of GraphicsSettings.NATIVE_COUNT): the governor's steps already laid on. Every effect off: drawn as before.

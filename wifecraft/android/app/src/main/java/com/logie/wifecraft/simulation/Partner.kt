@@ -151,7 +151,10 @@ object PartnerPlaces {
         "DOUBLE_BED", "SINGLE_BED", "BED", "KING_BED" -> SceneObject.BED
         "CHAIR", "DINING_CHAIR", "ARMCHAIR", "LIVING_CHAIR", "DESK_CHAIR" -> SceneObject.CHAIR
         "TABLE", "DINING_TABLE", "DESK", "COUNTER" -> SceneObject.TABLE
-        else -> null
+        // the packs' own Sims categories (CHAIR_LIVING, TABLE_DINING_LONG, OTTOMAN, CHAIR_LOUNGE_SOFA...)
+        else -> when (com.logie.wifecraft.anim.StageLocations.canonical(location)) {
+            "BED" -> SceneObject.BED; "COUCH" -> SceneObject.COUCH; "CHAIR" -> SceneObject.CHAIR; "TABLE" -> SceneObject.TABLE; else -> null
+        }
     }
 
     /** Whether [pair] can run on the floor (no location, or one that names no furniture). */

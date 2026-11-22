@@ -34,6 +34,8 @@
 //                                              scale, a dwarf or gnome) and its root motion across the floor (HumanScale.PAIR)
 //   furnish N sit|lie SX SY SZ FACING          person N's pelvis on a seat or bed at that surface point (Scene::placeActor)
 //   soft off|subtle|natural|strong             Options' Soft body (Scene::setSoftBody; the scene's default: natural)
+//   wcprop FILE.wcprop GUID X Y Z YAWDEG SCALE [FILE GUID ...]   Sims object props (propmesh.h): each file loaded under its id and drawn
+//                                              at that place (yaw about up, a uniform scale; the prop's own axes are Warcraft's); "wcprop off" clears
 //   render OUT.ppm|OUT.png WIDTH HEIGHT TIME_MS
 //   bonepoints N                              prints person N's head, chest and pelvis in world coordinates as last drawn (Scene::actorBonePoints: JOI mode's camera)
 //   bonepos N MODEL BONE...                   prints where those bones' pivots are as person N was last drawn (WoW-side names)
@@ -1505,6 +1507,29 @@ int main(int argc, char** argv) {
                 }
                 std::printf("\n");
             }
+        } else if (cmd == "wcprop") {
+            // wcprop off | wcprop FILE GUID X Y Z YAWDEG SCALE [FILE GUID X Y Z YAWDEG SCALE ...]: Scene::loadProp and Scene::setProps
+            std::string first; ss >> first;
+            std::vector<uint64_t> ids;
+            std::vector<float> mats;
+            if (first != "off") {
+                std::string file = first;
+                do {
+                    unsigned long long guid; float x, y, z, yaw, sc;
+                    if (!(ss >> guid >> x >> y >> z >> yaw >> sc)) break;
+                    std::ifstream f(file, std::ios::binary);
+                    std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+                    std::string err;
+                    if (!scene.loadProp(guid, bytes.data(), bytes.size(), err)) { std::printf("wcprop %s: %s\n", file.c_str(), err.c_str()); continue; }
+                    const float a = yaw * 3.14159265f / 180.0f, c = std::cos(a), sn = std::sin(a);
+                    M4 m;   // column-major: scale, then yaw about z, then the place
+                    m.m[0] = c * sc; m.m[1] = sn * sc; m.m[4] = -sn * sc; m.m[5] = c * sc; m.m[10] = sc;
+                    m.m[12] = x; m.m[13] = y; m.m[14] = z;
+                    ids.push_back(guid);
+                    mats.insert(mats.end(), m.m, m.m + 16);
+                } while (ss >> file);
+            }
+            scene.setProps(ids.data(), mats.data(), int(ids.size()));
         } else if (cmd == "sparkles") {
             // sparkles off | sparkles DENSITY X Y Z HALFX HALFY YAW [X Y Z ...]: interactable sparkles over spots (Scene::setSparkles)
             std::string first; ss >> first;

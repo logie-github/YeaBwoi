@@ -433,6 +433,7 @@ void Scene::releaseGl() {
     postfx_.forget();
     particleDraw_.release();
     sparkleDraw_.release();
+    propDraw_.release();
     textures_.clear();
     for (auto& [id, m] : models_) { m->vao = m->vbo = m->ibo = m->boneTex = 0; }
     for (auto& [id, a] : actors_) {
@@ -1844,6 +1845,8 @@ void Scene::render(int width, int height, uint32_t nowMs) {
         particleDraw_.draw(particles_, viewProj, eye_, pixelsPerYard, particleStrength_);
     }
     particleClock_ = clock;
+    // the props (propmesh.h): Sims objects the screen placed this frame, drawn rigid with the people
+    if (!propInstances_.empty()) propDraw_.draw(propInstances_, viewProj, eye_);
     // interactable sparkles (sparkle.h): made from the clock alone, over the spots the screen lists
     if (!sparkles_.empty()) {
         sparkBuf_.clear();
@@ -2114,6 +2117,19 @@ void Scene::setParticles(int count, float strength, uint32_t seed) {
 }
 
 void Scene::setSparkles(const float* data, int count, float density) { sparkles_.set(data, count, density); }
+
+void Scene::setProps(const uint64_t* ids, const float* matrices, int count) {
+    propInstances_.clear();
+    if (!ids || !matrices || count <= 0) return;
+    if (count > 256) count = 256;
+    for (int i = 0; i < count; ++i) {
+        PropInstance p;
+        p.guid = ids[i];
+        bool finite = true;
+        for (int k = 0; k < 16; ++k) { p.model.m[k] = matrices[i * 16 + k]; if (!std::isfinite(p.model.m[k])) finite = false; }
+        if (finite) propInstances_.push_back(p);
+    }
+}
 
 void Scene::setCinematic(float mood, float vignette, float grain, float bars) {
     auto unit = [](float v) { return std::isfinite(v) ? std::clamp(v, 0.0f, 1.0f) : 0.0f; };

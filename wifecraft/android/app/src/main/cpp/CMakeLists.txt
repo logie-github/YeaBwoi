@@ -31,6 +31,7 @@ add_library(wcengine SHARED
     engine/particles.cpp
     engine/sparkle.cpp
     engine/postfx.cpp
+    engine/propmesh.cpp
     engine/scene.cpp
     engine/scene_gfx.cpp
     engine/sculpt.cpp
