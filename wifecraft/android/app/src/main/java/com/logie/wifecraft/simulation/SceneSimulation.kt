@@ -10,6 +10,9 @@ import com.logie.wifecraft.anim.Requirement
 import com.logie.wifecraft.anim.Surface
 import com.logie.wifecraft.characters.CreatureNpcs
 import com.logie.wifecraft.characters.CreatureSpec
+import com.logie.wifecraft.dialogue.ConsentGate
+import com.logie.wifecraft.dialogue.DialogueGate
+import com.logie.wifecraft.dialogue.DialogueHook
 import com.logie.wifecraft.story.Vec3
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -155,6 +158,16 @@ class SceneSimulation(
      * by it ([PairFit]).
      */
     var sizes: Map<String, Float> = emptyMap()
+
+    /**
+     * The dialogue layer (null, or not active: everything runs exactly as without it): it speaks the words of ordinary
+     * conversations (their scripted lines are then not used: [startChat]) and answers whether a sexual stage may begin
+     * ([startPartner]: the NPCs wait where they stand while it decides, or talk it over).
+     */
+    var dialogue: DialogueHook? = null
+
+    /** Whether a partner stage is a sexual one, by its name and the pack's category; null: the app's own classification ([DialogueGate.isSexual]). */
+    var sexualStage: ((name: String, category: String) -> Boolean)? = null
 
     private fun size(actor: Actor?): Float = actor?.let { sizes[it.id] } ?: 1f
 
@@ -1324,6 +1337,7 @@ class SceneSimulation(
             }
         }
         if (!hold) pendingInvite?.let { p -> retryInvite(p) }
+        if (!hold) resolveConsentWaits()
         val l = life
         if (l != null && l.enabled) {
             for (a in order) l.observe(a.index, observed(a), a.phase == Phase.MOVING, a.directed, a.target.takeIf { a.phase == Phase.ACTING })
@@ -1436,7 +1450,9 @@ class SceneSimulation(
         val words = chatter
         // the greetings by the hour ("Morning, ..."): the life clock's (the world's when it drives it)
         words?.hour = life?.clock?.hourOfDay ?: Double.NaN
-        val said: List<ChatLine>? = lines ?: words?.conversation(actor.id, other.id, random, topic)
+        val voiced = lines == null && dialogue?.let { it.active && it.takesOverChat(actor.id, other.id) } == true
+        val said: List<ChatLine>? = if (voiced) List(VOICED_LINES) { ChatLine(it % 2, "", if (it % 2 == 0) Gestures.TALK else Gestures.STAND) }
+            else lines ?: words?.conversation(actor.id, other.id, random, topic)
             ?: life?.takeIf { it.enabled }?.smallTalk(actor.index, other.index)
         if (said != null) {
             val talk = Talk(actor, other, Conversation(said), directed, kind, refused, if (lines == null) words?.lastTopicName else null)
@@ -1450,6 +1466,8 @@ class SceneSimulation(
     /** Line [index] of [talk] begins: its speaker's bubble (the other's is taken down). */
     private fun speak(talk: Talk, index: Int) {
         val line = talk.conversation.lines[index]
+        // a line without words: the dialogue layer speaks this conversation (say), the clock and gestures still run
+        if (line.text.isBlank()) return
         val who = if (line.speaker == 0) talk.a else talk.b
         val other = if (who === talk.a) talk.b else talk.a
         who.spoken = line.text
@@ -2141,7 +2159,78 @@ class SceneSimulation(
      * ([FurnitureSelection.cast]) and both walk to their places on the floor beside it. On furniture by its names: the
      * origin is the seat or bed, facing as it does. The clips start on one step and play on one clock.
      */
+    /**
+     * Starts the partner stage [picked] chose for [initiator] and [target], after the dialogue layer's question for a sexual
+     * one: willing (or no layer): it starts; deciding or being talked round: both wait where they stand and it is asked again
+     * every step ([consentWaits]); refused for now: the invitation ends, they step apart and a cooldown holds. Returns true
+     * when handled (started, waiting or refused), false when nothing could start, as before.
+     */
     private fun startPartner(initiator: Actor, target: Actor, directed: Boolean): Boolean {
+        val hook = dialogue?.takeIf { it.active && !it.cinematic } ?: return startPartnerNow(initiator, target, directed)
+        val name = picked?.name ?: pickedEmote?.name ?: ""
+        val kind = picked?.kind.orEmpty()
+        val sexual = DialogueGate.isSexual(name, kind, if (picked == null) pickedEmote?.anim ?: -1 else -1, sexualStage)
+        if (!sexual) return startPartnerNow(initiator, target, directed)
+        return when (hook.consent(initiator.id, target.id, directed, name)) {
+            ConsentGate.PROCEED -> startPartnerNow(initiator, target, directed)
+            ConsentGate.REFUSED -> { declined(initiator, target, directed); true }
+            ConsentGate.WAIT -> {
+                consentWaits.removeAll { it.initiator === initiator && it.target === target }
+                consentWaits += ConsentWait(initiator, target, directed, picked, pickedEmote, pickedFurniture, pickedFit, pickedFixed, time + CONSENT_MAX_WAIT)
+                holdFor(initiator, target)
+                true
+            }
+        }
+    }
+
+    /** A stage held while the dialogue layer decides: its choices ([picked] and the rest) kept to start it with. */
+    private class ConsentWait(val initiator: Actor, val target: Actor, val directed: Boolean, val pair: PartnerPair?, val emote: PartnerEmote?,
+        val furniture: SceneObject?, val fit: FurnitureFit?, val fixed: Boolean, val until: Float)
+    private val consentWaits = ArrayList<ConsentWait>()
+
+    /** Keeps both where they stand (no new decision) for a step. */
+    private fun holdFor(a: Actor, b: Actor) {
+        for (x in listOf(a, b)) if (x.phase == Phase.WAITING && x.performance == null) x.remaining = maxOf(x.remaining, 1.5f)
+    }
+
+    private fun declined(initiator: Actor, target: Actor, directed: Boolean) {
+        initiator.cooldown = maxOf(initiator.cooldown, MIN_COOLDOWN + random.nextFloat() * (MAX_COOLDOWN - MIN_COOLDOWN))
+        target.cooldown = maxOf(target.cooldown, MIN_COOLDOWN)
+        if (directed) life?.takeIf { it.enabled }?.let { queueNotice = "${it.firstName(target.index)} isn't ready for that. Not now." }
+    }
+
+    /** Asks again for each held stage: on with it, still waiting, or ended. */
+    private fun resolveConsentWaits() {
+        if (consentWaits.isEmpty()) return
+        val hook = dialogue
+        for (w in consentWaits.toList()) {
+            val taken = w.initiator.performance != null || w.target.performance != null || w.initiator.talk != null || w.target.talk != null
+            if (taken) { consentWaits.remove(w); continue }
+            // no layer any more, or it has taken too long: as if willing
+            val gate = if (hook == null || !hook.active || time > w.until) ConsentGate.PROCEED
+                else hook.consent(w.initiator.id, w.target.id, w.directed, w.pair?.name ?: w.emote?.name ?: "")
+            when (gate) {
+                ConsentGate.WAIT -> holdFor(w.initiator, w.target)
+                ConsentGate.REFUSED -> { consentWaits.remove(w); declined(w.initiator, w.target, w.directed) }
+                ConsentGate.PROCEED -> {
+                    consentWaits.remove(w)
+                    picked = w.pair; pickedEmote = w.emote; pickedFurniture = w.furniture; pickedFit = w.fit; pickedFixed = w.fixed
+                    startPartnerNow(w.initiator, w.target, w.directed)
+                    pickedFixed = false
+                }
+            }
+        }
+    }
+
+    /** Whether [id] is in a sexual partner stage now (the dialogue layer's gate for live talk). */
+    fun sexualStageOf(id: String): Boolean {
+        val view = partnerOf(id) ?: return false
+        if (view.stage != "PLAY") return false
+        val kind = pairs.firstOrNull { it.name == view.name }?.kind.orEmpty()
+        return DialogueGate.isSexual(view.name, kind, if (view.emote >= 0) view.emote else -1, sexualStage)
+    }
+
+    private fun startPartnerNow(initiator: Actor, target: Actor, directed: Boolean): Boolean {
         val pair = picked
         val emote = pickedEmote
         val furniture = pickedFurniture
@@ -2271,6 +2360,10 @@ class SceneSimulation(
         private val CHAT_TURNS = floatArrayOf(0f, (PI_F / 4f), -(PI_F / 4f), (PI_F / 2f), -(PI_F / 2f), PI_F, (3f * PI_F / 4f), -(3f * PI_F / 4f))
         /** Seconds the player's interaction waits for a busy other before it gives up. */
         const val INVITE_WAIT = 20f
+        /** Seconds a stage waits for the dialogue layer's answer (a hesitant NPC being talked round) before it goes on. */
+        const val CONSENT_MAX_WAIT = 75f
+        /** Lines (blank, gestures only) of a conversation whose words the dialogue layer speaks. */
+        const val VOICED_LINES = 12
         private const val PI_F = 3.1415927f
         /** Furniture farther than this from both (yards) is out of an idle pair's reach. */
         const val FURNITURE_RANGE = 10f

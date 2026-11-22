@@ -99,6 +99,8 @@ sourceSets {
         // the named characters (assets/characters.json): their variants made appearances and looks (characters/)
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/characters")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/simulation")
+        // the dialogue layer (NPCs speaking with the on-device model: persona, lore, director, willingness, steers)
+        kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/dialogue")
         // Sims 4 CAS body parts: GEOM meshes, CASP descriptions, RLE2/LRLE/DST textures, recolour, part files (bodyparts/)
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/bodyparts")
     }
