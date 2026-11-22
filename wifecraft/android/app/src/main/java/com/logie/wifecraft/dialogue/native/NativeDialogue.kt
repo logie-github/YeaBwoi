@@ -28,6 +28,7 @@ object NativeDialogue {
     }
 
     external fun nativeLoad(path: ByteArray, threads: Int, threadsBatch: Int, ctx: Int, slots: Int, ubatch: Int, kvBits: Int, nice: Int, stateDir: ByteArray): String?
+    external fun nativeLoadProgress(): Float
     external fun nativeUnload()
     external fun nativeGenerate(
         ticket: Long, key: ByteArray, prompt: ByteArray, maxTokens: Int, temperature: Float, topP: Float, minP: Float, topK: Int,
@@ -62,7 +63,7 @@ class NativeBackend(private val stateDir: File? = null) : DialogueBackend {
     override val loaded: Boolean get() = isLoaded
 
     /** Loads the model (blocking, seconds: call off the main thread). Null when it worked, else why not. */
-    fun load(path: File, threads: Int, ctx: Int, slots: Int, kvBits: Int = 8, ubatch: Int = 256, nice: Int = 8): String? {
+    fun load(path: File, threads: Int, ctx: Int, slots: Int, kvBits: Int = 8, ubatch: Int = 128, nice: Int = 8): String? {
         if (!NativeDialogue.available) return "the dialogue library is not available (${NativeDialogue.loadError ?: "not built for this phone"})"
         if (!path.isFile) return "the model file is not there"
         stateDir?.mkdirs()

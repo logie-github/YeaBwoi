@@ -80,6 +80,10 @@ JNIEXPORT jstring JNICALL Java_com_logie_wifecraft_dialogue_NativeDialogue_nativ
     return nullptr;
 }
 
+JNIEXPORT jfloat JNICALL Java_com_logie_wifecraft_dialogue_NativeDialogue_nativeLoadProgress(JNIEnv *, jobject) {
+    return (jfloat)wcd::Core::loadProgress();
+}
+
 JNIEXPORT void JNICALL Java_com_logie_wifecraft_dialogue_NativeDialogue_nativeUnload(JNIEnv *, jobject) {
     std::shared_ptr<wcd::Core> c;
     {
