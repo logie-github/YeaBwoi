@@ -154,6 +154,7 @@ fun ChatLayer(
     val session = mode.session
     // the touches on the picture are taken here: the scene's own controls are under it, hidden while the talk runs
     BoxWithConstraints(modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { } }) {
+        val screenHeight = maxHeight
         if (session == null) return@BoxWithConstraints
         if (mode.phase == ChatPhase.NEEDS_MODEL) {
             ChatNeedsModel(onDownloadModel, onRetry, onLeave, Modifier.align(Alignment.Center))
@@ -215,7 +216,7 @@ fun ChatLayer(
             Column(Modifier.fillMaxWidth().wifeSurface().padding(WifeTheme.gapS), verticalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
                 val scroll = rememberScrollState()
                 LaunchedEffect(log.size, typing) { scroll.animateScrollTo(scroll.maxValue) }
-                Column(Modifier.fillMaxWidth().heightIn(max = (maxHeight * 0.16f).coerceIn(44.dp, 130.dp)).verticalScroll(scroll), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(Modifier.fillMaxWidth().heightIn(max = (screenHeight * 0.16f).coerceIn(44.dp, 130.dp)).verticalScroll(scroll), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     if (log.isEmpty()) WifeNote("Say something, or choose a topic.")
                     for (l in log) {
                         val who = if (l.fromYou) session.youName else session.npcName
