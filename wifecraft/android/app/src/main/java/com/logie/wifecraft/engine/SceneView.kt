@@ -355,7 +355,10 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
      * GL thread, a [FrameDriver] only: cinematic mode's look this frame (simulation/CinematicLook: [mood], [vignette] and
      * [grain] 0..1, [letterbox] 0..1 how far the bars are in, sized here for the view), sent to the engine only when it changed.
      */
-    fun glCinematic(mood: Float, vignette: Float, grain: Float, letterbox: Float) {
+    fun glCinematic(moodIn: Float, vignetteIn: Float, grainIn: Float, letterbox: Float) {
+        // Build mode's sharp image (graphics/SharpImage): no grade, vignette or grain while it is on; the bars stay
+        val (mood, vignette, grain) = com.logie.wifecraft.graphics.SharpImage.cinematic(
+            com.logie.wifecraft.graphics.Graphics.settings.value, com.logie.wifecraft.graphics.Graphics.buildMode, moodIn, vignetteIn, grainIn)
         val bars = com.logie.wifecraft.simulation.CinematicLook.bars(width, height, letterbox)
         if (mood == cineSent[0] && vignette == cineSent[1] && grain == cineSent[2] && bars == cineSent[3]) return
         cineSent[0] = mood; cineSent[1] = vignette; cineSent[2] = grain; cineSent[3] = bars

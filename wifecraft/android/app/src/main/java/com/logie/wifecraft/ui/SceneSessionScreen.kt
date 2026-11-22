@@ -621,6 +621,9 @@ fun LiveSceneScreen(
         live.directing = BuildEntry.directorCamera(cinematic, build.on)
     }
     LaunchedEffect(live, cinematic) { cineNotify(cinematic) }
+    // Build mode's sharp image (graphics/SharpImage; Options' Graphics: Sharp image in Build mode): the renderer's effects are set sharp while it is on
+    SideEffect { Graphics.buildMode = build.on }
+    DisposableEffect(Unit) { onDispose { Graphics.buildMode = false } }
     // interactable sparkles (engine/sparkle.h): WoW-style twinkles over every spot a body can use (the scene's usable furniture and the
     // New tab's spots), hidden while one is occupied; off in Build mode, in cinematic mode and with the switch off; fewer as the governor lowers effects
     val graphicsNow by Graphics.live.collectAsState()
