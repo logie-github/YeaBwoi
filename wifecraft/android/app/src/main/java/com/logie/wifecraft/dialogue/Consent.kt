@@ -76,7 +76,7 @@ class ConsentCoordinator(
             val band = comfort.band(me.disposition, me.id, other.id, rel.friendship, rel.romance)
             val prior = WillingnessModel.prior(lore, me, other, rel, band)
             val req = DialogueRequest(me.id, PersonaPrompt.system(me, lore), emptyList(), askPrompt(me, other, prior, band, s.stage), maxTokens = 70, temperature = 0.6f)
-            runner.submit(PRIORITY, "consent", req, ttl = DECIDE_WAIT) { raw ->
+            runner.submit(PRIORITY, "consent", req, ttl = DECIDE_WAIT, urgency = DialoguePriority.SELECTED) { raw ->
                 if (gen != generation || sessions[s.key] !== s || s.phase != Phase.DECIDING) return@submit
                 val v = WillingnessModel.parse(raw)
                 results += Triple(me, other, WillingnessModel.applyModel(prior, v) to v?.line)
@@ -142,7 +142,7 @@ class ConsentCoordinator(
                 "Your fear is ${fearText(h.fear)} and your nature is ${me.disposition.style}. React in character. " +
                 "Reply as JSON only: {\"reaction\":\"calmer\" or \"same\" or \"warier\",\"line\":\"one short sentence you say\"}",
             maxTokens = 70, temperature = 0.7f)
-        runner.submit(PRIORITY, "consent", req, ttl = DECIDE_WAIT) { raw ->
+        runner.submit(PRIORITY, "consent", req, ttl = DECIDE_WAIT, urgency = DialoguePriority.SELECTED) { raw ->
             if (gen != generation) return@submit
             s.busy = false
             val (reaction, line) = parseReaction(raw)
@@ -172,7 +172,7 @@ class ConsentCoordinator(
     private fun closingLine(me: NpcProfile, other: NpcProfile?, what: String, then: (String) -> Unit) {
         val gen = generation
         runner.submit(PRIORITY - 1, "consent", DialogueRequest(me.id, PersonaPrompt.system(me, lore), emptyList(),
-            "${other?.name ?: "Your partner"} is with you. $what Reply with the spoken words only.", maxTokens = 40), ttl = 8.0) { raw ->
+            "${other?.name ?: "Your partner"} is with you. $what Reply with the spoken words only.", maxTokens = 40), ttl = 8.0, urgency = DialoguePriority.SELECTED) { raw ->
             if (gen == generation) LineCleaner.clean(raw, me.name)?.let(then)
         }
     }
@@ -193,7 +193,7 @@ class ConsentCoordinator(
             val ask = DialogueRequest(partner.id, PersonaPrompt.system(partner, lore), emptyList(),
                 "${me.name} is hesitant about lying with you. Your way of calming them is: ${approach.label.lowercase()}. " +
                     "Say it in your own voice, one or two short sentences. Reply with the spoken words only.", maxTokens = 50, temperature = 0.8f)
-            runner.submit(PRIORITY, "consent", ask, ttl = DECIDE_WAIT) { raw ->
+            runner.submit(PRIORITY, "consent", ask, ttl = DECIDE_WAIT, urgency = DialoguePriority.SELECTED) { raw ->
                 if (gen != generation) return@submit
                 s.busy = false
                 LineCleaner.clean(raw, partner.name)?.let { speak(partner.id, it) }
