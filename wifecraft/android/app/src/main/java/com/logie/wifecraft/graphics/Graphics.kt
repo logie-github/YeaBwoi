@@ -71,6 +71,12 @@ object Graphics {
 
     private fun prefs(context: Context) = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
+    /** Build mode is on (the scene screen sets it): the sharp image applies ([SharpImage]). */
+    @Volatile var buildMode = false
+
+    /** Whether Build mode's sharp image is in force now (any thread). */
+    fun sharpNow(): Boolean = SharpImage.active(settingsFlow.value, buildMode)
+
     /** "Test for 10 seconds": the next 10 s of frames measured (the result in [live]'s test). */
     fun startTest() { testAsked = true }
 
@@ -162,6 +168,7 @@ object Graphics {
     private var sentFor: GraphicsSettings? = null
     private var sentLevel = -1
     private var sentTimers = false
+    private var sentBuild = false
     @Volatile private var testAsked = false
     private var testUntil = 0L
     private var testFrames = 0
@@ -184,7 +191,9 @@ object Graphics {
         for (i in 1..8) if (!stats[i].isNaN()) { gpu += stats[i]; anyGpu = true }
         val s = settingsFlow.value
         val budget = FramePacing.budgetMs(refreshHz, s.targetFps)
-        val steps = s.applicableSteps()
+        val build = buildMode
+        if (build != sentBuild) governor.reset()   // the step list differs in Build mode's sharp order: start from nothing lowered
+        val steps = SharpImage.steps(s, build)
         governor.maxLevel = steps.size
         if (s.adaptive) {
             governor.thermalFloor = thermalSteps
@@ -195,11 +204,11 @@ object Graphics {
         val level = if (s.adaptive) governor.level else 0
         com.logie.wifecraft.data.DialogueHost.renderLevel = level   // the dialogue model yields to a renderer that is struggling
         val timers = s.overlay || s.adaptive
-        if (s !== sentFor || level != sentLevel || timers != sentTimers) {
-            val lowered = s.lowered(level)
+        if (s !== sentFor || level != sentLevel || timers != sentTimers || build != sentBuild) {
+            val lowered = SharpImage.lowered(s, build, level)
             effective = lowered
             Native.graphics(handle, lowered.toNative(timers))
-            sentFor = s; sentLevel = level; sentTimers = timers
+            sentFor = s; sentLevel = level; sentTimers = timers; sentBuild = build
         }
         // the 10-second test
         if (testAsked) {
