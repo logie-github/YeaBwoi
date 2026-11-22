@@ -170,6 +170,48 @@ JNIEXPORT jint JNICALL FN(boneAnim)(JNIEnv* env, jclass, jlong h, jint id, jobje
 
 JNIEXPORT void JNICALL FN(clearBoneAnim)(JNIEnv*, jclass, jlong h, jint id) { scene(h)->clearBoneAnim(id); }
 
+// The tracks of an imported animation's arrays (Native.boneAnim's), for a layer or a reach.
+static BoneAnim boneTracks(JNIEnv* env, jobjectArray bones, jintArray channels, jintArray keyCounts, jfloatArray times,
+                           jfloatArray values, jfloat duration, jboolean loop) {
+    auto ch = ints(env, channels), counts = ints(env, keyCounts);
+    auto ts = floats(env, times), vs = floats(env, values);
+    jsize n = bones ? env->GetArrayLength(bones) : 0;
+    BoneAnim anim;
+    anim.duration = duration;
+    anim.loop = loop;
+    size_t ti = 0, vi = 0;
+    for (jsize i = 0; i < n && size_t(i) < ch.size() && size_t(i) < counts.size(); ++i) {
+        auto js = (jstring)env->GetObjectArrayElement(bones, i);
+        BoneAnimTrack t;
+        if (js) { t.bone = str(env, js); env->DeleteLocalRef(js); }
+        t.rotation = ch[size_t(i)] == 0;
+        size_t keys = size_t(std::max(0, counts[size_t(i)])), per = t.rotation ? 4 : 3;
+        if (ti + keys > ts.size() || vi + keys * per > vs.size()) break;
+        t.times.assign(ts.begin() + long(ti), ts.begin() + long(ti + keys));
+        t.values.assign(vs.begin() + long(vi), vs.begin() + long(vi + keys * per));
+        ti += keys; vi += keys * per;
+        anim.tracks.push_back(std::move(t));
+    }
+    return anim;
+}
+
+// A bone layer on an actor (Native.boneLayer): rotation keys turned onto its own animation. Returns the tracks that found a bone.
+JNIEXPORT jint JNICALL FN(boneLayer)(JNIEnv* env, jclass, jlong h, jint id, jobjectArray bones, jintArray channels,
+                                     jintArray keyCounts, jfloatArray times, jfloatArray values, jfloat duration,
+                                     jboolean loop, jint now) {
+    return scene(h)->setBoneLayer(id, boneTracks(env, bones, channels, keyCounts, times, values, duration, loop), uint32_t(now));
+}
+JNIEXPORT void JNICALL FN(clearBoneLayer)(JNIEnv*, jclass, jlong h, jint id) { scene(h)->clearBoneLayer(id); }
+
+// A reach (Native.reach): the actor's arm on a point of another actor's body, its weight and offsets keyed in the arrays.
+JNIEXPORT jint JNICALL FN(reach)(JNIEnv* env, jclass, jlong h, jint id, jint target, jint targetBone, jboolean left,
+                                 jobjectArray bones, jintArray channels, jintArray keyCounts, jfloatArray times,
+                                 jfloatArray values, jfloat duration, jboolean loop, jint now) {
+    return scene(h)->setReach(id, target, targetBone, left == JNI_TRUE,
+                              boneTracks(env, bones, channels, keyCounts, times, values, duration, loop), uint32_t(now));
+}
+JNIEXPORT void JNICALL FN(clearReach)(JNIEnv*, jclass, jlong h, jint id) { scene(h)->clearReach(id); }
+
 // Options' Soft body: 0 off, 1 subtle, 2 natural, 3 strong (engine/softbody.h).
 JNIEXPORT void JNICALL FN(softBody)(JNIEnv*, jclass, jlong h, jint level) { scene(h)->setSoftBody(level); }
 // Whether an actor is a character (a playable race's model): only characters have a soft body.

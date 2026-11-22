@@ -127,6 +127,7 @@ import com.logie.wifecraft.simulation.ModelEmotes
 import com.logie.wifecraft.simulation.PartnerEmotes
 import com.logie.wifecraft.simulation.PartnerFrequency
 import com.logie.wifecraft.characters.CreatureNpcs
+import com.logie.wifecraft.characters.DragonStages
 import com.logie.wifecraft.simulation.PartnerPair
 import com.logie.wifecraft.simulation.PartnerSoundSink
 import com.logie.wifecraft.simulation.SceneSnapshot
@@ -357,6 +358,8 @@ fun LiveSceneScreen(
     /** Options' Cinematic page (applied at once), and cinematic mode going on or off (the music eases down: Audio.cinematic). */
     cinematicSettings: CinematicSettings = CinematicSettings.DEFAULT,
     onCinematic: (Boolean) -> Unit = {},
+    /** Options' Dialogue page: whether NPCs talk with the on-device model, and how much (applied at once). */
+    dialogue: com.logie.wifecraft.dialogue.DialogueSettings = com.logie.wifecraft.dialogue.DialogueSettings(),
     /** The life and the clock as JSON to keep (null: none), every half minute and when the scene ends. Any thread. */
     onLifeSave: (life: String?, clock: String?) -> Unit = { _, _ -> },
     /** The game's icons (the life HUD's: needs, moods, thoughts, the radial menu); null: their drawn glyphs. */
@@ -386,7 +389,13 @@ fun LiveSceneScreen(
         runCatching { playPrefs.edit().putString(playKey, options.encode()).apply() }
     }
     // what NPCs pick from by themselves: the library's enabled pairs and the authors' two-actor performances
-    val partnerPairs = remember(pairs, choices) { PartnerPair.enabled(pairs) + choices.mapNotNull { PartnerPair.of(it) } }
+    // (+ the creature's own stages: Sindragosa's, offered and played only with her, characters/DragonStages)
+    val stageChoices = remember { DragonStages.pairs().map { it.choice() } }
+    val partnerPairs = remember(pairs, choices) {
+        PartnerPair.enabled(pairs) + choices.mapNotNull { PartnerPair.of(it) } + DragonStages.pairs().map { PartnerPair.of(it) }
+    }
+    // (the cinematic auto-play cycles the library's stages: a creature's own are played from the animation browser)
+    val autoPairs = remember(partnerPairs) { partnerPairs.filter { it.exclusiveTo == null } }
     // what the NPCs say to each other: their names, races and sexes, and the place
     val words = remember(cast, locationName) {
         Chatter(cast.associate { it.id to Speaker(it.name, it.appearance.raceId, it.appearance.sex == Sex.FEMALE) }, locationName)
@@ -628,6 +637,20 @@ fun LiveSceneScreen(
     var flowPhase by remember(live) { mutableStateOf(FlowPhase.NONE) }
     val feed = remember(live) { ImmersionFeed() }
     SideEffect { feed.settings = immersive.clamped(); feed.cinematic = cinematic }
+    // the dialogue layer: NPCs speak with the on-device model (dialogue/), its lore and kink packs read from the assets; no model loaded, no change
+    val dialogueDirector = remember(live) {
+        com.logie.wifecraft.ui.DialogueAssets.lore(context)?.let { lore ->
+            com.logie.wifecraft.dialogue.DialogueDirector({ com.logie.wifecraft.dialogue.DialogueRuntime.engine }, lore, live.speechSink(), dialogue,
+                kink = com.logie.wifecraft.ui.DialogueAssets.kink(context))
+        }
+    }
+    SideEffect { dialogueDirector?.settings = dialogue }
+    DisposableEffect(live, dialogueDirector, cast) {
+        if (dialogueDirector != null) live.dialogue = LiveScene.DialogueFeed(dialogueDirector,
+            cast.associate { it.id to com.logie.wifecraft.dialogue.Profiles.of(it) }, com.logie.wifecraft.dialogue.PlaceView(locationName), { feed.cinematic })
+        onDispose { live.dialogue = null }
+    }
+    var steerOpen by remember(live) { mutableStateOf(false) }
     val active = selected?.let { id -> snapshot.people.firstOrNull { it.id == id } }
     val views = selected?.let { snapshot.furnitureViews[it] }.orEmpty()
     val viewNames = remember(views) { views.map { it.label } }
@@ -837,14 +860,22 @@ fun LiveSceneScreen(
             override fun playback(index: Int, clip: ClipPlayback?) {
                 val key = keys[index]
                 val creature = creatureOf[index]
+                // a creature's own stage (DragonStages): the creature's layer over her own animation, the person's reach on her
+                val stage = clip?.clip?.let { DragonStages.ofKey(it) }
                 if (creature != null) {
                     // a creature never plays a Sims clip (nothing is retargeted onto her): her own game animation, looped
                     view.glPlayAnimation(key, null)
                     playingKeys[index] = clip?.clip
                     emoting[index] = false
                     view.glAnimate(key, creature.standAnimation)
+                    view.glBoneLayer(key, if (stage != null && stage.second == 1 && stage.first.creature == creature.character) stage.first.baked.layer else null)
                     return
                 }
+                if (stage != null && stage.second == 0) {
+                    val at = creatureOf.indexOfFirst { it?.character == stage.first.creature }
+                    val r = stage.first.reach
+                    view.glReach(key, if (at >= 0) keys[at] else null, r.bone, r.left, stage.first.baked.reach)
+                } else view.glReach(key, null, 0, false, null)
                 val emote = clip?.let { PlaybackKeys.emoteOf(it.clip) }
                 playingKeys[index] = clip?.clip?.takeIf { emote == null }
                 val wasEmote = emoting[index]
@@ -1646,7 +1677,7 @@ fun LiveSceneScreen(
         }
         // cinematic auto-play: the pair's animations one after another, each change under a cut (CinematicUi, CinematicAutoplay)
         CinematicAutoplayHost(cinematic && cinematicSettings.autoplay, live, cineDirector, cinematicSettings,
-            selected ?: flow?.a, partnerId ?: flow?.b, cast.map { it.id }, partnerPairs, needs.pairs, furnitureAt, bodyScales,
+            selected ?: flow?.a, partnerId ?: flow?.b, cast.map { it.id }, autoPairs, needs.pairs, furnitureAt, bodyScales,
             controls = cinematic && !cineHidden && revealed, treatAs = treatAs, hold = holdAnimations)
         CinematicLayer(cinematic, cineHidden, revealed && shown > 0f && (cinematic || !immersiveHud || hudUp), {
             cinematic = !cinematic
@@ -1658,7 +1689,17 @@ fun LiveSceneScreen(
     choosingAnimation?.let { owner ->
         // with a partner chosen, the two-person animations come first and play with them (solo ones still play alone)
         val with = partnerId?.takeIf { it != owner }
-        val shownChoices = remember(choices, with) { if (with == null) choices else choices.sortedByDescending { it.participantCount == 2 } }
+        // (a creature's own stage is offered only between that creature and a person: DragonStages)
+        val stagesHere = remember(owner, with) {
+            stageChoices.filter { c ->
+                val mine = creatureSpecs[owner]?.character
+                val theirs = with?.let { creatureSpecs[it]?.character }
+                with != null && ((mine == c.exclusiveTo && with !in creatureSpecs) || (theirs == c.exclusiveTo && owner !in creatureSpecs))
+            }
+        }
+        val shownChoices = remember(choices, with, stagesHere) {
+            if (with == null) choices else stagesHere + choices.sortedByDescending { it.participantCount == 2 }
+        }
         fun start(choice: AnimationChoice, mode: AnimationOrderMode, preview: Boolean = true) {
             val order = PendingAnimation(owner, choice, mode)
             if (choice.participantCount == 2) {
@@ -1705,6 +1746,7 @@ fun LiveSceneScreen(
     }
     // Move mode's windows: what is this (the class picker), the one-time question, the report
     MoveWindows(mapper) { cast.firstOrNull { it.id == mapper.npc }?.let(::npcInfoOf) }
+    if (dialogueDirector != null) DialogueOverlay(dialogueDirector, live, names, steerOpen, { steerOpen = false })
     BuildWindows(build)
     val sayFor = rememberHeld(saying)
     if (sayFor != null) {
@@ -1754,7 +1796,8 @@ fun LiveSceneScreen(
         frozen = selectedLife?.frozen == true,
         onFreeze = { on -> selected?.let { live.life.freeze(it, on) } },
         onLife = selected?.takeIf { selectedLife != null }?.let { id -> { menu = false; lifeWindow = id } },
-        buildOn = build.on, onBuild = { if (build.on) { menu = false; build.leave() } else enterBuild() })
+        buildOn = build.on, onBuild = { if (build.on) { menu = false; build.leave() } else enterBuild() },
+        onDialogue = dialogueDirector?.let { { menu = false; steerOpen = true } })
     val windowFor = rememberHeld(lifeWindow)
     val windowPerson = windowFor?.let { id -> lifeShown?.person(id) }
     if (windowFor != null && windowPerson != null) {
@@ -2213,6 +2256,8 @@ private fun SceneMenu(
     /** Build mode's entry (always there): enters it, or leaves it while [buildOn]. */
     buildOn: Boolean = false,
     onBuild: (() -> Unit)? = null,
+    /** Opens the steer window (the dialogue layer's nudges for the talk); null: no layer. */
+    onDialogue: (() -> Unit)? = null,
 ) {
     val name = rememberHeld(freezeName)
     Overlay(onClose, visible) {
@@ -2227,6 +2272,7 @@ private fun SceneMenu(
                     WifeButton(BuildEntry.menuLabel(buildOn), onBuild, Modifier.fillMaxWidth(), sound = "open")
                     Text(BuildEntry.menuDetail(buildOn), style = WifeTheme.captionStyle())
                 }
+                if (onDialogue != null) WifeButton("Steer the talk", onDialogue, Modifier.fillMaxWidth(), sound = "open")
                 if (onOptions != null) WifeButton("Options", onOptions, Modifier.fillMaxWidth(), sound = "open")
                 WifeButton("End scene", onEnd, Modifier.fillMaxWidth())
             }

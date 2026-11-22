@@ -1,0 +1,55 @@
+package com.logie.wifecraft.dialogue
+
+/**
+ * The on-device language model as the dialogue layer sees it: one call, one answer. The runtime (llama.cpp, one shared model)
+ * implements it; the layer above ([DialogueDirector], [ConsentCoordinator]) is written against this alone and is tested with
+ * a scripted one. This file is the single source of truth for the interface: the runtime merges onto it. Pure JVM.
+ */
+data class DialogueTurn(val role: Role, val text: String) {
+    enum class Role { USER, ASSISTANT }
+}
+
+/**
+ * One request. [system] is the NPC's persona prompt (its first part is stable per NPC so the runtime can cache its prefix),
+ * [history] the short rolling talk so far, [user] what to answer now, [maxTokens] the most it may write.
+ */
+data class DialogueRequest(
+    val npcId: String,
+    val system: String,
+    val history: List<DialogueTurn> = emptyList(),
+    val user: String,
+    val maxTokens: Int = 60,
+    val temperature: Float = 0.8f,
+    val stop: List<String> = emptyList(),
+    // ---- added by the runtime (DialogueScheduler); all optional, so the layer above is unchanged ----
+    val topP: Float = 0.92f,
+    val repeatPenalty: Float = 1.08f,
+    /** 0: a different answer every time; any other number repeats the answer. */
+    val seed: Int = 0,
+    /** Who is waiting, most urgent first. The scheduler also promotes the selected NPC and a talking pair on its own (setFocus). */
+    val priority: DialoguePriority = DialoguePriority.AMBIENT,
+    /** How long the request may wait in the queue (null: by priority; 0 or less: for ever). */
+    val maxWaitMs: Long? = null,
+    /** True: read the prompt into the NPC's state and answer nothing (warms an NPC as it is loaded). */
+    val prefillOnly: Boolean = false,
+    /** Called on the model's thread with each piece of the answer as it is made (for a speech bubble that types itself out). */
+    val onPartial: ((String) -> Unit)? = null,
+)
+
+interface DialogueEngine {
+    /** The model's answer, or null when it can't answer now (not loaded, busy, failed): the caller then stays silent. */
+    suspend fun complete(req: DialogueRequest): String?
+
+    // ---- added by the runtime; defaults so a scripted engine needs only complete() ----
+
+    /** True when a model is loaded and requests are being answered. */
+    val ready: Boolean get() = true
+
+    /** Gives an NPC's earlier state up (a new persona, a retold story): its next request reads the whole prompt again. */
+    fun forget(npcId: String) {}
+
+    /** Who the player is looking at, and the pair that is talking: their requests go first (see [DialoguePriority]). */
+    fun setFocus(selected: String?, pair: Set<String> = emptySet()) {}
+}
+
+/** Cancelling the calling coroutine cancels the request, running or queued; a request given up in the queue answers null. */

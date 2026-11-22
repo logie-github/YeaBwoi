@@ -289,6 +289,27 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         else applyPose(handle, id, AnimArrays.of(animation))
     }
 
+    /**
+     * GL thread: [layer] (anim/ClipLayers: rotation keys by bone, "!#N" held bones, "layer.hold") laid over the actor [key]'s own
+     * animation from this very frame, looping; null takes it off (cpp Scene::setBoneLayer, clearBoneLayer).
+     */
+    fun glBoneLayer(key: String, layer: AnimArrays?) {
+        val id = ids[key] ?: return
+        if (layer == null) { Native.clearBoneLayer(handle, id); return }
+        Native.boneLayer(handle, id, layer.bones, layer.channels, layer.keyCounts, layer.times, layer.values, layer.duration, layer.loop, Clock.now())
+    }
+
+    /**
+     * GL thread: actor [key]'s [left] or right arm put on bone [targetBone] of actor [targetKey]'s model, as [keys] say (cpp
+     * Scene::setReach: the stage's hand on a creature's head), from this very frame; a null [keys] or [targetKey] takes it off.
+     */
+    fun glReach(key: String, targetKey: String?, targetBone: Int, left: Boolean, keys: AnimArrays?) {
+        val id = ids[key] ?: return
+        val target = targetKey?.let { ids[it] }
+        if (keys == null || target == null) { Native.clearReach(handle, id); return }
+        Native.reach(handle, id, target, targetBone, left, keys.bones, keys.channels, keys.keyCounts, keys.times, keys.values, keys.duration, keys.loop, Clock.now())
+    }
+
     fun post(change: Change) {
         changes.add(change)
     }

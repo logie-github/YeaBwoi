@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
+import com.logie.wifecraft.dialogue.DialogueSettings
 import com.logie.wifecraft.simulation.CinematicSettings
 import com.logie.wifecraft.simulation.ClockSettings
 import com.logie.wifecraft.simulation.ImmersiveSettings
@@ -73,7 +74,7 @@ fun <T> StateFlow<T>.collectThrottled(urgent: (T?, T) -> Boolean = { _, _ -> fal
     return throttled.collectAsStateWithLifecycle(value)
 }
 
-private enum class Page(val label: String) { SOUND("Sound"), GRAPHICS("Graphics"), IMMERSION("Immersion"), TIME("Time"), CINEMATIC("Cinematic"), DOWNLOADS("Downloads"), MODS("Mods") }
+private enum class Page(val label: String) { SOUND("Sound"), GRAPHICS("Graphics"), IMMERSION("Immersion"), TIME("Time"), CINEMATIC("Cinematic"), DIALOGUE("Dialogue"), DOWNLOADS("Downloads"), MODS("Mods") }
 
 /** What the Downloads page's controls do (data/DownloadHub's commands, wired by the activity). */
 class DownloadActions(
@@ -125,6 +126,10 @@ fun DownloadOptions(
     /** The Cinematic page's settings and their change (null: no Cinematic page). */
     cinematic: CinematicSettings? = null,
     onCinematic: (CinematicSettings) -> Unit = {},
+    /** The Dialogue page's settings and their change (null: no Dialogue page), and extra rows under them (the model's picker). */
+    dialogue: DialogueSettings? = null,
+    onDialogue: (DialogueSettings) -> Unit = {},
+    dialogueExtra: @Composable () -> Unit = {},
     /** The Immersion page's settings and their change (null: no Immersion page), and what every NPC keeps on. */
     immersive: ImmersiveSettings? = null,
     onImmersive: (ImmersiveSettings) -> Unit = {},
@@ -134,9 +139,10 @@ fun DownloadOptions(
     graphics: (@Composable () -> Unit)? = null,
 ) {
     var page by remember { mutableStateOf(Page.SOUND) }
-    val pages = remember(clock != null, cinematic != null, immersive != null, graphics != null) {
+    val pages = remember(clock != null, cinematic != null, immersive != null, graphics != null, dialogue != null) {
         Page.entries.filter { (it != Page.TIME || clock != null) && (it != Page.CINEMATIC || cinematic != null) &&
-            (it != Page.IMMERSION || immersive != null) && (it != Page.GRAPHICS || graphics != null) }
+            (it != Page.IMMERSION || immersive != null) && (it != Page.GRAPHICS || graphics != null) &&
+            (it != Page.DIALOGUE || dialogue != null) }
     }
     val reduced = reduceMotion()
     Overlay(onClose) {
@@ -182,6 +188,7 @@ fun DownloadOptions(
                             Page.TIME -> if (clock != null) TimePage(clock, onClock, lifeSimulation, onLifeSimulation)
                             Page.CINEMATIC -> if (cinematic != null) CinematicPage(cinematic, onCinematic)
                             Page.IMMERSION -> if (immersive != null) ImmersionPage(immersive, onImmersive, keepOn, onKeepOn)
+                            Page.DIALOGUE -> if (dialogue != null) DialoguePage(dialogue, onDialogue, dialogueExtra)
                             Page.MODS -> mods()
                             Page.GRAPHICS -> graphics?.invoke()
                         }

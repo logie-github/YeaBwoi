@@ -10,6 +10,9 @@ import com.logie.wifecraft.anim.Requirement
 import com.logie.wifecraft.anim.Surface
 import com.logie.wifecraft.characters.CreatureNpcs
 import com.logie.wifecraft.characters.CreatureSpec
+import com.logie.wifecraft.dialogue.ConsentGate
+import com.logie.wifecraft.dialogue.DialogueGate
+import com.logie.wifecraft.dialogue.DialogueHook
 import com.logie.wifecraft.story.Vec3
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -155,6 +158,16 @@ class SceneSimulation(
      * by it ([PairFit]).
      */
     var sizes: Map<String, Float> = emptyMap()
+
+    /**
+     * The dialogue layer (null, or not active: everything runs exactly as without it): it speaks the words of ordinary
+     * conversations (their scripted lines are then not used: [startChat]) and answers whether a sexual stage may begin
+     * ([startPartner]: the NPCs wait where they stand while it decides, or talk it over).
+     */
+    var dialogue: DialogueHook? = null
+
+    /** Whether a partner stage is a sexual one, by its name and the pack's category; null: the app's own classification ([DialogueGate.isSexual]). */
+    var sexualStage: ((name: String, category: String) -> Boolean)? = null
 
     private fun size(actor: Actor?): Float = actor?.let { sizes[it.id] } ?: 1f
 
@@ -356,7 +369,8 @@ class SceneSimulation(
     private val spacedPairs = java.util.IdentityHashMap<PartnerPair, PartnerPair>()
 
     /** [pair] with its two bodies kept apart ([PairSpacing]: no two trunks in each other, never both on one axis); cached. */
-    fun spaced(pair: PartnerPair): PartnerPair = spacedPairs.getOrPut(pair) { PairSpacing.spaced(pair) }
+    fun spaced(pair: PartnerPair): PartnerPair =
+        if (pair.exclusiveTo != null) pair else spacedPairs.getOrPut(pair) { PairSpacing.spaced(pair) }   // (a creature stage's slots are its own)
 
     /** A pair spaced for two bodies (each kept as itself). */
     private class SpacedKey(val pair: PartnerPair, val a: FleshProfile, val b: FleshProfile) {
@@ -367,6 +381,7 @@ class SceneSimulation(
 
     /** [pair] spaced for the bodies playing it ([first] its actor 0, [second] its actor 1: their own flesh); cached. */
     private fun spaced(pair: PartnerPair, first: Actor, second: Actor): PartnerPair {
+        if (pair.exclusiveTo != null) return pair
         val a = fleshOf(first); val b = fleshOf(second)
         if (!a.measured && !b.measured) return spaced(pair)
         if (spacedForBodies.size > 256) spacedForBodies.clear()
@@ -562,6 +577,9 @@ class SceneSimulation(
     /** What [id] is saying now (tests), or null. */
     fun speech(id: String): String? = actors[id]?.let { a -> a.spoken?.takeIf { time < a.spokenUntil } }
 
+    /** Whether [id] went over to the other of its conversation (speaks first); false: not in one, or was gone to. */
+    fun leadsTalk(id: String): Boolean = actors[id]?.talk?.a?.id == id
+
     /** Whether [id] is in a conversation (walking to it or talking). */
     fun talking(id: String): Boolean = actors[id]?.talk != null
 
@@ -720,7 +738,8 @@ class SceneSimulation(
     fun perform(id: String, request: PerformanceOrder): Boolean {
         refusal = null
         val actor = actors[id] ?: return false
-        return valid(actor, request) && startOrdered(actor, request, null)
+        val oriented = orientStage(actor, request) ?: return false
+        return valid(actor, oriented) && startOrdered(actor, oriented, null)
     }
 
     /** An ordered [request]: a placed one on its furniture ([startPlacedOrder]), any other as before. */
@@ -828,8 +847,11 @@ class SceneSimulation(
 
     fun enqueue(id: String, requests: List<PerformanceOrder>): Boolean {
         val actor = actors[id] ?: return false
-        if (requests.isEmpty() || requests.size > MAX_QUEUED - actor.queue.size || requests.any { !valid(actor, it) }) return false
-        actor.queue.addAll(requests)
+        if (requests.isEmpty() || requests.size > MAX_QUEUED - actor.queue.size) return false
+        refusal = null
+        val oriented = requests.map { orientStage(actor, it) ?: return false }
+        if (oriented.any { !valid(actor, it) }) return false
+        actor.queue.addAll(oriented)
         version++
         return true
     }
@@ -1046,18 +1068,50 @@ class SceneSimulation(
     /**
      * The creature NPCs of the cast (actor id to [CreatureSpec]; Sindragosa's dragon): each is drawn by her own game
      * model, plays only her own game animations (the screen never gives her a Sims clip) and, in either role of a two-person
-     * stage, is put by [creatureDelta] with her hindquarters on the role's marker and clear of the other body. No lift:
+     * stage, is put by [creatureDelta] side-on to the other with her hips' flank on the role's marker. No lift:
      * she stands on the floor under her, never raised as a person lying on a bed is.
      */
     var creatures: Map<String, CreatureSpec> = emptyMap()
 
     private fun isCreature(actor: Actor?): Boolean = actor != null && actor.id in creatures
 
+    private var exclusivePairs: List<PartnerPair>? = null
+    private var exclusiveIds: Set<String> = emptySet()
+
+    /** Whether the role clip [key] is one of a creature's own stages ([PartnerPair.exclusiveTo]): it places both people itself. */
+    private fun stageOwned(key: String): Boolean {
+        val id = CreatureStages.pairIdOf(key) ?: return false
+        if (exclusivePairs !== pairs) { exclusivePairs = pairs; exclusiveIds = pairs.filter { it.exclusiveTo != null }.mapTo(HashSet()) { it.id } }
+        return id in exclusiveIds
+    }
+
+    /** Whether [pair] may be played by [a] and [b]: a creature's own stage ([PartnerPair.exclusiveTo]) needs that creature and a person. */
+    private fun eligible(pair: PartnerPair, a: Actor?, b: Actor?): Boolean = CreatureStages.eligible(pair.exclusiveTo,
+        a?.let { creatures[it.id]?.character }, b?.let { creatures[it.id]?.character }, isCreature(a), isCreature(b))
+
+    /**
+     * An ordered [request] for a creature's own stage ([PartnerPair.exclusiveTo]) as it is played: the person in its role 0
+     * (active) and the creature in role 1 (receiving), whichever of them was chosen to lead (the roles turned over when the
+     * creature leads); null (and [refusal] says why) when the two aren't that creature and a person. Any other request as it is.
+     */
+    private fun orientStage(lead: Actor, request: PerformanceOrder): PerformanceOrder? {
+        val id = request.pairId ?: request.roles.firstNotNullOfOrNull { CreatureStages.pairIdOf(it.clip) } ?: return request
+        val pair = pairs.firstOrNull { it.id == id } ?: return request
+        val want = pair.exclusiveTo ?: return request
+        val other = request.partnerId?.let(actors::get)
+        if (other == null || request.roles.size != 2 || !eligible(pair, lead, other)) {
+            refuse("That stage needs ${CreatureNpcs.of(want)?.character?.replaceFirstChar { it.uppercase() } ?: "its creature"} and one other person.")
+            return null
+        }
+        return if (isCreature(lead)) request.copy(roles = request.roles.reversed()) else request
+    }
+
     /** [actor]'s creature move for the role [mine] against the role [theirs] (the pair's frame), else none. */
     private fun creatureDelta(actor: Actor?, mine: PlaybackRole, theirs: PlaybackRole): RoleDelta {
         val spec = actor?.let { creatures[it.id] } ?: return RoleDelta.ZERO
-        val d = CreatureNpcs.delta(spec, mine.offset.x, mine.offset.y, theirs.offset.x, theirs.offset.y, mine.facing)
-        return RoleDelta(d[0], d[1], 0f, 0f)
+        if (stageOwned(mine.clip)) return RoleDelta.ZERO   // a creature's own stage puts her where its table says
+        val d = CreatureNpcs.place(spec, mine.offset.x, mine.offset.y, theirs.offset.x, theirs.offset.y, mine.facing)
+        return RoleDelta(d[0], d[1], 0f, d[2])
     }
 
     /** The remembered correction and build mode's live nudge of role [index] of [p] (its z raises the body: [placed] can't). */
@@ -1286,6 +1340,7 @@ class SceneSimulation(
             }
         }
         if (!hold) pendingInvite?.let { p -> retryInvite(p) }
+        if (!hold) resolveConsentWaits()
         val l = life
         if (l != null && l.enabled) {
             for (a in order) l.observe(a.index, observed(a), a.phase == Phase.MOVING, a.directed, a.target.takeIf { a.phase == Phase.ACTING })
@@ -1398,7 +1453,9 @@ class SceneSimulation(
         val words = chatter
         // the greetings by the hour ("Morning, ..."): the life clock's (the world's when it drives it)
         words?.hour = life?.clock?.hourOfDay ?: Double.NaN
-        val said: List<ChatLine>? = lines ?: words?.conversation(actor.id, other.id, random, topic)
+        val voiced = lines == null && dialogue?.let { it.active && it.takesOverChat(actor.id, other.id) } == true
+        val said: List<ChatLine>? = if (voiced) List(VOICED_LINES) { ChatLine(it % 2, "", if (it % 2 == 0) Gestures.TALK else Gestures.STAND) }
+            else lines ?: words?.conversation(actor.id, other.id, random, topic)
             ?: life?.takeIf { it.enabled }?.smallTalk(actor.index, other.index)
         if (said != null) {
             val talk = Talk(actor, other, Conversation(said), directed, kind, refused, if (lines == null) words?.lastTopicName else null)
@@ -1412,6 +1469,8 @@ class SceneSimulation(
     /** Line [index] of [talk] begins: its speaker's bubble (the other's is taken down). */
     private fun speak(talk: Talk, index: Int) {
         val line = talk.conversation.lines[index]
+        // a line without words: the dialogue layer speaks this conversation (say), the clock and gestures still run
+        if (line.text.isBlank()) return
         val who = if (line.speaker == 0) talk.a else talk.b
         val other = if (who === talk.a) talk.b else talk.a
         who.spoken = line.text
@@ -1824,6 +1883,7 @@ class SceneSimulation(
         val unit = bodyUnit(a, b)
         for (p in pairs) {
             if (gate != null && !gate(p.name, -1)) continue
+            if (!eligible(p, a, b)) continue     // a creature's own stage needs her and a person
             val r = requirementOf(p)
             // made in water with one body in it and one out (a pool's edge): nothing here shows it so (PairWater)
             if (r != null && PairWater.needsWater(r, p)) continue
@@ -1969,6 +2029,7 @@ class SceneSimulation(
         val p = actors[id]?.performance ?: return false
         val newLead = p.other ?: return false
         if (!p.started || p.emote >= 0) return false
+        if (p.roles.any { stageOwned(it.clip) }) return false   // a creature's own stage has one way round
         val was = p.lead
         val sa = size(was); val sb = size(newLead)
         val parts = p.segments.map { it.copy(roles = RoleSwitch.refit(it.roles, sa, sb)) }
@@ -2101,7 +2162,79 @@ class SceneSimulation(
      * ([FurnitureSelection.cast]) and both walk to their places on the floor beside it. On furniture by its names: the
      * origin is the seat or bed, facing as it does. The clips start on one step and play on one clock.
      */
+    /**
+     * Starts the partner stage [picked] chose for [initiator] and [target], after the dialogue layer's question for a sexual
+     * one: willing (or no layer): it starts; deciding or being talked round: both wait where they stand and it is asked again
+     * every step ([consentWaits]); refused for now: the invitation ends, they step apart and a cooldown holds. Returns true
+     * when handled (started, waiting or refused), false when nothing could start, as before.
+     */
     private fun startPartner(initiator: Actor, target: Actor, directed: Boolean): Boolean {
+        val hook = dialogue?.takeIf { it.active && !it.cinematic } ?: return startPartnerNow(initiator, target, directed)
+        val name = picked?.name ?: pickedEmote?.name ?: ""
+        val kind = picked?.kind.orEmpty()
+        val sexual = DialogueGate.isSexual(name, kind, if (picked == null) pickedEmote?.anim ?: -1 else -1, sexualStage)
+        if (!sexual) return startPartnerNow(initiator, target, directed)
+        return when (hook.consent(initiator.id, target.id, directed, name)) {
+            ConsentGate.PROCEED -> startPartnerNow(initiator, target, directed)
+            ConsentGate.REFUSED -> { declined(initiator, target, directed); true }
+            ConsentGate.WAIT -> {
+                consentWaits.removeAll { it.initiator === initiator && it.target === target }
+                consentWaits += ConsentWait(initiator, target, directed, picked, pickedEmote, pickedFurniture, pickedFit, pickedFixed, time + CONSENT_MAX_WAIT)
+                holdFor(initiator, target)
+                true
+            }
+        }
+    }
+
+    /** A stage held while the dialogue layer decides: its choices ([picked] and the rest) kept to start it with. */
+    private class ConsentWait(val initiator: Actor, val target: Actor, val directed: Boolean, val pair: PartnerPair?, val emote: PartnerEmote?,
+        val furniture: SceneObject?, val fit: FurnitureFit?, val fixed: Boolean, val until: Float)
+    private val consentWaits = ArrayList<ConsentWait>()
+
+    /** Keeps both where they stand (no new decision) for a step. */
+    private fun holdFor(a: Actor, b: Actor) {
+        for (x in listOf(a, b)) if (x.phase == Phase.WAITING && x.performance == null && x.talk == null) x.remaining = maxOf(x.remaining, 1.5f)
+    }
+
+    private fun declined(initiator: Actor, target: Actor, directed: Boolean) {
+        initiator.cooldown = maxOf(initiator.cooldown, MIN_COOLDOWN + random.nextFloat() * (MAX_COOLDOWN - MIN_COOLDOWN))
+        target.cooldown = maxOf(target.cooldown, MIN_COOLDOWN)
+        if (directed) life?.takeIf { it.enabled }?.let { queueNotice = "${it.firstName(target.index)} isn't ready for that. Not now." }
+    }
+
+    /** Asks again for each held stage: on with it, still waiting, or ended. */
+    private fun resolveConsentWaits() {
+        if (consentWaits.isEmpty()) return
+        val hook = dialogue
+        for (w in consentWaits.toList()) {
+            // (one pulled into a conversation meanwhile keeps waiting; one taken by another stage drops this one)
+            val taken = w.initiator.performance != null || w.target.performance != null
+            if (taken) { consentWaits.remove(w); continue }
+            // no layer any more, or it has taken too long: as if willing
+            val gate = if (hook == null || !hook.active || time > w.until) ConsentGate.PROCEED
+                else hook.consent(w.initiator.id, w.target.id, w.directed, w.pair?.name ?: w.emote?.name ?: "")
+            when (gate) {
+                ConsentGate.WAIT -> holdFor(w.initiator, w.target)
+                ConsentGate.REFUSED -> { consentWaits.remove(w); declined(w.initiator, w.target, w.directed) }
+                ConsentGate.PROCEED -> {
+                    consentWaits.remove(w)
+                    picked = w.pair; pickedEmote = w.emote; pickedFurniture = w.furniture; pickedFit = w.fit; pickedFixed = w.fixed
+                    startPartnerNow(w.initiator, w.target, w.directed)
+                    pickedFixed = false
+                }
+            }
+        }
+    }
+
+    /** Whether [id] is in a sexual partner stage now (the dialogue layer's gate for live talk). */
+    fun sexualStageOf(id: String): Boolean {
+        val view = partnerOf(id) ?: return false
+        if (view.stage != "PLAY") return false
+        val kind = pairs.firstOrNull { it.name == view.name }?.kind.orEmpty()
+        return DialogueGate.isSexual(view.name, kind, if (view.emote >= 0) view.emote else -1, sexualStage)
+    }
+
+    private fun startPartnerNow(initiator: Actor, target: Actor, directed: Boolean): Boolean {
         val pair = picked
         val emote = pickedEmote
         val furniture = pickedFurniture
@@ -2110,6 +2243,8 @@ class SceneSimulation(
         // who plays the pair's actor 0 ([playA], the one who goes) and actor 1 ([playB], the performance's lead)
         var playA = initiator
         var playB = target
+        // a creature's own stage: the person is the active one (actor 0), the creature receives
+        if (pair?.exclusiveTo != null && isCreature(playA)) { playA = target; playB = initiator }
         if (fit != null && !pickedFixed) {
             val cast = FurnitureSelection.cast(fit, listOf(NearbyNpc(initiator.id, initiator.x, initiator.y), NearbyNpc(target.id, target.x, target.y)))
             if (cast != null && cast[0] == target.id) { playA = target; playB = initiator }
@@ -2229,6 +2364,10 @@ class SceneSimulation(
         private val CHAT_TURNS = floatArrayOf(0f, (PI_F / 4f), -(PI_F / 4f), (PI_F / 2f), -(PI_F / 2f), PI_F, (3f * PI_F / 4f), -(3f * PI_F / 4f))
         /** Seconds the player's interaction waits for a busy other before it gives up. */
         const val INVITE_WAIT = 20f
+        /** Seconds a stage waits for the dialogue layer's answer (a hesitant NPC being talked round) before it goes on. */
+        const val CONSENT_MAX_WAIT = 75f
+        /** Lines (blank, gestures only) of a conversation whose words the dialogue layer speaks. */
+        const val VOICED_LINES = 12
         private const val PI_F = 3.1415927f
         /** Furniture farther than this from both (yards) is out of an idle pair's reach. */
         const val FURNITURE_RANGE = 10f

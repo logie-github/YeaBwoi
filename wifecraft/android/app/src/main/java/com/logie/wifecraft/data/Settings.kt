@@ -1,6 +1,7 @@
 package com.logie.wifecraft.data
 
 import android.content.Context
+import com.logie.wifecraft.dialogue.DialogueSettings
 import com.logie.wifecraft.simulation.CinematicSettings
 import com.logie.wifecraft.simulation.ClockSettings
 import com.logie.wifecraft.simulation.ImmersiveSettings
@@ -55,6 +56,10 @@ class Settings(context: Context) {
     var clock: ClockSettings
         get() = ClockSettings.parse(prefs.getString("clock", null))
         set(v) = prefs.edit().putString("clock", v.toJson().toString()).apply()
+    /** Options' Dialogue page: whether NPCs talk with the on-device model and how talkative they are (dialogue/DialogueSettings), as JSON. */
+    var dialogue: DialogueSettings
+        get() = DialogueSettings.parse(prefs.getString("dialogue", null))
+        set(v) = prefs.edit().putString("dialogue", v.toJson().toString()).apply()
     /** Cinematic mode's settings (Options' Cinematic page: lighting, camera style and speed, shot lengths, letterbox, grain, words), as JSON. */
     var cinematic: CinematicSettings
         get() = CinematicSettings.parse(prefs.getString("cinematic", null))
@@ -87,6 +92,11 @@ class Settings(context: Context) {
     var wifiOnly: Boolean
         get() = prefs.getBoolean("wifiOnly", true)
         set(v) = prefs.edit().putBoolean("wifiOnly", v).apply()
+
+    /** Options → Mods → Dialogue model: the on-device language model that drives the NPCs' talk (dialogue/DialogueModels DialogueConfig), as JSON. */
+    var dialogueModel: com.logie.wifecraft.dialogue.DialogueConfig
+        get() = com.logie.wifecraft.dialogue.DialogueConfig.parse(prefs.getString("dialogueModel", null))
+        set(v) = prefs.edit().putString("dialogueModel", v.toJson().toString()).apply()
 
     /** Options' Soft body: 0 Off, 1 Subtle, 2 Natural (the default), 3 Strong (engine/Native.SOFT_*). */
     var softBody: Int
@@ -125,6 +135,11 @@ class Settings(context: Context) {
     var hdModels: Boolean
         get() = prefs.getBoolean("hdModels", true)
         set(v) = prefs.edit().putBoolean("hdModels", v).apply()
+
+    /** Options' HD creature textures switch (creator/HdTextures): a creature's skins enlarged twice, made once per texture. Off by default. */
+    var hdCreatureTextures: Boolean
+        get() = prefs.getBoolean("hdCreatureTextures", false)
+        set(v) = prefs.edit().putBoolean("hdCreatureTextures", v).apply()
 
     /**
      * The placement editor's own switches, kept for the user ([name]: "place.panel" the side panel open, "place.tip.<id>"

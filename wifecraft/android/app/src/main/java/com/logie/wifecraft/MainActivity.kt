@@ -188,6 +188,7 @@ class MainActivity : ComponentActivity() {
     private val hdStore by lazy { HdStore(partsRoot) }
     private val hdRunner by lazy { HdImportRunner(hdStore) }
     @Volatile private var hdOn = true
+    @Volatile private var hdTexOn = false
     /** The sets as last loaded into the 3D view (by race * 10 + sex); every dressing path asks [hdContext]. */
     @Volatile private var hdSets: Map<Int, HdSetInfo> = emptyMap()
 
@@ -222,6 +223,9 @@ class MainActivity : ComponentActivity() {
         }
         files = GameFiles.shared(applicationContext)
         DownloadHub.init(applicationContext)
+        // the dialogue model (Options → Dialogue): loaded in the background when it is on the phone and switched on
+        com.logie.wifecraft.data.DialogueHost.init(applicationContext)
+        com.logie.wifecraft.data.DialogueHost.ensureLoaded()
         settings = Settings(applicationContext)
         tables = CsvTables(files.tablesDir)
         // the first launch fetches every file the creator can draw: the plan from the tables, once they are here
@@ -230,6 +234,7 @@ class MainActivity : ComponentActivity() {
         imports = ImportStore(filesDir, listfile, supportedKinds = setOf(ImportKind.RALIA, ImportKind.BODY, ImportKind.UNDEAD))
         eveDefaultOn = settings.eveDefault
         hdOn = settings.hdModels
+        hdTexOn = settings.hdCreatureTextures
         com.logie.wifecraft.bodyparts.ArousalControl.mode = settings.partArousal
         // a finished HD import or a Remove: the sets (re)loaded into the 3D view
         hdRunner.listen { st -> if (st is HdImportRunner.State.Done) runOnUiThread { scene?.let { loadHd(it) } ?: run { hdSets = hdStore.sets().associateBy { it.key } } } }
@@ -238,6 +243,7 @@ class MainActivity : ComponentActivity() {
         dresser = Dresser(files, tables, imports, lifecycleScope).apply {
             eve = { eveContext() }
             hd = { hdContext() }
+            hdTextures = com.logie.wifecraft.creator.HdTextureCache(File(filesDir, "hdtex"), files.dir) { hdTexOn }
             named = namedCast
             manifestJson = assetText(ModelParts.ASSET)
             partsRoot = this@MainActivity.partsRoot
@@ -260,6 +266,7 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         scene?.onPause()
+        com.logie.wifecraft.data.DialogueHost.saveState()
         audio?.pause()
         sceneAudio?.pause()
         sceneAudio?.stopAll()
@@ -403,6 +410,7 @@ class MainActivity : ComponentActivity() {
         var lifeOn by remember { mutableStateOf(settings.lifeSimulation) }
         var clockSettings by remember { mutableStateOf(settings.clock) }
         var cinematicSettings by remember { mutableStateOf(settings.cinematic) }
+        var dialogueSettings by remember { mutableStateOf(settings.dialogue) }
         // Options' Immersion page (immersive mode: the life HUD hidden, the flow, body language, atmosphere) and what NPCs keep on
         var immersiveSettings by remember { mutableStateOf(settings.immersive) }
         var keepOnAll by remember { mutableStateOf(settings.keepOnAll) }
@@ -861,6 +869,7 @@ class MainActivity : ComponentActivity() {
                             clockSettings = clockSettings,
                             onTimeOfDay = { hours, perHour -> audio?.timeOfDay(hours, perHour) },
                             cinematicSettings = cinematicSettings,
+                            dialogue = dialogueSettings,
                             onCinematic = { on -> audio?.cinematic(on) },
                             onLifeSave = { life, clock -> lifecycleScope.launch(Dispatchers.IO) { saveLife(lifeStore, life, clock) } },
                             icons = icons,
@@ -941,6 +950,9 @@ class MainActivity : ComponentActivity() {
                         onImmersive = { immersiveSettings = it; settings.immersive = it },
                         keepOn = keepOnAll,
                         onKeepOn = { keepOnAll = it; settings.keepOnAll = it },
+                        dialogue = dialogueSettings,
+                        onDialogue = { dialogueSettings = it; settings.dialogue = it },
+                        dialogueExtra = { com.logie.wifecraft.ui.DialogueModelSection() },
                         graphics = { com.logie.wifecraft.ui.GraphicsPage() },
                         mods = {
                             Column {
@@ -952,6 +964,10 @@ class MainActivity : ComponentActivity() {
                                 var hdSwitch by remember { mutableStateOf(settings.hdModels) }
                                 HdModelsSection(hdRunner, hdStore, hdSwitch, onSwitch = { on ->
                                     hdSwitch = on; settings.hdModels = on; hdOn = on
+                                })
+                                var hdTexSwitch by remember { mutableStateOf(settings.hdCreatureTextures) }
+                                com.logie.wifecraft.ui.HdTexturesSection(hdTexSwitch, onSwitch = { on ->
+                                    hdTexSwitch = on; settings.hdCreatureTextures = on; hdTexOn = on
                                 })
                                 PartImportSection(partsRoot, partSet, profileJson = { assetText("sims_profile.json").orEmpty() }, onChanged = { set ->
                                     partSet = set

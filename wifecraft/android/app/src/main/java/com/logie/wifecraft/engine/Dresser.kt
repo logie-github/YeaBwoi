@@ -13,6 +13,7 @@ import com.logie.wifecraft.bodyparts.RgbaImage
 import com.logie.wifecraft.characters.ImportedLook
 import com.logie.wifecraft.characters.ImportedLooks
 import com.logie.wifecraft.characters.NamedCast
+import com.logie.wifecraft.creator.HdTextureCache
 import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.PartOptions
 import com.logie.wifecraft.creator.BodyCall
@@ -76,6 +77,17 @@ class Dresser(
     @Volatile var hd: () -> HdContext? = { null }
     /** The keys an HD figure was put on (taken off again when the look no longer has one). */
     private val withHd = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    /** HD creature textures (creator/HdTextureCache: Options' switch inside it); null: none. A creature's skins are enlarged as they are dressed. */
+    @Volatile var hdTextures: HdTextureCache? = null
+
+    /** [plan] with its creature textures made HD (a display's model of its own, not a playable body: [ImportedLook.character] and [ImportedLook.drawn] off). */
+    private fun hdTextured(plan: ImportedLook): ImportedLook {
+        val cache = hdTextures ?: return plan
+        if (plan.character || plan.drawn != null) return plan
+        val made = cache.map(plan.look.textures) { id -> if (files.has(id)) files.file(id) else null }
+        return if (made == plan.look.textures) plan else plan.withLook(plan.look.copy(textures = made))
+    }
 
     private val _withParts = MutableStateFlow<Set<String>>(emptySet())
     /** The keys whose actors wear the body parts now (a man with nothing below the waist, the add-on imported). */
@@ -345,7 +357,8 @@ class Dresser(
             coroutineContext.ensureActive()
         }
         bodies[key] = look.model
-        return CreatureLooks.call(tables, look)
+        val shown = hdTextures?.map(look.textures) { id -> if (files.has(id)) files.file(id) else null }
+        return CreatureLooks.call(tables, if (shown == null || shown == look.textures) look else look.copy(textures = shown))
     }
 
     /**
@@ -378,7 +391,7 @@ class Dresser(
         } catch (e: Exception) {
             fail("The body options: ${e.message ?: e}"); BodyCall.NONE
         }
-        return Prepared(plan.call(tables), body, plan.skin, plan.character, drawn, plan.set, plan.creature)
+        return Prepared(hdTextured(plan).call(tables), body, plan.skin, plan.character, drawn, plan.set, plan.creature)
     }
 
     /**

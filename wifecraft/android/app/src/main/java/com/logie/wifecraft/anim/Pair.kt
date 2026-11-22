@@ -40,6 +40,12 @@ data class PairAnim(
     val importedAt: Long,
     /** The pack's category for the stage (sims/AnimTuning PairDefinition.kind; bodyparts/Arousal's ArousalMap reads it); empty: none. */
     val kind: String = "",
+    /**
+     * The creature NPC ([com.logie.wifecraft.characters.CreatureSpec.character]) this stage is for: it is offered and played only
+     * when she is one of the two, the other person in role [a] (active) and she in [b] (receiving). Null: any two. Built-in stages
+     * only ([com.logie.wifecraft.characters.DragonStages]); never stored.
+     */
+    val exclusiveTo: String? = null,
 ) {
     val duration: Float get() = maxOf(a.duration, b.duration)
 
@@ -50,7 +56,8 @@ data class PairAnim(
             PerformanceRole(clip.source, Vec3(o.x, o.y, o.z), Math.toRadians(o.yawDeg.toDouble()).toFloat())
         }
         return AnimationChoice("$CHOICE_PREFIX$id", name, category, clips[0], clips, roles,
-            locations.sorted().joinToString(", ") { it.lowercase().replace('_', ' ') }, yards = true, sounds = sounds, kind = kind)
+            locations.sorted().joinToString(", ") { it.lowercase().replace('_', ' ') }, yards = true, sounds = sounds, kind = kind,
+            exclusiveTo = exclusiveTo)
     }
 
     companion object {

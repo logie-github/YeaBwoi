@@ -201,6 +201,8 @@ data class AnimationChoice(
     val segments: List<ChoiceSegment> = emptyList(),
     /** The pack's category for the stage (PairAnim.kind); empty: none. */
     val kind: String = "",
+    /** The creature NPC this stage is only for (PairAnim.exclusiveTo); null: any two. */
+    val exclusiveTo: String? = null,
 ) {
     /** What [roles]' offsets are multiplied by for the scene (model units; then [com.logie.wifecraft.anim.HumanScale.PAIR] across). */
     val roleScale: Float get() = if (yards) 1f else offsetScale

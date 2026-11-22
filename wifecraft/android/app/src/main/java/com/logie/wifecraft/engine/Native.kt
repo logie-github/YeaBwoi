@@ -96,6 +96,30 @@ object Native {
     @JvmStatic external fun clearBoneAnim(scene: Long, actor: Int)
 
     /**
+     * A bone layer on [actor] (cpp engine/bonelayer.h; anim/ClipLayers bakes it): rotation keys (channel 0, x,y,z,w, in the
+     * model's axes) of the bones [bones] (WoW-side names, or "#N" for the model's bone N), turned onto whatever its own
+     * animation poses, about each bone's posed pivot, on the bone and everything under it, in the tracks' order. Plays from
+     * [nowMs] and loops by [duration] when [loop]. Returns how many tracks found their bone.
+     */
+    @JvmStatic external fun boneLayer(
+        scene: Long, actor: Int, bones: Array<String>, channels: IntArray, keyCounts: IntArray,
+        times: FloatArray, values: FloatArray, duration: Float, loop: Boolean, nowMs: Int,
+    ): Int
+    @JvmStatic external fun clearBoneLayer(scene: Long, actor: Int)
+
+    /**
+     * A reach: [actor]'s [left] or right arm put on a point of [target]'s body (bone [targetBone] of the target's model, an
+     * index, plus the keyed offset); the keys are position tracks "reach.w" (x: the weight over time), "reach.off" (offset from
+     * the bone's pivot, the target's model axes), "reach.along" (the fingers' direction, one key, in the bone's axes) and
+     * "reach.pole" (where the elbow bends, one key, the person's axes). Returns 1 when the arm's bones were found.
+     */
+    @JvmStatic external fun reach(
+        scene: Long, actor: Int, target: Int, targetBone: Int, left: Boolean, bones: Array<String>, channels: IntArray,
+        keyCounts: IntArray, times: FloatArray, values: FloatArray, duration: Float, loop: Boolean, nowMs: Int,
+    ): Int
+    @JvmStatic external fun clearReach(scene: Long, actor: Int)
+
+    /**
      * Options' Soft body for everyone on stage, from the next frame: [SOFT_OFF], [SOFT_SUBTLE], [SOFT_NATURAL] (the
      * default) or [SOFT_STRONG]. The chest, belly, rear, thighs and upper arms hang under gravity and bounce, lag and settle
      * as the body moves (cpp engine/softbody.h: one damped spring per region, 120 Hz, moved in the vertex shader).
