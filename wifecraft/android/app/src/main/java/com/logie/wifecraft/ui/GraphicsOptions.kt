@@ -52,6 +52,9 @@ fun GraphicsPage() {
         detail = "Lowers effects one at a time, in a fixed order, before frames are missed; raises them again slowly")
     WifeSwitchRow("Show performance overlay", s.overlay, { set(s.copy(overlay = it)) },
         detail = "Frames a second, frame time and each effect's cost over the scene")
+    WifeSwitchRow("Sharp image in Build mode", s.sharpInBuild, { set(s.copy(sharpInBuild = it)) },
+        detail = "While Build mode is on: no depth of field, bloom, light shafts, haze, chromatic aberration, grain or cinematic grade, " +
+            "and the render scale is never lowered (shadows and AO go first). Your settings come back when it ends")
     GfxLiveReadout()
     WifeButton("Test for 10 seconds", { Graphics.startTest() }, Modifier.fillMaxWidth())
 

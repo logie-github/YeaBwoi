@@ -65,6 +65,8 @@ data class GraphicsSettings(
     val thinSkin: Int = 0,
     val sheenFollows: Boolean = false,
     val sheenMax: Int = 40,
+    /** Build mode draws sharp ([SharpImage]): no depth of field, bloom, light shafts, chromatic aberration, grain or cinematic grade, and the governor keeps the render scale. */
+    val sharpInBuild: Boolean = true,
 ) {
     /** Within limits (a hand-edited or old file can't break the renderer). */
     fun clamped(): GraphicsSettings = copy(
@@ -84,7 +86,7 @@ data class GraphicsSettings(
     )
 
     /** The effects alone (the preset, the target, the switches about the page itself left out): what a preset sets. */
-    fun effects(): GraphicsSettings = copy(preset = GraphicsPreset.STANDARD, targetFps = 60, adaptive = true, overlay = false)
+    fun effects(): GraphicsSettings = copy(preset = GraphicsPreset.STANDARD, targetFps = 60, adaptive = true, overlay = false, sharpInBuild = true)
 
     /** A preset's effects, keeping this page's target, Adaptive quality and overlay. CUSTOM keeps the effects as they are. */
     fun withPreset(p: GraphicsPreset): GraphicsSettings =
@@ -99,12 +101,13 @@ data class GraphicsSettings(
     }
 
     /** The governor's steps that would change something here, in the order it takes them. */
-    fun applicableSteps(): List<QualityStep> = QualityStep.entries.filter { it.appliesTo(this) }
+    fun applicableSteps(sharp: Boolean = false): List<QualityStep> =
+        (if (sharp) QualityStep.SHARP_ORDER else QualityStep.entries).filter { it.appliesTo(this) }
 
-    /** These settings with the first [level] applicable steps laid on (the governor's level). */
-    fun lowered(level: Int): GraphicsSettings {
+    /** These settings with the first [level] applicable steps laid on (the governor's level); [sharp]: Build mode's order, the render scale kept. */
+    fun lowered(level: Int, sharp: Boolean = false): GraphicsSettings {
         var s = this
-        for (step in applicableSteps().take(level.coerceAtLeast(0))) s = step.apply(s)
+        for (step in applicableSteps(sharp).take(level.coerceAtLeast(0))) s = step.apply(s)
         return s
     }
 
@@ -149,7 +152,7 @@ data class GraphicsSettings(
         .put("shadows", shadows).put("shadowQuality", shadowQuality).put("skin", skin).put("hair", hair)
         .put("shafts", shafts).put("haze", haze).put("vignette", vignette).put("grain", grain).put("chroma", chroma)
         .put("sharpen", sharpen).put("eyes", eyes).put("thinSkin", thinSkin).put("sheenFollows", sheenFollows)
-        .put("sheenMax", sheenMax)
+        .put("sheenMax", sheenMax).put("sharpInBuild", sharpInBuild)
 
     companion object {
         /** engine/graphics_settings.h's kCount. */
@@ -226,6 +229,7 @@ data class GraphicsSettings(
                     thinSkin = o.optInt("thinSkin", d.thinSkin),
                     sheenFollows = o.optBoolean("sheenFollows", d.sheenFollows),
                     sheenMax = o.optInt("sheenMax", d.sheenMax),
+                    sharpInBuild = o.optBoolean("sharpInBuild", d.sharpInBuild),
                 ).clamped()
             } catch (e: Exception) { DEFAULT }
         }
@@ -279,6 +283,49 @@ enum class QualityStep(val label: String) {
         SKIN -> s.copy(skin = 0, hair = 0, sheenMax = 0)
         EYES -> s.copy(eyes = 0)
     }
+
+    companion object {
+        /**
+         * The governor's steps while Build mode is sharp ([SharpImage]): never the render scale (a lower one resamples the
+         * picture soft), shadows and AO first, then the haze, MSAA, and the people's shading last.
+         */
+        val SHARP_ORDER: List<QualityStep> = listOf(
+            AO_SHADOW_QUALITY, AO_SHADOWS, BLOOM, DOF, SHAFTS_HAZE, MSAA, THIN_SKIN, SKIN, EYES,
+        )
+    }
+}
+
+/**
+ * Build mode's sharp image (Options' Graphics: Sharp image in Build mode, on by default). Nothing in the renderer blends
+ * one frame into the next, so what looks like motion blur while the camera orbits or a person moves is a spatial blur
+ * laid over the picture: depth of field (the half-size gather, in the live scene too: only the creator and the placement
+ * editor skip it), the light shafts' radial blur toward the sun, bloom's halo, chromatic aberration's fringes, grain,
+ * the haze, a render scale pulled under the screen's by the governor, and cinematic mode's grade. [apply] takes them off
+ * for as long as Build mode is on, as a pure function of the settings (the user's own are never changed, and come back
+ * exactly when it ends); [cinematic] does the same for the cinematic grade's numbers; [lowered] is the governor's
+ * lowering of the result, which never touches the render scale.
+ */
+object SharpImage {
+    /** [s] as Build mode draws it: sharp, or [s] itself while Build mode is off or the option is off. */
+    fun apply(s: GraphicsSettings, buildOn: Boolean): GraphicsSettings =
+        if (!active(s, buildOn)) s
+        else s.copy(dof = 0, bloom = 0, shafts = 0, haze = 0, chroma = 0, grain = 0)
+
+    fun active(s: GraphicsSettings, buildOn: Boolean): Boolean = buildOn && s.sharpInBuild
+
+    /** The settings the renderer gets: [apply], then the governor's first [level] steps (sharp order while sharp). */
+    fun lowered(s: GraphicsSettings, buildOn: Boolean, level: Int): GraphicsSettings {
+        val sharp = active(s, buildOn)
+        return apply(s, buildOn).lowered(level, sharp)
+    }
+
+    /** The governor's steps now (the settings as [apply] made them; sharp order while sharp). */
+    fun steps(s: GraphicsSettings, buildOn: Boolean): List<QualityStep> =
+        apply(s, buildOn).applicableSteps(active(s, buildOn))
+
+    /** Cinematic mode's mood, vignette and grain as drawn: all 0 while sharp (the letterbox bars, a framing, stay). */
+    fun cinematic(s: GraphicsSettings, buildOn: Boolean, mood: Float, vignette: Float, grain: Float): Triple<Float, Float, Float> =
+        if (active(s, buildOn)) Triple(0f, 0f, 0f) else Triple(mood, vignette, grain)
 }
 
 /**

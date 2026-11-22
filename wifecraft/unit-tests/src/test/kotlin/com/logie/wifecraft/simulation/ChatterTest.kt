@@ -102,7 +102,7 @@ class ChatterTest {
             val i = c.advance(dt)
             if (i >= 0) begun += i
             if (c.line?.speaker == 0 && c.index == 0 && c.gesture(0) == Gestures.TALK) talkedAfterWave = true
-            if (c.index == 2 && c.gesture(1) == Gestures.YES) nodded = true
+            if (c.index == 2 && c.line?.nod == true && c.gesture(1) == Gestures.STAND) nodded = true   // (the nod is a Yes the pose check turns away: PoseSanity)
             t += dt
             check(t < 60f)
         }
