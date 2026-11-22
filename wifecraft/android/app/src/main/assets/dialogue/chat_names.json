@@ -1,0 +1,649 @@
+{
+ "comment": "Per-race name lists for Chat mode's random-name button (dialogue/ChatSetup.kt ChatNames): original names in each people's manner, f = women, m = men. Data, never a line anyone says.",
+ "generic": {
+  "f": [
+   "Mara Vale",
+   "Elin Ash",
+   "Sera Dunn",
+   "Tilda Reeve",
+   "Nessa Orr",
+   "Brea Holt",
+   "Jora Wynn",
+   "Ilsa Crane"
+  ],
+  "m": [
+   "Garrick Dunn",
+   "Tomas Reeve",
+   "Alden Holt",
+   "Corin Vale",
+   "Bram Ash",
+   "Joren Orr",
+   "Edric Wynn",
+   "Hale Crane"
+  ]
+ },
+ "human": {
+  "f": [
+   "Elara Whitmoor",
+   "Maren Hale",
+   "Isolde Carrow",
+   "Brianna Fenn",
+   "Sabine Ashdown",
+   "Tessa Marlowe",
+   "Corrine Vale",
+   "Lysa Thornwick",
+   "Adela Brandt",
+   "Wynne Harrow"
+  ],
+  "m": [
+   "Gareth Whitmoor",
+   "Aldric Hale",
+   "Roland Carrow",
+   "Tobias Fenn",
+   "Edmund Ashdown",
+   "Cedric Marlowe",
+   "Darian Vale",
+   "Hugh Thornwick",
+   "Lothar Brandt",
+   "Osric Harrow"
+  ]
+ },
+ "orc": {
+  "f": [
+   "Draka",
+   "Mughra",
+   "Sheela",
+   "Zulgra",
+   "Ghazra",
+   "Rukka",
+   "Nazgrel",
+   "Yorga",
+   "Thura",
+   "Baggra"
+  ],
+  "m": [
+   "Grommash",
+   "Thokar",
+   "Durgash",
+   "Hargu",
+   "Mogthar",
+   "Rokgar",
+   "Zugrim",
+   "Kargath",
+   "Orgrum",
+   "Bolgash"
+  ]
+ },
+ "dwarf": {
+  "f": [
+   "Helga Stonebraid",
+   "Brunhild Ironfist",
+   "Dagna Deepdelver",
+   "Mirra Copperbeard",
+   "Thyra Anvilhelm",
+   "Hilda Goldvein",
+   "Sigrun Frostbeard",
+   "Kelda Rockhammer",
+   "Ingrid Stoutmantle",
+   "Bryn Barrelbrow"
+  ],
+  "m": [
+   "Thorin Ironfist",
+   "Baldrek Stonebraid",
+   "Durgan Deepdelver",
+   "Magni Copperbeard",
+   "Brom Anvilhelm",
+   "Gorrim Goldvein",
+   "Haldor Frostbeard",
+   "Kragg Rockhammer",
+   "Orsik Stoutmantle",
+   "Dunmar Barrelbrow"
+  ]
+ },
+ "nightelf": {
+  "f": [
+   "Shaelara Moonwhisper",
+   "Ielenna Starfall",
+   "Tyrisande Nightbreeze",
+   "Alaneth Silverleaf",
+   "Meliara Dawnstrider",
+   "Lunaris Thornbloom",
+   "Sylwen Windrunner",
+   "Eladrin Duskwood",
+   "Narissa Ashenvale",
+   "Kaelith Shadowsong"
+  ],
+  "m": [
+   "Taelor Moonwhisper",
+   "Illian Starfall",
+   "Dathlyn Nightbreeze",
+   "Alerion Silverleaf",
+   "Maelthorn Dawnstrider",
+   "Thalorin Thornbloom",
+   "Sylvanar Duskwood",
+   "Valeren Ashenvale",
+   "Kaldor Shadowsong",
+   "Ethandir Oakheart"
+  ]
+ },
+ "undead": {
+  "f": [
+   "Vesperine Graves",
+   "Mortia Ashby",
+   "Cadaella Hollow",
+   "Lilith Cryptwood",
+   "Nyxie Bonewright",
+   "Selene Marrow",
+   "Agatha Mourn",
+   "Odessa Dusk",
+   "Wren Tombley",
+   "Marla Ghast"
+  ],
+  "m": [
+   "Mortimer Graves",
+   "Ashcroft Hollow",
+   "Caldus Cryptwood",
+   "Silas Bonewright",
+   "Barnabas Marrow",
+   "Ambrose Mourn",
+   "Thaddeus Dusk",
+   "Ezekiel Tombley",
+   "Cornelius Ghast",
+   "Lazarus Vane"
+  ]
+ },
+ "tauren": {
+  "f": [
+   "Mulgore Dawnsong",
+   "Kyara Skyseer",
+   "Nashira Brightmane",
+   "Ahnu Windsinger",
+   "Tallisa Redcloud",
+   "Eshara Rainfeather",
+   "Hollama Greenhoof",
+   "Sunna Highmountain",
+   "Ohanna Stormhorn",
+   "Lenara Thunderhorn"
+  ],
+  "m": [
+   "Bahn Redcloud",
+   "Hamuk Skyseer",
+   "Magor Brightmane",
+   "Tahuna Windsinger",
+   "Grull Rainfeather",
+   "Kajo Greenhoof",
+   "Ohan Highmountain",
+   "Torgan Stormhorn",
+   "Varok Thunderhorn",
+   "Ahmo Grassrunner"
+  ]
+ },
+ "gnome": {
+  "f": [
+   "Fizzwick Sprocketsnap",
+   "Tinkabelle Gearwhistle",
+   "Nibbly Cogspinner",
+   "Zibbi Boltwhirr",
+   "Winnie Wrenchwhistle",
+   "Pip Gizmotwist",
+   "Lilli Cranksprocket",
+   "Mabel Springwick",
+   "Quill Fuseblast",
+   "Dottie Clockbottom"
+  ],
+  "m": [
+   "Fizzbang Sprocketsnap",
+   "Tinkerton Gearwhistle",
+   "Nobbin Cogspinner",
+   "Zibble Boltwhirr",
+   "Wendel Wrenchwhistle",
+   "Pogo Gizmotwist",
+   "Lenny Cranksprocket",
+   "Mortimer Springwick",
+   "Quentin Fuseblast",
+   "Dobbin Clockbottom"
+  ]
+ },
+ "troll": {
+  "f": [
+   "Zalara",
+   "Vol'maya",
+   "Jin'rala",
+   "Sen'zira",
+   "Mojana",
+   "Tah'mara",
+   "Zul'kena",
+   "Rasha'li",
+   "Nalana",
+   "Vorja"
+  ],
+  "m": [
+   "Zul'garin",
+   "Vol'tar",
+   "Jin'zo",
+   "Sen'tuk",
+   "Mojo",
+   "Tah'ro",
+   "Rok'dar",
+   "Zan'tuk",
+   "Nal'jin",
+   "Voss'ik"
+  ]
+ },
+ "goblin": {
+  "f": [
+   "Sprocka Fizzlebolt",
+   "Gazzie Cashgrabber",
+   "Nixa Sparkwrench",
+   "Bizzle Goldtooth",
+   "Trixie Rustbucket",
+   "Zaza Slickfinger",
+   "Kiki Coinpurse",
+   "Lolla Boomfuse",
+   "Gix Tinwhistle",
+   "Mazzie Grease"
+  ],
+  "m": [
+   "Gazlowe Fizzlebolt",
+   "Bargo Cashgrabber",
+   "Nix Sparkwrench",
+   "Grizz Goldtooth",
+   "Trixo Rustbucket",
+   "Zazz Slickfinger",
+   "Kiko Coinpurse",
+   "Lolo Boomfuse",
+   "Gaxx Tinwhistle",
+   "Mazz Grease"
+  ]
+ },
+ "bloodelf": {
+  "f": [
+   "Liadrin Dawnstrider",
+   "Silvanis Sunwhisper",
+   "Aelara Brightblade",
+   "Valenya Goldenbough",
+   "Sunshara Evergaze",
+   "Kaelyra Sunstrider",
+   "Thalassia Dawnbloom",
+   "Elariel Silverspear",
+   "Merelith Bloodvale",
+   "Alyndra Suncaller"
+  ],
+  "m": [
+   "Kaelen Dawnstrider",
+   "Lor'ethar Sunwhisper",
+   "Aelerion Brightblade",
+   "Valdren Goldenbough",
+   "Rommath Evergaze",
+   "Halduron Sunstrider",
+   "Thalorien Dawnbloom",
+   "Elaris Silverspear",
+   "Merithar Bloodvale",
+   "Alyndor Suncaller"
+  ]
+ },
+ "draenei": {
+  "f": [
+   "Yrelle Lightbringer",
+   "Aelara Sunseeker",
+   "Velenna Starcaller",
+   "Naarin Dawnbringer",
+   "Zerana Crystalheart",
+   "Ishara Lightforged",
+   "Auriya Farseer",
+   "Taleya Naaruvale",
+   "Nobuk Windcaller",
+   "Mayala Shatterlight"
+  ],
+  "m": [
+   "Velan Lightbringer",
+   "Aeonar Sunseeker",
+   "Vindicaar Starcaller",
+   "Nerius Dawnbringer",
+   "Zorund Crystalheart",
+   "Ishmael Lightforged",
+   "Auriel Farseer",
+   "Taleron Naaruvale",
+   "Nobuk Windcaller",
+   "Mayrin Shatterlight"
+  ]
+ },
+ "worgen": {
+  "f": [
+   "Aelith Greymoor",
+   "Mara Duskmantle",
+   "Lorna Crowley",
+   "Celia Darius",
+   "Vanessa Hollis",
+   "Rowena Gilnean",
+   "Elspeth Greymane",
+   "Sylva Harrowgate",
+   "Isabeau Blackwood",
+   "Margot Falkirk"
+  ],
+  "m": [
+   "Darius Crowley",
+   "Tobias Mistmoor",
+   "Godfrey Hollis",
+   "Edric Moorhaven",
+   "Vance Gilnean",
+   "Lucian Greymane",
+   "Percival Harrowgate",
+   "Alaric Blackwood",
+   "Gideon Falkirk",
+   "Rufus Mistfall"
+  ]
+ },
+ "pandaren": {
+  "f": [
+   "Mei Silkbrook",
+   "Li Li Stormstout",
+   "Lin Brightpaw",
+   "Suyin Jadewind",
+   "Yu Stormfur",
+   "Anji Mistpaw",
+   "Jia Bamboobrook",
+   "Xiaoli Windstep",
+   "Ping Goldenreed",
+   "Nuan Willowstream"
+  ],
+  "m": [
+   "Chen Stormstout",
+   "Bo Silkbrook",
+   "Wen Brightpaw",
+   "Shen Jadewind",
+   "Han Mistpaw",
+   "Jun Bamboobrook",
+   "Tao Windstep",
+   "Fei Goldenreed",
+   "Kai Willowstream",
+   "Zhi Ironpaw"
+  ]
+ },
+ "nightborne": {
+  "f": [
+   "Thalyssa Nightfallen",
+   "Valtroa Arcwell",
+   "Sira Veilwell",
+   "Lyressa Shadowspire",
+   "Ilyana Starweaver",
+   "Selaris Duskcaller",
+   "Narisha Manawell",
+   "Aranelle Suramar",
+   "Kyrene Nightwell",
+   "Vessara Arcspire"
+  ],
+  "m": [
+   "Oculen Nightfallen",
+   "Valtroa Arcwell",
+   "Telanor Shadowspire",
+   "Ilvaris Starweaver",
+   "Selkirin Duskcaller",
+   "Naredan Manawell",
+   "Aranthor Suramar",
+   "Kyrion Nightwell",
+   "Vessarion Arcspire",
+   "Thalorin Gloomveil"
+  ]
+ },
+ "highmountain": {
+  "f": [
+   "Mayla Highmountain",
+   "Torga Skyhorn",
+   "Sunna Rivermane",
+   "Eyrie Cloudhorn",
+   "Hollma Stonehoof",
+   "Brenna Thunderhorn",
+   "Lorna Windtotem",
+   "Ashka Greymane",
+   "Tawna Mistwalker",
+   "Veyla Riverstride"
+  ],
+  "m": [
+   "Hamuk Highmountain",
+   "Torvak Skyhorn",
+   "Sunak Rivermane",
+   "Eyron Cloudhorn",
+   "Hollam Stonehoof",
+   "Bronn Thunderhorn",
+   "Lorak Windtotem",
+   "Ashgar Greymane",
+   "Tavan Mistwalker",
+   "Veyr Riverstride"
+  ]
+ },
+ "voidelf": {
+  "f": [
+   "Allera Voidwalker",
+   "Lyra Shadowvale",
+   "Selina Voidbound",
+   "Iridiel Starsworn",
+   "Thessara Umbral",
+   "Valera Duskwhisper",
+   "Naralis Voidsong",
+   "Evaris Nethermoon",
+   "Kaiyra Starfall",
+   "Ilyssa Voidweave"
+  ],
+  "m": [
+   "Zaedryn Voidwalker",
+   "Lyrion Shadowvale",
+   "Seldor Voidbound",
+   "Iridan Starsworn",
+   "Thessar Umbral",
+   "Valdris Duskwhisper",
+   "Naral Voidsong",
+   "Evarin Nethermoon",
+   "Kaiyon Starfall",
+   "Ilyrad Voidweave"
+  ]
+ },
+ "lightforged": {
+  "f": [
+   "Aelia Dawnwarden",
+   "Vessara Lightbound",
+   "Mira Dawnsworn",
+   "Lauriel Dawnbringer",
+   "Seraphine Holyflame",
+   "Talia Sunblade",
+   "Auriela Radiance",
+   "Velyra Lightsworn",
+   "Ianthe Brightwing",
+   "Naomi Solarus"
+  ],
+  "m": [
+   "Aeron Dawnwarden",
+   "Valthor Lightbound",
+   "Arator Sunblade",
+   "Lauron Dawnbringer",
+   "Seraphan Holyflame",
+   "Taelan Sunblade",
+   "Aurion Radiance",
+   "Velor Lightsworn",
+   "Ianthos Brightwing",
+   "Noam Solarus"
+  ]
+ },
+ "zandalari": {
+  "f": [
+   "Talanji Goldcrown",
+   "Zuri Sunsinger",
+   "Nia Goldwing",
+   "Jani Bloodwing",
+   "Asha Stormcaller",
+   "Mara'zul Waterbinder",
+   "Tala'ri Stormcaller",
+   "Savra Gold-Eye",
+   "Imani Dazar",
+   "Nalah Rastari"
+  ],
+  "m": [
+   "Rokhan Goldcrown",
+   "Zul'dazar Sunsinger",
+   "Rezan Bloodwing",
+   "Jani Waterbinder",
+   "Kimbul Stormcaller",
+   "Zandal Gold-Eye",
+   "Torga Dazar",
+   "Vol'tek Rastari",
+   "Mojo Zuldazar",
+   "Jin'kosi"
+  ]
+ },
+ "kultiran": {
+  "f": [
+   "Jenna Proudwater",
+   "Katherine Tidewell",
+   "Hester Tidewell",
+   "Maria Stormsong",
+   "Rosalind Tidesage",
+   "Isabela Windward",
+   "Cecily Ashvane",
+   "Marian Driftwood",
+   "Tamsin Brightwater",
+   "Perrin Saltmarsh"
+  ],
+  "m": [
+   "Derek Proudwater",
+   "Edward Tidewell",
+   "Hector Stormsong",
+   "Marcus Tidesage",
+   "Anson Windward",
+   "Silas Ashvane",
+   "Barnaby Driftwood",
+   "Cormac Brightwater",
+   "Percy Saltmarsh",
+   "Roderick Tiderunner"
+  ]
+ },
+ "darkiron": {
+  "f": [
+   "Moira Deepforge",
+   "Hildi Darkforge",
+   "Brunna Blackanvil",
+   "Sigrid Emberbraid",
+   "Ketha Coalbeard",
+   "Vigdis Slagheart",
+   "Thora Ashenforge",
+   "Runa Blackrock",
+   "Dagny Moltenhelm",
+   "Frigga Cinderbeard"
+  ],
+  "m": [
+   "Dagran Deepforge",
+   "Hildar Darkforge",
+   "Brunn Blackanvil",
+   "Sigurd Emberbraid",
+   "Keth Coalbeard",
+   "Vigdor Slagheart",
+   "Thorgar Ashenforge",
+   "Runar Blackrock",
+   "Dagnar Moltenhelm",
+   "Frodrik Cinderbeard"
+  ]
+ },
+ "vulpera": {
+  "f": [
+   "Vol'ra Dustpaw",
+   "Pipsqueak Tinkerwhisk",
+   "Fenna Sandstep",
+   "Mika Dunefur",
+   "Tali Scrapnose",
+   "Zuri Emberbrush",
+   "Nuri Wanderstep",
+   "Kippa Rustwhisker",
+   "Sela Duneglider",
+   "Wynn Ashtail"
+  ],
+  "m": [
+   "Vol'jek Dustpaw",
+   "Pipwick Tinkerwhisk",
+   "Fennick Sandstep",
+   "Miko Dunefur",
+   "Talo Scrapnose",
+   "Zuro Emberbrush",
+   "Nuro Wanderstep",
+   "Kipp Rustwhisker",
+   "Selo Duneglider",
+   "Wynn Ashtail"
+  ]
+ },
+ "magharorc": {
+  "f": [
+   "Geya'ra Frostwolf",
+   "Draka Greycloud",
+   "Thura Skyhorn",
+   "Garan Windsong",
+   "Ysera Bloodtotem",
+   "Ghazra Stoneshield",
+   "Maraa Ashfall",
+   "Zulha Duskmantle",
+   "Naka Thunderfist",
+   "Orala Highcrag"
+  ],
+  "m": [
+   "Garrok Frostwolf",
+   "Durotar Greycloud",
+   "Thokar Skyhorn",
+   "Grol Windsong",
+   "Orgar Bloodtotem",
+   "Ghazul Stoneshield",
+   "Maraak Ashfall",
+   "Zulgar Duskmantle",
+   "Nakar Thunderfist",
+   "Oralk Highcrag"
+  ]
+ },
+ "mechagnome": {
+  "f": [
+   "Mekka Sparkgleam",
+   "Gizmo-7 Cogheart",
+   "Nixie Servohum",
+   "Tikka Gearglint",
+   "Bolta Wirewhistle",
+   "Zia-9 Brasswing",
+   "Clanka Steamwhisper",
+   "Pixel Cogsworth",
+   "Winda Sprocketbright",
+   "Fuzz-3 Rivetspark"
+  ],
+  "m": [
+   "Sparkwell-1",
+   "Gizmo-7 Cogheart",
+   "Nixon Servohum",
+   "Tikko Gearglint",
+   "Bolto Wirewhistle",
+   "Zed-9 Brasswing",
+   "Clanko Steamwhisper",
+   "Pixel Cogsworth",
+   "Windo Sprocketbright",
+   "Fuzz-3 Rivetspark"
+  ]
+ },
+ "skyborne": {
+  "f": [
+   "Auria Cloudwake",
+   "Zephyra Highwind",
+   "Iolith Sunperch",
+   "Calia Featherbright",
+   "Nimbra Stormroost",
+   "Eyris Skyward",
+   "Soleil Aeriewind",
+   "Talwyn Dawnflight",
+   "Vespera Cloudcrown",
+   "Linnet Windsong"
+  ],
+  "m": [
+   "Aurel Cloudwake",
+   "Zephyr Highwind",
+   "Iolo Sunperch",
+   "Calder Featherbright",
+   "Nimbus Stormroost",
+   "Eyrin Skyward",
+   "Solan Aeriewind",
+   "Talon Dawnflight",
+   "Vesper Cloudcrown",
+   "Lark Windsong"
+  ]
+ }
+}
