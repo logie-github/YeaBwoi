@@ -39,4 +39,7 @@ add_library(wcengine SHARED
     engine/wmo.cpp)
 
 target_compile_options(wcengine PRIVATE -O2 -Wall -Wno-unused-parameter)
+
+# The on-device dialogue model (llama.cpp and its wrapper: libwcdialogue.so); the app loads it only when a model is on the phone.
+add_subdirectory(dialogue)
 target_link_libraries(wcengine GLESv3 EGL log z)   # z: the Eve body's PNG files (engine/evebody.cpp)

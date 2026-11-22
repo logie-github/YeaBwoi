@@ -61,11 +61,9 @@ val pureGraphics = tasks.register<Copy>("pureGraphics") {
     into(layout.buildDirectory.dir("gen/pureGraphics"))
 }
 
-// dialogue/: the kink and JOI knowledge pack (KinkPack, pure; the persona and prompt files beside it are not copied).
+// dialogue/: the whole package is pure (persona, lore, director, willingness, steers, the kink and JOI pack): copied as it is.
 val pureDialogue = tasks.register<Copy>("pureDialogue") {
-    from("../android/app/src/main/java/com/logie/wifecraft/dialogue/KinkPack.kt")
-    from("../android/app/src/main/java/com/logie/wifecraft/dialogue/DialogueEngine.kt")
-    from("../android/app/src/main/java/com/logie/wifecraft/dialogue/JoiPrompt.kt")
+    from("../android/app/src/main/java/com/logie/wifecraft/dialogue") { include("*.kt") }
     into(layout.buildDirectory.dir("gen/pureDialogue"))
 }
 
@@ -110,6 +108,8 @@ sourceSets {
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/simulation")
         // Sims 4 CAS body parts: GEOM meshes, CASP descriptions, RLE2/LRLE/DST textures, recolour, part files (bodyparts/)
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/bodyparts")
+        // the dialogue runtime's JNI binding and the model wrapper (dialogue/native/: they compile on the JVM, the library is never loaded here)
+        kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/dialogue/native")
     }
 }
 
@@ -119,6 +119,8 @@ dependencies {
     // Sims animation import: archives
     implementation("org.apache.commons:commons-compress:1.27.1")
     implementation("org.tukaani:xz:1.10")
+    // the dialogue model's request queue and streaming (on Android the app already has coroutines through Compose)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     testImplementation(kotlin("test"))
     testImplementation("org.json:json:20240303")
 }

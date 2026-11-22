@@ -1,7 +1,6 @@
 package com.logie.wifecraft.simulation
 
 import com.logie.wifecraft.dialogue.Band
-import com.logie.wifecraft.dialogue.DialogueRequest
 import com.logie.wifecraft.dialogue.FakeDialogueEngine
 import com.logie.wifecraft.dialogue.JoiLineRequest
 import com.logie.wifecraft.dialogue.JoiPersona
@@ -246,23 +245,23 @@ class JoiModeTest {
     private val persona = JoiPersona("Anarcis", listOf("bloodelf"), listOf("warlock"), setOf("teasing"))
 
     @Test fun noModelAnswerGivesNoLineNotAHardCodedOne() {
-        val engine = FakeDialogueEngine(ready = false)
+        val engine = FakeDialogueEngine().also { it.ready = false }
         val r = JoiLineRequest(persona, "warmup", Band.INTIMATE)
         assertNull(run { JoiPrompt.line(engine, r, pack) })
         assertEquals(2, engine.requests.size)
     }
 
     @Test fun theFakeEnginesReplyBecomesTheLineCleaned() {
-        val engine = FakeDialogueEngine(listOf("*smiles* \"Slower now. Good.\" (soft)"))
+        val engine = FakeDialogueEngine("*smiles* \"Slower now. Good.\" (soft)")
         val r = JoiLineRequest(persona, "build", Band.INTIMATE, setOf(JoiSteer.TEASE))
         assertEquals("Slower now. Good.", run { JoiPrompt.line(engine, r, pack) })
         val req = engine.requests.single()
-        assertTrue("joi:build" == req.tag)
+        assertEquals(com.logie.wifecraft.dialogue.DialoguePriority.SELECTED, req.priority)
         assertTrue(JoiSteer.TEASE.instruction in req.system)
     }
 
     @Test fun aReplyThatBreaksTheWorldIsRefusedAndRetried() {
-        val engine = FakeDialogueEngine(listOf("The player is watching the screen.", "Keep your eyes on me."))
+        val engine = FakeDialogueEngine("The player is watching the screen.", "Keep your eyes on me.")
         val r = JoiLineRequest(persona, "build", Band.INTIMATE)
         assertEquals("Keep your eyes on me.", run { JoiPrompt.line(engine, r, pack) })
     }
@@ -282,7 +281,7 @@ class JoiModeTest {
         val long = JoiPrompt.clean("Good. ".repeat(80))!!
         assertTrue(long.length <= JoiPrompt.MAX_CHARS + 1)
         assertEquals("Slow.", JoiPrompt.clean("Anarcis: Slow.", "Anarcis"))
-        val engine = FakeDialogueEngine(listOf("Again.", "Again.", "Again."))
+        val engine = FakeDialogueEngine("Again.", "Again.", "Again.")
         val r = JoiLineRequest(persona, "build", Band.INTIMATE, recent = listOf("Again."))
         assertNull(run { JoiPrompt.line(engine, r, pack) })
     }

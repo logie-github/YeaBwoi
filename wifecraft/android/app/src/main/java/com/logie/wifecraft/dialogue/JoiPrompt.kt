@@ -38,6 +38,8 @@ data class JoiLineRequest(
     val recent: List<String> = emptyList(),
     /** For the countdown: the number about to be counted, null otherwise. */
     val countdownFrom: Int? = null,
+    /** The speaker's id in the scene (the runtime keeps a state per NPC). */
+    val npcId: String = "",
 )
 
 object JoiPrompt {
@@ -87,7 +89,8 @@ object JoiPrompt {
     }
 
     fun request(r: JoiLineRequest, pack: KinkContext?): DialogueRequest =
-        DialogueRequest(system(r, pack), user(r), maxTokens = 70, temperature = if (r.persona.dragon) 0.7f else 0.85f, tag = "joi:${r.stage}")
+        DialogueRequest(npcId = r.npcId.ifEmpty { r.persona.name }, system = system(r, pack), user = user(r), maxTokens = 70,
+            temperature = if (r.persona.dragon) 0.7f else 0.85f, priority = DialoguePriority.SELECTED)
 
     /** Whether [text] names something outside the room. */
     fun breaksWorld(text: String): Boolean = FOURTH_WALL.containsMatchIn(text)

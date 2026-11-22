@@ -61,7 +61,7 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun JoiRunner(
-    mode: JoiMode, running: Boolean, engine: DialogueEngine?, pack: KinkContext?, persona: JoiPersona?,
+    mode: JoiMode, running: Boolean, engine: () -> DialogueEngine?, pack: KinkContext?, persona: JoiPersona?,
     onSolo: (energy: Float, stage: String) -> Unit, onFinished: () -> Unit, tick: () -> Unit,
 ) {
     val engineNow by rememberUpdatedState(engine)
@@ -83,13 +83,13 @@ fun JoiRunner(
             for (e in mode.drain()) when (e) {
                 is JoiEvent.NeedLine -> {
                     val p = personaNow
-                    val eng = engineNow
+                    val eng = engineNow()
                     val steer = mode.steer.toSet()
                     val band = mode.band
                     val recentNow = recent.toList()
                     scope.launch {
                         val text = if (p != null && eng != null)
-                            runCatching { JoiPrompt.line(eng, JoiLineRequest(p, e.stage, band, steer, recentNow, e.countdownFrom), pack) }.getOrNull()
+                            runCatching { JoiPrompt.line(eng, JoiLineRequest(p, e.stage, band, steer, recentNow, e.countdownFrom, npcId = mode.actor.orEmpty()), pack) }.getOrNull()
                         else null
                         mode.offerLine(e.serial, text)
                         if (text != null) { recent += text; while (recent.size > 6) recent.removeAt(0) }

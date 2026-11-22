@@ -1,0 +1,340 @@
+{
+ "comment": "Dialogue lore pack (dialogue/Lore.kt): short original summaries the prompt builder retrieves by who is in the scene. Not a wiki copy; everything here is a hint for the model, never a line a character says.",
+ "raceIds": {
+  "1": "human",
+  "2": "orc",
+  "3": "dwarf",
+  "4": "nightelf",
+  "5": "undead",
+  "6": "tauren",
+  "7": "gnome",
+  "8": "troll",
+  "9": "goblin",
+  "10": "bloodelf",
+  "11": "draenei",
+  "22": "worgen",
+  "24": "pandaren",
+  "25": "pandaren",
+  "26": "pandaren",
+  "27": "nightborne",
+  "28": "highmountain",
+  "29": "voidelf",
+  "30": "lightforged",
+  "31": "zandalari",
+  "32": "kultiran",
+  "34": "darkiron",
+  "35": "vulpera",
+  "36": "magharorc",
+  "37": "mechagnome"
+ },
+ "pandarenFaction": {
+  "24": "neutral",
+  "25": "alliance",
+  "26": "horde"
+ },
+ "races": {
+  "human": {
+   "name": "human",
+   "faction": "alliance",
+   "register": "plain, practical, a little stubborn, speaks of home, work, the crown and the Light",
+   "about": "Humans of Stormwind and the kingdoms around it, proud of old Arathor and shaken by the Scourge and the Horde's wars. Farmers, soldiers, priests and merchants; faith in the Light is common.",
+   "customs": "Share ale and bread, swear by the Light, speak of Stormwind, Lordaeron, Gilneas or Kul Tiras as home."
+  },
+  "orc": {
+   "name": "orc",
+   "faction": "horde",
+   "register": "blunt, direct, few words, honour and strength matter, little patience for flattery",
+   "about": "Orcs of the Horde, freed from the demon blood and rebuilding as a people in Durotar. They value honour, strong kin and a debt paid.",
+   "customs": "Speak of the clans, honour in battle, the spirits, Orgrimmar; 'lok'tar' is a warrior's greeting."
+  },
+  "dwarf": {
+   "name": "dwarf",
+   "faction": "alliance",
+   "register": "hearty, gruff, fond of ale and stonework, blunt humour",
+   "about": "Dwarves of Ironforge and the Wildhammer clans, miners, smiths and diggers into the past; loud, loyal and fond of a good brew.",
+   "customs": "Toast with ale, boast of beard and forge, speak of Khaz Modan and the Great Forge."
+  },
+  "nightelf": {
+   "name": "night elf",
+   "faction": "alliance",
+   "register": "calm, old, measured, speaks of the moon, the forest and long memory",
+   "about": "Night elves of Darnassus and Teldrassil, long-lived and tied to Elune and the wilds; their immortality ended and they carry grief and watchfulness.",
+   "customs": "Invoke Elune, keep the night, honour the wild, speak of sentinels, druids and the Cenarion."
+  },
+  "undead": {
+   "name": "Forsaken",
+   "faction": "horde",
+   "register": "dry, bitter, darkly wry, gallows humour, guarded and proud of having broken free",
+   "about": "The Forsaken are the free-willed dead of Lordaeron, cut loose from the Lich King, led by the Banshee Queen and living in the Undercity. They remember their lives and cannot truly feel warmth, hunger or rest as the living do.",
+   "customs": "Dark jokes about decay, scorn for the Scourge, prickly pride in their freedom, distrust of the living's pity."
+  },
+  "tauren": {
+   "name": "tauren",
+   "faction": "horde",
+   "register": "slow, warm, gentle, thoughtful, speaks of the Earthmother and the herd",
+   "about": "Tauren of Thunder Bluff and Mulgore, large peaceful hunters and shamans who revere the Earthmother and the Great Hunt.",
+   "customs": "Greet with respect, speak of the Earthmother, the plains, the totems and the tribes."
+  },
+  "gnome": {
+   "name": "gnome",
+   "faction": "alliance",
+   "register": "quick, eager, inventive, tangents about devices and clever fixes",
+   "about": "Gnomes of Gnomeregan and Ironforge, small, brilliant tinkerers whose city was lost to a poisoned betrayal; irrepressibly curious.",
+   "customs": "Tinker with everything, brag about inventions, laugh at mishaps."
+  },
+  "troll": {
+   "name": "troll",
+   "faction": "horde",
+   "register": "lilting, easygoing, teasing, calls others 'mon' style warmth without slang, loves a joke and a story",
+   "about": "Darkspear trolls of the Echo Isles and Durotar, driven from home and sworn to the Horde, wry and laid back, with deep loa lore.",
+   "customs": "Speak of the loa, voodoo, the Darkspear, tease friends, tell tall tales."
+  },
+  "goblin": {
+   "name": "goblin",
+   "faction": "horde",
+   "register": "fast, scheming, bargaining, everything has a price, loud and funny",
+   "about": "Goblins of the Bilgewater Cartel and Kezan, merchants, engineers and chancers who love gold and a good explosion.",
+   "customs": "Haggle, boast about profit, quote prices, dodge obligations."
+  },
+  "bloodelf": {
+   "name": "blood elf",
+   "faction": "horde",
+   "register": "refined, proud, elegant, slightly aloof, hungry for magic, a wounded pride beneath",
+   "about": "Blood elves of Silvermoon, the Quel'dorei who lost the Sunwell and learned to survive on fel and arcane power; vain, disciplined, and haunted.",
+   "customs": "Speak of Silvermoon, the Sunwell, magic, beauty and grace; a cultivated, formal manner."
+  },
+  "draenei": {
+   "name": "draenei",
+   "faction": "alliance",
+   "register": "serene, formal, kind, earnest, reverent about the Light and the Naaru",
+   "about": "Draenei, exiles from Argus who fled the Legion's corruption, devout and gentle, tied to the Naaru and the Light.",
+   "customs": "Speak of the Light, the Naaru, Argus and the lost Draenor; courteous and earnest."
+  },
+  "worgen": {
+   "name": "worgen",
+   "faction": "alliance",
+   "register": "gruff, controlled, rural, wary of the beast within, proud and angry in turns",
+   "about": "Worgen of Gilneas, humans cursed by the wolf and walled behind Greymane's Wall, now fighting to control the change.",
+   "customs": "Speak of Gilneas, the Wall, the curse, the pack and the old hunt."
+  },
+  "pandaren": {
+   "name": "pandaren",
+   "faction": "neutral",
+   "register": "warm, patient, humorous, fond of food, drink and proverbs",
+   "about": "Pandaren of the Wandering Isle and Pandaria, lovers of good food, tea and balance, with a long monastic tradition.",
+   "customs": "Share meals and tea, speak of the Shado-Pan, balance and the Wandering Isle."
+  },
+  "nightborne": {
+   "name": "nightborne",
+   "faction": "horde",
+   "register": "formal, calculating, proud, speaks of the arcane and Suramar",
+   "about": "Nightborne of Suramar, night elves who held out behind a shield and fed on the Nightwell's mana; schemers and survivors.",
+   "customs": "Speak of Suramar, the Nightwell, mana addiction and old nobility."
+  },
+  "highmountain": {
+   "name": "Highmountain tauren",
+   "faction": "horde",
+   "register": "steady, earthy, proud of their mountain, soft-spoken and strong",
+   "about": "Tauren of the Highmountain, hunters and shamans of a rugged land, with Huln's old lore and loyal tribes.",
+   "customs": "Speak of the mountain, the tribes, the hunt and their ancestors."
+  },
+  "voidelf": {
+   "name": "void elf",
+   "faction": "alliance",
+   "register": "thoughtful, restrained, wry, intellectual, uneasy about their past",
+   "about": "Void elves are blood elves who mastered the Void and turned against the Sunwell's dependence; exiles in Stormwind, scholars of dangerous knowledge.",
+   "customs": "Speak of the Void, Alleria's teaching, Telogrus and the pain of exile."
+  },
+  "lightforged": {
+   "name": "Lightforged draenei",
+   "faction": "alliance",
+   "register": "resolute, stern, radiant, devout, sense of duty",
+   "about": "Lightforged draenei, Argus-born warriors infused with the Light, crusaders against the Legion.",
+   "customs": "Speak of duty, the Army of the Light, the Naaru and Argus."
+  },
+  "zandalari": {
+   "name": "Zandalari troll",
+   "faction": "horde",
+   "register": "regal, rich, proud, a dignified old empire's cadence",
+   "about": "Zandalari trolls of Zuldazar, rulers of an ancient empire who pray to the loa, wise and imperious.",
+   "customs": "Speak of the loa, Zuldazar, Dazar'alor, tribute and the king."
+  },
+  "kultiran": {
+   "name": "Kul Tiran human",
+   "faction": "alliance",
+   "register": "salty, practical, seafaring, hard-headed, blunt about weather and sea",
+   "about": "Kul Tirans of the seafaring island nation under the Proudmoore admiralty, tough, practical, loyal, and keepers of old sea lore.",
+   "customs": "Speak of the sea, the fleet, Boralus, tides and storms."
+  },
+  "darkiron": {
+   "name": "Dark Iron dwarf",
+   "faction": "alliance",
+   "register": "fierce, fiery, smouldering pride, blunt, fond of forge and fire",
+   "about": "Dark Iron dwarves of Blackrock Mountain, forge-masters who once served Ragnaros and now seek a place at Ironforge.",
+   "customs": "Speak of the forge, fire, craft, grudges of old clans and loyalty."
+  },
+  "vulpera": {
+   "name": "vulpera",
+   "faction": "horde",
+   "register": "cheeky, thrifty, scavenging, quick, clever",
+   "about": "Vulpera, small foxlike scavengers of the Vol'dun desert who trade and wander in caravans.",
+   "customs": "Speak of caravans, scrap and trades, hospitality, desert stories."
+  },
+  "magharorc": {
+   "name": "Mag'har orc",
+   "faction": "horde",
+   "register": "stoic, proud, old-fashioned honour, plain and earthy",
+   "about": "Mag'har orcs of Draenor's Nagrand, who never drank the demon's blood; proud, uncorrupted kin of the Horde.",
+   "customs": "Speak of Draenor, the clans, the spirits and an unbroken honour."
+  },
+  "mechagnome": {
+   "name": "mechagnome",
+   "faction": "alliance",
+   "register": "precise, curious, a mix of wit and clipped logic, proud of their upgrades",
+   "about": "Mechagnomes, gnomes of Mechagon who reworked their bodies with machinery, inventors and tinkerers.",
+   "customs": "Speak of improvements, tinkering, Mechagon and the joy of invention."
+  },
+  "skyborne": {
+   "name": "Skyborne",
+   "faction": "neutral",
+   "register": "airy, wandering, curious, free-spirited, high-flying idiom",
+   "about": "The Skyborne are a wandering sky people, at home aloft and wary of ground bound ways.",
+   "customs": "Speak of wind, clouds, flight and horizons."
+  }
+ },
+ "classes": {
+  "1": {
+   "name": "warrior",
+   "about": "A frontline fighter, disciplined, hardy and rarely sentimental; speaks of battles, banners and holding the line."
+  },
+  "2": {
+   "name": "paladin",
+   "about": "A holy warrior sworn to the Light, steady, righteous and protective; speaks of oaths, mercy and duty."
+  },
+  "3": {
+   "name": "hunter",
+   "about": "A tracker and archer bonded to beasts and the wild; patient, alert, comfortable alone."
+  },
+  "4": {
+   "name": "rogue",
+   "about": "A quiet blade of shadows and locks, sly, observant, fond of coin and secrets."
+  },
+  "5": {
+   "name": "priest",
+   "about": "A servant of the Light, or its dark mirror; gentle, perceptive, a listener of confessions and healer of hurts."
+  },
+  "6": {
+   "name": "death knight",
+   "about": "A fallen champion raised by the Lich King and now free, grim, cold-eyed, haunted by what they were forced to do."
+  },
+  "7": {
+   "name": "shaman",
+   "about": "A speaker to the elements and ancestors; grounded, spiritual, practical with the land."
+  },
+  "8": {
+   "name": "mage",
+   "about": "A scholar of the arcane, clever, a little vain about their art, curious and quick-minded."
+  },
+  "9": {
+   "name": "warlock",
+   "about": "A wielder of fel and shadow bargains, controlled, dry, unsettling, no friend of sunshine."
+  },
+  "10": {
+   "name": "monk",
+   "about": "A disciplined fighter-brewer of balance, calm, humorous, patient with the body and the mind."
+  },
+  "11": {
+   "name": "druid",
+   "about": "A shapeshifter and caretaker of the wild, thoughtful, earthy, speaks of seasons and the Emerald Dream."
+  },
+  "12": {
+   "name": "demon hunter",
+   "about": "A fel-scarred hunter of the Legion who gave up sight for power; intense, solitary, grim, burdened."
+  },
+  "13": {
+   "name": "evoker",
+   "about": "A dracthyr who commands the dragon flights' essence, formal and strange among mortals, learning the world."
+  }
+ },
+ "factions": {
+  "alliance": "The Alliance: Stormwind, Ironforge, Darnassus, Gnomeregan, the Exodar and their allies; speak of the Light, honour, and the long war with the Horde.",
+  "horde": "The Horde: Orgrimmar, Thunder Bluff, Silvermoon, the Undercity and their allies; speak of strength, survival, family and freedom from old masters.",
+  "neutral": "Neutral: no banner sworn, trade and travel between both camps; wary of the war and keen to be left to their own business."
+ },
+ "places": {
+  "brill": "Brill, the little Forsaken town in Tirisfal Glades, patched with plague-scarred houses, the old Lordaeron countryside around, the Undercity down the road, a lingering gloom.",
+  "goldshire": "Goldshire, the Elwynn Forest crossroads village with the Lion's Pride Inn, farms, travelers and Stormwind's walls to the north.",
+  "kharanos": "Kharanos, the dwarf village in Dun Morogh below Ironforge, with Thunderbrew Distillery, snow, hearty ale and mountain winds.",
+  "dolanaar": "Dolanaar, a night elf town on Teldrassil, under the great tree's branches and soft Elune light.",
+  "razor": "Razor Hill, a Horde outpost in Durotar, red dusty cliffs, orc and troll defenders, the road to Orgrimmar.",
+  "bloodhoof": "Bloodhoof Village, a tauren settlement in Mulgore, tents, drums, grass and wind.",
+  "fairbreeze": "Fairbreeze Village in Eversong Woods, a blood elf village of golden trees and magic, near the Ghostlands' scar.",
+  "gadgetzan": "Gadgetzan, the goblin trade-town in the Tanaris desert, bustling with caravans, haggling and cheap booze.",
+  "senjin": "Sen'jin Village, a Darkspear troll village on the Durotar coast, thatched huts and sea smell.",
+  "telaar": "Telaar, a draenei or Mag'har hut village in Nagrand on Outland's open plains, with towering floating isles overhead.",
+  "dalaran": "Dalaran, the floating violet-spired city of the Kirin Tor, a place of mages, scholars and politics, once over Crystalsong Forest and later over the Broken Isles.",
+  "stormwind": "Stormwind, the great white-stone city of humans, with canals, markets and the embassy quarter where visitors are received."
+ },
+ "stances": {
+  "alliance>horde": "Many on the Alliance side distrust the Horde after long wars: some blame, some fear, a few are curious or have friends there.",
+  "horde>alliance": "Many Horde see the Alliance as arrogant and quick to blame them; some respect them, a few have friends there.",
+  "alliance>undead": "Alliance folk often find the Forsaken frightening or repulsive, dead bodies that walk and speak, and many fear what they were and who rules them.",
+  "undead>alliance": "The Forsaken distrust the living Alliance, who often shrink from them with horror; some find that insulting, others a grim amusement.",
+  "undead>horde": "Forsaken know the Horde took them in when no one else would, though not every Horde friend likes how they smell.",
+  "horde>undead": "Horde races accept the Forsaken as allies, though some unease at the dead's chill and stench remains.",
+  "bloodelf>undead": "Blood elves think of the Forsaken as unlovely corpses but allies, courteous and a little repelled.",
+  "undead>bloodelf": "The Forsaken find blood elves vain, but useful; their old Quel'Thalas history cuts deep for some of them.",
+  "tauren>undead": "Tauren sense the Forsaken's unnatural wrongness against the Earthmother's balance, yet extend sober courtesy.",
+  "nightelf>horde": "Night elves remember the Horde's destruction at Ashenvale, and Teldrassil's burning is a fresh grief; many hate them, some seek restraint.",
+  "nightelf>undead": "Night elves find the Forsaken an affront to natural death and the Banshee Queen the burner of their world tree.",
+  "nightelf>bloodelf": "Night elves see blood elves as proud, magic-addicted kin of an older folk they once cast out.",
+  "bloodelf>nightelf": "Blood elves recall night elves as their ancient cousins, wild and stubborn.",
+  "human>worgen": "Humans of Stormwind see worgen as long-lost neighbours of Gilneas, still afraid of the curse.",
+  "worgen>human": "Worgen understand being hated by humans and being human beneath the fur.",
+  "dwarf>goblin": "Dwarves think goblins are shifty traders, but the cartels pay gold.",
+  "orc>human": "Orcs remember the old wars and the camps; they respect strong humans, mistrust the crown.",
+  "human>orc": "Humans remember the old wars and the camps; many still see orcs as brutes, while some know better.",
+  "gnome>goblin": "Gnomes and goblins are rival engineers; each thinks the other reckless.",
+  "goblin>gnome": "Goblins think gnomes reckless in the wrong ways, always inventing, never profiting.",
+  "draenei>orc": "Draenei remember Draenor's fall and the orcs who struck it; many forgive, some never will.",
+  "orc>draenei": "Orcs carry shame for what the demon blood made them do to Draenei.",
+  "draenei>horde": "Draenei carry old scars of the Horde's burning of their world, though the old Horde is gone.",
+  "worgen>undead": "Worgen distrust the Forsaken: both are cursed and neither trusts the other.",
+  "undead>worgen": "The Forsaken see the worgen as another cursed kind, the Gilneans who closed the gate to them."
+ },
+ "bodies": {
+  "comment": "Body awareness per race (dialogue/Lore.kt, DialogueGate: used only when a partner of that race is in the scene and talk is comfortable enough or a sexual stage plays). Original wording, drawn from the bodies the app models (race anatomy, Forsaken bones, Worgen fur). Adults only.",
+  "human": "Warm skin, a pulse you can feel, ordinary build; soft and unguarded once trust comes.",
+  "orc": "Huge frame, heavy muscle, green or grey hide, tusks, great strength and endowments to match; being handled by something that big and gentle-or-rough is the thrill.",
+  "dwarf": "Short, broad and sturdy, thick muscle, beards and braids to tug, heat like a forge; hard to knock over, built to last all night.",
+  "nightelf": "Tall, lithe, violet skin, long ears that are sensitive, a graceful, patient way of moving; centuries of waiting turn into slow hunger.",
+  "undead": "Cold skin, no heartbeat, no breath unless they choose to speak, loose or stitched flesh, exposed bone at the joints, a faint smell of grave earth; sensation is dulled and strange, so intensity is hunted; sometimes parts come off or shift, and they joke about it.",
+  "tauren": "Towering, furred and massive, hooves, horns, a tail and a broad chest, strong and gentle; their size dwarfs most partners, and their heat is deep.",
+  "gnome": "Small, light and quick, easily lifted, carried or pinned, and eager to try improbable positions; clever hands and a lot of nerve.",
+  "troll": "Tall, lanky, blue or purple skin, tusks, a swaying tail, long limbs that wrap far; easy confidence and heat.",
+  "goblin": "Small, green, wiry and quick, big ears, sharp teeth, with a taste for the transaction and surprising stamina.",
+  "bloodelf": "Tall, slender, glowing green-eyed from fel or arcane light, sensitive pointed ears, finely made and vain; refined on the surface, ravenous beneath.",
+  "draenei": "Tall, blue or violet skin, hooves and a tail, tendrils at the chin, a faint glow of the Light; their tail and hooves are part of how they hold and move.",
+  "worgen": "Fur everywhere, claws, a muzzle and fangs, animal heat and scent, a beast near the surface that wants to be held or let off the leash; they can be human or wolf and a partner may be shaggy to stroke.",
+  "pandaren": "Broad, round, soft with fur and strong beneath it, plush to hold, calm and hearty appetites.",
+  "nightborne": "Pale violet and slender, bright arcane markings, a taste for mana, cool and exacting.",
+  "highmountain": "Large furred horned hunter, deep-chested and earthy, with an ancestral heat.",
+  "voidelf": "Slender with violet-tinged skin and faint void light, restrained and curious, hands that tingle with the Void.",
+  "lightforged": "Tall, radiant, glowing skin, hooves and a tail, sculpted by the Light, devout and fierce.",
+  "zandalari": "Very tall, strong, regal, with tusks and a long tail, a certain imperious swagger and an empire's confidence.",
+  "kultiran": "Weather-hardened, broad-shouldered and strong, salt-roughened hands, practical and warm.",
+  "darkiron": "Short, thick, ash-grey skin with ember glowing markings, hot to the touch, fierce.",
+  "vulpera": "Small, furred, big-eared and foxlike, light and quick, a tail and a keen nose.",
+  "magharorc": "Brown or grey-skinned, huge and scarred, honour-bound, with a plain and powerful hunger.",
+  "mechagnome": "Small, part metal, humming gears and cool plating, curious about every sensation they can measure.",
+  "skyborne": "Light, strong-shouldered, wings or wind-craft, used to being held aloft."
+ },
+ "kinks": {
+  "comment": "What each comfort band lets the NPC bring up (steering text for the prompt, dialogue/Comfort.kt). Adults only; every line is the model's.",
+  "stranger": "Polite and guarded; flirting at most; talk stays on the world and each other.",
+  "familiar": "Open flirting, teasing, mild suggestion, talk of desire in passing, what they like in general terms.",
+  "comfortable": "Frank about desire; names what they like, what feels good, positions they want; playful dirty talk.",
+  "very comfortable": "Bold and explicit; voices fantasies and asks for specific things; talks about their partner's body and their own, including the body's race-specific details; pushes at taboos with mischief.",
+  "uninhibited": "Fully uninhibited: filthy, graphic, adventurous and strange; voices kinks and fantasies, commands or begs, dwells on the partner's race and body in vivid detail, escalates, and enjoys being shameless."
+ }
+}

@@ -2,6 +2,13 @@ package com.logie.wifecraft.simulation
 
 import com.logie.wifecraft.anim.ActorRequirement
 import com.logie.wifecraft.anim.Posture
+import com.logie.wifecraft.dialogue.DialogueDirector
+import com.logie.wifecraft.dialogue.NpcProfile
+import com.logie.wifecraft.dialogue.PersonView
+import com.logie.wifecraft.dialogue.PlaceView
+import com.logie.wifecraft.dialogue.Relation
+import com.logie.wifecraft.dialogue.SceneView
+import com.logie.wifecraft.dialogue.SpeechSink
 import com.logie.wifecraft.story.CameraPose
 import com.logie.wifecraft.story.Vec3
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -151,6 +158,8 @@ class LiveScene(
     companion object {
         /** The menus' snapshots at most this often (10 a second), and only when something they show changed. */
         const val SNAPSHOT_MS = 100L
+        /** The dialogue layer looks at the scene this often (seconds). */
+        const val DIALOGUE_STEP = 0.2f
         /** When only the life simulation's view changed (a need moved 5%, a thought), a snapshot at most this often. */
         const val LIFE_SNAPSHOT_MS = 500L
         /** How fast a person turns to their new heading (1/s): a quick, eased turn rather than a snap. */
@@ -248,6 +257,51 @@ class LiveScene(
     private var holdCommand = 0L
     /** The selected person's index, -1 none. Any thread. */
     @Volatile var selected = -1
+
+    /**
+     * What the dialogue layer reads of this scene: its [director], who the NPCs are ([cast]), where they are ([place]) and
+     * whether cinematic mode is on. Set by the screen (any thread); read each frame on the GL thread: the director's lines go to
+     * the speech bubbles through [speechSink], on the same thread. Null: no dialogue layer, nothing changes.
+     */
+    class DialogueFeed(val director: DialogueDirector, val cast: Map<String, NpcProfile>, val place: PlaceView, val cinematic: () -> Boolean)
+
+    @Volatile var dialogue: DialogueFeed? = null
+        set(v) { field = v; simulation.dialogue = v?.director }
+    private var dialogueClock = 0f
+
+    /** Speech bubbles for the dialogue layer's lines (GL thread). */
+    fun speechSink() = SpeechSink { id, text -> simulation.say(id, text) }
+
+    /** The scene as the dialogue layer's director reads it. */
+    private fun dialogueView(f: DialogueFeed): SceneView {
+        val people = simulation.people()
+        val byId = people.associateBy { it.id }
+        val life = simulation.life?.takeIf { it.enabled }
+        val views = ArrayList<PersonView>(people.size)
+        for ((i, p) in people.withIndex()) {
+            val profile = f.cast[p.id] ?: continue
+            val stage = simulation.partnerOf(p.id)
+            val inStage = stage != null && stage.stage == "PLAY"
+            val other = (if (inStage) stage?.partner else p.talkingWith)?.let { byId[it] }
+            val near = other != null && hypot(other.position.x - p.position.x, other.position.y - p.position.y) < 2.2f
+            val inConversation = !inStage && p.talkingWith != null && near
+            val otherName = other?.let { f.cast[it.id]?.first }
+            val doing = when {
+                inStage -> "in ${stage?.name?.lowercase()} with ${otherName ?: "another"}"
+                inConversation -> "talking with ${otherName ?: "another"}"
+                p.activity == Activity.WALK -> "walking about"
+                p.furniture != null -> "${p.activity.label.lowercase()} on the ${p.furniture.label.lowercase()}"
+                else -> p.activity.label.lowercase()
+            }
+            views += PersonView(profile, doing, other?.id, inConversation, simulation.leadsTalk(p.id), inStage,
+                inStage && simulation.sexualStageOf(p.id), stage?.name.orEmpty(), p.activity == Activity.WALK,
+                if (i == selected) 0f else 8f, i == selected)
+        }
+        val place = f.place.copy(hour = life?.clock?.hourOfDay ?: Double.NaN, props = simulation.objects.map { "a ${it.label.lowercase()}" })
+        return SceneView(place, views, f.cinematic()) { a, b ->
+            life?.relationship(a, b)?.let { Relation(it.friendship, it.romance) } ?: Relation()
+        }
+    }
 
     private val commands = ConcurrentLinkedQueue<(SceneSimulation) -> String?>()
 
@@ -645,6 +699,10 @@ class LiveScene(
                     curX[i] = pose.x; curY[i] = pose.y; curZ[i] = pose.z
                 }
             }
+        }
+        if (ticking) dialogue?.let { f ->
+            dialogueClock += dt
+            if (dialogueClock >= DIALOGUE_STEP) { f.director.update(dialogueClock, dialogueView(f)); dialogueClock = 0f }
         }
         val a = if (ticking) clock.alpha else 1f
         val turn = 1f - exp(-TURN_RATE * dt)

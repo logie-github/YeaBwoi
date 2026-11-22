@@ -193,6 +193,7 @@ object Graphics {
             governor.frame(now / 1e9, interval, work, budget)
         } else if (governor.level != 0) governor.reset()
         val level = if (s.adaptive) governor.level else 0
+        com.logie.wifecraft.data.DialogueHost.renderLevel = level   // the dialogue model yields to a renderer that is struggling
         val timers = s.overlay || s.adaptive
         if (s !== sentFor || level != sentLevel || timers != sentTimers) {
             val lowered = s.lowered(level)

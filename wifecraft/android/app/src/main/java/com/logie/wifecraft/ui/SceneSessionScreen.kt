@@ -372,9 +372,8 @@ fun LiveSceneScreen(
     /** Options' Cinematic page (applied at once), and cinematic mode going on or off (the music eases down: Audio.cinematic). */
     cinematicSettings: CinematicSettings = CinematicSettings.DEFAULT,
     onCinematic: (Boolean) -> Unit = {},
-    /** JOI mode's words: the on-device dialogue engine (null: no model downloaded: JOI says so) and the download it offers (null: none yet). */
-    dialogueEngine: DialogueEngine? = null,
-    onDownloadDialogueModel: (() -> Unit)? = null,
+    /** Options' Dialogue page: whether NPCs talk with the on-device model, and how much (applied at once). */
+    dialogue: com.logie.wifecraft.dialogue.DialogueSettings = com.logie.wifecraft.dialogue.DialogueSettings(),
     /** The life and the clock as JSON to keep (null: none), every half minute and when the scene ends. Any thread. */
     onLifeSave: (life: String?, clock: String?) -> Unit = { _, _ -> },
     /** The game's icons (the life HUD's: needs, moods, thoughts, the radial menu); null: their drawn glyphs. */
@@ -658,6 +657,20 @@ fun LiveSceneScreen(
     var flowPhase by remember(live) { mutableStateOf(FlowPhase.NONE) }
     val feed = remember(live) { ImmersionFeed() }
     SideEffect { feed.settings = immersive.clamped(); feed.cinematic = cinematic }
+    // the dialogue layer: NPCs speak with the on-device model (dialogue/), its lore and kink packs read from the assets; no model loaded, no change
+    val dialogueDirector = remember(live) {
+        com.logie.wifecraft.ui.DialogueAssets.lore(context)?.let { lore ->
+            com.logie.wifecraft.dialogue.DialogueDirector({ com.logie.wifecraft.dialogue.DialogueRuntime.engine }, lore, live.speechSink(), dialogue,
+                kink = com.logie.wifecraft.ui.DialogueAssets.kink(context))
+        }
+    }
+    SideEffect { dialogueDirector?.settings = dialogue }
+    DisposableEffect(live, dialogueDirector, cast) {
+        if (dialogueDirector != null) live.dialogue = LiveScene.DialogueFeed(dialogueDirector,
+            cast.associate { it.id to com.logie.wifecraft.dialogue.Profiles.of(it) }, com.logie.wifecraft.dialogue.PlaceView(locationName), { feed.cinematic })
+        onDispose { live.dialogue = null }
+    }
+    var steerOpen by remember(live) { mutableStateOf(false) }
     val active = selected?.let { id -> snapshot.people.firstOrNull { it.id == id } }
     val views = selected?.let { snapshot.furnitureViews[it] }.orEmpty()
     val viewNames = remember(views) { views.map { it.label } }
@@ -1262,14 +1275,15 @@ fun LiveSceneScreen(
         val emote = PartnerEmotes.ALL.map { JoiClip(PlaybackKeys.emote(it.anim), it.name, "Emotes", if (it.loop) 8f else 3.5f, it.loop, emote = true) }
         JoiAnimations.catalogue(imported + emote)
     }
-    val dialogueNow by rememberUpdatedState(dialogueEngine)
+    // (the engine is the runtime's, when a model is loaded: DialogueRuntime.engine; Options > Mods > Dialogue model downloads it)
+    fun joiEngine(): DialogueEngine? = com.logie.wifecraft.dialogue.DialogueRuntime.engine?.takeIf { it.ready }
     fun startJoi(id: String) {
         val a = cast.firstOrNull { it.id == id } ?: return
         val spec = CreatureNpcs.of(a.appearance)
         joiPersona = JoiPersona(
             a.name, listOfNotNull(JoiPrompt.raceKey(a.appearance.raceId)), emptyList(),
             JoiPrompt.personalitiesFrom(a.appearance.personality?.traits.orEmpty(), spec != null), "dom", spec != null, a.appearance.personality?.bio.orEmpty())
-        joiMode.enter(id, spec != null, JoiPrior(cinematic, cameraMode.name, furnitureView), dialogueNow != null)
+        joiMode.enter(id, spec != null, JoiPrior(cinematic, cameraMode.name, furnitureView), joiEngine() != null)
         joiCamera.restart(); joiCamera.creature = spec != null; joiCamera.framing = joiMode.framing
         joiPicker.reset()
         live.joiCreature = spec; live.joiActor = castIndex[id] ?: -1; live.joiCamera = joiCamera
@@ -1309,7 +1323,7 @@ fun LiveSceneScreen(
             else PerformanceOrder(null, listOf(PlaybackRole(clip.key, Vec3(0f, 0f, 0f), 0f)), clip.seconds)
         live.order { sim -> sim.perform(id, order); null }
     }
-    JoiRunner(joiMode, joiActor != null, dialogueEngine, kink, joiPersona, { energy, _ -> playJoiSolo(energy) }, { joiLeave = true }, { joiTick++ })
+    JoiRunner(joiMode, joiActor != null, { joiEngine() }, kink, joiPersona, { energy, _ -> playJoiSolo(energy) }, { joiLeave = true }, { joiTick++ })
     fun act(id: String, slot: HudSlot) {
         when (slot.order) {
             HudOrder.WALK -> {
@@ -1768,8 +1782,8 @@ fun LiveSceneScreen(
             topBarEnd = SceneHud.MARGIN + TOP_ICON_W * (if (lifeOn) 2 else 1) + CINEMATIC_GAP)
         // JOI mode: the subtitles in the film frame's lower third, and (the interface up) its controls
         if (joiActor != null) JoiLayer(joiMode, joiTick, cinematicSettings.frame, controls = !cineHidden && revealed,
-            creature = live.joiCreature != null, onDownloadModel = onDownloadDialogueModel,
-            onRetry = { if (dialogueNow != null) joiMode.modelReady(); joiTick++ }, onStop = { joiLeave = true }, onChanged = { joiTick++ })
+            creature = live.joiCreature != null, onDownloadModel = { com.logie.wifecraft.data.DialogueHost.startDownload() },
+            onRetry = { if (joiEngine() != null) joiMode.modelReady(); joiTick++ }, onStop = { joiLeave = true }, onChanged = { joiTick++ })
     }
     choosingAnimation?.let { owner ->
         // with a partner chosen, the two-person animations come first and play with them (solo ones still play alone)
@@ -1831,6 +1845,7 @@ fun LiveSceneScreen(
     }
     // Move mode's windows: what is this (the class picker), the one-time question, the report
     MoveWindows(mapper) { cast.firstOrNull { it.id == mapper.npc }?.let(::npcInfoOf) }
+    if (dialogueDirector != null) DialogueOverlay(dialogueDirector, live, names, steerOpen, { steerOpen = false })
     BuildWindows(build)
     val sayFor = rememberHeld(saying)
     if (sayFor != null) {
@@ -1880,7 +1895,8 @@ fun LiveSceneScreen(
         frozen = selectedLife?.frozen == true,
         onFreeze = { on -> selected?.let { live.life.freeze(it, on) } },
         onLife = selected?.takeIf { selectedLife != null }?.let { id -> { menu = false; lifeWindow = id } },
-        buildOn = build.on, onBuild = { if (build.on) { menu = false; build.leave() } else enterBuild() })
+        buildOn = build.on, onBuild = { if (build.on) { menu = false; build.leave() } else enterBuild() },
+        onDialogue = dialogueDirector?.let { { menu = false; steerOpen = true } })
     val windowFor = rememberHeld(lifeWindow)
     val windowPerson = windowFor?.let { id -> lifeShown?.person(id) }
     if (windowFor != null && windowPerson != null) {
@@ -2339,6 +2355,8 @@ private fun SceneMenu(
     /** Build mode's entry (always there): enters it, or leaves it while [buildOn]. */
     buildOn: Boolean = false,
     onBuild: (() -> Unit)? = null,
+    /** Opens the steer window (the dialogue layer's nudges for the talk); null: no layer. */
+    onDialogue: (() -> Unit)? = null,
 ) {
     val name = rememberHeld(freezeName)
     Overlay(onClose, visible) {
@@ -2353,6 +2371,7 @@ private fun SceneMenu(
                     WifeButton(BuildEntry.menuLabel(buildOn), onBuild, Modifier.fillMaxWidth(), sound = "open")
                     Text(BuildEntry.menuDetail(buildOn), style = WifeTheme.captionStyle())
                 }
+                if (onDialogue != null) WifeButton("Steer the talk", onDialogue, Modifier.fillMaxWidth(), sound = "open")
                 if (onOptions != null) WifeButton("Options", onOptions, Modifier.fillMaxWidth(), sound = "open")
                 WifeButton("End scene", onEnd, Modifier.fillMaxWidth())
             }
