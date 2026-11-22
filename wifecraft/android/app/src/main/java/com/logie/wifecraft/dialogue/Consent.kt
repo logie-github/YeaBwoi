@@ -169,6 +169,14 @@ class ConsentCoordinator(
         }
     }
 
+    /** [npcId] says no, in their own voice, to [actName] with [otherId] (a limit the player set). False: nobody to speak. */
+    fun boundary(npcId: String, otherId: String, actName: String): Boolean {
+        val me = profile(npcId) ?: return false
+        val other = profile(otherId)
+        closingLine(me, other, "${other?.name ?: "Your partner"} asks you for \"${actName.ifBlank { "this" }}\". It is something you will not do, ever; say no in your own voice, in one short sentence.") { speak(me.id, it) }
+        return true
+    }
+
     private fun closingLine(me: NpcProfile, other: NpcProfile?, what: String, then: (String) -> Unit) {
         val gen = generation
         runner.submit(PRIORITY - 1, "consent", DialogueRequest(me.id, PersonaPrompt.system(me, lore), emptyList(),

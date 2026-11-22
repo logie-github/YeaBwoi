@@ -66,6 +66,9 @@ class DialogueDirector(
         return consent.ask(initiator, target, directed, stageName)
     }
 
+    override fun declined(npcId: String, otherId: String, actName: String): Boolean =
+        active && !cinematic && consent.boundary(npcId, otherId, actName)
+
     /** Hesitant NPCs waiting to be talked round (the persuasion chips). */
     fun hesitant(): List<HesitantView> = consent.hesitant()
 

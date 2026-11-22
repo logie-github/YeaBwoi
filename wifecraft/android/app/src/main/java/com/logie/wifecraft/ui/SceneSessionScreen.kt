@@ -77,6 +77,9 @@ import com.logie.wifecraft.anim.animationChoices
 import com.logie.wifecraft.anim.animationSequence
 import com.logie.wifecraft.anim.StagePart
 import com.logie.wifecraft.simulation.PlaybackSegment
+import com.logie.wifecraft.simulation.ConsentAct
+import com.logie.wifecraft.simulation.ConsentEdit
+import com.logie.wifecraft.simulation.ConsentPolicy
 import com.logie.wifecraft.simulation.SegmentKind
 import com.logie.wifecraft.catalog.EmotePlayability
 import com.logie.wifecraft.engine.Clock
@@ -242,11 +245,11 @@ fun SceneSetupScreen(
             val layout = ChromeLayout.of(maxWidth.value, maxHeight.value)
             WifeWindow(
                 step.title, onBack, Modifier.width(layout.optionsW.dp).height(layout.optionsH.dp),
-                subtitle = "Step ${step.ordinal + 1} of ${SetupStep.entries.size}",
+                subtitle = "Step ${step.ordinal + 1} of ${SetupStep.entries.size + 1}",
                 footer = {
                     WifeButton("Back", onBack, Modifier.widthIn(min = 120.dp), sound = "close")
                     WifeButton(
-                        if (step == SetupStep.OBJECTS) "Begin scene" else "Next", onNext, Modifier.widthIn(min = 140.dp),
+                        "Next", onNext, Modifier.widthIn(min = 140.dp),
                         enabled = when (step) {
                             SetupStep.LOCATION -> location != null
                             SetupStep.CAST -> cast.isNotEmpty()
@@ -401,6 +404,10 @@ fun LiveSceneScreen(
     onCloth: () -> Unit = {},
     /** The scene's intensity (0..1, the most intense person's, eased; null when the scene ends), four times a second. */
     onIntensity: (Float?) -> Unit = {},
+    /** The Consent and limits policy (null: none): the scene's NPCs follow it everywhere an act can start; edited live by [onLimits]'s window. */
+    consent: ConsentPolicy? = null,
+    /** Opens the Consent and limits window from the scene menu (null: the menu has none). */
+    onLimits: (() -> Unit)? = null,
 ) {
     // the scene's seed: one per scene, so a scene replays the same way from it (the tests use it so)
     val seed = remember(cast, objects) { Random.nextLong() }
@@ -538,6 +545,8 @@ fun LiveSceneScreen(
         }
     }
     LaunchedEffect(live, needs) { val known = needs.pairs; live.command { it.requirements = known } }
+    // the limits: the policy object is shared with the Consent window (thread-safe), the scene reads it as acts start
+    LaunchedEffect(live, consent) { live.command { it.consent = consent } }
     // the player's "Treat as" per animation (a long press in the animation window), kept; the scene plays each as that
     val treatPrefs = remember(context) { context.getSharedPreferences(TreatAsMemory.PREFS, android.content.Context.MODE_PRIVATE) }
     var treatAs by remember(treatPrefs) {
@@ -672,6 +681,11 @@ fun LiveSceneScreen(
     var chatting by remember { mutableStateOf<String?>(null) }
     var menu by remember { mutableStateOf(false) }
     val names = remember(cast) { cast.associate { it.id to it.name } }
+    // "Won't: <name>" on a two-person animation the owner or their partner won't do (the scene declines it all the same)
+    val limitNoteOf: (String, String?, AnimationChoice) -> String? = { owner, with, c ->
+        if (consent == null || with == null || c.participantCount != 2) null
+        else consent.decliner(owner, with, ConsentAct.of(c))?.let { "Won't: ${names[it] ?: it}" }
+    }
     // the life HUD: its radial menu (and what can be had there), the Life window, the clock's speed buttons, the feed
     var radial by remember(live) { mutableStateOf<RadialRequest?>(null) }
     var radialAvail by remember(live) { mutableStateOf<List<Pair<InteractionId, Boolean>>?>(null) }
@@ -824,7 +838,7 @@ fun LiveSceneScreen(
     }
     /** Switch positions while it plays: started again with the two in each other's roles (kept for it when it was ours). */
     fun switchPlaying(id: String, other: String) {
-        live.order { sim -> if (sim.switchRoles(id)) null else "They can switch positions once it plays." }
+        live.order { sim -> if (sim.switchRoles(id)) null else sim.takeRefusal() ?: "They can switch positions once it plays." }
         lastPair?.takeIf { setOf(it.owner, it.partner) == setOf(id, other) }?.let { c ->
             val next = c.copy(switched = !roleMemory.isSwitched(c.choiceId))
             keepRoles(c.choiceId, next.switched)
@@ -1956,7 +1970,8 @@ fun LiveSceneScreen(
         // cinematic auto-play: the pair's animations one after another, each change under a cut (CinematicUi, CinematicAutoplay)
         CinematicAutoplayHost(cinematic && cinematicSettings.autoplay && joiActor == null && chatActor == null, live, cineDirector, cinematicSettings,
             selected ?: flow?.a, partnerId ?: flow?.b, cast.map { it.id }, autoPairs, needs.pairs, furnitureAt, bodyScales,
-            controls = cinematic && !cineHidden && revealed && joiActor == null && chatActor == null, treatAs = treatAs, hold = holdAnimations)
+            controls = cinematic && !cineHidden && revealed && joiActor == null && chatActor == null, treatAs = treatAs, hold = holdAnimations,
+            consent = consent)
         CinematicLayer(cinematic, cineHidden, revealed && shown > 0f && (cinematic || !immersiveHud || hudUp), {
             // (while JOI mode runs the button ends it: what was on comes back)
             if (joiActor != null) joiLeave = true else if (chatActor != null) chatLeave = true else {
@@ -2016,6 +2031,7 @@ fun LiveSceneScreen(
             availability = availability,
             onTreatAs = { choice, t -> treat(choice, t) },
             treatedAs = treatAs,
+            limitNote = { c -> limitNoteOf(owner, with, c) },
         )
     }
     furnitureMenu?.let { menuOf ->
@@ -2035,6 +2051,7 @@ fun LiveSceneScreen(
             onOptions = { choosePlayOptions(it) },
             onTreatAs = { choice, t -> treat(choice, t) },
             treatedAs = treatAs,
+            limitNote = { c -> limitNoteOf(menuOf.owner, with, c) },
         )
     }
     // Move mode's windows: what is this (the class picker), the one-time question, the report
@@ -2090,7 +2107,9 @@ fun LiveSceneScreen(
         onFreeze = { on -> selected?.let { live.life.freeze(it, on) } },
         onLife = selected?.takeIf { selectedLife != null }?.let { id -> { menu = false; lifeWindow = id } },
         buildOn = build.on, onBuild = { if (build.on) { menu = false; build.leave() } else enterBuild() },
-        onDialogue = dialogueDirector?.let { { menu = false; steerOpen = true } })
+        onDialogue = dialogueDirector?.let { { menu = false; steerOpen = true } },
+        limitsLine = consent?.let { p -> ConsentEdit.summary(cast.map { p.limitsOf(it.id) }) },
+        onLimits = if (consent != null) onLimits?.let { open -> { menu = false; open() } } else null)
     val windowFor = rememberHeld(lifeWindow)
     val windowPerson = windowFor?.let { id -> lifeShown?.person(id) }
     if (windowFor != null && windowPerson != null) {
@@ -2551,6 +2570,9 @@ private fun SceneMenu(
     onBuild: (() -> Unit)? = null,
     /** Opens the steer window (the dialogue layer's nudges for the talk); null: no layer. */
     onDialogue: (() -> Unit)? = null,
+    /** The Limits line (a summary of the Consent and limits settings) and the button that re-opens that screen; null: none. */
+    limitsLine: String? = null,
+    onLimits: (() -> Unit)? = null,
 ) {
     val name = rememberHeld(freezeName)
     Overlay(onClose, visible) {
@@ -2566,6 +2588,10 @@ private fun SceneMenu(
                     Text(BuildEntry.menuDetail(buildOn), style = WifeTheme.captionStyle())
                 }
                 if (onDialogue != null) WifeButton("Steer the talk", onDialogue, Modifier.fillMaxWidth(), sound = "open")
+                if (onLimits != null) {
+                    WifeButton("Consent and limits", onLimits, Modifier.fillMaxWidth(), sound = "open")
+                    if (limitsLine != null) Text(limitsLine, style = WifeTheme.captionStyle())
+                }
                 if (onOptions != null) WifeButton("Options", onOptions, Modifier.fillMaxWidth(), sound = "open")
                 WifeButton("End scene", onEnd, Modifier.fillMaxWidth())
             }
