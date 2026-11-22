@@ -64,6 +64,8 @@ val pureGraphics = tasks.register<Copy>("pureGraphics") {
 // dialogue/: the kink and JOI knowledge pack (KinkPack, pure; the persona and prompt files beside it are not copied).
 val pureDialogue = tasks.register<Copy>("pureDialogue") {
     from("../android/app/src/main/java/com/logie/wifecraft/dialogue/KinkPack.kt")
+    from("../android/app/src/main/java/com/logie/wifecraft/dialogue/DialogueEngine.kt")
+    from("../android/app/src/main/java/com/logie/wifecraft/dialogue/JoiPrompt.kt")
     into(layout.buildDirectory.dir("gen/pureDialogue"))
 }
 

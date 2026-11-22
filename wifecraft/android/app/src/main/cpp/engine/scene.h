@@ -131,6 +131,9 @@ public:
     bool reachState(int id, V3& palm, V3& target, float& weight, bool& reachable) const;
     // The desktop check: an actor's bone matrices as last drawn, the sequence and how far into it; the animations' clock.
     bool actorPose(int id, std::vector<M4>& mats, int& seq, uint32_t& timeMs) const;
+    // An actor's head, chest and pelvis bones as last drawn, in world coordinates (x, y, z each; nine floats): JOI mode's camera
+    // follows them. False: no such actor, or its model has no humanoid Head and Pelvis bone (a creature's rig may not).
+    bool actorBonePoints(int id, float out[9]) const;
     uint32_t animClock() const { return animClock_; }
     // Options' Soft body for everyone on stage (softbody.h: kSoftOff .. kSoftStrong); applies from the next frame.
     void setSoftBody(int level);

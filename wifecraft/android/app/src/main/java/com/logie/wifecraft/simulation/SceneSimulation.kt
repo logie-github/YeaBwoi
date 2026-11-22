@@ -694,6 +694,9 @@ class SceneSimulation(
         return true
     }
 
+    /** Whether [id] is held or plays a performance (JOI mode puts her back to idle when she is neither). */
+    fun busy(id: String): Boolean = actors[id]?.let { it.held || it.performance != null } == true
+
     /** Whether [id] is held by Move mode. */
     fun held(id: String): Boolean = actors[id]?.held == true
 

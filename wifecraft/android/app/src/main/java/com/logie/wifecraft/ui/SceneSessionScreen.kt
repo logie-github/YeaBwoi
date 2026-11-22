@@ -127,6 +127,20 @@ import com.logie.wifecraft.simulation.ModelEmotes
 import com.logie.wifecraft.simulation.PartnerEmotes
 import com.logie.wifecraft.simulation.PartnerFrequency
 import com.logie.wifecraft.characters.CreatureNpcs
+import com.logie.wifecraft.characters.JoiDragonSway
+import com.logie.wifecraft.dialogue.DialogueEngine
+import com.logie.wifecraft.dialogue.JoiPersona
+import com.logie.wifecraft.dialogue.JoiPrompt
+import com.logie.wifecraft.dialogue.KinkPack
+import com.logie.wifecraft.simulation.JoiAnimationPicker
+import com.logie.wifecraft.simulation.JoiAnimations
+import com.logie.wifecraft.simulation.JoiCamera
+import com.logie.wifecraft.simulation.JoiClip
+import com.logie.wifecraft.simulation.JoiMode
+import com.logie.wifecraft.simulation.JoiPacing
+import com.logie.wifecraft.simulation.JoiPrior
+import com.logie.wifecraft.simulation.PartnerEmotes
+import com.logie.wifecraft.anim.AnimArrays
 import com.logie.wifecraft.characters.DragonStages
 import com.logie.wifecraft.simulation.PartnerPair
 import com.logie.wifecraft.simulation.PartnerSoundSink
@@ -358,6 +372,9 @@ fun LiveSceneScreen(
     /** Options' Cinematic page (applied at once), and cinematic mode going on or off (the music eases down: Audio.cinematic). */
     cinematicSettings: CinematicSettings = CinematicSettings.DEFAULT,
     onCinematic: (Boolean) -> Unit = {},
+    /** JOI mode's words: the on-device dialogue engine (null: no model downloaded: JOI says so) and the download it offers (null: none yet). */
+    dialogueEngine: DialogueEngine? = null,
+    onDownloadDialogueModel: (() -> Unit)? = null,
     /** The life and the clock as JSON to keep (null: none), every half minute and when the scene ends. Any thread. */
     onLifeSave: (life: String?, clock: String?) -> Unit = { _, _ -> },
     /** The game's icons (the life HUD's: needs, moods, thoughts, the radial menu); null: their drawn glyphs. */
@@ -577,6 +594,12 @@ fun LiveSceneScreen(
         }
     }
     var cinematic by remember(live) { mutableStateOf(false) }
+    // JOI mode (the JOI order: JoiMode, JoiCamera, ui/JoiUi.kt): who gives it (null: off), its camera, the redraw count, a leave asked for
+    var joiActor by remember(live) { mutableStateOf<String?>(null) }
+    val joiCamera = remember(live) { JoiCamera(seed.toLong()) }
+    var joiTick by remember(live) { mutableIntStateOf(0) }
+    var joiLeave by remember(live) { mutableStateOf(false) }
+    var joiPersona by remember(live) { mutableStateOf<JoiPersona?>(null) }
     // cinematic mode's idle hide (CinematicIdle): all the interface goes after 5 s untouched, Build mode off, until the next touch
     val cineIdleClock = remember(live) { CinematicIdle { SystemClock.uptimeMillis() } }
     var cineIdle by remember(live) { mutableStateOf(false) }
@@ -642,7 +665,8 @@ fun LiveSceneScreen(
     SideEffect { live.furnitureView = views.getOrNull(furnitureView) }
 
     BackHandler {
-        if (cinematic && !build.on) cinematic = false
+        if (joiActor != null) joiLeave = true
+        else if (cinematic && !build.on) cinematic = false
         else if (radial != null) radial = null
         else if (lifeWindow != null) lifeWindow = null
         else if (speedOpen) speedOpen = false
@@ -878,6 +902,8 @@ fun LiveSceneScreen(
                     if (wasEmote) { val start = frameMs; main.post { view.anim(key, 0, true, start) } }   // back to standing
                 }
             }
+
+            override fun bonePoints(index: Int, out: FloatArray): Boolean = view.glBonePoints(keys[index], out)
 
             override fun activity(index: Int, activity: Activity) {
                 view.glAnimate(keys[index], activity.animation)   // this very frame, with the placement
@@ -1215,9 +1241,75 @@ fun LiveSceneScreen(
     val mate = partnerId?.takeIf { it != active?.id }
     val slots = if (active == null) emptyList()
         else SceneHud.orders(walking, mate != null, cast.size - 1, active.repeating, active.queued, uses, life = lifeOn,
-            performing = active.performing)
+            performing = active.performing, joi = true)
     var page by remember { mutableIntStateOf(0) }
     LaunchedEffect(selected) { page = 0 }
+    // ---- JOI mode: the selected NPC gives a JOI to someone in the room (she believes: an NPC; the viewer only watches). The camera
+    // is JoiCamera (framing choice, cuts, her bones; a dragon is circled), her words come from the dialogue engine, the stages and
+    // pacing from the kink pack (JoiMode), solo animations are mixed in at random (JoiAnimationPicker). Entering it enters cinematic
+    // framing; leaving puts back the cinematic state and camera that were on.
+    val kink = remember(context) {
+        runCatching { KinkPack.load { n -> runCatching { context.assets.open("dialogue/kink/$n").bufferedReader().use { it.readText() } }.getOrNull() } }.getOrNull()
+    }
+    val joiMode = remember(live, kink) {
+        val paces = kink?.joiStages?.associate { it.id to it.pace }?.takeIf { it.isNotEmpty() } ?: JoiPacing.DEFAULT_PACES
+        JoiMode({ b, s -> kink?.joiPlan(b, s) ?: emptyList() }, { b, s -> kink?.countdown(b, s) ?: (5 to 2000) }, paces, seed.toLong())
+    }
+    val joiPicker = remember(live) { JoiAnimationPicker(seed.toLong() + 1) }
+    val joiSolos = remember(choices) {
+        val imported = choices.filter { it.participantCount == 1 && it.playable }
+            .map { JoiClip(it.id, it.name, it.group, it.preview.clip.duration.takeIf { d -> d > 0f } ?: 6f) }
+        val emote = PartnerEmotes.ALL.map { JoiClip(PlaybackKeys.emote(it.anim), it.name, "Emotes", if (it.loop) 8f else 3.5f, it.loop, emote = true) }
+        JoiAnimations.catalogue(imported + emote)
+    }
+    val dialogueNow by rememberUpdatedState(dialogueEngine)
+    fun startJoi(id: String) {
+        val a = cast.firstOrNull { it.id == id } ?: return
+        val spec = CreatureNpcs.of(a.appearance)
+        joiPersona = JoiPersona(
+            a.name, listOfNotNull(JoiPrompt.raceKey(a.appearance.raceId)), emptyList(),
+            JoiPrompt.personalitiesFrom(a.appearance.personality?.traits.orEmpty(), spec != null), "dom", spec != null, a.appearance.personality?.bio.orEmpty())
+        joiMode.enter(id, spec != null, JoiPrior(cinematic, cameraMode.name, furnitureView), dialogueNow != null)
+        joiCamera.restart(); joiCamera.creature = spec != null; joiCamera.framing = joiMode.framing
+        joiPicker.reset()
+        live.joiCreature = spec; live.joiActor = castIndex[id] ?: -1; live.joiCamera = joiCamera
+        live.joiPlace(id, spec != null)
+        // a creature keeps her own game animation; her neck and head sway over it (the engine's bone layer, GL thread)
+        if (spec != null) {
+            val layer = AnimArrays.of(JoiDragonSway.layer(0.5f, seed.toLong()))
+            view.queueEvent { view.glBoneLayer(actorKey(id), layer) }
+        }
+        radial = null; speedOpen = false; feedOpen = false; menu = false; choosingAnimation = null; walking = false
+        cinematic = true
+        joiActor = id
+        joiTick++
+    }
+    fun leaveJoi() {
+        val id = joiActor ?: return
+        val prior = joiMode.leave()
+        live.joiCamera = null; live.joiActor = -1
+        if (live.joiCreature != null) view.queueEvent { view.glBoneLayer(actorKey(id), null) }
+        live.joiCreature = null
+        live.joiRelease(id)
+        cinematic = prior.cinematic
+        runCatching { cameraMode = CameraMode.valueOf(prior.cameraMode) }
+        furnitureView = prior.cameraView
+        joiActor = null
+        joiLeave = false
+    }
+    LaunchedEffect(joiLeave) { if (joiLeave) leaveJoi() }
+    // the camera follows the framing chosen on the controls
+    SideEffect { joiCamera.framing = joiMode.framing }
+    fun playJoiSolo(energy: Float) {
+        val id = joiActor ?: return
+        if (live.joiCreature != null) return
+        val clip = joiPicker.pick(joiSolos, energy, SystemClock.uptimeMillis() / 1000f) ?: return
+        val choice = choices.firstOrNull { it.id == clip.key && it.participantCount == 1 }
+        val order = if (choice != null) request(null, choice, PlayOptions())
+            else PerformanceOrder(null, listOf(PlaybackRole(clip.key, Vec3(0f, 0f, 0f), 0f)), clip.seconds)
+        live.order { sim -> sim.perform(id, order); null }
+    }
+    JoiRunner(joiMode, joiActor != null, dialogueEngine, kink, joiPersona, { energy, _ -> playJoiSolo(energy) }, { joiLeave = true }, { joiTick++ })
     fun act(id: String, slot: HudSlot) {
         when (slot.order) {
             HudOrder.WALK -> {
@@ -1227,6 +1319,7 @@ fun LiveSceneScreen(
             }
             HudOrder.PLAY -> choosingAnimation = id
             HudOrder.PARTNER -> partnerId?.let { sendToPartner(id, it) }
+            HudOrder.JOI -> startJoi(id)
             HudOrder.SAY -> saying = id
             HudOrder.CHAT -> {
                 val others = cast.filter { it.id != id }
@@ -1246,6 +1339,7 @@ fun LiveSceneScreen(
     }
     fun slotEnabled(id: String, slot: HudSlot): Boolean = when (slot.order) {
         HudOrder.PLAY, HudOrder.PARTNER, HudOrder.SAY, HudOrder.CHAT, HudOrder.LIFE -> ready
+        HudOrder.JOI -> ready && !build.on && joiActor == null
         HudOrder.USE -> ready && SceneObject.entries.firstOrNull { it.name == slot.target }?.let { snapshot.available(it, id) } == true
         else -> true
     }
@@ -1494,7 +1588,7 @@ fun LiveSceneScreen(
             },
         )
         val partnerIndex = partnerId?.let { id -> cast.indexOfFirst { it.id == id } } ?: -1
-        val wordsShown = !(cinematic && cinematicSettings.hideWords)
+        val wordsShown = !(cinematic && cinematicSettings.hideWords) && joiActor == null
         if (life != null && wordsShown && lifeOn) {
             val gems = remember(lifeShown, cast) { cast.map { a -> lifeOf(a.id)?.mood?.let(LifeHud::gem) } }
             LifeMarkers(speechSpots, gems, lines, if (lifeOn) thoughts else List(cast.size) { null }, partnerIndex, icons)
@@ -1660,15 +1754,22 @@ fun LiveSceneScreen(
             }
         }
         // cinematic auto-play: the pair's animations one after another, each change under a cut (CinematicUi, CinematicAutoplay)
-        CinematicAutoplayHost(cinematic && cinematicSettings.autoplay, live, cineDirector, cinematicSettings,
+        CinematicAutoplayHost(cinematic && cinematicSettings.autoplay && joiActor == null, live, cineDirector, cinematicSettings,
             selected ?: flow?.a, partnerId ?: flow?.b, cast.map { it.id }, autoPairs, needs.pairs, furnitureAt, bodyScales,
-            controls = cinematic && !cineHidden && revealed, treatAs = treatAs, hold = holdAnimations)
+            controls = cinematic && !cineHidden && revealed && joiActor == null, treatAs = treatAs, hold = holdAnimations)
         CinematicLayer(cinematic, cineHidden, revealed && shown > 0f && (cinematic || !immersiveHud || hudUp), {
-            cinematic = !cinematic
-            if (cinematic) { radial = null; speedOpen = false; feedOpen = false; menu = false }
+            // (while JOI mode runs the button ends it: what was on comes back)
+            if (joiActor != null) joiLeave = true else {
+                cinematic = !cinematic
+                if (cinematic) { radial = null; speedOpen = false; feedOpen = false; menu = false }
+            }
         }, { cineIdleClock.touch(); cineIdle = false }, { live.aspect = it; cineLook.viewAspect = it }, frame = cinematicSettings.frame,
             // in the top bar, left of the feed and the gear (the bar keeps the room free: SceneTopBar's reserveEnd)
             topBarEnd = SceneHud.MARGIN + TOP_ICON_W * (if (lifeOn) 2 else 1) + CINEMATIC_GAP)
+        // JOI mode: the subtitles in the film frame's lower third, and (the interface up) its controls
+        if (joiActor != null) JoiLayer(joiMode, joiTick, cinematicSettings.frame, controls = !cineHidden && revealed,
+            creature = live.joiCreature != null, onDownloadModel = onDownloadDialogueModel,
+            onRetry = { if (dialogueNow != null) joiMode.modelReady(); joiTick++ }, onStop = { joiLeave = true }, onChanged = { joiTick++ })
     }
     choosingAnimation?.let { owner ->
         // with a partner chosen, the two-person animations come first and play with them (solo ones still play alone)

@@ -37,6 +37,14 @@ data class CreatureSpec(
     val standAnimation: Int = 0,
     /** Her speech bubble hangs this high (yards). */
     val head: Float = 2.6f,
+    /**
+     * Where her skull is from her origin at her [scale] (yards): [skullForward] along her body, [skullSide] to her left, [skullLift]
+     * up. JOI mode's orbit circles it when the skeleton's head bone is not found. Placed by eye on a desktop render of her
+     * stand animation (not measured from the bone).
+     */
+    val skullForward: Float = 2.15f,
+    val skullSide: Float = -0.35f,
+    val skullLift: Float = 1.75f,
 )
 
 object CreatureNpcs {

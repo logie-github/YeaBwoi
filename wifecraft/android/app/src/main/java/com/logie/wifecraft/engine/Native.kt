@@ -106,6 +106,8 @@ object Native {
         times: FloatArray, values: FloatArray, duration: Float, loop: Boolean, nowMs: Int,
     ): Int
     @JvmStatic external fun clearBoneLayer(scene: Long, actor: Int)
+    /** An actor's head, chest and pelvis bones as last drawn (world x, y, z each), or null (JOI mode's camera follows them). */
+    @JvmStatic external fun bonePoints(scene: Long, actor: Int): FloatArray?
 
     /**
      * A reach: [actor]'s [left] or right arm put on a point of [target]'s body (bone [targetBone] of the target's model, an

@@ -141,6 +141,11 @@ class LiveScene(
          * (the talk over) back to their activity's own [animation]. Called after [activity] in the same frame.
          */
         fun gesture(index: Int, animation: Int) {}
+        /**
+         * Person [index]'s head, chest and pelvis bones as last drawn (world x, y, z each, into [out]: 9 floats), true; false when
+         * not known (JOI mode's camera then estimates them). GL thread.
+         */
+        fun bonePoints(index: Int, out: FloatArray): Boolean = false
     }
 
     companion object {
@@ -197,6 +202,20 @@ class LiveScene(
     /** Build mode is on: no animation ends ([SceneSimulation.holdAnimations]). Any thread; passed to the simulation each frame. */
     @Volatile var holdAnimations = false
     @Volatile var aspect = 16f / 9f
+    /**
+     * JOI mode ([JoiCamera]; null: off): the camera frames person [joiActor] (a cast index; -1 none) with her bones, or, for a
+     * creature ([joiCreature]), circles her head; [director] and [directing] still say whether the film camera is on, and the
+     * director waits while this one runs. While it is on she is kept where she stands, facing the camera as she was turned
+     * ([joiPlace]), and goes back to idle after each solo animation. Any thread.
+     */
+    @Volatile var joiCamera: JoiCamera? = null
+    @Volatile var joiActor = -1
+    @Volatile var joiCreature: com.logie.wifecraft.characters.CreatureSpec? = null
+    private var joiWas = false
+    private var joiHoldFacing = Float.NaN
+    private var joiSink: Sink? = null
+    private val joiPoints = FloatArray(9)
+    private val joiBody = JoiBody()
     // the director's view of the stage (GL thread): filled each frame; its furniture and obstacles made again on a change
     private var cineStage: CinematicStage? = null
     private var cineVersion = -1L
@@ -359,6 +378,11 @@ class LiveScene(
         if (dir == null || (!on && camera.directAmount <= 0f)) { cineWas = false; return }
         if (on && !cineWas && camera.directAmount <= 0f) dir.restart()
         cineWas = on
+        val jc = joiCamera
+        if (on && jc != null && joiActor in 0 until n) {
+            joiWas = true
+            if (joiFrame(jc, joiActor, dt)) return
+        } else if (joiWas) { joiWas = false; dir.restart() }
         val st = cineStage ?: CinematicStage(n).also { cineStage = it }
         st.count = n
         if (cinePlay.size != n) { cinePlay = arrayOfNulls(n); cineReads = arrayOfNulls(n); cineFrames = FloatArray(4 * n); cineActionRead = false }
@@ -424,6 +448,64 @@ class LiveScene(
         st.aspect = aspect
         st.camera(camera.eyeX, camera.eyeY, camera.eyeZ, camera.atX, camera.atY, camera.atZ, camera.fov)
         if (dir.update(dt, st)) camera.directPose(dir.eyeX, dir.eyeY, dir.eyeZ, dir.atX, dir.atY, dir.atZ, dir.fov)
+    }
+
+    /**
+     * JOI mode's frame (GL thread): her bones (the skeleton as drawn, else estimates by what she stands on), and [jc]'s pose laid
+     * over the camera. A creature's skull is found by [com.logie.wifecraft.characters.CreatureSpec.skullForward] and its kin.
+     */
+    private fun joiFrame(jc: JoiCamera, i: Int, dt: Float): Boolean {
+        simulation.pose(i, pose)
+        val scale = simulation.bodyScales[simulation.id(i)] ?: 1f
+        val sx = stageX(curX[i], curY[i]); val sy = stageY(curX[i], curY[i]); val z = oz + curZ[i]
+        val facing = pose.facing + rotation
+        val spec = joiCreature
+        jc.creature = spec != null
+        if (spec != null) {
+            jc.creatureScale = spec.scale
+            val k = spec.scale / 0.25f
+            val cf = cos(facing); val sf = sin(facing)
+            val hx = sx + (cf * spec.skullForward - sf * spec.skullSide) * k
+            val hy = sy + (sf * spec.skullForward + cf * spec.skullSide) * k
+            val hz = z + spec.skullLift * k
+            joiBody.set(Vec3(hx, hy, hz), Vec3(sx, sy, z + 1.3f * k), Vec3(sx, sy, z + 1.0f * k), facing, 3f * k, z, false)
+        } else {
+            val tracked = joiSink?.bonePoints(i, joiPoints) == true && joiPoints.all { it.isFinite() }
+            val p = joiPoints
+            if (tracked) joiBody.set(Vec3(p[0], p[1], p[2]), Vec3(p[3], p[4], p[5]), Vec3(p[6], p[7], p[8]), facing, 1.7f * scale, z, true)
+            else joiBody.set(Vec3(sx, sy, z + 1.62f * scale), Vec3(sx, sy, z + 1.25f * scale), Vec3(sx, sy, z + 0.95f * scale), facing, 1.7f * scale, z, false)
+        }
+        jc.visible = clearance?.let { c -> { eye: Vec3, at: Vec3 -> c.clear(eye, at) } }
+        if (!jc.update(dt, joiBody, aspect)) return false
+        camera.directPose(jc.eyeX, jc.eyeY, jc.eyeZ, jc.atX, jc.atY, jc.atZ, jc.fov)
+        return true
+    }
+
+    /**
+     * JOI mode starts: person [id] stays where they stand, turned to face the camera (a creature keeps her heading), held there
+     * ([SceneSimulation.holdAt]). Any thread (runs at the start of the next frame).
+     */
+    fun joiPlace(id: String, creature: Boolean) = command { sim ->
+        val at = sim.position(id) ?: return@command
+        val ex = camera.eyeX - ox; val ey = camera.eyeY - oy
+        val lx = ex * cosR + ey * sinR; val ly = -ex * sinR + ey * cosR
+        val now = sim.people().firstOrNull { it.id == id }?.facing ?: 0f
+        val yaw = if (creature) now else atan2(ly - at.y, lx - at.x)
+        joiHoldFacing = yaw
+        sim.holdAt(id, null, at, yaw, Activity.IDLE)
+    }
+
+    /** JOI mode ends: [id] is let go back to their day. Any thread. */
+    fun joiRelease(id: String) = command { sim -> joiHoldFacing = Float.NaN; sim.endHold(id) }
+
+    /** While JOI mode runs, the speaker is put back where she stands after each solo animation (GL thread, each frame). */
+    private fun joiKeep() {
+        val i = joiActor
+        if (joiCamera == null || i !in 0 until n || joiHoldFacing.isNaN()) return
+        val id = simulation.id(i)
+        if (simulation.busy(id)) return
+        val at = simulation.position(id) ?: return
+        simulation.holdAt(id, null, at, joiHoldFacing, Activity.IDLE)
     }
 
     private var cineActionRead = false
@@ -548,6 +630,8 @@ class LiveScene(
         val due = clock.begin(nowNanos)
         val dt = clock.frameSeconds
         frameSink = sink
+        joiSink = sink
+        joiKeep()
         holdPreview(sink)
         val ticking = running && previewFor == null
         simulation.holdAnimations = holdAnimations

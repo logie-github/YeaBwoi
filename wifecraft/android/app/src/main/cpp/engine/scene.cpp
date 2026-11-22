@@ -2255,6 +2255,27 @@ bool Scene::actorPose(int id, std::vector<M4>& mats, int& seq, uint32_t& timeMs)
     return true;
 }
 
+bool Scene::actorBonePoints(int id, float out[9]) const {
+    auto it = actors_.find(id);
+    if (it == actors_.end()) return false;
+    const Actor& a = it->second;
+    if (!a.mesh || !a.mesh->model) return false;
+    const M2Model& m = *a.mesh->model;
+    const int head = m.findWowBone("Head"), pelvis = m.findWowBone("Pelvis");
+    int chest = m.findWowBone("Spine2");
+    if (chest < 0) chest = m.findWowBone("Spine1");
+    if (head < 0 || pelvis < 0 || chest < 0) return false;
+    const size_t n = a.mats.size();
+    if (size_t(head) >= n || size_t(pelvis) >= n || size_t(chest) >= n) return false;
+    const M4 w = M4::translation(a.position) * M4::rotationZ(a.facing) * M4::scaling(V3(a.scale, a.scale, a.scale));
+    const int bones[3] = {head, chest, pelvis};
+    for (int k = 0; k < 3; ++k) {
+        const V3 p = w.point(a.mats[size_t(bones[k])].point(m.bones[size_t(bones[k])].pivot));
+        out[3 * k] = p.x; out[3 * k + 1] = p.y; out[3 * k + 2] = p.z;
+    }
+    return true;
+}
+
 void Scene::dropBodyGl(Actor& a) {
     BodyGl& b = a.body;
     if (glReady_) {
