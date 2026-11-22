@@ -117,7 +117,8 @@ class ChatMode(seed: Long = Random.nextLong()) {
 
 /**
  * Her small gestures while she talks and listens: the gesture, pose, hair, look-back and flirt kinds of the solo library (the same
- * classification as JOI's, [JoiAnimations.classify]) and any clip named for talking; never a dance, a tease, a kiss or a handjob.
+ * classification as JOI's, [JoiAnimations.classify]) and any clip named for talking; never a dance, a tease, a kiss or a handjob, and no
+ * emote whose measured pose folds the body ([ConversationPoses]).
  * One is due every 4 to 9 s while she speaks, every 14 to 30 s while she listens; never the one just played nor any within [COOLDOWN].
  */
 class ChatGestures(seed: Long = Random.nextLong()) {
@@ -131,6 +132,10 @@ class ChatGestures(seed: Long = Random.nextLong()) {
         val out = LinkedHashMap<JoiClip, Set<JoiMove>>()
         for (c in clips) {
             if (c.handjob || c.procedural) continue
+            // a game animation (an emote) is played only when its measured pose passes the conversation check, as in NPC-NPC talk
+            // ([ConversationPoses]: Laugh, Exclamation and the nod fold the body; an unmeasured one is not played); the library's own clips are
+            // not measured (their poses are whatever the imported pack made: gestures, poses, hair, look-backs and flirts by name)
+            PlaybackKeys.emoteOf(c.key)?.let { anim -> if (ConversationPoses.verdict(anim)?.ok != true) continue }
             val moves = JoiAnimations.classify(c).filter { it in SMALL }.toSet()
             if (moves.isNotEmpty() && JoiAnimations.classify(c).all { it in SMALL }) { out[c] = moves; continue }
             if (moves.isEmpty()) {
@@ -157,7 +162,7 @@ class ChatGestures(seed: Long = Random.nextLong()) {
     companion object {
         const val COOLDOWN = 45f
         val SMALL = setOf(JoiMove.GESTURE, JoiMove.POSE, JoiMove.HAIR, JoiMove.LOOK_BACK, JoiMove.FLIRT)
-        private val TALK = Regex("talk|speak|question|exclaim|shrug|\\bnod\\b|explain|ponder|think|conversation|\\bchat\\b|laugh|giggle")
+        private val TALK = Regex("talk|speak|question|exclaim|shrug|\\bnod\\b|explain|ponder|think|conversation|\\bchat\\b")
         private val AVOID = Regex("\\bsit|sleep|\\blie|lying|kneel|crouch|cry|attack|fight|combat|death|dead|walk|\\brun|swim|mount|cast|partner|pair:|sex|oral|stage|kill|dance")
     }
 }

@@ -466,13 +466,13 @@ class ChatModeTest {
     @Test fun herGesturesAreSmallOnesAndNeverAnotherKind() {
         val g = ChatGestures(4L)
         val clips = listOf(
-            JoiClip("a", "Wave"), JoiClip("b", "Hair twirl"), JoiClip("c", "Standing pose"), JoiClip("d", "Slow dance"), JoiClip("e", "Seductive tease"),
-            JoiClip("f", "Blow kiss"), JoiClip("g", "Sit on chair"), JoiClip("h", "Explaining gesture"), JoiClip("i", "Laugh", emote = true),
+            JoiClip("a", "Wave clip"), JoiClip("b", "Hair twirl"), JoiClip("c", "Standing pose"), JoiClip("d", "Slow dance"), JoiClip("e", "Seductive tease"),
+            JoiClip("f", "Blow kiss"), JoiClip("g", "Sit on chair"), JoiClip("h", "Explaining gesture"), JoiClip("emote:70", "Laugh", emote = true), JoiClip("emote:67", "Wave", emote = true), JoiClip("emote:999", "Unmeasured", emote = true),
             JoiClip.stroke(), JoiClip("j", "Look over the shoulder"), JoiClip("k", "Dance with partner", kind = "HANDJOB", giver = 0),
         )
         val cat = g.catalogue(clips)
         val keys = cat.keys.map { it.key }.toSet()
-        assertEquals(setOf("a", "b", "c", "h", "i", "j"), keys, "$keys")
+        assertEquals(setOf("a", "b", "c", "h", "emote:67", "j"), keys, "$keys (Laugh folds the body: not played; an unmeasured emote is not played either)")
         // picks: never the last, none within the cooldown, and after it again
         val seen = ArrayList<String>()
         var now = 0f
