@@ -39,6 +39,7 @@ class DialogueDirector(
     private val history = HashMap<String, ArrayDeque<DialogueTurn>>()
     private val lastSpoke = HashMap<String, Double>()
     private var nextSpeechAt = 0.0
+    private var nullStreak = 0
 
     private class Conv(val a: String, val b: String, var turnsLeft: Int, var next: String, var heard: String?, val seed: String?)
     private val convs = HashMap<String, Conv>()
@@ -54,7 +55,7 @@ class DialogueDirector(
     private val consent = ConsentCoordinator(runner, lore, comfort, { id, line -> deliver(id, line, TalkMode.WORLD, null, consentLine = true) },
         { id -> view?.person(id)?.profile }, { a, b -> view?.relation?.invoke(a, b) ?: Relation() }, { clock })
 
-    override val active: Boolean get() = settings.enabled && engineOf() != null
+    override val active: Boolean get() = settings.enabled && engineOf()?.ready == true
     override var cinematic: Boolean = false
         private set
 
@@ -73,10 +74,12 @@ class DialogueDirector(
 
     /** A new scene: everything forgotten (no history, comfort, steers or sessions between scenes or runs). */
     fun reset() {
+        engineOf()?.let { e -> seenProfiles.keys.forEach(e::forget); e.setFocus(null, emptySet()) }
+        seenProfiles.clear(); focusSent = null; focusEngine = null
         generation++
         runner.clear(); consent.reset(); comfort.clear(); steers.clearAll()
         history.clear(); lastSpoke.clear(); convs.clear(); pairCooldown.clear(); liveTurn.clear(); jois.clear(); runs.clear(); events.clear()
-        known = emptySet(); nextSpeechAt = 0.0; systems.clear()
+        known = emptySet(); nextSpeechAt = 0.0; nullStreak = 0; systems.clear()
     }
 
     fun historyOf(id: String): List<DialogueTurn> = history[id]?.toList().orEmpty()
@@ -98,6 +101,7 @@ class DialogueDirector(
         cinematic = v.cinematic
         runner.pump(clock)
         track(v)
+        syncEngine(v)
         if (!active) return
         consent.tick()
         runner.pump(clock)
@@ -133,6 +137,39 @@ class DialogueDirector(
         }
         events.removeAll { clock - it.first > EVENT_AGE }
         while (events.size > 8) events.removeAt(0)
+    }
+
+    // ---- what the runtime is told: who is in focus, and whose state to give up
+
+    private var focusSent: Pair<String?, Set<String>>? = null
+    private var focusEngine: DialogueEngine? = null
+    private val seenProfiles = HashMap<String, NpcProfile>()
+
+    /** The NPC the player has selected and the pair that is talking (a sexual stage's, else the selected one's, else a conversation's). */
+    private fun focusOf(v: SceneView): Pair<String?, Set<String>> {
+        val sel = v.people.firstOrNull { it.selected }
+        fun pairOf(p: PersonView) = p.withId?.let { setOf(p.profile.id, it) }.orEmpty()
+        val pair = sel?.takeIf { it.inStage || it.inConversation }?.let(::pairOf)
+            ?: v.people.firstOrNull { it.inStage && it.sexualStage && it.withId != null }?.let(::pairOf)
+            ?: v.people.firstOrNull { it.inConversation && it.withId != null }?.let(::pairOf)
+            ?: emptySet()
+        return sel?.profile?.id to pair
+    }
+
+    private fun syncEngine(v: SceneView) {
+        val engine = engineOf()
+        // an NPC whose persona changed, or who left: their state in the model is given up (the next request reads the whole prompt again)
+        val ids = v.people.map { it.profile.id }.toSet()
+        for (p in v.people) {
+            val old = seenProfiles.put(p.profile.id, p.profile)
+            if (old != null && old != p.profile) { systems.remove(p.profile.id); history.remove(p.profile.id); engine?.forget(p.profile.id) }
+        }
+        for (id in seenProfiles.keys.toList()) if (id !in ids) {
+            seenProfiles.remove(id); systems.remove(id); history.remove(id); lastSpoke.remove(id); engine?.forget(id)
+        }
+        if (engine == null) { focusEngine = null; focusSent = null; return }
+        val f = focusOf(v)
+        if (engine !== focusEngine || f != focusSent) { focusEngine = engine; focusSent = f; engine.setFocus(f.first, f.second) }
     }
 
     private fun recent() = events.map { it.second }
@@ -217,7 +254,13 @@ class DialogueDirector(
         val req = DialogueRequest(me.id, system, history[me.id]?.toList().orEmpty(), user, maxTokens = 60, temperature = 0.85f)
         val gen = generation
         val prio = (c.score * 10).toInt()
-        runner.submit(prio, "speech", req, ttl = 15.0) { raw ->
+        val urgency = when {
+            c.speaker.selected || c.other?.selected == true || c.mode == TalkMode.LIVE -> DialoguePriority.SELECTED
+            c.conv != null -> DialoguePriority.PAIR
+            c.score >= 1.5f -> DialoguePriority.NEARBY
+            else -> DialoguePriority.AMBIENT
+        }
+        runner.submit(prio, "speech", req, ttl = 15.0, urgency = urgency) { raw ->
             if (gen != generation) return@submit
             onAnswer(c, req, raw, retried = false, gen, prio)
         }
@@ -249,12 +292,18 @@ class DialogueDirector(
     private fun onAnswer(c: Candidate, req: DialogueRequest, raw: String?, retried: Boolean, gen: Int, prio: Int) {
         val me = c.speaker.profile
         val line = LineCleaner.clean(raw, me.name)
-        if (line == null) { nextSpeechAt = clock + 1.0; return }
+        if (line == null) {
+            // nothing came back (no model, busy, a bad answer): ask less and less often, never in a tight loop
+            nullStreak++
+            nextSpeechAt = clock + minOf(1.0 * (1 shl minOf(nullStreak - 1, 4)), 16.0)
+            return
+        }
+        nullStreak = 0
         val bad = Anachronisms.find(line)
         if (bad != null) {
             if (!retried) {
                 val again = req.copy(user = req.user + "\nSpeak as people of Azeroth do; do not use the word \"$bad\" or anything like it.")
-                runner.submit(prio, "speech", again, ttl = 15.0) { r2 -> if (gen == generation) onAnswer(c, again, r2, retried = true, gen, prio) }
+                runner.submit(prio, "speech", again, ttl = 15.0, urgency = req.priority) { r2 -> if (gen == generation) onAnswer(c, again, r2, retried = true, gen, prio) }
             } else nextSpeechAt = clock + 1.0
             return
         }
