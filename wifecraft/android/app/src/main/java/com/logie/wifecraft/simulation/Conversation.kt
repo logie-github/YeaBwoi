@@ -99,9 +99,11 @@ class Conversation(val lines: List<ChatLine>) {
     fun gesture(role: Int): Int {
         if (!started || done) return -1
         val l = line ?: return Gestures.STAND
-        if (l.speaker == role) return if (clock < GESTURE_SECONDS) l.gesture else Gestures.TALK
+        // every gesture goes through the pose check ([ConversationPoses]): a laugh or an exclamation that folds or twists the
+        // body (the shoulder armour over her head, her arms out behind) never plays; a nod or plain talking does instead
+        if (l.speaker == role) return if (clock < GESTURE_SECONDS) ConversationPoses.vet(l.gesture) else Gestures.TALK
         val length = Reading.seconds(l.text)
-        return if (l.nod && clock >= length - NOD_SECONDS) Gestures.YES else Gestures.STAND
+        return if (l.nod && clock >= length - NOD_SECONDS) ConversationPoses.vet(Gestures.YES, Gestures.STAND) else Gestures.STAND
     }
 
     companion object {
