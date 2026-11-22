@@ -356,7 +356,8 @@ class SceneSimulation(
     private val spacedPairs = java.util.IdentityHashMap<PartnerPair, PartnerPair>()
 
     /** [pair] with its two bodies kept apart ([PairSpacing]: no two trunks in each other, never both on one axis); cached. */
-    fun spaced(pair: PartnerPair): PartnerPair = spacedPairs.getOrPut(pair) { PairSpacing.spaced(pair) }
+    fun spaced(pair: PartnerPair): PartnerPair =
+        if (pair.exclusiveTo != null) pair else spacedPairs.getOrPut(pair) { PairSpacing.spaced(pair) }   // (a creature stage's slots are its own)
 
     /** A pair spaced for two bodies (each kept as itself). */
     private class SpacedKey(val pair: PartnerPair, val a: FleshProfile, val b: FleshProfile) {
@@ -367,6 +368,7 @@ class SceneSimulation(
 
     /** [pair] spaced for the bodies playing it ([first] its actor 0, [second] its actor 1: their own flesh); cached. */
     private fun spaced(pair: PartnerPair, first: Actor, second: Actor): PartnerPair {
+        if (pair.exclusiveTo != null) return pair
         val a = fleshOf(first); val b = fleshOf(second)
         if (!a.measured && !b.measured) return spaced(pair)
         if (spacedForBodies.size > 256) spacedForBodies.clear()
@@ -720,7 +722,8 @@ class SceneSimulation(
     fun perform(id: String, request: PerformanceOrder): Boolean {
         refusal = null
         val actor = actors[id] ?: return false
-        return valid(actor, request) && startOrdered(actor, request, null)
+        val oriented = orientStage(actor, request) ?: return false
+        return valid(actor, oriented) && startOrdered(actor, oriented, null)
     }
 
     /** An ordered [request]: a placed one on its furniture ([startPlacedOrder]), any other as before. */
@@ -828,8 +831,11 @@ class SceneSimulation(
 
     fun enqueue(id: String, requests: List<PerformanceOrder>): Boolean {
         val actor = actors[id] ?: return false
-        if (requests.isEmpty() || requests.size > MAX_QUEUED - actor.queue.size || requests.any { !valid(actor, it) }) return false
-        actor.queue.addAll(requests)
+        if (requests.isEmpty() || requests.size > MAX_QUEUED - actor.queue.size) return false
+        refusal = null
+        val oriented = requests.map { orientStage(actor, it) ?: return false }
+        if (oriented.any { !valid(actor, it) }) return false
+        actor.queue.addAll(oriented)
         version++
         return true
     }
@@ -1053,9 +1059,41 @@ class SceneSimulation(
 
     private fun isCreature(actor: Actor?): Boolean = actor != null && actor.id in creatures
 
+    private var exclusivePairs: List<PartnerPair>? = null
+    private var exclusiveIds: Set<String> = emptySet()
+
+    /** Whether the role clip [key] is one of a creature's own stages ([PartnerPair.exclusiveTo]): it places both people itself. */
+    private fun stageOwned(key: String): Boolean {
+        val id = CreatureStages.pairIdOf(key) ?: return false
+        if (exclusivePairs !== pairs) { exclusivePairs = pairs; exclusiveIds = pairs.filter { it.exclusiveTo != null }.mapTo(HashSet()) { it.id } }
+        return id in exclusiveIds
+    }
+
+    /** Whether [pair] may be played by [a] and [b]: a creature's own stage ([PartnerPair.exclusiveTo]) needs that creature and a person. */
+    private fun eligible(pair: PartnerPair, a: Actor?, b: Actor?): Boolean = CreatureStages.eligible(pair.exclusiveTo,
+        a?.let { creatures[it.id]?.character }, b?.let { creatures[it.id]?.character }, isCreature(a), isCreature(b))
+
+    /**
+     * An ordered [request] for a creature's own stage ([PartnerPair.exclusiveTo]) as it is played: the person in its role 0
+     * (active) and the creature in role 1 (receiving), whichever of them was chosen to lead (the roles turned over when the
+     * creature leads); null (and [refusal] says why) when the two aren't that creature and a person. Any other request as it is.
+     */
+    private fun orientStage(lead: Actor, request: PerformanceOrder): PerformanceOrder? {
+        val id = request.pairId ?: request.roles.firstNotNullOfOrNull { CreatureStages.pairIdOf(it.clip) } ?: return request
+        val pair = pairs.firstOrNull { it.id == id } ?: return request
+        val want = pair.exclusiveTo ?: return request
+        val other = request.partnerId?.let(actors::get)
+        if (other == null || request.roles.size != 2 || !eligible(pair, lead, other)) {
+            refuse("That stage needs ${CreatureNpcs.of(want)?.character?.replaceFirstChar { it.uppercase() } ?: "its creature"} and one other person.")
+            return null
+        }
+        return if (isCreature(lead)) request.copy(roles = request.roles.reversed()) else request
+    }
+
     /** [actor]'s creature move for the role [mine] against the role [theirs] (the pair's frame), else none. */
     private fun creatureDelta(actor: Actor?, mine: PlaybackRole, theirs: PlaybackRole): RoleDelta {
         val spec = actor?.let { creatures[it.id] } ?: return RoleDelta.ZERO
+        if (stageOwned(mine.clip)) return RoleDelta.ZERO   // a creature's own stage puts her where its table says
         val d = CreatureNpcs.place(spec, mine.offset.x, mine.offset.y, theirs.offset.x, theirs.offset.y, mine.facing)
         return RoleDelta(d[0], d[1], 0f, d[2])
     }
@@ -1824,6 +1862,7 @@ class SceneSimulation(
         val unit = bodyUnit(a, b)
         for (p in pairs) {
             if (gate != null && !gate(p.name, -1)) continue
+            if (!eligible(p, a, b)) continue     // a creature's own stage needs her and a person
             val r = requirementOf(p)
             // made in water with one body in it and one out (a pool's edge): nothing here shows it so (PairWater)
             if (r != null && PairWater.needsWater(r, p)) continue
@@ -1969,6 +2008,7 @@ class SceneSimulation(
         val p = actors[id]?.performance ?: return false
         val newLead = p.other ?: return false
         if (!p.started || p.emote >= 0) return false
+        if (p.roles.any { stageOwned(it.clip) }) return false   // a creature's own stage has one way round
         val was = p.lead
         val sa = size(was); val sb = size(newLead)
         val parts = p.segments.map { it.copy(roles = RoleSwitch.refit(it.roles, sa, sb)) }
@@ -2110,6 +2150,8 @@ class SceneSimulation(
         // who plays the pair's actor 0 ([playA], the one who goes) and actor 1 ([playB], the performance's lead)
         var playA = initiator
         var playB = target
+        // a creature's own stage: the person is the active one (actor 0), the creature receives
+        if (pair?.exclusiveTo != null && isCreature(playA)) { playA = target; playB = initiator }
         if (fit != null && !pickedFixed) {
             val cast = FurnitureSelection.cast(fit, listOf(NearbyNpc(initiator.id, initiator.x, initiator.y), NearbyNpc(target.id, target.x, target.y)))
             if (cast != null && cast[0] == target.id) { playA = target; playB = initiator }

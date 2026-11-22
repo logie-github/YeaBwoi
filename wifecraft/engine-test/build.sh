@@ -129,3 +129,9 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/hdbody_test.cpp" "$engine/hdbody.cpp" "$engine/evebody.cpp" "$engine/softbody.cpp" "$engine/modelpart.cpp" "$engine/bodypart.cpp" \
     "$engine/blp.cpp" "$engine/json.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" "$engine/sculpt.cpp" -lGLESv2 -lz -lpthread -o "$here/build/hdbody_test"
 echo "$here/build/hdbody_test"
+# The bone layer and the reach (engine/bonelayer.h: a layer's keys sampled with the loop's wrap, a two-bone arm put on a point,
+# out of reach it stops short; no GL, no game files): build/bonelayer_test, exit 0 when all pass.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/bonelayer_test.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" \
+    -o "$here/build/bonelayer_test"
+echo "$here/build/bonelayer_test"

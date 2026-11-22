@@ -1321,6 +1321,9 @@ void Scene::setCamera(V3 eye, V3 target, float fovDegrees) {
 }
 
 void Scene::animate(Actor& a, uint32_t now) {
+    if (a.animating) return;     // (a reach and its target reaching at each other)
+    a.animating = true;
+    struct Done { Actor& a; uint32_t now; ~Done() { a.animating = false; a.animatedAt = now; } } done{a, now};
     M2Model& m = *a.mesh->model;
     bool hasSeq = a.seq >= 0 && size_t(a.seq) < m.sequences.size();
     // the skeleton edited for this actor (bodyrig.h): the Eve body's proportions and the sculpt's Leg Length on them, made
@@ -1393,10 +1396,13 @@ void Scene::animate(Actor& a, uint32_t now) {
         a.fadeMs = 0;
     }
     a.posed = true;
+    holdBoneLayer(a, now);
     if (a.legEdit.active) legEditMatrices(m.bones, a.pa, a.legEdit, a.mats);
     else m.bonesToMatrices(a.pa, a.mats);
     if (a.mats.empty()) a.mats.push_back(M4());
     layMotion(a, now);
+    layBoneLayer(a, now);
+    layReach(a, now);
     if (!a.boneTex) {
         glGenTextures(1, &a.boneTex);
         glBindTexture(GL_TEXTURE_2D, a.boneTex);
@@ -1788,7 +1794,7 @@ void Scene::render(int width, int height, uint32_t nowMs) {
             else if (idle >= 0 && m.sequenceReady(idle)) startSeq(a, idle, a.idleAnim, true);
             else a.loop = true;
         }
-        animate(a, clock);
+        if (a.animatedAt != clock) animate(a, clock);   // (a reach's target is posed before the one reaching: layReach)
         alignWithFurniture(a);
         stepSoft(a, clock);   // the pause-proof animation clock, not the wall clock
         stepCloth(a, clock);
@@ -1860,6 +1866,208 @@ void Scene::setMotion(int id, float intensity, int target) {
 void Scene::clearMotion(int id) {
     auto it = actors_.find(id);
     if (it != actors_.end()) { it->second.motion.on = false; it->second.motion.yaw = it->second.motion.pitch = 0; }
+}
+
+// ---------------------------------------------------------------------------------------------- bone layer and reach
+
+namespace {
+// A track's bone in `m`: a WoW-side name, or "#N" (the model's bone N).
+int layerBoneOf(const M2Model& m, const std::string& name) {
+    if (!name.empty() && name[0] == '#') {
+        int i = std::atoi(name.c_str() + 1);
+        return i >= 0 && size_t(i) < m.bones.size() ? i : -1;
+    }
+    return m.findWowBone(name);
+}
+// The bone and every bone under it.
+std::vector<int> subtreeOf(const M2Model& m, int root) {
+    std::vector<int> out;
+    if (root < 0 || size_t(root) >= m.bones.size()) return out;
+    std::vector<uint8_t> in(m.bones.size(), 0);
+    in[size_t(root)] = 1;
+    // (parents come before their children in the file's order, but not always: repeat until nothing is added)
+    for (bool grew = true; grew;) {
+        grew = false;
+        for (size_t i = 0; i < m.bones.size(); ++i) {
+            int p = m.bones[i].parent;
+            if (!in[i] && p >= 0 && size_t(p) < in.size() && in[size_t(p)]) { in[i] = 1; grew = true; }
+        }
+    }
+    for (size_t i = 0; i < in.size(); ++i) if (in[i]) out.push_back(int(i));
+    return out;
+}
+}
+
+int Scene::setBoneLayer(int id, const BoneAnim& layer, uint32_t nowMs) {
+    auto it = actors_.find(id);
+    if (it == actors_.end()) return 0;
+    Actor& a = it->second;
+    const M2Model& m = *a.mesh->model;
+    a.layer = std::make_shared<BoneAnim>(layer);
+    a.layerBones.clear();
+    a.layerSubtrees.clear();
+    a.layerFreeze.clear();
+    a.layerFrozen.clear();
+    a.layerHold = -1;
+    a.layerCaptured = false;
+    a.layerLastT = 0;
+    int found = 0;
+    for (size_t k = 0; k < layer.tracks.size(); ++k) {
+        const BoneAnimTrack& t = layer.tracks[k];
+        if (!t.rotation && t.bone == "layer.hold") a.layerHold = int(k);
+        const bool freeze = t.rotation && !t.bone.empty() && t.bone[0] == '!';
+        int b = t.rotation && !t.times.empty() && t.values.size() >= t.times.size() * 4 ? layerBoneOf(m, freeze ? t.bone.substr(1) : t.bone) : -1;
+        if (freeze && b >= 0) { a.layerFreeze.push_back(b); a.layerFrozen.push_back(Quat()); ++found; b = -1; }
+        a.layerBones.push_back(b);
+        a.layerSubtrees.push_back(b >= 0 ? subtreeOf(m, b) : std::vector<int>());
+        if (b >= 0) ++found;
+    }
+    a.layerStart = nowMs;
+    return found;
+}
+
+void Scene::clearBoneLayer(int id) {
+    auto it = actors_.find(id);
+    if (it == actors_.end()) return;
+    it->second.layer.reset();
+    it->second.layerBones.clear();
+    it->second.layerSubtrees.clear();
+    it->second.layerFreeze.clear();
+    it->second.layerFrozen.clear();
+}
+
+void Scene::holdBoneLayer(Actor& a, uint32_t now) {
+    if (!a.layer || a.ghost || a.layerFreeze.empty() || a.pa.size() != a.mesh->model->bones.size()) return;
+    const float t = layer::layerTime(now, a.layerStart, a.layer->duration, a.layer->loop);
+    // each loop's start (and the first frame): the held bones' pose as their own animation has it now
+    if (!a.layerCaptured || t < a.layerLastT - 0.05f) {
+        for (size_t i = 0; i < a.layerFreeze.size(); ++i) a.layerFrozen[i] = a.pa[size_t(a.layerFreeze[i])].r;
+        a.layerCaptured = true;
+    }
+    a.layerLastT = t;
+    float h = 1.0f;
+    if (a.layerHold >= 0) h = std::clamp(layer::samplePosition(a.layer->tracks[size_t(a.layerHold)], t, a.layer->loop ? a.layer->duration : 0.0f, V3(0, 0, 0)).x, 0.0f, 1.0f);
+    if (!(h > 1e-4f)) return;
+    for (size_t i = 0; i < a.layerFreeze.size(); ++i) {
+        BonePose& p = a.pa[size_t(a.layerFreeze[i])];
+        p.r = slerp(p.r, a.layerFrozen[i], h);
+    }
+}
+
+void Scene::layBoneLayer(Actor& a, uint32_t now) {
+    if (!a.layer || a.ghost || a.mats.size() != a.mesh->model->bones.size()) return;
+    const M2Model& m = *a.mesh->model;
+    const float t = layer::layerTime(now, a.layerStart, a.layer->duration, a.layer->loop);
+    const float loopLen = a.layer->loop ? a.layer->duration : 0.0f;
+    for (size_t k = 0; k < a.layer->tracks.size() && k < a.layerBones.size(); ++k) {
+        int b = a.layerBones[k];
+        if (b < 0 || size_t(b) >= a.mats.size()) continue;
+        Quat q = layer::sampleRotation(a.layer->tracks[k], t, loopLen);
+        if (std::fabs(q.w) > 0.999999f) continue;
+        M4 d = layer::rotateAbout(a.mats[size_t(b)].point(m.bones[size_t(b)].pivot), q);
+        for (int i : a.layerSubtrees[k]) if (size_t(i) < a.mats.size()) a.mats[size_t(i)] = d * a.mats[size_t(i)];
+    }
+}
+
+int Scene::setReach(int id, int targetId, int targetBone, bool left, const BoneAnim& keys, uint32_t nowMs) {
+    auto it = actors_.find(id);
+    if (it == actors_.end()) return 0;
+    Actor& a = it->second;
+    const M2Model& m = *a.mesh->model;
+    Actor::Reach r;
+    const char* side = left ? "L_" : "R_";
+    r.upper = m.findWowBone(std::string(side) + "UpperArm");
+    r.fore = m.findWowBone(std::string(side) + "Forearm");
+    r.hand = m.findWowBone(std::string(side) + "Hand");
+    r.fingers = m.findWowBone(std::string(side) + "Middle1");
+    if (r.upper < 0 || r.fore < 0 || r.hand < 0 || r.fingers < 0) { a.reach = Actor::Reach(); return 0; }
+    r.on = true;
+    r.target = targetId;
+    r.targetBone = targetBone;
+    r.left = left;
+    r.keys = std::make_shared<BoneAnim>(keys);
+    r.start = nowMs;
+    r.upperSub = subtreeOf(m, r.upper);
+    r.foreSub = subtreeOf(m, r.fore);
+    r.handSub = subtreeOf(m, r.hand);
+    a.reach = std::move(r);
+    return 1;
+}
+
+void Scene::clearReach(int id) {
+    auto it = actors_.find(id);
+    if (it != actors_.end()) it->second.reach = Actor::Reach();
+}
+
+bool Scene::actorPlacement(int id, V3& position, float& facing, float& scale) const {
+    auto it = actors_.find(id);
+    if (it == actors_.end()) return false;
+    position = it->second.position; facing = it->second.facing; scale = it->second.scale;
+    return true;
+}
+
+bool Scene::reachState(int id, V3& palm, V3& target, float& weight, bool& reachable) const {
+    auto it = actors_.find(id);
+    if (it == actors_.end() || !it->second.reach.on || !it->second.reach.solved) return false;
+    palm = it->second.reach.palm; target = it->second.reach.aimed; weight = it->second.reach.weight; reachable = it->second.reach.reachable;
+    return true;
+}
+
+void Scene::layReach(Actor& a, uint32_t now) {
+    Actor::Reach& r = a.reach;
+    r.solved = false;
+    if (!r.on || !r.keys || a.ghost || a.mats.size() != a.mesh->model->bones.size()) return;
+    auto tit = actors_.find(r.target);
+    if (tit == actors_.end() || !tit->second.visible || !tit->second.mesh || !tit->second.mesh->model) return;
+    Actor& o = tit->second;
+    const M2Model& om = *o.mesh->model;
+    if (r.targetBone < 0 || size_t(r.targetBone) >= om.bones.size()) return;
+    if (o.animatedAt != now) animate(o, now);    // the target as it is posed this very frame
+    if (o.mats.size() != om.bones.size()) return;
+    const M2Model& m = *a.mesh->model;
+    const float t = layer::layerTime(now, r.start, r.keys->duration, r.keys->loop);
+    const float loopLen = r.keys->loop ? r.keys->duration : 0.0f;
+    V3 wk(0, 0, 0), off(0, 0, 0), along(1, 0, 0), pole(0, 0, 0);
+    for (const BoneAnimTrack& tr : r.keys->tracks) {
+        if (tr.rotation) continue;
+        if (tr.bone == "reach.w") wk = layer::samplePosition(tr, t, loopLen, wk);
+        else if (tr.bone == "reach.off") off = layer::samplePosition(tr, t, loopLen, off);
+        else if (tr.bone == "reach.along") along = layer::samplePosition(tr, t, loopLen, along);
+        else if (tr.bone == "reach.pole") pole = layer::samplePosition(tr, t, loopLen, pole);
+    }
+    const float w = std::clamp(wk.x, 0.0f, 1.0f);
+    r.weight = w;
+    // the target in the person's model space: the bone's pivot plus the offset (the target model's rest axes) as posed,
+    // through the two placements
+    const M4 ow = M4::translation(o.position) * M4::rotationZ(o.facing) * M4::scaling(V3(o.scale, o.scale, o.scale));
+    const M4 inv = motion::placementInverse(a.position, a.facing, a.scale);
+    const V3 world = ow.point(o.mats[size_t(r.targetBone)].point(om.bones[size_t(r.targetBone)].pivot + off));
+    const V3 target = inv.point(world);
+    // the direction the fingers lie along: the target bone's rest axes as posed, through the placements
+    const M4& tb = o.mats[size_t(r.targetBone)];
+    V3 dirT(tb.at(0, 0) * along.x + tb.at(0, 1) * along.y + tb.at(0, 2) * along.z,
+            tb.at(1, 0) * along.x + tb.at(1, 1) * along.y + tb.at(1, 2) * along.z,
+            tb.at(2, 0) * along.x + tb.at(2, 1) * along.y + tb.at(2, 2) * along.z);
+    const V3 dirW = (M4::rotationZ(o.facing)).point(dirT.normalized());
+    const V3 dirP = M4::rotationZ(-a.facing).point(dirW);
+    if (!(w > 1e-4f)) { r.palm = V3(); r.aimed = target; r.reachable = true; return; }
+    auto pivotAt = [&](int b) { return a.mats[size_t(b)].point(m.bones[size_t(b)].pivot); };
+    layer::ArmPose arm{pivotAt(r.upper), pivotAt(r.fore), pivotAt(r.hand), pivotAt(r.fingers)};
+    layer::ReachGoal goal;
+    goal.target = target;
+    goal.along = dirP;
+    goal.pole = pole;
+    goal.weight = w;
+    layer::ReachTurns turns = layer::solveReach(arm, goal);
+    auto lay = [&](const std::vector<int>& sub, const M4& d) { for (int i : sub) if (size_t(i) < a.mats.size()) a.mats[size_t(i)] = d * a.mats[size_t(i)]; };
+    lay(r.upperSub, layer::rotateAbout(arm.shoulder, turns.upper));
+    lay(r.foreSub, layer::rotateAbout(turns.elbow, turns.fore));
+    lay(r.handSub, layer::rotateAbout(turns.wrist, turns.hand));
+    const M4 aw = M4::translation(a.position) * M4::rotationZ(a.facing) * M4::scaling(V3(a.scale, a.scale, a.scale));
+    r.palm = aw.point(turns.palm);
+    r.aimed = world;
+    r.reachable = turns.reachable;
+    r.solved = true;
 }
 
 void Scene::layMotion(Actor& a, uint32_t now) {

@@ -127,6 +127,7 @@ import com.logie.wifecraft.simulation.ModelEmotes
 import com.logie.wifecraft.simulation.PartnerEmotes
 import com.logie.wifecraft.simulation.PartnerFrequency
 import com.logie.wifecraft.characters.CreatureNpcs
+import com.logie.wifecraft.characters.DragonStages
 import com.logie.wifecraft.simulation.PartnerPair
 import com.logie.wifecraft.simulation.PartnerSoundSink
 import com.logie.wifecraft.simulation.SceneSnapshot
@@ -386,7 +387,13 @@ fun LiveSceneScreen(
         runCatching { playPrefs.edit().putString(playKey, options.encode()).apply() }
     }
     // what NPCs pick from by themselves: the library's enabled pairs and the authors' two-actor performances
-    val partnerPairs = remember(pairs, choices) { PartnerPair.enabled(pairs) + choices.mapNotNull { PartnerPair.of(it) } }
+    // (+ the creature's own stages: Sindragosa's, offered and played only with her, characters/DragonStages)
+    val stageChoices = remember { DragonStages.pairs().map { it.choice() } }
+    val partnerPairs = remember(pairs, choices) {
+        PartnerPair.enabled(pairs) + choices.mapNotNull { PartnerPair.of(it) } + DragonStages.pairs().map { PartnerPair.of(it) }
+    }
+    // (the cinematic auto-play cycles the library's stages: a creature's own are played from the animation browser)
+    val autoPairs = remember(partnerPairs) { partnerPairs.filter { it.exclusiveTo == null } }
     // what the NPCs say to each other: their names, races and sexes, and the place
     val words = remember(cast, locationName) {
         Chatter(cast.associate { it.id to Speaker(it.name, it.appearance.raceId, it.appearance.sex == Sex.FEMALE) }, locationName)
@@ -837,14 +844,22 @@ fun LiveSceneScreen(
             override fun playback(index: Int, clip: ClipPlayback?) {
                 val key = keys[index]
                 val creature = creatureOf[index]
+                // a creature's own stage (DragonStages): the creature's layer over her own animation, the person's reach on her
+                val stage = clip?.clip?.let { DragonStages.ofKey(it) }
                 if (creature != null) {
                     // a creature never plays a Sims clip (nothing is retargeted onto her): her own game animation, looped
                     view.glPlayAnimation(key, null)
                     playingKeys[index] = clip?.clip
                     emoting[index] = false
                     view.glAnimate(key, creature.standAnimation)
+                    view.glBoneLayer(key, if (stage != null && stage.second == 1 && stage.first.creature == creature.character) stage.first.baked.layer else null)
                     return
                 }
+                if (stage != null && stage.second == 0) {
+                    val at = creatureOf.indexOfFirst { it?.character == stage.first.creature }
+                    val r = stage.first.reach
+                    view.glReach(key, if (at >= 0) keys[at] else null, r.bone, r.left, stage.first.baked.reach)
+                } else view.glReach(key, null, 0, false, null)
                 val emote = clip?.let { PlaybackKeys.emoteOf(it.clip) }
                 playingKeys[index] = clip?.clip?.takeIf { emote == null }
                 val wasEmote = emoting[index]
@@ -1646,7 +1661,7 @@ fun LiveSceneScreen(
         }
         // cinematic auto-play: the pair's animations one after another, each change under a cut (CinematicUi, CinematicAutoplay)
         CinematicAutoplayHost(cinematic && cinematicSettings.autoplay, live, cineDirector, cinematicSettings,
-            selected ?: flow?.a, partnerId ?: flow?.b, cast.map { it.id }, partnerPairs, needs.pairs, furnitureAt, bodyScales,
+            selected ?: flow?.a, partnerId ?: flow?.b, cast.map { it.id }, autoPairs, needs.pairs, furnitureAt, bodyScales,
             controls = cinematic && !cineHidden && revealed, treatAs = treatAs, hold = holdAnimations)
         CinematicLayer(cinematic, cineHidden, revealed && shown > 0f && (cinematic || !immersiveHud || hudUp), {
             cinematic = !cinematic
@@ -1658,7 +1673,17 @@ fun LiveSceneScreen(
     choosingAnimation?.let { owner ->
         // with a partner chosen, the two-person animations come first and play with them (solo ones still play alone)
         val with = partnerId?.takeIf { it != owner }
-        val shownChoices = remember(choices, with) { if (with == null) choices else choices.sortedByDescending { it.participantCount == 2 } }
+        // (a creature's own stage is offered only between that creature and a person: DragonStages)
+        val stagesHere = remember(owner, with) {
+            stageChoices.filter { c ->
+                val mine = creatureSpecs[owner]?.character
+                val theirs = with?.let { creatureSpecs[it]?.character }
+                with != null && ((mine == c.exclusiveTo && with !in creatureSpecs) || (theirs == c.exclusiveTo && owner !in creatureSpecs))
+            }
+        }
+        val shownChoices = remember(choices, with, stagesHere) {
+            if (with == null) choices else stagesHere + choices.sortedByDescending { it.participantCount == 2 }
+        }
         fun start(choice: AnimationChoice, mode: AnimationOrderMode, preview: Boolean = true) {
             val order = PendingAnimation(owner, choice, mode)
             if (choice.participantCount == 2) {

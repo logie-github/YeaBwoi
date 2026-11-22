@@ -14,6 +14,7 @@
 #include "bodypart.h"
 #include "bodyrig.h"
 #include "boneanim.h"
+#include "bonelayer.h"
 #include "cloth.h"
 #include "evebody.h"
 #include "hdbody.h"
@@ -110,6 +111,24 @@ public:
     // or loops until cleared; dress() keeps it. Returns how many of its tracks name a bone this model has.
     int setBoneAnim(int id, const BoneAnim& anim, uint32_t nowMs);
     void clearBoneAnim(int id);
+    // ---------------------------------------------------------------- additive layers for a stage only some bodies take part in
+    // A bone layer (bonelayer.h): rotation keys turned onto whatever pose the actor's own animation makes (Sindragosa's neck
+    // lowering to a hand: her breathing and tail go on under it). Track bones are WoW-side names or "#N" (the model's bone N).
+    // Plays from `nowMs`, loops by its duration. Returns the tracks that found their bone.
+    int setBoneLayer(int id, const BoneAnim& layer, uint32_t nowMs);
+    void clearBoneLayer(int id);
+    // A reach (bonelayer.h): actor `id`'s arm (left or right) put on a point of actor `targetId`'s body: bone `targetBone` of its
+    // model (an index) plus the offset keyed in `keys`. `keys`' tracks: "reach.w" (position: x the weight over time), "reach.off"
+    // (the point's offset from the bone's pivot in the target's model axes, model units), "reach.along" (one key: the direction
+    // the fingers lie along, in the target bone's rest axes), "reach.pole" (one key: where the elbow bends toward, in the
+    // person's model axes). Returns 1 when the arm's bones were found.
+    int setReach(int id, int targetId, int targetBone, bool left, const BoneAnim& keys, uint32_t nowMs);
+    void clearReach(int id);
+    // The desktop check: an actor's placement (position, facing about up, uniform scale), as drawn.
+    bool actorPlacement(int id, V3& position, float& facing, float& scale) const;
+    // The desktop check: the reach as last solved on actor `id`: its palm's centre and the point it aimed at (world), the
+    // weight, and whether the target was in reach; false when it has none.
+    bool reachState(int id, V3& palm, V3& target, float& weight, bool& reachable) const;
     // The desktop check: an actor's bone matrices as last drawn, the sequence and how far into it; the animations' clock.
     bool actorPose(int id, std::vector<M4>& mats, int& seq, uint32_t& timeMs) const;
     uint32_t animClock() const { return animClock_; }
@@ -662,6 +681,34 @@ private:
         ClothGl cloth;                 // a tabard flap hung as cloth (cloth.h)
         bool character = false;        // setCharacter: the soft body applies (a creature's never does)
         MotionState motion;            // the additive body language (setMotion; motionlayer.h)
+        // The bone layer (setBoneLayer): its tracks' bones (-1: none here) and each one's subtree (the bone and all under it).
+        std::shared_ptr<BoneAnim> layer;
+        std::vector<int> layerBones;
+        std::vector<std::vector<int>> layerSubtrees;
+        uint32_t layerStart = 0;
+        // Bones the layer holds (tracks named "!bone"): their own animation's pose is blended toward the one they had when the
+        // layer's loop began, by the "layer.hold" track's weight, so a stand animation's neck swings don't move the head
+        // the hand is on. Captured at each loop's start.
+        std::vector<int> layerFreeze;
+        std::vector<Quat> layerFrozen;
+        int layerHold = -1;
+        bool layerCaptured = false;
+        float layerLastT = 0;
+        // The reach (setReach): the arm's bones and their subtrees, what it reaches for, and the last solve.
+        struct Reach {
+            bool on = false;
+            int target = 0, targetBone = -1;
+            bool left = false;
+            std::shared_ptr<BoneAnim> keys;
+            uint32_t start = 0;
+            int upper = -1, fore = -1, hand = -1, fingers = -1;
+            std::vector<int> upperSub, foreSub, handSub;
+            V3 palm, aimed;
+            float weight = 0;
+            bool reachable = true, solved = false;
+        } reach;
+        uint32_t animatedAt = 0xFFFFFFFFu;   // the clock this frame's pose was made at (animate): a reach's target is posed first
+        bool animating = false;
         bool ghost = false;            // ghostActor: drawn as the ghost, never picked
         // actorFlesh's measure and the look it was made for (0: none yet)
         std::vector<float> flesh;
@@ -855,6 +902,9 @@ private:
     ParticleDraw particleDraw_;
     float particleStrength_ = 0;
     uint32_t particleClock_ = 0;
+    void holdBoneLayer(Actor& a, uint32_t now);  // bonelayer.h's held bones, on the local poses (before the matrices)
+    void layBoneLayer(Actor& a, uint32_t now);   // bonelayer.h's rotation layer over the posed matrices
+    void layReach(Actor& a, uint32_t now);       // bonelayer.h's reach: the arm on its target, after the target is posed
     void layMotion(Actor& a, uint32_t now);   // motionlayer.h over the posed matrices, before they are uploaded
     M4 view_, proj_;
 

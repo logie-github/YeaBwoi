@@ -23,6 +23,13 @@
 //   dress N LOOKFILE                           dresses person N again (Native.dress): geosets, layers, extras
 //   boneanim N ANIMFILE                        an imported animation on person N (Scene::setBoneAnim; file below)
 //   bonestop N                                 takes it off (Scene::clearBoneAnim)
+//   layer N ANIMFILE | layerstop N             an additive bone layer on person N (Scene::setBoneLayer; the anim file's rot
+//                                              tracks, bones by WoW-side name or "#N": the model's bone N)
+//   reach N TARGET BONE L|R ANIMFILE | reachstop N   person N's left or right arm on a point of person TARGET's bone BONE (an index of
+//                                              TARGET's model): Scene::setReach; the file's pos tracks reach.w, reach.off, reach.along, reach.pole
+//   handhead OUT.csv PERSON PMODEL TARGET TMODEL HEADBONE T0 T1 STEP_MS   steps the scene and writes, per time, the weight, how far the
+//                                              reach was from its point, and the hand's distance to the TARGET's skinned head
+//                                              (the triangles under HEADBONE: palm, wrist, finger root; negative: inside)
 //   humanscale N TARGET|own XY                 person N at human scale (TARGET: the sex's standing height; own: the look's
 //                                              scale, a dwarf or gnome) and its root motion across the floor (HumanScale.PAIR)
 //   furnish N sit|lie SX SY SZ FACING          person N's pelvis on a seat or bed at that surface point (Scene::placeActor)
@@ -1351,6 +1358,128 @@ int main(int argc, char** argv) {
             Scene::CameraInfo c = scene.cameraInfo();
             std::fprintf(stderr, "camera eye %.2f %.2f %.2f target %.2f %.2f %.2f up %.2f %.2f %.2f fov %.1f aspect %.3f\n",
                          c.eye.x, c.eye.y, c.eye.z, c.target.x, c.target.y, c.target.z, c.up.x, c.up.y, c.up.z, c.fovY, c.aspect);
+        } else if (cmd == "layer") {
+            int name; std::string path; ss >> name >> path;
+            BoneAnim ba;
+            if (actors.count(name) && readBoneAnim(path, ba))
+                std::fprintf(stderr, "layer %d: %d of %zu tracks found their bone\n", name, scene.setBoneLayer(actors[name], ba, 0), ba.tracks.size());
+        } else if (cmd == "layerstop") {
+            int name; ss >> name;
+            if (actors.count(name)) scene.clearBoneLayer(actors[name]);
+        } else if (cmd == "reach") {
+            int name, target, bone; std::string hand, path; ss >> name >> target >> bone >> hand >> path;
+            BoneAnim ba;
+            if (actors.count(name) && actors.count(target) && readBoneAnim(path, ba))
+                std::fprintf(stderr, "reach %d: %s\n", name, scene.setReach(actors[name], actors[target], bone, hand == "L", ba, 0) ? "ok" : "arm not found");
+        } else if (cmd == "reachstop") {
+            int name; ss >> name;
+            if (actors.count(name)) scene.clearReach(actors[name]);
+        } else if (cmd == "handhead") {
+            // handhead OUT.csv PERSON PMODEL TARGET TMODEL HEADBONE T0 T1 STEP_MS
+            std::string out; int pn, tn, headBone; uint32_t pm, tm, t0, t1, step;
+            ss >> out >> pn >> pm >> tn >> tm >> headBone >> t0 >> t1 >> step;
+            if (!actors.count(pn) || !actors.count(tn) || step == 0) continue;
+            static std::map<uint32_t, std::unique_ptr<M2Model>> mods;
+            for (uint32_t id : {pm, tm}) { auto& mm = mods[id]; if (!mm) { mm = std::make_unique<M2Model>(); if (!mm->load(id, lookup)) std::fprintf(stderr, "handhead: %s\n", mm->error.c_str()); } }
+            const M2Model& person = *mods[pm]; const M2Model& dragon = *mods[tm];
+            // the target's head triangles: those whose three vertices are mostly weighted to the head bone or under it
+            std::vector<uint8_t> inHead(dragon.bones.size(), 0);
+            if (headBone >= 0 && size_t(headBone) < inHead.size()) inHead[size_t(headBone)] = 1;
+            for (bool grew = true; grew;) { grew = false; for (size_t i = 0; i < dragon.bones.size(); ++i) { int p = dragon.bones[i].parent; if (!inHead[i] && p >= 0 && inHead[size_t(p)]) { inHead[i] = 1; grew = true; } } }
+            auto headVert = [&](const M2Vertex& v) { int best = 0; for (int k = 1; k < 4; ++k) if (v.weights[k] > v.weights[best]) best = k; return inHead[v.bones[best]] && v.weights[best] >= 128; };
+            std::vector<uint32_t> tris;
+            for (size_t i = 0; i + 2 < dragon.indices.size(); i += 3)
+                if (headVert(dragon.vertices[dragon.indices[i]]) && headVert(dragon.vertices[dragon.indices[i + 1]]) && headVert(dragon.vertices[dragon.indices[i + 2]]))
+                    for (int k = 0; k < 3; ++k) tris.push_back(dragon.indices[i + k]);
+            FILE* f = std::fopen(out.c_str(), "w");
+            std::fprintf(f, "time_ms,weight,reachable,palm_to_aim,palm_signed,wrist_signed,fingers_signed,min_signed,palm_x,palm_y,palm_z,aim_x,aim_y,aim_z,shoulder_x,shoulder_y,shoulder_z\n");
+            std::vector<double> dAim, dPalm, dMin;
+            for (uint32_t t = t0; t <= t1; t += step) {
+                renderTo(scene, "/dev/null", 96, 64, t);
+                V3 palmW, aim; float w = 0; bool reachable = true;
+                if (!scene.reachState(actors[pn], palmW, aim, w, reachable)) { std::fprintf(f, "%u,0,1,nan,nan,nan,nan,nan,0,0,0,0,0,0,0,0,0\n", t); continue; }
+                std::vector<M4> dm, pmats; int seq; uint32_t at;
+                scene.actorPose(actors[tn], dm, seq, at); scene.actorPose(actors[pn], pmats, seq, at);
+                V3 dp, pp; float df, pf, ds, ps;
+                scene.actorPlacement(actors[tn], dp, df, ds); scene.actorPlacement(actors[pn], pp, pf, ps);
+                const M4 dw = M4::translation(dp) * M4::rotationZ(df) * M4::scaling(V3(ds, ds, ds));
+                const M4 pw = M4::translation(pp) * M4::rotationZ(pf) * M4::scaling(V3(ps, ps, ps));
+                struct SV { V3 p, n; };
+                auto skin = [&](uint32_t vi) {
+                    const M2Vertex& v = dragon.vertices[vi]; V3 p, n;
+                    for (int k = 0; k < 4; ++k) {
+                        float wt = v.weights[k] / 255.0f; if (wt <= 0 || v.bones[k] >= dm.size()) continue;
+                        const M4& m4 = dm[v.bones[k]];
+                        V3 q = m4.point(V3(v.pos[0], v.pos[1], v.pos[2])); p = p + q * wt;
+                        V3 nn(m4.at(0, 0) * v.normal[0] + m4.at(0, 1) * v.normal[1] + m4.at(0, 2) * v.normal[2],
+                              m4.at(1, 0) * v.normal[0] + m4.at(1, 1) * v.normal[1] + m4.at(1, 2) * v.normal[2],
+                              m4.at(2, 0) * v.normal[0] + m4.at(2, 1) * v.normal[1] + m4.at(2, 2) * v.normal[2]);
+                        n = n + nn * wt;
+                    }
+                    return SV{dw.point(p), M4::rotationZ(df).point(n)};
+                };
+                std::vector<SV> sk(dragon.vertices.size()); std::vector<uint8_t> have(dragon.vertices.size(), 0);
+                for (uint32_t vi : tris) if (!have[vi]) { sk[vi] = skin(vi); have[vi] = 1; }
+                auto signedDist = [&](const V3& P) {
+                    float best = 1e9f, sign = 1;
+                    for (size_t i = 0; i + 2 < tris.size(); i += 3) {
+                        const SV &A = sk[tris[i]], &B = sk[tris[i + 1]], &C = sk[tris[i + 2]];
+                        // closest point on the triangle (Ericson)
+                        V3 ab = B.p - A.p, ac = C.p - A.p, ap = P - A.p;
+                        float d1 = ab.dot(ap), d2 = ac.dot(ap); V3 q;
+                        if (d1 <= 0 && d2 <= 0) q = A.p;
+                        else {
+                            V3 bp = P - B.p; float d3 = ab.dot(bp), d4 = ac.dot(bp);
+                            if (d3 >= 0 && d4 <= d3) q = B.p;
+                            else {
+                                float vc = d1 * d4 - d3 * d2;
+                                if (vc <= 0 && d1 >= 0 && d3 <= 0) q = A.p + ab * (d1 / (d1 - d3));
+                                else {
+                                    V3 cp = P - C.p; float d5 = ab.dot(cp), d6 = ac.dot(cp);
+                                    if (d6 >= 0 && d5 <= d6) q = C.p;
+                                    else {
+                                        float vb = d5 * d2 - d1 * d6;
+                                        if (vb <= 0 && d2 >= 0 && d6 <= 0) q = A.p + ac * (d2 / (d2 - d6));
+                                        else {
+                                            float va = d3 * d6 - d5 * d4;
+                                            if (va <= 0 && (d4 - d3) >= 0 && (d5 - d6) >= 0) q = B.p + (C.p - B.p) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)));
+                                            else { float den = 1.0f / (va + vb + vc); q = A.p + ab * (vb * den) + ac * (vc * den); }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        float d = (P - q).length();
+                        if (d < best) {
+                            best = d;
+                            V3 n = ab.cross(ac); V3 avg = A.n + B.n + C.n;
+                            if (n.dot(avg) < 0) n = n * -1.0f;
+                            sign = (P - q).dot(n) >= 0 ? 1.0f : -1.0f;
+                        }
+                    }
+                    return best * sign;
+                };
+                const bool left = false; (void)left;
+                int bw = person.findWowBone("R_Hand"), bf = person.findWowBone("R_Middle1");
+                if (bw < 0 || bf < 0 || size_t(bf) >= pmats.size()) continue;
+                V3 wrist = pw.point(pmats[size_t(bw)].point(person.bones[size_t(bw)].pivot));
+                V3 fing = pw.point(pmats[size_t(bf)].point(person.bones[size_t(bf)].pivot));
+                V3 palm = (wrist + fing) * 0.5f;
+                float sp = signedDist(palm), sw = signedDist(wrist), sf = signedDist(fing);
+                float mn = std::min(sp, std::min(sw, sf));
+                float aimErr = (palmW - aim).length();
+                int bs = person.findWowBone("R_UpperArm");
+                V3 sh = bs >= 0 ? pw.point(pmats[size_t(bs)].point(person.bones[size_t(bs)].pivot)) : V3();
+                std::fprintf(f, "%u,%.3f,%d,%.4f,%.4f,%.4f,%.4f,%.4f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n", t, w, reachable ? 1 : 0, aimErr, sp, sw, sf, mn, palm.x, palm.y, palm.z, aim.x, aim.y, aim.z, sh.x, sh.y, sh.z);
+                if (w > 0.99f) { dAim.push_back(aimErr); dPalm.push_back(sp); dMin.push_back(mn); }
+            }
+            std::fclose(f);
+            auto stats = [](const char* what, std::vector<double> v) {
+                if (v.empty()) return;
+                double mx = -1e9, mn = 1e9, sum = 0; for (double d : v) { mx = std::max(mx, d); mn = std::min(mn, d); sum += d; }
+                std::printf("handhead %s over %zu frames at full weight: mean %.4f min %.4f max %.4f yards\n", what, v.size(), sum / v.size(), mn, mx);
+            };
+            stats("palm-to-aim", dAim); stats("palm-to-skull (signed)", dPalm); stats("lowest of palm/wrist/fingers (signed)", dMin);
         } else if (cmd == "bonepos") {
             // bonepos N MODEL BONE...: where each WoW-side bone's pivot is as person N was last drawn (model space)
             int name; uint32_t model; ss >> name >> model;
