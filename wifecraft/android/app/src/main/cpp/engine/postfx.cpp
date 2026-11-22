@@ -58,6 +58,29 @@ uniform vec4 uProj;
 float linDepth(float d) { float z = d * 2.0 - 1.0; return 2.0 * uProj.z * uProj.w / (uProj.w + uProj.z - z * (uProj.w - uProj.z)); }
 vec3 viewPos(vec2 uv) { float z = linDepth(texture(uDepth, uv).r); return vec3((uv * 2.0 - 1.0) * uProj.xy * z, -z); }
 float ign(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }
+// The surface's direction over about rWorld yards (a few triangles of a dense body) from the depth buffer, not over one
+// pixel's quad: a normal from dFdx/dFdy is the single triangle's flat face, and a shadow whose strength follows it (the
+// share of the light a surface takes) is drawn as that mesh's triangles, stair-stepped patches on a neck or a shoulder.
+// Each side is used only while its depth is within the surface's reach (a silhouette's far side is left out).
+vec3 smoothNormal(vec2 uv, vec3 p, vec3 flatN, float rWorld) {
+    vec2 size = vec2(textureSize(uDepth, 0));
+    float z = -p.z;
+    vec2 r = clamp(vec2(rWorld / (z * uProj.x), rWorld / (z * uProj.y)) * 0.5, vec2(2.0) / size, vec2(40.0) / size);
+    float tol = rWorld * 0.9 + 0.004 * z;
+    vec3 a1 = viewPos(uv + vec2(r.x, 0.0)), a0 = viewPos(uv - vec2(r.x, 0.0));
+    vec3 b1 = viewPos(uv + vec2(0.0, r.y)), b0 = viewPos(uv - vec2(0.0, r.y));
+    // (each side counts by how near it is in depth, eased out between half the reach and the reach: a hair card over a
+    // shoulder, a step in depth, fades out of the slope rather than switching it, so no patch has an edge where it did)
+    float wa1 = 1.0 - smoothstep(0.5 * tol, tol, abs(a1.z - p.z)), wa0 = 1.0 - smoothstep(0.5 * tol, tol, abs(a0.z - p.z));
+    float wb1 = 1.0 - smoothstep(0.5 * tol, tol, abs(b1.z - p.z)), wb0 = 1.0 - smoothstep(0.5 * tol, tol, abs(b0.z - p.z));
+    vec3 dx = (wa1 * (a1 - p) + wa0 * (p - a0)) / max(wa1 + wa0, 1e-3);
+    vec3 dy = (wb1 * (b1 - p) + wb0 * (p - b0)) / max(wb1 + wb0, 1e-3);
+    vec3 c = cross(dx, dy);
+    float l = length(c);
+    if (l < 1e-9) return flatN;
+    c /= l;
+    return dot(c, p) > 0.0 ? -c : c;
+}
 )";
 
 const char* kAoFs = R"(
@@ -99,13 +122,19 @@ void main() {
     if (uContact > 0.0) {
         const float len = 0.35;
         vec3 start = p + n * (0.004 * z);
-        for (int i = 1; i <= 12; ++i) {
-            vec3 q = start + uLightV * (len * (float(i) - noise) / 12.0);
+        // (a coverage, not a yes or no: how far the ray's point is behind what the depth buffer holds eases from 0 at 0.6 of
+        // the threshold to 1 at 1.6 of it, and the shadow is the deepest of the sixteen, so its edge is a ramp the blur
+        // finishes and not a staircase of half-size pixels)
+        float cover = 0.0;
+        float thr0 = 0.012 + 0.004 * z;
+        for (int i = 1; i <= 16; ++i) {
+            vec3 q = start + uLightV * (len * (float(i) - noise) / 16.0);
             vec2 quv = (q.xy / -q.z) / uProj.xy * 0.5 + 0.5;
             if (quv.x < 0.0 || quv.y < 0.0 || quv.x > 1.0 || quv.y > 1.0) break;
             float dz = -q.z - linDepth(texture(uDepth, quv).r);
-            if (dz > 0.012 + 0.004 * z && dz < 0.25) { cs = 0.0; break; }
+            cover = max(cover, smoothstep(thr0 * 0.6, thr0 * 1.6, dz) * (1.0 - smoothstep(0.18, 0.25, dz)));
         }
+        cs = 1.0 - cover;
     }
     o = vec4(ao, cs, 0.0, 1.0);
 }
@@ -185,7 +214,7 @@ void main() {
     vec3 p = viewPos(vUv);
     vec3 n = normalize(cross(dFdx(p), dFdy(p)));
     if (dot(n, p) > 0.0) n = -n;
-    float ndl = max(dot(n, uLightV), 0.0);
+    float ndl = max(dot(smoothNormal(vUv, p, n, 0.025), uLightV), 0.0);
     float direct = uSunLum * ndl;
     float share = direct / (direct + uAmbLum + 1e-4);
     float f = 1.0;
@@ -771,6 +800,7 @@ void PostFx::end(int outW, int outH, const PostFrame& f) {
         bindTarget(aoA_);
         common(pAo_);
         static const int kSamples[3] = {6, 10, 16};
+        const float kBlurStep = 1.6f;   // (the blur's taps 1.6 texels apart: a contact shadow's edge is a ramp, not half-size pixels)
         glUniform2f(gl::loc(pAo_, "uTexel"), 1.0f / float(sw_), 1.0f / float(sh_));
         glUniform1f(gl::loc(pAo_, "uRadius"), 0.45f);
         glUniform1f(gl::loc(pAo_, "uIntensity"), s.ao > 0 ? 1.2f : 0.0f);
@@ -783,11 +813,11 @@ void PostFx::end(int outW, int outH, const PostFrame& f) {
         glUniform1i(gl::loc(pBlur_, "uSrc"), 0);
         bindTarget(aoB_);
         glBindTexture(GL_TEXTURE_2D, aoA_.tex);
-        glUniform2f(gl::loc(pBlur_, "uDir"), 1.0f / float(hw), 0);
+        glUniform2f(gl::loc(pBlur_, "uDir"), kBlurStep / float(hw), 0);
         quad();
         bindTarget(aoA_);
         glBindTexture(GL_TEXTURE_2D, aoB_.tex);
-        glUniform2f(gl::loc(pBlur_, "uDir"), 0, 1.0f / float(hh));
+        glUniform2f(gl::loc(pBlur_, "uDir"), 0, kBlurStep / float(hh));
         quad();
         stageEnd();
     }
