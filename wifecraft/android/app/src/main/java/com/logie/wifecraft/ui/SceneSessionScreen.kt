@@ -139,7 +139,6 @@ import com.logie.wifecraft.simulation.JoiClip
 import com.logie.wifecraft.simulation.JoiMode
 import com.logie.wifecraft.simulation.JoiPacing
 import com.logie.wifecraft.simulation.JoiPrior
-import com.logie.wifecraft.simulation.PartnerEmotes
 import com.logie.wifecraft.anim.AnimArrays
 import com.logie.wifecraft.characters.DragonStages
 import com.logie.wifecraft.simulation.PartnerPair
