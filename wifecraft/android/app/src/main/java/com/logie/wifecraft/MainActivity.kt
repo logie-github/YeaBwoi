@@ -406,6 +406,7 @@ class MainActivity : ComponentActivity() {
         var lifeOn by remember { mutableStateOf(settings.lifeSimulation) }
         var clockSettings by remember { mutableStateOf(settings.clock) }
         var cinematicSettings by remember { mutableStateOf(settings.cinematic) }
+        var dialogueSettings by remember { mutableStateOf(settings.dialogue) }
         // Options' Immersion page (immersive mode: the life HUD hidden, the flow, body language, atmosphere) and what NPCs keep on
         var immersiveSettings by remember { mutableStateOf(settings.immersive) }
         var keepOnAll by remember { mutableStateOf(settings.keepOnAll) }
@@ -864,6 +865,7 @@ class MainActivity : ComponentActivity() {
                             clockSettings = clockSettings,
                             onTimeOfDay = { hours, perHour -> audio?.timeOfDay(hours, perHour) },
                             cinematicSettings = cinematicSettings,
+                            dialogue = dialogueSettings,
                             onCinematic = { on -> audio?.cinematic(on) },
                             onLifeSave = { life, clock -> lifecycleScope.launch(Dispatchers.IO) { saveLife(lifeStore, life, clock) } },
                             icons = icons,
@@ -944,6 +946,8 @@ class MainActivity : ComponentActivity() {
                         onImmersive = { immersiveSettings = it; settings.immersive = it },
                         keepOn = keepOnAll,
                         onKeepOn = { keepOnAll = it; settings.keepOnAll = it },
+                        dialogue = dialogueSettings,
+                        onDialogue = { dialogueSettings = it; settings.dialogue = it },
                         graphics = { com.logie.wifecraft.ui.GraphicsPage() },
                         mods = {
                             Column {

@@ -41,9 +41,26 @@ class SteerBoard {
     fun scene(): List<Steer> = scene.toList()
     fun forNpc(id: String): List<Steer> = npc[id].orEmpty().toList()
     fun forPair(a: String, b: String): List<Steer> = pair[pk(a, b)].orEmpty().toList()
+    /** Every steer in force with what it is set on: the whole scene (npc and other null), one NPC, or a pair. */
+    fun entries(): List<SteerEntry> =
+        scene.map { SteerEntry(null, null, it) } + npc.flatMap { (id, l) -> l.map { SteerEntry(id, null, it) } } +
+            pair.flatMap { (k, l) -> l.map { SteerEntry(k.substringBefore('|'), k.substringAfter('|'), it) } }
+
+    /** Takes off one steer as [entries] lists it. */
+    fun remove(e: SteerEntry) {
+        when {
+            e.npc == null -> scene.removeAll { it.text == e.steer.text }
+            e.other == null -> npc[e.npc]?.removeAll { it.text == e.steer.text }
+            else -> pair[pk(e.npc, e.other)]?.removeAll { it.text == e.steer.text }
+        }
+    }
+
     val isEmpty: Boolean get() = scene.isEmpty() && npc.isEmpty() && pair.isEmpty()
 
     /** The nudges that apply to [who] speaking to [other] (null: to nobody in particular): theirs, the pair's, the scene's. */
     fun hints(who: String, other: String?): List<Steer> =
         (forNpc(who) + (if (other != null) forPair(who, other) else emptyList()) + scene).distinctBy { it.text.lowercase() }
 }
+
+/** One steer in force: on the scene (npc null), an NPC ([other] null) or a pair. */
+data class SteerEntry(val npc: String?, val other: String?, val steer: Steer)

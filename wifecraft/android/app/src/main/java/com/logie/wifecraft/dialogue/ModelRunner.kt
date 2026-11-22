@@ -12,7 +12,9 @@ import kotlin.coroutines.startCoroutine
  * on the caller's thread, from [pump] (the scene's frame), so nothing outside the engine runs off the scene's thread. A
  * request that waits longer than its [ttl] seconds is dropped with a null answer. Without an engine every request answers null.
  */
-class ModelRunner(private val engine: DialogueEngine?) {
+class ModelRunner(private val engineOf: () -> DialogueEngine?) {
+    constructor(engine: DialogueEngine?) : this({ engine })
+
     private class Job(val priority: Int, val seq: Long, val req: DialogueRequest, val kind: String, val expires: Double, val cb: (String?) -> Unit)
 
     private val pending = PriorityQueue<Job>(compareByDescending<Job> { it.priority }.thenBy { it.seq })
@@ -46,6 +48,7 @@ class ModelRunner(private val engine: DialogueEngine?) {
             while (pending.isNotEmpty() && pending.peek().expires < clock) { pending.poll().cb(null); progressed = true }
             if (!busy.get() && pending.isNotEmpty()) {
                 val job = pending.poll()
+                val engine = engineOf()
                 if (engine == null) { job.cb(null); progressed = true; continue }
                 busy.set(true); runningKind = job.kind
                 val finish = { r: String? -> done.add { busy.set(false); runningKind = null; job.cb(r) }; Unit }

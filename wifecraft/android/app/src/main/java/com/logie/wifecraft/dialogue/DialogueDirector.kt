@@ -15,7 +15,8 @@ fun interface SpeechSink { fun say(npcId: String, text: String): Boolean }
  * scene's thread only.
  */
 class DialogueDirector(
-    engine: DialogueEngine?,
+    /** The model, asked for each time (the runtime loads and unloads it: [DialogueRuntime.engine]); null: none. */
+    private val engineOf: () -> DialogueEngine?,
     val lore: Lore,
     private val sink: SpeechSink,
     settings: DialogueSettings = DialogueSettings(),
@@ -23,11 +24,13 @@ class DialogueDirector(
     /** The kink and JOI pack (null: none): its notes go into intimate and desire talk, and it plans an in-world JOI. */
     private val kink: KinkPack? = null,
 ) : DialogueHook {
-    var settings: DialogueSettings = settings
+    constructor(engine: DialogueEngine?, lore: Lore, sink: SpeechSink, settings: DialogueSettings = DialogueSettings(),
+        random: Random = Random.Default, kink: KinkPack? = null) : this({ engine }, lore, sink, settings, random, kink)
+
+    @Volatile var settings: DialogueSettings = settings
     val comfort = ComfortLedger()
     val steers = SteerBoard()
-    private val hasEngine = engine != null
-    private val runner = ModelRunner(engine)
+    private val runner = ModelRunner(engineOf)
 
     private var clock = 0.0
     private var generation = 0
@@ -51,7 +54,7 @@ class DialogueDirector(
     private val consent = ConsentCoordinator(runner, lore, comfort, { id, line -> deliver(id, line, TalkMode.WORLD, null, consentLine = true) },
         { id -> view?.person(id)?.profile }, { a, b -> view?.relation?.invoke(a, b) ?: Relation() }, { clock })
 
-    override val active: Boolean get() = hasEngine && settings.enabled
+    override val active: Boolean get() = settings.enabled && engineOf() != null
     override var cinematic: Boolean = false
         private set
 
@@ -78,8 +81,18 @@ class DialogueDirector(
 
     fun historyOf(id: String): List<DialogueTurn> = history[id]?.toList().orEmpty()
 
+    /** What the screen shows of the layer (the persuasion chips, the steer chips); refreshed every [update], readable from any thread. */
+    @Volatile var snapshot = DialogueSnapshot()
+        private set
+
     /** One frame: [dt] seconds passed; [v] is the scene as it stands. */
     fun update(dt: Float, v: SceneView) {
+        step(dt, v)
+        val next = DialogueSnapshot(consent.hesitant(), steers.entries(), active)
+        if (next != snapshot) snapshot = next
+    }
+
+    private fun step(dt: Float, v: SceneView) {
         clock += dt.coerceIn(0f, 1f)
         view = v
         cinematic = v.cinematic
@@ -287,3 +300,6 @@ class DialogueDirector(
         const val JOI_CHANCE = 0.25f
     }
 }
+
+/** The layer as the screen shows it. */
+data class DialogueSnapshot(val hesitant: List<HesitantView> = emptyList(), val steers: List<SteerEntry> = emptyList(), val active: Boolean = false)

@@ -1,6 +1,7 @@
 package com.logie.wifecraft.data
 
 import android.content.Context
+import com.logie.wifecraft.dialogue.DialogueSettings
 import com.logie.wifecraft.simulation.CinematicSettings
 import com.logie.wifecraft.simulation.ClockSettings
 import com.logie.wifecraft.simulation.ImmersiveSettings
@@ -55,6 +56,10 @@ class Settings(context: Context) {
     var clock: ClockSettings
         get() = ClockSettings.parse(prefs.getString("clock", null))
         set(v) = prefs.edit().putString("clock", v.toJson().toString()).apply()
+    /** Options' Dialogue page: whether NPCs talk with the on-device model and how talkative they are (dialogue/DialogueSettings), as JSON. */
+    var dialogue: DialogueSettings
+        get() = DialogueSettings.parse(prefs.getString("dialogue", null))
+        set(v) = prefs.edit().putString("dialogue", v.toJson().toString()).apply()
     /** Cinematic mode's settings (Options' Cinematic page: lighting, camera style and speed, shot lengths, letterbox, grain, words), as JSON. */
     var cinematic: CinematicSettings
         get() = CinematicSettings.parse(prefs.getString("cinematic", null))

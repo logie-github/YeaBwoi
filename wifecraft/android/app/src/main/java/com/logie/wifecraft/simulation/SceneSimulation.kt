@@ -577,6 +577,9 @@ class SceneSimulation(
     /** What [id] is saying now (tests), or null. */
     fun speech(id: String): String? = actors[id]?.let { a -> a.spoken?.takeIf { time < a.spokenUntil } }
 
+    /** Whether [id] went over to the other of its conversation (speaks first); false: not in one, or was gone to. */
+    fun leadsTalk(id: String): Boolean = actors[id]?.talk?.a?.id == id
+
     /** Whether [id] is in a conversation (walking to it or talking). */
     fun talking(id: String): Boolean = actors[id]?.talk != null
 
