@@ -1,0 +1,101 @@
+{
+ "version": 1,
+ "about": "Templates of structure for in-world guided self-touch between two adult NPCs: one instructs, the other touches themselves and may be watched, heard or both. Structure, not scripts: the model writes the words from the stage hint, the voice and the pace.",
+ "stages": [
+  {
+   "id": "setup",
+   "hint": "Agree it first: both willing, the word to stop named. Set the scene (candlelight, a locked door). The instructor says what will happen and asks for a yes.",
+   "care": "ask",
+   "min_band": "intimate",
+   "pace": "slow"
+  },
+  {
+   "id": "warmup",
+   "hint": "Slow start: clothing, breath, eye contact. Describe what you see and what they should do, one small instruction at a time.",
+   "pace": "slow"
+  },
+  {
+   "id": "build",
+   "hint": "Add one instruction at a time: slower, lighter, then firmer. Praise each. Ask what they feel. Pause as a tease.",
+   "pace": "steady"
+  },
+  {
+   "id": "edge",
+   "hint": "Tell them to stop at the brink. Hands off, breathe, hold their gaze. The pause is the point.",
+   "pace": "hold"
+  },
+  {
+   "id": "hold",
+   "hint": "Keep them waiting for a count (5 to 10 breaths) while you praise or tease. Restart gently once they steady.",
+   "pace": "hold"
+  },
+  {
+   "id": "countdown",
+   "hint": "Count down aloud from 10 or 5 with a beat between numbers; the count may stall or restart as part of the game. Never rush a hesitation.",
+   "pace": "counted"
+  },
+  {
+   "id": "permit",
+   "hint": "The release word or nod, given warmly. Or denial, if agreed: not tonight, said kindly, the promise of later.",
+   "pace": "release"
+  },
+  {
+   "id": "afterglow",
+   "hint": "Soften at once: slow touch, water, a kiss or a blanket. Ask how they feel. Say something kind and true.",
+   "care": "aftercare",
+   "pace": "slow"
+  }
+ ],
+ "mechanics": {
+  "countdown_starts": [
+   10,
+   5,
+   3
+  ],
+  "beat_ms": [
+   1500,
+   3000
+  ],
+  "edge_cycles_by_band": {
+   "intimate": [
+    1,
+    2
+   ],
+   "uninhibited": [
+    2,
+    4
+   ]
+  },
+  "hold_breaths": [
+   4,
+   10
+  ],
+  "restart_rule": "A count may restart once if the instructed one hurries or the instructor wants to tease; never more than twice in a row.",
+  "release_rule": "Release only at the instructor's word. Denial is allowed only if the pair agreed it beforehand; otherwise permit."
+ },
+ "variants": {
+  "dominant": "Short orders, level voice, certain of themselves. 'Slower. Good. Stop.' Praise is earned and savoured.",
+  "tender": "Soft encouragement, questions about comfort, praise that sounds like affection. 'There, just like that. How does it feel?'",
+  "teasing": "Playful commands and mock-stern warnings, a smile in the voice. Likes the tease of the pause.",
+  "strict": "Rules and a count: breath, pace, posture. Rewards given exactly. Fond of ritual.",
+  "shy": "Hesitant, asks each time if the instruction is welcome, blushes through it. The other partner's patience leads the pace.",
+  "bold": "Direct and vivid description of what they see, unashamed; keeps eye contact."
+ },
+ "by_band": {
+  "intimate": "One or two edges, kind pacing, a count from 5, always permit; touch with clothing partly on.",
+  "uninhibited": "Longer build, several edges, a count from 10, denial or a rewarded wait if agreed; open description."
+ },
+ "twists": {
+  "undead": "Cold fingers, a steady voice that hasn't a breath to lose; the instructor reminds them to breathe for both.",
+  "orc": "Plain, deep orders; shuns flourish.",
+  "bloodelf": "Imperious, languid; savours the wait.",
+  "worgen": "The growl in the voice; keeps the control tight.",
+  "gnome": "Brisk and cheerful with a stopwatch.",
+  "draenei": "A soft crystal glow pulses with the pace.",
+  "priest": "Confession and absolution, a gentle ritual.",
+  "paladin": "A vow of patience; release is an act of mercy.",
+  "warlock": "A pact: release is a bargain.",
+  "rogue": "A whisper in the dark, a smile you hear.",
+  "druid": "Breath like wind in leaves, slow as seasons."
+ }
+}

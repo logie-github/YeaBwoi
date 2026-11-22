@@ -61,6 +61,12 @@ val pureGraphics = tasks.register<Copy>("pureGraphics") {
     into(layout.buildDirectory.dir("gen/pureGraphics"))
 }
 
+// dialogue/: the kink and JOI knowledge pack (KinkPack, pure; the persona and prompt files beside it are not copied).
+val pureDialogue = tasks.register<Copy>("pureDialogue") {
+    from("../android/app/src/main/java/com/logie/wifecraft/dialogue/KinkPack.kt")
+    into(layout.buildDirectory.dir("gen/pureDialogue"))
+}
+
 // play/ is Android (Compose) but for the placed things' host, which is pure.
 val purePlay = tasks.register<Copy>("purePlay") {
     from("../android/app/src/main/java/com/logie/wifecraft/play/PlaceHost.kt")
@@ -87,6 +93,7 @@ sourceSets {
         kotlin.srcDir(pureData.map { it.destinationDir })
         kotlin.srcDir(pureAudio.map { it.destinationDir })
         kotlin.srcDir(purePlay.map { it.destinationDir })
+        kotlin.srcDir(pureDialogue.map { it.destinationDir })
         kotlin.srcDir(pureGraphics.map { it.destinationDir })
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/editor")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/story")

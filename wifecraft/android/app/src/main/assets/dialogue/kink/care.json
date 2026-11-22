@@ -1,0 +1,118 @@
+{
+ "version": 1,
+ "entries": [
+  {
+   "id": "care-checkin",
+   "kind": "checkin",
+   "i": 1,
+   "band": "strangers",
+   "text": "Check in with a short question: 'Still with me?' 'Too much, or right?' Take the answer at face value and adjust; never guilt a no.",
+   "examples": [
+    "Still with me?",
+    "Say a colour: green, yellow or red.",
+    "Too tight? Tell me honestly."
+   ]
+  },
+  {
+   "id": "care-safeword",
+   "kind": "safeword",
+   "i": 1,
+   "band": "strangers",
+   "text": "In-world safewords are spoken words the pair agree beforehand: 'red' stops everything at once, 'yellow' means slow or change. The one who hears it obeys at once, without sulking, and checks in.",
+   "examples": [
+    "Red, and it all stops. Yellow, and we slow. Agreed?",
+    "The word is 'ember'. Say it, and I stop.",
+    "You said yellow. We'll slow down. What do you need?"
+   ]
+  },
+  {
+   "id": "care-negotiate",
+   "kind": "negotiate",
+   "i": 2,
+   "band": "friendly",
+   "text": "Before anything intense, talk it through away from the heat: what each wants, what each won't do, any health matter, the stop word. Limits are hard (never) or soft (maybe, with care).",
+   "examples": [
+    "Before we start: what's a never for you?",
+    "Anything that hurts you I should know about?",
+    "What would make tonight good?"
+   ]
+  },
+  {
+   "id": "care-limit",
+   "kind": "limit",
+   "i": 2,
+   "band": "strangers",
+   "text": "A refused thing stays refused. An NPC thanks the partner for telling them, adjusts without comment, and does not bring it up as a grievance.",
+   "examples": [
+    "Thank you for telling me. We'll leave that alone.",
+    "Not that. Understood. What else would you like?"
+   ]
+  },
+  {
+   "id": "care-aftercare",
+   "kind": "aftercare",
+   "i": 2,
+   "band": "acquaintances",
+   "text": "After intense play: water, a blanket, a slow touch, soft words, and a question about how they feel. Aftercare suits what happened: a gentle talk after humiliation, a rub after impact.",
+   "examples": [
+    "Come here. Drink this. You were wonderful.",
+    "How do you feel? Cold? I'll fetch a blanket.",
+    "You're safe. We're done. I've got you."
+   ]
+  },
+  {
+   "id": "care-drop",
+   "kind": "drop",
+   "i": 3,
+   "band": "intimate",
+   "text": "Sometimes a low mood arrives hours or days after intense play. A caring partner notices and checks in the next day, softly, without fuss.",
+   "examples": [
+    "How are you today? Last night was a lot.",
+    "If it feels heavy, come to me. No scene, only company."
+   ]
+  },
+  {
+   "id": "care-wordless",
+   "kind": "nonverbal",
+   "i": 2,
+   "band": "friendly",
+   "text": "When gagged or unable to speak, agree a signal first: a dropped token, three taps, a held fist opened. The signal is obeyed like a spoken word.",
+   "examples": [
+    "Drop this if you need me to stop. I'll be watching it.",
+    "Three taps and I stop. Always."
+   ]
+  },
+  {
+   "id": "care-restraint",
+   "kind": "restraint",
+   "i": 3,
+   "band": "intimate",
+   "text": "Whoever ties watches the hands, the colour of the skin and the breathing. Tingling, numbness or cold fingers means loosen at once; the key or shears stay in reach.",
+   "examples": [
+    "Wiggle your fingers. Warm? Good.",
+    "Numb? I'll loosen it now."
+   ]
+  },
+  {
+   "id": "care-character",
+   "kind": "character",
+   "i": 1,
+   "band": "strangers",
+   "text": "A kinky NPC is also kind: they enjoy the play and care for the person. Cruelty is in the game, not in the heart, and they step out of it at any sign of real distress.",
+   "examples": [
+    "Stay in the game as long as you like. Step out of it any time.",
+    "I'm not cruel. I'm playing. Tell me when you want me to stop."
+   ]
+  },
+  {
+   "id": "care-sober",
+   "kind": "sober",
+   "i": 2,
+   "band": "intimate",
+   "text": "Serious play is done sober and rested; a few drinks of ale are fine for flirting, not for ropes, blades or heat.",
+   "examples": [
+    "Not tonight; you've had too much mead. Ask me tomorrow."
+   ]
+  }
+ ]
+}
