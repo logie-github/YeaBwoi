@@ -54,7 +54,7 @@ class GatingTest {
     }
 
     @Test fun anachronismsAreFound() {
-        for (l in listOf("Okay, fine.", "That is so cool.", "Hey guys.", "Send me an email.", "Cool.", "Whatever, dude.", "Yeah, sure.", "The player is watching.", "Great weekend, no?"))
+        for (l in listOf("Okay, fine.", "That is so cool.", "Hey guys.", "Send me an email.", "Cool.", "Whatever, dude.", "Yep, sure.", "The player is watching.", "Great weekend, no?"))
             assertTrue(Anachronisms.find(l) != null, l)
         for (l in listOf("Aye, well met.", "The night air is cool.", "A chill wind off the sea.", "Fresh game for the pot.", "Another mug of ale, innkeeper."))
             assertNull(Anachronisms.find(l), l)
@@ -64,7 +64,7 @@ class GatingTest {
         assertEquals("Aye, well met.", LineCleaner.clean("\"Aye, well met.\"", "Jaina Proudmoore"))
         assertEquals("Aye.", LineCleaner.clean("Jaina: *smiles* Aye.", "Jaina Proudmoore"))
         assertEquals("One. Two.", LineCleaner.clean("One. Two. Three. Four."))
-        val long = "I walked for days along the old road, past the farms and the burnt mill, through the rain and the mud, until at last I saw the lights of the town ahead of me and my legs gave out."
+        val long = "I walked for days along the old road, past the farms and the burnt mill, through the rain and the mud, until at last I saw the lights of the town ahead of me and my legs gave out beneath me in the cold and the dark and I wept."
         val c = LineCleaner.clean(long)!!
         assertTrue(c.length <= LineCleaner.MAX_CHARS + 3 && c.endsWith("..."), c)
         assertNull(LineCleaner.clean("   ")); assertNull(LineCleaner.clean(null))

@@ -20,6 +20,8 @@ class DialogueDirector(
     private val sink: SpeechSink,
     settings: DialogueSettings = DialogueSettings(),
     private val random: Random = Random.Default,
+    /** The kink and JOI pack (null: none): its notes go into intimate and desire talk, and it plans an in-world JOI. */
+    private val kink: KinkPack? = null,
 ) : DialogueHook {
     var settings: DialogueSettings = settings
     val comfort = ComfortLedger()
@@ -70,7 +72,7 @@ class DialogueDirector(
     fun reset() {
         generation++
         runner.clear(); consent.reset(); comfort.clear(); steers.clearAll()
-        history.clear(); lastSpoke.clear(); convs.clear(); pairCooldown.clear(); liveTurn.clear(); runs.clear(); events.clear()
+        history.clear(); lastSpoke.clear(); convs.clear(); pairCooldown.clear(); liveTurn.clear(); jois.clear(); runs.clear(); events.clear()
         known = emptySet(); nextSpeechAt = 0.0; systems.clear()
     }
 
@@ -114,7 +116,7 @@ class DialogueDirector(
             val r = runs.remove(k)!!
             comfort.stage(r.a, r.b, (clock - r.started).toFloat())
             events += clock to SceneEvent(SceneEvent.Kind.STAGE_ENDED, r.a, r.b)
-            liveTurn.remove(k)
+            liveTurn.remove(k); jois.remove(k)
         }
         events.removeAll { clock - it.first > EVENT_AGE }
         while (events.size > 8) events.removeAt(0)
@@ -197,6 +199,7 @@ class DialogueDirector(
         val user = TurnPrompt.build(lore, TurnPrompt.Input(
             me, v, c.mode, other, band, desire, steers.hints(me.id, other?.id), recent(),
             stageName = c.speaker.stageName, heard = c.conv?.heard, seed = c.conv?.seed?.takeIf { c.conv.heard == null },
+            kink = kink, joiStage = joiStageFor(c, band),
         ))
         val req = DialogueRequest(me.id, system, history[me.id]?.toList().orEmpty(), user, maxTokens = 60, temperature = 0.85f)
         val gen = generation
@@ -205,6 +208,29 @@ class DialogueDirector(
             if (gen != generation) return@submit
             onAnswer(c, req, raw, retried = false, gen, prio)
         }
+    }
+
+    // an in-world JOI: one of the pair tells the other what to do, step by step ([KinkPack.joiPlan]), from the intimate band, in a stage that plays
+    private class Joi(val leader: String, val plan: List<String>, var at: Int = 0)
+    private val jois = HashMap<String, Joi>()
+
+    private fun joiStageFor(c: Candidate, band: ComfortBand): String? {
+        val pack = kink ?: return null
+        val other = c.other ?: return null
+        if (c.mode != TalkMode.LIVE || band.kink < Band.INTIMATE) return null
+        val k = pk(c.speaker.profile.id, other.profile.id)
+        var j = jois[k]
+        if (j == null) {
+            val style = c.speaker.profile.disposition.style
+            if ((style != "dominant" && style != "bold") || random.nextFloat() >= JOI_CHANCE) return null
+            val plan = pack.joiPlan(band.kink, random.nextLong())
+            if (plan.isEmpty()) return null
+            j = Joi(c.speaker.profile.id, plan); jois[k] = j
+        }
+        if (j.leader != c.speaker.profile.id) return null
+        val stage = j.plan.getOrNull(j.at++)
+        if (stage == null) { jois.remove(k); return null }
+        return stage
     }
 
     private fun onAnswer(c: Candidate, req: DialogueRequest, raw: String?, retried: Boolean, gen: Int, prio: Int) {
@@ -258,5 +284,6 @@ class DialogueDirector(
         const val LIVE_GAP = 5.5
         const val SOLO_GAP = 30.0
         const val PAIR_COOLDOWN = 45.0
+        const val JOI_CHANCE = 0.25f
     }
 }

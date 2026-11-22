@@ -61,9 +61,9 @@ val pureGraphics = tasks.register<Copy>("pureGraphics") {
     into(layout.buildDirectory.dir("gen/pureGraphics"))
 }
 
-// dialogue/: the kink and JOI knowledge pack (KinkPack, pure; the persona and prompt files beside it are not copied).
+// dialogue/: the whole package is pure (persona, lore, director, willingness, steers, the kink and JOI pack): copied as it is.
 val pureDialogue = tasks.register<Copy>("pureDialogue") {
-    from("../android/app/src/main/java/com/logie/wifecraft/dialogue/KinkPack.kt")
+    from("../android/app/src/main/java/com/logie/wifecraft/dialogue") { include("*.kt") }
     into(layout.buildDirectory.dir("gen/pureDialogue"))
 }
 
@@ -106,8 +106,6 @@ sourceSets {
         // the named characters (assets/characters.json): their variants made appearances and looks (characters/)
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/characters")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/simulation")
-        // the dialogue layer (NPCs speaking with the on-device model: persona, lore, director, willingness, steers)
-        kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/dialogue")
         // Sims 4 CAS body parts: GEOM meshes, CASP descriptions, RLE2/LRLE/DST textures, recolour, part files (bodyparts/)
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/bodyparts")
     }

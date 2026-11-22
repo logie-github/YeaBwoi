@@ -162,7 +162,7 @@ class Hesitation(val npcId: String, val otherId: String, var resistance: Float, 
         val heur = WillingnessModel.delta(WillingnessModel.fit(a, disposition, fear))
         var d = heur
         if (reaction != null) {
-            val judged = when (reaction) { Reaction.CALMER -> heur - 0.12f; Reaction.SAME -> heur * 0.4f; Reaction.WARIER -> heur + 0.12f }
+            val judged = when (reaction) { Reaction.CALMER -> heur - 0.12f; Reaction.SAME -> heur * 0.4f; Reaction.WARIER -> heur * 0.4f + 0.15f }
             d = judged.coerceIn(heur - 0.15f, heur + 0.15f)
         }
         d = d.coerceAtMost(0.1f)

@@ -3,7 +3,7 @@ package com.logie.wifecraft.dialogue
 /** Words and turns of speech that don't belong to Azeroth. A line with one is regenerated once, then dropped. */
 object Anachronisms {
     private val WORDS = listOf(
-        "okay", "ok", "o\\.k\\.", "guys", "dude", "bro", "awesome", "yeah", "yep", "nope", "lol", "omg", "wow", "whatever", "totally", "literally",
+        "okay", "ok", "o\\.k\\.", "guys", "dude", "bro", "awesome", "yep", "nope", "lol", "omg", "wow", "whatever", "totally", "literally",
         "internet", "email", "e-mail", "phone", "smartphone", "computer", "laptop", "wifi", "wi-fi", "tv", "television", "movie", "movies", "youtube",
         "netflix", "tinder", "facebook", "google", "microsoft", "iphone", "uber", "pizza", "coffee", "weekend", "selfie", "boyfriend", "girlfriend",
         "gym", "america", "american", "europe", "robot", "app", "apps", "online", "download",

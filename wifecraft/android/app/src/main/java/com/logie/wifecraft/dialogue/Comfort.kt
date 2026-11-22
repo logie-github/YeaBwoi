@@ -8,6 +8,16 @@ enum class ComfortBand(val key: String, val label: String, val min: Float) {
     VERY_COMFORTABLE("very comfortable", "very comfortable", 5f),
     UNINHIBITED("uninhibited", "uninhibited", 8f);
 
+    /**
+     * The same ease on the kink pack's scale ([KinkPack]'s [Band], which caps how intense its notes may be): strangers, familiar to
+     * acquaintances, comfortable to friendly, very comfortable to intimate, uninhibited to uninhibited. This enum is the one the
+     * scene keeps; the pack's is only what its notes are asked with.
+     */
+    val kink: Band get() = when (this) {
+        STRANGERS -> Band.STRANGERS; FAMILIAR -> Band.ACQUAINTANCES; COMFORTABLE -> Band.FRIENDLY
+        VERY_COMFORTABLE -> Band.INTIMATE; UNINHIBITED -> Band.UNINHIBITED
+    }
+
     /** Whether the body of a partner's race may be drawn on in talk (from comfortable up). */
     val bodyTalk: Boolean get() = this >= COMFORTABLE
 

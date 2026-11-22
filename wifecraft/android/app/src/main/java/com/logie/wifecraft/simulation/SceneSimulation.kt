@@ -2190,7 +2190,7 @@ class SceneSimulation(
 
     /** Keeps both where they stand (no new decision) for a step. */
     private fun holdFor(a: Actor, b: Actor) {
-        for (x in listOf(a, b)) if (x.phase == Phase.WAITING && x.performance == null) x.remaining = maxOf(x.remaining, 1.5f)
+        for (x in listOf(a, b)) if (x.phase == Phase.WAITING && x.performance == null && x.talk == null) x.remaining = maxOf(x.remaining, 1.5f)
     }
 
     private fun declined(initiator: Actor, target: Actor, directed: Boolean) {
@@ -2204,7 +2204,8 @@ class SceneSimulation(
         if (consentWaits.isEmpty()) return
         val hook = dialogue
         for (w in consentWaits.toList()) {
-            val taken = w.initiator.performance != null || w.target.performance != null || w.initiator.talk != null || w.target.talk != null
+            // (one pulled into a conversation meanwhile keeps waiting; one taken by another stage drops this one)
+            val taken = w.initiator.performance != null || w.target.performance != null
             if (taken) { consentWaits.remove(w); continue }
             // no layer any more, or it has taken too long: as if willing
             val gate = if (hook == null || !hook.active || time > w.until) ConsentGate.PROCEED

@@ -118,6 +118,10 @@ object TurnPrompt {
         val heard: String? = null,
         val seed: String? = null,
         val maxWords: Int = 28,
+        /** The kink and JOI pack's notes (null: none). */
+        val kink: KinkContext? = null,
+        /** The stage of an in-world JOI this line belongs to ([KinkPack.joiPlan]), or null. */
+        val joiStage: String? = null,
     )
 
     fun build(lore: Lore, i: Input): String {
@@ -138,6 +142,7 @@ object TurnPrompt {
             if (i.mode == TalkMode.LIVE || i.desireTopic) lore.kinkGuide(i.band.key)?.let { b.append("How open you are now: ").append(it).append('\n') }
             if (i.mode == TalkMode.LIVE || i.desireTopic) b.append("In bed you are ${i.me.disposition.style}; your pace of loosening is ${paceWord(i.me.disposition)}.\n")
         }
+        kinkNotes(lore, i)?.let { b.append(it) }
         for (s in i.steers) b.append(s.hint()).append('\n')
         i.seed?.let { b.append("A thing on your mind: ").append(it).append('\n') }
         b.append(modeText(i)).append('\n')
@@ -145,6 +150,41 @@ object TurnPrompt {
         val to = i.partner?.let { "to ${it.first}" } ?: "aloud"
         b.append("Say your next line $to in at most ${i.maxWords} words, one or two sentences, in your own voice. Reply with the spoken words only.")
         return b.toString()
+    }
+
+    /** The words the kink pack knows a nature by. */
+    fun personalityWords(p: NpcProfile): Set<String> {
+        val out = linkedSetOf(p.disposition.style)
+        for (t in p.traits) when (t.uppercase()) {
+            "PLAYFUL" -> out += "playful"; "MISCHIEVOUS" -> { out += "brat"; out += "playful" }; "ROMANTIC", "CALM" -> out += "tender"
+            "LONER", "ASCETIC" -> out += "shy"; "BOOKISH" -> out += "curious"; "BRAVE" -> out += "bold"
+        }
+        return out
+    }
+
+    /** The speaker's role in the dynamic, as the pack reads it. */
+    fun roleOf(d: Disposition): String? = when (d.style) { "dominant" -> "dom"; "shy" -> "sub"; "bold" -> "switch"; else -> null }
+
+    /** The pack's query for [i]: the band mapped, the natures, the races and classes of the two, the stage. */
+    fun kinkQuery(lore: Lore, i: Input, limit: Int = 3): KinkQuery {
+        val people = listOfNotNull(i.me, i.partner)
+        return KinkQuery(i.band.kink, personalityWords(i.me), roleOf(i.me.disposition),
+            people.mapNotNull { lore.raceKey(it.raceId) }, people.mapNotNull { lore.className(it.classId)?.replace(" ", "")?.lowercase() },
+            stage = if (i.joiStage != null) "joi" else if (i.mode == TalkMode.LIVE) "scene" else "flirt", limit = limit)
+    }
+
+    private fun kinkNotes(lore: Lore, i: Input): String? {
+        val k = i.kink ?: return null
+        if (i.partner == null || !(i.mode == TalkMode.LIVE || i.desireTopic) || i.band.kink < Band.ACQUAINTANCES) return null
+        val q = kinkQuery(lore, i)
+        val sb = StringBuilder()
+        val snippets = k.snippets(q)
+        if (snippets.isNotEmpty()) sb.append("Ideas you may draw on, in your own words: ").append(snippets.joinToString(" ")).append('\n')
+        i.joiStage?.let { st -> k.joiHint(st, q)?.let { sb.append("The one telling the other what to do, this step: ").append(it).append('\n') } }
+        if (i.mode == TalkMode.LIVE) k.care(q)?.let { sb.append("Care between you: ").append(it).append('\n') }
+        val ex = k.examples(q, 1).firstOrNull()
+        if (ex != null) sb.append("A sample of the register (do not copy it):\n").append(ex.render()).append('\n')
+        return sb.takeIf { it.isNotEmpty() }?.toString()
     }
 
     private fun paceWord(d: Disposition) = when { d.speed < 0.8f -> "slow"; d.speed > 1.25f -> "quick"; else -> "ordinary" }

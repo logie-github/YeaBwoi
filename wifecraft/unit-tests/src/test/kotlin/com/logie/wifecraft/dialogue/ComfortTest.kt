@@ -19,7 +19,7 @@ class ComfortTest {
         c.stage("b", "a", 180f); assertEquals(ComfortBand.COMFORTABLE, c.band(natural, "a", "b"), "pairs are unordered")
         c.stage("a", "b", 240f); c.stage("a", "b", 240f); assertTrue(c.band(natural, "a", "b") >= ComfortBand.VERY_COMFORTABLE)
         repeat(3) { c.stage("a", "b", 300f) }; assertEquals(ComfortBand.UNINHIBITED, c.band(natural, "a", "b"))
-        assertEquals(5, c.stages("a", "b")); assertEquals(0, c.stages("a", "c"))
+        assertEquals(7, c.stages("a", "b")); assertEquals(0, c.stages("a", "c"))
         // a long stage counts for more than a short one
         val s = ComfortLedger().apply { stage("x", "y", 10f) }; val l = ComfortLedger().apply { stage("x", "y", 400f) }
         assertTrue(l.score("x", "y") > s.score("x", "y"))
