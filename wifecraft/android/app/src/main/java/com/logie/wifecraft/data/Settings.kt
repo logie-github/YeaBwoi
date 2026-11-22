@@ -76,6 +76,10 @@ class Settings(context: Context) {
             return ImmersiveSettings.parse(stored)
         }
         set(v) = prefs.edit().putString("immersive", v.toJson().toString()).apply()
+    /** The Consent and limits screen's remembered limits (simulation/ConsentBook's JSON): per character, and per scene where set so. */
+    var consentLimits: String?
+        get() = prefs.getString("consentLimits", null)
+        set(v) = prefs.edit().putString("consentLimits", v ?: "").apply()
     /** What each NPC keeps on when the scene's flow undresses them (equipment slots, by NPC id); none kept by default. */
     fun keepOn(npcId: String): Set<Int> =
         prefs.getString("keepOn.$npcId", null)?.split(',')?.mapNotNull { it.trim().toIntOrNull() }?.toSet() ?: keepOnAll

@@ -82,6 +82,8 @@ internal fun AnimationBrowser(
     onTreatAs: ((AnimationChoice, TreatAs?) -> Unit)? = null,
     /** The player's Treat as by animation id (a pair's without its choice prefix), to light the current one. */
     treatedAs: Map<String, TreatAs> = emptyMap(),
+    /** The limits (Consent and limits): "Won't: <name>" for a choice the NPC or their partner won't do, else null. The scene refuses it all the same. */
+    limitNote: (AnimationChoice) -> String? = { null },
 ) {
     var query by remember { mutableStateOf("") }
     // every animation is listed with its chip; this hides those that would play on the floor in place of their furniture
@@ -146,7 +148,7 @@ internal fun AnimationBrowser(
                                 if (tabName != group) item(key = "group:$group") { WifeSectionHeader("$group  ${entries.size}") }
                                 items(entries, key = { it.id }) { choice ->
                                     AnimRow(choice, choice.id == selection, { selection = choice.id }, Modifier.padding(end = 10.dp),
-                                        availability[choice.id], onTreatAs?.let { { treating = choice } })
+                                        availability[choice.id], onTreatAs?.let { { treating = choice } }, limitNote(choice))
                                 }
                             }
                         }
@@ -171,6 +173,7 @@ internal fun AnimationBrowser(
                             WifeNote(details(selected), color = WifeTheme.text)
                             if (selected.participantCount == 2) WifeNote(partnerName?.let { "Plays with $it." } ?: "Asks for a second NPC.", color = PairRose)
                             if (!selected.playable) WifeNote(selected.preview.inspection.reason ?: "A required actor track is missing.", color = WifeTheme.danger)
+                            limitNote(selected)?.let { WifeNote("$it. They decline if asked; it does not start.", color = WifeTheme.danger) }
                             availability[selected.id]?.let { a -> WifeNote(FurnitureAvailability.describe(a) +
                                 (if (onTreatAs != null) " Long press to treat it as a bed, a seat, the floor..." else ""), color = WifeTheme.text) }
                             if (preview != null && selected.preview.inspection.reason == null) {
@@ -261,7 +264,7 @@ private fun OrderModes(mode: AnimationOrderMode, onMode: (AnimationOrderMode) ->
  */
 @Composable
 private fun AnimRow(choice: AnimationChoice, picked: Boolean, onClick: () -> Unit, modifier: Modifier,
-                    availability: Availability? = null, onLongPress: (() -> Unit)? = null) {
+                    availability: Availability? = null, onLongPress: (() -> Unit)? = null, limit: String? = null) {
     val reduced = reduceMotion()
     val edge by animateColorAsState(if (picked) WifeTheme.gold else WifeTheme.trimSoft, tween(MenuMotion.duration(FrontMotion.GLOW_MS, reduced)), label = "row")
     val shape = RoundedCornerShape(WifeTheme.buttonRadius)
@@ -278,6 +281,11 @@ private fun AnimRow(choice: AnimationChoice, picked: Boolean, onClick: () -> Uni
             Text(choice.name, style = frizStyle(WifeTheme.label, if (!choice.playable) WifeTheme.textDim else if (picked) Color.White else WifeTheme.gold),
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(details(choice), style = WifeTheme.captionStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        if (limit != null) {
+            val pill = RoundedCornerShape(50)
+            Text(limit, Modifier.widthIn(max = 150.dp).clip(pill).border(1.dp, WifeTheme.danger, pill).padding(horizontal = WifeTheme.gapS, vertical = 2.dp),
+                style = WifeTheme.captionStyle(WifeTheme.danger), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         if (availability != null) {
             val pill = RoundedCornerShape(50)

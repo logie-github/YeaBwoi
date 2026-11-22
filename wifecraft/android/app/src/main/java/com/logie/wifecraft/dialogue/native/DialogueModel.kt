@@ -34,10 +34,10 @@ class DialogueModel(
     val isLoaded: Boolean get() = scheduler?.ready == true
 
     /**
-     * Loads [file] as [spec] (blocking for a few seconds: call it off the main thread). Returns null when it worked, else why not
+     * Loads [file] as [spec] (blocking, reading a 7.5 GB file takes tens of seconds: call it off the main thread, see [loadProgress]). Returns null when it worked, else why not
      * (in words for the Options page). Replaces a model already loaded.
      */
-    fun load(spec: DialogueModelSpec, file: File, threads: Int, ctx: Int = 6144, slots: Int = 6, ambientTokensPerMinute: Int = 900): String? {
+    fun load(spec: DialogueModelSpec, file: File, threads: Int, ctx: Int = 6144, slots: Int = 6, ambientTokensPerMinute: Int = 300): String? {
         unload()
         val stateDir = stateRoot?.let { File(it, spec.id.replace(Regex("[^A-Za-z0-9._-]"), "_")) }
         val b = NativeBackend(stateDir)
@@ -51,6 +51,9 @@ class DialogueModel(
         DialogueRuntime.engine = engine   // the scenes' directors read it each call
         return null
     }
+
+    /** While [load] runs on another thread: how much of the model file has been read, 0 to 1 (-1 when the library is not there). */
+    fun loadProgress(): Float = if (NativeDialogue.available) NativeDialogue.nativeLoadProgress() else -1f
 
     /** Saves the NPCs' places and frees the model's memory. */
     fun unload() {

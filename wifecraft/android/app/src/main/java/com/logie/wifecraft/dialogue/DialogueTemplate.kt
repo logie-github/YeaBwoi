@@ -21,6 +21,12 @@ enum class ChatTemplate(val thinkOff: Boolean) {
         return sb.toString()
     }
 
+    /**
+     * Turn marks a model may print as text (Mag-Mell's card: with a quantised cache it sometimes "leaks" them) end the answer
+     * there; [already] are the request's own stops, not repeated.
+     */
+    fun leakStops(already: List<String>): List<String> = listOf("<|im_start|>", "<|im_end|>").filter { it !in already }
+
     private fun turn(sb: StringBuilder, role: String, text: String) {
         sb.append("<|im_start|>").append(role).append('\n').append(text.trim()).append("<|im_end|>\n")
     }
