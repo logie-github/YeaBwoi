@@ -38,6 +38,12 @@ class Lore(json: String) {
     /** The race key of a ChrRaces id ("undead", "bloodelf"...), or null (unknown, a creature). */
     fun raceKey(raceId: Int): String? = raceIds[raceId]
 
+    /** Every race id the pack knows (ChrRaces ids), in order. */
+    fun raceIdList(): List<Int> = raceIds.keys.sorted()
+
+    /** Every class id the pack knows, in order. */
+    fun classIdList(): List<Int> = classes.keys.sorted()
+
     fun race(raceId: Int): RaceLore? = raceKey(raceId)?.let { races[it] }
 
     fun faction(raceId: Int): Faction {

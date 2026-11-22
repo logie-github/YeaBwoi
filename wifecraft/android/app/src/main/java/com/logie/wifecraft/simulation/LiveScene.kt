@@ -220,6 +220,14 @@ class LiveScene(
     @Volatile var joiCamera: JoiCamera? = null
     @Volatile var joiActor = -1
     @Volatile var joiCreature: com.logie.wifecraft.characters.CreatureSpec? = null
+    /**
+     * Chat mode ([ChatCamera]; null: off): the camera stands in front of person [chatActor] (a cast index; -1 none), at her head's height, with a
+     * slow drift; a creature ([chatCreature]) is seen from in front of her head. She is turned to face it by [joiPlace] and put back to idle
+     * after each gesture ([joiKeep], as in JOI mode). Any thread.
+     */
+    @Volatile var chatCamera: ChatCamera? = null
+    @Volatile var chatActor = -1
+    @Volatile var chatCreature: com.logie.wifecraft.characters.CreatureSpec? = null
     private var joiWas = false
     private var joiHoldFacing = Float.NaN
     private var joiSink: Sink? = null
@@ -433,9 +441,13 @@ class LiveScene(
         if (on && !cineWas && camera.directAmount <= 0f) dir.restart()
         cineWas = on
         val jc = joiCamera
+        val cc = chatCamera
         if (on && jc != null && joiActor in 0 until n) {
             joiWas = true
             if (joiFrame(jc, joiActor, dt)) return
+        } else if (on && cc != null && chatActor in 0 until n) {
+            joiWas = true
+            if (chatFrame(cc, chatActor, dt)) return
         } else if (joiWas) { joiWas = false; dir.restart() }
         val st = cineStage ?: CinematicStage(n).also { cineStage = it }
         st.count = n
@@ -509,14 +521,35 @@ class LiveScene(
      * over the camera. A creature's skull is found by [com.logie.wifecraft.characters.CreatureSpec.skullForward] and its kin.
      */
     private fun joiFrame(jc: JoiCamera, i: Int, dt: Float): Boolean {
+        val spec = joiCreature
+        fillBody(i, spec)
+        jc.creature = spec != null
+        if (spec != null) jc.creatureScale = spec.scale
+        jc.visible = clearance?.let { c -> { eye: Vec3, at: Vec3 -> c.clear(eye, at) } }
+        if (!jc.update(dt, joiBody, aspect)) return false
+        camera.directPose(jc.eyeX, jc.eyeY, jc.eyeZ, jc.atX, jc.atY, jc.atZ, jc.fov)
+        return true
+    }
+
+    /** Chat mode's frame (GL thread): her body as JOI mode reads it, and [cc]'s conversation framing laid over the camera. */
+    private fun chatFrame(cc: ChatCamera, i: Int, dt: Float): Boolean {
+        val spec = chatCreature
+        fillBody(i, spec)
+        cc.creature = spec != null
+        if (spec != null) cc.creatureScale = spec.scale
+        cc.visible = clearance?.let { c -> { eye: Vec3, at: Vec3 -> c.clear(eye, at) } }
+        if (!cc.update(dt, joiBody, aspect)) return false
+        camera.directPose(cc.eyeX, cc.eyeY, cc.eyeZ, cc.atX, cc.atY, cc.atZ, cc.fov)
+        return true
+    }
+
+    /** Person [i]'s body for a conversation or JOI camera ([joiBody]): her bones as drawn, else estimates; a creature's skull by its spec. */
+    private fun fillBody(i: Int, spec: com.logie.wifecraft.characters.CreatureSpec?) {
         simulation.pose(i, pose)
         val scale = simulation.bodyScales[simulation.id(i)] ?: 1f
         val sx = stageX(curX[i], curY[i]); val sy = stageY(curX[i], curY[i]); val z = oz + curZ[i]
         val facing = pose.facing + rotation
-        val spec = joiCreature
-        jc.creature = spec != null
         if (spec != null) {
-            jc.creatureScale = spec.scale
             val k = spec.scale / 0.25f
             val cf = cos(facing); val sf = sin(facing)
             val hx = sx + (cf * spec.skullForward - sf * spec.skullSide) * k
@@ -529,10 +562,6 @@ class LiveScene(
             if (tracked) joiBody.set(Vec3(p[0], p[1], p[2]), Vec3(p[3], p[4], p[5]), Vec3(p[6], p[7], p[8]), facing, 1.7f * scale, z, true)
             else joiBody.set(Vec3(sx, sy, z + 1.62f * scale), Vec3(sx, sy, z + 1.25f * scale), Vec3(sx, sy, z + 0.95f * scale), facing, 1.7f * scale, z, false)
         }
-        jc.visible = clearance?.let { c -> { eye: Vec3, at: Vec3 -> c.clear(eye, at) } }
-        if (!jc.update(dt, joiBody, aspect)) return false
-        camera.directPose(jc.eyeX, jc.eyeY, jc.eyeZ, jc.atX, jc.atY, jc.atZ, jc.fov)
-        return true
     }
 
     /**
@@ -554,8 +583,8 @@ class LiveScene(
 
     /** While JOI mode runs, the speaker is put back where she stands after each solo animation (GL thread, each frame). */
     private fun joiKeep() {
-        val i = joiActor
-        if (joiCamera == null || i !in 0 until n || joiHoldFacing.isNaN()) return
+        val i = if (chatCamera != null) chatActor else joiActor
+        if ((joiCamera == null && chatCamera == null) || i !in 0 until n || joiHoldFacing.isNaN()) return
         val id = simulation.id(i)
         if (simulation.busy(id)) return
         val at = simulation.position(id) ?: return
