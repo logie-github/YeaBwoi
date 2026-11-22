@@ -80,7 +80,8 @@ class ItemReportsTest(unittest.TestCase):
             with open(src, "w") as f:
                 json.dump([issue(1, build_body(), ir.BUILD_LABEL)], f)
             outs = [os.path.join(d, n) for n in ("items.json", "markers.json", "race.json")]
-            ir.main(["--from-json", src, "--out", outs[0], "--markers-out", outs[1], "--race-out", outs[2]])
+            ir.main(["--from-json", src, "--out", outs[0], "--markers-out", outs[1], "--race-out", outs[2],
+                     "--spots-out", os.path.join(d, "spots.json")])
             data = []
             for p in outs:
                 with open(p) as f:
@@ -88,6 +89,30 @@ class ItemReportsTest(unittest.TestCase):
             self.assertIn("goldshire_inn/doodad:12/12345", data[0]["items"])
             self.assertEqual("Sit 1", data[1]["places"]["goldshire_inn"][0]["name"])
             self.assertEqual("Hug", data[2]["offsets"][0]["animationId"])
+
+    def test_new_tab_spots_are_read_apart_from_items_and_merged_by_place(self):
+        def spot(x, y, label="", kind="chair", cls="seat"):
+            return {"user": True, "key": "spot:a", "kind": kind, "label": label, "class": cls, "position": [x, y, 0.0], "yawDeg": 10,
+                    "box": {"x": 0.6, "y": 0.6, "z": 0.5}, "surface": 0.5, "sparkle": True}
+        bodies = []
+        for n, (x, y) in enumerate([(1.0, 1.0), (1.1, 1.0), (1.2, 1.1), (9.0, 9.0)]):
+            b = build_body()
+            b["items"] = list(b.get("items") or []) + [spot(x, y)]
+            bodies.append(issue(20 + n, b, ir.BUILD_LABEL))
+        spots = {}
+        built, _, _, problems = ir.read_build(bodies, spots)
+        self.assertFalse(any("spot" in p for _, ps in problems for p in ps))
+        self.assertNotIn("spot:a", built, "a user spot is not a game item")
+        merged = ir.merge_spots(spots)["places"]["goldshire_inn"]
+        self.assertEqual(2, len(merged), "three near each other are one, the far one another")
+        near = [m for m in merged if m["reports"] == 3][0]
+        self.assertEqual(1.1, near["position"][0]); self.assertTrue(near["user"]); self.assertEqual("chair", near["kind"])
+        bad = build_body()
+        bad["items"] = [dict(spot(0, 0), kind="sofa")]
+        sp = {}
+        _, _, _, problems = ir.read_build([issue(30, bad, ir.BUILD_LABEL)], sp)
+        self.assertEqual({}, sp)
+        self.assertTrue(any("spot" in p for _, ps in problems for p in ps))
 
 
 if __name__ == "__main__":

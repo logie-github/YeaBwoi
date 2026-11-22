@@ -38,10 +38,13 @@ fun GraphicsPage() {
     val set: (GraphicsSettings) -> Unit = { Graphics.set(context, it) }
     val edit: (GraphicsSettings) -> Unit = { Graphics.set(context, it.withMatchingPreset()) }
 
+    SparkleSwitch.load(context)
     WifeSectionHeader("Quality")
     val presets = GraphicsPreset.entries
     WifeTabs(presets.map { it.label }, presets.indexOf(s.preset).coerceAtLeast(0), { set(s.withPreset(presets[it])) })
     WifeNote("Standard draws the scene as before. High and Ultra add the effects below; Custom is whatever you set.")
+    WifeSwitchRow("Show sparkles", SparkleSwitch.on, { SparkleSwitch.set(context, it) },
+        detail = "WoW-style twinkles over every spot a body can use. Fewer when the governor lowers effects; off in cinematic mode and Build mode.")
     GfxDropdownRow("Target frame rate", "${s.targetFps} fps", GraphicsSettings.TARGETS.map { it to "$it fps" }) { fps: Int ->
         set(s.copy(targetFps = fps))
     }

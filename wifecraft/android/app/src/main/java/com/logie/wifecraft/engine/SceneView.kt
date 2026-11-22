@@ -211,6 +211,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
                 val d = driver
                 if (d != null) {
                     d.drive(System.nanoTime())
+                    applySparkles()
                     applyGizmo()
                     Native.render(handle, width, height, Clock.now())
                     com.logie.wifecraft.graphics.Graphics.glFrame(handle)   // (Options' Graphics: timings, the governor)
@@ -437,6 +438,23 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         if (count == motesSent && strength == motesStrength) return
         motesSent = count; motesStrength = strength
         Native.particles(handle, count, strength)
+    }
+
+    @Volatile private var sparkleSet: FloatArray? = null
+    @Volatile private var sparkleDensity = 0f
+    @Volatile private var sparkleApplied: FloatArray? = null
+    private var sparkleAppliedDensity = -1f
+
+    /** Interactable sparkles over the spots listed ([Sparkles.floats]; empty: none) at [density] 0..1, drawn from the next frame. Any thread. */
+    fun setSparkles(spots: FloatArray, density: Float) { sparkleSet = spots; sparkleDensity = density }
+
+    /** GL thread, each frame: the sparkles given to the renderer when they changed. */
+    private fun applySparkles() {
+        val s = sparkleSet ?: return
+        val d = sparkleDensity
+        if (s === sparkleApplied && d == sparkleAppliedDensity) return
+        sparkleApplied = s; sparkleAppliedDensity = d
+        Native.sparkles(handle, s, d)
     }
 
     /** The body language and the motes off (a scene ending). Any thread. */

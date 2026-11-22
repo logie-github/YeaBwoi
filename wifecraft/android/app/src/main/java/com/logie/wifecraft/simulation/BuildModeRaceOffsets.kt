@@ -51,6 +51,7 @@ enum class RaceScope(val id: String, val label: String, val rank: Int) {
 data class RoleDelta(val dx: Float, val dy: Float, val dz: Float, val dyawDeg: Float) {
     val none: Boolean get() = abs(dx) < 1e-4f && abs(dy) < 1e-4f && abs(dz) < 1e-4f && abs(dyawDeg) < 0.05f
     operator fun plus(o: RoleDelta) = RoleDelta(dx + o.dx, dy + o.dy, dz + o.dz, ItemFrame.wrapDeg(dyawDeg + o.dyawDeg))
+    operator fun minus(o: RoleDelta) = RoleDelta(dx - o.dx, dy - o.dy, dz - o.dz, ItemFrame.wrapDeg(dyawDeg - o.dyawDeg))
 
     /** [role] moved by it (its offset from the pair's origin and its facing, both in the pair's frame). */
     fun applyTo(role: PlaybackRole): PlaybackRole =
@@ -72,6 +73,8 @@ data class RaceOffset(
     val animation: String, val animationName: String, val role: Int, val race: Int, val female: Boolean, val otherRace: Int,
     val furniture: String, val item: String?, val scope: RaceScope, val delta: RoleDelta,
     val reports: Int = 1, val outliers: List<Int> = emptyList(), val at: Long = 0L,
+    /** How it was made: "both" (the pair moved together: a shared correction), "single" (that role moved alone), "" (older). */
+    val move: String = "",
 ) {
     val sizeClass: SizeClass get() = SizeClass.of(race)
 
@@ -107,7 +110,7 @@ data class RaceOffset(
         .put("race", race).put("sex", if (female) "female" else "male").put("otherRace", otherRace).put("furnitureClass", furniture)
         .put("item", item ?: JSONObject.NULL).put("scope", scope.id).put("sizeClass", sizeClass.id)
         .put("dx", r(delta.dx)).put("dy", r(delta.dy)).put("dz", r(delta.dz)).put("dyawDeg", r(delta.dyawDeg))
-        .put("reports", reports).put("outliers", JSONArray(outliers)).put("at", at)
+        .put("reports", reports).put("outliers", JSONArray(outliers)).put("at", at).also { if (move.isNotEmpty()) it.put("move", move) }
 
     companion object {
         private fun r(v: Float): Double = Math.round(v * 1000.0) / 1000.0
@@ -131,7 +134,8 @@ data class RaceOffset(
             return RaceOffset(animation, o.optString("animationName"), role, race, o.optString("sex") == "female", o.optInt("otherRace", -1),
                 o.optString("furnitureClass"), o.optString("item").takeIf { o.has("item") && !o.isNull("item") && it.isNotEmpty() },
                 scope, d, o.optInt("reports", 1),
-                o.optJSONArray("outliers")?.let { a -> (0 until a.length()).map { a.optInt(it) } }.orEmpty(), o.optLong("at"))
+                o.optJSONArray("outliers")?.let { a -> (0 until a.length()).map { a.optInt(it) } }.orEmpty(), o.optLong("at"),
+                o.optString("move"))
         }
     }
 }

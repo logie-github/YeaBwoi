@@ -24,6 +24,7 @@
 #include "modelpart.h"
 #include "motionlayer.h"
 #include "particles.h"
+#include "sparkle.h"
 #include "postfx.h"
 #include "skin.h"
 #include "softbody.h"
@@ -340,6 +341,9 @@ public:
     // target; deterministic from `seed`.
     void setParticles(int count, float strength, uint32_t seed = 7);
     const ParticleField& particleField() const { return particles_; }
+    // Interactable sparkles (sparkle.h): `count` spots of SparkleField::kStride floats (0: none) at `density` 0..1.
+    void setSparkles(const float* data, int count, float density);
+    const SparkleField& sparkleField() const { return sparkles_; }
 
     // ---------------------------------------------------------------- locations and props (location.cpp)
     // A location (location.h: an entry of assets/locations.json): its WMO's groups in world coordinates, its doodads and
@@ -903,6 +907,9 @@ private:
     MotionParams motionParams_;
     ParticleField particles_;
     ParticleDraw particleDraw_;
+    SparkleField sparkles_;
+    SparkleDraw sparkleDraw_;
+    std::vector<Spark> sparkBuf_;
     float particleStrength_ = 0;
     uint32_t particleClock_ = 0;
     void holdBoneLayer(Actor& a, uint32_t now);  // bonelayer.h's held bones, on the local poses (before the matrices)

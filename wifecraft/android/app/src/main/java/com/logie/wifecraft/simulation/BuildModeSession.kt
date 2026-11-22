@@ -10,7 +10,7 @@ import java.util.Locale
  * session's edits ([BuildDoc]) with undo and redo (each gesture one step: a drag is one, however long), and the report's
  * sending (sent, queued, failed). The scene is never paused by it. Every change is a new state. Pure.
  */
-enum class BuildBarTool(val label: String) { SELECT("Select"), MARKER("Marker"), MOVE("Move"), INTERACT("Interact"), SEND("Send") }
+enum class BuildBarTool(val label: String) { SELECT("Select"), MARKER("Marker"), MOVE("Move"), INTERACT("Interact"), NEW("New"), SEND("Send") }
 
 enum class BuildPhase { IDLE, SELECTED, DRAGGING, SENDING, SENT, QUEUED, FAILED }
 
@@ -20,6 +20,8 @@ sealed class BuildSelection(val key: String, val name: String) {
     class Item(key: String, name: String, val model: Int, val hitKey: String, val sceneObject: SceneObject?, val frame: ItemFrame,
                val halfX: Float, val halfY: Float, val top: Float) : BuildSelection(key, name)
     class Marker(id: String, name: String) : BuildSelection(id, name)
+    /** A spot made in the New tab ([key] its id). */
+    class Spot(id: String, name: String) : BuildSelection(id, name)
     /** An NPC ([key] its id); [playing]: in an animation (the gizmo moves its pair's shared origin, live). */
     class Npc(id: String, name: String, val playing: Boolean) : BuildSelection(id, name)
 }
@@ -103,6 +105,8 @@ object BuildEdits {
     fun movePair(d: BuildDoc, m: PairMove): BuildDoc = d.copy(pairs = d.pairs + (m.actorId to m))
     fun resetPair(d: BuildDoc, actorId: String): BuildDoc = d.copy(pairs = d.pairs - actorId)
     fun remember(d: BuildDoc, o: RaceOffset): BuildDoc = d.copy(raceOffsets = RaceOffsets.upsert(d.raceOffsets, o))
+    fun moveNpc(d: BuildDoc, id: String, p: BuildPose): BuildDoc = d.copy(npcMoves = d.npcMoves + (id to p))
+    fun resetNpc(d: BuildDoc, id: String): BuildDoc = d.copy(npcMoves = d.npcMoves - id)
 
     /** A new marker's name: its type and the next free number ("Sit 2"). */
     fun markerName(d: BuildDoc, t: MarkerType): String {
@@ -123,20 +127,23 @@ data class BuildReport(val id: String, val placeId: String, val placeName: Strin
     fun title(): String = "Build report: $placeName"
 
     fun toJson(): JSONObject = doc.toJson(placeId, placeName)
+        .also { it.remove("npcMoves") }   // (NPCs' own places stay on the phone: nothing personal in a report)
         .put("kind", "build-report").put("report", id)
         .put("app", JSONObject().put("version", appVersion).put("build", build))
         .put("notes", notes.take(ItemMapping.MAX_NOTES))
 
     fun body(): String = buildString {
         appendLine("**Build report** for $placeName (`$placeId`): ${doc.markers.size} marker(s), ${doc.items.size} item(s), " +
-            "${doc.pairs.size} moved pair(s), ${doc.raceOffsets.size} race placement(s).")
+            "${doc.pairs.size} moved pair(s), ${doc.raceOffsets.size} race placement(s), ${doc.spots.size} new spot(s).")
         appendLine()
         for (m in doc.markers) appendLine(String.format(Locale.ROOT, "- Marker **%s** (%s) at x %.2f, y %.2f, z %.2f, facing %.0f°%s",
             m.name, m.type.label, m.pose.x, m.pose.y, m.pose.z, m.pose.yawDeg, m.itemKey?.let { " for `$it`" } ?: ""))
         for (i in doc.items.values) appendLine(String.format(Locale.ROOT, "- Item **%s** (`%s`, model %d) as %s: %s, surface %.2f yd",
             i.name, i.key, i.model, i.cls.label, i.supports.sortedBy { it.ordinal }.joinToString { it.label.lowercase() }.ifEmpty { "its class's" }, i.surface))
-        for (p in doc.pairs.values) appendLine(String.format(Locale.ROOT, "- Pair **%s** origin moved to x %.2f, y %.2f, z %.2f, facing %.0f° (computed x %.2f, y %.2f, z %.2f, %.0f°)",
-            p.animation, p.to.x, p.to.y, p.to.z, p.to.yawDeg, p.from.x, p.from.y, p.from.z, p.from.yawDeg))
+        for (p in doc.pairs.values) appendLine(String.format(Locale.ROOT, "- Pair **%s** (%s) origin moved to x %.2f, y %.2f, z %.2f, facing %.0f° (computed x %.2f, y %.2f, z %.2f, %.0f°)",
+            p.animation, p.kind, p.to.x, p.to.y, p.to.z, p.to.yawDeg, p.from.x, p.from.y, p.from.z, p.from.yawDeg))
+        for (sp in doc.spots.values) appendLine(String.format(Locale.ROOT, "- New spot **%s** (%s, class %s) at x %.2f, y %.2f, z %.2f, facing %.0f°, %.2f × %.2f yd, surface %.2f yd, sparkles %s",
+            sp.name, sp.kind.label, sp.cls.label, sp.x, sp.y, sp.z, sp.yawDeg, 2 * sp.halfX, 2 * sp.halfY, sp.surface, if (sp.sparkle) "on" else "off"))
         for (o in doc.raceOffsets) appendLine("- Race placement: ${o.describe()}")
         if (notes.isNotBlank()) appendLine("- Notes: ${notes.take(ItemMapping.MAX_NOTES).replace("\n", " ")}")
         appendLine("- Wifecraft $appVersion (build $build)")

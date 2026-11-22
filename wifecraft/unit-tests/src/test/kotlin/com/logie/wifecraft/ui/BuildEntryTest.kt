@@ -47,4 +47,13 @@ class BuildEntryTest {
         assertTrue(BuildEntry.holdAnimations(buildOn = true))
         assertFalse(BuildEntry.holdAnimations(buildOn = false))
     }
+
+    @Test
+    fun theBuildButtonSitsRightUnderTheCinematicButtonAndSaysWhenItIsOn() {
+        // the Cinematic button is 48 dp tall, centred in a 56 dp top bar: it ends at 4 + 48
+        assertEquals(52f, BuildEntry.buttonTop(56f))
+        assertEquals("Build", BuildEntry.chipLabel(false))
+        assertNotEquals(BuildEntry.chipLabel(false), BuildEntry.chipLabel(true))
+        assertTrue(BuildEntry.HINT.contains("Cinematic"))
+    }
 }

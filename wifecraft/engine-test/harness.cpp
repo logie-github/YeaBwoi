@@ -1505,6 +1505,17 @@ int main(int argc, char** argv) {
                 }
                 std::printf("\n");
             }
+        } else if (cmd == "sparkles") {
+            // sparkles off | sparkles DENSITY X Y Z HALFX HALFY YAW [X Y Z ...]: interactable sparkles over spots (Scene::setSparkles)
+            std::string first; ss >> first;
+            std::vector<float> v;
+            float density = 0;
+            if (first != "off") {
+                density = std::stof(first);
+                float a[7];
+                while (ss >> a[0] >> a[1] >> a[2] >> a[3] >> a[4] >> a[5]) { v.insert(v.end(), {a[0], a[1], a[2], a[3], a[4], a[5], 1.0f, float(v.size())}); }
+            }
+            scene.setSparkles(v.data(), int(v.size()) / SparkleField::kStride, density);
         } else if (cmd == "render") {
             std::string out; int w, h; uint32_t t;
             ss >> out >> w >> h >> t;

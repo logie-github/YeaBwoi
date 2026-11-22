@@ -170,6 +170,8 @@ import com.logie.wifecraft.simulation.FlowStep
 import com.logie.wifecraft.simulation.HudReveal
 import com.logie.wifecraft.simulation.ImmersiveSettings
 import com.logie.wifecraft.graphics.Graphics
+import com.logie.wifecraft.simulation.Sparkles
+import androidx.compose.runtime.collectAsState
 import com.logie.wifecraft.graphics.SkinSheen
 import com.logie.wifecraft.simulation.IntensityEase
 import com.logie.wifecraft.simulation.IntensityModel
@@ -497,7 +499,7 @@ fun LiveSceneScreen(
         build.cast = cast.associate { it.id to RoleActor(it.appearance.raceId, it.appearance.sex == Sex.FEMALE) }
         build.names = cast.associate { it.id to it.name }
     }
-    val furnitureAt = remember(furnitureMeasured, mapper.local, mapper.shipped, mapper.placeId, build.items) {
+    val furnitureAt = remember(furnitureMeasured, mapper.local, mapper.shipped, mapper.placeId, build.items, build.spotSig) {
         build.overlay(mapper.overridden(furnitureMeasured))
     }
     build.furnitureOf = { furnitureAt[it] }
@@ -611,6 +613,14 @@ fun LiveSceneScreen(
         live.directing = BuildEntry.directorCamera(cinematic, build.on)
     }
     LaunchedEffect(live, cinematic) { cineNotify(cinematic) }
+    // interactable sparkles (engine/sparkle.h): WoW-style twinkles over every spot a body can use (the scene's usable furniture and the
+    // New tab's spots), hidden while one is occupied; off in Build mode, in cinematic mode and with the switch off; fewer as the governor lowers effects
+    val graphicsNow by Graphics.live.collectAsState()
+    LaunchedEffect(view, build.sparklesOn, build.on, cinematic, snapshot.holders, snapshot.usable, furnitureAt, build.spotSig, graphicsNow.lowered.size) {
+        val show = Sparkles.shown(build.sparklesOn, build.on, cinematic)
+        view.setSparkles(Sparkles.floats(build.sparkleSources(furnitureAt, snapshot.usable, snapshot.holders.keys), show), Sparkles.density(graphicsNow.lowered.size))
+    }
+    DisposableEffect(view) { onDispose { view.setSparkles(FloatArray(0), 0f) } }
     DisposableEffect(live, view) { onDispose { live.directing = false; view.clearCinematic(); cineNotify(false) } }
     // who the player controls and that NPC's partner (SceneControl: a tap on another NPC makes it the partner)
     var control by remember { mutableStateOf(SceneControl()) }
@@ -1011,6 +1021,8 @@ fun LiveSceneScreen(
     }
     LaunchedEffect(live, spots) {
         for ((item, spot) in spots) live.command { it.setSpot(item, spot) }
+        build.baseSpots = spots
+        build.applySpots()
     }
     // the life and the clock kept every half minute (GL thread: where both are driven)
     LaunchedEffect(live) {
@@ -1100,8 +1112,8 @@ fun LiveSceneScreen(
      * the posture on it (Lying, Sitting...): two-person ones with the partner (else the nearest who can join). Nothing fits
      * (or nothing is classified yet): it is used, as before.
      */
-    fun openFurniture(id: String, item: SceneObject) {
-        val f = furnitureAt[item] ?: spots[item]?.let { Furniture.of(item, it) }
+    fun openFurniture(id: String, item: SceneObject, override: Furniture? = null) {
+        val f = override ?: furnitureAt[item] ?: spots[item]?.let { Furniture.of(item, it) }
         val with = partnerId?.takeIf { it != id }
         val known = needs.choices
         val byId = choices.associateBy { it.id }
@@ -1220,13 +1232,23 @@ fun LiveSceneScreen(
             }
             return@rememberUpdatedState
         }
+        // a spot made in Build mode's New tab: tapped, it is the one in use for its object and offers what plays on it
+        val spotHit = hit?.takeIf { it.kind != Hit.Kind.ACTOR && ready }?.let { build.spotUnder(it.x, it.y, it.z) }
+        if (spotHit != null) {
+            val id = selected
+            if (id != null) { build.activate(spotHit); openFurniture(id, spotHit.slot, build.spotFurniture(spotHit)) }
+            else if (hit?.kind == Hit.Kind.GROUND && !walking) control = control.release()
+            return@rememberUpdatedState
+        }
         when (hit?.kind) {
             // nobody controlled: take control; one controlled: the tapped NPC becomes (or, tapped again, stops being) its partner
             Hit.Kind.ACTOR -> cast.firstOrNull { actorKey(it.id) == hit.key }?.let { other -> control = control.tapNpc(other.id) }
             Hit.Kind.LOCATION, Hit.Kind.PROP -> if (ready) {
                 val item = hit.key?.let(objectHits::get)
                 val id = selected
-                if (item != null && id != null) openFurniture(id, item)
+                // (a spot that stood in for it no longer does: the scene's own object again)
+                val own = if (item != null && build.deactivate(item)) build.overlay(mapper.overridden(furnitureMeasured))[item] else null
+                if (item != null && id != null) openFurniture(id, item, own)
             }
             Hit.Kind.GROUND -> {
                 val id = selected
@@ -1390,6 +1412,7 @@ fun LiveSceneScreen(
     }
     // Build mode: no animation ends (the simulation loops what plays, auto-play stands on its shot)
     val holdAnimations = BuildEntry.holdAnimations(build.on)
+    val holdNow by rememberUpdatedState(holdAnimations)
     SideEffect { live.holdAnimations = holdAnimations }
     LaunchedEffect(revealTick, windowOpen, immersive.hudSeconds, immersiveHud) {
         if (!immersiveHud) { hudUp = true; return@LaunchedEffect }
@@ -1447,6 +1470,8 @@ fun LiveSceneScreen(
         while (true) {
             delay(FLOW_TICK_MS)
             val now = SystemClock.uptimeMillis()
+            // Build mode on: the flow's own timers stand still (no phase moves on; Continue still acts)
+            if (holdNow) { last = now; continue }
             f.auto = immersiveNow.autoFlow
             val steps = f.tick((now - last) / 1000f)
             last = now
@@ -1457,6 +1482,7 @@ fun LiveSceneScreen(
     var flowSawPlaying by remember(live) { mutableStateOf(false) }
     LaunchedEffect(snapshot, flowPhase) {
         val f = flow ?: return@LaunchedEffect
+        if (holdNow) return@LaunchedEffect
         if (f.phase != FlowPhase.STAGE) { flowSawPlaying = false; return@LaunchedEffect }
         val lead = snapshot.people.firstOrNull { it.id == f.a } ?: return@LaunchedEffect
         if (lead.performing || lead.queued > 0) flowSawPlaying = true
@@ -1677,10 +1703,9 @@ fun LiveSceneScreen(
                         ?: if (immersiveHud) null else (active?.playing ?: hint.takeIf { active != null })).orEmpty()
                     Row(Modifier.fillMaxWidth().height(WifeTheme.touch), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
-                        // the chips scroll sideways, so none is ever clipped on a narrow phone; Build comes first, always in reach
+                        // the chips scroll sideways, so none is ever clipped on a narrow phone (Build is under the Cinematic button, top right)
                         Row(Modifier.weight(if (line.isEmpty()) 1f else 2f, fill = false).horizontalScroll(rememberScrollState()),
                             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
-                        if (!mapper.on && BuildEntry.chipShown(mapper.on)) WifeChip(BuildEntry.CHIP, { enterBuild() }, trailing = null)
                         AnimatedVisibility(mate != null && active != null, enter = fadeIn(tween(MenuMotion.duration(FrontMotion.GLOW_MS, reduced))),
                             exit = fadeOut(tween(MenuMotion.duration(FrontMotion.GLOW_MS, reduced)))) {
                             WifeChip("Partner: ${rememberHeld(mate)?.let { names[it] } ?: ""}", { control = control.clearPartner() })
@@ -1757,7 +1782,7 @@ fun LiveSceneScreen(
                 // left of the camera's buttons, on their row (it never covers them; Cinematic sits in the top bar)
                 WifeButton("Switch positions", { switchPlaying(active.id, playingWith) },
                     Modifier.align(Alignment.TopEnd)
-                        .padding(top = SceneHud.cameraTop(hud).dp, end = (SceneHud.MARGIN + SceneHud.CAMERA_W + 2 * SceneHud.CAMERA_GAP).dp))
+                        .padding(top = (SceneHud.cameraTop(hud) + SWITCH_BELOW_BUILD).dp, end = (SceneHud.MARGIN + SceneHud.CAMERA_W + 2 * SceneHud.CAMERA_GAP).dp))
             }
         }
         // the soft controls: with a partner chosen or a flow under way, while the HUD is up
@@ -1778,7 +1803,8 @@ fun LiveSceneScreen(
             }
         }, { cineIdleClock.touch(); cineIdle = false }, { live.aspect = it; cineLook.viewAspect = it }, frame = cinematicSettings.frame,
             // in the top bar, left of the feed and the gear (the bar keeps the room free: SceneTopBar's reserveEnd)
-            topBarEnd = SceneHud.MARGIN + TOP_ICON_W * (if (lifeOn) 2 else 1) + CINEMATIC_GAP)
+            topBarEnd = SceneHud.MARGIN + TOP_ICON_W * (if (lifeOn) 2 else 1) + CINEMATIC_GAP,
+            onBuild = if (BuildEntry.chipShown(mapper.on)) ({ if (build.on) build.leave() else enterBuild() }) else null, buildOn = build.on)
         // JOI mode: the subtitles in the film frame's lower third, and (the interface up) its controls
         if (joiActor != null) JoiLayer(joiMode, joiTick, cinematicSettings.frame, controls = !cineHidden && revealed,
             creature = live.joiCreature != null, onDownloadModel = { com.logie.wifecraft.data.DialogueHost.startDownload() },
@@ -2589,6 +2615,8 @@ private class ImmersionFeed {
 }
 
 /** The camera's buttons' height under cameraTop: the mode button, then two rows of 48 dp buttons (build mode's panel goes under). */
+/** Switch positions sits below the Build button (which hangs under the Cinematic button), dp. */
+private const val SWITCH_BELOW_BUILD = 48f
 private const val CAMERA_BLOCK_H = 48f + 4f + 2 * 48f + 4f + 8f
 /** The top bar's feed and gear buttons (48 dp each), the Cinematic button's slot in the bar and its gap. */
 private const val TOP_ICON_W = 48f

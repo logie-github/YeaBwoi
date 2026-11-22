@@ -432,6 +432,7 @@ void Scene::releaseGl() {
     grade_.forget();
     postfx_.forget();
     particleDraw_.release();
+    sparkleDraw_.release();
     textures_.clear();
     for (auto& [id, m] : models_) { m->vao = m->vbo = m->ibo = m->boneTex = 0; }
     for (auto& [id, a] : actors_) {
@@ -1843,6 +1844,13 @@ void Scene::render(int width, int height, uint32_t nowMs) {
         particleDraw_.draw(particles_, viewProj, eye_, pixelsPerYard, particleStrength_);
     }
     particleClock_ = clock;
+    // interactable sparkles (sparkle.h): made from the clock alone, over the spots the screen lists
+    if (!sparkles_.empty()) {
+        sparkBuf_.clear();
+        sparkles_.generate(float(clock) / 1000.0f, sparkBuf_);
+        float pixelsPerYard = float(height) * 0.5f / std::tan(fov_ * 3.14159265f / 360.0f);
+        sparkleDraw_.draw(sparkBuf_, viewProj, eye_, pixelsPerYard);
+    }
     // the placement editor's ghost and gizmo (editview.cpp), over the scene
     litUniforms(m2Prog_, light_, eye_, viewProj);
     drawGhost(viewProj, nowMs);
@@ -2104,6 +2112,8 @@ void Scene::setParticles(int count, float strength, uint32_t seed) {
     }
     particleStrength_ = std::isfinite(strength) ? std::clamp(strength, 0.0f, 1.0f) : 0.0f;
 }
+
+void Scene::setSparkles(const float* data, int count, float density) { sparkles_.set(data, count, density); }
 
 void Scene::setCinematic(float mood, float vignette, float grain, float bars) {
     auto unit = [](float v) { return std::isfinite(v) ? std::clamp(v, 0.0f, 1.0f) : 0.0f; };
