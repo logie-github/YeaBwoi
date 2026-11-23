@@ -91,6 +91,8 @@ fun GraphicsPage() {
     WifeSectionHeader("Camera")
     WifeSliderRow("Depth of field", s.dof, { edit(s.copy(dof = it)) })
     WifeSliderRow("Aperture", s.aperture, { edit(s.copy(aperture = it)) }, valueText = "${s.aperture}%")
+    WifeSwitchRow("Focus follows the NPC", s.focusFollows, { edit(s.copy(focusFollows = it)) },
+        detail = "The sharp plane stays on the NPC you orbit (a pair: between them; chat, JOI and film shots: their face), eased over a fifth of a second. Off: the band round where the camera looks")
     WifeSwitchRow("Depth of field in the creator", s.dofInEditor, { edit(s.copy(dofInEditor = it)) },
         detail = "Off: the creator and the placement editor stay sharp")
     WifeSliderRow("Vignette", s.vignette, { edit(s.copy(vignette = it)) })

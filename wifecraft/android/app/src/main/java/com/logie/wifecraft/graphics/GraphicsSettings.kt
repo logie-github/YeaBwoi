@@ -67,6 +67,8 @@ data class GraphicsSettings(
     val sheenMax: Int = 40,
     /** Build mode draws sharp ([SharpImage]): no depth of field, bloom, light shafts, chromatic aberration, grain or cinematic grade, and the governor keeps the render scale. */
     val sharpInBuild: Boolean = true,
+    /** Depth of field's sharp band follows the NPC the camera is about ([com.logie.wifecraft.simulation.FocusTarget]); off: the old band round the camera's target. */
+    val focusFollows: Boolean = true,
 ) {
     /** Within limits (a hand-edited or old file can't break the renderer). */
     fun clamped(): GraphicsSettings = copy(
@@ -86,12 +88,12 @@ data class GraphicsSettings(
     )
 
     /** The effects alone (the preset, the target, the switches about the page itself left out): what a preset sets. */
-    fun effects(): GraphicsSettings = copy(preset = GraphicsPreset.STANDARD, targetFps = 60, adaptive = true, overlay = false, sharpInBuild = true)
+    fun effects(): GraphicsSettings = copy(preset = GraphicsPreset.STANDARD, targetFps = 60, adaptive = true, overlay = false, sharpInBuild = true, focusFollows = true)
 
     /** A preset's effects, keeping this page's target, Adaptive quality and overlay. CUSTOM keeps the effects as they are. */
     fun withPreset(p: GraphicsPreset): GraphicsSettings =
         if (p == GraphicsPreset.CUSTOM) copy(preset = p)
-        else presetEffects(p).copy(preset = p, targetFps = targetFps, adaptive = adaptive, overlay = overlay)
+        else presetEffects(p).copy(preset = p, targetFps = targetFps, adaptive = adaptive, overlay = overlay, focusFollows = focusFollows)
 
     /** After a switch or slider moved: the preset whose effects these are, else CUSTOM. */
     fun withMatchingPreset(): GraphicsSettings {
@@ -152,7 +154,7 @@ data class GraphicsSettings(
         .put("shadows", shadows).put("shadowQuality", shadowQuality).put("skin", skin).put("hair", hair)
         .put("shafts", shafts).put("haze", haze).put("vignette", vignette).put("grain", grain).put("chroma", chroma)
         .put("sharpen", sharpen).put("eyes", eyes).put("thinSkin", thinSkin).put("sheenFollows", sheenFollows)
-        .put("sheenMax", sheenMax).put("sharpInBuild", sharpInBuild)
+        .put("sheenMax", sheenMax).put("sharpInBuild", sharpInBuild).put("focusFollows", focusFollows)
 
     companion object {
         /** engine/graphics_settings.h's kCount. */
@@ -230,6 +232,7 @@ data class GraphicsSettings(
                     sheenFollows = o.optBoolean("sheenFollows", d.sheenFollows),
                     sheenMax = o.optInt("sheenMax", d.sheenMax),
                     sharpInBuild = o.optBoolean("sharpInBuild", d.sharpInBuild),
+                    focusFollows = o.optBoolean("focusFollows", d.focusFollows),
                 ).clamped()
             } catch (e: Exception) { DEFAULT }
         }

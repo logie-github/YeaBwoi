@@ -394,6 +394,11 @@ JNIEXPORT void JNICALL FN(camera)(JNIEnv*, jclass, jlong h, jfloat ex, jfloat ey
     scene(h)->setCamera(V3(ex, ey, ez), V3(tx, ty, tz), fov);
 }
 
+// Depth of field's sharp band on the subject (Scene::setFocus; far <= 0: the scene's own band).
+JNIEXPORT void JNICALL FN(focus)(JNIEnv*, jclass, jlong h, jfloat nearD, jfloat farD, jfloat strength) {
+    scene(h)->setFocus(nearD, farD, strength);
+}
+
 // 3 sky top, 3 horizon, 3 below, 3 sun direction, 3 sun colour, 3 ambient, 3 fog colour, fog start, fog end
 JNIEXPORT void JNICALL FN(light)(JNIEnv* env, jclass, jlong h, jfloatArray values) {
     auto v = floats(env, values);

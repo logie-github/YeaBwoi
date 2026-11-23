@@ -224,6 +224,8 @@ object Native {
      */
     @JvmStatic external fun buildModelParts(manifestJson: String, filesDir: String, outDir: String, set: String): String
     @JvmStatic external fun camera(scene: Long, ex: Float, ey: Float, ez: Float, tx: Float, ty: Float, tz: Float, fov: Float)
+    /** Depth of field's sharp band on the subject (view distances near..far, strength 0..1; far <= 0: the scene's own band). */
+    @JvmStatic external fun focus(scene: Long, near: Float, far: Float, strength: Float)
     @JvmStatic external fun light(scene: Long, values: FloatArray)
     /**
      * The world clock's hour (0..24: simulation/WorldClock's lightHour) on the loaded location's light: its map light's day
