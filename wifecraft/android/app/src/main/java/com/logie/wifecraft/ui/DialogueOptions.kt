@@ -23,5 +23,8 @@ fun DialoguePage(settings: DialogueSettings, onChange: (DialogueSettings) -> Uni
     WifeSliderRow("Dirty talk level", settings.dirty.ordinal, { onChange(settings.copy(dirty = levels[it.coerceIn(0, levels.lastIndex)])) },
         valueText = settings.dirty.label, range = 0..levels.lastIndex)
     WifeNote("${settings.dirty.blurb}. Cute, Mild, Spicy, Hot, Nasty, Depraved, WTF??!: how filthy the words are in JOI mode, in sex-stage banter and when Chat turns to flirting. JOI mode has its own slider for each session, starting here. Adults only; every character is a full-grown adult.")
+    WifeSectionHeader("Default era")
+    EraPickerRow("Default era", settings.era, settings.customYear) { id, year -> onChange(settings.copy(era = id, customYear = year)) }
+    WifeNote("The age NPCs live in: what the world is like, who is alive and what everyone knows (nothing later). A place or a scene can have its own era; the scene menu changes it for one scene. Named characters keep their own personality and are played as they were in that age.")
     extra()
 }

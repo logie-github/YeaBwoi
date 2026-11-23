@@ -39,10 +39,17 @@ class ChatSession(
     /** Beside each of [turns]: what the player said, for their turns (their message in the history may be the whole turn's message as it was sent); null for hers. */
     private val plains = ArrayDeque<String?>()
     /** The stable part of the system prompt: the world's rules and her persona, the chat's frame (the NPC's, for as long as she is in the scene). */
-    private val persona: String = ChatPrompt.system(npc, lore, dragon)
+    private var persona: String = ChatPrompt.system(npc, lore, dragon)
     /** The persona and the context of this talk (the place, who stands before her, what they are to her): read once, rebuilt when what they are to her changes. */
     private var systemText: String = ""
     private var systemFor: ChatRelationship? = null
+    private var systemEra: String? = lore.kit?.eraKey
+
+    /** An era change (the scene menu) changes the persona: her system prompt is made again, from the next reply. */
+    private fun refreshSystem() {
+        val k = lore.kit?.eraKey
+        if (k != systemEra) { systemEra = k; persona = ChatPrompt.system(npc, lore, dragon); systemFor = null }
+    }
 
     /** The talk so far (newest last); readable from the screen. */
     val log: List<Line> get() = synchronized(lines) { lines.toList() }
@@ -79,13 +86,14 @@ class ChatSession(
 
     /** The system prompt in use: [personaPrompt], then the context (stable all chat long; it changes only with what they are to her). */
     fun systemPrompt(): String {
+        refreshSystem()
         val rel = relationship
         if (systemFor != rel) { systemText = persona + "\n\n" + ChatPrompt.context(lore, npc, you, place, rel); systemFor = rel }
         return systemText
     }
 
     /** The persona alone, the same for every talk with her (and the first bytes of [systemPrompt]): what a warm-up reads ahead of a chat. */
-    fun personaPrompt(): String = persona
+    fun personaPrompt(): String { refreshSystem(); return persona }
 
     /** When the reply being made was asked for, milliseconds on the clock the screen uses (0: none is being made): the screen says how long she has been thinking. */
     @Volatile var typingSince: Long = 0L
@@ -146,7 +154,7 @@ class ChatSession(
         val system = systemPrompt()
         repeat(2) { attempt ->
             val turn = ChatPrompt.Turn(npc, you, place, band, steers.hints(npc.id, ChatCharacter.ID), said, desire, length, kink, note, dirty, relationship, exchanges)
-            val user = ChatPrompt.tail(lore, turn)
+            val user = (lore.kit?.turnNotes(npc, emptyList(), said.orEmpty())?.let { "$it\n" } ?: "") + ChatPrompt.tail(lore, turn)
             // a wrong word is seen while the reply is still being written: it is stopped there (nothing of it is shown) and asked again at once
             var caught: String? = null
             val guard: (String) -> Boolean = { text -> StreamGuard.problem(text).also { if (it != null) caught = it } != null }

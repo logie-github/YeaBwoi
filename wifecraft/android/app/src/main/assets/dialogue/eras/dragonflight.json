@@ -1,0 +1,50 @@
+{
+ "id": "dragonflight",
+ "label": "Dragonflight",
+ "order": 9,
+ "release": 2022,
+ "until": 2024,
+ "years": "the awakening of the Dragon Isles",
+ "present": "The world is Azeroth with the Dragon Isles rediscovered, the Aspects restored and the Primal Incarnates stirring, as Horde and Alliance keep an armistice.",
+ "world": "The dragons have returned to the Dragon Isles, where the Primal Incarnates and the Dragonqueen's flight face Fyrakk the Blazing. The Aspects regain their power after the Dream's tree Amirdrassil blooms. The Alliance and Horde keep a wary armistice; Genn Greymane's Gilneas is retaken, and Tess Greymane becomes Queen. The Forsaken's Desolate Council helps.",
+ "idiom": "Folk swear by the Light, the Loa, the Earth and the Dream; dragons speak of the flights and the Primal Incarnates; coin is gold, silver and copper; Dragon Isles currency is dragon-scale. Dragonriding is the way to travel.",
+ "folk": {
+  "alliance": "You know the dragons returned, Fyrakk's threat and Amirdrassil's rebirth; Gilneas is free and Tess is Queen.",
+  "horde": "You know the dragons returned, Fyrakk's threat and Amirdrassil's rebirth; the Horde keeps an armistice with the Alliance.",
+  "neutral": "You trade with all camps on the Dragon Isles and hear the dragons' news."
+ },
+ "classes": {},
+ "races": {
+  "skyborne": "No such people exist."
+ },
+ "stances": {
+  "alliance>horde": "The Alliance keeps an armistice with the Horde.",
+  "horde>alliance": "The Horde keeps an armistice with the Alliance."
+ },
+ "introduces": [
+  "dragon isles",
+  "dracthyr",
+  "evoker",
+  "evokers",
+  "amirdrassil",
+  "fyrakk",
+  "primal incarnates",
+  "azure span",
+  "thaldraszus",
+  "ohn'ahran",
+  "waking shores",
+  "zaralek",
+  "aberrus",
+  "loamm",
+  "dream wardens",
+  "dragonriding",
+  "vault of the incarnates",
+  "forbidden reach"
+ ],
+ "places": {
+  "dalaran": "The Kirin Tor's city floats above the Broken Isles.",
+  "stormwind": "Stormwind: the Alliance's capital, with dracthyr in the streets.",
+  "brill": "Brill: the Forsaken's village of Tirisfal.",
+  "dolanaar": "Dolanaar: a Teldrassil village, burned and mourned, its tree scarred."
+ }
+}

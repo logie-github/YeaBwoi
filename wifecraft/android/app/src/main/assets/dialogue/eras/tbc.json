@@ -1,0 +1,71 @@
+{
+ "id": "tbc",
+ "label": "The Burning Crusade",
+ "order": 1,
+ "release": 2007,
+ "until": 2008,
+ "years": "a year or two after Vanilla",
+ "present": "The world is Azeroth after the Dark Portal has opened again, with news from Outland and the Burning Legion's old shadow, while Horde and Alliance take sides in a new war.",
+ "world": "The Dark Portal is open: the broken world of Outland holds Illidan, the Legion's servants, the draenei exiles and the rebuilt Shattrath. The blood elves of Silvermoon, led by Lor'themar, have joined the Horde; the draenei of the Exodar stand with the Alliance. The Shattered Sun Offensive fights for the Sunwell. Kael'thas has fallen to the Legion. At home, the old Plaguelands wars simmer.",
+ "idiom": "Folk speak of the Dark Portal, the Nether, the naaru and the Light; the draenei say the Light's blessings; blood elves sing of the Sunwell. Coin is gold, silver and copper; Badges and Shards are fighters' tokens.",
+ "folk": {
+  "alliance": "You know the draenei of the Exodar as new allies and the blood elves as Horde, scarred and proud; Outland is a hard road beyond the Dark Portal.",
+  "horde": "You know the blood elves of Silvermoon as your new allies, hungry for magic and the Sunwell; Outland is the new frontier of your war.",
+  "neutral": "You trade with both camps; Shattrath's Aldor and Scryers divide the city but welcome coin."
+ },
+ "classes": {
+  "death knight": "No such knights exist; the Lich King's champions are a tale from the north.",
+  "monk": "A monk is a wanderer, not a calling you know.",
+  "demon hunter": "Illidan's followers are a rumour of Outland, feared as outcasts."
+ },
+ "races": {
+  "worgen": "Worgen are still the wolf-monsters of Silverpine.",
+  "goblin": "Goblins are neutral cartel traders and, in places, mercenaries.",
+  "pandaren": "A pandaren is a rare wanderer, no more.",
+  "voidelf": "No such people exist.",
+  "nightborne": "No such people exist.",
+  "lightforged": "No such people exist.",
+  "zandalari": "Zandalari are an old empire of legend.",
+  "kultiran": "Kul Tiras is a distant sealord kingdom.",
+  "highmountain": "No such people are known.",
+  "darkiron": "Dark Iron dwarves are an enemy clan.",
+  "vulpera": "No such people exist.",
+  "mechagnome": "No such people exist.",
+  "magharorc": "Mag'har are the orcs of Outland, who have never joined the Horde's trappings; some have met them.",
+  "skyborne": "No such people exist."
+ },
+ "stances": {
+  "horde>bloodelf": "The Horde accepts the blood elves, though the orcs and trolls roll their eyes at their pride and magic-thirst.",
+  "alliance>bloodelf": "The Alliance sees the blood elves as an enemy new to the Horde: proud, haughty and mana-addicted.",
+  "alliance>draenei": "The Alliance welcomes the draenei as new allies with strange wisdom and a long exile."
+ },
+ "introduces": [
+  "outland",
+  "draenei",
+  "exodar",
+  "azuremyst",
+  "bloodmyst",
+  "shattrath",
+  "naaru",
+  "sin'dorei",
+  "blood elf",
+  "blood elves",
+  "netherstorm",
+  "zangarmarsh",
+  "nagrand",
+  "terokkar",
+  "black temple",
+  "ghostlands",
+  "eversong",
+  "shattered sun",
+  "sunwell plateau",
+  "arakkoa",
+  "ogri'la"
+ ],
+ "places": {
+  "dalaran": "A crater and a ruin; the Kirin Tor's scattered mages gather at Karazhan and Shattrath.",
+  "stormwind": "Stormwind: a rebuilt capital with the Exodar's draenei as new allies.",
+  "brill": "Brill: the Forsaken's village of Tirisfal, the Horde's northern gate.",
+  "dolanaar": "Dolanaar: the Teldrassil village at the world tree's foot."
+ }
+}

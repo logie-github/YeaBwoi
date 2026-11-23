@@ -113,8 +113,8 @@ class PromptCacheTest {
         val b = PersonaPrompt.system(Kit.npc("thrall", Kit.ORC, false, 7, listOf("CALM")), lore)
         val c = ChatPrompt.system(Kit.npc("jaina", Kit.HUMAN, true, 2), lore, false)
         val d = ChatPrompt.system(Kit.npc("sindragosa", Kit.HUMAN, true, 0), lore, true)
-        for (p in listOf(a, b, c, d)) assertTrue(p.startsWith(PersonaPrompt.SHARED + "\n\n"), "starts with the shared preamble")
-        assertTrue(lcp(a, b) >= PersonaPrompt.SHARED.length, "two NPCs share at least the preamble")
+        for (p in listOf(a, b, c, d)) assertTrue(p.startsWith(PersonaPrompt.shared(lore) + "\n\n"), "starts with the shared preamble")
+        assertTrue(lcp(a, b) >= PersonaPrompt.shared(lore).length, "two NPCs share at least the preamble")
         assertFalse(a.startsWith("You are Sylvanas"), "no NPC's own name opens the prompt")
     }
 

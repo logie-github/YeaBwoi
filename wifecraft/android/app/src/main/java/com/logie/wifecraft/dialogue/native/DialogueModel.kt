@@ -102,7 +102,7 @@ class DialogueModel(
      */
     suspend fun speedTest(): SpeedResult? {
         val s = scheduler ?: return null
-        val req = DialogueRequest("speedtest", PersonaPrompt.SHARED, emptyList(), "Tell me, in your own words, about a long road you once walked.",
+        val req = DialogueRequest("speedtest", PersonaPrompt.shared(), emptyList(), "Tell me, in your own words, about a long road you once walked.",
             maxTokens = 64, temperature = 0.7f, priority = DialoguePriority.SELECTED, seed = 7, tag = "speedtest", maxWaitMs = 120_000L)
         val before = timings.added
         val text = s.complete(req)

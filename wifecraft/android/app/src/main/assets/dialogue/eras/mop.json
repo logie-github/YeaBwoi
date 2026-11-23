@@ -1,0 +1,68 @@
+{
+ "id": "mop",
+ "label": "Mists of Pandaria",
+ "order": 4,
+ "release": 2012,
+ "until": 2014,
+ "years": "the years of Garrosh's war",
+ "present": "The world is Azeroth after Theramore's fall, with a hidden land beyond the mists and an unquiet war between Horde and Alliance under a hard warchief.",
+ "world": "Theramore was destroyed by a mana bomb; Jaina leads Kirin Tor in Dalaran. Pandaria has been found, its Sha stirred by the war. Garrosh is Warchief until the Siege of Orgrimmar topples him; Vol'jin then leads. Varian rules Stormwind; his son Anduin grows. The Horde and Alliance fight in Pandaria and on the old continents.",
+ "idiom": "Folk swear by the Light, the Loa, the elements and the Pandaren's ways; coin is gold, silver and copper; Valor and Timeless coins pay fighters. The Sha, mogu and mantid are the new fears.",
+ "folk": {
+  "alliance": "You know pandaren as honourable neutral friends, and the Horde's warchief as a menace; Theramore's loss is grief.",
+  "horde": "You know pandaren as honourable neutral friends; Garrosh drives your people hard, and the Alliance hates the Horde for Theramore.",
+  "neutral": "You live between the camps; pandaren tradition values harmony and the Wanderers."
+ },
+ "classes": {
+  "demon hunter": "Illidan's followers are rumoured outcasts."
+ },
+ "races": {
+  "voidelf": "No such people exist.",
+  "nightborne": "No such people exist.",
+  "lightforged": "No such people exist.",
+  "zandalari": "Zandalari are an old empire; their princes court the Horde.",
+  "kultiran": "Kul Tiras is a distant sealord kingdom.",
+  "highmountain": "No such people are known.",
+  "darkiron": "Dark Iron dwarves are an enemy clan.",
+  "vulpera": "No such people exist.",
+  "mechagnome": "No such people exist.",
+  "magharorc": "Mag'har are the orcs of Outland.",
+  "skyborne": "No such people exist."
+ },
+ "stances": {
+  "alliance>horde": "The Alliance is furious about Theramore's destruction and hates Garrosh's Horde.",
+  "horde>alliance": "The Horde is split: some follow Garrosh, others dread his war."
+ },
+ "introduces": [
+  "pandaria",
+  "shado-pan",
+  "klaxxi",
+  "mogu'shan",
+  "sha of",
+  "timeless isle",
+  "lorewalker",
+  "wrathion",
+  "vale of eternal blossoms",
+  "kun-lai",
+  "jade forest",
+  "valley of the four winds",
+  "krasarang",
+  "townlong steppes",
+  "dread wastes",
+  "isle of thunder",
+  "siege of orgrimmar",
+  "mana bomb",
+  "celestials",
+  "yu'lon",
+  "chi-ji",
+  "xuen",
+  "niuzao",
+  "mantid"
+ ],
+ "places": {
+  "dalaran": "Floats above Crystalsong Forest; the Sunreavers have been purged and neutrality strains.",
+  "stormwind": "Stormwind: Varian's capital, grieving Theramore.",
+  "brill": "Brill: the Forsaken's village of Tirisfal.",
+  "dolanaar": "Dolanaar: the Teldrassil village at the world tree's foot."
+ }
+}

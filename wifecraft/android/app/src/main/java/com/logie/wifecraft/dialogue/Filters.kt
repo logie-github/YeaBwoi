@@ -13,9 +13,13 @@ object Anachronisms {
     private val SLANG = Regex("(^|[.!?]\\s+)cool\\b|\\b(that's|that is|so|pretty|really|very) cool\\b", RegexOption.IGNORE_CASE)
     private val WORD_RE = Regex("(?<![\\p{L}\\p{N}'])(${WORDS.joinToString("|")})(?![\\p{L}\\p{N}])", RegexOption.IGNORE_CASE)
 
+    /** Terms of later ages than the scene's era (set by [PersonaKit.setEra]); null: no era filter. */
+    @Volatile var era: Regex? = null
+
     /** The first offending token in [line], or null. */
     fun find(line: String): String? {
         WORD_RE.find(line)?.let { return it.value }
+        era?.find(line)?.let { return it.value }
         SLANG.find(line)?.let { return it.value.trim() }
         return null
     }
