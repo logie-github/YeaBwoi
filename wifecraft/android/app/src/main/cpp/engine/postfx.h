@@ -38,6 +38,7 @@ struct PostFrame {
     float fogColor[3] = {0.7f, 0.7f, 0.8f};
     float fogStart = 120, fogEnd = 900;
     float focusNear = 0, focusFar = 0;   // the view distances kept sharp (focusFar <= 0: depth of field off this frame)
+    float focusStrength = 1;             // 0..1 laid over the blur (the subject near: full; far shots: less)
     bool editor = false;                 // the creator (depth of field off unless dofInEditor)
     bool gradeActive = false;            // cinematic mode's grade draws the vignette and grain itself
     float seconds = 0;

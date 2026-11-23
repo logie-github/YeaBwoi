@@ -1,0 +1,46 @@
+{
+ "id": "bfa",
+ "label": "Battle for Azeroth",
+ "order": 7,
+ "release": 2018,
+ "until": 2020,
+ "years": "the Fourth War",
+ "present": "The world is Azeroth in the Fourth War between Horde and Alliance, with Kul Tiras and Zandalar new to the map, azerite in the earth and N'Zoth stirring beneath.",
+ "world": "Sylvanas's Horde burned Teldrassil, and the war with the Alliance turns on Lordaeron and Boralus. Kul Tiras, under Jaina and Katherine Proudmoore, joins the Alliance; the Zandalari join the Horde. Azerite fuels weapons and Heart of Azeroth. N'Zoth's Black Empire rises; Alliance and Horde stand together at the end. The Forsaken are split by Sylvanas's reign.",
+ "idiom": "Folk swear by the Light, the Loa, the Tides and the Elements; coin is gold, silver and copper; war resources and azerite pay the troops. Teldrassil's burning is a fresh wound.",
+ "folk": {
+  "alliance": "You know of Teldrassil's burning, the Fourth War and Kul Tiras's return to the Alliance; the Horde is the enemy under Sylvanas.",
+  "horde": "You know of the Fourth War, Sylvanas's ruthless leadership and the Zandalari's alliance; the Alliance is the enemy you fight.",
+  "neutral": "You hear war news from Kalimdor and Zandalar and trade with whomever pays."
+ },
+ "classes": {},
+ "races": {
+  "skyborne": "No such people exist.",
+  "mechagnome": "Mechagnomes of Mechagon are an unusual, rediscovered gnome offshoot."
+ },
+ "stances": {
+  "alliance>horde": "The Alliance burns with the memory of Teldrassil and holds the Horde guilty.",
+  "horde>alliance": "The Horde is divided about the war; many follow Sylvanas, some doubt her.",
+  "alliance>undead": "The Alliance hates the Forsaken as Sylvanas's tools, though a few rebels win pity.",
+  "undead>alliance": "The Forsaken are split: some believe Sylvanas, rebels hate her."
+ },
+ "introduces": [
+  "azerite",
+  "n'zoth",
+  "uldir",
+  "nazjatar",
+  "mechagon",
+  "mag'har",
+  "island expedition",
+  "warfront",
+  "heart of azeroth",
+  "ny'alotha",
+  "tidesage"
+ ],
+ "places": {
+  "dalaran": "The Kirin Tor's city still floats above the Broken Isles, neutral ground in the war.",
+  "stormwind": "Stormwind: Anduin's capital at war, grieving Teldrassil.",
+  "brill": "Brill: the Forsaken's village of Tirisfal, divided over Sylvanas.",
+  "dolanaar": "Dolanaar: a Teldrassil village, burned and mourned, its tree scarred."
+ }
+}

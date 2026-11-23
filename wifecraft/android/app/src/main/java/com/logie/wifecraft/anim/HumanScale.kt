@@ -41,8 +41,13 @@ object HumanScale {
     const val MALE_HEIGHT = 1.8518f
     /** The human woman's standing height (yards). */
     const val FEMALE_HEIGHT = 1.7088f
-    /** A pair's offsets and a clip's root motion across the floor, in yards per reference unit (the humans' pelvis over 1.4407). */
-    const val PAIR = 0.8139f
+    /** A pair's offsets and a clip's root motion across the floor at size 1, in yards per reference unit (the humans' pelvis over 1.4407). */
+    const val PAIR_BASE = 0.8139f
+    /**
+     * [PAIR_BASE] times the [CharacterSize] in force: where a pair's slots, a clip's steps across the floor and a body unit are
+     * taken from the reference units (the whole pair frame grows with the bodies; furniture does not).
+     */
+    val PAIR: Float get() = PAIR_BASE * CharacterSize.active
     /** Below and above this a measured height is taken as a failed measurement (no scaling). */
     const val MIN_HEIGHT = 0.15f
     const val MAX_HEIGHT = 12f
@@ -103,12 +108,12 @@ object HumanScale {
     }
 
     /** The bubble's anchor above the feet of a standing person of this sex at human scale. */
-    fun head(female: Boolean): Float = if (female) HEAD_FEMALE else HEAD_MALE
+    fun head(female: Boolean): Float = (if (female) HEAD_FEMALE else HEAD_MALE) * CharacterSize.active
 
     /** The bubble's anchor above the feet of a standing person of race [raceId] in the live scene (a dwarf's, a gnome's own). */
     fun head(raceId: Int, female: Boolean): Float = when (raceId) {
-        in DWARVES -> if (female) HEAD_DWARF_FEMALE else HEAD_DWARF_MALE
-        in GNOMES -> if (female) HEAD_GNOME_FEMALE else HEAD_GNOME_MALE
+        in DWARVES -> (if (female) HEAD_DWARF_FEMALE else HEAD_DWARF_MALE) * CharacterSize.active
+        in GNOMES -> (if (female) HEAD_GNOME_FEMALE else HEAD_GNOME_MALE) * CharacterSize.active
         else -> head(female)
     }
 

@@ -1,0 +1,58 @@
+{
+ "id": "wod",
+ "label": "Warlords of Draenor",
+ "order": 5,
+ "release": 2014,
+ "until": 2016,
+ "years": "the Iron Horde's war in an alternate Draenor",
+ "present": "The world is Azeroth after Garrosh's fall, with a new Horde under Vol'jin and Alliance at war's edge, and tales of an Iron Horde invading from an older, wilder Draenor.",
+ "world": "Vol'jin leads the Horde; Varian the Alliance. Garrosh escaped through time and built the Iron Horde on an older Draenor, which invades Azeroth through the Dark Portal. The Alliance and Horde strike back through the portal and found garrisons. Archimonde and the Legion lurk. On Azeroth itself, the old cities rebuild.",
+ "idiom": "Folk swear by the Light, the ancestors and the Loa; coin is gold, silver and copper; garrison resources and apexis crystals pay fighters. The Iron Horde and the draenor orcs are the new fears.",
+ "folk": {
+  "alliance": "You know of the Iron Horde, the Alliance garrisons on Draenor and the Dark Portal's second opening.",
+  "horde": "You know of the Iron Horde as an unholy twisted version of the old Horde, Vol'jin's call to arms and the Horde's garrisons on Draenor.",
+  "neutral": "You hear war news from the Dark Portal and trade by the garrisons."
+ },
+ "classes": {
+  "demon hunter": "Illidan's followers are rumoured outcasts."
+ },
+ "races": {
+  "voidelf": "No such people exist.",
+  "nightborne": "No such people exist.",
+  "lightforged": "No such people exist.",
+  "zandalari": "Zandalari are an old empire of legend.",
+  "kultiran": "Kul Tiras is a distant sealord kingdom.",
+  "highmountain": "No such people are known.",
+  "darkiron": "Dark Iron dwarves are an enemy clan.",
+  "vulpera": "No such people exist.",
+  "mechagnome": "No such people exist.",
+  "magharorc": "Mag'har orcs of Draenor are the free orcs of the older world; many have met them.",
+  "skyborne": "No such people exist."
+ },
+ "stances": {
+  "horde>alliance": "The Horde wants to be left alone but joins the Alliance against the Iron Horde.",
+  "alliance>horde": "The Alliance wars beside the Horde against the Iron Horde, uneasily."
+ },
+ "introduces": [
+  "iron horde",
+  "frostfire ridge",
+  "gorgrond",
+  "talador",
+  "spires of arak",
+  "ashran",
+  "tanaan jungle",
+  "blackrock foundry",
+  "apexis",
+  "shadowmoon clan",
+  "frostwolf clan",
+  "warsong clan",
+  "botani",
+  "ogre empire"
+ ],
+ "places": {
+  "dalaran": "Still floats above Crystalsong Forest, the Kirin Tor's seat.",
+  "stormwind": "Stormwind: a capital preparing against the Iron Horde.",
+  "brill": "Brill: the Forsaken's village of Tirisfal.",
+  "dolanaar": "Dolanaar: the Teldrassil village at the world tree's foot."
+ }
+}

@@ -2,6 +2,14 @@ package com.logie.wifecraft.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.layout.onSizeChanged
+import com.logie.wifecraft.dialogue.ChatRelationship
+import com.logie.wifecraft.simulation.ChatCamera
+import com.logie.wifecraft.simulation.ChatZoom
+import com.logie.wifecraft.simulation.SpeechBubbleModel
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,7 +48,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.coerceIn
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.logie.wifecraft.data.DialogueHost
+import com.logie.wifecraft.data.DialogueUiState
 import com.logie.wifecraft.dialogue.ChatLength
+import com.logie.wifecraft.dialogue.ChatWait
 import com.logie.wifecraft.dialogue.ChatSession
 import com.logie.wifecraft.dialogue.ChatSetup
 import com.logie.wifecraft.dialogue.ChatTopics
@@ -96,11 +108,26 @@ fun ChatSetupSheet(setup: ChatSetup, npcName: String, onStart: () -> Unit, onCan
                     WowTextField(typed, { typed = it.take(ChatSetup.MAX_NAME); setup.typeName(typed); redraw++ }, "Your name", Modifier.weight(1f))
                     WifeButton("Random name", { setup.randomName()?.let { typed = it }; redraw++ }, enabled = setup.raceId != null)
                 }
+                WifeSectionHeader("Who are you to $npcName?")
+                RelationshipPicker(setup.relationship, { setup.pickRelationship(it); redraw++ }, { setup.typeRelationship(it); redraw++ })
                 val missing = setup.missing()
                 if (missing.isNotEmpty()) WifeNote("Still to choose: ${missing.joinToString(", ")}.")
                 else if (setup.remembered) WifeNote("Your last choice is filled in.")
             }
         }
+    }
+}
+
+/** "Who are you to her?": Stranger, Friend, Wife, Husband or Custom (a short text, quoted to her as how they are known). */
+@Composable
+fun RelationshipPicker(current: ChatRelationship, onKind: (ChatRelationship.Kind) -> Unit, onText: (String) -> Unit) {
+    var typed by remember { mutableStateOf(current.custom) }
+    Column(verticalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
+            for (k in ChatRelationship.Kind.entries) WifeChip(k.label, { onKind(k) }, trailing = if (current.kind == k) "✓" else null)
+        }
+        if (current.kind == ChatRelationship.Kind.CUSTOM)
+            WowTextField(typed, { typed = it.take(ChatRelationship.MAX_CUSTOM); onText(typed) }, "e.g. my sister's old rival", Modifier.fillMaxWidth())
     }
 }
 
@@ -149,11 +176,29 @@ fun ChatLayer(
     mode: ChatMode, tick: Int, engine: () -> DialogueEngine?,
     onDownloadModel: (() -> Unit)?, onRetry: () -> Unit, onLeave: () -> Unit, onChanged: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The camera: the layer zooms and turns it (pinch, drag, the zoom row) and tells it how much of the screen its panel covers. */
+    camera: ChatCamera? = null,
+    /** Her words as the world's chat bubble over her head (null: none): what she is saying now, or the reply being written. */
+    onSpeech: (String?) -> Unit = {},
 ) {
     @Suppress("UNUSED_VARIABLE") val redrawn = tick
     val session = mode.session
-    // the touches on the picture are taken here: the scene's own controls are under it, hidden while the talk runs
-    BoxWithConstraints(modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { } }) {
+    var zoomUi by remember(camera) { mutableFloatStateOf(camera?.zoom ?: ChatZoom.DEFAULT) }
+    var panelPx by remember { mutableIntStateOf(0) }
+    var boxPx by remember { mutableIntStateOf(0) }
+    var relOpen by remember(session) { mutableStateOf(false) }
+    SideEffect { if (boxPx > 0) camera?.panelInset = ChatZoom.clampInset(panelPx.toFloat() / boxPx) }
+    // the touches on the picture are taken here: the scene's own controls are under it, hidden while the talk runs; two fingers pinch
+    // the zoom, one finger drags the view round her a little, a double tap straightens it
+    BoxWithConstraints(modifier.fillMaxSize().onSizeChanged { boxPx = it.height }
+        .pointerInput(camera) { detectTapGestures(onDoubleTap = { camera?.orbit = 0f }) }
+        .pointerInput(camera) {
+            detectTransformGestures { _, pan, zoom, _ ->
+                val c = camera ?: return@detectTransformGestures
+                if (zoom != 1f) { c.zoom = ChatZoom.pinch(c.zoom, zoom); zoomUi = c.zoom }
+                if (pan.x != 0f) c.orbit = ChatZoom.drag(c.orbit, pan.x, size.width.toFloat())
+            }
+        }) {
         val screenHeight = maxHeight
         if (session == null) return@BoxWithConstraints
         if (mode.phase == ChatPhase.NEEDS_MODEL) {
@@ -183,7 +228,7 @@ fun ChatLayer(
         val last = log.lastOrNull()?.takeIf { !it.fromYou }
         var subtitle by remember(session) { mutableStateOf<String?>(null) }
         LaunchedEffect(last?.text, log.size) {
-            if (last != null) { subtitle = last.text; delay((JoiSubtitles.hold(last.text, "steady") * 1000).toLong() + 2000L); subtitle = null }
+            if (last != null) { subtitle = last.text; delay((SpeechBubbleModel.holdSeconds(last.text) * 1000).toLong()); subtitle = null }
         }
         Column(
             Modifier.align(Alignment.TopStart).windowInsetsPadding(WindowInsets.safeDrawing).padding(start = 8.dp, top = 8.dp)
@@ -196,23 +241,34 @@ fun ChatLayer(
             }
             val lengths = ChatLength.entries
             WifeTabs(lengths.map { it.label }, lengths.indexOf(session.length).coerceAtLeast(0), { session.length = lengths[it]; local++ })
+            if (camera != null) {
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
+                    for (pz in ChatZoom.PRESETS) WifeChip(pz.label, { camera.zoom = pz.zoom; zoomUi = pz.zoom },
+                        trailing = if (kotlin.math.abs(zoomUi - pz.zoom) < 0.03f) "✓" else null)
+                }
+                WifeSlider(zoomUi, { v -> camera.zoom = ChatZoom.clamp(v); zoomUi = camera.zoom }, Modifier.fillMaxWidth())
+            }
+            WifeChip("You: " + (session.relationship.described()?.replace("\"", "") ?: "Stranger"), { relOpen = true }, trailing = "✎")
+        }
+        if (relOpen) Overlay({ relOpen = false }) {
+            WifeWindow("Who are you to ${session.npcName}?", { relOpen = false }, Modifier.widthIn(min = 280.dp, max = 460.dp).padding(WifeTheme.gapL),
+                subtitle = "It applies from her next reply.",
+                footer = { WifeButton("Done", { relOpen = false }, kind = WifeButtonKind.PRIMARY) },
+            ) {
+                RelationshipPicker(session.relationship,
+                    { k -> session.changeRelationship(session.relationship.copy(kind = k)); local++ },
+                    { t -> session.changeRelationship(session.relationship.copy(custom = t)); local++ })
+            }
         }
         Column(
             Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal = 8.dp, vertical = 8.dp)
-                .widthIn(max = 640.dp).fillMaxWidth(),
+                .widthIn(max = 640.dp).fillMaxWidth().onSizeChanged { panelPx = it.height },
             verticalArrangement = Arrangement.spacedBy(WifeTheme.gapXs),
         ) {
             // her words, large: the typing indicator and the partial text while the reply is made, else her last line
             val typing = session.typing
             val shown = if (typing) session.partial.ifBlank { "…" } else subtitle
-            if (shown != null) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text(
-                    shown, textAlign = TextAlign.Center,
-                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Color.Black.copy(alpha = 0.5f)).padding(horizontal = 14.dp, vertical = 6.dp),
-                    style = TextStyle(color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Medium,
-                        shadow = androidx.compose.ui.graphics.Shadow(Color.Black, androidx.compose.ui.geometry.Offset(0f, 2f), 6f)),
-                )
-            }
+            SideEffect { onSpeech(shown) }   // the world's chat bubble over her head shows it
             Column(Modifier.fillMaxWidth().wifeSurface().padding(WifeTheme.gapS), verticalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
                 val scroll = rememberScrollState()
                 LaunchedEffect(log.size, typing) { scroll.animateScrollTo(scroll.maxValue) }
@@ -222,7 +278,7 @@ fun ChatLayer(
                         val who = if (l.fromYou) session.youName else session.npcName
                         Text("$who: ${l.text}", style = WifeTheme.bodyStyle(if (l.fromYou) WifeTheme.textDim else WifeTheme.text))
                     }
-                    if (typing) Text("${session.npcName} is answering" + ".".repeat(1 + (local / 3) % 3), style = WifeTheme.captionStyle())
+                    if (typing) Text(ChatWait.thinking(session.npcName, System.currentTimeMillis() - session.typingSince, 1 + (local / 3) % 3), style = WifeTheme.captionStyle())
                     if (session.quiet && !typing) WifeNote("${session.npcName} says nothing.")
                 }
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
@@ -250,7 +306,9 @@ private fun ChatNeedsModel(onDownload: (() -> Unit)?, onRetry: () -> Unit, onBac
     Column(modifier.widthIn(max = 340.dp).wifeSurface().padding(WifeTheme.gapM), verticalArrangement = Arrangement.spacedBy(WifeTheme.gapS),
         horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Chat needs the dialogue model", style = WifeTheme.labelStyle(), textAlign = TextAlign.Center)
-        Text("Her words come from the model on your phone, and it is not there yet.", style = WifeTheme.captionStyle(), textAlign = TextAlign.Center)
+        val ds by DialogueHost.state.collectAsStateWithLifecycle()
+        if (ds.phase == DialogueUiState.Phase.LOADING) Text(ChatWait.loading(ds.loadProgress) + " (it is a big file; this takes a while)", style = WifeTheme.captionStyle(), textAlign = TextAlign.Center)
+        else Text("Her words come from the model on your phone, and it is not there yet.", style = WifeTheme.captionStyle(), textAlign = TextAlign.Center)
         Row(horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
             if (onDownload != null) WifeButton("Download it", onDownload)
             WifeButton("Try again", onRetry)

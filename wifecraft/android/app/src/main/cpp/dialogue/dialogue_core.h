@@ -29,6 +29,12 @@ struct LoadParams {
     bool mlock = false;
     int nice = 0;              // niceness added to the calling thread before the model loads (compute threads inherit it)
     std::string stateDir;      // where evicted/flushed slots are kept (empty: not kept); one folder per model
+    // Where the CPU backend variants (libggml-cpu-*.so) are, when the build loads them at run time (GGML_BACKEND_DL, the phone's
+    // build): ggml picks the best one this CPU can run (i8mm, dotprod, SVE...). Empty: ggml's own search (the executable's folder).
+    std::string backendDir;
+    // The cores the model's threads may run on, bit n = core n (the performance cores: threads on the little cores slow the
+    // big ones down, since every thread waits for the slowest at each layer). 0: any core.
+    uint64_t affinityMask = 0;
 };
 
 struct GenParams {
@@ -57,6 +63,10 @@ struct GenResult {
     int generated = 0;
     double prefillMs = 0;
     double decodeMs = 0;
+    double firstTokenMs = 0;   // from the start of generate() to the first token sampled (prefill included): "first word after X s"
+    int kvTokens = 0;          // tokens in this NPC's slot when the answer ended
+    int threads = 0;           // the thread counts that were in force
+    int threadsBatch = 0;
 };
 
 struct ModelInfo {
@@ -66,6 +76,9 @@ struct ModelInfo {
     int trainCtx = 0;
     int ctx = 0;
     int slots = 0;
+    double loadMs = 0;         // how long the model file took to load, and the context to be made
+    double contextMs = 0;
+    std::string system;        // llama's own description of this CPU's features and the backends in use
 };
 
 using TokenSink = std::function<bool(const std::string &)>;   // false: stop now
@@ -83,6 +96,8 @@ public:
     static uint64_t rssAnonBytes();   // the anonymous part (what Android's low-memory killer weighs; mapped model pages are not in it)
 
     bool load(const LoadParams &p, std::string &error);
+    // Changes the thread counts for the next generations (Options -> Speed); 0 keeps a value. Call between generations.
+    void setThreads(int threads, int threadsBatch);
     /** While load() runs on another thread: how much of the model file has been read, 0 to 1. */
     static float loadProgress();
     void unload();
@@ -132,6 +147,8 @@ private:
     std::atomic<uint64_t> current_{0};
     std::atomic<int> liveSlots_{0};
     std::atomic<int> liveTokens_{0};
+    double loadMs_ = 0;
+    double contextMs_ = 0;
 };
 
 }  // namespace wcd

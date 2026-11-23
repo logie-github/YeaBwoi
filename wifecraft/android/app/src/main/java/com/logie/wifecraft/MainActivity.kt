@@ -627,6 +627,8 @@ class MainActivity : ComponentActivity() {
                             onSkip = { screen = Screen.LIVE },
                             onStart = { screen = Screen.LIVE },
                             loading = availableClips.isEmpty() && pairs.isEmpty(),
+                            era = dialogueSettings.era to dialogueSettings.customYear,
+                            onEra = { id, year -> dialogueSettings = dialogueSettings.copy(era = id, customYear = year).also { settings.dialogue = it } },
                         )
                     }
                     Screen.CREATOR -> {
@@ -751,6 +753,7 @@ class MainActivity : ComponentActivity() {
                         wickedWhims = screen == Screen.IMPORT_WICKED_WHIMS,
                     )
                     Screen.LIVE -> {
+                        remember { com.logie.wifecraft.graphics.CharacterSizeSetting.beginScene(applicationContext) }   // (the Character size in force before anyone is dressed)
                         val preset = stages.first { it.id == location }
                         val indoor = preset.views.getValue("inside")
                         val camera = checkNotNull(indoor.camera)

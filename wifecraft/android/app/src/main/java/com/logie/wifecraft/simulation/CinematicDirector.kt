@@ -84,7 +84,8 @@ class CinematicStage(capacity: Int) {
     var roleA = 0
     var roleB = 1
     var lineYaw = Float.NaN
-    var bodyHeight = 1.8f
+    var bodyHeight: Float = Float.NaN
+        get() = if (field.isNaN()) 1.8f * com.logie.wifecraft.anim.CharacterSize.active else field   // (a human's, times the Character size)
     /** Where each person faces (stage yaw, radians; NaN: not known): the side the pair faces, and the front of a face. */
     val facing = FloatArray(capacity) { Float.NaN }
 
@@ -372,7 +373,9 @@ object CinematicFraming {
         val ok = BooleanArray(n)
         val p = FloatArray(2)
         for (k in 0 until n) {
-            val u = BODY[2 * k]; val r = BODY[2 * k + 1]
+            // (the spheres are a human's at Character size 1: they grow with the body, anim/CharacterSize)
+            val sz = com.logie.wifecraft.anim.CharacterSize.active
+            val u = if (BODY[2 * k] >= 0f) BODY[2 * k] else BODY[2 * k] * sz; val r = BODY[2 * k + 1] * sz
             // u: a share of the way from the hips (1: the head); negative: yards down from the head
             val c = if (u >= 0f) Vec3(hip.x + bx * u, hip.y + by * u, hip.z + bz * u)
                 else Vec3(head.x + bx / bl * u, head.y + by / bl * u, head.z + bz / bl * u)

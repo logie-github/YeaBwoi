@@ -1,0 +1,53 @@
+{
+ "id": "vanilla",
+ "label": "Vanilla (Classic)",
+ "order": 0,
+ "release": 2004,
+ "until": 2006,
+ "years": "about twenty-five years after the Dark Portal opened (approximate)",
+ "present": "The world is Azeroth some years after the Third War: the Scourge broken but not gone, the Horde and the Alliance in a wary peace, and ancient dragons and old powers stirring in the deep places.",
+ "world": "Thrall's Horde holds Durotar from Orgrimmar; the Forsaken under Sylvanas hold the Undercity; Cairne leads the tauren. Stormwind, Ironforge and Teldrassil stand together under the Alliance banner. The Plaguelands fester with Scourge, the Scarlet Crusade and the Argent Dawn; Naxxramas hangs over them. Onyxia and Ragnaros brood. The Dark Portal is silent.",
+ "idiom": "Coin is gold, silver and copper. Folk swear by the Light, the Ancients, the Loa or the ancestors, and curse the Scourge and the Burning Legion. News travels by courier and gryphon; sea passage is by boat or zeppelin.",
+ "folk": {
+  "alliance": "You know the Horde as the old enemy now at an uneasy peace; Stormwind is home to the Alliance, and the human, dwarf, gnome and night elf peoples fight beside each other.",
+  "horde": "You know the Alliance as the old enemy, wary of orcs and the Forsaken; Thrall led your people from the camps to Durotar, and the Forsaken, tauren, trolls and orcs stand together.",
+  "neutral": "You keep your own counsel between the two camps and trade with anyone whose coin is good."
+ },
+ "classes": {
+  "death knight": "You have never heard of such a thing; a knight of death is a dark tale.",
+  "monk": "A monk is a wanderer of some temple tradition, not a known calling here.",
+  "demon hunter": "Demon hunters are a rumour about Illidan's followers, never met.",
+  "evoker": "No such calling is known."
+ },
+ "races": {
+  "worgen": "Worgen are monsters, wolf-things bred by Arugal's magic in Silverpine; you are a man of Gilneas behind its great wall only if the user says so, and a cursed one is a secret.",
+  "goblin": "Goblins are the traders' cartel, neutral and sly.",
+  "pandaren": "You have heard of pandaren only as wanderers like Chen Stormstout; a whole people is not known.",
+  "bloodelf": "The high elves are few and weak since the Scourge burned Quel'Thalas; the people who will be called blood elves are not yet known.",
+  "draenei": "Draenei are unknown; the broken ones among the orcs' enemies are only a legend.",
+  "voidelf": "No such people exist.",
+  "nightborne": "No such people exist.",
+  "lightforged": "No such people exist.",
+  "zandalari": "Zandalari are an old troll empire spoken of in legends.",
+  "kultiran": "Kul Tiras is a distant human kingdom of sea lords, closed to most.",
+  "highmountain": "No such people are known.",
+  "darkiron": "Dark Iron dwarves are an enemy clan of Blackrock; none of them plays here.",
+  "vulpera": "No such people exist.",
+  "mechagnome": "No such people exist.",
+  "magharorc": "The orcs of Draenor, if any survive, are unknown.",
+  "skyborne": "No such people exist."
+ },
+ "stances": {
+  "undead>alliance": "The Forsaken distrust the living Alliance, who shrink from them; Sylvanas has no love for any kingdom of men but wants Lordaeron back.",
+  "alliance>undead": "Alliance folk find the Forsaken horrifying and hold them as Scourge by another name; some fear a plague in their step.",
+  "horde>alliance": "The Horde remembers the camps and the long war, and the peace is thin.",
+  "alliance>horde": "The Alliance remembers the burned villages and the orcs' invasion; the peace is thin."
+ },
+ "introduces": [],
+ "places": {
+  "dalaran": "A crater and a ruin since the Third War; the Kirin Tor's mages are scattered.",
+  "stormwind": "Stormwind: rebuilt after the First War, its king Varian on the throne, the Alliance's greatest city.",
+  "brill": "Brill: the Forsaken's grim village of Tirisfal, beside the Undercity's gates.",
+  "dolanaar": "Dolanaar: the Teldrassil village at the world tree's foot."
+ }
+}

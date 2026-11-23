@@ -69,6 +69,9 @@ fun ConsentScreen(
     onSkip: () -> Unit,
     onStart: () -> Unit,
     loading: Boolean = false,
+    /** The scene's era (the dialogue's Default era, remembered) and its change; null: no control. */
+    era: Pair<String, Int>? = null,
+    onEra: ((String, Int) -> Unit)? = null,
 ) {
     BackHandler(onBack = onBack)
     Box(Modifier.fillMaxSize().background(Color.Black)) {
@@ -86,6 +89,7 @@ fun ConsentScreen(
             ) {
                 WifeSwitchRow("Remember for this scene only", sceneOnly, onSceneOnly,
                     detail = if (sceneOnly) "Kept for this place and this cast" else "Kept for each character, in every scene")
+                if (era != null && onEra != null) EraPickerRow("Era", era.first, era.second, onEra)
                 ConsentPanel(npcs, groups, policy, onChanged, loading, Modifier.weight(1f).fillMaxWidth())
             }
         }

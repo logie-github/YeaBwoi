@@ -62,8 +62,8 @@ object JoiPrompt {
 
     /** How many few-shot lines the system prompt shows. */
     const val EXAMPLES = 8
-    /** The most tries one line gets: the first, then a retry for each thing wrong with the last (wellness talk, a copied line). */
-    const val TRIES = 3
+    /** The most tries one line gets: the first, then one retry (a wrong answer costs the model's whole wait again: at 4 to 6 tokens a second two tries are the most a player will sit through). */
+    const val TRIES = 2
 
     /** The comfort band the pack is asked with: the plan's, raised by the level and never lowered by it or by the band. */
     fun bandFor(r: JoiLineRequest): Band = if (r.level.joiBand.ordinal > r.band.ordinal) r.level.joiBand else r.band
@@ -130,7 +130,7 @@ object JoiPrompt {
     fun request(r: JoiLineRequest, pack: KinkContext?): DialogueRequest =
         DialogueRequest(npcId = r.npcId.ifEmpty { r.persona.name }, system = system(r, pack), history = history(r, pack), user = user(r), maxTokens = r.level.joiTokens, stop = listOf("\n"),
             temperature = if (r.persona.dragon) 0.75f else r.level.temperature, topP = r.level.topP, repeatPenalty = r.level.repeatPenalty,
-            priority = DialoguePriority.SELECTED)
+            priority = DialoguePriority.SELECTED, tag = "joi")
 
     /** Whether [text] names something outside the room. */
     fun breaksWorld(text: String): Boolean = FOURTH_WALL.containsMatchIn(text)

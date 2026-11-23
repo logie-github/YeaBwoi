@@ -1,0 +1,24 @@
+{
+ "default": "wotlk",
+ "eras": [
+  "vanilla",
+  "tbc",
+  "wotlk",
+  "cata",
+  "mop",
+  "wod",
+  "legion",
+  "bfa",
+  "shadowlands",
+  "dragonflight",
+  "warwithin",
+  "midnight"
+ ],
+ "placeEras": {
+  "krasus": "legion",
+  "dalaran": "legion",
+  "violet citadel": "legion",
+  "telaar": "tbc",
+  "fairbreeze": "tbc"
+ }
+}

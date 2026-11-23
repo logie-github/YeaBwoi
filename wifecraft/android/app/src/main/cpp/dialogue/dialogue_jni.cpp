@@ -3,6 +3,7 @@
 // UTF-8, which mangles emoji and NUL). Compiled by CI only for the phone; the core itself runs on the desktop (engine-test).
 #include <jni.h>
 #include <android/log.h>
+#include <dlfcn.h>
 
 #include <memory>
 #include <mutex>
@@ -35,6 +36,15 @@ jstring ascii(JNIEnv *env, const std::string &in) {
     return env->NewStringUTF(s.c_str());
 }
 
+// The folder this library was loaded from: where AGP put the CPU backend variants (libggml-cpu-*.so) beside it.
+std::string ownDir() {
+    Dl_info info;
+    if (dladdr(reinterpret_cast<void *>(&ownDir), &info) == 0 || !info.dli_fname) return std::string();
+    std::string p = info.dli_fname;
+    size_t slash = p.rfind('/');
+    return slash == std::string::npos ? std::string() : p.substr(0, slash);
+}
+
 void installLogger() {
     wcd::Core::setLogger([](int level, const std::string &text) {
         if (level < 2) return;
@@ -60,7 +70,7 @@ extern "C" {
 // Returns null when the model is loaded, else why not.
 JNIEXPORT jstring JNICALL Java_com_logie_wifecraft_dialogue_NativeDialogue_nativeLoad(
         JNIEnv *env, jobject, jbyteArray path, jint threads, jint threadsBatch, jint ctx, jint slots, jint ubatch,
-        jint kvBits, jint nice, jbyteArray stateDir) {
+        jint kvBits, jint nice, jbyteArray stateDir, jlong affinityMask) {
     installLogger();
     auto c = std::make_shared<wcd::Core>();
     wcd::LoadParams p;
@@ -73,6 +83,8 @@ JNIEXPORT jstring JNICALL Java_com_logie_wifecraft_dialogue_NativeDialogue_nativ
     p.kvBits = kvBits;
     p.nice = nice;
     p.stateDir = bytes(env, stateDir);
+    p.backendDir = ownDir();
+    p.affinityMask = (uint64_t)affinityMask;
     std::string err;
     if (!c->load(p, err)) return ascii(env, err.empty() ? "the model did not load" : err);
     std::lock_guard<std::mutex> g(gMutex);
@@ -94,12 +106,12 @@ JNIEXPORT void JNICALL Java_com_logie_wifecraft_dialogue_NativeDialogue_nativeUn
     if (c) c->unload();
 }
 
-// "finish \t promptTokens \t reused \t shared \t restored \t generated \t prefillMs \t decodeMs \t error"
+// "finish \t promptTokens \t reused \t shared \t restored \t generated \t prefillMs \t decodeMs \t firstTokenMs \t kvTokens \t threads \t threadsBatch \t error"
 JNIEXPORT jstring JNICALL Java_com_logie_wifecraft_dialogue_NativeDialogue_nativeGenerate(
         JNIEnv *env, jobject, jlong ticket, jbyteArray key, jbyteArray prompt, jint maxTokens, jfloat temperature, jfloat topP,
         jfloat minP, jint topK, jfloat repeatPenalty, jint seed, jint minShare, jint chunkDelayMs, jobjectArray stops, jobject sink) {
     auto c = core();
-    if (!c) return ascii(env, "error\t0\t0\t0\t0\t0\t0\t0\tno model is loaded");
+    if (!c) return ascii(env, "error\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\tno model is loaded");
     wcd::GenParams gp;
     gp.maxTokens = maxTokens;
     gp.temperature = temperature;
@@ -133,9 +145,9 @@ JNIEXPORT jstring JNICALL Java_com_logie_wifecraft_dialogue_NativeDialogue_nativ
     wcd::GenResult r = c->generate((uint64_t)ticket, bytes(env, key), bytes(env, prompt), gp, fn);
     std::string err = r.error;
     for (auto &ch : err) if (ch == '\t' || ch == '\n') ch = ' ';
-    char head[256];
-    snprintf(head, sizeof head, "%s\t%d\t%d\t%d\t%d\t%d\t%.1f\t%.1f\t", finishName(r.finish), r.promptTokens, r.reusedTokens,
-             r.sharedTokens, r.restoredTokens, r.generated, r.prefillMs, r.decodeMs);
+    char head[320];
+    snprintf(head, sizeof head, "%s\t%d\t%d\t%d\t%d\t%d\t%.1f\t%.1f\t%.1f\t%d\t%d\t%d\t", finishName(r.finish), r.promptTokens, r.reusedTokens,
+             r.sharedTokens, r.restoredTokens, r.generated, r.prefillMs, r.decodeMs, r.firstTokenMs, r.kvTokens, r.threads, r.threadsBatch);
     return ascii(env, std::string(head) + err);
 }
 
@@ -156,15 +168,19 @@ JNIEXPORT jint JNICALL Java_com_logie_wifecraft_dialogue_NativeDialogue_nativeFl
     return c ? c->flush() : 0;
 }
 
-// "description \t sizeBytes \t params \t trainCtx \t ctx \t slots \t liveSlots \t liveTokens \t rss"
+JNIEXPORT void JNICALL Java_com_logie_wifecraft_dialogue_NativeDialogue_nativeSetThreads(JNIEnv *, jobject, jint threads, jint threadsBatch) {
+    if (auto c = core()) c->setThreads(threads, threadsBatch);
+}
+
+// "description \t sizeBytes \t params \t trainCtx \t ctx \t slots \t liveSlots \t liveTokens \t rss \t loadMs \t contextMs \t system"
 JNIEXPORT jstring JNICALL Java_com_logie_wifecraft_dialogue_NativeDialogue_nativeInfo(JNIEnv *env, jobject) {
     auto c = core();
     if (!c) return nullptr;
     wcd::ModelInfo i = c->info();
-    char buf[512];
-    snprintf(buf, sizeof buf, "%s\t%llu\t%llu\t%d\t%d\t%d\t%d\t%d\t%llu", i.desc.c_str(), (unsigned long long)i.sizeBytes,
+    char buf[1536];
+    snprintf(buf, sizeof buf, "%s\t%llu\t%llu\t%d\t%d\t%d\t%d\t%d\t%llu\t%.0f\t%.0f\t%s", i.desc.c_str(), (unsigned long long)i.sizeBytes,
              (unsigned long long)i.params, i.trainCtx, i.ctx, i.slots, c->liveSlots(), c->liveTokens(),
-             (unsigned long long)wcd::Core::rssBytes());
+             (unsigned long long)wcd::Core::rssBytes(), i.loadMs, i.contextMs, i.system.c_str());
     return ascii(env, buf);
 }
 
