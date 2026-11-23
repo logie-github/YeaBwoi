@@ -96,3 +96,53 @@ object ChromeVisibility {
 
     const val PEEK_MS = 5_000L
 }
+
+/**
+ * The chrome's visibility over time, for the cinematic mode (pure; the clock is injected): [update] says whether it is shown now, by
+ * [ChromeVisibility.shown] (5 s without a touch hides all of it; Build, JOI, Chat, an open sheet or window and the keyboard never do; a
+ * sheet or window closing counts as a touch); [touch] is told of every touch and says whether it only revealed the chrome (the
+ * caller swallows it: it is no tap in the scene); [fading] is true for [FADE_MS] after the chrome last appeared or went, and no
+ * tap on it counts then (the cover over the screen takes them).
+ */
+class ChromeGate(private val clock: () -> Long) {
+    private var lastTouch = clock()
+    private var shownNow = true
+    private var changedAt = Long.MIN_VALUE / 2
+    private var held = false
+    private var counting = false
+
+    fun update(cinematic: Boolean, mode: ScreenMode, panelOpen: Boolean, keyboard: Boolean): Boolean {
+        val now = clock()
+        val hold = panelOpen || keyboard
+        if ((held && !hold) || (cinematic && !counting)) lastTouch = now
+        held = hold
+        counting = cinematic
+        val s = ChromeVisibility.shown(cinematic, false, now - lastTouch, mode, hold)
+        if (s != shownNow) { shownNow = s; changedAt = now }
+        return s
+    }
+
+    /** A finger touched the screen: true when the chrome was hidden, so this touch only shows it. */
+    fun touch(): Boolean {
+        val now = clock()
+        val was = !shownNow
+        lastTouch = now
+        if (was) { shownNow = true; changedAt = now }
+        return was
+    }
+
+    /** Whether the chrome is fading in or out now: taps are not taken. */
+    fun fading(): Boolean = clock() - changedAt < FADE_MS
+
+    companion object { const val FADE_MS = 400L }
+}
+
+/** The one first-run tip (a single toast on the first scene): where the dock and the menu are. Tips never stack: one text, shown once. */
+object ScreenTips {
+    const val KEY = "tip_dock_seen"
+    const val TEXT = "Tap someone in the cast, then use the bar at the bottom. The gear is the menu; Build mode is under More."
+
+    /** Whether the tip is due now: not seen, the scene is up, nothing else is open and no other toast is on. */
+    fun due(seen: Boolean, revealed: Boolean, mode: ScreenMode, panelOpen: Boolean, toastShown: Boolean): Boolean =
+        !seen && revealed && mode == ScreenMode.NORMAL && !panelOpen && !toastShown
+}

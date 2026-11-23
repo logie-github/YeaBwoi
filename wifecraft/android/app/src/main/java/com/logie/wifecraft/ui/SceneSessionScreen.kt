@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
@@ -107,7 +108,6 @@ import com.logie.wifecraft.location.FurniturePiece
 import com.logie.wifecraft.location.LocationInfo
 import com.logie.wifecraft.simulation.CameraClearance
 import com.logie.wifecraft.simulation.CinematicDirector
-import com.logie.wifecraft.simulation.CinematicIdle
 import com.logie.wifecraft.simulation.ShotLibrary
 import com.logie.wifecraft.simulation.CinematicLook
 import com.logie.wifecraft.simulation.CinematicSettings
@@ -649,8 +649,9 @@ fun LiveSceneScreen(
     // Chat mode: her reply as the world's chat bubble over her head (set by the chat layer)
     var chatSpeech by remember(live) { mutableStateOf<String?>(null) }
     // cinematic mode's idle hide (CinematicIdle): all the interface goes after 5 s untouched, Build mode off, until the next touch
-    val cineIdleClock = remember(live) { CinematicIdle { SystemClock.uptimeMillis() } }
+    val chromeGate = remember(live) { ChromeGate { SystemClock.uptimeMillis() } }
     var cineIdle by remember(live) { mutableStateOf(false) }
+    var cineFading by remember(live) { mutableStateOf(false) }
     val cineNotify by rememberUpdatedState(onCinematic)
     SideEffect {
         // Chat mode: a clean full-width view (no film frame, no bars)
@@ -1630,8 +1631,14 @@ fun LiveSceneScreen(
     }
     LaunchedEffect(lifeToast) { lifeToast?.let { (result, _) -> pushToast(result.message, !result.accepted) } }
     LaunchedEffect(status, revealed) { if (revealed && status != null) pushToast(status, true) }
-    LaunchedEffect(revealed, buildHintSeen) {
-        if (BuildEntry.hintShown(buildHintSeen, false, false, revealed)) { pushToast(BuildEntry.HINT, false); dismissBuildHint() }
+    // the one first-run tip: where the dock, the menu and Build are (a single toast; tips never stack)
+    var tipSeen by remember(buildPrefs) { mutableStateOf(try { buildPrefs.getBoolean(ScreenTips.KEY, false) } catch (e: Exception) { false }) }
+    LaunchedEffect(revealed, tipSeen) {
+        if (ScreenTips.due(tipSeen, revealed, ScreenMode.NORMAL, panel != ScreenPanel.NONE, toastNow != null)) {
+            pushToast(ScreenTips.TEXT, false)
+            tipSeen = true
+            try { buildPrefs.edit().putBoolean(ScreenTips.KEY, true).apply() } catch (e: Exception) { }
+        }
     }
     LaunchedEffect(toastNow) {
         val t = toastNow ?: return@LaunchedEffect
@@ -1651,12 +1658,22 @@ fun LiveSceneScreen(
     val windowOpen = choosingAnimation != null || furnitureMenu != null || saying != null || chatting != null ||
         choosingPartner != null || pairPlay != null || menu || ending || panel != ScreenPanel.NONE || mapper.on || build.on || chatActor != null || chatSheet != null || joiActor != null
     // cinematic mode's idle hide: counted while cinematic, not building, no window open; any touch restarts it (see observeTouches below)
-    SideEffect { cineIdleClock.mode(cinematic, build.on, windowOpen) }
-    LaunchedEffect(live, cinematic, build.on, windowOpen) {
-        cineIdleClock.mode(cinematic, build.on, windowOpen)
+    // (ChromeGate / ChromeVisibility: 5 s untouched hides all of it; Build, JOI, Chat, a sheet, a window and the keyboard keep it up; the touch that
+    // reveals it is swallowed and nothing is tapped while it fades)
+    val imeUp = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val gateMode = when {
+        chatActor != null -> ScreenMode.CHAT
+        joiActor != null -> ScreenMode.JOI
+        mapper.on -> ScreenMode.MOVE
+        build.on -> ScreenMode.BUILD
+        cinematic -> ScreenMode.CINEMATIC
+        else -> ScreenMode.NORMAL
+    }
+    LaunchedEffect(live, cinematic, gateMode, windowOpen, imeUp) {
         while (true) {
-            cineIdle = cineIdleClock.hidden()
-            delay(100)
+            cineIdle = !chromeGate.update(cinematic, gateMode, windowOpen, imeUp)
+            cineFading = cinematic && chromeGate.fading()
+            delay(50)
         }
     }
     // Build mode: no animation ends (the simulation loops what plays, auto-play stands on its shot)
@@ -1775,7 +1792,7 @@ fun LiveSceneScreen(
     }
 
     val reduced = reduceMotion()
-    Box(Modifier.fillMaxSize().background(SceneGround).observeTouches { if (cineIdleClock.touch()) cineIdle = false }) {
+    Box(Modifier.fillMaxSize().background(SceneGround).observeTouches { if (chromeGate.touch()) cineIdle = false }) {
         AndroidView(
             { (view.parent as? ViewGroup)?.removeView(view); view },
             Modifier.fillMaxSize().cinematicFrame(cinematic, cinematicSettings.frame).onSizeChanged { speechSpots.width = it.width.toFloat(); speechSpots.height = it.height.toFloat() }.pointerInput(view, live) {
@@ -1956,7 +1973,7 @@ fun LiveSceneScreen(
             val allOn = gearControl.allOn()
             moreItems += (if (allOn) "All gear off" else "All gear on") to { gearControl.setAll(!allOn) }
         }
-        if (!build.on) moreItems += BuildEntry.menuLabel(false) to { enterBuild() }
+        val moreLead: List<Pair<String, () -> Unit>> = if (build.on) emptyList() else listOf(BuildEntry.menuLabel(false) to { enterBuild() })
         if (consent != null && onLimitsFor != null && active != null) moreItems += "Limits: ${names[active.id] ?: ""}" to { onLimitsFor(active.id) }
         else if (consent != null && onLimits != null) moreItems += "Consent and limits" to { onLimits() }
         fun exitMode() {
@@ -2023,7 +2040,7 @@ fun LiveSceneScreen(
             when (sheetPanel) {
                 ScreenPanel.TIME -> TimeSheet(clockNow?.takeIf { lifeOn }?.speed, { setSpeed(it) }, events.orEmpty(), icons)
                 ScreenPanel.MORE -> MoreSheet(dockPlan.more, { slot -> active?.id?.let { slotEnabled(it, slot) } ?: true },
-                    { slot -> panel = ScreenPanel.NONE; active?.id?.let { act(it, slot) } }, moreItems, { panel = ScreenPanel.NONE })
+                    { slot -> panel = ScreenPanel.NONE; active?.id?.let { act(it, slot) } }, moreItems, { panel = ScreenPanel.NONE }, moreLead)
                 ScreenPanel.BUILD_PANEL -> BuildPanel(build, active?.id?.let { npc -> { obj: SceneObject ->
                     mapper.start(npc)
                     mapper.tapItem(obj, furnitureMeasured[obj] ?: spots[obj]?.let { Furniture.of(obj, it) }, toStage, stageRotation)
@@ -2038,7 +2055,7 @@ fun LiveSceneScreen(
             selected ?: flow?.a, partnerId ?: flow?.b, cast.map { it.id }, autoPairs, needs.pairs, furnitureAt, bodyScales,
             controls = cinematic && !cineHidden && revealed && joiActor == null && chatActor == null, treatAs = treatAs, hold = holdAnimations,
             consent = consent, panelRect = autoRect.takeIf { sheetPanel == ScreenPanel.AUTOPLAY })
-        CinematicLayer(cinematic, cineHidden, { cineIdleClock.touch(); cineIdle = false }, { live.aspect = it; cineLook.viewAspect = it },
+        CinematicLayer(cinematic, cineHidden || cineFading, { chromeGate.touch(); cineIdle = false }, { live.aspect = it; cineLook.viewAspect = it },
             frame = if (chatActor != null) com.logie.wifecraft.simulation.CinematicFrame.FULL else cinematicSettings.frame)
         // JOI mode: the subtitles in the film frame's lower third, and (the interface up) its controls
         if (joiActor != null) JoiLayer(joiMode, joiTick, cinematicSettings.frame, controls = !cineHidden && revealed,
