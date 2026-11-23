@@ -77,22 +77,36 @@ object ChatPrompt {
     /** "a woman", "a man". */
     private fun sexWord(female: Boolean) = if (female) "woman" else "man"
 
-    /** What she is told of the person before her: race, class, name, sex and side. No word of a player or a game. */
-    fun presence(you: ChatCharacter, lore: Lore): String {
+    /** What she is told of the person before her: race, class, name, sex, side and (when not a stranger) what they are to her. No word of a player or a game. */
+    fun presence(you: ChatCharacter, lore: Lore, rel: ChatRelationship = you.relationship): String {
         val race = lore.race(you.raceId)?.name ?: "traveller"
         val cls = lore.className(you.classId)?.let { " $it" } ?: ""
         val f = lore.faction(you.raceId)
         val side = if (f == Faction.NEUTRAL) "" else " of the ${f.label}"
-        return "A $race$cls called ${you.name} stands before you, a ${sexWord(you.female)}$side."
+        val what = rel.described() ?: return "A $race$cls called ${you.name} stands before you, a ${sexWord(you.female)}$side."
+        return "${you.name}, a $race$cls, who is your $what, stands before you: a ${sexWord(you.female)}$side."
     }
 
-    /** How wary she is of them at the start, from the willingness model (faction, race, her nature, the ease between them). */
-    fun wariness(me: NpcProfile, you: ChatCharacter, lore: Lore, band: ComfortBand): String? {
-        val r = WillingnessModel.prior(lore, me, you.profile(), Relation(), band)
-        return when (WillingnessModel.classify(r)) {
-            Willing.WILLING -> null
-            Willing.HESITANT -> "You are wary of ${you.name}: what they are, or that you do not know them, gives you pause. Stay civil, keep some distance, and let them earn your trust before you open up; you may hesitate or deflect if they press."
-            Willing.REFUSED -> "You distrust ${you.name} deeply. Be cold and curt, give little away, and refuse anything intimate for now; the ease between you must grow before that changes."
+    /** The neutral stance she starts a talk in (calm, polite, attentive, no assumed intimacy), told for the first few exchanges. */
+    const val NEUTRAL_EXCHANGES = 3
+    fun neutralStance(rel: ChatRelationship): String =
+        if (rel.tier == ChatRelationship.Tier.STRANGER)
+            "You begin this meeting calm and even in mood: polite, attentive and yourself. You assume no intimacy, you are not flirting, aroused, angry or sulking; let how they treat you decide whether you warm or cool."
+        else
+            "You begin this meeting calm and natural in mood: warm as you are with someone you know, but not already aroused, quarrelling or sulking; let how they treat you decide where the talk goes."
+
+    /**
+     * How wary she is of them, from the willingness model (faction, race, her nature, the ease and what they are to her). In the first
+     * exchanges ([mildOnly]) never more than a mild reserve: no refusal and no hostility at the start.
+     */
+    fun wariness(me: NpcProfile, you: ChatCharacter, lore: Lore, band: ComfortBand, rel: ChatRelationship = you.relationship, mildOnly: Boolean = false): String? {
+        val r = WillingnessModel.prior(lore, me, you.profile(), rel.relation, band, rel.attitudeScale)
+        val c = WillingnessModel.classify(r)
+        return when {
+            c == Willing.WILLING -> null
+            mildOnly -> "You are a little wary of ${you.name}, only because you do not know them or their kind yet: keep a small reserve, stay civil and open, and let them show who they are before you open up; you may hesitate over anything intimate."
+            c == Willing.HESITANT -> "You are wary of ${you.name}: what they are, or that you do not know them, gives you pause. Stay civil, keep some distance, and let them earn your trust before you open up; you may hesitate or deflect if they press."
+            else -> "You distrust ${you.name} deeply. Be cold and curt, give little away, and refuse anything intimate for now; the ease between you must grow before that changes."
         }
     }
 
@@ -112,17 +126,26 @@ object ChatPrompt {
         val retryNote: String? = null,
         /** How filthy her words are (Options' Dirty talk level) when the talk turns to desire. */
         val dirty: DirtyLevel = DirtyLevel.DEFAULT,
+        /** What they are to her (changes apply from the next reply). */
+        val relationship: ChatRelationship = you.relationship,
+        /** How many messages they have sent already (0: this is the very first reply: the neutral opening). */
+        val exchanges: Int = 0,
     )
 
     /** The user message of one turn: the place, who stands before her and what the lore says of them, the ease, steers, what was said, the task. */
     fun user(lore: Lore, t: Turn): String {
         val b = StringBuilder()
         b.append(SceneContext.place(t.place)).append('\n')
-        b.append(presence(t.you, lore)).append('\n')
-        val know = lore.forScene(t.me.raceId, t.me.classId, t.place.name, listOf(t.you.raceId to t.you.classId), withBodies = false, maxChars = 900, includeSelf = false)
+        b.append(presence(t.you, lore, t.relationship)).append('\n')
+        t.relationship.note(t.you.name)?.let { b.append(it).append('\n') }
+        val spouse = t.relationship.tier == ChatRelationship.Tier.SPOUSE
+        val know = if (spouse) emptyList() else lore.forScene(t.me.raceId, t.me.classId, t.place.name, listOf(t.you.raceId to t.you.classId), withBodies = false, maxChars = 900, includeSelf = false)
         if (know.isNotEmpty()) b.append("What you know: ").append(know.joinToString(" ")).append('\n')
         b.append("You and ${t.you.name} are ${t.band.label} with each other.\n")
-        wariness(t.me, t.you, lore, t.band)?.let { b.append(it).append('\n') }
+        val opening = t.exchanges < NEUTRAL_EXCHANGES
+        if (opening) b.append(neutralStance(t.relationship)).append('\n')
+        if (t.exchanges == 0 && t.heard != null) b.append("This is the first thing ${t.you.name} says to you in this meeting: answer it as the neutral first greeting it is, without assuming more than is said.\n")
+        wariness(t.me, t.you, lore, t.band, t.relationship, mildOnly = opening)?.let { b.append(it).append('\n') }
         if (t.desireTopic && t.band.bodyTalk) {
             lore.body(t.you.raceId)?.let { b.append("Their body, for you to draw on as you like: ").append(it).append('\n') }
         }
