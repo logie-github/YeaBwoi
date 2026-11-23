@@ -121,6 +121,7 @@ class DirtyTalkTest {
         assertNull(Anachronisms.find("She sucks him off."))
         assertTrue(Anachronisms.find("okay then") != null)   // the anachronisms stay
         assertTrue(JoiPrompt.breaksWorld("Good player, keep looking at the screen."))
+        assertTrue(JoiPrompt.breaksWorld("An army of orphans will watch you.")); assertNull(JoiPrompt.clean("Stroke it for the kids, slut."))   // adults only
     }
 
     @Test fun everyShownLineIsInWorldAndPassesTheFilters() {
@@ -179,6 +180,16 @@ class DirtyTalkTest {
         assertFalse(DirtyTalk.copies("Fist that sad cock harder and look at me while you do it, slut.", JoiPrompt.shown(req(DirtyLevel.NASTY), pack)))
     }
 
+    @Test fun aRepeatedLineIsAskedForAgainWithANoteAndALittleMoreHeat() {
+        val answers = ArrayDeque(listOf("Stroke it harder, you slut.", "Grip that cock and pump it fast, you filthy whore."))
+        val engine = ScriptedEngine { answers.removeFirst() }
+        assertEquals("Grip that cock and pump it fast, you filthy whore.", run { JoiPrompt.line(engine, req(DirtyLevel.NASTY, recent = listOf("Stroke it harder, you slut.")), pack) })
+        assertTrue(DirtyTalk.REPEAT_NOTE in engine.calls[1].user)
+        assertTrue(engine.calls[1].temperature > engine.calls[0].temperature)
+        // never the same line three times: nothing
+        assertNull(run { JoiPrompt.line(ScriptedEngine { "Stroke it harder, you slut." }, req(DirtyLevel.NASTY, recent = listOf("Stroke it harder, you slut.")), pack) })
+    }
+
     @Test fun nothingAtAllIsTriedTwiceAndTheFourthWallStillHolds() {
         val none = ScriptedEngine { null }
         assertNull(run { JoiPrompt.line(none, req(DirtyLevel.HOT), pack) }); assertEquals(2, none.calls.size)
@@ -186,11 +197,24 @@ class DirtyTalkTest {
         assertNull(run { JoiPrompt.line(wall, req(DirtyLevel.HOT), pack) })
     }
 
+    @Test fun theFrontOfThePromptIsTheSameThroughAStageForTheRuntimesCache() {
+        val a = req(DirtyLevel.NASTY, "build"); val b = req(DirtyLevel.NASTY, "build", recent = listOf("Stroke it, slut.", "Faster."), steer = "be meaner")
+            .copy(steer = setOf(JoiSteer.TEASE), action = "your hand is stroking them, quickly")
+        assertEquals(JoiPrompt.system(a, pack), JoiPrompt.system(b, pack))
+        assertEquals(JoiPrompt.history(a, pack), JoiPrompt.history(b, pack))
+        assertNotEquals(JoiPrompt.user(a, pack), JoiPrompt.user(b, pack))
+        // the stage's hint is in the user message (it changes with the stage), the level's register in the system (it does not)
+        assertTrue("This moment:" in JoiPrompt.user(a, pack) && "This moment:" !in JoiPrompt.system(a, pack))
+        assertNotEquals(JoiPrompt.system(a, pack), JoiPrompt.system(req(DirtyLevel.HOT, "build"), pack))
+        assertEquals(JoiPrompt.system(req(DirtyLevel.NASTY, "edge"), pack), JoiPrompt.system(req(DirtyLevel.NASTY, "countdown"), pack))
+        assertTrue(JoiPrompt.request(a, pack).tag == "joi")
+    }
+
     // ---- consent care: afterglow only
 
     @Test fun noCareLineIsMixedIntoTheStagesButTheAfterglow() {
-        for (l in DirtyLevel.entries) for (s in stages.filter { it != "afterglow" }) assertFalse("Care" in JoiPrompt.system(req(l, s), pack), "${l.label} $s")
-        assertTrue("Care, if it fits" in JoiPrompt.system(req(DirtyLevel.CUTE, "afterglow"), pack))
+        for (l in DirtyLevel.entries) for (s in stages.filter { it != "afterglow" }) assertFalse("Care" in JoiPrompt.user(req(l, s), pack), "${l.label} $s")
+        assertTrue("Care, if it fits" in JoiPrompt.user(req(DirtyLevel.CUTE, "afterglow"), pack))
         assertFalse("therapist" in JoiPrompt.system(req(DirtyLevel.WTF, "setup"), pack))
         // the setup stage no longer asks for consent in the line: orders, not questions
         assertFalse("word to stop" in pack.joiHint("setup", KinkQuery(Band.INTIMATE))!!)

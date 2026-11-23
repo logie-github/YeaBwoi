@@ -26,6 +26,7 @@ class DirtyLiveTest {
         private val out = OutputStreamWriter(proc.outputStream, Charsets.UTF_8)
         private val inp = BufferedReader(InputStreamReader(proc.inputStream, Charsets.UTF_8))
         var calls = 0
+        val raws = ArrayList<String>()
         private fun esc(s: String) = s.replace("\\", "\\\\").replace("\n", "\\n").replace("\t", "\\t")
         private fun unesc(s: String): String { val o = StringBuilder(); var i = 0; while (i < s.length) { val c = s[i]; if (c == '\\' && i + 1 < s.length) { i++; o.append(when (s[i]) { 'n' -> '\n'; 't' -> '\t'; else -> s[i] }) } else o.append(c); i++ }; return o.toString() }
         override suspend fun complete(req: DialogueRequest): String? = synchronized(this) {
@@ -34,7 +35,7 @@ class DirtyLiveTest {
             System.getenv("DIRTY_DUMP")?.let { File(it).writeText(prompt) }
             out.write("${req.temperature}\t${req.topP}\t${req.repeatPenalty}\t${req.maxTokens}\t${esc(prompt)}\n"); out.flush()
             val line = inp.readLine() ?: return null
-            ChatTemplate.tidy(unesc(line))
+            ChatTemplate.tidy(unesc(line)).also { raws += it }
         }
         fun close() { runCatching { out.close() }; proc.destroy() }
     }
@@ -73,6 +74,7 @@ class DirtyLiveTest {
                             val tries = engine.calls - before
                             if (line != null) { recent += line; while (recent.size > 6) recent.removeAt(0) }
                             got += (line ?: "(none)") + if (tries > 1) "   [$tries tries]" else ""
+                            if (line == null) got += "      raw: " + engine.raws.takeLast(tries).joinToString(" || ")
                         }
                         say("[$stage]")
                         for (l in got) say("  $l")

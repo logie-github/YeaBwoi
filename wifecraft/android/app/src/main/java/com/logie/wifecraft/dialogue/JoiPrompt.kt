@@ -68,8 +68,8 @@ object JoiPrompt {
     /** The comfort band the pack is asked with: the plan's, raised by the level and never lowered by it or by the band. */
     fun bandFor(r: JoiLineRequest): Band = if (r.level.joiBand.ordinal > r.band.ordinal) r.level.joiBand else r.band
 
-    /** Which of the level's lines the ask shows: a place in the list that moves with the stage and the lines already said. */
-    private fun seedOf(r: JoiLineRequest): Int = r.recent.size * 3 + (r.countdownFrom ?: 0) + r.stage.length
+    /** Which of the level's lines the ask shows: a place in the list that moves with the stage only, so the prompt's front stays byte for byte the same through a stage (the runtime reuses what it has read of it). */
+    private fun seedOf(r: JoiLineRequest): Int = r.stage.length
 
     /** The few-shot lines [system] shows for [r] (a reply may not copy them). */
     fun shown(r: JoiLineRequest, pack: KinkContext?): List<String> =
@@ -77,7 +77,6 @@ object JoiPrompt {
 
     fun system(r: JoiLineRequest, pack: KinkContext?): String {
         val p = r.persona
-        val q = KinkQuery(bandFor(r), p.personalities, p.role, p.races, p.classes, stage = "joi", limit = 2, level = r.level)
         val sb = StringBuilder()
         sb.append("You are ").append(p.name).append(", an adult").append(if (p.dragon) " frost dragon of great age" else " person")
             .append(" alone in a private room with one other adult, who wants exactly this and asked you for it. ")
@@ -92,10 +91,6 @@ object JoiPrompt {
         sb.append('\n').append(DirtyTalk.register(r.level)).append(' ')
         if (r.level.explicit) sb.append("No word is off limits; say it plainly. ")
         sb.append('\n')
-        pack?.joiHint(r.stage, q)?.let { sb.append("This moment: ").append(it).append(' ') }
-        // care: only in the afterglow, and from Spicy up only now and then, in your own voice
-        if (r.stage == "afterglow" && (!r.level.explicit || seedOf(r) % 3 == 0)) pack?.care(q.copy(stage = "aftercare"))?.let { sb.append("Care, if it fits, in your own words: ").append(it).append(' ') }
-        for (s in r.steer) sb.append(s.instruction).append(' ')
         sb.append("\nRules: one to three short sentences, at most ").append(r.level.joiWords).append(" words. Spoken words only: no stage directions, no asterisks, no quotation marks, ")
         sb.append("no narration, no lists. Never mention players, games, screens, cameras, audiences, apps or anything outside the room. ")
         sb.append("Never repeat an earlier line. Stay in this moment and keep to the voice above.")
@@ -117,8 +112,19 @@ object JoiPrompt {
         else -> "Say your next order for the ${r.stage} part."
     }
 
-    fun user(r: JoiLineRequest): String {
+    /**
+     * The prompt is laid out for the runtime's cache (it reuses the byte-identical front of the last prompt): the persona, the rules and the
+     * level's register first ([system], the same all JOI long while the level stays), then the level's few-shot turns ([history], the same
+     * through a stage), and last what changes every line: the stage hint, the chips, her hand, what she said last, the viewer's steer, the task.
+     */
+    fun user(r: JoiLineRequest, pack: KinkContext? = null): String {
         val sb = StringBuilder()
+        val p = r.persona
+        val q = KinkQuery(bandFor(r), p.personalities, p.role, p.races, p.classes, stage = "joi", limit = 2, level = r.level)
+        pack?.joiHint(r.stage, q)?.let { sb.append("This moment: ").append(it).append('\n') }
+        // care: only in the afterglow, and from Spicy up only now and then, in your own voice
+        if (r.stage == "afterglow" && (!r.level.explicit || r.recent.size % 3 == 0)) pack?.care(q.copy(stage = "aftercare"))?.let { sb.append("Care, if it fits, in your own words: ").append(it).append('\n') }
+        for (s in r.steer) sb.append(s.instruction).append('\n')
         if (r.recent.isNotEmpty()) sb.append("You already said:\n").append(r.recent.takeLast(3).joinToString("\n") { "- $it" }).append("\n")
         if (r.action != null && !r.persona.dragon) sb.append("Right now ").append(r.action).append(". Let the pace of your orders match it (slow is slow, quick is quick), in the same crude voice as the lines above.\n")
         r.customSteer?.let { sb.append(DirtyTalk.steerHint(it)).append('\n') }
@@ -128,12 +134,15 @@ object JoiPrompt {
     }
 
     fun request(r: JoiLineRequest, pack: KinkContext?): DialogueRequest =
-        DialogueRequest(npcId = r.npcId.ifEmpty { r.persona.name }, system = system(r, pack), history = history(r, pack), user = user(r), maxTokens = r.level.joiTokens, stop = listOf("\n"),
+        DialogueRequest(npcId = r.npcId.ifEmpty { r.persona.name }, system = system(r, pack), history = history(r, pack), user = user(r, pack), maxTokens = r.level.joiTokens, stop = listOf("\n"),
             temperature = if (r.persona.dragon) 0.75f else r.level.temperature, topP = r.level.topP, repeatPenalty = r.level.repeatPenalty,
             priority = DialoguePriority.SELECTED, tag = "joi")
 
-    /** Whether [text] names something outside the room. */
-    fun breaksWorld(text: String): Boolean = FOURTH_WALL.containsMatchIn(text)
+    /** Adults only: a JOI line that names a child or anyone under age (a small model's wild escalation can reach for one) is refused like the fourth wall. */
+    private val MINORS = Regex("\\b(child|children|kid|kids|orphans?|schoolgirls?|schoolboys?|underage|minors?|teens?|teenagers?|toddlers?|infants?|newborns?|little (boy|girl)s?)\\b", RegexOption.IGNORE_CASE)
+
+    /** Whether [text] names something outside the room, or a minor. */
+    fun breaksWorld(text: String): Boolean = FOURTH_WALL.containsMatchIn(text) || MINORS.containsMatchIn(text)
 
     /**
      * The model's reply cleaned for a subtitle: quotes, asterisk actions and stage directions in brackets taken out, a
@@ -169,8 +178,10 @@ object JoiPrompt {
         var empty = 0
         val shown = shown(r, pack)
         for (attempt in 0 until TRIES) {
-            val got = clean(engine.complete(request(r.copy(note = note), pack)), r.persona.name)
-            if (got == null || got in r.recent) { if (++empty >= 2) break; continue }   // nothing, the fourth wall or a repeat: once more, no more
+            val req = request(r.copy(note = note), pack)
+            val got = clean(engine.complete(req.copy(temperature = req.temperature + 0.06f * attempt)), r.persona.name)   // a little livelier each retry
+            if (got == null) { if (++empty >= 2) break; continue }   // nothing, or the fourth wall: once more, no more
+            if (got in r.recent) { note = DirtyTalk.REPEAT_NOTE; continue }   // a small model sticks: it is told, and gets another try
             if (DirtyTalk.refused(got, r.level)) { wellness = got; note = DirtyTalk.WELLNESS_NOTE }
             else if (DirtyTalk.copies(got, shown)) { copy = got; note = DirtyTalk.COPY_NOTE }
             else return got
