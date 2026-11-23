@@ -85,6 +85,37 @@ def main(d):
     for k in tw:
         if k not in RACES | CLASSES: err(f"twists: unknown key {k}")
 
+    # the Dirty talk levels' few-shot lines (dirty.json): seven levels in the user's order, every JOI stage family, in-world, adults only
+    LEVELS = ["cute", "mild", "spicy", "hot", "nasty", "depraved", "wtf"]
+    FAMILIES = {"opening": 8, "build": 8, "edge": 8, "countdown": 8, "permit": 8, "afterglow": 8, "live": 5, "chat": 5}
+    WELLNESS = ("breath", "inhal", "exhal", "stillness", "mindful", "relax", "doing beautifully", "doing so well", "let your body", "settle into",
+                "sink into", "melt into", "lean into", "check in", "sensation")
+    MINORS = ("child", "kid ", " boy", " girl", "teen", "minor", "schoolgirl", "daughter")
+    dirty = load(d, "dirty.json")
+    fam = dirty.get("families", {})
+    for st in ("setup", "warmup", "build", "edge", "hold", "countdown", "permit", "afterglow", "live", "chat"):
+        if fam.get(st) not in FAMILIES: err(f"dirty: stage {st} has no family")
+    if list(dirty.get("levels", {})) != LEVELS: err(f"dirty: levels must be {LEVELS}")
+    for lv in LEVELS:
+        exs = dirty.get("levels", {}).get(lv, {}).get("examples", {})
+        for f, need in FAMILIES.items():
+            lines = exs.get(f, [])
+            plain = [l for l in lines if not l.startswith(("f|", "m|"))]
+            if len(plain) < need: err(f"dirty {lv}/{f}: {len(plain)} lines for anyone (need {need})")
+            for l in lines:
+                t = " " + l.lower().removeprefix("f|").removeprefix("m|") + " "
+                for w in BAD_WORDS:
+                    if w in t: err(f"dirty {lv}/{f}: out-of-world word '{w.strip()}' in: {l}")
+                for w in MINORS:
+                    if w in t: err(f"dirty {lv}/{f}: adults only, '{w.strip()}' in: {l}")
+                if lv not in ("cute", "mild"):
+                    for w in WELLNESS:
+                        if w in t: err(f"dirty {lv}/{f}: wellness language '{w}' in: {l}")
+                if len(l) > 330: err(f"dirty {lv}/{f}: line over 330 chars: {l[:40]}")
+    for c in concepts:
+        if not c.get("hot"): err(f"{c['id']}: no 'hot' (the filthy idea shown from Spicy up)")
+        elif len(c["hot"]) > 200: err(f"{c['id']}: hot over 200 chars")
+
     print(f"concepts {len(concepts)}, care {len(care)}, examples {len(ex)}, joi stages {len(sid)}, twists {len(tw)}")
     for m in errs: print("ERROR", m)
     return 1 if errs else 0
