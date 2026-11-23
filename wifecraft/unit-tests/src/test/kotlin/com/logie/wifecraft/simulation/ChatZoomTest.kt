@@ -124,6 +124,34 @@ class ChatZoomTest {
         assertEquals(SpeechBubbleModel.Kind.SAY, SpeechBubbleModel.kind("Well met."))
         assertEquals(SpeechBubbleModel.Kind.EMOTE, SpeechBubbleModel.kind("*laughs*")); assertEquals(SpeechBubbleModel.Kind.EMOTE, SpeechBubbleModel.kind("<Jaina> smiles"))
         assertEquals(SpeechBubbleModel.Kind.YELL, SpeechBubbleModel.kind("GET OUT OF HERE")); assertEquals(SpeechBubbleModel.Kind.YELL, SpeechBubbleModel.kind("No, stop!!"))
-        assertEquals(0xFF000000, SpeechBubbleModel.colour(SpeechBubbleModel.Kind.SAY))
+        assertEquals(0xFFFFFFFF, SpeechBubbleModel.colour(SpeechBubbleModel.Kind.SAY))
+        assertEquals(0xFFFF4040, SpeechBubbleModel.colour(SpeechBubbleModel.Kind.YELL)); assertEquals(0xFFFF8040, SpeechBubbleModel.colour(SpeechBubbleModel.Kind.EMOTE))
+        assertEquals(0xFFFF80FF, SpeechBubbleModel.colour(SpeechBubbleModel.Kind.WHISPER)); assertEquals(SpeechBubbleModel.Kind.WHISPER, SpeechBubbleModel.kind("/w psst"))
+    }
+
+    @Test fun bubbleLinksAreColouredAndSafe() {
+        val p = SpeechBubbleModel.parse("Try [Wrath of Cenarius], then [[q:The Long Road]] and [[g:Boots]].")
+        assertEquals("Try [Wrath of Cenarius], then [The Long Road] and [Boots].", p.text)
+        assertEquals(listOf(0xFFA335EEL, 0xFFFFD100L, 0xFF1EFF00L), p.spans.map { it.colour })
+        assertEquals("[Wrath of Cenarius]", p.text.substring(p.spans[0].start, p.spans[0].end))
+        // unknown codes, unbalanced, nested, empty, over-long and multi-line brackets stay plain text
+        for (raw in listOf("[[x:Name]]", "an [open", "[[q:a [b] c]]", "[] none", "[" + "x".repeat(61) + "]", "[a\nb]")) {
+            assertTrue(SpeechBubbleModel.parse(raw).spans.isEmpty() || raw.startsWith("[[q:a"), raw)
+            assertTrue(SpeechBubbleModel.parse(raw).text.length <= raw.length + 2)
+        }
+        assertEquals("[[x:Name]]", SpeechBubbleModel.parse("[[x:Name]]").text)
+        // measuring and timing use the shown text, the markup stripped
+        assertEquals(SpeechBubbleModel.shape("Hello [[q:Name]]").widthDp, SpeechBubbleModel.shape("Hello [Name]").widthDp)
+        assertTrue(SpeechBubbleModel.shape("[[q:" + "x".repeat(10) + "]]").widthDp < SpeechBubbleModel.shape("x".repeat(20)).widthDp)
+        assertEquals(SpeechBubbleModel.holdSeconds("Hello [Name] there you"), SpeechBubbleModel.holdSeconds("Hello [[b:Name]] there you"))
+        // the dialogue layer's builder never lets a name break out
+        assertEquals("[Boots]", SpeechBubbleModel.link("Bo]ots"))
+        assertEquals("[[q:Hello]]", SpeechBubbleModel.link("[Hello", 'q')); assertEquals("[A]", SpeechBubbleModel.link("A", 'z')); assertEquals("", SpeechBubbleModel.link("[]"))
+    }
+
+    @Test fun bubbleTailSitsLeftOfCentreAndStillAimsAtTheHead() {
+        val pl = SpeechBubbleModel.place(500f, 200f, 1000f, tailFrac = SpeechBubbleModel.TAIL_FRAC)
+        assertEquals(200f * SpeechBubbleModel.TAIL_FRAC, pl.tailX, 1e-3f); assertTrue(pl.tailX < 100f)
+        assertEquals(6f, SpeechBubbleModel.place(10f, 200f, 1000f, tailFrac = SpeechBubbleModel.TAIL_FRAC).left, 1e-3f)
     }
 }
