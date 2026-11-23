@@ -446,6 +446,34 @@ JNIEXPORT void JNICALL FN(sparkles)(JNIEnv* env, jclass, jlong h, jfloatArray da
     scene(h)->setSparkles(v.data(), int(v.size()) / SparkleField::kStride, density);
 }
 
+// Props (engine/propmesh.h): a ".wcprop" file kept under its object id ("" or why not), the frame's copies (ids, then 16 floats each),
+// and one forgotten.
+JNIEXPORT jstring JNICALL FN(loadProp)(JNIEnv* env, jclass, jlong h, jlong id, jbyteArray data) {
+    std::string err;
+    if (!data) return env->NewStringUTF("no data");
+    jsize n = env->GetArrayLength(data);
+    std::vector<uint8_t> v(size_t(n > 0 ? n : 0));
+    if (n > 0) env->GetByteArrayRegion(data, 0, n, reinterpret_cast<jbyte*>(v.data()));
+    bool ok = scene(h)->loadProp(uint64_t(id), v.data(), v.size(), err);
+    return env->NewStringUTF(ok ? "" : err.c_str());
+}
+JNIEXPORT void JNICALL FN(unloadProp)(JNIEnv*, jclass, jlong h, jlong id) { scene(h)->unloadProp(uint64_t(id)); }
+JNIEXPORT void JNICALL FN(props)(JNIEnv* env, jclass, jlong h, jlongArray ids, jfloatArray matrices) {
+    std::vector<uint64_t> id;
+    std::vector<float> m;
+    if (ids && matrices) {
+        jsize n = env->GetArrayLength(ids);
+        jsize k = env->GetArrayLength(matrices);
+        if (n > 0 && k >= n * 16) {
+            id.resize(size_t(n));
+            m.resize(size_t(n) * 16);
+            env->GetLongArrayRegion(ids, 0, n, reinterpret_cast<jlong*>(id.data()));
+            env->GetFloatArrayRegion(matrices, 0, n * 16, m.data());
+        }
+    }
+    scene(h)->setProps(id.data(), m.data(), int(id.size()));
+}
+
 JNIEXPORT void JNICALL FN(graphics)(JNIEnv* env, jclass, jlong h, jfloatArray values) {
     auto v = floats(env, values);
     scene(h)->setGraphics(v.data(), int(v.size()));

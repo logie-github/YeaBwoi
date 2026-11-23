@@ -24,7 +24,7 @@ struct LoadParams {
     int threadsBatch = 0;      // prompt processing; 0 = threads
     int ctx = 6144;            // tokens of KV cache, shared by all slots
     int slots = 6;             // NPCs that keep a live sequence at once
-    int ubatch = 256;          // tokens per decode call (cancellation and pacing happen between calls)
+    int ubatch = 128;          // tokens per decode call (cancellation and pacing happen between calls)
     int kvBits = 8;            // 16 (f16) or 8 (q8_0, half the memory)
     bool mlock = false;
     int nice = 0;              // niceness added to the calling thread before the model loads (compute threads inherit it)
@@ -83,6 +83,8 @@ public:
     static uint64_t rssAnonBytes();   // the anonymous part (what Android's low-memory killer weighs; mapped model pages are not in it)
 
     bool load(const LoadParams &p, std::string &error);
+    /** While load() runs on another thread: how much of the model file has been read, 0 to 1. */
+    static float loadProgress();
     void unload();
     bool loaded() const { return model_ != nullptr && ctx_ != nullptr; }
     ModelInfo info() const;

@@ -24,6 +24,7 @@
 #include "modelpart.h"
 #include "motionlayer.h"
 #include "particles.h"
+#include "propmesh.h"
 #include "sparkle.h"
 #include "postfx.h"
 #include "skin.h"
@@ -344,6 +345,14 @@ public:
     // Interactable sparkles (sparkle.h): `count` spots of SparkleField::kStride floats (0: none) at `density` 0..1.
     void setSparkles(const float* data, int count, float density);
     const SparkleField& sparkleField() const { return sparkles_; }
+    // Props (propmesh.h): Sims object models drawn rigid. loadProp keeps a parsed ".wcprop" under its id (false and `error` when it
+    // is not one); setProps gives this frame's copies: `count` ids and, for each, a column-major 4x4 matrix (16 floats: the prop's
+    // Warcraft axes to the scene's); an id with no model is not drawn. propDraw() is for the desktop harness.
+    bool loadProp(uint64_t guid, const uint8_t* data, size_t size, std::string& error) { return propDraw_.load(guid, data, size, error); }
+    void unloadProp(uint64_t guid) { propDraw_.unload(guid); }
+    bool hasProp(uint64_t guid) const { return propDraw_.has(guid); }
+    void setProps(const uint64_t* ids, const float* matrices, int count);
+    const PropDraw& propDraw() const { return propDraw_; }
 
     // ---------------------------------------------------------------- locations and props (location.cpp)
     // A location (location.h: an entry of assets/locations.json): its WMO's groups in world coordinates, its doodads and
@@ -909,6 +918,8 @@ private:
     ParticleDraw particleDraw_;
     SparkleField sparkles_;
     SparkleDraw sparkleDraw_;
+    PropDraw propDraw_;
+    std::vector<PropInstance> propInstances_;
     std::vector<Spark> sparkBuf_;
     float particleStrength_ = 0;
     uint32_t particleClock_ = 0;

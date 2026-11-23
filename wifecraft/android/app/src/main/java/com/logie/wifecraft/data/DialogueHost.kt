@@ -18,13 +18,17 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /** What Options → Mods → Dialogue model shows (DialogueHost.state). */
 data class DialogueUiState(
-    val spec: DialogueModelSpec = DialogueModels.STANDARD,
+    val spec: DialogueModelSpec = DialogueModels.FULL,
     val phase: Phase = Phase.NOT_DOWNLOADED,
     val haveBytes: Long = 0,
     val totalBytes: Long = 0,
     val message: String? = null,
     val totalRam: Long = 0,
     val availableRam: Long = 0,
+    /** Bytes of the previous (Standard 4B / Lite 1.7B) models' files still on the phone: offered for deletion once the new model is there. */
+    val oldModelBytes: Long = 0,
+    /** While LOADING: how far the model's weights are read, 0 to 1 (a 7.5 GB file takes a while), or -1 when not known. */
+    val loadProgress: Float = -1f,
 ) {
     enum class Phase { NOT_DOWNLOADED, PARTIAL, DOWNLOADING, CHECKING, READY, LOADING, LOADED, FAILED }
     val fraction: Float get() = if (totalBytes <= 0) 0f else (haveBytes.toFloat() / totalBytes).coerceIn(0f, 1f)
@@ -66,10 +70,10 @@ object DialogueHost {
 
     fun specFor(cfg: DialogueConfig = config): DialogueModelSpec =
         (if (cfg.modelId?.startsWith("custom:") == true && cfg.customPath != null) DialogueModels.custom(cfg.customPath, bytes = File(cfg.customPath).length()) else DialogueModels.byId(cfg.modelId))
-            ?: DialogueModels.recommended(totalRam())
+            ?: DialogueModels.FULL
 
     fun fileFor(spec: DialogueModelSpec): File =
-        if (spec.tier == ModelTier.CUSTOM) File(spec.id.removePrefix("custom:")) else File(app.filesDir, "dialogue/models/${spec.file}")
+        if (spec.tier == ModelTier.CUSTOM) File(spec.id.removePrefix("custom:")) else File(modelsDir(), spec.file)
 
     private val downloader = ModelDownloader()
 
@@ -90,7 +94,22 @@ object DialogueHost {
         }
         val prev = _state.value
         _state.value = DialogueUiState(spec, phase, if (phase == DialogueUiState.Phase.READY || phase == DialogueUiState.Phase.LOADED) spec.bytes else have, spec.bytes,
-            if (prev.phase == DialogueUiState.Phase.FAILED && phase == prev.phase) prev.message else null, mem.totalMem, mem.availMem)
+            if (prev.phase == DialogueUiState.Phase.FAILED && phase == prev.phase) prev.message else null, mem.totalMem, mem.availMem, oldModelBytes())
+    }
+
+    private fun modelsDir(): File = File(app.filesDir, "dialogue/models")
+
+    /** Size of the files of the models the catalogue used to hold (never loaded: only [DialogueModels.FULL] is). */
+    fun oldModelBytes(): Long = DialogueModels.staleFiles(modelsDir()).sumOf { it.length() }
+
+    /** Deletes the old models' files (and their saved NPC places, which belong to a model that is gone) to free the space. */
+    fun deleteOldModels() {
+        if (!started.get()) return
+        Thread({
+            DialogueModels.staleFiles(modelsDir()).forEach { it.delete() }
+            File(app.filesDir, "dialogue/state").listFiles()?.filter { it.name != DialogueModels.FULL.id.replace(Regex("[^A-Za-z0-9._-]"), "_") }?.forEach { it.deleteRecursively() }
+            refresh()
+        }, "wc-dialogue-old").start()
     }
 
     fun setConfig(cfg: DialogueConfig) {
@@ -113,16 +132,27 @@ object DialogueHost {
         val spec = specFor(cfg)
         val f = fileFor(spec)
         if (!f.isFile || (model.isLoaded && model.spec?.id == spec.id) || !loading.compareAndSet(false, true)) return
-        _state.value = _state.value.copy(spec = spec, phase = DialogueUiState.Phase.LOADING, message = null)
+        _state.value = _state.value.copy(spec = spec, phase = DialogueUiState.Phase.LOADING, message = null, loadProgress = 0f)
         Thread({
+            // loading reads the whole file (several GB): it runs here, never on the UI thread, and the page shows how far it is
+            val watcher = Thread({
+                try { while (true) { Thread.sleep(400); val p = model.loadProgress(); if (_state.value.phase == DialogueUiState.Phase.LOADING) _state.value = _state.value.copy(loadProgress = p) } } catch (_: InterruptedException) { }
+            }, "wc-dialogue-load-progress").apply { isDaemon = true; start() }
             try {
                 val err = model.load(spec, f, cfg.resolveThreads(Runtime.getRuntime().availableProcessors()), cfg.context, cfg.slots, cfg.ambientTokensPerMinute)
-                if (err != null) _state.value = _state.value.copy(phase = DialogueUiState.Phase.FAILED, message = err)
-                else refresh()
+                if (err != null) failLoad(err) else { _state.value = _state.value.copy(loadProgress = -1f); refresh() }
+            } catch (e: OutOfMemoryError) {
+                failLoad("the phone ran out of memory loading the model; close other apps and try again")
             } catch (t: Throwable) {
-                _state.value = _state.value.copy(phase = DialogueUiState.Phase.FAILED, message = t.message ?: "the model did not load")
-            } finally { loading.set(false) }
+                failLoad(t.message ?: "the model did not load")
+            } finally { watcher.interrupt(); loading.set(false) }
         }, "wc-dialogue-load").start()
+    }
+
+    /** A load that failed (out of memory, a bad file): whatever was half loaded is freed, the page says why, the game goes on silent. */
+    private fun failLoad(why: String) {
+        runCatching { model.unload() }
+        _state.value = _state.value.copy(phase = DialogueUiState.Phase.FAILED, message = why, loadProgress = -1f)
     }
 
     fun unload() { Thread({ model.unload(); refresh() }, "wc-dialogue-unload").start() }

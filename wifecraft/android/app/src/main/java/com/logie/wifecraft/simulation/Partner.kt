@@ -54,6 +54,8 @@ class PartnerPair(
     val kind: String = "",
     /** The creature NPC this stage is only for ([PairAnim.exclusiveTo]); null: any two. */
     val exclusiveTo: String? = null,
+    /** The library pair's own category (a pack's name, or "Partner"); the Consent screen reads it for acts the words don't place. Empty: none. */
+    val category: String = "",
 ) {
     /** One cycle (both clips are made the same length; the longer wins if not). */
     val duration: Float = max(a.duration, b.duration).let { if (it.isFinite() && it > 0f) it else 0f }
@@ -66,7 +68,7 @@ class PartnerPair(
             p.id, p.name, a, b,
             PartnerSlot.human(p.offsetA.x, p.offsetA.y, p.offsetA.z, p.offsetA.yawDeg),
             PartnerSlot.human(p.offsetB.x, p.offsetB.y, p.offsetB.z, p.offsetB.yawDeg),
-            p.loops, p.locations, p.sounds.map { PartnerSound(it.timeSec, it.name, it.actor) }, p.kind, p.exclusiveTo,
+            p.loops, p.locations, p.sounds.map { PartnerSound(it.timeSec, it.name, it.actor) }, p.kind, p.exclusiveTo, p.category,
         ) }
 
         /** The library's enabled pairs ([com.logie.wifecraft.anim.AnimLibrary.pairs]), for the live scene. */
@@ -151,7 +153,10 @@ object PartnerPlaces {
         "DOUBLE_BED", "SINGLE_BED", "BED", "KING_BED" -> SceneObject.BED
         "CHAIR", "DINING_CHAIR", "ARMCHAIR", "LIVING_CHAIR", "DESK_CHAIR" -> SceneObject.CHAIR
         "TABLE", "DINING_TABLE", "DESK", "COUNTER" -> SceneObject.TABLE
-        else -> null
+        // the packs' own Sims categories (CHAIR_LIVING, TABLE_DINING_LONG, OTTOMAN, CHAIR_LOUNGE_SOFA...)
+        else -> when (com.logie.wifecraft.anim.StageLocations.canonical(location)) {
+            "BED" -> SceneObject.BED; "COUCH" -> SceneObject.COUCH; "CHAIR" -> SceneObject.CHAIR; "TABLE" -> SceneObject.TABLE; else -> null
+        }
     }
 
     /** Whether [pair] can run on the floor (no location, or one that names no furniture). */

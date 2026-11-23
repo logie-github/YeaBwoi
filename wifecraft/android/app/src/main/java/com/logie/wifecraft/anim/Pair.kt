@@ -83,7 +83,7 @@ object PairLocations {
     )
 
     fun normalize(raw: Collection<String>): Set<String> =
-        raw.map { it.trim().uppercase() }.filter { it.isNotEmpty() && it != "FLOOR" && it != "NONE" }.map { map[it] ?: it }.toSet()
+        raw.map { it.trim().uppercase() }.filter { it.isNotEmpty() && it != "FLOOR" && it != "NONE" }.map { StageLocations.canonical(it) ?: map[it] ?: it }.toSet()
 }
 
 /** The pair file format, version [VERSION]: {"v","kind":"pair","id","name","category","loops","enabled","source",

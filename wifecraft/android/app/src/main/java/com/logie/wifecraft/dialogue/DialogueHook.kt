@@ -22,6 +22,12 @@ interface DialogueHook {
 
     /** The answer to "may [initiator] and [target] begin [stageName]?" now ([directed]: the player ordered it). May be asked again until it isn't WAIT. */
     fun consent(initiator: String, target: String, directed: Boolean, stageName: String): ConsentGate
+
+    /**
+     * [npcId] will not do [actName] with [otherId] (the player's Consent and limits): the layer voices the refusal in
+     * character. True: it will speak a line; false (the default): it has none, and the simulation shows its own bubble.
+     */
+    fun declined(npcId: String, otherId: String, actName: String): Boolean = false
 }
 
 /** Which stages are sexual: the line the live talk is gated by. */

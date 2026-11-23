@@ -78,7 +78,7 @@ interface DialogueBackend {
  * requests start only with some in hand and pay what they use; the selected NPC and a pair never wait for it but still pay
  * (so the background goes quiet while the player is chatting).
  */
-class TokenBudget(var perMinute: Int = 900, val capacity: Int = 600, private val clock: () -> Long = System::currentTimeMillis) {
+class TokenBudget(var perMinute: Int = 300, val capacity: Int = 400, private val clock: () -> Long = System::currentTimeMillis) {
     private var tokens = capacity.toDouble()
     private var at = clock()
 
@@ -118,6 +118,8 @@ class DialogueScheduler(
     /** Pause after each piece an unprompted answer streams, by load (milliseconds): [BUSY, STRUGGLING]. The selected NPC's is a third. */
     private val pieceDelayMs: IntArray = intArrayOf(25, 120),
     private val maxQueuedAmbient: Int = 6,
+    /** The model's own advice on repetition: a request asks for at most this much penalty (Mag-Mell's card says to avoid heavy penalty samplers). */
+    private val maxRepeatPenalty: Float = 1.08f,
 ) : DialogueEngine {
 
     private class Job(val id: Long, val req: DialogueRequest, val queuedAt: Long, val finish: (String?) -> Unit) {
@@ -250,11 +252,13 @@ class DialogueScheduler(
         lock.withLock { if (!closed) { commands.add(c); wake.signalAll() } }
     }
 
+    // The 12B model makes about 4 to 6 tokens a second: a 100-token answer takes 15 to 25 s and a persona read for the first time
+    // (roughly 15 to 30 tokens a second without i8mm) 20 to 40 s, so a request waits twice as long as it did with the 4B model.
     private fun maxWait(j: Job): Long = j.req.maxWaitMs ?: when (effective(j)) {
-        DialoguePriority.SELECTED -> 120_000L
-        DialoguePriority.PAIR -> 60_000L
-        DialoguePriority.NEARBY -> 30_000L
-        DialoguePriority.AMBIENT -> 20_000L
+        DialoguePriority.SELECTED -> 240_000L
+        DialoguePriority.PAIR -> 120_000L
+        DialoguePriority.NEARBY -> 60_000L
+        DialoguePriority.AMBIENT -> 40_000L
     }
 
     private fun publish(running: String? = current?.req?.npcId) {
@@ -321,7 +325,7 @@ class DialogueScheduler(
         val bj = BackendJob(
             ticket = job.ticket, npcId = req.npcId, prompt = prompt,
             maxTokens = if (req.prefillOnly) 1 else req.maxTokens.coerceAtLeast(1),
-            temperature = req.temperature, topP = req.topP, repeatPenalty = req.repeatPenalty, seed = req.seed, stop = req.stop,
+            temperature = req.temperature, topP = req.topP, repeatPenalty = minOf(req.repeatPenalty, maxRepeatPenalty), seed = req.seed, stop = req.stop + template.leakStops(req.stop),
             chunkDelayMs = when (level0) { LoadLevel.OK -> 0; LoadLevel.BUSY -> if (urgent) 0 else 30; LoadLevel.STRUGGLING -> if (urgent) 20 else 100 },
             sink = { piece ->
                 sb.append(piece)

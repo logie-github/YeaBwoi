@@ -80,6 +80,8 @@ object PlaybackKeys {
     fun emote(anim: Int) = "emote:$anim"
     /** The game animation of an emote key, else null. */
     fun emoteOf(key: String): Int? = if (key.startsWith("emote:")) key.removePrefix("emote:").toIntOrNull() else null
+    /** The pair role (0 or 1) a pair clip key names ("pair:<id>:<role>"), else null. */
+    fun roleOf(key: String): Int? = if (key.startsWith("pair:")) key.substringAfterLast(':').toIntOrNull()?.takeIf { it in 0..1 } else null
 }
 
 data class InteractionSpot(val entry: Vec3, val pose: Vec3, val facing: Float)
@@ -170,6 +172,69 @@ class SceneSimulation(
     var sexualStage: ((name: String, category: String) -> Boolean)? = null
 
     private fun size(actor: Actor?): Float = actor?.let { sizes[it.id] } ?: 1f
+
+    /**
+     * The Consent and limits screen's policy (null: no limits, everything as before). An act an NPC won't do is never picked
+     * for them, never started (whoever asks, in any role), and ends when it becomes a Won't while it plays; Will acts start
+     * without the willingness flow's question, Ask acts go through it. Edited from the screen: [ConsentPolicy.version] moves.
+     */
+    var consent: ConsentPolicy? = null
+    private var consentSeen = 0
+    private val pairActs = HashMap<String, ConsentAct>()
+    private val emoteActs = HashMap<Int, ConsentAct>()
+    private fun actOf(p: PartnerPair): ConsentAct = pairActs.getOrPut(p.id) { ConsentAct.of(p) }
+    private fun actOf(e: PartnerEmote): ConsentAct = emoteActs.getOrPut(e.anim) { ConsentAct.emote(e) }
+    private fun pickedAct(): ConsentAct? = picked?.let(::actOf) ?: pickedEmote?.let(::actOf)
+
+    /** The act an ordered [request] of two is, and the pair role its lead plays (-1: both alike); null: not two people. */
+    private class OrderAct(val act: ConsentAct, val leadRole: Int)
+    private fun orderAct(request: PerformanceOrder): OrderAct? {
+        if (request.partnerId == null || request.roles.size != 2) return null
+        val key = request.roles[0].clip
+        val pairId = request.pairId ?: CreatureStages.pairIdOf(key)
+        if (pairId != null) {
+            val act = pairs.firstOrNull { it.id == pairId }?.let(::actOf) ?: ConsentAct(ConsentAct.idOf(pairId), request.name)
+            return OrderAct(act, if (request.pairId != null) 0 else PlaybackKeys.roleOf(key) ?: 0)
+        }
+        PlaybackKeys.emoteOf(key)?.let { anim ->
+            return OrderAct(PartnerEmotes.ALL.firstOrNull { it.anim == anim }?.let(::actOf) ?: ConsentAct("emote:$anim", request.name), -1)
+        }
+        return OrderAct(ConsentAct("name:" + request.name, request.name), 0)
+    }
+
+    /**
+     * [a] and [b] (with [a] in pair role [roleA], -1: either) decline [act]: the one whose limit it is says so (the dialogue
+     * layer's own words when it has the model, else a speech bubble that says "declines"), and the player is told. Always false.
+     */
+    private fun declineAct(a: Actor, b: Actor, act: ConsentAct, roleA: Int): Boolean {
+        val npc = consent?.decliner(a.id, b.id, act, roleA)?.let { actors[it] } ?: b
+        val other = if (npc === a) b else a
+        val hook = dialogue?.takeIf { it.active && !it.cinematic }
+        if (hook?.declined(npc.id, other.id, act.name) != true) say(npc.id, ConsentPolicy.DECLINE_BUBBLE)
+        val who = life?.takeIf { it.enabled }?.firstName(npc.index) ?: "They"
+        refusal = "$who declines that."
+        return false
+    }
+
+    /** Ends, as gracefully as it can (the END plays), each act that has become a Won't for one of its two; called when the limits change. */
+    private fun enforceLimits(c: ConsentPolicy) {
+        val seen = HashSet<Performance>()
+        for (actor in order) {
+            val p = actor.performance ?: continue
+            if (!seen.add(p)) continue
+            val act = p.act ?: continue
+            val other = p.other ?: continue
+            if (c.allowsRoles(p.lead.id, other.id, act, p.leadRole)) continue
+            declineAct(p.lead, other, act, p.leadRole)
+            queueNotice = refusal
+            for (a in listOf(p.lead, other)) { a.queue.clear(); a.queueRepeat = false }
+            stop(p.lead.id)
+        }
+        consentWaits.removeAll { w ->
+            val act = w.pair?.let(::actOf) ?: w.emote?.let(::actOf) ?: return@removeAll false
+            !c.allowsPair(w.initiator.id, w.target.id, act, symmetric = w.pair == null)
+        }
+    }
 
     /** A performance's sound event is due: actor [index] (the cast's order), sound [name]. Called inside [tick]. */
     var sounds: ((index: Int, name: String) -> Unit)? = null
@@ -440,6 +505,9 @@ class SceneSimulation(
         val extra = arrayOf(RoleDelta.ZERO, RoleDelta.ZERO)
         /** The life simulation's interaction this is (an [InteractionId] ordinal: a hug, a dance), or -1. */
         var lifeKind = -1
+        /** The act this plays and the pair role its lead plays (-1: both alike), for the limits ([ConsentPolicy]); null: not a two-person act. */
+        var act: ConsentAct? = null
+        var leadRole = -1
         /** Seconds played since the first cycle started, and cycles finished: one clock for both. */
         var clock = 0f
         var loops = 0
@@ -936,6 +1004,11 @@ class SceneSimulation(
 
     private fun startPerformance(lead: Actor, request: PerformanceOrder, continuation: Performance? = null, setup: Setup? = null): Boolean {
         val other = request.partnerId?.let(actors::get)
+        // the limits' last word: whoever asks, in whichever role, an act one of them won't do does not start
+        val limitedAct = if (other != null) orderAct(request) else null
+        if (limitedAct != null && other != null) consent?.let { c ->
+            if (!c.allowsRoles(lead.id, other.id, limitedAct.act, limitedAct.leadRole)) return declineAct(lead, other, limitedAct.act, limitedAct.leadRole)
+        }
         val previous = continuation?.takeIf { it.other === other }
         val anchor = previous?.anchor?.let { p -> setup?.takeIf { it.fit != null }?.let { continuedAnchor(p, it.anchor.z) } ?: p }
             ?: setup?.anchor ?: movementOrigin(lead)
@@ -951,6 +1024,8 @@ class SceneSimulation(
             anchor, heading, request.repeat, request.repetitions, directed, request.name, request.sounds,
             setup?.partner == true, setup?.initiator, furniture, setup?.emote ?: -1, setup?.floorZ ?: Float.NaN, setup?.fit,
             setup?.lifts, segments)
+        performance.act = limitedAct?.act
+        performance.leadRole = limitedAct?.leadRole ?: -1
         if (other != null && previous == null &&
             !beginAny(other, Activity.PERFORM, approaches(performance, roles[1]), directed, furniture)) return false
 
@@ -1267,6 +1342,7 @@ class SceneSimulation(
         val dt = if (seconds.isNaN()) 0f else seconds.coerceIn(0f, 0.1f)
         steps++
         time += dt
+        consent?.let { if (it.version != consentSeen) { consentSeen = it.version; enforceLimits(it) } }
         val hold = holdAnimations
         for (actor in order) startQueuedPerformance(actor)
         for (actor in order) {
@@ -1789,7 +1865,7 @@ class SceneSimulation(
     /** [a] and [b] play a two-person animation of [id] no more intimate than [max] (and named by [words]). False: none fits. */
     private fun pairUp(a: Actor, b: Actor, id: InteractionId, max: Intimacy, words: List<String>?, directed: Boolean): Boolean {
         val gate = { name: String, emote: Int ->
-            val level = if (emote >= 0) PairKinds.ofEmote(emote) else PairKinds.of(name)
+            val level = if (emote >= 0) PairKinds.ofEmote(emote) else PairKinds.of(name, pairs.firstOrNull { it.name == name }?.kind.orEmpty())
             level.ordinal <= max.ordinal && (words == null || PairKinds.matches(name, words))
         }
         if (!pick(a, b, gate)) return false
@@ -1908,6 +1984,7 @@ class SceneSimulation(
         for (p in pairs) {
             if (gate != null && !gate(p.name, -1)) continue
             if (!eligible(p, a, b)) continue     // a creature's own stage needs her and a person
+            if (consent?.allowsPair(a.id, b.id, actOf(p)) == false) continue   // an act one of them won't do
             val r = requirementOf(p)
             // made in water with one body in it and one out (a pool's edge): nothing here shows it so (PairWater)
             if (r != null && PairWater.needsWater(r, p)) continue
@@ -1950,6 +2027,7 @@ class SceneSimulation(
         }
         val mutual = PartnerEmotes.mutual(a.id, b.id, emotes, emoteScratch)
         if (gate != null) mutual.removeAll { !gate(it.name, it.anim) }
+        consent?.let { c -> mutual.removeAll { !c.allowsPair(a.id, b.id, actOf(it), symmetric = true) } }
         if (mutual.isEmpty()) return false
         pickedEmote = mutual[random.nextInt(mutual.size)]
         return true
@@ -1985,6 +2063,10 @@ class SceneSimulation(
         if (item !in objects || !freeFor(item, actor, other)) return refuse("The $what is in use.")
         val f = furniture(item) ?: return refuse("The $what isn't ready yet.")
         val r = needOf(pair) ?: return refuse("That animation is still being read.")
+        consent?.let { c ->
+            val act = actOf(pair)
+            if (!(if (fixedRoles) c.allowsRoles(actor.id, other.id, act, 0) else c.allowsPair(actor.id, other.id, act))) return declineAct(actor, other, act, if (fixedRoles) 0 else -1)
+        }
         // where it fits on it, else where it nearly fits (a bed taller than the clip's)
         val fit = FurnitureFit.fitAny(r, f, bodyUnit(actor, other))
             ?: return refuse("That doesn't fit on the $what.")
@@ -2014,6 +2096,7 @@ class SceneSimulation(
             if (pairId != null) picked = pairs.firstOrNull { it.id == pairId } ?: return refuse("That animation isn't loaded.")
             else {
                 val mutual = PartnerEmotes.mutual(actor.id, other.id, emotes, emoteScratch)
+                consent?.let { c -> mutual.removeAll { !c.allowsPair(actor.id, other.id, actOf(it), symmetric = true) } }
                 if (mutual.isEmpty()) return refuse("They have no partner animation to play.")
                 pickedEmote = mutual[random.nextInt(mutual.size)]
             }
@@ -2054,6 +2137,11 @@ class SceneSimulation(
         val newLead = p.other ?: return false
         if (!p.started || p.emote >= 0) return false
         if (p.roles.any { stageOwned(it.clip) }) return false   // a creature's own stage has one way round
+        val act = p.act
+        consent?.let { c ->
+            // each takes the other's role: a Won't in that role keeps them where they are
+            if (act != null && !c.allowsRoles(newLead.id, p.lead.id, act, p.leadRole)) return declineAct(newLead, p.lead, act, p.leadRole)
+        }
         val was = p.lead
         val sa = size(was); val sb = size(newLead)
         val parts = p.segments.map { it.copy(roles = RoleSwitch.refit(it.roles, sa, sb)) }
@@ -2062,6 +2150,7 @@ class SceneSimulation(
             p.name, p.sounds, p.partnerActivity, p.initiator?.let { if (it === was) newLead else was }, p.furniture, p.emote,
             p.floorZ, p.fit, p.lifts, if (p.staged) parts else emptyList())
         q.lifeKind = p.lifeKind
+        q.act = p.act; q.leadRole = p.leadRole
         newLead.partner = was
         was.partner = newLead
         newLead.performance = q
@@ -2193,6 +2282,18 @@ class SceneSimulation(
      * when handled (started, waiting or refused), false when nothing could start, as before.
      */
     private fun startPartner(initiator: Actor, target: Actor, directed: Boolean): Boolean {
+        val limits = consent
+        val act = if (limits != null) pickedAct() else null
+        if (limits != null && act != null) {
+            // a Won't of either never starts; a Will on every deciding side starts without the question; any Ask goes through it
+            if (!limits.allowsPair(initiator.id, target.id, act, symmetric = picked == null)) {
+                declineAct(initiator, target, act, -1)
+                declined(initiator, target, directed)
+                if (directed) queueNotice = refusal
+                return false
+            }
+            if (limits.skipsAsking(initiator.id, target.id, act, directed)) return startPartnerNow(initiator, target, directed)
+        }
         val hook = dialogue?.takeIf { it.active && !it.cinematic } ?: return startPartnerNow(initiator, target, directed)
         val name = picked?.name ?: pickedEmote?.name ?: ""
         val kind = picked?.kind.orEmpty()
@@ -2272,6 +2373,17 @@ class SceneSimulation(
         if (fit != null && !pickedFixed) {
             val cast = FurnitureSelection.cast(fit, listOf(NearbyNpc(initiator.id, initiator.x, initiator.y), NearbyNpc(target.id, target.x, target.y)))
             if (cast != null && cast[0] == target.id) { playA = target; playB = initiator }
+        }
+        // the limits: each plays the role they allow (turned over where only that way round is allowed, if it may be), else nothing starts
+        val limits = consent
+        val actNow = pair?.let(::actOf) ?: emote?.let(::actOf)
+        if (limits != null && actNow != null) {
+            when (limits.orientation(playA.id, playB.id, actNow, symmetric = pair == null)) {
+                0 -> Unit
+                1 -> if (!pickedFixed && pair?.exclusiveTo == null) { val t = playA; playA = playB; playB = t }
+                     else return declineAct(playA, playB, actNow, 0)
+                else -> return declineAct(playA, playB, actNow, -1)
+            }
         }
         // the slots for the two bodies' sizes (a gnome comes nearer the contact point: PairFit), the bodies kept apart (PairSpacing,
         // by each one's own flesh when measured)

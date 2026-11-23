@@ -141,6 +141,17 @@ object PairKinds {
         }
     }
 
+    /**
+     * As [of], told first by the pack's own category (`animation_category`: the stages of WickedWhims-format packs say what they
+     * are): a hand, foot, oral, vaginal, anal or climax stage is [Intimacy.INTIMATE] whatever its name says ("FEET LOVE" holds the
+     * word love; "Stand and carry" the word carry); teasing and no category are told by the name as before.
+     */
+    fun of(name: String, category: String): Intimacy = when (com.logie.wifecraft.anim.StageKind.of(category)) {
+        com.logie.wifecraft.anim.StageKind.HAND, com.logie.wifecraft.anim.StageKind.FOOT, com.logie.wifecraft.anim.StageKind.ORAL,
+        com.logie.wifecraft.anim.StageKind.VAGINAL, com.logie.wifecraft.anim.StageKind.ANAL, com.logie.wifecraft.anim.StageKind.CLIMAX -> Intimacy.INTIMATE
+        else -> of(name)
+    }
+
     /** A Warcraft emote's intimacy (the fallback both play: wave, cheer... casual; dance friendly; kiss romantic). */
     fun ofEmote(anim: Int): Intimacy = when (anim) {
         LifeAnims.DANCE -> Intimacy.FRIENDLY
