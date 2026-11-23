@@ -2,6 +2,7 @@ package com.logie.wifecraft.ui
 
 import androidx.compose.runtime.Composable
 import com.logie.wifecraft.dialogue.DialogueSettings
+import com.logie.wifecraft.dialogue.DirtyLevel
 import com.logie.wifecraft.dialogue.Talkativeness
 
 /**
@@ -17,5 +18,10 @@ fun DialoguePage(settings: DialogueSettings, onChange: (DialogueSettings) -> Uni
     WifeSectionHeader("Talkativeness")
     WifeTabs(Talkativeness.entries.map { it.label }, settings.talk.ordinal, { onChange(settings.copy(talk = Talkativeness.entries[it])) })
     WifeNote("How often they speak up. Quiet leaves long silences, Chatty answers each other quickly. Nothing is said in cinematic mode.")
+    WifeSectionHeader("Dirty talk level")
+    val levels = DirtyLevel.entries
+    WifeSliderRow("Dirty talk level", settings.dirty.ordinal, { onChange(settings.copy(dirty = levels[it.coerceIn(0, levels.lastIndex)])) },
+        valueText = settings.dirty.label, range = 0..levels.lastIndex)
+    WifeNote("${settings.dirty.blurb}. Cute, Mild, Spicy, Hot, Nasty, Depraved, WTF??!: how filthy the words are in JOI mode, in sex-stage banter and when Chat turns to flirting. JOI mode has its own slider for each session, starting here. Adults only; every character is a full-grown adult.")
     extra()
 }

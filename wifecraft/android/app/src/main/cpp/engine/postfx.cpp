@@ -914,7 +914,7 @@ void PostFx::end(int outW, int outH, const PostFrame& f) {
     // depth of field: half-size circle of confusion and gather
     const bool dofOn = s.dof > 0 && f.focusFar > 0 && (!f.editor || s.dofInEditor);
     const float maxCoc = 0.012f * float(hh) * (0.6f + 0.8f * s.aperture);
-    const float cocScale = maxCoc * (0.6f + 1.6f * s.aperture) * s.dof;
+    const float cocScale = maxCoc * (0.6f + 1.6f * s.aperture) * s.dof * f.focusStrength;
     if (dofOn) {
         stageBegin(PostStats::kDof);
         ensure(coc_, hw, hh, colourFmt_ == GL_RGBA16F ? GL_RGBA16F : GL_RGBA8, true);

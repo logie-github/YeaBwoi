@@ -713,7 +713,7 @@ fun LiveSceneScreen(
                 kink = com.logie.wifecraft.ui.DialogueAssets.kink(context))
         }
     }
-    SideEffect { dialogueDirector?.settings = dialogue }
+    SideEffect { dialogueDirector?.settings = dialogue; chatMode.session?.dirty = dialogue.dirty }
     DisposableEffect(live, dialogueDirector, cast) {
         if (dialogueDirector != null) live.dialogue = LiveScene.DialogueFeed(dialogueDirector,
             cast.associate { it.id to com.logie.wifecraft.dialogue.Profiles.of(it) }, com.logie.wifecraft.dialogue.PlaceView(locationName), { feed.cinematic })
@@ -905,6 +905,11 @@ fun LiveSceneScreen(
             override fun camera(eyeX: Float, eyeY: Float, eyeZ: Float, atX: Float, atY: Float, atZ: Float, fov: Float) {
                 view.glCamera(eyeX, eyeY, eyeZ, atX, atY, atZ, fov)
                 speechSpots.layout(eyeX, eyeY, eyeZ, atX, atY, atZ, fov)   // the bubbles follow the heads with this camera
+            }
+
+            override fun focus(near: Float, far: Float, strength: Float) {
+                // Options' Graphics: Focus follows the NPC off: the renderer's own band round the camera's target
+                if (Graphics.settings.value.focusFollows) view.glFocus(near, far, strength) else view.glFocus(0f, 0f, 1f)
             }
 
             override fun place(index: Int, x: Float, y: Float, z: Float, facing: Float, furniture: SceneObject?, sx: Float, sy: Float, sz: Float) {
@@ -1353,8 +1358,10 @@ fun LiveSceneScreen(
         val a = cast.firstOrNull { it.id == id } ?: return
         val spec = CreatureNpcs.of(a.appearance)
         joiPersona = JoiPersona(
-            a.name, listOfNotNull(JoiPrompt.raceKey(a.appearance.raceId)), emptyList(),
-            JoiPrompt.personalitiesFrom(a.appearance.personality?.traits.orEmpty(), spec != null), "dom", spec != null, a.appearance.personality?.bio.orEmpty())
+            a.name, listOfNotNull(JoiPrompt.raceKey(a.appearance.raceId)), listOfNotNull(JoiPrompt.classKey(a.appearance.classId)),
+            JoiPrompt.personalitiesFrom(a.appearance.personality?.traits.orEmpty(), spec != null), "dom", spec != null, a.appearance.personality?.bio.orEmpty(),
+            female = a.appearance.sex == Sex.FEMALE)
+        joiMode.defaultLevel = dialogue.dirty   // Options > Dialogue > Dirty talk level; the panel's slider is this session's own
         joiMode.enter(id, spec != null, JoiPrior(cinematic, cameraMode.name, furnitureView), joiEngine() != null)
         joiCamera.restart(); joiCamera.creature = spec != null; joiCamera.framing = joiMode.framing
         joiPicker.reset()
@@ -1481,7 +1488,7 @@ fun LiveSceneScreen(
         val spec = CreatureNpcs.of(a.appearance)
         val started = chatMode.start({ you ->
             ChatSession(com.logie.wifecraft.dialogue.Profiles.of(a), you, lore, spec != null, com.logie.wifecraft.dialogue.PlaceView(locationName), kink,
-                kotlin.random.Random(seed.toLong() + 11))
+                kotlin.random.Random(seed.toLong() + 11)).also { it.dirty = dialogue.dirty }
         }, joiEngine() != null)
         if (!started) return
         chatSheet = null
