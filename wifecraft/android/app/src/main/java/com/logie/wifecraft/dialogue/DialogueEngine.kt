@@ -45,6 +45,11 @@ data class DialogueRequest(
     val guard: ((String) -> Boolean)? = null,
     /** More than 0: the answer ends once this many whole sentences are written (a chat reply is cut to its length anyway: the tokens after it are never read). */
     val sentences: Int = 0,
+    /**
+     * False for an answer that is not speech (a JSON decision): the Gemma template opens a spoken answer with a double quote and ends it at the
+     * next, which would cut a JSON answer at its first quotation mark ([ChatTemplate.speechQuote]). The other templates ignore it.
+     */
+    val spoken: Boolean = true,
 )
 
 interface DialogueEngine {
@@ -63,8 +68,19 @@ interface DialogueEngine {
      * Reads [system] (an NPC's persona prompt, byte for byte what its requests will send) into the NPC's place in the model before
      * the first request needs it, so the first answer pays for the new words only. [urgent]: the player has just opened a chat or
      * chosen the NPC (it goes before the queue); otherwise it waits behind everything. Asking again for the same persona is free.
+     * [history] are the turns that follow the system prompt in every request of this NPC (JOI's few-shot examples): they are read
+     * too, so the first real request pays for its own last message only.
      */
-    fun warm(npcId: String, system: String, urgent: Boolean = false) {}
+    fun warm(npcId: String, system: String, urgent: Boolean = false, history: List<DialogueTurn> = emptyList()) {}
+
+    /** How far the warm-up of [npcId] has got, 0 to 1 (an estimate while it reads; 1: it is finished or none was asked for: the NPC is ready). */
+    fun warmProgress(npcId: String): Float = 1f
+
+    /**
+     * True when the loaded model is a small, fast one (the Fast model): prompts are then built in their compact form (a short
+     * persona, two or three examples), which a big model does not need and a small one reads in a fraction of the time.
+     */
+    val compactPrompts: Boolean get() = false
 
     /** Who the player is looking at, and the pair that is talking: their requests go first (see [DialoguePriority]). */
     fun setFocus(selected: String?, pair: Set<String> = emptySet()) {}

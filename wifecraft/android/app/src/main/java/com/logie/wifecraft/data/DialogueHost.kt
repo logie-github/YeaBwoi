@@ -11,6 +11,7 @@ import com.logie.wifecraft.dialogue.DialogueModelSpec
 import com.logie.wifecraft.dialogue.DialogueModels
 import com.logie.wifecraft.dialogue.ModelDownloader
 import com.logie.wifecraft.dialogue.ModelTier
+import com.logie.wifecraft.dialogue.ThreadCalibration
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.io.File
@@ -18,7 +19,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /** What Options → Mods → Dialogue model shows (DialogueHost.state). */
 data class DialogueUiState(
-    val spec: DialogueModelSpec = DialogueModels.FULL,
+    /** The model in use (the one the player picked when it is downloaded, else Fast, else the Quality one: [DialogueModels.active]). */
+    val spec: DialogueModelSpec = DialogueModels.FAST,
     val phase: Phase = Phase.NOT_DOWNLOADED,
     val haveBytes: Long = 0,
     val totalBytes: Long = 0,
@@ -29,6 +31,12 @@ data class DialogueUiState(
     val oldModelBytes: Long = 0,
     /** While LOADING: how far the model's weights are read, 0 to 1 (a 7.5 GB file takes a while), or -1 when not known. */
     val loadProgress: Float = -1f,
+    /** The catalogue's models whose file is on the phone, whole (the Options page lists each with its own buttons). */
+    val installed: Set<String> = emptySet(),
+    /** Bytes of each catalogue model's file (or its unfinished download) on the phone, by id. */
+    val haveById: Map<String, Long> = emptyMap(),
+    /** The model being downloaded now (null: none). */
+    val downloadingId: String? = null,
 ) {
     enum class Phase { NOT_DOWNLOADED, PARTIAL, DOWNLOADING, CHECKING, READY, LOADING, LOADED, FAILED }
     val fraction: Float get() = if (totalBytes <= 0) 0f else (haveBytes.toFloat() / totalBytes).coerceIn(0f, 1f)
@@ -69,8 +77,11 @@ object DialogueHost {
         ActivityManager.MemoryInfo().also { app.getSystemService(ActivityManager::class.java).getMemoryInfo(it) }
 
     fun specFor(cfg: DialogueConfig = config): DialogueModelSpec =
-        (if (cfg.modelId?.startsWith("custom:") == true && cfg.customPath != null) DialogueModels.custom(cfg.customPath, bytes = File(cfg.customPath).length()) else DialogueModels.byId(cfg.modelId))
-            ?: DialogueModels.FULL
+        if (cfg.modelId?.startsWith("custom:") == true && cfg.customPath != null) DialogueModels.custom(cfg.customPath, bytes = File(cfg.customPath).length())
+        else DialogueModels.active(cfg) { isInstalled(it) }
+
+    /** The model's file is on the phone, whole. */
+    fun isInstalled(spec: DialogueModelSpec): Boolean = fileFor(spec).let { it.isFile && (spec.tier == ModelTier.CUSTOM || it.length() == spec.bytes) }
 
     fun fileFor(spec: DialogueModelSpec): File =
         if (spec.tier == ModelTier.CUSTOM) File(spec.id.removePrefix("custom:")) else File(modelsDir(), spec.file)
@@ -93,13 +104,16 @@ object DialogueHost {
             else -> DialogueUiState.Phase.NOT_DOWNLOADED
         }
         val prev = _state.value
+        val ids = DialogueModels.all.filter { isInstalled(it) }.map { it.id }.toSet()
+        val haves = DialogueModels.all.associate { it.id to (if (it.id in ids) it.bytes else downloader.have(fileFor(it))) }
         _state.value = DialogueUiState(spec, phase, if (phase == DialogueUiState.Phase.READY || phase == DialogueUiState.Phase.LOADED) spec.bytes else have, spec.bytes,
-            if (prev.phase == DialogueUiState.Phase.FAILED && phase == prev.phase) prev.message else null, mem.totalMem, mem.availMem, oldModelBytes())
+            if (prev.phase == DialogueUiState.Phase.FAILED && phase == prev.phase) prev.message else null, mem.totalMem, mem.availMem, oldModelBytes(),
+            installed = ids, haveById = haves)
     }
 
     private fun modelsDir(): File = File(app.filesDir, "dialogue/models")
 
-    /** Size of the files of the models the catalogue used to hold (never loaded: only [DialogueModels.FULL] is). */
+    /** Size of the files of the models the catalogue used to hold (never loaded: only the catalogue's two are). */
     fun oldModelBytes(): Long = DialogueModels.staleFiles(modelsDir()).sumOf { it.length() }
 
     /** Deletes the old models' files (and their saved NPC places, which belong to a model that is gone) to free the space. */
@@ -107,7 +121,7 @@ object DialogueHost {
         if (!started.get()) return
         Thread({
             DialogueModels.staleFiles(modelsDir()).forEach { it.delete() }
-            File(app.filesDir, "dialogue/state").listFiles()?.filter { it.name != DialogueModels.FULL.id.replace(Regex("[^A-Za-z0-9._-]"), "_") }?.forEach { it.deleteRecursively() }
+            File(app.filesDir, "dialogue/state").listFiles()?.filter { d -> DialogueModels.all.none { it.stateName == d.name } }?.forEach { it.deleteRecursively() }
             refresh()
         }, "wc-dialogue-old").start()
     }
@@ -139,8 +153,8 @@ object DialogueHost {
                 try { while (true) { Thread.sleep(400); val p = model.loadProgress(); if (_state.value.phase == DialogueUiState.Phase.LOADING) _state.value = _state.value.copy(loadProgress = p) } } catch (_: InterruptedException) { }
             }, "wc-dialogue-load-progress").apply { isDaemon = true; start() }
             try {
-                val err = model.load(spec, f, cfg.threads, cfg.context, cfg.slots, cfg.ambientTokensPerMinute)
-                if (err != null) failLoad(err) else { _state.value = _state.value.copy(loadProgress = -1f); refresh() }
+                val err = model.load(spec, f, cfg.threads, cfg.context, cfg.slots, cfg.ambientTokensPerMinute, cfg.calibrationFor(spec.id))
+                if (err != null) failLoad(err) else { _state.value = _state.value.copy(loadProgress = -1f); refresh(); calibrateOnce(spec, cfg) }
             } catch (e: OutOfMemoryError) {
                 failLoad("the phone ran out of memory loading the model; close other apps and try again")
             } catch (t: Throwable) {
@@ -157,6 +171,30 @@ object DialogueHost {
 
     fun unload() { Thread({ model.unload(); refresh() }, "wc-dialogue-unload").start() }
 
+    /**
+     * The first time a model is loaded with Speed on Auto: it writes 32 tokens with 3, 4, 5 and 6 threads ([ThreadCalibration], about
+     * 3 seconds each with the Fast model) and the fastest count is kept for this model ([DialogueConfig.calibratedThreads]) and used at once.
+     * Skipped for the 12B model (each trial would take 10 seconds or more), when the player chose a thread count by hand, and when it was done.
+     */
+    private fun calibrateOnce(spec: DialogueModelSpec, cfg: DialogueConfig) {
+        if (cfg.threads > 0 || cfg.calibrationFor(spec.id) > 0 || !spec.compact) return
+        Thread({
+            try {
+                val trials = kotlinx.coroutines.runBlocking { model.calibrate() } ?: return@Thread
+                val best = ThreadCalibration.best(trials)
+                lastCalibration = ThreadCalibration.describe(trials)
+                if (best > 0 && model.spec?.id == spec.id) {
+                    setConfig(config.copy(calibratedThreads = best, calibratedFor = spec.id))
+                    model.setSpeed(config.threads, best)
+                }
+            } catch (_: Throwable) { }
+        }, "wc-dialogue-calibrate").start()
+    }
+
+    /** What the last calibration measured, in words (shown with the Speed test; null before one ran). */
+    @Volatile var lastCalibration: String? = null
+        private set
+
     // ---- speed: the timings, the thread count, the speed test ------------------------------------------------------------
 
     /** What every request cost, the last 100 (empty before a model is loaded). */
@@ -171,8 +209,11 @@ object DialogueHost {
     /** Speed in Options: 0 Auto, 3 to 6 threads; saved, and applied to the next answer without a reload. */
     fun setSpeed(threads: Int) {
         setConfig(config.copy(threads = threads))
-        model.setSpeed(threads)
+        model.setSpeed(threads, config.calibrationFor(specFor().id))
     }
+
+    /** "Report slow replies": the slow requests with their phases, the model, the CPU's features and the token counts, as text to paste (numbers only). */
+    fun slowReport(): String = model.slowReport()
 
     /** The thread plan in force, in words. */
     fun speedNote(): String = model.plan.note
@@ -188,34 +229,48 @@ object DialogueHost {
 
     // ---- the download --------------------------------------------------------------------------------------------------
 
-    fun startDownload() {
+    /** The model the next download fetches (set by [startDownload]; null: the one in use). */
+    @Volatile private var target: DialogueModelSpec? = null
+
+    /** Downloads [spec] (the catalogue's, by default the one in use); one download at a time. */
+    fun startDownload(spec: DialogueModelSpec? = null) {
         if (!started.get() || downloading) return
+        target = spec
         ContextCompat.startForegroundService(app, Intent(app, ModelDownloadService::class.java))
+    }
+
+    /** The player's switch: [spec] is the model in use from now on (when its file is on the phone it is loaded, replacing the one loaded). */
+    fun chooseModel(spec: DialogueModelSpec) {
+        if (!started.get()) return
+        setConfig(config.copy(modelId = spec.id, modelPicked = true))
+        if (config.enabled && isInstalled(spec)) loadAsync()
     }
 
     fun cancelDownload() { haltDownload = true }
 
     /** Deletes the model's file (and a part of it) and its saved NPC places. */
-    fun deleteModel() {
-        val spec = specFor()
+    fun deleteModel(spec: DialogueModelSpec = specFor()) {
         if (spec.tier == ModelTier.CUSTOM) return
         Thread({
-            model.unload()
+            if (model.spec?.id == spec.id) model.unload()
             val f = fileFor(spec)
             f.delete(); File(f.path + ".part").delete()
-            File(app.filesDir, "dialogue/state").deleteRecursively()
+            File(app.filesDir, "dialogue/state/${spec.stateName}").deleteRecursively()
             refresh()
+            // the other model is there: it takes over (the switch's fallback)
+            if (config.enabled) loadAsync()
         }, "wc-dialogue-delete").start()
     }
 
     /** Runs on the download service's thread; returns when it ends. [note] gets the progress for the notification. */
     internal fun runDownload(note: (DialogueUiState) -> Unit): DialogueUiState {
         val cfg = config
-        val spec = specFor(cfg)
+        val spec = target ?: specFor(cfg)
+        target = null
         val f = fileFor(spec)
         haltDownload = false
         downloading = true
-        var s = _state.value.copy(spec = spec, phase = DialogueUiState.Phase.DOWNLOADING, haveBytes = downloader.have(f), totalBytes = spec.bytes, message = null)
+        var s = _state.value.copy(spec = spec, phase = DialogueUiState.Phase.DOWNLOADING, haveBytes = downloader.have(f), totalBytes = spec.bytes, message = null, downloadingId = spec.id)
         _state.value = s
         try {
             if (!cfg.mobileData && !onUnmeteredNetwork()) {
@@ -237,7 +292,11 @@ object DialogueHost {
             return s
         } finally {
             downloading = false
-            if (_state.value.phase == DialogueUiState.Phase.READY) { settings.dialogueModel = config.copy(enabled = true); loadAsync() }
+            val finished = _state.value.phase == DialogueUiState.Phase.READY
+            if (finished) settings.dialogueModel = config.copy(enabled = true)
+            _state.value = _state.value.copy(downloadingId = null)
+            refresh()
+            if (finished) loadAsync()
         }
     }
 

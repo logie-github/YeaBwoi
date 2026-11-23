@@ -128,7 +128,7 @@ data class ThreadPlan(val decode: Int, val prefill: Int, val coreMask: Long, val
          * big core: a thread on a little core makes the others wait for it at each layer). A hand-picked number is used for both.
          * The threads are kept on the performance cores (the mask), never more of them than there are such cores.
          */
-        fun choose(cpu: CpuProfile, manual: Int = 0): ThreadPlan {
+        fun choose(cpu: CpuProfile, manual: Int = 0, calibrated: Int = 0): ThreadPlan {
             val perf = cpu.performanceCores
             val n = maxOf(1, perf.size.takeIf { it > 0 } ?: cpu.cores)
             val mask = perf.fold(0L) { m, c -> if (c in 0..62) m or (1L shl c) else m }
@@ -136,9 +136,49 @@ data class ThreadPlan(val decode: Int, val prefill: Int, val coreMask: Long, val
                 val t = manual.coerceIn(1, 8)
                 return ThreadPlan(t, t, mask, "$t threads (your choice) on ${perf.size} performance cores")
             }
-            val decode = n.coerceIn(2, 4)
             val prefill = n.coerceIn(2, 6)
+            if (calibrated > 0) {
+                val decode = calibrated.coerceIn(1, 8)
+                return ThreadPlan(decode, prefill, mask, "Auto (measured on this phone): $decode threads writing, $prefill reading, on the ${perf.size.takeIf { it > 0 } ?: cpu.cores} performance cores")
+            }
+            val decode = n.coerceIn(2, 4)
             return ThreadPlan(decode, prefill, mask, "Auto: $decode threads writing, $prefill reading, on the ${perf.size.takeIf { it > 0 } ?: cpu.cores} performance cores")
         }
     }
+}
+
+/**
+ * The first-run calibration that picks the number of threads the model writes with: a small model's writing is bound by memory
+ * speed, and past a few threads more of them only wait for each other, so which count is fastest depends on the phone. The model
+ * writes 32 tokens once with each candidate count (about 3 s each with the Fast model) and the fastest wins; a count that is within
+ * [TIE] of a lower one's speed loses to the lower one (fewer threads: less heat and battery, and room for the renderer). Pure
+ * (JVM-tested: CalibrationTest); [DialogueModel.calibrate] runs the trials.
+ */
+object ThreadCalibration {
+    /** Tokens each trial writes. */
+    const val TRIAL_TOKENS = 32
+    /** A higher thread count must be this much faster (a fraction) than the best lower one to win. */
+    const val TIE = 0.04
+
+    data class Trial(val threads: Int, val tokensPerSecond: Double)
+
+    /** The counts to try on [cpu]: 3 to 6, never more than there are performance cores (at least 2 and 3 on a phone that reports fewer). */
+    fun candidates(cpu: CpuProfile): List<Int> {
+        val perf = cpu.performanceCores.size.takeIf { it > 0 } ?: cpu.cores
+        val top = perf.coerceIn(3, 6)
+        return (3..top).toList()
+    }
+
+    /** The winner of [trials] (0 when none ran or none wrote anything). */
+    fun best(trials: List<Trial>): Int {
+        val ok = trials.filter { it.tokensPerSecond > 0 }.sortedBy { it.threads }
+        if (ok.isEmpty()) return 0
+        var win = ok.first()
+        for (t in ok.drop(1)) if (t.tokensPerSecond > win.tokensPerSecond * (1 + TIE)) win = t
+        return win.threads
+    }
+
+    /** One line for the report: "3 threads 11.2 tok/s, 4 threads 13.0 tok/s -> 4". */
+    fun describe(trials: List<Trial>): String =
+        trials.joinToString(", ") { String.format(Locale.ROOT, "%d threads %.1f tok/s", it.threads, it.tokensPerSecond) } + " -> " + best(trials)
 }

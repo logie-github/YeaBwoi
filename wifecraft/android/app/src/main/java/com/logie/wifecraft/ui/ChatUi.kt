@@ -241,7 +241,7 @@ fun ChatLayer(
         // ---- the line over the row: the last thing said, one line (the log's sheet has the rest)
         At(ScreenPlan.find(plan, "context")) {
             val line = when {
-                typing -> ChatWait.thinking(session.npcName, System.currentTimeMillis() - session.typingSince, 1 + (local / 3) % 3)
+                typing -> ChatWait.thinking(session.npcName, System.currentTimeMillis() - session.typingSince, 1 + (local / 3) % 3, if (session.partial.isEmpty()) session.readiness(engineNow()) else 1f)
                 session.quiet -> "${session.npcName} says nothing."
                 log.isEmpty() -> "Say something, or choose a topic."
                 else -> log.last().let { l -> (if (l.fromYou) session.youName else session.npcName) + ": " + l.text }

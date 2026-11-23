@@ -134,6 +134,8 @@ class DialogueScheduler(
     /** Java priority of the worker while it answers the selected NPC or a pair (the default is the normal one: the thread's nice value is the one the model's own threads inherit) and while it works for the background. */
     private val urgentPriority: Int = Thread.NORM_PRIORITY,
     private val backgroundPriority: Int = 3,
+    /** The loaded model is a small one that reads compact prompts ([DialogueEngine.compactPrompts]). */
+    private val compact: Boolean = false,
 ) : DialogueEngine {
 
     private class Job(val id: Long, val req: DialogueRequest, val queuedAt: Long, val finish: (String?) -> Unit) {
@@ -167,6 +169,17 @@ class DialogueScheduler(
 
     override val ready: Boolean get() = backend.loaded && !closed
 
+    override val compactPrompts: Boolean get() = compact
+
+    /** A warm-up that has been asked for and has not finished: when it was asked and how many tokens it has to read (an estimate, [Tokens.approx]). */
+    private class WarmWait(val sinceMs: Long, val tokens: Int)
+    private val warming = HashMap<String, WarmWait>()
+
+    override fun warmProgress(npcId: String): Float {
+        val w = lock.withLock { warming[npcId] } ?: return 1f
+        return WarmEstimate.progress(clock() - w.sinceMs, w.tokens, WarmEstimate.rateFrom(timings.all()))
+    }
+
     // ---- the engine --------------------------------------------------------------------------------------------------
 
     override suspend fun complete(req: DialogueRequest): String? {
@@ -185,12 +198,12 @@ class DialogueScheduler(
     }
 
     override fun forget(npcId: String) {
-        lock.withLock { warmed.remove(npcId) }
+        lock.withLock { warmed.remove(npcId); warming.remove(npcId) }
         command { backend.reset(npcId) }
     }
 
     fun forgetAll() {
-        lock.withLock { warmed.clear() }
+        lock.withLock { warmed.clear(); warming.clear() }
         command { backend.resetAll() }
     }
 
@@ -201,10 +214,10 @@ class DialogueScheduler(
      * from the tokens it had read). The caller must give the very text its requests will send as their system prompt: the prompt of
      * the warm-up and of the request then share every token of it.
      */
-    override fun warm(npcId: String, system: String, urgent: Boolean) {
+    override fun warm(npcId: String, system: String, urgent: Boolean, history: List<DialogueTurn>) {
         if (!ready || system.isEmpty()) return
-        val h = system.hashCode()
-        val req = DialogueRequest(npcId, system, emptyList(), "", maxTokens = 1, prefillOnly = true, tag = "warm",
+        val h = 31 * system.hashCode() + history.hashCode()
+        val req = DialogueRequest(npcId, system, history, "", maxTokens = 1, prefillOnly = true, tag = "warm",
             priority = if (urgent) DialoguePriority.SELECTED else DialoguePriority.AMBIENT, maxWaitMs = if (urgent) 120_000L else 300_000L)
         var ended: Job? = null
         lock.withLock {
@@ -215,6 +228,7 @@ class DialogueScheduler(
                 if (queued == null || !urgent || queued.req.priority == DialoguePriority.SELECTED) return
             }
             warmed[npcId] = h
+            warming[npcId] = WarmWait(clock(), Tokens.approx(system) + history.sumOf { Tokens.approx(it.text) + 4 })
             ended = queue.firstOrNull { it.req.npcId == npcId && it.req.prefillOnly }?.also { queue.remove(it) }
             queue.add(Job(nextId++, req, clock()) { })
             // warm-ups of other NPCs are kept short: only the newest few
@@ -391,11 +405,11 @@ class DialogueScheduler(
         runCatching { Thread.currentThread().priority = if (urgent) urgentPriority else backgroundPriority }
         val startedAt = clock()
         var firstPieceAt = 0L
-        val prompt = template.render(req.system, req.history, req.user)
+        val prompt = template.render(req.system, req.history, req.user, req.spoken)
         val bj = BackendJob(
             ticket = job.ticket, npcId = req.npcId, prompt = prompt,
             maxTokens = if (req.prefillOnly) 0 else req.maxTokens.coerceAtLeast(1),
-            temperature = req.temperature, topP = req.topP, repeatPenalty = minOf(req.repeatPenalty, maxRepeatPenalty), seed = req.seed, stop = req.stop + template.leakStops(req.stop),
+            temperature = req.temperature, topP = req.topP, repeatPenalty = minOf(req.repeatPenalty, maxRepeatPenalty), seed = req.seed, stop = req.stop + template.leakStops(req.stop, req.spoken),
             chunkDelayMs = when (level0) { LoadLevel.OK -> 0; LoadLevel.BUSY -> if (urgent) 0 else 30; LoadLevel.STRUGGLING -> if (urgent) 20 else 100 },
             sink = sink@{ piece ->
                 if (firstPieceAt == 0L && piece.isNotBlank()) firstPieceAt = clock()
@@ -456,8 +470,9 @@ class DialogueScheduler(
         if (job.guarded) { count(tokens = result.generated, result = result); job.end(null); return }
         count(answers = if (ok) 1 else 0, dropped = if (ok) 0 else 1, tokens = result.generated, result = result, error = result.error)
         if (ok && !req.prefillOnly) _stats.value = _stats.value.copy(lastQueueWaitMs = (startedAt - job.queuedAt).coerceAtLeast(0), lastFirstWordMs = if (firstPieceAt > 0) (firstPieceAt - job.queuedAt).coerceAtLeast(0) else 0)
-        // a warm-up that was cancelled or failed is asked for again next time
-        if (req.prefillOnly && !ok) lock.withLock { warmed.remove(req.npcId) }
+        // a warm-up that was cancelled or failed is asked for again next time; one that finished is done for the progress bar
+        if (req.prefillOnly && !ok) lock.withLock { warmed.remove(req.npcId); warming.remove(req.npcId) }
+        else if (req.prefillOnly) lock.withLock { if (queue.none { it.req.npcId == req.npcId && it.req.prefillOnly }) warming.remove(req.npcId) }
         job.end(text)
     }
 }

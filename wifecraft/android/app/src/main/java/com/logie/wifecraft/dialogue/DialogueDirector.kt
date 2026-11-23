@@ -194,7 +194,7 @@ class DialogueDirector(
      */
     private fun warmUp(engine: DialogueEngine, v: SceneView) {
         if (v.people.none { it.profile.id !in warmedIds }) return
-        fun sys(p: NpcProfile) = systems.getOrPut(p.id) { PersonaPrompt.system(p, lore) }
+        fun sys(p: NpcProfile) = systems.getOrPut(p.id) { PersonaPrompt.system(p, lore, engine.compactPrompts) }
         v.people.firstOrNull { it.selected && it.profile.id !in warmedIds }?.let { warmedIds += it.profile.id; engine.warm(it.profile.id, sys(it.profile), urgent = true) }
         var room = WARM_MAX - warmedIds.size
         if (room <= 0) return
@@ -294,7 +294,7 @@ class DialogueDirector(
         val rel = other?.let { v.relation(me.id, other.id) } ?: Relation()
         val band = other?.let { comfort.band(me.disposition, me.id, it.id, rel.friendship, rel.romance) } ?: ComfortBand.STRANGERS
         val desire = c.mode == TalkMode.LIVE || (other != null && band >= ComfortBand.FAMILIAR && random.nextFloat() < me.disposition.desireTalk * 0.5f)
-        val system = systems.getOrPut(me.id) { PersonaPrompt.system(me, lore) }
+        val system = systems.getOrPut(me.id) { PersonaPrompt.system(me, lore, (engineOf()?.compactPrompts == true)) }
         val user = TurnPrompt.build(lore, TurnPrompt.Input(
             me, v, c.mode, other, band, desire, steers.hints(me.id, other?.id), recent(),
             stageName = c.speaker.stageName, heard = c.conv?.heard, seed = c.conv?.seed?.takeIf { c.conv.heard == null },

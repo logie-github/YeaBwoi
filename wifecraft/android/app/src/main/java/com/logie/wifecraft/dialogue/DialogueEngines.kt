@@ -77,7 +77,18 @@ class FakeDialogueEngine(private val reply: (DialogueRequest) -> String?) : Dial
 
     /** Every persona asked to be warmed, in order: (npc, system, urgent). */
     val warmed = ArrayList<Triple<String, String, Boolean>>()
-    override fun warm(npcId: String, system: String, urgent: Boolean) { warmed.add(Triple(npcId, system, urgent)) }
+    /** The same warm-ups with the turns that follow the system prompt (JOI's examples). */
+    val warmedWithHistory = ArrayList<WarmCall>()
+    class WarmCall(val npcId: String, val system: String, val urgent: Boolean, val history: List<DialogueTurn>)
+    /** What [warmProgress] answers (tests move it). */
+    var warmFraction: Float = 1f
+    /** What [compactPrompts] answers (the Fast model's compact prompts). */
+    var compact: Boolean = false
+    override val compactPrompts: Boolean get() = compact
+    override fun warm(npcId: String, system: String, urgent: Boolean, history: List<DialogueTurn>) {
+        warmed.add(Triple(npcId, system, urgent)); warmedWithHistory.add(WarmCall(npcId, system, urgent, history))
+    }
+    override fun warmProgress(npcId: String): Float = warmFraction
 
     override fun forget(npcId: String) { forgotten.add(npcId) }
 

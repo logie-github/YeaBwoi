@@ -60,6 +60,31 @@ data class ReplyTiming(
         else -> "miss"
     }
 
+    /**
+     * Where this request's time went, the four phases the player feels: waiting in the queue, reading the prompt, the model's step from the
+     * end of the prompt to its first token, and writing the rest; [Phases.otherMs] is what is left (the scheduler's own hand-over).
+     */
+    val phases: Phases get() {
+        val queue = queueWaitMs.toDouble()
+        val prefill = prefillMs.coerceAtMost(if (firstTokenMs > 0) firstTokenMs else prefillMs)
+        val firstExtra = (firstTokenMs - prefill).coerceAtLeast(0.0)
+        val decode = decodeMs
+        val other = (totalMs - queue - prefill - firstExtra - decode).coerceAtLeast(0.0)
+        return Phases(queue, prefill, firstExtra, decode, other)
+    }
+
+    /** One sentence for a slow request: the phase that took the most and what it was made of. */
+    fun diagnosis(): String {
+        val p = phases
+        val top = listOf("waiting in the queue" to p.queueMs, "reading the prompt" to p.prefillMs, "starting to write" to p.firstTokenExtraMs, "writing" to p.decodeMs, "other work" to p.otherMs).maxByOrNull { it.second }!!
+        val why = when (top.first) {
+            "reading the prompt" -> String.format(Locale.ROOT, " (%d tokens read at %.0f tok/s, %d already in the model)", readTokens, prefillTokensPerSecond, reusedTokens + sharedTokens + restoredTokens)
+            "writing" -> String.format(Locale.ROOT, " (%d tokens at %.1f tok/s)", generated, decodeTokensPerSecond)
+            else -> ""
+        }
+        return String.format(Locale.ROOT, "%.1f s of %.1f s went to %s%s", top.second / 1000.0, totalMs / 1000.0, top.first, why)
+    }
+
     /** True for a real answer someone waited for (not a warm-up, not cancelled, not a request dropped for an error). */
     val isReply: Boolean get() = !prefillOnly && !guarded && generated > 0 && finish != DialogueFinish.ERROR && (finish != DialogueFinish.CANCELLED || softStopped)
 
@@ -104,8 +129,37 @@ class TimingLog(val capacity: Int = 100) {
         if (header.isNotBlank()) append(header.trimEnd()).append('\n')
         val rows = all()
         append("requests: ").append(rows.size).append('\n')
-        for (r in rows) append(r.line()).append('\n')
+        for (r in rows) append(r.line()).append("\tphases: ").append(r.phases.text()).append('\n')
     }
+
+    /**
+     * The text of "Report slow replies": [header] (the model, its load, the CPU's features and cores, the threads), how many replies were
+     * slower than [limitMs] and what dominated each, then those requests in full (with their phases and prompt token counts). Nothing
+     * of what was said is in it: only numbers and the NPC ids.
+     */
+    fun slowReport(header: String = "", limitMs: Long = SLOW_MS): String = buildString {
+        if (header.isNotBlank()) append(header.trimEnd()).append('\n')
+        val replies = all().filter { it.isReply }
+        val slow = replies.filter { it.totalMs > limitMs }
+        append("replies: ").append(replies.size).append(", slower than ").append(limitMs / 1000).append(" s: ").append(slow.size).append('\n')
+        if (replies.isNotEmpty()) {
+            val s = summary(replies.size)
+            append(s.text()).append(' ').append(s.detail()).append('\n')
+        }
+        for (r in slow.takeLast(20)) append(r.line()).append("\n\tphases: ").append(r.phases.text()).append("\n\t").append(r.diagnosis()).append('\n')
+        val warm = all().filter { it.prefillOnly }
+        if (warm.isNotEmpty()) append("warm-ups: ").append(warm.size).append(", median ").append(String.format(Locale.ROOT, "%.1f", warm.map { it.totalMs / 1000.0 }.sorted().let { it[it.size / 2] })).append(" s\n")
+    }
+
+    companion object {
+        /** A reply slower than this misses the target ([SpeedTarget.LINE_SECONDS]). */
+        const val SLOW_MS = 5000L
+    }
+}
+
+/** What a request's time was spent on, in milliseconds ([ReplyTiming.phases]). */
+data class Phases(val queueMs: Double, val prefillMs: Double, val firstTokenExtraMs: Double, val decodeMs: Double, val otherMs: Double) {
+    fun text(): String = String.format(Locale.ROOT, "queue %.0f ms + prefill %.0f ms + first token %.0f ms + decode %.0f ms + other %.0f ms", queueMs, prefillMs, firstTokenExtraMs, decodeMs, otherMs)
 }
 
 data class TimingSummary(

@@ -9,11 +9,12 @@ package com.logie.wifecraft.dialogue
 /** How long a reply may be (the Chat controls' Short/Normal/Long). */
 enum class ChatLength(val label: String, val sentences: Int, val chars: Int, val words: Int, val tokens: Int) {
     // [tokens] is the most the model may write (a reply is cut at its sentences before that): about 1.4 tokens a word with the
-    // punctuation, so 24 words are about 35 tokens, 42 about 60 and 66 about 95: the caps leave room for a long last sentence and
-    // no more. At 4 to 6 tokens a second on the phone every token not written is 0.2 seconds saved.
-    SHORT("Short", 1, 150, 24, 45),
-    NORMAL("Normal", 2, 280, 42, 80),
-    LONG("Long", 3, 440, 66, 140);
+    // punctuation, so 20 words are about 28 tokens, 36 about 50 and 66 about 95: the caps leave room for a long last sentence and
+    // no more. Short is 30 tokens, Normal 60, Long 100: at 12 tokens a second on the Fast model Short is done in 2.5 s and Normal in 5.
+    // Every token not written is 0.08 s saved on the Fast model and 0.2 s on the 12B one.
+    SHORT("Short", 1, 140, 20, 30),
+    NORMAL("Normal", 2, 260, 36, 60),
+    LONG("Long", 3, 440, 66, 100);
 
     companion object { fun of(name: String?): ChatLength = entries.firstOrNull { it.name == name } ?: NORMAL }
 }
@@ -62,22 +63,26 @@ object ChatPrompt {
      * ([FRAME]). Its first lines are the very bytes of the NPC's ambient persona ([PersonaPrompt.persona]), so what the model
      * read for one it borrows for the other. A dragon (Sindragosa) has her own voice: ancient, imperious, patient, cold.
      */
-    fun system(npc: NpcProfile, lore: Lore, dragon: Boolean): String {
+    fun system(npc: NpcProfile, lore: Lore, dragon: Boolean, compact: Boolean = false): String {
         val b = StringBuilder()
         if (dragon) {
-            b.append(PersonaPrompt.shared(lore)).append("\n\n")
+            b.append(PersonaPrompt.shared(lore, compact)).append("\n\n")
             b.append("You are ${npc.name}, a frost dragon of great age and power, an adult being of Azeroth.\n")
-            lore.kit?.let { b.append(it.systemAddition(npc, lore)).append('\n') }
-            if (npc.bio.isNotBlank()) b.append("About you: ").append(npc.bio.trim()).append('\n')
-            b.append("Your voice: ancient, imperious, patient and cold as the high ice; vast and unhurried, never crude, never hurried; ")
+            lore.kit?.let { b.append(it.systemAddition(npc, lore, compact)).append('\n') }
+            if (npc.bio.isNotBlank()) b.append("About you: ").append(if (compact) PersonaPrompt.cap(npc.bio, PersonaPrompt.BIO_CHARS_COMPACT) else npc.bio.trim()).append('\n')
+            if (compact) b.append("Your voice: ancient, imperious, patient and cold as the high ice; you speak to mortals as a queen to a petitioner, but notice one who earns your interest. In love and in bed you are dominant.\n")
+            else b.append("Your voice: ancient, imperious, patient and cold as the high ice; vast and unhurried, never crude, never hurried; ")
                 .append("you regard mortals as small warm creatures and speak to them as a queen speaks to a petitioner, but you are not blind to a mortal who earns your interest. ")
                 .append("In love and in bed you are dominant, as a being of your age would be.\n")
         } else {
-            b.append(PersonaPrompt.persona(npc, lore))
+            b.append(PersonaPrompt.persona(npc, lore, compact))
         }
-        b.append(PersonaPrompt.LENGTH_CHAT).append('\n').append(FRAME)
+        b.append(PersonaPrompt.LENGTH_CHAT).append('\n').append(if (compact) FRAME_COMPACT else FRAME)
         return b.toString()
     }
+
+    /** [FRAME] in a sentence, for the small model. */
+    const val FRAME_COMPACT = "Someone stands before you and you talk face to face; answer what they say, and now and then ask or tell them something."
 
     /**
      * What stays the same for a whole talk, read once and kept with the persona: the place, who stands before her, what they are
@@ -85,18 +90,23 @@ object ChatPrompt {
      * system message, after [system]'s stable part, so the history that follows it is a prefix the model has already read; it is
      * rebuilt (and read again) only when what they are to her changes.
      */
-    fun context(lore: Lore, me: NpcProfile, you: ChatCharacter, place: PlaceView, rel: ChatRelationship): String {
+    fun context(lore: Lore, me: NpcProfile, you: ChatCharacter, place: PlaceView, rel: ChatRelationship, compact: Boolean = false): String {
         val b = StringBuilder()
         b.append(SceneContext.place(place)).append('\n')
         b.append(presence(you, lore, rel)).append('\n')
         rel.note(you.name)?.let { b.append(it).append('\n') }
         val spouse = rel.tier == ChatRelationship.Tier.SPOUSE
-        val know = if (spouse) emptyList() else lore.forScene(me.raceId, me.classId, place.name, listOf(you.raceId to you.classId), withBodies = false, maxChars = KNOW_CHARS, includeSelf = false, maxItems = KNOW_ITEMS)
+        val know = if (spouse) emptyList() else lore.forScene(me.raceId, me.classId, place.name, listOf(you.raceId to you.classId), withBodies = false,
+            maxChars = if (compact) KNOW_CHARS_COMPACT else KNOW_CHARS, includeSelf = false, maxItems = if (compact) 1 else KNOW_ITEMS)
         if (know.isNotEmpty()) b.append("What you know: ").append(know.joinToString(" ")).append('\n')
+        if (compact) { b.append("You are only talking; nothing intimate happens now: no sounds of lovemaking, no acts described."); return b.toString() }
         b.append("You are only talking; nothing intimate is happening this moment. Talk of the world, your day, the person before you, the place, lore and gossip. ")
         b.append("Do not make the sounds of lovemaking and do not describe an act as it happens.")
         return b.toString()
     }
+
+    /** What a compact chat's context knows of the place and the person: one snippet of at most this many characters. */
+    const val KNOW_CHARS_COMPACT = 130
 
     /** Lore snippets a chat's context carries, and their length: two, so the context stays about 150 tokens. */
     const val KNOW_ITEMS = 2
@@ -117,8 +127,11 @@ object ChatPrompt {
 
     /** The neutral stance she starts a talk in (calm, polite, attentive, no assumed intimacy), told for the first few exchanges. */
     const val NEUTRAL_EXCHANGES = 3
-    fun neutralStance(rel: ChatRelationship): String =
-        if (rel.tier == ChatRelationship.Tier.STRANGER)
+    fun neutralStance(rel: ChatRelationship, compact: Boolean = false): String =
+        if (compact) {
+            if (rel.tier == ChatRelationship.Tier.STRANGER) "You start calm and polite, assuming no intimacy: answer plainly and let how they treat you decide whether you warm or cool."
+            else "You start calm and natural, not aroused or sulking; how they treat you decides where the talk goes."
+        } else if (rel.tier == ChatRelationship.Tier.STRANGER)
             "You begin this meeting calm and even in mood: polite, attentive and yourself. You assume no intimacy, you are not flirting, aroused, angry or sulking; let how they treat you decide whether you warm or cool."
         else
             "You begin this meeting calm and natural in mood: warm as you are with someone you know, but not already aroused, quarrelling or sulking; let how they treat you decide where the talk goes."
@@ -127,11 +140,14 @@ object ChatPrompt {
      * How wary she is of them, from the willingness model (faction, race, her nature, the ease and what they are to her). In the first
      * exchanges ([mildOnly]) never more than a mild reserve: no refusal and no hostility at the start.
      */
-    fun wariness(me: NpcProfile, you: ChatCharacter, lore: Lore, band: ComfortBand, rel: ChatRelationship = you.relationship, mildOnly: Boolean = false): String? {
+    fun wariness(me: NpcProfile, you: ChatCharacter, lore: Lore, band: ComfortBand, rel: ChatRelationship = you.relationship, mildOnly: Boolean = false, compact: Boolean = false): String? {
         val r = WillingnessModel.prior(lore, me, you.profile(), rel.relation, band, rel.attitudeScale)
         val c = WillingnessModel.classify(r)
         return when {
             c == Willing.WILLING -> null
+            compact && mildOnly -> null   // the opening stance already says it: polite, no intimacy assumed
+            compact && c == Willing.HESITANT -> "You are wary of ${you.name}: stay civil, keep your distance and let them earn your trust; you may hesitate or deflect."
+            compact -> "You distrust ${you.name} deeply: be cold and curt, give little away and refuse anything intimate for now."
             mildOnly -> "You are a little wary of ${you.name}, only because you do not know them or their kind yet: keep a small reserve, stay civil and open, and let them show who they are before you open up; you may hesitate over anything intimate."
             c == Willing.HESITANT -> "You are wary of ${you.name}: what they are, or that you do not know them, gives you pause. Stay civil, keep some distance, and let them earn your trust before you open up; you may hesitate or deflect if they press."
             else -> "You distrust ${you.name} deeply. Be cold and curt, give little away, and refuse anything intimate for now; the ease between you must grow before that changes."
@@ -158,6 +174,8 @@ object ChatPrompt {
         val relationship: ChatRelationship = you.relationship,
         /** How many messages they have sent already (0: this is the very first reply: the neutral opening). */
         val exchanges: Int = 0,
+        /** The compact prompt of the Fast model: shorter stances, one snippet, two example lines, a short task. */
+        val compact: Boolean = false,
     )
 
     /**
@@ -173,26 +191,30 @@ object ChatPrompt {
      */
     fun tail(lore: Lore, t: Turn): String {
         val b = StringBuilder()
-        b.append("You and ${t.you.name} are ${t.band.label} with each other.\n")
+        if (t.compact) b.append("You and ${t.you.name} are ${t.band.label}.\n") else b.append("You and ${t.you.name} are ${t.band.label} with each other.\n")
         val opening = t.exchanges < NEUTRAL_EXCHANGES
-        if (opening) b.append(neutralStance(t.relationship)).append('\n')
-        if (t.exchanges == 0 && t.heard != null) b.append("This is the first thing ${t.you.name} says to you in this meeting: answer it as the neutral first greeting it is, without assuming more than is said.\n")
-        wariness(t.me, t.you, lore, t.band, t.relationship, mildOnly = opening)?.let { b.append(it).append('\n') }
+        if (opening) b.append(neutralStance(t.relationship, t.compact)).append('\n')
+        if (t.exchanges == 0 && t.heard != null) {
+            if (!t.compact) b.append("This is the first thing ${t.you.name} says to you in this meeting: answer it as the neutral first greeting it is, without assuming more than is said.\n")
+        }
+        wariness(t.me, t.you, lore, t.band, t.relationship, mildOnly = opening, compact = t.compact)?.let { b.append(it).append('\n') }
         if (t.desireTopic && t.band.bodyTalk) {
-            lore.body(t.you.raceId)?.let { b.append("Their body, for you to draw on as you like: ").append(it).append('\n') }
+            lore.body(t.you.raceId)?.let { b.append("Their body, for you to draw on as you like: ").append(if (t.compact) PersonaPrompt.cap(it, 160) else it).append('\n') }
         }
         if (t.desireTopic) {
-            lore.kinkGuide(t.band.key)?.let { b.append("How open you are now: ").append(it).append('\n') }
-            b.append(DirtyTalk.register(t.dirty)).append('\n')
+            lore.kinkGuide(t.band.key)?.let { b.append("How open you are now: ").append(if (t.compact) PersonaPrompt.cap(it, 160) else it).append('\n') }
+            b.append(if (t.compact) DirtyTalk.registerCompact(t.dirty) else DirtyTalk.register(t.dirty)).append('\n')
             b.append("In bed you are ${t.me.disposition.style}.\n")
             kinkNotes(lore, t)?.let { b.append(it) }
         }
         for (s in t.steers) b.append(s.hint()).append('\n')
-        if (t.desireTopic) b.append("As your nature and your ease with them allow, you may talk of desire, bodies, memories and what you would like to do with someone; that is talk only.\n")
+        if (t.desireTopic) b.append(if (t.compact) "As your nature and ease allow, you may talk of desire and what you would like to do; that is talk only.\n"
+            else "As your nature and your ease with them allow, you may talk of desire, bodies, memories and what you would like to do with someone; that is talk only.\n")
         if (t.heard != null) b.append("${t.you.name} says to you: \"").append(t.heard).append("\"\n")
         else b.append("${t.you.name} stands quietly, waiting for you to speak.\n")
         t.retryNote?.let { b.append(it).append('\n') }
-        b.append("Say your next line to ${t.you.name} in at most ${t.length.words} words, ${if (t.length.sentences == 1) "one sentence" else "up to ${t.length.sentences} sentences"}, in your own voice. Reply with the spoken words only.")
+        if (t.compact) b.append("Say your next line to ${t.you.name}: at most ${t.length.words} words, ${if (t.length.sentences == 1) "one sentence" else "up to ${t.length.sentences} sentences"}, spoken words only.")
+        else b.append("Say your next line to ${t.you.name} in at most ${t.length.words} words, ${if (t.length.sentences == 1) "one sentence" else "up to ${t.length.sentences} sentences"}, in your own voice. Reply with the spoken words only.")
         return b.toString()
     }
 
@@ -204,9 +226,9 @@ object ChatPrompt {
             listOfNotNull(lore.raceKey(me.raceId), lore.raceKey(t.you.raceId)),
             listOfNotNull(lore.className(me.classId), lore.className(t.you.classId)).map { it.replace(" ", "").lowercase() }, stage = "flirt", limit = KINK_SNIPPETS, level = t.dirty)
         val sb = StringBuilder()
-        val snippets = k.snippets(q)
+        val snippets = k.snippets(q).let { if (t.compact) it.take(1) else it }
         if (snippets.isNotEmpty()) sb.append("Ideas you may draw on, in your own words: ").append(snippets.joinToString(" ")).append('\n')
-        val lines = k.dirty()?.examples(t.dirty, "chat", 4, me.female, (t.heard?.length ?: 0))
+        val lines = k.dirty()?.examples(t.dirty, "chat", if (t.compact) 2 else 4, me.female, (t.heard?.length ?: 0))
         if (!lines.isNullOrEmpty()) sb.append(DirtyTalk.examplesBlock(lines, "Lines in this register, for the feel (never copy them, say something new):"))
         else k.examples(q, 1).firstOrNull()?.let { sb.append("A sample of the register (do not copy it):\n").append(it.render()).append('\n') }
         return sb.takeIf { it.isNotEmpty() }?.toString()

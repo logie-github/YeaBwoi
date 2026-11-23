@@ -129,6 +129,14 @@ object DirtyTalk {
     /** The register block for a prompt: style, then vocabulary. */
     fun register(level: DirtyLevel): String = "How you talk: ${style(level)} Words: ${vocab(level)} ${plain(level)}"
 
+    /** [register] for the small model: the style and the words, then one short line against poetry. */
+    fun registerCompact(level: DirtyLevel): String = "How you talk: ${PersonaPrompt.cap(style(level), 150)} Words: ${vocab(level).substringBefore(". ").trimEnd('.')}. ${plainCompact(level)}"
+
+    /** [plain] in a line. */
+    fun plainCompact(level: DirtyLevel): String =
+        if (level.explicit) "Blunt and literal: no poetry, similes or soft talk. Sexual filth only, never violence. No emojis."
+        else "Short and playful: no poetry or long similes. No emojis."
+
     /** Keeps a small model off poetry (it likes similes and lullabies): short, literal, in character. */
     fun plain(level: DirtyLevel): String =
         if (level.explicit) "Blunt and literal, like a filthy voice-over: no poetry, no similes, no metaphors, no soft or dreamy talk; say the crude thing itself. The filth is sexual (words, acts, degradation), never violence or threats of harm. No emojis."

@@ -215,7 +215,8 @@ class ChatModeTest {
         val engine = object : DialogueEngine {
             override suspend fun complete(req: DialogueRequest): String? {
                 typingDuring = s.typing
-                "Fair weather, and fairer company.".split(" ").runningReduce { a, b -> "$a $b" }.forEach { req.onPartial?.invoke(it); seen += s.partial }
+                // the runtime hands over the answer piece by piece (a word and the space after it), never the answer so far
+                Regex("\\S+\\s*").findAll("Fair weather, and fairer company.").forEach { req.onPartial?.invoke(it.value); seen += s.partial }
                 return "Fair weather, and fairer company."
             }
         }
