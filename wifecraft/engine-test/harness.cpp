@@ -15,6 +15,7 @@
 //   attach N ATTACHMENT MODEL T=F,...
 //   anim N ANIM [once]
 //   camera EX EY EZ TX TY TZ FOV
+//   focus NEAR FAR [STRENGTH]                  depth of field's sharp band as the app's FocusTarget gives it (Scene::setFocus; FAR 0: the scene's own)
 //   light day|dusk|night
 //   fog START END
 //   lightv V1 ... V23                          a light as the app passes it (Lights.of)
@@ -789,6 +790,10 @@ int main(int argc, char** argv) {
             float ex, ey, ez, tx, ty, tz, fov;
             ss >> ex >> ey >> ez >> tx >> ty >> tz >> fov;
             scene.setCamera(V3(ex, ey, ez), V3(tx, ty, tz), fov);
+        } else if (cmd == "focus") {
+            float n = 0, f = 0, k = 1;
+            ss >> n >> f >> k;
+            scene.setFocus(n, f, k);
         } else if (cmd == "light") {
             std::string p; ss >> p; light = preset(p); scene.setLight(light);
         } else if (cmd == "lightv") {

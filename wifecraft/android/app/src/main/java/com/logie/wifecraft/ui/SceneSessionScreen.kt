@@ -909,6 +909,11 @@ fun LiveSceneScreen(
                 speechSpots.layout(eyeX, eyeY, eyeZ, atX, atY, atZ, fov)   // the bubbles follow the heads with this camera
             }
 
+            override fun focus(near: Float, far: Float, strength: Float) {
+                // Options' Graphics: Focus follows the NPC off: the renderer's own band round the camera's target
+                if (Graphics.settings.value.focusFollows) view.glFocus(near, far, strength) else view.glFocus(0f, 0f, 1f)
+            }
+
             override fun place(index: Int, x: Float, y: Float, z: Float, facing: Float, furniture: SceneObject?, sx: Float, sy: Float, sz: Float) {
                 val pose = when {
                     furniture?.action == Activity.SIT -> FurniturePose.SIT

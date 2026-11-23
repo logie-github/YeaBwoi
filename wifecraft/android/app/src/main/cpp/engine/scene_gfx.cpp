@@ -229,6 +229,12 @@ void Scene::gfxEnd(int outW, int outH, uint32_t nowMs) {
     lo = std::min(lo, d); hi = std::max(hi, d);
     f.focusNear = std::max(0.2f, lo - 0.25f);
     f.focusFar = hi + 0.35f;
+    // the app's band on the subject (setFocus), where it gave one
+    if (focusFar_ > 0 && focusFar_ > focusNear_) {
+        f.focusNear = std::max(0.05f, focusNear_);
+        f.focusFar = focusFar_;
+        f.focusStrength = std::min(1.0f, std::max(0.0f, focusStrength_));
+    }
     f.editor = creatorBackdrop_ != nullptr || ghost_.on || gizmoMode_ != 0;
     f.gradeActive = cineGrade_.active();
     f.seconds = float(nowMs % 1000000u) / 1000.0f;
