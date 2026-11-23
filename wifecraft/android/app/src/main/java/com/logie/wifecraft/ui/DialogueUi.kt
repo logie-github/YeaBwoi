@@ -63,8 +63,7 @@ object DialogueAssets {
 }
 
 /**
- * The dialogue layer's two bits of interface over a scene: the persuasion bar (when an NPC hesitates before a stage: chips for the
- * ways to calm them) and, while [steerOpen], the steer window (topic and direction chips, free text, a strength, on the whole
+ * The dialogue layer's interface over a scene: while [steerOpen], the steer window (topic and direction chips, free text, a strength, on the whole
  * scene, one NPC or a pair). Everything it changes goes to the GL thread as a command; what it shows is the director's snapshot.
  */
 @Composable
@@ -78,29 +77,7 @@ fun DialogueOverlay(
 ) {
     var snap by remember(director) { mutableStateOf(director.snapshot) }
     LaunchedEffect(director) { while (true) { snap = director.snapshot; delay(300) } }
-    val hesitant = snap.hesitant.firstOrNull()
-    Box(modifier.fillMaxSize()) {
-        if (hesitant != null && snap.active) {
-            HesitationBar(hesitant, { approach -> live.command { director.persuade(hesitant.npcId, approach) } },
-                Modifier.align(Alignment.BottomCenter).padding(WifeTheme.gapM).padding(bottom = 96.dp))  // over the dock (16 + 48) and its line (4 + 28)
-        }
-    }
     if (steerOpen) SteerWindow(director, live, names, snap, onCloseSteer)
-}
-
-@Composable
-private fun HesitationBar(h: HesitantView, onApproach: (Approach) -> Unit, modifier: Modifier = Modifier) {
-    val shape = RoundedCornerShape(WifeTheme.buttonRadius)
-    Column(
-        modifier.widthIn(max = 520.dp).clip(shape).background(WifeTheme.slate).border(WifeTheme.trimWidth, WifeTheme.gold.copy(alpha = 0.6f), shape)
-            .padding(WifeTheme.gapM),
-        verticalArrangement = Arrangement.spacedBy(WifeTheme.gapS),
-    ) {
-        Text("${h.name} hesitates over ${h.otherName}. Calm them?", style = WifeTheme.bodyStyle())
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
-            for (a in Approach.entries) WifeChip(a.label, { onApproach(a) }, trailing = null)
-        }
-    }
 }
 
 @Composable

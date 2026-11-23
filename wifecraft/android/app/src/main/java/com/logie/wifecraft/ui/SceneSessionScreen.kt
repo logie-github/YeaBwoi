@@ -740,6 +740,17 @@ fun LiveSceneScreen(
         onDispose { live.dialogue = null }
     }
     var steerOpen by remember(live) { mutableStateOf(false) }
+    // an NPC hesitating before a stage (the director's snapshot, polled): the persuasion chips are the dock until it is settled or put off
+    var hesitantNow by remember(live) { mutableStateOf<com.logie.wifecraft.dialogue.HesitantView?>(null) }
+    var persuadeLater by remember(live) { mutableStateOf<String?>(null) }
+    LaunchedEffect(dialogueDirector) {
+        while (true) {
+            val sn = dialogueDirector?.snapshot
+            hesitantNow = if (sn != null && sn.active) sn.hesitant.firstOrNull() else null
+            if (hesitantNow == null) persuadeLater = null
+            delay(300)
+        }
+    }
     // the era chosen from the scene menu for this scene alone (null: the place's own era, else Options' Default era)
     var sceneEra by remember(live) { mutableStateOf<String?>(null) }
     var sceneEraYear by remember(live) { mutableIntStateOf(0) }
@@ -1900,9 +1911,12 @@ fun LiveSceneScreen(
         val playingWith = active?.takeIf { it.performing }?.partner
         val softOn = active != null && flow?.active == true && !mapper.on
         val softNow = SoftControl.offered(flowPhase)
+        val hes = hesitantNow
+        val persuading = hes != null && persuadeLater != hes.npcId && !build.on && !mapper.on && joiActor == null && chatActor == null
         val dockPlan = when {
             build.on -> DockModel.build()
             chatActor != null -> DockModel.chat()
+            persuading -> DockModel.persuade(com.logie.wifecraft.dialogue.Approach.entries.map { it.label })
             joiActor != null -> DockModel.joi(live.joiCreature != null, joiMode.phase == JoiPhase.PAUSED, joiMode.framing.label, joiRow)
             active == null -> DockPlan(DockKind.NONE, emptyList())
             softOn -> DockModel.soft(softNow.map { it.name }, softNow.map { if (it == SoftControl.POSITION) "Position" else it.label })
@@ -1922,6 +1936,7 @@ fun LiveSceneScreen(
         val playLine = (snapshot.notice?.takeIf { it != toastText } ?: if (immersiveHud) null else (active?.playing ?: hint.takeIf { active != null })).orEmpty()
         val contextLine = when {
             build.on || joiActor != null || chatActor != null -> ""
+            persuading && hes != null -> "${hes.name} hesitates over ${hes.otherName}. Calm them?"
             active == null -> SceneHud.hint(false, false, cast.size, false).ifEmpty { "Add NPCs to the scene to direct them." }
             mate != null -> "Partner: ${names[mate] ?: ""}" + (if (playLine.isEmpty()) "" else "  ·  $playLine")
             else -> playLine
@@ -1974,6 +1989,12 @@ fun LiveSceneScreen(
                         "frame" -> { val all = JoiFraming.SHOWN; joiMode.setFraming(all[(all.indexOf(joiMode.framing) + 1) % all.size]); joiTick++ }
                         "level" -> joiRow = if (joiRow == DockRowKind.JOI_LEVEL) DockRowKind.NONE else DockRowKind.JOI_LEVEL
                         "steer" -> joiRow = if (joiRow == DockRowKind.JOI_STEER) DockRowKind.NONE else DockRowKind.JOI_STEER
+                    }
+                }
+                else if (dockPlan.kind == DockKind.PERSUADE) {
+                    if (hes != null) {
+                        if (item.id == "later") persuadeLater = hes.npcId
+                        else com.logie.wifecraft.dialogue.Approach.entries.firstOrNull { it.label == item.id }?.let { a -> dialogueDirector?.let { d -> live.command { d.persuade(hes.npcId, a) } } }
                     }
                 }
                 else if (item.id == "more") panel = PanelRules.open(panel, ScreenPanel.MORE, screenMode)
