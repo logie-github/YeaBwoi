@@ -153,11 +153,20 @@ class LiveScene(
          * not known (JOI mode's camera then estimates them). GL thread.
          */
         fun bonePoints(index: Int, out: FloatArray): Boolean = false
+        /**
+         * Depth of field's sharp band this frame ([FocusTarget]: view depths [near]..[far] kept sharp, [strength] 0..1 of the
+         * blur), on whom the camera is about; [far] <= 0: no band, the renderer's own. GL thread, after [camera].
+         */
+        fun focus(near: Float, far: Float, strength: Float) {}
     }
 
     companion object {
         /** The menus' snapshots at most this often (10 a second), and only when something they show changed. */
         const val SNAPSHOT_MS = 100L
+        /** The people this close to a cinematic shot's look-at point are in its focus band, feet to head. */
+        const val SHOT_PEOPLE_YARDS = 2f
+        /** How often (s) the selected person's partner is looked up for the focus. */
+        const val PARTNER_LOOK_S = 0.25f
         /** The dialogue layer looks at the scene this often (seconds). */
         const val DIALOGUE_STEP = 0.2f
         /** When only the life simulation's view changed (a need moved 5%, a thought), a snapshot at most this often. */
@@ -543,6 +552,83 @@ class LiveScene(
         return true
     }
 
+    private val focus = FocusTarget()
+    private val focusIn = FocusTarget.Input()
+    private val focusTmp = FloatArray(3)
+    private var partnerFor = -1
+    private var partnerIdx = -1
+    private var partnerClock = 0f
+
+    /**
+     * Depth of field's focus for this frame (GL thread, after the camera moved): on the subject the camera is about, not on a fixed
+     * distance. A cinematic shot's look-at with the people round it; JOI's and Chat's camera on her (the point it tracks, her head to
+     * feet in depth); otherwise the selected NPC's chest, or the middle of her and her partner's chests while they play a two-person
+     * animation, whatever the camera mode and wherever she is on the screen (the orbit turns round a point of the room, not round
+     * her); else the Build pivot. [FocusTarget] eases it.
+     */
+    private fun focusFrame(sink: Sink, dt: Float, sel: Int) {
+        val inp = focusIn
+        inp.eyeX = camera.eyeX; inp.eyeY = camera.eyeY; inp.eyeZ = camera.eyeZ
+        inp.atX = camera.atX; inp.atY = camera.atY; inp.atZ = camera.atZ
+        inp.fov = camera.fov; inp.aspect = aspect
+        inp.clearPoints()
+        var kind = FocusKind.NONE
+        if (camera.directAmount > 0.5f) {
+            inp.cx = camera.atX; inp.cy = camera.atY; inp.cz = camera.atZ
+            val jc = joiCamera; val cc = chatCamera
+            if (jc != null && joiActor in 0 until n) { kind = FocusKind.JOI; addPersonPoints(joiActor, false) }
+            else if (cc != null && chatActor in 0 until n) { kind = FocusKind.CHAT; addPersonPoints(chatActor, false) }
+            else {
+                kind = FocusKind.SHOT
+                // the people round the point the shot looks at, feet to head
+                for (i in 0 until n) {
+                    val px = stageX(curX[i], curY[i]); val py = stageY(curX[i], curY[i])
+                    if (hypot(px - camera.atX, py - camera.atY) <= SHOT_PEOPLE_YARDS) addPersonPoints(i, true)
+                }
+            }
+        } else if (sel in 0 until n) {
+            partnerClock += dt
+            if (sel != partnerFor || partnerClock >= PARTNER_LOOK_S) {
+                partnerFor = sel; partnerClock = 0f
+                val pv = simulation.partnerOf(simulation.id(sel))
+                partnerIdx = if (pv == null) -1 else (0 until n).firstOrNull { simulation.id(it) == pv.partner } ?: -1
+            }
+            fillBody(sel, null)
+            val c = joiBody.chest
+            addPersonPoints(sel, false)
+            if (partnerIdx in 0 until n && partnerIdx != sel) {
+                fillBody(partnerIdx, null)
+                FocusTarget.pairCentre(c.x, c.y, c.z, joiBody.chest.x, joiBody.chest.y, joiBody.chest.z, focusTmp)
+                if (focusTmp[0] != c.x || focusTmp[1] != c.y) {
+                    kind = FocusKind.PAIR
+                    addPersonPoints(partnerIdx, false)
+                    inp.cx = focusTmp[0]; inp.cy = focusTmp[1]; inp.cz = focusTmp[2]
+                }
+            }
+            if (kind == FocusKind.NONE) { kind = FocusKind.NPC; inp.cx = c.x; inp.cy = c.y; inp.cz = c.z }
+        } else {
+            val pv = camera.pivot
+            if (pv != null) { kind = FocusKind.PIVOT; inp.cx = pv[0]; inp.cy = pv[1]; inp.cz = pv[2] }
+        }
+        val on = focus.update(dt, kind, inp)
+        sink.focus(if (on) focus.near else 0f, if (on) focus.far else 0f, focus.strength)
+    }
+
+    /** Person [i]'s head, chest and feet as depth points of the subject ([estimate]: by standing, without reading the skeleton). */
+    private fun addPersonPoints(i: Int, estimate: Boolean) {
+        val inp = focusIn
+        if (estimate) {
+            val s = simulation.bodyScales[simulation.id(i)] ?: 1f
+            val x = stageX(curX[i], curY[i]); val y = stageY(curX[i], curY[i]); val z = oz + curZ[i]
+            inp.addPoint(x, y, z + 1.62f * s); inp.addPoint(x, y, z + 1.25f * s); inp.addPoint(x, y, z)
+            return
+        }
+        fillBody(i, null)
+        val b = joiBody
+        inp.addPoint(b.head.x, b.head.y, b.head.z); inp.addPoint(b.chest.x, b.chest.y, b.chest.z)
+        inp.addPoint(b.pelvis.x, b.pelvis.y, b.floorZ)
+    }
+
     /** Person [i]'s body for a conversation or JOI camera ([joiBody]): her bones as drawn, else estimates; a creature's skull by its spec. */
     private fun fillBody(i: Int, spec: com.logie.wifecraft.characters.CreatureSpec?) {
         simulation.pose(i, pose)
@@ -809,6 +895,7 @@ class LiveScene(
         directFrame(dt)
         camera.update(dt, hasFocus, fx, fy, fz)
         sink.camera(camera.eyeX, camera.eyeY, camera.eyeZ, camera.atX, camera.atY, camera.atZ, camera.fov)
+        focusFrame(sink, dt, sel)
 
         val version = simulation.version
         val since = nowNanos - lastEmitNanos

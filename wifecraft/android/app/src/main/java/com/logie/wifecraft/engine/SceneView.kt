@@ -284,6 +284,9 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         Native.camera(handle, ex, ey, ez, ax, ay, az, fov)
     }
 
+    /** GL thread, a [FrameDriver] only: depth of field's sharp band on the subject ([simulation.FocusTarget]); [far] <= 0: the renderer's own. */
+    fun glFocus(near: Float, far: Float, strength: Float) { Native.focus(handle, near, far, strength) }
+
     /** GL thread, a [FrameDriver] only: where the actor [key] stands this frame (an actor not on stage yet: nothing). */
     fun glPlace(key: String, x: Float, y: Float, z: Float, facing: Float, furniture: FurniturePose, sx: Float, sy: Float, sz: Float) {
         val id = ids[key] ?: return

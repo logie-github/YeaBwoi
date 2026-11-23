@@ -297,6 +297,12 @@ public:
     float floorAt(float x, float y, float z) const;
 
     void setCamera(V3 eye, V3 target, float fovDegrees);
+    // Depth of field's sharp band as the app computed it (simulation/FocusTarget: the subject's view depths, smoothed): the
+    // view distances kept sharp and a strength 0..1 laid over Aperture. farDistance <= 0: the scene's own band (the people
+    // round the camera's target, feet to head).
+    void setFocus(float nearDistance, float farDistance, float strength) {
+        focusNear_ = nearDistance; focusFar_ = farDistance; focusStrength_ = strength;
+    }
     // The light as given (a stage's preset, or what a location's view made of it); with a time of day set, the light
     // drawn is this graded by the hour (setTimeOfDay).
     void setLight(const Light& l) { baseLight_ = l; light_ = l; applyTimeOfDay(); }
@@ -879,6 +885,7 @@ private:
     void skinOf(Actor& a, const M4& world);
 
     V3 eye_{0, -10, 2}, target_{0, 0, 1};
+    float focusNear_ = 0, focusFar_ = 0, focusStrength_ = 1;   // setFocus
     // pickBodyRegion's bone regions, for the model they were made for
     mutable std::vector<uint8_t> boneRegions_;
     mutable const M2Model* boneRegionsModel_ = nullptr;
