@@ -42,6 +42,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -453,7 +456,7 @@ fun WowSearchBox(value: String, onChange: (String) -> Unit, hint: String, modifi
 
 /** A line to type on a window's dark body: white words on black, a gold edge while typing. */
 @Composable
-fun WowTextField(value: String, onChange: (String) -> Unit, hint: String, modifier: Modifier = Modifier, singleLine: Boolean = true) {
+fun WowTextField(value: String, onChange: (String) -> Unit, hint: String, modifier: Modifier = Modifier, singleLine: Boolean = true, onSend: (() -> Unit)? = null) {
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(4.dp)
     Box(
@@ -462,6 +465,8 @@ fun WowTextField(value: String, onChange: (String) -> Unit, hint: String, modifi
     ) {
         if (value.isEmpty()) Text(hint, style = frizStyle(15.sp, Dim, false), maxLines = 1, overflow = TextOverflow.Ellipsis)
         BasicTextField(value, onChange, singleLine = singleLine, textStyle = frizStyle(15.sp, Ink, false), cursorBrush = SolidColor(War.gold),
+            keyboardOptions = if (onSend != null) KeyboardOptions(imeAction = ImeAction.Send) else KeyboardOptions.Default,
+            keyboardActions = KeyboardActions(onSend = { onSend?.invoke() }),
             modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused })
     }
 }

@@ -696,6 +696,8 @@ fun LiveSceneScreen(
     var menu by remember { mutableStateOf(false) }
     // the one sheet that may be open over the scene (ScreenPanels: Time, More; Build's and Move's panels and auto-play's follow their modes)
     var panel by remember(live) { mutableStateOf(ScreenPanel.NONE) }
+    // where the chrome put everything (ScreenPlan): Chat's layer draws its field, row and last line there
+    var chromePlan by remember { mutableStateOf<List<ScreenPlaced>>(emptyList()) }
     var autoRect by remember(live) { mutableStateOf<ScreenRect?>(null) }
     val names = remember(cast) { cast.associate { it.id to it.name } }
     // "Won't: <name>" on a two-person animation the owner or their partner won't do (the scene declines it all the same)
@@ -745,7 +747,8 @@ fun LiveSceneScreen(
     SideEffect { live.furnitureView = views.getOrNull(furnitureView) }
 
     BackHandler {
-        if (joiActor != null) joiLeave = true
+        if (panel != ScreenPanel.NONE && (joiActor != null || chatActor != null)) panel = ScreenPanel.NONE
+        else if (joiActor != null) joiLeave = true
         else if (chatActor != null) chatLeave = true
         else if (chatSheet != null) chatMode.cancel().also { chatSheet = null }
         else if (cinematic && !build.on) cinematic = false
@@ -1629,7 +1632,7 @@ fun LiveSceneScreen(
         live.camera.setMode(CameraMode.ORBIT)
     }
     val windowOpen = choosingAnimation != null || furnitureMenu != null || saying != null || chatting != null ||
-        choosingPartner != null || pairPlay != null || menu || ending || panel != ScreenPanel.NONE || mapper.on || build.on || chatActor != null || chatSheet != null
+        choosingPartner != null || pairPlay != null || menu || ending || panel != ScreenPanel.NONE || mapper.on || build.on || chatActor != null || chatSheet != null || joiActor != null
     // cinematic mode's idle hide: counted while cinematic, not building, no window open; any touch restarts it (see observeTouches below)
     SideEffect { cineIdleClock.mode(cinematic, build.on, windowOpen) }
     LaunchedEffect(live, cinematic, build.on, windowOpen) {
@@ -1875,7 +1878,7 @@ fun LiveSceneScreen(
         // cinematic mode hides it (the layer over it takes the touches; a tap brings it back a while)
         val cineHidden = cinematic && cineIdle && !build.on
         // immersive mode hides it too until a tap (HudReveal); hidden, it isn't there to be touched
-        val hudHidden = cineHidden || chatActor != null || (!cinematic && immersiveHud && !hudUp)
+        val hudHidden = cineHidden || (!cinematic && immersiveHud && !hudUp)
         val hudAlpha by animateFloatAsState(if (hudHidden) 0f else 1f, tween(MenuMotion.duration(CINEMATIC_HUD_MS, reduced)), label = "cinematicHud")
         // the chrome (SceneChrome.kt): top bar, cast, camera, dock, sheet and toast, each placed by ScreenPlan (ScreenPlan.kt)
         val screenMode = when {
@@ -1893,7 +1896,8 @@ fun LiveSceneScreen(
         val softNow = SoftControl.offered(flowPhase)
         val dockPlan = when {
             build.on -> DockModel.build()
-            joiActor != null || chatActor != null || active == null -> DockPlan(DockKind.NONE, emptyList())
+            chatActor != null -> DockModel.chat()
+            joiActor != null || active == null -> DockPlan(DockKind.NONE, emptyList())
             softOn -> DockModel.soft(softNow.map { it.name }, softNow.map { if (it == SoftControl.POSITION) "Position" else it.label })
             else -> DockModel.normal(slots, playingNow, playingWith != null)
         }
@@ -1965,13 +1969,17 @@ fun LiveSceneScreen(
                 }
             },
             buildDock = { BuildBar(build, Modifier.fillMaxSize()) },
+            row = screenMode == ScreenMode.CHAT, onPlan = { chromePlan = it },
             context = contextLine, toast = toastNow,
             onMenu = { panel = ScreenPanel.NONE; menu = true },
             onTime = { panel = PanelRules.open(panel, ScreenPanel.TIME, screenMode) },
             onCinematic = { cinematic = !cinematic; if (cinematic) { radial = null; panel = ScreenPanel.NONE; menu = false } },
             onExitMode = { exitMode() },
-            sheetTitle = when (sheetPanel) { ScreenPanel.TIME -> "Time and events"; ScreenPanel.MORE -> active?.id?.let { names[it] } ?: "More"; else -> "" },
-            framed = sheetPanel == ScreenPanel.TIME || sheetPanel == ScreenPanel.MORE,
+            sheetTitle = when (sheetPanel) {
+                ScreenPanel.TIME -> "Time and events"; ScreenPanel.MORE -> active?.id?.let { names[it] } ?: "More"
+                ScreenPanel.CHAT_LOG -> "Talk with ${chatActor?.let { names[it] } ?: ""}"; else -> ""
+            },
+            framed = sheetPanel == ScreenPanel.TIME || sheetPanel == ScreenPanel.MORE || sheetPanel == ScreenPanel.CHAT_LOG,
             onCloseSheet = { panel = ScreenPanel.NONE },
             onSheetRect = { autoRect = it },
         ) {
@@ -1984,6 +1992,7 @@ fun LiveSceneScreen(
                     mapper.tapItem(obj, furnitureMeasured[obj] ?: spots[obj]?.let { Furniture.of(obj, it) }, toStage, stageRotation)
                 } }, Modifier.fillMaxSize())
                 ScreenPanel.MOVE_PANEL -> MovePanel(mapper, view, Modifier.fillMaxSize())
+                ScreenPanel.CHAT_LOG -> ChatLogSheet(chatMode.session, chatTick)
                 else -> Unit
             }
         }
@@ -2006,6 +2015,7 @@ fun LiveSceneScreen(
         }
         if (chatActor != null) ChatLayer(chatMode, chatTick, { joiEngine() }, onDownloadModel = { com.logie.wifecraft.data.DialogueHost.startDownload() },
             onRetry = { if (joiEngine() != null) chatMode.modelReady(); chatTick++ }, onLeave = { chatLeave = true }, onChanged = { chatTick++ },
+            plan = chromePlan, logOpen = panel == ScreenPanel.CHAT_LOG, onLog = { panel = PanelRules.open(panel, ScreenPanel.CHAT_LOG, screenMode) },
             camera = chatCamera, onSpeech = { chatSpeech = it })
     }
     choosingAnimation?.let { owner ->

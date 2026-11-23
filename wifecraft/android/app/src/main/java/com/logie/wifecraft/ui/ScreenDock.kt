@@ -5,7 +5,10 @@ package com.logie.wifecraft.ui
 // into the More sheet, so nothing is "on page 2".
 
 /** What the dock is for: the NPC's orders, the animation playing, Build's tools, JOI, Chat, or nothing. */
-enum class DockKind { NONE, NORMAL, PLAYING, SOFT, BUILD, JOI, CHAT }
+enum class DockKind { NONE, NORMAL, PLAYING, SOFT, BUILD, JOI, CHAT, PERSUADE }
+
+/** What the row over the dock holds (one at a time): Chat's chips, JOI's dirty talk levels or its steer field. */
+enum class DockRowKind { NONE, CHAT, JOI_LEVEL, JOI_STEER }
 
 /** One target in the dock: [id], its short [label], the order it gives ([order], null: a dock-only target), [lit], its narrowest width. */
 data class DockItem(val id: String, val label: String, val order: HudOrder? = null, val lit: Boolean = false, val minW: Float = ScreenPlan.TOUCH)
@@ -59,12 +62,47 @@ object DockModel {
     /** Build's dock: its tools, undo, redo and Done (it scrolls where the screen is narrow). */
     fun build(): DockPlan = DockPlan(DockKind.BUILD, BUILD_TOOLS.map { DockItem(it.lowercase(), it, minW = 72f) })
 
-    /** JOI's dock: Stop, Pause, Skip, the level (one button that goes round) and Steer. */
-    fun joi(): DockPlan = DockPlan(DockKind.JOI, listOf(DockItem("stop", "Stop"), DockItem("pause", "Pause"), DockItem("skip", "Skip"),
-        DockItem("level", "Level", minW = 96f), DockItem("steer", "Steer")))
+    /**
+     * JOI's dock: Stop, Pause (Resume), Skip, Level (opens the level picker in the row), Frame (Auto, Face, Torso, Legs up: one tap goes to
+     * the next; none for a creature, whose camera circles her head) and Steer (opens the steer field in the row). Six at most.
+     */
+    fun joi(creature: Boolean = false, paused: Boolean = false, framing: String = "Auto", row: DockRowKind = DockRowKind.NONE): DockPlan =
+        DockPlan(DockKind.JOI, listOfNotNull(
+            DockItem("stop", "Stop"), DockItem("pause", if (paused) "Resume" else "Pause"), DockItem("skip", "Skip"),
+            DockItem("level", "Level", lit = row == DockRowKind.JOI_LEVEL),
+            if (creature) null else DockItem("frame", framing),
+            DockItem("steer", "Steer", lit = row == DockRowKind.JOI_STEER)))
 
-    /** Chat's dock: the text field and Send (Leave is the mode chip). */
-    fun chat(): DockPlan = DockPlan(DockKind.CHAT, listOf(DockItem("field", "Say", minW = 160f), DockItem("send", "Send")))
+    /** Chat's dock: the text field, Send and Leave. Its chips (zoom, who you are, length, the log, topics) are the row over it. */
+    fun chat(): DockPlan = DockPlan(DockKind.CHAT, listOf(DockItem("field", "Say", minW = 160f), DockItem("send", "Send"), DockItem("leave", "Leave", minW = 56f)))
+
+    /** The dock while an NPC hesitates and the player may calm them: one chip per approach and Later (scrolls like Build's). */
+    fun persuade(labels: List<String>): DockPlan =
+        DockPlan(DockKind.PERSUADE, (labels.map { DockItem(it, it, minW = maxOf(72f, 12f + 8f * it.length)) } + DockItem("later", "Later", minW = 72f)))
+
+    /** Whether the dock of [kind] scrolls instead of sharing its width. */
+    fun scrolls(kind: DockKind): Boolean = kind == DockKind.BUILD || kind == DockKind.PERSUADE
+}
+
+/** The taps each thing takes, from the code (the NPC chosen is not counted); asserted by ScreenPlanTest so a change that adds a tap fails it. */
+object TapCounts {
+    const val CHAT_FIRST_REMEMBERED = 2        // Chat (dock), Continue as <name>
+    const val CHAT_FIRST_NEW = 2               // Chat, Start (the choices are made once, on the sheet)
+    const val CHAT_SEND = 1
+    const val CHAT_LEAVE = 1
+    const val CHAT_TOPIC = 1
+    const val CHAT_ZOOM = 1
+    const val JOI_STOP = 1
+    const val JOI_PAUSE = 1
+    const val JOI_SKIP = 1
+    const val JOI_FRAMING = 1
+    const val JOI_LEVEL = 2                    // Level, the level
+    const val JOI_STEER_TEXT = 2               // Steer, then type and Enter on the keyboard
+    const val PERSUADE = 1
+    const val BUILD_FROM_MORE = 2              // More, Build mode (the sheet's first row)
+    const val BUILD_FROM_MENU = 2              // the menu, Build mode
+    const val PAIR_CONFIRM_SWITCH_PLACES = 2   // Options, Scene, the switch (and the animation window's own switch)
+    const val MAX_FREQUENT = 3
 }
 
 /** One control the scene had: its [id], where it was ([old]), where it is ([slot]: a slot or sheet), the taps it takes now and whether it is used often. */
@@ -77,7 +115,7 @@ object ScreenFeatures {
         ScreenFeature("menu.resume", "scene menu: Resume", "menu window", 2),
         ScreenFeature("menu.life", "scene menu: NPC's life", "menu window / More", 2),
         ScreenFeature("menu.freeze", "scene menu: Freeze", "menu window", 2, false),
-        ScreenFeature("menu.build", "scene menu: Build mode", "menu window / mode chip", 2),
+        ScreenFeature("menu.build", "scene menu: Build mode", "menu window / More (first row) / mode chip", 2),
         ScreenFeature("menu.steer", "scene menu: Steer the talk", "menu window / JOI dock", 2),
         ScreenFeature("menu.limits", "scene menu: Consent and limits", "menu window / More", 3, false),
         ScreenFeature("menu.era", "scene menu: Era", "menu window", 3, false),
@@ -117,19 +155,32 @@ object ScreenFeatures {
         ScreenFeature("toast.hint", "first-run Build hint", "TOAST", 0),
         ScreenFeature("soft", "soft radial (continue, flow)", "dock (flow)", 1),
         ScreenFeature("autoplay", "cinematic auto-play panel", "Auto-play sheet", 1),
-        ScreenFeature("hesitation", "hesitation bar", "dock (hesitation)", 1),
         ScreenFeature("build.bar", "Build bar", "dock (Build)", 1),
         ScreenFeature("build.panel", "Build panel", "SHEET", 1),
         ScreenFeature("move.panel", "Move panel", "SHEET", 1),
-        ScreenFeature("joi.controls", "JOI controls", "dock (JOI) + SHEET", 1),
-        ScreenFeature("joi.level", "JOI level tabs", "dock (JOI)", 1),
-        ScreenFeature("joi.steer", "JOI steer chips and text", "SHEET (Steer)", 2),
-        ScreenFeature("chat.leave", "Chat Leave", "mode chip", 1),
+        ScreenFeature("joi.stop", "JOI Stop button", "dock (JOI)", 1),
+        ScreenFeature("joi.pause", "JOI Pause / Resume button", "dock (JOI)", 1),
+        ScreenFeature("joi.skip", "JOI Skip stage button", "dock (JOI)", 1),
+        ScreenFeature("joi.framing", "JOI framing tabs (Auto, Face, Torso, Legs)", "dock (JOI) frame chip", 1),
+        ScreenFeature("joi.level", "JOI dirty talk level slider", "dock (JOI) level chip -> row", 2),
+        ScreenFeature("joi.steer.chips", "JOI steer chips (Slower, Faster...)", "dock (JOI) steer chip -> row", 2),
+        ScreenFeature("joi.steer.text", "JOI steer text field", "dock (JOI) steer chip -> row", 2),
+        ScreenFeature("joi.steer.clear", "JOI's standing steer chip (tap to clear)", "row (steer)", 1, false),
+        ScreenFeature("chat.leave", "Chat Leave", "mode chip / dock (Chat)", 1),
         ScreenFeature("chat.field", "Chat text field", "dock (Chat)", 1),
-        ScreenFeature("chat.log", "Chat log", "SHEET (Chat log)", 1),
-        ScreenFeature("chat.setup", "Chat setup sheet", "window", 2),
+        ScreenFeature("chat.send", "Chat Send", "dock (Chat)", 1),
+        ScreenFeature("chat.zoom", "Chat zoom presets and slider", "row (Chat) zoom chip", 1),
+        ScreenFeature("chat.relationship", "Chat: who you are to her", "row (Chat) chip -> window", 2, false),
+        ScreenFeature("chat.length", "Chat reply length tabs", "row (Chat) length chip", 1, false),
+        ScreenFeature("chat.topics", "Chat topic chips", "row (Chat)", 1),
+        ScreenFeature("chat.log", "Chat log", "SHEET (Chat log) / DOCK_CONTEXT last line", 1),
+        ScreenFeature("chat.setup", "Chat setup sheet (Continue as <name>)", "window", 2),
+        ScreenFeature("persuade.chips", "hesitation bar's persuasion chips", "dock (persuasion)", 1),
+        ScreenFeature("persuade.later", "leave a hesitation for later", "dock (persuasion)", 1, false),
+        ScreenFeature("tip.firstrun", "first-run tip (the dock and the menu)", "TOAST", 0, false),
+        ScreenFeature("options.scene.pair", "Ask before partner animations play (Options > Scene)", "Options", 2, false),
         ScreenFeature("anim.browser", "Animation browser", "window", 3),
-        ScreenFeature("pair.confirm", "Ready to play panel", "Options toggle (off)", 0, false),
+        ScreenFeature("pair.confirm", "Ready to play panel", "Options toggle (off), animation window", 0, false),
         ScreenFeature("radial", "radial NPC menu", "long press / More", 1),
         ScreenFeature("life.window", "Life window", "window", 2),
         ScreenFeature("consent", "Consent window", "window", 3, false),
@@ -139,5 +190,5 @@ object ScreenFeatures {
 
     /** The slots a feature may name (the first word before " / " or " -> "), to check none is left without a place. */
     val places: Set<String> = setOf("TOP_START", "TOP_END", "CAMERA", "CAST", "dock", "More", "Time", "menu", "DOCK_CONTEXT", "TOAST", "SHEET",
-        "Options", "window", "long", "mode", "Auto-play", "scene", "Steer")
+        "Options", "window", "long", "mode", "Auto-play", "scene", "Steer", "row")
 }
