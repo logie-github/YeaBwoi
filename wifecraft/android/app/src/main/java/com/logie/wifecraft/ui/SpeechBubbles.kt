@@ -23,9 +23,14 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -76,15 +81,15 @@ class SpeechSpots(val count: Int) {
 }
 
 /**
- * Over the 3D view: a speech bubble above each speaker the layout shows (the game's chat bubble: a cream-white rounded box with a thin dark
- * border and a tail aimed at the head, the words black in Friz, the speaker's name small and brown above them; [SpeechBubbleModel]), faded
+ * Over the 3D view: a speech bubble above each speaker the layout shows (the game's chat bubble: a dark, translucent rounded box with a thin
+ * light grey border and a small tail aimed at the head, white sans-serif words, links in colour, no name line unless [showNames]; [SpeechBubbleModel]), faded
  * in and out; and a small rose marker over the controlled NPC's partner ([marked]: their index, -1 none; rose as the cast
  * frames mark the partner). [lines] holds each person's line now (null: none). Moved every frame in the
  * draw phase only (no recomposition).
  * Touches pass through to the view.
  */
 @Composable
-fun BoxScope.SpeechBubbles(spots: SpeechSpots, names: List<String>, lines: List<String?>, marked: Int) {
+fun BoxScope.SpeechBubbles(spots: SpeechSpots, names: List<String>, lines: List<String?>, marked: Int, showNames: Boolean = false) {
     var tick by remember { mutableLongStateOf(0L) }
     val active = lines.any { it != null } || marked >= 0
     LaunchedEffect(active) { if (active) while (true) withFrameNanos { tick = it } }
@@ -94,13 +99,13 @@ fun BoxScope.SpeechBubbles(spots: SpeechSpots, names: List<String>, lines: List<
         val held = rememberHeld(text) ?: ""
         val fade by animateFloatAsState(if (text != null) 1f else 0f, tween(if (text != null) 160 else 420), label = "bubble")
         if (fade > 0f) {
-            Bubble(names.getOrElse(i) { "" }, held, { tick; spots.read()[i * SpeechLayout.STRIDE] }, { spots.width }, Modifier.align(Alignment.TopStart).graphicsLayer {
+            Bubble(if (showNames) names.getOrElse(i) { "" } else "", held, { tick; spots.read()[i * SpeechLayout.STRIDE] }, { spots.width }, Modifier.align(Alignment.TopStart).graphicsLayer {
                 tick   // read each frame: the layer moves with the head
                 val buf = spots.read()
                 val o = i * SpeechLayout.STRIDE
                 val shown = SpeechBubbleModel.visible(buf[o + 2], buf[o + 3] == 1f)
                 val lift = if (marked == i) MARK_LIFT.toPx() else 0f
-                val pl = SpeechBubbleModel.place(buf[o], size.width, spots.width)
+                val pl = SpeechBubbleModel.place(buf[o], size.width, spots.width, tailFrac = SpeechBubbleModel.TAIL_FRAC)
                 translationX = pl.left
                 translationY = buf[o + 1] - size.height - lift
                 // gently larger near, smaller far, about the tail's tip
@@ -125,38 +130,48 @@ fun BoxScope.SpeechBubbles(spots: SpeechSpots, names: List<String>, lines: List<
 }
 
 /**
- * One bubble in the game's own chat-bubble look: a cream-white rounded box with a thin dark border, the words black in Friz, a small
- * pointed tail aimed at the speaker ([SpeechBubbleModel.place]), the speaker's name small and brown above. Its shape (width, lines)
- * is [SpeechBubbleModel.shape]; [anchorX] is the head's screen x, read each frame.
+ * One bubble in the game's own chat-bubble look: a dark, about 85% opaque rounded box with a thin light grey border, white sans-serif
+ * words (a yell red, an emote orange, a whisper pink; `[Item]` links in colour: [SpeechBubbleModel.parse]), a small pointed tail left of
+ * centre aimed at the speaker ([SpeechBubbleModel.place]). No name line unless [name] is given (Chat mode's option). Its shape
+ * (width, lines) is [SpeechBubbleModel.shape]; [anchorX] is the head's screen x, read each frame.
  */
 @Composable
 private fun Bubble(name: String, text: String, anchorX: () -> Float, screenW: () -> Float, modifier: Modifier) {
     val shape = SpeechBubbleModel.shape(text)
-    val ink = androidx.compose.ui.graphics.Color(SpeechBubbleModel.colour(SpeechBubbleModel.kind(text)))
+    val ink = Color(SpeechBubbleModel.colour(SpeechBubbleModel.kind(text)))
+    val styled = remember(text) {
+        val parsed = SpeechBubbleModel.parse(text)
+        buildAnnotatedString {
+            append(parsed.text)
+            for (sp in parsed.spans) addStyle(SpanStyle(color = Color(sp.colour)), sp.start, sp.end)
+        }
+    }
     Box(modifier.width(shape.widthDp.dp).drawBehind {
         val tail = TAIL.toPx()
-        val radius = 9.dp.toPx()
-        val rim = 1.2.dp.toPx()
+        val radius = 12.dp.toPx()
+        val rim = 1.dp.toPx()
         val bodyH = this.size.height - tail
         val bodyW = this.size.width
-        drawRoundRect(BubbleFill, Offset.Zero, Size(bodyW, bodyH), CornerRadius(radius))
+        // a soft, faint shadow under the box
+        drawRoundRect(BubbleShadow, Offset(0f, 1.5.dp.toPx()), Size(bodyW, bodyH), CornerRadius(radius))
+        drawRoundRect(Brush.verticalGradient(listOf(BubbleFillTop, BubbleFillBottom), 0f, bodyH), Offset.Zero, Size(bodyW, bodyH), CornerRadius(radius))
         drawRoundRect(BubbleRim, Offset(rim / 2, rim / 2), Size(bodyW - rim, bodyH - rim), CornerRadius(radius), style = Stroke(rim))
         // the tail points at the head, wherever the box had to be moved to stay on the screen
-        val tx = SpeechBubbleModel.place(anchorX(), bodyW, screenW(), 6f, radius + tail).tailX
+        val tx = SpeechBubbleModel.place(anchorX(), bodyW, screenW(), 6f, radius + tail, SpeechBubbleModel.TAIL_FRAC).tailX
         val spike = Path().apply {
             moveTo(tx - tail * 0.7f, bodyH - rim)
             lineTo(tx + tail * 0.7f, bodyH - rim)
             lineTo(tx, bodyH + tail)
             close()
         }
-        drawPath(spike, BubbleFill)
+        drawPath(spike, BubbleFillBottom)
         drawLine(BubbleRim, Offset(tx - tail * 0.7f, bodyH - rim / 2), Offset(tx, bodyH + tail), rim)
         drawLine(BubbleRim, Offset(tx + tail * 0.7f, bodyH - rim / 2), Offset(tx, bodyH + tail), rim)
-    }.padding(start = SpeechBubbleModel.PAD_DP.dp, end = SpeechBubbleModel.PAD_DP.dp, top = 6.dp, bottom = 6.dp + TAIL)) {
+    }.padding(start = SpeechBubbleModel.PAD_DP.dp, end = SpeechBubbleModel.PAD_DP.dp, top = SpeechBubbleModel.PAD_V_DP.dp, bottom = SpeechBubbleModel.PAD_V_DP.dp + TAIL)) {
         Column {
-            if (name.isNotEmpty()) Text(name, style = frizStyle(WifeTheme.caption, BubbleName, shadow = false), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(text, style = frizStyle(13.sp, ink, shadow = false).copy(lineHeight = 16.sp), textAlign = TextAlign.Start, maxLines = shape.maxLines,
-                overflow = TextOverflow.Ellipsis)
+            if (name.isNotEmpty()) Text(name, style = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = WifeTheme.caption, color = BubbleName), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(styled, style = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 13.sp, color = ink, lineHeight = 17.sp), textAlign = TextAlign.Start,
+                maxLines = shape.maxLines, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -164,8 +179,10 @@ private fun Bubble(name: String, text: String, anchorX: () -> Float, screenW: ()
 private val TAIL = 9.dp
 /** How much higher a bubble sits over the partner, above its marker. */
 private val MARK_LIFT = 18.dp
-/** The game's chat bubble: cream white, a thin dark border, the speaker's name in a dark brown. */
-private val BubbleFill = Color(0xF5FFF6DC)
-private val BubbleRim = Color(0xFF2A2218)
-private val BubbleName = Color(0xFF6B5A38)
+/** The game's chat bubble: near-black at about 85% opacity (a faint vertical gradient), a thin light grey border; the optional name in gold. */
+private val BubbleFillTop = Color(0xDD0C0C0C)
+private val BubbleFillBottom = Color(0xD9000000)
+private val BubbleShadow = Color(0x33000000)
+private val BubbleRim = Color(0xB3D0D0D0)
+private val BubbleName = Color(0xFFE8C060)
 private val PartnerMark = Color(0xFFE88AA8)
