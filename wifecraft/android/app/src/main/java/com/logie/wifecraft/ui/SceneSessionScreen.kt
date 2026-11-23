@@ -631,6 +631,8 @@ fun LiveSceneScreen(
     val chatMode = remember(live) { ChatMode(seed.toLong() + 7) }
     var chatTick by remember(live) { mutableIntStateOf(0) }
     var chatLeave by remember(live) { mutableStateOf(false) }
+    // Chat mode: her reply as the world's chat bubble over her head (set by the chat layer)
+    var chatSpeech by remember(live) { mutableStateOf<String?>(null) }
     // cinematic mode's idle hide (CinematicIdle): all the interface goes after 5 s untouched, Build mode off, until the next touch
     val cineIdleClock = remember(live) { CinematicIdle { SystemClock.uptimeMillis() } }
     var cineIdle by remember(live) { mutableStateOf(false) }
@@ -1463,14 +1465,14 @@ fun LiveSceneScreen(
         val emote = PartnerEmotes.ALL.map { JoiClip(PlaybackKeys.emote(it.anim), it.name, "Emotes", if (it.loop) 8f else 3.5f, it.loop, emote = true) }
         chatMode.gestures.catalogue(imported + emote)
     }
+    val chatStore = object : ChatStore {
+        override fun load(): String? = try { chatPrefs.getString("last", null) } catch (e: Exception) { null }
+        override fun save(text: String) { try { chatPrefs.edit().putString("last", text).apply() } catch (e: Exception) { } }
+    }
     fun openChat(id: String) {
         val lore = chatLore ?: return
         val a = cast.firstOrNull { it.id == id } ?: return
-        val store = object : ChatStore {
-            override fun load(): String? = try { chatPrefs.getString("last", null) } catch (e: Exception) { null }
-            override fun save(text: String) { try { chatPrefs.edit().putString("last", text).apply() } catch (e: Exception) { } }
-        }
-        chatMode.open(id, CreatureNpcs.of(a.appearance) != null, JoiPrior(cinematic, cameraMode.name, furnitureView), ChatSetup(lore, chatNames, store))
+        chatMode.open(id, CreatureNpcs.of(a.appearance) != null, JoiPrior(cinematic, cameraMode.name, furnitureView), ChatSetup(lore, chatNames, chatStore))
         radial = null; speedOpen = false; feedOpen = false; menu = false; choosingAnimation = null; walking = false
         chatSheet = id
         chatTick++
@@ -1483,7 +1485,8 @@ fun LiveSceneScreen(
         val spec = CreatureNpcs.of(a.appearance)
         val started = chatMode.start({ you ->
             ChatSession(com.logie.wifecraft.dialogue.Profiles.of(a), you, lore, spec != null, com.logie.wifecraft.dialogue.PlaceView(locationName), kink,
-                kotlin.random.Random(seed.toLong() + 11)).also { it.dirty = dialogue.dirty }
+                kotlin.random.Random(seed.toLong() + 11),
+                { r -> ChatSetup.rememberRelationship(chatStore, r) }).also { it.dirty = dialogue.dirty }
         }, joiEngine() != null)
         if (!started) return
         chatSheet = null
@@ -1505,7 +1508,7 @@ fun LiveSceneScreen(
         val id = chatActor ?: return
         val prior = chatMode.leave()
         joiEngine()?.forget(ChatPrompt.CHAT_PREFIX + id)
-        live.chatCamera = null; live.chatActor = -1
+        live.chatCamera = null; live.chatActor = -1; chatSpeech = null
         if (live.chatCreature != null) view.queueEvent { view.glBoneLayer(actorKey(id), null) }
         live.chatCreature = null
         live.joiRelease(id)
@@ -1818,6 +1821,12 @@ fun LiveSceneScreen(
             LifeMarkers(speechSpots, gems, lines, if (lifeOn) thoughts else List(cast.size) { null }, partnerIndex, icons)
         }
         if (wordsShown) SpeechBubbles(speechSpots, remember(cast) { cast.map { it.name } }, lines, partnerIndex)
+        else if (chatActor != null && joiActor == null) {
+            // Chat mode: her reply is the bubble over her (the chat's own words, shown whatever the cinematic mode hides of the others')
+            val ci = chatActor?.let { castIndex[it] } ?: -1
+            SideEffect { speechSpots.extra.fill(false); if (ci in speechSpots.extra.indices && chatSpeech != null) speechSpots.extra[ci] = true }
+            SpeechBubbles(speechSpots, remember(cast) { cast.map { it.name } }, List(cast.size) { if (it == ci) chatSpeech else null }, -1)
+        }
         SceneLoadingCover(!revealed, locationName, status, progress)
 
         // the HUD, inside the screen's safe area (cut-outs, the hinge's bars, the gesture bar)
@@ -2001,7 +2010,8 @@ fun LiveSceneScreen(
             if (setup != null) ChatSetupSheet(setup, cast.firstOrNull { it.id == sid }?.name.orEmpty(), { startChat() }, { cancelChat() })
         }
         if (chatActor != null) ChatLayer(chatMode, chatTick, { joiEngine() }, onDownloadModel = { com.logie.wifecraft.data.DialogueHost.startDownload() },
-            onRetry = { if (joiEngine() != null) chatMode.modelReady(); chatTick++ }, onLeave = { chatLeave = true }, onChanged = { chatTick++ })
+            onRetry = { if (joiEngine() != null) chatMode.modelReady(); chatTick++ }, onLeave = { chatLeave = true }, onChanged = { chatTick++ },
+            camera = chatCamera, onSpeech = { chatSpeech = it })
     }
     choosingAnimation?.let { owner ->
         // with a partner chosen, the two-person animations come first and play with them (solo ones still play alone)
