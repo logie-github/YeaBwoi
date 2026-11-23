@@ -176,16 +176,19 @@ class ScreenPlanTest {
     }
 
     @Test
-    fun theTopBarFitsA360DpPhoneWithThePlaceAndTheClock() {
+    fun theTopBarFitsA360DpPhoneWithTheClockAndWiderOnesWithThePlaceToo() {
         val s = ScreenState(ScreenMode.NORMAL, dockItems = 5, dockWidth = 250f, castCount = 3)
         val plan = ScreenPlan.plan(360f, 800f, ScreenInsets(), s)
-        val place = assertNotNull(ScreenPlan.find(plan, "place"), "the place pill collapsed")
+        val clock = assertNotNull(ScreenPlan.find(plan, "place.clock"), "the clock pill collapsed")
+        assertTrue(clock.w >= 132f, "the clock pill is ${clock.w} wide")
+        val wider = ScreenPlan.plan(412f, 915f, ScreenInsets(), s)
+        val place = assertNotNull(ScreenPlan.find(wider, "place"), "the place pill collapsed at 412")
         assertTrue(place.w >= 80f + 132f, "the pill is ${place.w} wide")
         assertNotNull(ScreenPlan.find(plan, "menu")); assertNotNull(ScreenPlan.find(plan, "cinematic"))
         // with a mode on, the pill shrinks to the clock; the way out of the mode stays
         val busy = ScreenPlan.plan(360f, 800f, ScreenInsets(), s.copy(mode = ScreenMode.BUILD))
         assertNotNull(ScreenPlan.find(busy, "mode")); assertNull(ScreenPlan.find(busy, "cinematic"))
-        assertTrue(ScreenPlan.find(busy, "place.compact")?.w ?: 0f >= ScreenPlan.PLACE_COMPACT || ScreenPlan.find(busy, "place") != null)
+        assertTrue((ScreenPlan.find(busy, "place.clock") ?: ScreenPlan.find(busy, "place.compact"))!!.w >= ScreenPlan.PLACE_COMPACT)
         // beside a notch in the middle, the bar splits round it
         val notch = ScreenPlan.plan(360f, 800f, ScreenInsets(cutouts = listOf(ScreenRect(130f, 0f, 230f, 40f))), s)
         assertTrue(ScreenPlan.find(notch, "menu")!!.r <= 130f - 8f)

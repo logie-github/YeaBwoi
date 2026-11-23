@@ -5,7 +5,7 @@ package com.logie.wifecraft.ui
 // into the More sheet, so nothing is "on page 2".
 
 /** What the dock is for: the NPC's orders, the animation playing, Build's tools, JOI, Chat, or nothing. */
-enum class DockKind { NONE, NORMAL, PLAYING, BUILD, JOI, CHAT }
+enum class DockKind { NONE, NORMAL, PLAYING, SOFT, BUILD, JOI, CHAT }
 
 /** One target in the dock: [id], its short [label], the order it gives ([order], null: a dock-only target), [lit], its narrowest width. */
 data class DockItem(val id: String, val label: String, val order: HudOrder? = null, val lit: Boolean = false, val minW: Float = ScreenPlan.TOUCH)
@@ -51,6 +51,10 @@ object DockModel {
         if (rest.isNotEmpty()) items += DockItem("more", "More")
         return DockPlan(if (performing) DockKind.PLAYING else DockKind.NORMAL, items.take(MAX), rest)
     }
+
+    /** The flow's dock: the soft controls (Slower, Faster, Closer, Position, Continue, End), one target each. */
+    fun soft(ids: List<String>, labels: List<String>): DockPlan =
+        DockPlan(DockKind.SOFT, ids.zip(labels).map { (id, label) -> DockItem(id, label) }.take(MAX))
 
     /** Build's dock: its tools, undo, redo and Done (it scrolls where the screen is narrow). */
     fun build(): DockPlan = DockPlan(DockKind.BUILD, BUILD_TOOLS.map { DockItem(it.lowercase(), it, minW = 72f) })

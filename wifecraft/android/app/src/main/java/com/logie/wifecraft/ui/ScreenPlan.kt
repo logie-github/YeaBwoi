@@ -83,7 +83,8 @@ object ScreenPlan {
     const val CAMERA_W = 100f
     const val KEYS_H = 100f
     const val MODE_W = 104f
-    const val PLACE_FULL = 212f
+    const val PLACE_FULL = 240f
+    const val PLACE_CLOCK = 150f
     const val PLACE_COMPACT = 96f
     const val DOCK_MAX_W = 780f
     const val SHEET_MIN_H = 96f
@@ -155,6 +156,7 @@ object ScreenPlan {
                 val limit = if (first === last) endL else first.b
                 val avail = limit - x
                 if (avail >= PLACE_FULL) out += ScreenPlaced("place", ScreenSlot.TOP_START, ScreenRect(x, top, x + min(avail, 260f), barB))
+                else if (avail >= PLACE_CLOCK) out += ScreenPlaced("place.clock", ScreenSlot.TOP_START, ScreenRect(x, top, x + min(avail, 170f), barB))
                 else if (avail >= PLACE_COMPACT) out += ScreenPlaced("place.compact", ScreenSlot.TOP_START, ScreenRect(x, top, x + min(avail, 132f), barB))
             }
         }

@@ -13,7 +13,7 @@ object PanelRules {
         ScreenPanel.MOVE_PANEL -> mode == ScreenMode.MOVE
         ScreenPanel.CHAT_LOG -> mode == ScreenMode.CHAT
         ScreenPanel.AUTOPLAY -> mode == ScreenMode.CINEMATIC
-        ScreenPanel.MORE, ScreenPanel.ANIMATIONS -> mode == ScreenMode.NORMAL
+        ScreenPanel.MORE, ScreenPanel.ANIMATIONS -> mode == ScreenMode.NORMAL || mode == ScreenMode.CINEMATIC
         ScreenPanel.STEER -> mode == ScreenMode.NORMAL || mode == ScreenMode.JOI || mode == ScreenMode.CHAT
         else -> true
     }
