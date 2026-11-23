@@ -1899,6 +1899,7 @@ fun LiveSceneScreen(
         }
         val sheetPanel = when {
             panel != ScreenPanel.NONE -> panel
+            screenMode == ScreenMode.JOI -> ScreenPanel.STEER
             mapper.on -> ScreenPanel.MOVE_PANEL
             build.on -> ScreenPanel.BUILD_PANEL
             screenMode == ScreenMode.CINEMATIC && cinematicSettings.autoplay -> ScreenPanel.AUTOPLAY
@@ -1996,7 +1997,8 @@ fun LiveSceneScreen(
         // JOI mode: the subtitles in the film frame's lower third, and (the interface up) its controls
         if (joiActor != null) JoiLayer(joiMode, joiTick, cinematicSettings.frame, controls = !cineHidden && revealed,
             creature = live.joiCreature != null, onDownloadModel = { com.logie.wifecraft.data.DialogueHost.startDownload() },
-            onRetry = { if (joiEngine() != null) joiMode.modelReady(); joiTick++ }, onStop = { joiLeave = true }, onChanged = { joiTick++ })
+            onRetry = { if (joiEngine() != null) joiMode.modelReady(); joiTick++ }, onStop = { joiLeave = true }, onChanged = { joiTick++ },
+            controlsRect = autoRect.takeIf { sheetPanel == ScreenPanel.STEER })
         // Chat mode: the setup sheet, and (the camera in front of her) her subtitles, the log, the topic chips and the text field
         chatSheet?.let { sid ->
             val setup = chatMode.setup
