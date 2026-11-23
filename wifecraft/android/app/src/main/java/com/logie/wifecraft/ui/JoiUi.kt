@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -16,10 +17,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -33,8 +38,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.logie.wifecraft.dialogue.DialogueEngine
+import com.logie.wifecraft.dialogue.DirtyLevel
+import com.logie.wifecraft.dialogue.DirtyTalk
 import com.logie.wifecraft.dialogue.JoiLineRequest
 import com.logie.wifecraft.dialogue.JoiPersona
 import com.logie.wifecraft.dialogue.JoiPrompt
@@ -46,6 +54,7 @@ import com.logie.wifecraft.simulation.JoiEvent
 import com.logie.wifecraft.simulation.JoiFraming
 import com.logie.wifecraft.simulation.JoiMode
 import com.logie.wifecraft.simulation.JoiPhase
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -74,11 +83,15 @@ fun JoiRunner(
         if (!running) return@LaunchedEffect
         val recent = ArrayList<String>()
         var last = android.os.SystemClock.uptimeMillis()
+        var pending: Job? = null
+        var epoch = mode.steerEpoch
         while (isActive) {
             delay(100)
             val now = android.os.SystemClock.uptimeMillis()
             val dt = (now - last) / 1000f
             last = now
+            // a steer typed meanwhile: the line being written under the old one is given up (the mode already dropped its answer and the queued line)
+            if (mode.steerEpoch != epoch) { epoch = mode.steerEpoch; pending?.cancel() }
             mode.update(dt)
             for (e in mode.drain()) when (e) {
                 is JoiEvent.NeedLine -> {
@@ -88,9 +101,12 @@ fun JoiRunner(
                     val band = mode.band
                     val recentNow = recent.toList()
                     val actionNow = mode.action()
-                    scope.launch {
+                    val levelNow = mode.level
+                    val steerTextNow = mode.customSteer
+                    pending = scope.launch {
                         val text = if (p != null && eng != null)
-                            runCatching { JoiPrompt.line(eng, JoiLineRequest(p, e.stage, band, steer, recentNow, e.countdownFrom, npcId = mode.actor.orEmpty(), action = actionNow), pack) }.getOrNull()
+                            runCatching { JoiPrompt.line(eng, JoiLineRequest(p, e.stage, band, steer, recentNow, e.countdownFrom, npcId = mode.actor.orEmpty(), action = actionNow,
+                                level = levelNow, customSteer = steerTextNow), pack) }.getOrNull()
                         else null
                         mode.offerLine(e.serial, text)
                         if (text != null) { recent += text; while (recent.size > 6) recent.removeAt(0) }
@@ -118,6 +134,7 @@ fun JoiLayer(
     modifier: Modifier = Modifier,
 ) {
     @Suppress("UNUSED_VARIABLE") val redraw = tick
+    var typed by remember { mutableStateOf("") }   // the steer being typed: kept while the controls hide
     BoxWithConstraints(modifier.fillMaxSize()) {
         val density = LocalDensity.current
         val wPx = with(density) { maxWidth.toPx() }.toInt(); val hPx = with(density) { maxHeight.toPx() }.toInt()
@@ -145,7 +162,7 @@ fun JoiLayer(
                 }
             }
         }
-        if (controls) JoiControls(mode, creature, onStop, onChanged,
+        if (controls) JoiControls(mode, creature, typed, { typed = it }, maxHeight - 72.dp, onStop, onChanged,
             Modifier.align(Alignment.TopStart).windowInsetsPadding(WindowInsets.safeDrawing).padding(start = 8.dp, top = 64.dp))
     }
 }
@@ -167,8 +184,9 @@ private fun NeedsModel(mode: JoiMode, onDownload: (() -> Unit)?, onRetry: () -> 
 }
 
 @Composable
-private fun JoiControls(mode: JoiMode, creature: Boolean, onStop: () -> Unit, onChanged: () -> Unit, modifier: Modifier) {
-    Column(modifier.widthIn(max = 380.dp).wifeSurface().padding(WifeTheme.gapS), verticalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
+private fun JoiControls(mode: JoiMode, creature: Boolean, typed: String, onTyped: (String) -> Unit, maxHeight: Dp, onStop: () -> Unit, onChanged: () -> Unit, modifier: Modifier) {
+    Column(modifier.widthIn(max = 380.dp).heightIn(max = maxHeight).wifeSurface().verticalScroll(rememberScrollState()).padding(WifeTheme.gapS),
+        verticalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
         Row(horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS), verticalAlignment = Alignment.CenterVertically) {
             Text("JOI", style = WifeTheme.labelStyle())
             Text(mode.stage?.replaceFirstChar { it.uppercase() }?.let { "$it ${mode.stageIndex + 1}/${mode.stageCount}" } ?: "", style = WifeTheme.captionStyle())
@@ -177,11 +195,19 @@ private fun JoiControls(mode: JoiMode, creature: Boolean, onStop: () -> Unit, on
             val framings = JoiFraming.SHOWN
             WifeTabs(framings.map { it.label }, framings.indexOf(mode.framing).coerceAtLeast(0), { mode.setFraming(framings[it]); onChanged() })
         } else Text("Her head, circled slowly", style = WifeTheme.captionStyle())
-        val bands = JoiMode.BANDS
-        WifeTabs(bands.map { it.wire.replaceFirstChar { c -> c.uppercase() } }, bands.indexOf(mode.band).coerceAtLeast(0), { mode.setBand(bands[it]); onChanged() })
+        // the dirty talk level: Cute .. WTF??!, this session's own (Options' default is where it starts); applies from the next line
+        val levels = DirtyLevel.entries
+        WifeSliderRow("Dirty talk", mode.level.ordinal, { mode.setLevel(levels[it.coerceIn(0, levels.lastIndex)]); onChanged() },
+            valueText = mode.level.label, range = 0..levels.lastIndex)
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
             for (s in JoiSteer.entries) WifeChip(s.label, { mode.toggleSteer(s); onChanged() }, trailing = if (s in mode.steer) "✓" else null)
         }
+ // a steer of her own words: the very next line carries it, and it stands (a chip) until cleared
+        Row(horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs), verticalAlignment = Alignment.CenterVertically) {
+            WowTextField(typed, { onTyped(it.take(DirtyTalk.STEER_MAX)) }, "Steer her, e.g. talk about her ass", Modifier.weight(1f))
+            WifeButton("Steer", { mode.setSteerText(typed); onTyped(""); onChanged() })
+        }
+        mode.customSteer?.let { s -> WifeChip(s, { mode.clearSteerText(); onChanged() }) }
         Row(horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
             WifeButton(if (mode.phase == JoiPhase.PAUSED) "Resume" else "Pause", { mode.togglePause(); onChanged() })
             WifeButton("Skip stage", { mode.skip(); onChanged() })

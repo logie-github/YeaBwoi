@@ -16,16 +16,18 @@ data class JoiPersona(
     /** The dragon voice (Sindragosa): ancient, imperious, frost; no person's way of speaking. */
     val dragon: Boolean = false,
     val bio: String = "",
+    /** The speaker's sex, for the few-shot lines that only a woman or a man says (null: the lines for anyone). */
+    val female: Boolean? = null,
 )
 
 /** Steer chips: what the viewer can lean the lines toward. Each has the instruction the prompt gets. */
 enum class JoiSteer(val label: String, val instruction: String) {
-    TEASE("Tease more", "Tease more: mock-stern, playful, make them wait."),
-    SOFT("Softer", "Be softer and more tender; praise warmly."),
-    FIRM("Firmer", "Be firmer and more commanding; short orders."),
-    SLOWER("Slower", "Slow everything down; longer pauses, smaller steps."),
-    DESCRIBE("Describe", "Describe what you see them doing, vividly, in your own voice."),
-    PRAISE("Praise", "Praise them often for doing well."),
+    TEASE("Tease more", "Tease more: mock them, make them wait, deny them a little, make them squirm."),
+    SOFT("Softer", "Be softer and warmer, still in your own dirty voice; praise them with hunger."),
+    FIRM("Firmer", "Be firmer and more commanding; short, hard orders."),
+    SLOWER("Slower", "Slow everything down; longer waits, smaller steps."),
+    DESCRIBE("Describe", "Describe what you see them doing, vividly and dirty, in your own voice."),
+    PRAISE("Praise", "Praise them often for what they do well, in your own dirty voice."),
 }
 
 /** The stage's request: everything the prompt needs, no state. */
@@ -42,58 +44,93 @@ data class JoiLineRequest(
     val npcId: String = "",
     /** What she is doing with her hands as she speaks (JoiMode.action: "your hand is stroking them, slowly"); null: nothing the line must match. */
     val action: String? = null,
+    /** How filthy her words are ([DirtyLevel]): Cute .. WTF??!. It sets the register; the band never blocks it. */
+    val level: DirtyLevel = DirtyLevel.DEFAULT,
+    /** What the viewer typed to steer the lines (standing until cleared): in the next line she says or does it. Null: none. */
+    val customSteer: String? = null,
+    /** Words to add to the user message (the retry notes). */
+    val note: String? = null,
 )
 
 object JoiPrompt {
     /** Words that would break the world: the NPC never knows of a player, a game, a screen or a camera. */
     private val FOURTH_WALL = Regex(
-        "\\b(player|players|game|gamer|screen|camera|viewer|viewers|audience|app|pixel|pixels|npc|npcs|simulation|ai|model|chatbot|prompt|user|stream|subscribers?)\\b",
+        "\\b(player|players|game|gamer|screen|camera|viewer|viewers|audience|app|pixel|pixels|npc|npcs|simulation|ai|model|chatbot|prompt|user|streamer|livestream|subscribers?)\\b",
         RegexOption.IGNORE_CASE)
 
-    const val MAX_CHARS = 220
+    const val MAX_CHARS = 260
+
+    /** How many few-shot lines the system prompt shows. */
+    const val EXAMPLES = 8
+    /** The most tries one line gets: the first, then a retry for each thing wrong with the last (wellness talk, a copied line). */
+    const val TRIES = 3
+
+    /** The comfort band the pack is asked with: the plan's, raised by the level and never lowered by it or by the band. */
+    fun bandFor(r: JoiLineRequest): Band = if (r.level.joiBand.ordinal > r.band.ordinal) r.level.joiBand else r.band
+
+    /** Which of the level's lines the ask shows: a place in the list that moves with the stage and the lines already said. */
+    private fun seedOf(r: JoiLineRequest): Int = r.recent.size * 3 + (r.countdownFrom ?: 0) + r.stage.length
+
+    /** The few-shot lines [system] shows for [r] (a reply may not copy them). */
+    fun shown(r: JoiLineRequest, pack: KinkContext?): List<String> =
+        pack?.dirty()?.examples(r.level, r.stage, EXAMPLES, r.persona.female, seedOf(r)).orEmpty()
 
     fun system(r: JoiLineRequest, pack: KinkContext?): String {
         val p = r.persona
-        val q = KinkQuery(r.band, p.personalities, p.role, p.races, p.classes, stage = "joi", limit = 2)
+        val q = KinkQuery(bandFor(r), p.personalities, p.role, p.races, p.classes, stage = "joi", limit = 2, level = r.level)
         val sb = StringBuilder()
         sb.append("You are ").append(p.name).append(", an adult").append(if (p.dragon) " frost dragon of great age" else " person")
-            .append(" in a private room with one other adult who has agreed to this and may stop it with a word. ")
-        sb.append("You are talking them through a slow, consensual exercise of self-touch, giving instructions aloud. ")
-        sb.append("Speak only as ").append(p.name).append(" speaks, directly to them as \"you\", in the present tense. ")
+            .append(" alone in a private room with one other adult, who wants exactly this and asked you for it. ")
+        sb.append("You are giving them a JOI: jerk-off instructions. You tell them aloud what to do to themself, how fast, when to stop and when they may cum, and you say it as dirty as your voice goes. ")
+        sb.append("Speak only as ").append(p.name).append(" speaks, directly to them as \"you\", in the present tense.\n")
         if (p.dragon) {
-            sb.append("Voice: ancient, imperious, patient, cold as the high ice; vast and unhurried, never crude; she addresses you as a small warm creature at her feet. ")
+            sb.append("Voice: ancient, imperious, patient, cold as the high ice; vast and unhurried; you address them as a small warm creature at your feet. ")
         } else if (p.personalities.isNotEmpty()) {
             sb.append("Your manner: ").append(p.personalities.sorted().joinToString(", ")).append(". ")
         }
         if (p.bio.isNotBlank()) sb.append("About you: ").append(p.bio.take(160)).append(' ')
+        sb.append('\n').append(DirtyTalk.register(r.level)).append(' ')
+        if (r.level.explicit) sb.append("No word is off limits; say it plainly. ")
+        sb.append('\n')
         pack?.joiHint(r.stage, q)?.let { sb.append("This moment: ").append(it).append(' ') }
-        pack?.care(q)?.let { if (r.stage == "setup" || r.stage == "afterglow") sb.append("Care: ").append(it).append(' ') }
+        // care: only in the afterglow, and from Spicy up only now and then, in your own voice
+        if (r.stage == "afterglow" && (!r.level.explicit || seedOf(r) % 3 == 0)) pack?.care(q.copy(stage = "aftercare"))?.let { sb.append("Care, if it fits, in your own words: ").append(it).append(' ') }
         for (s in r.steer) sb.append(s.instruction).append(' ')
-        pack?.examples(q, 1)?.firstOrNull()?.let { ex ->
-            sb.append("\nExample of the style (do not copy):\n").append(ex.render().take(360)).append('\n')
-        }
-        sb.append("\nRules: one or two short sentences, at most 30 words. Spoken words only: no stage directions, no asterisks, no quotation marks, ")
+        sb.append("\nRules: one to three short sentences, at most ").append(r.level.joiWords).append(" words. Spoken words only: no stage directions, no asterisks, no quotation marks, ")
         sb.append("no narration, no lists. Never mention players, games, screens, cameras, audiences, apps or anything outside the room. ")
-        sb.append("Never repeat an earlier line. Stay in this moment.")
+        sb.append("Never repeat an earlier line. Stay in this moment and keep to the voice above.")
         return sb.toString()
+    }
+
+    /** The few-shot lines as earlier turns of the talk (an order asked for, the line said): a small model follows the register of turns better than a list, and says one line. */
+    fun history(r: JoiLineRequest, pack: KinkContext?): List<DialogueTurn> {
+        val task = task(r)
+        return shown(r, pack).flatMap { listOf(DialogueTurn(DialogueTurn.Role.USER, task), DialogueTurn(DialogueTurn.Role.ASSISTANT, it)) }
+    }
+
+    /** What she is asked to say, by the stage. */
+    private fun task(r: JoiLineRequest): String = when {
+        r.countdownFrom != null -> "Say one short line before you begin counting down from ${r.countdownFrom}, firm and slow."
+        r.stage == "permit" -> "Say the line that lets them cum, right now, in your own words."
+        r.stage == "afterglow" -> "Say what you say to them now that they have cum, in your own voice."
+        r.level.explicit -> "Say your next order for the ${r.stage} part, ${r.level.taskTail}."
+        else -> "Say your next order for the ${r.stage} part."
     }
 
     fun user(r: JoiLineRequest): String {
         val sb = StringBuilder()
         if (r.recent.isNotEmpty()) sb.append("You already said:\n").append(r.recent.takeLast(3).joinToString("\n") { "- $it" }).append("\n")
-        if (r.action != null && !r.persona.dragon) sb.append("Right now ").append(r.action).append(". Let your words match what your hand is doing: if it is slow, say it slowly; if it is quick, make it quick.\n")
-        when {
-            r.countdownFrom != null -> sb.append("Say one short line before you begin counting down from ${r.countdownFrom}, firm and slow.")
-            r.stage == "permit" -> sb.append("Say the line that lets you finish, warm and certain.")
-            r.stage == "afterglow" -> sb.append("Say something soft and true to bring you down gently.")
-            else -> sb.append("Say your next line for the ").append(r.stage).append(" part.")
-        }
+        if (r.action != null && !r.persona.dragon) sb.append("Right now ").append(r.action).append(". Let the pace of your orders match it (slow is slow, quick is quick), in the same crude voice as the lines above.\n")
+        r.customSteer?.let { sb.append(DirtyTalk.steerHint(it)).append('\n') }
+        sb.append(task(r))
+        r.note?.let { sb.append('\n').append(it) }
         return sb.toString()
     }
 
     fun request(r: JoiLineRequest, pack: KinkContext?): DialogueRequest =
-        DialogueRequest(npcId = r.npcId.ifEmpty { r.persona.name }, system = system(r, pack), user = user(r), maxTokens = 70,
-            temperature = if (r.persona.dragon) 0.7f else 0.85f, priority = DialoguePriority.SELECTED)
+        DialogueRequest(npcId = r.npcId.ifEmpty { r.persona.name }, system = system(r, pack), history = history(r, pack), user = user(r), maxTokens = r.level.joiTokens, stop = listOf("\n"),
+            temperature = if (r.persona.dragon) 0.75f else r.level.temperature, topP = r.level.topP, repeatPenalty = r.level.repeatPenalty,
+            priority = DialoguePriority.SELECTED)
 
     /** Whether [text] names something outside the room. */
     fun breaksWorld(text: String): Boolean = FOURTH_WALL.containsMatchIn(text)
@@ -106,9 +143,10 @@ object JoiPrompt {
     fun clean(raw: String?, name: String = ""): String? {
         var t = raw ?: return null
         t = t.replace(Regex("\\*[^*]*\\*"), " ").replace(Regex("\\([^)]*\\)"), " ").replace(Regex("\\[[^\\]]*\\]"), " ")
+        t = t.replace(Regex("[\\p{So}\\p{Sk}\\uFE0F\\u200D]"), "")
         t = t.replace("\"", "").replace("“", "").replace("”", "").replace('\n', ' ')
         if (name.isNotBlank()) t = t.trim().removePrefix("$name:").removePrefix("$name :")
-        t = t.replace(Regex("\\s+"), " ").trim()
+        t = t.replace(Regex("\\s+"), " ").trim().trimStart('-', '•', ' ')
         if (t.length < 2) return null
         if (breaksWorld(t)) return null
         if (t.length > MAX_CHARS) {
@@ -119,14 +157,25 @@ object JoiPrompt {
         return t
     }
 
-    /** One line from [engine] for [r]: tries twice (the second with the model's first reply refused), null when it has none. */
+    /**
+     * One line from [engine] for [r]. A line that names something outside the room, repeats an earlier one or comes back empty is
+     * asked again; from Spicy up one with wellness language ([DirtyTalk.WELLNESS]) is asked again once with a note, and so is one that
+     * copies a shown line. If the last try still has wellness talk its sentences are cut out; null when nothing is left or none came.
+     */
     suspend fun line(engine: DialogueEngine, r: JoiLineRequest, pack: KinkContext?): String? {
-        val req = request(r, pack)
-        repeat(2) {
-            val got = clean(engine.complete(req), r.persona.name)
-            if (got != null && got !in r.recent) return got
+        var note: String? = r.note
+        var wellness: String? = null
+        var copy: String? = null
+        var empty = 0
+        val shown = shown(r, pack)
+        for (attempt in 0 until TRIES) {
+            val got = clean(engine.complete(request(r.copy(note = note), pack)), r.persona.name)
+            if (got == null || got in r.recent) { if (++empty >= 2) break; continue }   // nothing, the fourth wall or a repeat: once more, no more
+            if (DirtyTalk.refused(got, r.level)) { wellness = got; note = DirtyTalk.WELLNESS_NOTE }
+            else if (DirtyTalk.copies(got, shown)) { copy = got; note = DirtyTalk.COPY_NOTE }
+            else return got
         }
-        return null
+        return wellness?.let { DirtyTalk.stripWellness(it) } ?: copy
     }
 
     private val TRAIT_TO_VARIANT = mapOf(
@@ -143,6 +192,12 @@ object JoiPrompt {
         if (dragon) return setOf("dominant", "strict")
         val out = traits.mapNotNull { TRAIT_TO_VARIANT[it.trim().lowercase()] }.toSet()
         return out.ifEmpty { setOf("teasing") }
+    }
+
+    /** The persona key of a class id (the kink pack's class twists) for the ids the creator uses. */
+    fun classKey(classId: Int): String? = when (classId) {
+        1 -> "warrior"; 2 -> "paladin"; 3 -> "hunter"; 4 -> "rogue"; 5 -> "priest"; 6 -> "deathknight"; 7 -> "shaman"; 8 -> "mage"
+        9 -> "warlock"; 10 -> "monk"; 11 -> "druid"; 12 -> "demonhunter"; else -> null
     }
 
     /** The persona keys of a race id (the kink pack's twist keys) for the ids the creator uses. */

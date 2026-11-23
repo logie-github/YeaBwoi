@@ -23,7 +23,7 @@ enum class ChatTone {
         private val HOSTILE_RE = Regex("\\b(idiot|stupid|fool|ugly|shut up|i hate you|hate you|bitch|bastard|worthless|pathetic|disgusting|die)\\b", RegexOption.IGNORE_CASE)
         private val KIND_RE = Regex("\\b(thank|thanks|please|kind|lovely|beautiful|pretty|handsome|friend|glad|sorry|welcome|well met|pleasure|charming|gentle|dear)\\b", RegexOption.IGNORE_CASE)
         fun of(text: String): ChatTone = when {
-            HOSTILE_RE.containsMatchIn(text) -> HOSTILE
+            HOSTILE_RE.containsMatchIn(text) && !ChatPrompt.raisesDesire(text) -> HOSTILE   // a filthy name in dirty talk is not an insult
             KIND_RE.containsMatchIn(text) -> KIND
             else -> NEUTRAL
         }
@@ -50,7 +50,7 @@ object ChatPrompt {
     val RULES: String = PersonaPrompt.RULES.replace("Speak in short natural lines, one or two sentences. ", "Speak in natural lines. ")
 
     /** Words that mean the user raised desire themselves (the talk may go there at once, as the NPC's nature allows). */
-    private val DESIRE_RE = Regex("\\b(sex|sexy|bed|kiss|naked|touch|lust|want you|desire|aroused|body|bodies|breasts?|thighs?|undress|seduce|lover|make love|fuck|fantasy|fantasies)\\b", RegexOption.IGNORE_CASE)
+    private val DESIRE_RE = Regex("\\b(sex|sexy|bed|kiss|naked|touch|lust|want you|desire|aroused|body|bodies|breasts?|thighs?|undress|seduce|lover|make love|fuck\\w*|fantasy|fantasies|cock|cunt|pussy|tits|ass|cum|horny|slut|whore)\\b", RegexOption.IGNORE_CASE)
     fun raisesDesire(text: String): Boolean = DESIRE_RE.containsMatchIn(text)
 
     /**
@@ -110,6 +110,8 @@ object ChatPrompt {
         val kink: KinkContext? = null,
         /** Extra words appended after a refused reply (the anachronism or the fourth wall). */
         val retryNote: String? = null,
+        /** How filthy her words are (Options' Dirty talk level) when the talk turns to desire. */
+        val dirty: DirtyLevel = DirtyLevel.DEFAULT,
     )
 
     /** The user message of one turn: the place, who stands before her and what the lore says of them, the ease, steers, what was said, the task. */
@@ -126,6 +128,7 @@ object ChatPrompt {
         }
         if (t.desireTopic) {
             lore.kinkGuide(t.band.key)?.let { b.append("How open you are now: ").append(it).append('\n') }
+            b.append(DirtyTalk.register(t.dirty)).append('\n')
             b.append("In bed you are ${t.me.disposition.style}.\n")
             kinkNotes(lore, t)?.let { b.append(it) }
         }
@@ -146,18 +149,21 @@ object ChatPrompt {
         val me = t.me
         val q = KinkQuery(t.band.kink, TurnPrompt.personalityWords(me), TurnPrompt.roleOf(me.disposition),
             listOfNotNull(lore.raceKey(me.raceId), lore.raceKey(t.you.raceId)),
-            listOfNotNull(lore.className(me.classId), lore.className(t.you.classId)).map { it.replace(" ", "").lowercase() }, stage = "flirt", limit = 3)
+            listOfNotNull(lore.className(me.classId), lore.className(t.you.classId)).map { it.replace(" ", "").lowercase() }, stage = "flirt", limit = 3, level = t.dirty)
         val sb = StringBuilder()
         val snippets = k.snippets(q)
         if (snippets.isNotEmpty()) sb.append("Ideas you may draw on, in your own words: ").append(snippets.joinToString(" ")).append('\n')
-        k.examples(q, 1).firstOrNull()?.let { sb.append("A sample of the register (do not copy it):\n").append(it.render()).append('\n') }
+        val lines = k.dirty()?.examples(t.dirty, "chat", 4, me.female, (t.heard?.length ?: 0))
+        if (!lines.isNullOrEmpty()) sb.append(DirtyTalk.examplesBlock(lines, "Lines in this register, for the feel (never copy them, say something new):"))
+        else k.examples(q, 1).firstOrNull()?.let { sb.append("A sample of the register (do not copy it):\n").append(it.render()).append('\n') }
         return sb.takeIf { it.isNotEmpty() }?.toString()
     }
 
     /** The request for a turn: its own state in the runtime ("chat:" + the NPC's id), selected priority, the length's cap, partial text passed on. */
-    fun request(system: String, history: List<DialogueTurn>, user: String, npcId: String, length: ChatLength, onPartial: ((String) -> Unit)?): DialogueRequest =
+    fun request(system: String, history: List<DialogueTurn>, user: String, npcId: String, length: ChatLength, onPartial: ((String) -> Unit)?,
+        dirty: DirtyLevel = DirtyLevel.DEFAULT): DialogueRequest =
         DialogueRequest(npcId = CHAT_PREFIX + npcId, system = system, history = history, user = user, maxTokens = length.tokens,
-            temperature = 0.85f, priority = DialoguePriority.SELECTED, onPartial = onPartial)
+            temperature = dirty.temperature, topP = dirty.topP, repeatPenalty = dirty.repeatPenalty, priority = DialoguePriority.SELECTED, onPartial = onPartial)
 
     const val CHAT_PREFIX = "chat:"
 }
