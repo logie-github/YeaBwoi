@@ -29,6 +29,9 @@ class Lore(json: String) {
     private val factions: Map<String, String> = strings(root.getJSONObject("factions"))
     private val places: Map<String, String> = strings(root.getJSONObject("places"))
     private val stances: Map<String, String> = strings(root.getJSONObject("stances"))
+    /** Character profiles and eras (null: none; the prompts are then as they were). Set by the loader ([PersonaKit.load]); the era in force is the kit's. */
+    @Volatile var kit: PersonaKit? = null
+
     private val bodies: Map<String, String> = strings(root.getJSONObject("bodies")).filterKeys { it != "comment" }
     private val kinks: Map<String, String> = strings(root.getJSONObject("kinks")).filterKeys { it != "comment" }
 
@@ -58,7 +61,9 @@ class Lore(json: String) {
     /** The place's snippet: the first of the pack's keys found in [placeName] (case-insensitive), or null. */
     fun place(placeName: String): String? {
         val n = placeName.lowercase()
-        return places.entries.firstOrNull { it.key in n }?.value
+        val base = places.entries.firstOrNull { it.key in n }
+        val era = kit?.placeNote(n)
+        return when { base == null -> era; era == null -> base.value; else -> "${base.value} $era" }
     }
 
     /** The most specific stance [from] holds toward [to] (race over faction), or null: nothing special. */
@@ -67,7 +72,8 @@ class Lore(json: String) {
         val b = raceKey(to) ?: return null
         val fa = faction(from).key
         val fb = faction(to).key
-        return stances["$a>$b"] ?: stances["$a>$fb"] ?: stances["$fa>$b"] ?: stances["$fa>$fb"]
+        val keys = listOf("$a>$b", "$a>$fb", "$fa>$b", "$fa>$fb")
+        return keys.firstNotNullOfOrNull { k -> kit?.stance(listOf(k)) ?: stances[k] }   // the era's stance first at each level of specificity
     }
 
     /** What the body of a [raceId] is like, for the erotic talk; null for an unknown race. */

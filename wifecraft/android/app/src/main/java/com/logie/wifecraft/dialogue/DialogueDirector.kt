@@ -28,6 +28,9 @@ class DialogueDirector(
         random: Random = Random.Default, kink: KinkPack? = null) : this({ engine }, lore, sink, settings, random, kink)
 
     @Volatile var settings: DialogueSettings = settings
+    /** The era the scene was set in at its creation or changed from the scene menu (null: the place's own era, else [settings]' Default era). It applies from the next line. */
+    @Volatile var sceneEra: String? = null
+    @Volatile var sceneCustomYear: Int = 0
     val comfort = ComfortLedger()
     val steers = SteerBoard()
     private val runner = ModelRunner(engineOf)
@@ -161,6 +164,7 @@ class DialogueDirector(
 
     private fun syncEngine(v: SceneView) {
         val engine = engineOf()
+        applyEra(v, engine)
         // an NPC whose persona changed, or who left: their state in the model is given up (the next request reads the whole prompt again)
         val ids = v.people.map { it.profile.id }.toSet()
         for (p in v.people) {
@@ -173,6 +177,23 @@ class DialogueDirector(
         if (engine == null) { focusEngine = null; focusSent = null; return }
         val f = focusOf(v)
         if (engine !== focusEngine || f != focusSent) { focusEngine = engine; focusSent = f; engine.setFocus(f.first, f.second) }
+    }
+
+    /** The era in force (the scene's own, else the place's, else Options' Default era), set on the lore's [PersonaKit]; a change flushes every persona (the system prompts, the talk so far, the runtime's state). */
+    private fun applyEra(v: SceneView, engine: DialogueEngine?) {
+        val kit = lore.kit ?: return
+        val id = sceneEra ?: kit.eraForPlace(v.place.name) ?: settings.era
+        val year = if (sceneEra != null) sceneCustomYear else settings.customYear
+        val before = kit.eraKey
+        kit.setEra(id, year)
+        if (kit.eraKey != before) { systems.clear(); history.clear(); seenProfiles.keys.forEach { engine?.forget(it) } }
+    }
+
+    /** The persona kit's per-turn notes (relationships of those present, topics the talk touches), or null. */
+    private fun personaNotes(me: NpcProfile, v: SceneView, c: Candidate): String? {
+        val kit = lore.kit ?: return null
+        val said = listOfNotNull(c.conv?.heard, c.conv?.seed) + history[me.id]?.takeLast(2)?.map { it.text }.orEmpty()
+        return kit.turnNotes(me, v.people.filter { it.profile.id != me.id }.map { it.profile }, said.joinToString(" "))
     }
 
     private fun recent() = events.map { it.second }
@@ -253,7 +274,7 @@ class DialogueDirector(
             me, v, c.mode, other, band, desire, steers.hints(me.id, other?.id), recent(),
             stageName = c.speaker.stageName, heard = c.conv?.heard, seed = c.conv?.seed?.takeIf { c.conv.heard == null },
             kink = kink, joiStage = joiStageFor(c, band), dirty = settings.dirty, maxWords = if (settings.dirty >= DirtyLevel.DEPRAVED) 34 else 28,
-        ))
+        )).let { u -> personaNotes(me, v, c)?.let { "$it\n$u" } ?: u }
         val lv = settings.dirty
         val req = DialogueRequest(me.id, system, history[me.id]?.toList().orEmpty(), user, maxTokens = if (lv >= DirtyLevel.DEPRAVED) 76 else 64,
             temperature = lv.temperature, topP = lv.topP, repeatPenalty = lv.repeatPenalty)

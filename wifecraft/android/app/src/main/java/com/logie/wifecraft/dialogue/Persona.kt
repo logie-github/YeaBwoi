@@ -79,6 +79,8 @@ data class NpcProfile(
     val traits: List<String> = emptyList(),
     val bio: String = "",
     val disposition: Disposition = Disposition.of(traits, bio),
+    /** The id of the named character this NPC is (assets/characters.json), or null: a made-up NPC. Its profile and era state come from [PersonaKit]. */
+    val named: String? = null,
 ) {
     val first: String get() = name.trim().substringBefore(' ').ifEmpty { name }
 }
@@ -91,6 +93,9 @@ data class NpcProfile(
 object PersonaPrompt {
     /** The era the realm's story is set in, taken in the prompt as the present. */
     const val ERA = "The world is Azeroth in the years after the Third War and the Scourge, with the Horde and the Alliance uneasy neighbours and old powers stirring."
+
+    /** The era line in force: the kit's era when the lore carries one ([Lore.kit]), else [ERA]. */
+    fun era(lore: Lore): String = lore.kit?.era?.present ?: ERA
 
     private val TRAIT_TEXT = mapOf(
         "EARLY_BIRD" to "you rise with the sun and tire early", "NIGHT_OWL" to "you come alive after dark",
@@ -106,7 +111,7 @@ object PersonaPrompt {
         val sex = when (p.female) { true -> "woman"; false -> "man"; null -> "person" }
         val calling = lore.className(p.classId)?.let { " $it" } ?: ""
         val b = StringBuilder()
-        b.append("You are ${p.name}, a ${race?.name ?: "traveller"}$calling $sex of Azeroth, a full-grown adult. ").append(ERA).append('\n')
+        b.append("You are ${p.name}, a ${race?.name ?: "traveller"}$calling $sex of Azeroth, a full-grown adult. ").append(era(lore)).append('\n')
         val tr = p.traits.mapNotNull { TRAIT_TEXT[it.uppercase()] }
         if (tr.isNotEmpty()) b.append("Your nature: ").append(tr.joinToString("; ")).append(".\n")
         if (p.bio.isNotBlank()) b.append("About you: ").append(p.bio.trim()).append('\n')
@@ -116,6 +121,7 @@ object PersonaPrompt {
         lore.race(p.raceId)?.let { b.append("Your people: ").append(it.about).append(' ').append(it.customs).append('\n') }
         lore.className(p.classId)?.let { b.append("Your calling: ").append(lore.classAbout(p.classId)).append('\n') }
         lore.factionAbout(lore.faction(p.raceId)).takeIf { it.isNotEmpty() }?.let { b.append(it).append('\n') }
+        lore.kit?.let { b.append(it.systemAddition(p, lore)).append('\n') }   // the character core and the era slice (PersonaKit)
         return b.toString().trim()
     }
 

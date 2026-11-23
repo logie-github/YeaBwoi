@@ -60,7 +60,8 @@ object ChatPrompt {
     fun system(npc: NpcProfile, lore: Lore, dragon: Boolean): String {
         val b = StringBuilder()
         if (dragon) {
-            b.append("You are ${npc.name}, a frost dragon of great age and power, an adult being of Azeroth. ").append(PersonaPrompt.ERA).append('\n')
+            b.append("You are ${npc.name}, a frost dragon of great age and power, an adult being of Azeroth. ").append(PersonaPrompt.era(lore)).append('\n')
+            lore.kit?.let { b.append(it.systemAddition(npc, lore)).append('\n') }
             if (npc.bio.isNotBlank()) b.append("About you: ").append(npc.bio.trim()).append('\n')
             b.append("Your voice: ancient, imperious, patient and cold as the high ice; vast and unhurried, never crude, never hurried; ")
                 .append("you regard mortals as small warm creatures and speak to them as a queen speaks to a petitioner, but you are not blind to a mortal who earns your interest. ")

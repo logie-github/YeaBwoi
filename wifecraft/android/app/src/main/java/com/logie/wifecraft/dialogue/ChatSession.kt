@@ -34,7 +34,14 @@ class ChatSession(
 
     private val lines = ArrayList<Line>()
     private val turns = ArrayDeque<DialogueTurn>()
-    private val system: String = ChatPrompt.system(npc, lore, dragon)
+    private var system: String = ChatPrompt.system(npc, lore, dragon)
+    private var systemEra: String? = lore.kit?.eraKey
+
+    /** An era change (the scene menu) changes the persona: her system prompt is made again, from the next reply. */
+    private fun refreshSystem() {
+        val k = lore.kit?.eraKey
+        if (k != systemEra) { systemEra = k; system = ChatPrompt.system(npc, lore, dragon) }
+    }
 
     /** The talk so far (newest last); readable from the screen. */
     val log: List<Line> get() = synchronized(lines) { lines.toList() }
@@ -70,7 +77,7 @@ class ChatSession(
     val band: ComfortBand get() = maxOf(comfort.band(npc.disposition, npc.id, ChatCharacter.ID), relationship.baseBand)
 
     /** The system prompt in use (stable all chat long). */
-    fun systemPrompt(): String = system
+    fun systemPrompt(): String { refreshSystem(); return system }
 
     /** The persona's id in the runtime for this chat ([ChatPrompt.CHAT_PREFIX] + her id), to be given up when the chat ends. */
     val engineId: String get() = ChatPrompt.CHAT_PREFIX + npc.id
@@ -111,7 +118,8 @@ class ChatSession(
         var note: String? = null
         repeat(2) { attempt ->
             val turn = ChatPrompt.Turn(npc, you, place, band, steers.hints(npc.id, ChatCharacter.ID), said, desire, length, kink, note, dirty, relationship, exchanges)
-            val user = ChatPrompt.user(lore, turn)
+            refreshSystem()
+            val user = (lore.kit?.turnNotes(npc, emptyList(), said.orEmpty())?.let { "$it\n" } ?: "") + ChatPrompt.user(lore, turn)
             val req = ChatPrompt.request(system, turns.toList(), user, npc.id, length, { p -> partial = ChatClean.preview(p, npc.name, length) }, if (desire) dirty else DirtyLevel.DEFAULT)
             val raw = engine.complete(req)
             if (raw == null) return null   // no answer at all: asking again would not help

@@ -1,0 +1,57 @@
+{
+ "id": "legion",
+ "label": "Legion",
+ "order": 6,
+ "release": 2016,
+ "until": 2018,
+ "years": "the second invasion of the Burning Legion",
+ "present": "The world is Azeroth under the Burning Legion's second invasion, with the Broken Isles and the Broken Shore the battlefields and champions of both camps drawn into the Order Halls.",
+ "world": "The Burning Legion invades through Argus's Tomb of Sargeras and the Broken Shore. Dalaran, risen again, floats above the Broken Isles; the Alliance and Horde share it. Sylvanas leads the Horde after Vol'jin's fall; Anduin leads the Alliance. Illidan's demon hunters return. The Nightborne, Highmountain tauren, Lightforged and others join the fight.",
+ "idiom": "Folk swear by the Light, the Loa, the Elements and the Legion's names; coin is gold, silver and copper; Order Resources and Artifact Power pay champions. Artifacts are the old weapons of the Pillars.",
+ "folk": {
+  "alliance": "You know of the Legion's second invasion, the Broken Isles and the Order Halls; the Horde is a rival you fight beside.",
+  "horde": "You know of the Legion's second invasion, Sylvanas's rule and the Broken Isles; the Alliance is a rival you fight beside.",
+  "neutral": "You hear war news from the Broken Isles and trade with both camps."
+ },
+ "classes": {},
+ "races": {
+  "voidelf": "Void elves are the followers of Alleria Windrunner, but not yet a recognised people.",
+  "zandalari": "Zandalari are an old empire of legend.",
+  "kultiran": "Kul Tiras is a distant sealord kingdom.",
+  "darkiron": "Dark Iron dwarves are an enemy clan.",
+  "vulpera": "No such people exist.",
+  "mechagnome": "No such people exist.",
+  "magharorc": "Mag'har orcs of Draenor are the free orcs of the older world.",
+  "skyborne": "No such people exist."
+ },
+ "stances": {
+  "alliance>horde": "The Alliance and Horde fight the Legion side by side, though suspicion remains.",
+  "horde>alliance": "The Horde fights the Legion beside the Alliance with some tension."
+ },
+ "introduces": [
+  "broken isles",
+  "broken shore",
+  "argus",
+  "antorus",
+  "krokuun",
+  "mac'aree",
+  "order hall",
+  "artifact weapon",
+  "suramar",
+  "val'sharah",
+  "stormheim",
+  "azsuna",
+  "nighthold",
+  "tomb of sargeras",
+  "legionfall",
+  "withered army",
+  "class hall",
+  "demon hunter order"
+ ],
+ "places": {
+  "dalaran": "The City of Magi floats above the Broken Isles, the Kirin Tor's seat under Khadgar, shared by Horde and Alliance.",
+  "stormwind": "Stormwind: Anduin's capital, with the Kirin Tor's order halls near.",
+  "brill": "Brill: the Forsaken's village of Tirisfal.",
+  "dolanaar": "Dolanaar: the Teldrassil village at the world tree's foot."
+ }
+}
