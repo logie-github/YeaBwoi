@@ -408,6 +408,8 @@ fun LiveSceneScreen(
     consent: ConsentPolicy? = null,
     /** Opens the Consent and limits window from the scene menu (null: the menu has none). */
     onLimits: (() -> Unit)? = null,
+    /** Opens the same window on one NPC's tab (More's Limits for the chosen NPC); null: More has the plain entry. */
+    onLimitsFor: ((String) -> Unit)? = null,
 ) {
     // the Character size in force for this scene (before anything below is built from the pair frame; held until the scene ends)
     val sizeContext = LocalContext.current
@@ -421,6 +423,12 @@ fun LiveSceneScreen(
     val playPrefs = remember(playContext) { playContext.getSharedPreferences("scene_play_options", android.content.Context.MODE_PRIVATE) }
     val playKey = remember(locationName, cast) { PlayOptions.sceneKey(locationName, cast.map { it.id }) }
     var playOptions by remember(playKey) { mutableStateOf(PlayOptions.decode(runCatching { playPrefs.getString(playKey, null) }.getOrNull())) }
+    // Options-style switch kept with them: a partner animation asks ("Ready to play") before it plays; off: it plays at once, in the roles last kept
+    var askPairs by remember(playContext) { mutableStateOf(runCatching { playPrefs.getBoolean(ASK_PAIR_KEY, false) }.getOrDefault(false)) }
+    fun chooseAskPairs(on: Boolean) {
+        askPairs = on
+        runCatching { playPrefs.edit().putBoolean(ASK_PAIR_KEY, on).apply() }
+    }
     fun choosePlayOptions(options: PlayOptions) {
         playOptions = options
         runCatching { playPrefs.edit().putString(playKey, options.encode()).apply() }
@@ -1891,6 +1899,7 @@ fun LiveSceneScreen(
         }
         val sheetPanel = when {
             panel != ScreenPanel.NONE -> panel
+            screenMode == ScreenMode.JOI -> ScreenPanel.STEER
             mapper.on -> ScreenPanel.MOVE_PANEL
             build.on -> ScreenPanel.BUILD_PANEL
             screenMode == ScreenMode.CINEMATIC && cinematicSettings.autoplay -> ScreenPanel.AUTOPLAY
@@ -1923,7 +1932,8 @@ fun LiveSceneScreen(
             moreItems += (if (allOn) "All gear off" else "All gear on") to { gearControl.setAll(!allOn) }
         }
         if (!build.on) moreItems += BuildEntry.menuLabel(false) to { enterBuild() }
-        if (consent != null && onLimits != null) moreItems += "Consent and limits" to { onLimits() }
+        if (consent != null && onLimitsFor != null && active != null) moreItems += "Limits: ${names[active.id] ?: ""}" to { onLimitsFor(active.id) }
+        else if (consent != null && onLimits != null) moreItems += "Consent and limits" to { onLimits() }
         fun exitMode() {
             when (screenMode) {
                 ScreenMode.CHAT -> chatLeave = true
@@ -1987,7 +1997,8 @@ fun LiveSceneScreen(
         // JOI mode: the subtitles in the film frame's lower third, and (the interface up) its controls
         if (joiActor != null) JoiLayer(joiMode, joiTick, cinematicSettings.frame, controls = !cineHidden && revealed,
             creature = live.joiCreature != null, onDownloadModel = { com.logie.wifecraft.data.DialogueHost.startDownload() },
-            onRetry = { if (joiEngine() != null) joiMode.modelReady(); joiTick++ }, onStop = { joiLeave = true }, onChanged = { joiTick++ })
+            onRetry = { if (joiEngine() != null) joiMode.modelReady(); joiTick++ }, onStop = { joiLeave = true }, onChanged = { joiTick++ },
+            controlsRect = autoRect.takeIf { sheetPanel == ScreenPanel.STEER })
         // Chat mode: the setup sheet, and (the camera in front of her) her subtitles, the log, the topic chips and the text field
         chatSheet?.let { sid ->
             val setup = chatMode.setup
@@ -2015,7 +2026,7 @@ fun LiveSceneScreen(
             val order = PendingAnimation(owner, choice, mode)
             if (choice.participantCount == 2) {
                 // with a partner: the preview before it plays (the browser's own preview plays at once, in the roles kept)
-                if (with == null) choosingPartner = order else if (preview) confirmPair(order, with) else scheduleKept(order, with)
+                if (with == null) choosingPartner = order else if (preview && askPairs) confirmPair(order, with) else scheduleKept(order, with)
             }
             else schedule(order, null)
         }
@@ -2035,6 +2046,7 @@ fun LiveSceneScreen(
             onTreatAs = { choice, t -> treat(choice, t) },
             treatedAs = treatAs,
             limitNote = { c -> limitNoteOf(owner, with, c) },
+            askBefore = askPairs, onAskBefore = { chooseAskPairs(it) },
         )
     }
     furnitureMenu?.let { menuOf ->
@@ -2090,7 +2102,7 @@ fun LiveSceneScreen(
         } else {
             HudPick("Invite who?", candidates, choosingPartner != null, { choosingPartner = null }) { other ->
                 choosingPartner = null
-                confirmPair(pending, other)
+                if (askPairs) confirmPair(pending, other) else { choosingAnimation = null; furnitureMenu = null; scheduleKept(pending, other) }
             }
         }
     }
@@ -2558,6 +2570,8 @@ private const val TWIST_DEADZONE = 0.15f
 /** A held camera button: the wait before it repeats, and the time between repeats, ms. */
 private const val HOLD_DELAY_MS = 350L
 private const val HOLD_REPEAT_MS = 90L
+/** The scene's play preferences' key for the "ask before partner animations play" switch (default off). */
+private const val ASK_PAIR_KEY = "ask_pair"
 /** Touch slops two fingers' midpoint must travel before they pan (a pinch's drift never does). */
 private const val PAN_SLOPS = 2f
 /** A still finger held this long on the view opens the radial menu (a tap is shorter: TouchGesture's 500 ms). */

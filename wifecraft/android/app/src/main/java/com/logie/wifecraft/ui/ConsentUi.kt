@@ -106,6 +106,8 @@ fun ConsentWindow(
     policy: ConsentPolicy,
     onChanged: (String, NpcLimits) -> Unit,
     loading: Boolean = false,
+    /** The NPC whose tab is chosen when the window opens (null: the first). */
+    focus: String? = null,
 ) {
     Overlay(onClose, visible) {
         BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing), contentAlignment = Alignment.Center) {
@@ -116,7 +118,7 @@ fun ConsentWindow(
                 subtitle = "Changes apply from the next act. An act in progress that becomes a Won't ends.",
                 footer = { WifeButton("Done", onClose, Modifier.widthIn(min = 120.dp), kind = WifeButtonKind.PRIMARY, sound = "close") },
             ) {
-                ConsentPanel(npcs, groups, policy, onChanged, loading, Modifier.weight(1f).fillMaxWidth())
+                ConsentPanel(npcs, groups, policy, onChanged, loading, Modifier.weight(1f).fillMaxWidth(), focus)
             }
         }
     }
@@ -138,10 +140,11 @@ internal fun ConsentPanel(
     onChanged: (String, NpcLimits) -> Unit,
     loading: Boolean,
     modifier: Modifier = Modifier,
+    focus: String? = null,
 ) {
     // (the policy is not Compose state: every edit moves [rev] so what is drawn from it is read again)
     var rev by remember { mutableIntStateOf(0) }
-    var index by remember { mutableIntStateOf(0) }
+    var index by remember(focus) { mutableIntStateOf(npcs.indexOfFirst { it.id == focus }.coerceAtLeast(0)) }
     var query by remember { mutableStateOf("") }
     var open by remember { mutableStateOf(emptySet<String>()) }
     var copying by remember { mutableStateOf(false) }

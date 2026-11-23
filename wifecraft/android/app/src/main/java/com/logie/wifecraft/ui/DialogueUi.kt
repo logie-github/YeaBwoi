@@ -82,7 +82,7 @@ fun DialogueOverlay(
     Box(modifier.fillMaxSize()) {
         if (hesitant != null && snap.active) {
             HesitationBar(hesitant, { approach -> live.command { director.persuade(hesitant.npcId, approach) } },
-                Modifier.align(Alignment.BottomCenter).padding(WifeTheme.gapM).padding(bottom = 88.dp))
+                Modifier.align(Alignment.BottomCenter).padding(WifeTheme.gapM).padding(bottom = 96.dp))  // over the dock (16 + 48) and its line (4 + 28)
         }
     }
     if (steerOpen) SteerWindow(director, live, names, snap, onCloseSteer)

@@ -132,6 +132,8 @@ fun JoiLayer(
     mode: JoiMode, tick: Int, frame: CinematicFrame, controls: Boolean, creature: Boolean,
     onDownloadModel: (() -> Unit)?, onRetry: () -> Unit, onStop: () -> Unit, onChanged: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Where the controls go (the chrome's sheet, dp; the side in landscape, above the bottom in portrait); null: the top left, as before. */
+    controlsRect: ScreenRect? = null,
 ) {
     @Suppress("UNUSED_VARIABLE") val redraw = tick
     var typed by remember { mutableStateOf("") }   // the steer being typed: kept while the controls hide
@@ -162,7 +164,9 @@ fun JoiLayer(
                 }
             }
         }
-        if (controls) JoiControls(mode, creature, typed, { typed = it }, maxHeight - 72.dp, onStop, onChanged,
+        if (controls && controlsRect != null) JoiControls(mode, creature, typed, { typed = it }, controlsRect.h.dp, onStop, onChanged,
+            Modifier.align(Alignment.TopStart).offset(controlsRect.l.dp, controlsRect.t.dp).size(controlsRect.w.dp, controlsRect.h.dp))
+        else if (controls) JoiControls(mode, creature, typed, { typed = it }, maxHeight - 72.dp, onStop, onChanged,
             Modifier.align(Alignment.TopStart).windowInsetsPadding(WindowInsets.safeDrawing).padding(start = 8.dp, top = 64.dp))
     }
 }

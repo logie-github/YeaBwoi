@@ -84,6 +84,9 @@ internal fun AnimationBrowser(
     treatedAs: Map<String, TreatAs> = emptyMap(),
     /** The limits (Consent and limits): "Won't: <name>" for a choice the NPC or their partner won't do, else null. The scene refuses it all the same. */
     limitNote: (AnimationChoice) -> String? = { null },
+    /** Whether a partner animation asks (the "Ready to play" panel) before it plays; null: the switch is not offered. */
+    askBefore: Boolean? = null,
+    onAskBefore: (Boolean) -> Unit = {},
 ) {
     var query by remember { mutableStateOf("") }
     // every animation is listed with its chip; this hides those that would play on the floor in place of their furniture
@@ -137,7 +140,7 @@ internal fun AnimationBrowser(
                                 style = WifeTheme.captionStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                         if (!split && onPlay != null) OrderModes(mode) { mode = it }
-                        if (!split && onPlay != null && options != null) RepeatControls(options, onOptions)
+                        if (!split && onPlay != null && options != null) RepeatControls(options, onOptions, askBefore.takeIf { partnerName != null }, onAskBefore)
                         LazyColumn(Modifier.weight(1f).fillMaxWidth().warScrollbar(list), list,
                             verticalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
                             if (grouped.isEmpty()) item {
@@ -148,7 +151,8 @@ internal fun AnimationBrowser(
                                 if (tabName != group) item(key = "group:$group") { WifeSectionHeader("$group  ${entries.size}") }
                                 items(entries, key = { it.id }) { choice ->
                                     AnimRow(choice, choice.id == selection, { selection = choice.id }, Modifier.padding(end = 10.dp),
-                                        availability[choice.id], onTreatAs?.let { { treating = choice } }, limitNote(choice))
+                                        availability[choice.id], onTreatAs?.let { { treating = choice } }, limitNote(choice),
+                                        onQuickPlay = if (onPlay != null && choice.playable) ({ onPlay(choice, mode) }) else null)
                                 }
                             }
                         }
@@ -158,7 +162,7 @@ internal fun AnimationBrowser(
                     }
                     if (split) Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
                         if (onPlay != null) OrderModes(mode) { mode = it }
-                        if (onPlay != null && options != null) RepeatControls(options, onOptions)
+                        if (onPlay != null && options != null) RepeatControls(options, onOptions, askBefore.takeIf { partnerName != null }, onAskBefore)
                         if (selected == null) {
                             WifeNote(when {
                                 onPlay == null -> "Choose an animation to preview."
@@ -234,7 +238,7 @@ private fun stagedParts(choice: AnimationChoice): String? {
  * always all there, the count's buttons only usable for Repeat ×N, so choosing never moves anything. 48 dp targets.
  */
 @Composable
-private fun RepeatControls(options: PlayOptions, onOptions: (PlayOptions) -> Unit) {
+private fun RepeatControls(options: PlayOptions, onOptions: (PlayOptions) -> Unit, askBefore: Boolean? = null, onAskBefore: (Boolean) -> Unit = {}) {
     WifeTabs(PlayRepeat.entries.map { options.label(it) }, options.repeat.ordinal, { onOptions(options.copy(repeat = PlayRepeat.entries[it])) })
     val counting = options.repeat == PlayRepeat.TIMES
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
@@ -250,6 +254,7 @@ private fun RepeatControls(options: PlayOptions, onOptions: (PlayOptions) -> Uni
         WifeSwitchRow("Repeat queue", options.repeatQueue, { onOptions(options.copy(repeatQueue = it)) }, Modifier.weight(1f))
         WifeSwitchRow("Shuffle", options.shuffle, { onOptions(options.copy(shuffle = it)) }, Modifier.weight(1f))
     }
+    if (askBefore != null) WifeSwitchRow("Ask before partner animations play", askBefore, onAskBefore, Modifier.fillMaxWidth())
 }
 
 /** How a scene's animation is ordered: Play now, Queue, Repeat, Queue stages (tabs of their own, 48 dp). */
@@ -264,7 +269,9 @@ private fun OrderModes(mode: AnimationOrderMode, onMode: (AnimationOrderMode) ->
  */
 @Composable
 private fun AnimRow(choice: AnimationChoice, picked: Boolean, onClick: () -> Unit, modifier: Modifier,
-                    availability: Availability? = null, onLongPress: (() -> Unit)? = null, limit: String? = null) {
+                    availability: Availability? = null, onLongPress: (() -> Unit)? = null, limit: String? = null,
+                    /** A play button at the row's end: plays it at once, in the order mode shown (one tap instead of pick, then Play). */
+                    onQuickPlay: (() -> Unit)? = null) {
     val reduced = reduceMotion()
     val edge by animateColorAsState(if (picked) WifeTheme.gold else WifeTheme.trimSoft, tween(MenuMotion.duration(FrontMotion.GLOW_MS, reduced)), label = "row")
     val shape = RoundedCornerShape(WifeTheme.buttonRadius)
@@ -302,6 +309,21 @@ private fun AnimRow(choice: AnimationChoice, picked: Boolean, onClick: () -> Uni
             val pill = RoundedCornerShape(50)
             Text("2 NPCs", Modifier.clip(pill).border(1.dp, PairRose, pill).padding(horizontal = WifeTheme.gapS, vertical = 2.dp),
                 style = WifeTheme.captionStyle(PairRose), maxLines = 1)
+        }
+        if (onQuickPlay != null) Box(
+            Modifier.size(WifeTheme.touch).semantics { contentDescription = "Play ${choice.name}" }.warPress(sound = "ok", onClick = onQuickPlay),
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(Modifier.size(34.dp)) {
+                val r = size.minDimension / 2
+                drawCircle(WifeTheme.gold.copy(alpha = 0.18f), r)
+                drawCircle(WifeTheme.gold, r - 0.5.dp.toPx(), style = androidx.compose.ui.graphics.drawscope.Stroke(1.5.dp.toPx()))
+                val k = r * 0.42f
+                val tri = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(center.x - k * 0.6f, center.y - k); lineTo(center.x + k, center.y); lineTo(center.x - k * 0.6f, center.y + k); close()
+                }
+                drawPath(tri, WifeTheme.gold)
+            }
         }
     }
 }
