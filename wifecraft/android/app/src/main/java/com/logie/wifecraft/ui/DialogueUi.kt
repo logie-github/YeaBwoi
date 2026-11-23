@@ -34,6 +34,7 @@ import com.logie.wifecraft.dialogue.DialogueSnapshot
 import com.logie.wifecraft.dialogue.HesitantView
 import com.logie.wifecraft.dialogue.KinkPack
 import com.logie.wifecraft.dialogue.Lore
+import com.logie.wifecraft.dialogue.PersonaKit
 import com.logie.wifecraft.dialogue.Steer
 import com.logie.wifecraft.dialogue.SteerEntry
 import com.logie.wifecraft.dialogue.SteerPresets
@@ -45,7 +46,18 @@ import kotlinx.coroutines.delay
 object DialogueAssets {
     private fun text(ctx: Context, path: String): String? = try { ctx.assets.open(path).bufferedReader().use { it.readText() } } catch (e: Exception) { null }
 
-    fun lore(ctx: Context): Lore? = text(ctx, "dialogue/lore.json")?.let { try { Lore(it) } catch (e: Exception) { null } }
+    fun lore(ctx: Context): Lore? = text(ctx, "dialogue/lore.json")?.let { try { Lore(it).also { l -> l.kit = persona(ctx) } } catch (e: Exception) { null } }
+
+    @Volatile private var personaKit: PersonaKit? = null
+
+    /** The character profiles and eras (assets/dialogue/profiles, eras), loaded once and shared by the scene's lore and Chat's, so one era is in force for both. Null: none, the prompts are as they were. */
+    fun persona(ctx: Context): PersonaKit? = synchronized(this) {
+        personaKit ?: run {
+            val kit = try { PersonaKit.load({ dir -> ctx.assets.list(dir)?.toList().orEmpty() }, { path -> text(ctx, path) }) } catch (e: Exception) { null }
+            personaKit = kit
+            kit
+        }
+    }
 
     fun kink(ctx: Context): KinkPack? = try { KinkPack.load { name -> text(ctx, "dialogue/kink/$name") } } catch (e: Exception) { null }
 }

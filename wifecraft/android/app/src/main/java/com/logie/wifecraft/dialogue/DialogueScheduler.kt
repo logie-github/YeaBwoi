@@ -55,6 +55,10 @@ class BackendResult(
     val generated: Int = 0,
     val prefillMs: Double = 0.0,
     val decodeMs: Double = 0.0,
+    val firstTokenMs: Double = 0.0,
+    val kvTokens: Int = 0,
+    val threads: Int = 0,
+    val threadsBatch: Int = 0,
 ) {
     /** Tokens of the prompt that had to be read this time. */
     val readTokens: Int get() = (promptTokens - reusedTokens - sharedTokens - restoredTokens).coerceAtLeast(0)
@@ -70,6 +74,8 @@ interface DialogueBackend {
     fun resetAll()
     /** Saves every NPC's state to disk (the app is leaving the foreground). */
     fun flush()
+    /** New thread counts for the next generations: writing, reading the prompt (Options -> Dialogue -> Speed). Worker thread, between requests. */
+    fun setThreads(decode: Int, prefill: Int) {}
     fun close()
 }
 
@@ -104,6 +110,9 @@ data class DialogueStats(
     val lastTokensPerSecond: Double = 0.0,
     val lastReadTokens: Int = 0,
     val lastReusedTokens: Int = 0,
+    /** The last real answer's wait in the queue and time to its first word, milliseconds. */
+    val lastQueueWaitMs: Long = 0,
+    val lastFirstWordMs: Long = 0,
     val budget: Int = 0,
     val lastError: String? = null,
 )
@@ -120,11 +129,18 @@ class DialogueScheduler(
     private val maxQueuedAmbient: Int = 6,
     /** The model's own advice on repetition: a request asks for at most this much penalty (Mag-Mell's card says to avoid heavy penalty samplers). */
     private val maxRepeatPenalty: Float = 1.08f,
+    /** What each request cost (the last 100), for Options -> Dialogue. */
+    val timings: TimingLog = TimingLog(),
+    /** Java priority of the worker while it answers the selected NPC or a pair (the default is the normal one: the thread's nice value is the one the model's own threads inherit) and while it works for the background. */
+    private val urgentPriority: Int = Thread.NORM_PRIORITY,
+    private val backgroundPriority: Int = 3,
 ) : DialogueEngine {
 
     private class Job(val id: Long, val req: DialogueRequest, val queuedAt: Long, val finish: (String?) -> Unit) {
         @Volatile var cancelled = false
         @Volatile var preempted = false
+        @Volatile var softStopped = false
+        @Volatile var guarded = false
         var requeues = 0
         val finished = AtomicBoolean(false)
         var ticket = 0L
@@ -141,6 +157,8 @@ class DialogueScheduler(
     private var selected: String? = null
     private var pair: Set<String> = emptySet()
     @Volatile private var closed = false
+    /** The persona each NPC was last asked to be warmed with (a hash of the text): the same again is free; [forget] clears it. */
+    private val warmed = HashMap<String, Int>()
 
     private val _stats = MutableStateFlow(DialogueStats())
     val stats: StateFlow<DialogueStats> get() = _stats
@@ -166,12 +184,54 @@ class DialogueScheduler(
         awaitClose { job?.let { cancel(it) } }
     }
 
-    override fun forget(npcId: String) = command { backend.reset(npcId) }
+    override fun forget(npcId: String) {
+        lock.withLock { warmed.remove(npcId) }
+        command { backend.reset(npcId) }
+    }
 
-    fun forgetAll() = command { backend.resetAll() }
+    fun forgetAll() {
+        lock.withLock { warmed.clear() }
+        command { backend.resetAll() }
+    }
+
+    /**
+     * Reads [system] into the NPC's place ahead of its first request: a request that only reads (prefillOnly), behind everything
+     * else, or first when [urgent]. A persona already asked for is not read again; waiting warm-ups of one NPC are replaced by the
+     * newest; they are never charged to the unprompted-talk budget and an urgent request cancels a running one (it carries on
+     * from the tokens it had read). The caller must give the very text its requests will send as their system prompt: the prompt of
+     * the warm-up and of the request then share every token of it.
+     */
+    override fun warm(npcId: String, system: String, urgent: Boolean) {
+        if (!ready || system.isEmpty()) return
+        val h = system.hashCode()
+        val req = DialogueRequest(npcId, system, emptyList(), "", maxTokens = 1, prefillOnly = true, tag = "warm",
+            priority = if (urgent) DialoguePriority.SELECTED else DialoguePriority.AMBIENT, maxWaitMs = if (urgent) 120_000L else 300_000L)
+        var ended: Job? = null
+        lock.withLock {
+            if (closed) return
+            // a persona already read (or being read): nothing to do, unless the urgent one finds it only queued behind everything
+            if (warmed[npcId] == h) {
+                val queued = queue.firstOrNull { it.req.npcId == npcId && it.req.prefillOnly }
+                if (queued == null || !urgent || queued.req.priority == DialoguePriority.SELECTED) return
+            }
+            warmed[npcId] = h
+            ended = queue.firstOrNull { it.req.npcId == npcId && it.req.prefillOnly }?.also { queue.remove(it) }
+            queue.add(Job(nextId++, req, clock()) { })
+            // warm-ups of other NPCs are kept short: only the newest few
+            val warms = queue.filter { it.req.prefillOnly && it.req.priority != DialoguePriority.SELECTED }
+            if (warms.size > MAX_QUEUED_WARM) warms.take(warms.size - MAX_QUEUED_WARM).forEach { w -> queue.remove(w); warmed.remove(w.req.npcId) }
+            maybePreempt()
+            wake.signalAll()
+            publish()
+        }
+        ended?.end(null)
+    }
 
     /** The app leaves the foreground: every NPC's place is saved so it is read back, not read again. */
     fun flush() = command { backend.flush() }
+
+    /** The player changed Speed: the next generations use these thread counts (applied between requests, on the worker). */
+    fun setThreads(decode: Int, prefill: Int) = command { backend.setThreads(decode, prefill) }
 
     override fun setFocus(selected: String?, pair: Set<String>) {
         lock.withLock {
@@ -217,7 +277,7 @@ class DialogueScheduler(
             }
             queue.add(j)
             // the background queue is short: the oldest are given up
-            val amb = queue.filter { it.req.priority == DialoguePriority.AMBIENT }
+            val amb = queue.filter { it.req.priority == DialoguePriority.AMBIENT && !it.req.prefillOnly }
             if (amb.size > maxQueuedAmbient) amb.take(amb.size - maxQueuedAmbient).forEach { queue.remove(it); drop.add(it) }
             dropped = drop
             maybePreempt()
@@ -259,6 +319,10 @@ class DialogueScheduler(
         DialoguePriority.PAIR -> 120_000L
         DialoguePriority.NEARBY -> 60_000L
         DialoguePriority.AMBIENT -> 40_000L
+    }
+
+    private companion object {
+        const val MAX_QUEUED_WARM = 8
     }
 
     private fun publish(running: String? = current?.req?.npcId) {
@@ -309,8 +373,9 @@ class DialogueScheduler(
         for (j in queue) {
             val p = effective(j)
             if (level == LoadLevel.STRUGGLING && p != DialoguePriority.SELECTED) continue
-            if (p >= DialoguePriority.NEARBY && !budget.canStart(j.req.maxTokens)) continue
-            if (best == null || p < bestP) { best = j; bestP = p }   // equal priority: the earlier one stays (FIFO)
+            if (p >= DialoguePriority.NEARBY && !j.req.prefillOnly && !budget.canStart(j.req.maxTokens)) continue
+            // equal priority: the earlier one stays (FIFO), but a warm-up gives way to a line someone will hear
+            if (best == null || p < bestP || (p == bestP && best.req.prefillOnly && !j.req.prefillOnly)) { best = j; bestP = p }
         }
         if (best != null) queue.remove(best)
         return best
@@ -321,15 +386,36 @@ class DialogueScheduler(
         val level0 = load()
         val sb = StringBuilder()
         val urgent = effective(job) <= DialoguePriority.PAIR
+        // the model's own threads are made by this thread and inherit its niceness: the selected NPC is answered at the normal one
+        // (this worker used to sit at the lowest, where the phone's scheduler keeps a thread on the slow cores)
+        runCatching { Thread.currentThread().priority = if (urgent) urgentPriority else backgroundPriority }
+        val startedAt = clock()
+        var firstPieceAt = 0L
         val prompt = template.render(req.system, req.history, req.user)
         val bj = BackendJob(
             ticket = job.ticket, npcId = req.npcId, prompt = prompt,
-            maxTokens = if (req.prefillOnly) 1 else req.maxTokens.coerceAtLeast(1),
+            maxTokens = if (req.prefillOnly) 0 else req.maxTokens.coerceAtLeast(1),
             temperature = req.temperature, topP = req.topP, repeatPenalty = minOf(req.repeatPenalty, maxRepeatPenalty), seed = req.seed, stop = req.stop + template.leakStops(req.stop),
             chunkDelayMs = when (level0) { LoadLevel.OK -> 0; LoadLevel.BUSY -> if (urgent) 0 else 30; LoadLevel.STRUGGLING -> if (urgent) 20 else 100 },
-            sink = { piece ->
+            sink = sink@{ piece ->
+                if (firstPieceAt == 0L && piece.isNotBlank()) firstPieceAt = clock()
+                val before = sb.length
                 sb.append(piece)
-                if (!req.prefillOnly) req.onPartial?.let { runCatching { it(piece) } }
+                var forward = piece
+                if (!req.prefillOnly) {
+                    // the answer is judged as it grows: a wrong word ends it now, a long enough answer ends at its last sentence
+                    if (req.guard?.let { g -> runCatching { g(sb.toString()) }.getOrDefault(false) } == true) { job.guarded = true; return@sink false }
+                    if (req.sentences > 0) {
+                        val cut = SentenceStop.cutAfter(sb, req.sentences, before)
+                        if (cut >= 0) {
+                            forward = sb.substring(before, cut)
+                            sb.setLength(cut)
+                            job.softStopped = true
+                        }
+                    }
+                    if (forward.isNotEmpty()) req.onPartial?.let { runCatching { it(forward) } }
+                    if (job.softStopped) return@sink false
+                }
                 val l = load()
                 if (l != LoadLevel.OK) {
                     val d = pieceDelayMs[if (l == LoadLevel.BUSY) 0 else 1]
@@ -345,19 +431,72 @@ class DialogueScheduler(
         } catch (t: Throwable) {
             result = BackendResult(DialogueFinish.ERROR, error = t.message ?: t.javaClass.simpleName)
         }
-        // what the answer cost
-        budget.charge(result.generated + result.readTokens / 8.0)
+        // what the answer cost (a warm-up is the system's, not the unprompted talk's)
+        if (!req.prefillOnly) budget.charge(result.generated + result.readTokens / 8.0)
+        val endedAt = clock()
+        timings.add(ReplyTiming(
+            atMs = endedAt, npcId = req.npcId, tag = req.tag, priority = effective(job), queueWaitMs = (startedAt - job.queuedAt).coerceAtLeast(0),
+            firstWordMs = if (firstPieceAt > 0) (firstPieceAt - job.queuedAt).coerceAtLeast(0) else 0, totalMs = (endedAt - job.queuedAt).coerceAtLeast(0),
+            finish = result.finish, softStopped = job.softStopped, guarded = job.guarded, attempt = job.requeues, maxTokens = req.maxTokens,
+            promptTokens = result.promptTokens, readTokens = result.readTokens, reusedTokens = result.reusedTokens, sharedTokens = result.sharedTokens,
+            restoredTokens = result.restoredTokens, prefillMs = result.prefillMs, generated = result.generated, decodeMs = result.decodeMs,
+            firstTokenMs = result.firstTokenMs, kvTokens = result.kvTokens, threads = result.threads, threadsBatch = result.threadsBatch, prefillOnly = req.prefillOnly,
+        ))
         val requeue: Boolean
         lock.withLock {
             current = null
-            requeue = job.preempted && !job.cancelled && !closed && job.requeues < 1 && result.finish == DialogueFinish.CANCELLED
+            requeue = job.preempted && !job.cancelled && !closed && job.requeues < 1 && result.finish == DialogueFinish.CANCELLED && !job.softStopped && !job.guarded
             if (requeue) { job.preempted = false; job.requeues++; queue.add(0, job) }
             publish(null)
         }
         if (requeue) { return }
-        val ok = result.finish == DialogueFinish.EOS || result.finish == DialogueFinish.LENGTH || result.finish == DialogueFinish.STOP
-        val text = if (ok && !req.prefillOnly) ChatTemplate.tidy(sb.toString()).ifEmpty { null } else null
+        // a sentence stop and a guard stop end the answer by cancelling the model's turn: the first is a good answer, the second none
+        val ok = result.finish == DialogueFinish.EOS || result.finish == DialogueFinish.LENGTH || result.finish == DialogueFinish.STOP || (job.softStopped && result.finish == DialogueFinish.CANCELLED)
+        val text = if (ok && !req.prefillOnly && !job.guarded) ChatTemplate.tidy(sb.toString()).ifEmpty { null } else null
+        if (job.guarded) { count(tokens = result.generated, result = result); job.end(null); return }
         count(answers = if (ok) 1 else 0, dropped = if (ok) 0 else 1, tokens = result.generated, result = result, error = result.error)
+        if (ok && !req.prefillOnly) _stats.value = _stats.value.copy(lastQueueWaitMs = (startedAt - job.queuedAt).coerceAtLeast(0), lastFirstWordMs = if (firstPieceAt > 0) (firstPieceAt - job.queuedAt).coerceAtLeast(0) else 0)
+        // a warm-up that was cancelled or failed is asked for again next time
+        if (req.prefillOnly && !ok) lock.withLock { warmed.remove(req.npcId) }
         job.end(text)
+    }
+}
+
+/** Finding where a streamed answer has written enough whole sentences. */
+object SentenceStop {
+    private val ACTION = Regex("\\*[^*]*\\*|\\([^)]*\\)|\\[[^\\]]*]")
+
+    /**
+     * The index in [text] just after the end of its [n]th sentence, once that end is certain (the character after it has arrived),
+     * and only if it lies at or after [from]; else -1. A sentence ends at a lone ".", "!" or "?" (or a run of them with one of
+     * these in it) followed by a space or a quote; an ellipsis ("..." or "…") is a pause, not an end, and an action in asterisks or
+     * brackets has no sentences. Never ends an answer before ChatClean, which cuts at the same marks, would.
+     */
+    fun cutAfter(text: CharSequence, n: Int, from: Int = 0): Int {
+        if (n <= 0 || text.isEmpty()) return -1
+        val s = text.toString()
+        // positions inside actions don't count: blank them out, keeping the indexes
+        val masked = StringBuilder(s)
+        for (m in ACTION.findAll(s)) for (i in m.range) masked.setCharAt(i, ' ')
+        var count = 0
+        var i = 0
+        while (i < masked.length) {
+            val ch = masked[i]
+            if (ch == '.' || ch == '!' || ch == '?' || ch == '\u2026') {
+                var j = i
+                while (j < masked.length && (masked[j] == '.' || masked[j] == '!' || masked[j] == '?' || masked[j] == '\u2026')) j++
+                if (j >= masked.length) return -1   // the run may still grow: wait for the next character
+                val run = masked.substring(i, j)
+                val real = run.any { it == '!' || it == '?' } || (run.length == 1 && run[0] == '.')
+                val closing = masked[j] == '"' || masked[j] == '\u201d' || masked[j] == '\''
+                val next = if (closing) j + 1 else j
+                if (real && (masked[j].isWhitespace() || closing)) {
+                    count++
+                    if (count >= n) return if (next >= from) next else -1
+                }
+                i = j
+            } else i++
+        }
+        return -1
     }
 }

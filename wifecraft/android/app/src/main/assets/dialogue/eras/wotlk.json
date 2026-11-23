@@ -1,0 +1,69 @@
+{
+ "id": "wotlk",
+ "label": "Wrath of the Lich King",
+ "order": 2,
+ "release": 2008,
+ "until": 2010,
+ "years": "about two years after the Dark Portal reopened, Northrend's war",
+ "present": "The world is Azeroth in the war against the Lich King, with Horde and Alliance armies on Northrend's shores and the Scourge's plague on every lip.",
+ "world": "Arthas the Lich King sits on his Frozen Throne in Icecrown. The Horde's Warsong Hold and the Alliance's Valiance Keep stand on Northrend's shores; the Argent Crusade and the Ebon Blade march against the Scourge. Dalaran drifts above Crystalsong, neutral. The Wrathgate has shattered trust between Horde and Alliance; Varian rules Stormwind. Dragons gather at Wyrmrest.",
+ "idiom": "Folk swear by the Light and the Loa; they say \"for the Alliance\" or \"for the Horde\". Death knights are the Lich King's fallen, now freed. Coin is gold, silver and copper; Emblems and Badges are fighters' tokens.",
+ "folk": {
+  "alliance": "You know of the war in Northrend and the Wrathgate's horror; the Horde is blamed, though few know the whole truth.",
+  "horde": "You know of the war in Northrend and the Wrathgate's horror; the Alliance blames the Horde and the Undercity's betrayers, and you fight on.",
+  "neutral": "You live between camps; Dalaran and the Argent Crusade take all comers against the Scourge."
+ },
+ "classes": {
+  "death knight": "Death knights are the Lich King's former champions, now freed and standing with the Ebon Blade.",
+  "monk": "A monk is a wanderer, not a calling you know.",
+  "demon hunter": "Illidan's followers are rumoured outcasts."
+ },
+ "races": {
+  "worgen": "Worgen are the wolf-monsters of Silverpine and the cursed of walled Gilneas, whom the world has forgotten.",
+  "goblin": "Goblins are neutral traders, engineers and mercenaries; the Bilgewater and Steamwheedle cartels.",
+  "pandaren": "Pandaren are rare wanderers; a land of them is a legend.",
+  "voidelf": "No such people exist.",
+  "nightborne": "No such people exist.",
+  "lightforged": "No such people exist.",
+  "zandalari": "Zandalari are an old empire of legend.",
+  "kultiran": "Kul Tiras is a distant sealord kingdom.",
+  "highmountain": "No such people are known.",
+  "darkiron": "Dark Iron dwarves are an enemy clan.",
+  "vulpera": "No such people exist.",
+  "mechagnome": "No such people exist.",
+  "magharorc": "Mag'har are the orcs of Outland.",
+  "skyborne": "No such people exist."
+ },
+ "stances": {
+  "alliance>undead": "Alliance folk are frightened and repelled by the Forsaken, whom they blame for the Wrathgate's plague.",
+  "undead>alliance": "The Forsaken distrust the living Alliance and expect betrayal.",
+  "horde>alliance": "The Horde is angry at Varian's attack on the Undercity and wary of the Alliance's armies.",
+  "alliance>horde": "The Alliance blames the Horde for the Wrathgate's horror."
+ },
+ "introduces": [
+  "death knight",
+  "death knights",
+  "wrathgate",
+  "wyrmrest accord",
+  "argent crusade",
+  "ebon blade",
+  "ulduar",
+  "icecrown citadel",
+  "val'kyr",
+  "frozen halls",
+  "borean tundra",
+  "howling fjord",
+  "sholazar basin",
+  "zul'drak",
+  "storm peaks",
+  "wintergrasp",
+  "ruby sanctum",
+  "vrykul"
+ ],
+ "places": {
+  "dalaran": "Floats above Crystalsong Forest in Northrend, the neutral city of the Kirin Tor, where Horde and Alliance share the streets.",
+  "stormwind": "Stormwind: Varian's capital, its armies marching north.",
+  "brill": "Brill: the Forsaken's village of Tirisfal, whose people send fighters to Northrend.",
+  "dolanaar": "Dolanaar: the Teldrassil village at the world tree's foot."
+ }
+}

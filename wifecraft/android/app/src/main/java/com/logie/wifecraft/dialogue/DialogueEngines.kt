@@ -65,9 +65,19 @@ class FakeDialogueEngine(private val reply: (DialogueRequest) -> String?) : Dial
         synchronized(seen) { seen.add(req) }
         if (!ready || req.prefillOnly) return null
         val text = reply(req) ?: return null
-        req.onPartial?.let { cb -> Regex("\\S+\\s*").findAll(text).forEach { cb(it.value) } }
+        // like the runtime: the guard sees the answer as it grows (and ends it), then the piece goes on to the caller
+        val acc = StringBuilder()
+        for (m in Regex("\\S+\\s*").findAll(text)) {
+            acc.append(m.value)
+            if (req.guard?.invoke(acc.toString()) == true) return null
+            req.onPartial?.invoke(m.value)
+        }
         return text
     }
+
+    /** Every persona asked to be warmed, in order: (npc, system, urgent). */
+    val warmed = ArrayList<Triple<String, String, Boolean>>()
+    override fun warm(npcId: String, system: String, urgent: Boolean) { warmed.add(Triple(npcId, system, urgent)) }
 
     override fun forget(npcId: String) { forgotten.add(npcId) }
 

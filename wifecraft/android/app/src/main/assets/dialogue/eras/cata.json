@@ -1,0 +1,64 @@
+{
+ "id": "cata",
+ "label": "Cataclysm",
+ "order": 3,
+ "release": 2010,
+ "until": 2012,
+ "years": "the Sundering, a few years after the Lich King's fall",
+ "present": "The world is Azeroth torn by Deathwing's Cataclysm: rivers flooded, cities shaken, the Aspects' dragons at war and the Horde's new warchief angry for conquest.",
+ "world": "Deathwing broke out of the earth and burned lands: Stormwind, Orgrimmar, the Barrens and Thousand Needles were reshaped. Garrosh Hellscream is Warchief; Thrall has stepped aside. The worgen of Gilneas and the goblins of Kezan have joined the Alliance and Horde. The Twilight's Hammer opens the Firelands and Deepholm; Sylvanas has conquered Gilneas's shore. Varian leads Stormwind; Jaina holds Theramore.",
+ "idiom": "Folk swear by the Light, the Loa and the Elements; they speak of the Sundering and the Cataclysm, worgen's curse, goblins' contracts. Coin is gold, silver and copper; Justice and Valor Points are fighters' tokens.",
+ "folk": {
+  "alliance": "You know the worgen of Gilneas as new, wary allies and the Horde's new warchief as a bully; the Cataclysm broke the world.",
+  "horde": "You know the goblins as new, mercenary allies, Garrosh as a hard warchief; the Cataclysm broke the world and the Alliance eyes your lands.",
+  "neutral": "You trade and wander through a shaken world; both camps want coin and soldiers."
+ },
+ "classes": {
+  "monk": "A monk is a wanderer, not a calling you know.",
+  "demon hunter": "Illidan's followers are rumoured outcasts."
+ },
+ "races": {
+  "pandaren": "Pandaren are rare wanderers; the hidden land is a legend.",
+  "voidelf": "No such people exist.",
+  "nightborne": "No such people exist.",
+  "lightforged": "No such people exist.",
+  "zandalari": "Zandalari are an old empire of legend.",
+  "kultiran": "Kul Tiras is a distant sealord kingdom.",
+  "highmountain": "No such people are known.",
+  "darkiron": "Dark Iron dwarves are an enemy clan.",
+  "vulpera": "No such people exist.",
+  "mechagnome": "No such people exist.",
+  "magharorc": "Mag'har are the orcs of Outland.",
+  "skyborne": "No such people exist."
+ },
+ "stances": {
+  "horde>alliance": "The Horde sees the Alliance's worgen and its armies as a threat; Garrosh pushes for open war.",
+  "undead>worgen": "The Forsaken fight the worgen of Gilneas as a rival kingdom.",
+  "worgen>undead": "The worgen hate the Forsaken who burned Gilneas's shore."
+ },
+ "introduces": [
+  "cataclysm",
+  "sundering",
+  "deepholm",
+  "uldum",
+  "vashj'ir",
+  "tol barad",
+  "firelands",
+  "dragon soul",
+  "archaeology",
+  "ramkahen",
+  "hour of twilight",
+  "twilight highlands",
+  "well of eternity",
+  "stonecore",
+  "therazane",
+  "gilneas liberation",
+  "kezan"
+ ],
+ "places": {
+  "dalaran": "Still floats above Crystalsong Forest, the Kirin Tor's neutral city.",
+  "stormwind": "Stormwind: scarred by Deathwing's fire and rebuilt; worgen walk its streets.",
+  "brill": "Brill: the Forsaken's village of Tirisfal, busier since the Val'kyr.",
+  "dolanaar": "Dolanaar: the Teldrassil village at the world tree's foot."
+ }
+}

@@ -627,6 +627,8 @@ class MainActivity : ComponentActivity() {
                             onSkip = { screen = Screen.LIVE },
                             onStart = { screen = Screen.LIVE },
                             loading = availableClips.isEmpty() && pairs.isEmpty(),
+                            era = dialogueSettings.era to dialogueSettings.customYear,
+                            onEra = { id, year -> dialogueSettings = dialogueSettings.copy(era = id, customYear = year).also { settings.dialogue = it } },
                         )
                     }
                     Screen.CREATOR -> {

@@ -79,6 +79,8 @@ data class NpcProfile(
     val traits: List<String> = emptyList(),
     val bio: String = "",
     val disposition: Disposition = Disposition.of(traits, bio),
+    /** The id of the named character this NPC is (assets/characters.json), or null: a made-up NPC. Its profile and era state come from [PersonaKit]. */
+    val named: String? = null,
 ) {
     val first: String get() = name.trim().substringBefore(' ').ifEmpty { name }
 }
@@ -92,6 +94,9 @@ object PersonaPrompt {
     /** The era the realm's story is set in, taken in the prompt as the present. */
     const val ERA = "The world is Azeroth in the years after the Third War and the Scourge, with the Horde and the Alliance uneasy neighbours and old powers stirring."
 
+    /** The era line in force: the kit's era when the lore carries one ([Lore.kit]), else [ERA]. */
+    fun era(lore: Lore): String = lore.kit?.era?.present ?: ERA
+
     private val TRAIT_TEXT = mapOf(
         "EARLY_BIRD" to "you rise with the sun and tire early", "NIGHT_OWL" to "you come alive after dark",
         "GREGARIOUS" to "you love company", "LONER" to "you like quiet corners and few words",
@@ -101,29 +106,63 @@ object PersonaPrompt {
         "MISCHIEVOUS" to "you love a prank and a piece of gossip", "CALM" to "you are slow to anger and easy to be around",
     )
 
-    fun system(p: NpcProfile, lore: Lore): String {
+    /**
+     * The persona prompt, laid out for the model's cache: [shared] first (the world and its rules, the same bytes for every NPC and
+     * in every mode, so a new NPC starts from the prefix another NPC already read), then this NPC (stable for as long as they are in
+     * the scene), then [LENGTH_AMBIENT] last. Nothing in it changes from line to line. How much of the lore it carries is capped
+     * ([PEOPLE_CHARS], [FACTION_CHARS]): the race's and the side's paragraphs are read once per NPC, so they are short.
+     */
+    fun system(p: NpcProfile, lore: Lore): String = persona(p, lore) + LENGTH_AMBIENT
+
+    /** [shared] and this NPC, without the closing line about how long a line is (chat and ambient talk each add their own). */
+    fun persona(p: NpcProfile, lore: Lore): String {
         val race = lore.race(p.raceId)
         val sex = when (p.female) { true -> "woman"; false -> "man"; null -> "person" }
         val calling = lore.className(p.classId)?.let { " $it" } ?: ""
         val b = StringBuilder()
-        b.append("You are ${p.name}, a ${race?.name ?: "traveller"}$calling $sex of Azeroth, a full-grown adult. ").append(ERA).append('\n')
+        b.append(shared(lore)).append("\n\n")
+        b.append("You are ${p.name}, a ${race?.name ?: "traveller"}$calling $sex of Azeroth, a full-grown adult.\n")
         val tr = p.traits.mapNotNull { TRAIT_TEXT[it.uppercase()] }
         if (tr.isNotEmpty()) b.append("Your nature: ").append(tr.joinToString("; ")).append(".\n")
         if (p.bio.isNotBlank()) b.append("About you: ").append(p.bio.trim()).append('\n')
         if (race != null) b.append("Your voice: ").append(race.register).append(". ")
         b.append("In love and in bed you are ").append(p.disposition.style).append(".\n")
-        b.append(RULES).append('\n')
-        lore.race(p.raceId)?.let { b.append("Your people: ").append(it.about).append(' ').append(it.customs).append('\n') }
+        race?.let { b.append("Your people: ").append(cap("${it.about} ${it.customs}", PEOPLE_CHARS)).append('\n') }
         lore.className(p.classId)?.let { b.append("Your calling: ").append(lore.classAbout(p.classId)).append('\n') }
-        lore.factionAbout(lore.faction(p.raceId)).takeIf { it.isNotEmpty() }?.let { b.append(it).append('\n') }
-        return b.toString().trim()
+        lore.factionAbout(lore.faction(p.raceId)).takeIf { it.isNotEmpty() }?.let { b.append(cap(it, FACTION_CHARS)).append('\n') }
+        lore.kit?.let { b.append(it.systemAddition(p, lore)).append('\n') }   // the character core and the era slice (PersonaKit)
+        return b.toString()
     }
 
-    /** The rules every NPC lives by, in the prompt's own terms. */
-    const val RULES = "You are a real person living in this world; this is your whole life and you know nothing beyond it. " +
+    const val PEOPLE_CHARS = 220
+    const val FACTION_CHARS = 110
+
+    /** [text] cut at a sentence end (else a word) to at most [max] characters. */
+    fun cap(text: String, max: Int): String {
+        val t = text.trim().replace(Regex("\\s+"), " ")
+        if (t.length <= max) return t
+        val cut = t.take(max)
+        val end = maxOf(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "))
+        if (end > max / 2) return cut.substring(0, end + 1)
+        return cut.substringBeforeLast(' ', cut).trimEnd(',', ';', ':', ' ') + "."
+    }
+
+    /**
+     * The world and the rules every NPC lives by, in the prompt's own terms, first in every system prompt: the era line in force
+     * ([era]) and [RULES_CORE]. The same text for every NPC and every mode (for as long as the era is the same), so the model reads it
+     * once and every later NPC borrows it.
+     */
+    fun shared(lore: Lore? = null): String = (if (lore != null) era(lore) else ERA) + "\n" + RULES_CORE
+
+    /** The rules without the era and without the line about how long a line is (the closing line is the mode's own). */
+    const val RULES_CORE = "You are a real person living in this world; this is your whole life and you know nothing beyond it. " +
         "Speak in the first person, in your own voice, as people of your time and land do: gold, ale, the Light, the Horde and the Alliance, Orgrimmar and Stormwind. " +
         "Use no modern speech, slang, machines, brands or customs of a distant age. " +
         "Anything beyond Azeroth, or talk of unseen hands moving you, leaves you honestly puzzled; answer it as someone who has simply never heard of such a thing. " +
-        "Speak in short natural lines, one or two sentences. Say only the words you speak aloud: no narration, no stage directions, no quotation marks, no name tags. " +
+        "Say only the words you speak aloud: no narration, no stage directions, no quotation marks, no name tags. " +
         "You decide for yourself what you want and whether you will; you usually say yes to what you desire."
+
+    /** The closing line of an ambient NPC's persona (the length of a spoken line), and of a chat's. */
+    const val LENGTH_AMBIENT = "Speak in short natural lines, one or two sentences."
+    const val LENGTH_CHAT = "Speak in natural lines."
 }

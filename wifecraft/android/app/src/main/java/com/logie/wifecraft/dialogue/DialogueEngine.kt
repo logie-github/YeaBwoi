@@ -34,6 +34,17 @@ data class DialogueRequest(
     val prefillOnly: Boolean = false,
     /** Called on the model's thread with each piece of the answer as it is made (for a speech bubble that types itself out). */
     val onPartial: ((String) -> Unit)? = null,
+    // ---- speed (the runtime's timings and early stops) ----
+    /** What the request is for ("chat", "joi", "speech", "warm", "speedtest"): shown beside its timings in Options -> Dialogue. */
+    val tag: String = "",
+    /**
+     * Looks at the answer as far as it has come (on the model's thread, before each piece is handed to [onPartial]); true ends the
+     * answer there and the request answers null. The caller keeps what it found: a wrong word seen after ten tokens costs ten
+     * tokens, not the whole answer plus the retry. Not called for the held-back end of a word still being written.
+     */
+    val guard: ((String) -> Boolean)? = null,
+    /** More than 0: the answer ends once this many whole sentences are written (a chat reply is cut to its length anyway: the tokens after it are never read). */
+    val sentences: Int = 0,
 )
 
 interface DialogueEngine {
@@ -47,6 +58,13 @@ interface DialogueEngine {
 
     /** Gives an NPC's earlier state up (a new persona, a retold story): its next request reads the whole prompt again. */
     fun forget(npcId: String) {}
+
+    /**
+     * Reads [system] (an NPC's persona prompt, byte for byte what its requests will send) into the NPC's place in the model before
+     * the first request needs it, so the first answer pays for the new words only. [urgent]: the player has just opened a chat or
+     * chosen the NPC (it goes before the queue); otherwise it waits behind everything. Asking again for the same persona is free.
+     */
+    fun warm(npcId: String, system: String, urgent: Boolean = false) {}
 
     /** Who the player is looking at, and the pair that is talking: their requests go first (see [DialoguePriority]). */
     fun setFocus(selected: String?, pair: Set<String> = emptySet()) {}

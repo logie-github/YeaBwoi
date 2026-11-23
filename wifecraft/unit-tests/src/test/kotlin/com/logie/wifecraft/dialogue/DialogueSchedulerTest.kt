@@ -295,7 +295,7 @@ class DialogueSchedulerTest {
     @Test fun prefillOnlyReadsThePromptAndAnswersNothing() = run {
         val s = scheduler()
         assertNull(s.complete(req("thalia").copy(prefillOnly = true)))
-        assertEquals(1, backend.started[0].maxTokens)
+        assertEquals(0, backend.started[0].maxTokens, "nothing is sampled: the prompt is only read")
     }
 
     @Test fun streamingEmitsThePiecesAsTheyComeAndCompletes() = run {
@@ -329,12 +329,13 @@ class DialogueSchedulerTest {
     }
 
     @Test fun nativeResultLinesParse() {
-        val r = NativeBackend.parseResult("stop\t150\t100\t20\t10\t42\t12.5\t840.0\t")
+        val r = NativeBackend.parseResult("stop\t150\t100\t20\t10\t42\t12.5\t840.0\t610.0\t192\t4\t6\t")
+        assertEquals(610.0, r.firstTokenMs); assertEquals(192, r.kvTokens); assertEquals(4, r.threads); assertEquals(6, r.threadsBatch)
         assertEquals(DialogueFinish.STOP, r.finish)
         assertEquals(20, r.readTokens)
         assertEquals(42, r.generated)
         assertNull(r.error)
-        val e = NativeBackend.parseResult("error\t0\t0\t0\t0\t0\t0.0\t0.0\tthe context is full")
+        val e = NativeBackend.parseResult("error\t0\t0\t0\t0\t0\t0.0\t0.0\t0.0\t0\t0\t0\tthe context is full")
         assertEquals(DialogueFinish.ERROR, e.finish)
         assertEquals("the context is full", e.error)
         assertEquals(9, ModelInfo.parse("qwen3 4B\t2497281632\t4000000000\t262144\t6144\t6\t2\t900\t3300000000")?.slots?.let { 9 })

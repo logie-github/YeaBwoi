@@ -167,6 +167,45 @@ int main(int argc, char **argv) {
     GenResult cold = run(c, ticket, "thalia", chatml(sysA, {{"user", "Who guards the Violet Hold?"}}), 8);
     CHECK(cold.restoredTokens == 0, "restored %d after reset", cold.restoredTokens);
 
+    printf("warm-up: a prompt read with maxTokens 0 leaves the NPC's place warm; the first real request pays for the new words only\n");
+    {
+        const std::string sysW = WORLD + "You are Wren, a gnome tinker, quick and curious.";
+        GenResult w = run(c, ticket, "wren", chatml(sysW, {}), 0);
+        show("warm", w);
+        CHECK(w.finish == Finish::Length && w.generated == 0 && w.text.empty(), "nothing sampled: finish %d gen %d", (int)w.finish, w.generated);
+        CHECK(w.kvTokens > 0 && w.kvTokens == w.promptTokens, "the place holds the prompt: kv %d prompt %d", w.kvTokens, w.promptTokens);
+        GenResult w2 = run(c, ticket, "wren", chatml(sysW, {{"user", "Mend this clock?"}}), 24);
+        show("after warm", w2);
+        CHECK(w2.reusedTokens >= w.promptTokens - 4, "reused %d of the warmed %d", w2.reusedTokens, w.promptTokens);
+        CHECK(w2.promptTokens - w2.reusedTokens - w2.sharedTokens - w2.restoredTokens < 40, "only the new words were read");
+        CHECK(w2.firstTokenMs > 0 && w2.firstTokenMs >= w2.prefillMs, "first token %.0f ms after prefill %.0f ms", w2.firstTokenMs, w2.prefillMs);
+        CHECK(w2.kvTokens >= w2.promptTokens, "kv %d", w2.kvTokens);
+        CHECK(w2.threads == threads && w2.threadsBatch >= 1, "threads %d/%d", w2.threads, w2.threadsBatch);
+    }
+    printf("a restored state file is kept (a crash before the next flush loses nothing)\n");
+    {
+        CHECK(c.flush() >= 1, "flush");
+        c.reset("nobody");
+        // evict wren by filling the slots, then read it back
+        const char *names[] = {"n1", "n2", "n3", "n4"};
+        for (const char *n : names) run(c, ticket, n, chatml(WORLD + std::string("You are ") + n + ".", {{"user", "Hello"}}), 4);
+        GenResult back = run(c, ticket, "wren", chatml(WORLD + "You are Wren, a gnome tinker, quick and curious.", {{"user", "Mend this clock?"}}), 8);
+        show("wren back", back);
+        CHECK(back.restoredTokens > 0 || back.reusedTokens > 0, "wren came back cold");
+        GenResult again = c.generate(++ticket, "other-key-forces-evict", chatml(WORLD, {{"user", "hi"}}), GenParams(), nullptr);
+        (void)again;
+    }
+    printf("thread counts can change between generations\n");
+    {
+        c.setThreads(2, 3);
+        GenResult t2 = run(c, ticket, "bench", chatml(WORLD, {{"user", "Say hello."}}), 8);
+        CHECK(t2.threads == 2 && t2.threadsBatch == 3, "threads %d/%d", t2.threads, t2.threadsBatch);
+        c.setThreads(threads, 0);
+    }
+    printf("system info names the kernels in use\n");
+    CHECK(!c.info().system.empty() && c.info().loadMs > 0 && c.info().contextMs > 0, "system '%s' load %.0f ctx %.0f", c.info().system.c_str(), c.info().loadMs, c.info().contextMs);
+    printf("  %s\n", c.info().system.c_str());
+
     printf("throughput (greedy, 96 tokens, warm slot)\n");
     GenResult t = run(c, ticket, "bench", chatml(WORLD, {{"user", "Describe Dalaran at night, at length."}}), 96, 0.7f);
     show("bench", t);

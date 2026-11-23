@@ -726,6 +726,9 @@ fun LiveSceneScreen(
         onDispose { live.dialogue = null }
     }
     var steerOpen by remember(live) { mutableStateOf(false) }
+    // the era chosen from the scene menu for this scene alone (null: the place's own era, else Options' Default era)
+    var sceneEra by remember(live) { mutableStateOf<String?>(null) }
+    var sceneEraYear by remember(live) { mutableIntStateOf(0) }
     val active = selected?.let { id -> snapshot.people.firstOrNull { it.id == id } }
     val views = selected?.let { snapshot.furnitureViews[it] }.orEmpty()
     val viewNames = remember(views) { views.map { it.label } }
@@ -1486,6 +1489,8 @@ fun LiveSceneScreen(
         radial = null; speedOpen = false; feedOpen = false; menu = false; choosingAnimation = null; walking = false
         chatSheet = id
         chatTick++
+        // the sheet is open: while the player picks who they are, her persona is read into the model (the first reply then pays for the new words only)
+        runCatching { joiEngine()?.warm(com.logie.wifecraft.dialogue.ChatPrompt.CHAT_PREFIX + id, com.logie.wifecraft.dialogue.ChatPrompt.system(com.logie.wifecraft.dialogue.Profiles.of(a), lore, CreatureNpcs.of(a.appearance) != null), urgent = true) }
     }
     fun cancelChat() { chatMode.cancel(); chatSheet = null; chatTick++ }
     fun startChat() {
@@ -1499,6 +1504,8 @@ fun LiveSceneScreen(
                 { r -> ChatSetup.rememberRelationship(chatStore, r) }).also { it.dirty = dialogue.dirty }
         }, joiEngine() != null)
         if (!started) return
+        // the person before her is known now: her whole system prompt is read while the player types the first message
+        runCatching { chatMode.session?.warmUp(joiEngine(), withContext = true) }
         chatSheet = null
         chatCamera.restart(); chatCamera.creature = spec != null
         chatMode.gestures.reset()
@@ -2137,6 +2144,8 @@ fun LiveSceneScreen(
         onLife = selected?.takeIf { selectedLife != null }?.let { id -> { menu = false; lifeWindow = id } },
         buildOn = build.on, onBuild = { if (build.on) { menu = false; build.leave() } else enterBuild() },
         onDialogue = dialogueDirector?.let { { menu = false; steerOpen = true } },
+        era = dialogueDirector?.let { (sceneEra ?: dialogue.era) to (if (sceneEra != null) sceneEraYear else dialogue.customYear) },
+        onEra = dialogueDirector?.let { d -> { id: String, year: Int -> sceneEra = id; sceneEraYear = year; d.sceneEra = id; d.sceneCustomYear = year } },
         limitsLine = consent?.let { p -> ConsentEdit.summary(cast.map { p.limitsOf(it.id) }) },
         onLimits = if (consent != null) onLimits?.let { open -> { menu = false; open() } } else null)
     val windowFor = rememberHeld(lifeWindow)
@@ -2599,6 +2608,9 @@ private fun SceneMenu(
     onBuild: (() -> Unit)? = null,
     /** Opens the steer window (the dialogue layer's nudges for the talk); null: no layer. */
     onDialogue: (() -> Unit)? = null,
+    /** The scene's era and its change from the menu (this scene only, from the next line); null: no dialogue layer. */
+    era: Pair<String, Int>? = null,
+    onEra: ((String, Int) -> Unit)? = null,
     /** The Limits line (a summary of the Consent and limits settings) and the button that re-opens that screen; null: none. */
     limitsLine: String? = null,
     onLimits: (() -> Unit)? = null,
@@ -2617,6 +2629,7 @@ private fun SceneMenu(
                     Text(BuildEntry.menuDetail(buildOn), style = WifeTheme.captionStyle())
                 }
                 if (onDialogue != null) WifeButton("Steer the talk", onDialogue, Modifier.fillMaxWidth(), sound = "open")
+                if (era != null && onEra != null) EraPickerRow("Era", era.first, era.second, onEra)
                 if (onLimits != null) {
                     WifeButton("Consent and limits", onLimits, Modifier.fillMaxWidth(), sound = "open")
                     if (limitsLine != null) Text(limitsLine, style = WifeTheme.captionStyle())
