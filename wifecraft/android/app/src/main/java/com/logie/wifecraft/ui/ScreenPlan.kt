@@ -30,7 +30,7 @@ data class ScreenInsets(
 )
 
 /** Where a placed thing is. */
-enum class ScreenSlot { TOP_START, TOP_END, CAST, CAMERA, DOCK, DOCK_CONTEXT, SHEET, TOAST }
+enum class ScreenSlot { TOP_START, TOP_END, CAST, CAMERA, DOCK, DOCK_ROW, DOCK_CONTEXT, SHEET, TOAST }
 
 /** The one mode the scene is in: Build (Move is its sub-mode), JOI, Chat, or the cinematic. Exactly one at a time. */
 enum class ScreenMode { NORMAL, BUILD, MOVE, JOI, CHAT, CINEMATIC }
@@ -62,6 +62,8 @@ data class ScreenState(
     val toast: Boolean = false,
     val context: Boolean = false,
     val ime: Boolean = false,
+    /** A row over the dock is open ([ScreenSlot.DOCK_ROW]: Chat's chips, JOI's level picker or steer field). */
+    val row: Boolean = false,
 )
 
 /** One placed thing: [element] its id, [slot], [rect] in screen dp, [interactive] it takes touches, [draggable] it scrolls or repeats. */
@@ -99,6 +101,20 @@ object ScreenPlan {
     /** The scene's middle, which no chrome may cover (the characters stand there; the Build gizmo too). */
     fun keepOut(w: Float, h: Float): ScreenRect =
         if (wide(w, h)) ScreenRect(0.30f * w, 0.30f * h, 0.55f * w, 0.70f * h) else ScreenRect(0.33f * w, 0.30f * h, 0.62f * w, 0.50f * h)
+
+    /**
+     * The middle for [mode]: in Chat and JOI her face is the picture and the camera frames her above the bottom stack (the dock, its row
+     * and the line over them), so the free zone is the upper part of the screen; the other modes keep [keepOut]'s.
+     */
+    fun keepOut(w: Float, h: Float, mode: ScreenMode): ScreenRect =
+        if (mode != ScreenMode.CHAT && mode != ScreenMode.JOI) keepOut(w, h)
+        else if (wide(w, h)) ScreenRect(0.30f * w, 0.30f * h, 0.55f * w, 0.50f * h) else ScreenRect(0.33f * w, 0.30f * h, 0.62f * w, 0.45f * h)
+
+    /** How much of the screen's height the bottom stack (dock, row, line) covers, 0..1, from [plan]: the chat camera frames her above it. */
+    fun bottomShare(plan: List<ScreenPlaced>, h: Float): Float {
+        val top = plan.filter { it.slot == ScreenSlot.DOCK || it.slot == ScreenSlot.DOCK_ROW || it.slot == ScreenSlot.DOCK_CONTEXT }.minOfOrNull { it.rect.t } ?: return 0f
+        return ((h - top) / h).coerceIn(0f, 1f)
+    }
 
     /** Whether [mode] shows the cast and the camera's buttons. */
     fun showsCast(mode: ScreenMode): Boolean = mode != ScreenMode.JOI && mode != ScreenMode.CHAT
@@ -162,25 +178,28 @@ object ScreenPlan {
         }
         var below = barB
 
-        // ---- the bottom: the dock and the line over it
+        // ---- the bottom: the dock, a row over it (Chat's chips, JOI's level or steer) and the line over them
         var floor = bottomEdge - GAP     // the lowest the sheet and rails may reach
         val dockOn = s.dockItems > 0 && (!typing || s.mode == ScreenMode.CHAT)
+        val dockW = min(DOCK_MAX_W, right - left)
+        val dl = if (wide) left + (right - left - dockW) / 2f else left
+        var stackT = bottomEdge - (if (typing) GAP else M)     // the top of what is placed so far (or the bottom of what is to come)
         if (dockOn) {
-            val dockW = min(DOCK_MAX_W, right - left)
-            val dl = if (wide) left + (right - left - dockW) / 2f else left
-            val dockB = bottomEdge - (if (typing) GAP else M)
-            val dockT = dockB - TOUCH
-            out += ScreenPlaced("dock", ScreenSlot.DOCK, ScreenRect(dl, dockT, dl + dockW, dockB))
+            val dockT = stackT - TOUCH
+            out += ScreenPlaced("dock", ScreenSlot.DOCK, ScreenRect(dl, dockT, dl + dockW, stackT))
+            stackT = dockT
             floor = dockT - GAP
-            if (s.context && !typing) {
-                val ctxB = dockT - GAP / 2f
-                out += ScreenPlaced("context", ScreenSlot.DOCK_CONTEXT, ScreenRect(dl, ctxB - CONTEXT_H, dl + dockW, ctxB), interactive = false)
-                floor = ctxB - CONTEXT_H - GAP
-            }
-        } else if (s.context && !typing) {
-            val ctxB = bottomEdge - M
-            val dockW = min(DOCK_MAX_W, right - left)
-            val dl = if (wide) left + (right - left - dockW) / 2f else left
+        }
+        // the row: over the dock; while typing it is kept in portrait and for the field that is typed in (JOI's steer takes the dock's place);
+        // a landscape screen with the keyboard up has no room for Chat's chips
+        if (s.row && (!typing || !wide || s.mode != ScreenMode.CHAT)) {
+            val rowB = if (dockOn) stackT - GAP else stackT
+            out += ScreenPlaced("row", ScreenSlot.DOCK_ROW, ScreenRect(dl, rowB - TOUCH, dl + dockW, rowB))
+            stackT = rowB - TOUCH
+            floor = stackT - GAP
+        }
+        if (s.context && !typing) {
+            val ctxB = if (stackT < bottomEdge - M - 0.5f) stackT - GAP / 2f else bottomEdge - M
             out += ScreenPlaced("context", ScreenSlot.DOCK_CONTEXT, ScreenRect(dl, ctxB - CONTEXT_H, dl + dockW, ctxB), interactive = false)
             floor = ctxB - CONTEXT_H - GAP
         }
@@ -213,7 +232,7 @@ object ScreenPlan {
                     sheetL = right - sw
                 }
             } else {
-                val minTop = if (typing) below + GAP else max(below + GAP, keepOut(w, h).b + GAP)
+                val minTop = if (typing) below + GAP else max(below + GAP, keepOut(w, h, s.mode).b + GAP)
                 val st = max(minTop, floor - 0.45f * h)
                 if (floor - st >= SHEET_MIN_H) {
                     out += ScreenPlaced("sheet", ScreenSlot.SHEET, ScreenRect(left, st, right, floor))

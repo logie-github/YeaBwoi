@@ -23,15 +23,18 @@ class ScreenPlanTest {
         ScreenMode.NORMAL -> DockModel.normal(SceneHud.orders(true, true, 2, true, 2, listOf("BED" to "Rest on bed"), life = true, performing = true, joi = true, chatMode = true), false, false)
     }
 
+    /** The row over the dock is open in Chat (its chips) and, as a level picker or the steer field, in JOI. */
+    private fun rowsFor(mode: ScreenMode): List<Boolean> = if (mode == ScreenMode.CHAT || mode == ScreenMode.JOI) listOf(false, true) else listOf(false)
+
     private fun states(): List<Triple<ScreenState, Boolean, Float>> {
         val out = ArrayList<Triple<ScreenState, Boolean, Float>>()
         for (mode in ScreenMode.entries) for (panel in ScreenPanel.entries.filter { !it.modal }) {
             if (panel != ScreenPanel.NONE && PanelRules.open(ScreenPanel.NONE, panel, mode) != panel) continue
             val dock = dockFor(mode)
             for (cast in listOf(0, 1, 3, 6)) for (orbit in listOf(false, true)) for (toast in listOf(false, true))
-                for (context in listOf(false, true)) for (ime in listOf(false, true)) {
+                for (context in listOf(false, true)) for (ime in listOf(false, true)) for (row in rowsFor(mode)) {
                     if (ime && mode != ScreenMode.CHAT && panel != ScreenPanel.STEER && panel != ScreenPanel.BUILD_PANEL && panel != ScreenPanel.NONE) continue
-                    out += Triple(ScreenState(mode, panel, dock.size, dock.minWidth, cast, orbit, toast, context, ime), ime, 0f)
+                    out += Triple(ScreenState(mode, panel, dock.size, dock.minWidth, cast, orbit, toast, context, ime, row), ime, 0f)
                 }
         }
         return out
@@ -83,7 +86,7 @@ class ScreenPlanTest {
     @Test
     fun nothingCoversTheScenesMiddleWhileNobodyIsTyping() = forEachScreen { name, w, h, _, s, plan ->
         if (s.ime) return@forEachScreen
-        val box = ScreenPlan.keepOut(w, h)
+        val box = ScreenPlan.keepOut(w, h, s.mode)
         for (p in plan) assertFalse(p.rect.intersects(box), "$name: ${p.element} ${p.rect} covers the middle $box")
     }
 

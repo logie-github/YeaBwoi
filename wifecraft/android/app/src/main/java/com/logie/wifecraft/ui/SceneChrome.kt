@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -69,7 +70,7 @@ internal fun modeLabel(mode: ScreenMode): String = when (mode) {
 
 /** Puts [content] where [r] says (dp, screen coordinates), exactly its size; nothing when [r] is null. */
 @Composable
-private fun At(r: ScreenRect?, content: @Composable BoxScope.() -> Unit) {
+internal fun At(r: ScreenRect?, content: @Composable BoxScope.() -> Unit) {
     if (r != null) Box(Modifier.offset(r.l.dp, r.t.dp).size(r.w.dp, r.h.dp), content = content)
 }
 
@@ -103,6 +104,8 @@ internal fun SceneChrome(
     dockEnabled: (DockItem) -> Boolean,
     onDock: (DockItem) -> Unit,
     buildDock: @Composable () -> Unit,
+    row: Boolean,
+    onPlan: (List<ScreenPlaced>) -> Unit,
     context: String,
     toast: Toast?,
     onMenu: () -> Unit,
@@ -120,10 +123,10 @@ internal fun SceneChrome(
         val h = maxHeight.value
         val ins = rememberScreenInsets()
         val orbit = camera.mode != CameraMode.ROOM
-        val state = ScreenState(mode, panel, dock.size, dock.minWidth, people.size, orbit, toast != null, context.isNotEmpty(), ins.ime > 0f)
+        val state = ScreenState(mode, panel, dock.size, dock.minWidth, people.size, orbit, toast != null, context.isNotEmpty() || mode == ScreenMode.CHAT, ins.ime > 0f, row)
         val plan = remember(w, h, ins, state) { ScreenPlan.plan(w, h, ins, state) }
         val sheetRect = ScreenPlan.find(plan, "sheet")
-        SideEffect { onSheetRect(sheetRect) }
+        SideEffect { onSheetRect(sheetRect); onPlan(plan) }
         val chip = mode == ScreenMode.BUILD || mode == ScreenMode.MOVE || mode == ScreenMode.JOI || mode == ScreenMode.CHAT
         val shown = mode == ScreenMode.NORMAL || mode == ScreenMode.BUILD || mode == ScreenMode.MOVE || mode == ScreenMode.CINEMATIC
         // the way out of a mode stays whatever the rest does
@@ -147,9 +150,13 @@ internal fun SceneChrome(
             At(ScreenPlan.find(plan, "camera.keys")) { CameraKeys(live) }
             // ---- the dock and the line over it
             At(ScreenPlan.find(plan, "dock")) {
-                if (dock.kind == DockKind.BUILD) buildDock() else DockRow(dock, dockEnabled, onDock)
+                when (dock.kind) {
+                    DockKind.BUILD -> buildDock()
+                    DockKind.CHAT -> Unit      // Chat's layer draws its own field where the plan puts the dock
+                    else -> DockRow(dock, dockEnabled, onDock)
+                }
             }
-            At(ScreenPlan.find(plan, "context")) { HudLine(context, Modifier.fillMaxWidth().height(ScreenPlan.CONTEXT_H.dp), centered = true) }
+            if (mode != ScreenMode.CHAT) At(ScreenPlan.find(plan, "context")) { HudLine(context, Modifier.fillMaxWidth().height(ScreenPlan.CONTEXT_H.dp), centered = true) }
             // ---- the sheet and the toast
             At(sheetRect) { if (framed) SheetFrame(sheetTitle, onCloseSheet, sheet) else sheet() }
             At(ScreenPlan.find(plan, "toast")) { ToastLine(toast) }
@@ -259,6 +266,12 @@ private fun CameraKeys(live: LiveScene) {
 /** The dock's targets in a row, each as wide as the row shares out (none wider than 140 dp). */
 @Composable
 private fun DockRow(dock: DockPlan, enabled: (DockItem) -> Boolean, onItem: (DockItem) -> Unit) {
+    if (DockModel.scrolls(dock.kind)) {
+        Row(Modifier.fillMaxSize().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(ScreenPlan.GAP.dp)) {
+            for (item in dock.items) key(item.id) { ActionSlot(item.label, item.lit, enabled(item), { onItem(item) }, Modifier.width(item.minW.dp).fillMaxHeight()) }
+        }
+        return
+    }
     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(ScreenPlan.GAP.dp, Alignment.CenterHorizontally)) {
         for (item in dock.items) key(item.id) {
             ActionSlot(item.label, item.lit, enabled(item), { onItem(item) }, Modifier.weight(1f, fill = true).widthIn(max = 140.dp))
