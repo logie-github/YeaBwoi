@@ -15,6 +15,6 @@ object Profiles {
         val traits = p?.traits?.takeIf { it.isNotEmpty() } ?: Traits.assign(a.id, ap.raceId, female).map { it.name }
         val prefs = p?.preferences
         val d = Disposition.of(traits, p?.bio.orEmpty(), prefs?.pace == Pace.SLOW, prefs?.pace == Pace.INTENSE, prefs?.initiation == Initiation.ASK)
-        return NpcProfile(a.id, a.name, ap.raceId, female, ap.classId, traits, p?.bio.orEmpty(), d)
+        return NpcProfile(a.id, a.name, ap.raceId, female, ap.classId, traits, p?.bio.orEmpty(), d, named = ap.named?.character)
     }
 }

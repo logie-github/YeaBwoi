@@ -859,7 +859,10 @@ class BuildController internal constructor(
             // the correction on top of what was already remembered for it (that one stays laid on by the simulation)
             val already = RaceOffsets.lookup(raceMine, raceShipped, p.name, i, who.copy(otherRace = other?.race ?: -1),
                 RaceOffsets.furnitureClass(p.furniture), p.furniture?.let(keyOf)).first?.delta ?: RoleDelta.ZERO
-            val change = RaceOffsets.deltaFor(already.applyTo(role), p.baseAnchor, p.baseHeading, p.anchor, p.heading, p.extra.getOrElse(i) { RoleDelta.ZERO })
+            // (kept at Character size 1: what is laid on now is the remembered one times the size in force, the change is in world yards)
+            val size = com.logie.wifecraft.anim.CharacterSize.active
+            val change = RaceOffsets.deltaFor(already.scaled(size).applyTo(role), p.baseAnchor, p.baseHeading, p.anchor, p.heading, p.extra.getOrElse(i) { RoleDelta.ZERO })
+                .scaled(1f / size)
             // a role that wasn't moved (the other one was moved alone) keeps what it had remembered
             if (change.none) continue
             val d = already + change

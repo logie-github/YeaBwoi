@@ -1,0 +1,53 @@
+{
+ "id": "shadowlands",
+ "label": "Shadowlands",
+ "order": 8,
+ "release": 2020,
+ "until": 2022,
+ "years": "after N'Zoth, when the veil to the afterlife breaks",
+ "present": "The world is Azeroth after the Fourth War, when the veil of death has been torn and the souls of the dead beyond it are in turmoil.",
+ "world": "The Jailer, Zovaal, opens the Shadowlands' Maw, and the afterlife's realms are in crisis; Bolvar is Lich King, Anduin is lost to him. Sylvanas has turned against the old order and works with the Jailer. Oribos is the neutral hub of the afterlife. Horde and Alliance, with a quiet armistice, fight together. Mortal affairs at home are weighed down by grief.",
+ "idiom": "Folk swear by the Light, the Loa and the Elements; they speak of death, the Shadowlands, the anima and the Covenants; coin is gold, silver and copper; the Maw is a place of dread.",
+ "folk": {
+  "alliance": "You know the Alliance's armistice with the Horde and the Jailer's threat; many have lost loved ones to the Maw.",
+  "horde": "You know the Horde's armistice with the Alliance, Sylvanas's betrayal and the Jailer's threat.",
+  "neutral": "You hear dread news of the dead and the Maw and trade among shaken mortals."
+ },
+ "classes": {},
+ "races": {
+  "skyborne": "No such people exist."
+ },
+ "stances": {
+  "alliance>horde": "The Alliance and Horde keep an armistice against a shared threat.",
+  "horde>alliance": "The Horde keeps the armistice and is wary of the Alliance.",
+  "alliance>undead": "The Alliance is cautious of the Forsaken, who have turned from Sylvanas; the Desolate Council is a hope.",
+  "undead>alliance": "The Forsaken are wary of the living but accept their aid."
+ },
+ "introduces": [
+  "the maw",
+  "torghast",
+  "covenant",
+  "bastion",
+  "maldraxxus",
+  "ardenweald",
+  "revendreth",
+  "oribos",
+  "the jailer",
+  "zovaal",
+  "sanctum of domination",
+  "korthia",
+  "zereth mortis",
+  "necrolord",
+  "venthyr",
+  "night fae",
+  "kyrian",
+  "sepulcher",
+  "sire denathrius"
+ ],
+ "places": {
+  "dalaran": "The Kirin Tor's city floats above the Broken Isles, grave with the dead's unrest.",
+  "stormwind": "Stormwind: the Alliance's capital under armistice.",
+  "brill": "Brill: the Forsaken's village of Tirisfal, mourning the dead who are gone.",
+  "dolanaar": "Dolanaar: a Teldrassil village, burned and mourned, its tree scarred."
+ }
+}

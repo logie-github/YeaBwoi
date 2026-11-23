@@ -12,12 +12,14 @@
 #include <thread>
 
 #if defined(__linux__)
+#include <sched.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 #endif
 
 #include "llama.h"
+#include "ggml-backend.h"
 
 namespace wcd {
 
@@ -127,12 +129,43 @@ bool loadProgressCb(float progress, void *) { gLoadProgress.store(progress); ret
 
 float Core::loadProgress() { return gLoadProgress.load(); }
 
+// Keeps the calling thread (and so the threads ggml makes from it, which inherit the mask) on the given cores.
+static void pinToCores(uint64_t mask) {
+#if defined(__linux__)
+    if (mask == 0) return;
+    cpu_set_t set;
+    CPU_ZERO(&set);
+    for (int i = 0; i < 64 && i < CPU_SETSIZE; i++) if (mask & (1ull << i)) CPU_SET(i, &set);
+    sched_setaffinity(0, sizeof set, &set);   // pid 0: this thread; a refusal (some vendors) just leaves every core allowed
+#else
+    (void)mask;
+#endif
+}
+
+void Core::setThreads(int threads, int threadsBatch) {
+    if (!ctx_) return;
+    if (threads > 0) lp_.threads = threads;
+    if (threadsBatch > 0) lp_.threadsBatch = threadsBatch;
+    llama_set_n_threads(ctx_, std::max(1, lp_.threads), std::max(1, lp_.threadsBatch > 0 ? lp_.threadsBatch : lp_.threads));
+}
+
 bool Core::load(const LoadParams &p, std::string &error) {
     gLoadProgress.store(0.0f);
     unload();
     lp_ = p;
+    const double tLoad = nowMs();
     if (!gBackendUp.exchange(true)) {
         llama_log_set(llamaLog, nullptr);
+#if defined(GGML_BACKEND_DL)
+        // the phone's build keeps each CPU variant in its own library (armv8.2 with dotprod, armv8.6 with i8mm, ...): ggml loads
+        // every one it finds and keeps the best the CPU can run, the plainest (armv8.0) being the floor every arm64 phone passes
+        if (!p.backendDir.empty()) ggml_backend_load_all_from_path(p.backendDir.c_str()); else ggml_backend_load_all();
+        if (ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU) == nullptr) {
+            gBackendUp.store(false);
+            error = "no CPU backend library could be loaded" + (p.backendDir.empty() ? std::string() : " from " + p.backendDir);
+            return false;
+        }
+#endif
         llama_backend_init();
     }
 #if defined(__linux__)
@@ -146,6 +179,8 @@ bool Core::load(const LoadParams &p, std::string &error) {
         model_ = llama_model_load_from_file(p.path.c_str(), mp);
         if (!model_) { error = "the model file could not be read (" + p.path + ")"; return false; }
         vocab_ = llama_model_get_vocab(model_);
+        loadMs_ = nowMs() - tLoad;
+        const double tCtx = nowMs();
 
         llama_context_params cp = llama_context_default_params();
         cp.n_ctx = (uint32_t)std::max(512, p.ctx);
@@ -154,6 +189,7 @@ bool Core::load(const LoadParams &p, std::string &error) {
         cp.n_seq_max = (uint32_t)std::max(1, p.slots);
         cp.n_threads = std::max(1, p.threads);
         cp.n_threads_batch = p.threadsBatch > 0 ? p.threadsBatch : cp.n_threads;
+        lp_.threadsBatch = (int)cp.n_threads_batch;
         cp.kv_unified = true;
         cp.no_perf = true;
         if (p.kvBits <= 8) {
@@ -168,6 +204,7 @@ bool Core::load(const LoadParams &p, std::string &error) {
         cp.abort_callback_data = this;
         ctx_ = llama_init_from_model(model_, cp);
         if (!ctx_) { error = "the model's context could not be made (not enough memory?)"; unload(); return false; }
+        contextMs_ = nowMs() - tCtx;
     } catch (const std::bad_alloc &) {
         error = "out of memory while loading the model";
         unload();
@@ -196,6 +233,10 @@ ModelInfo Core::info() const {
     i.trainCtx = llama_model_n_ctx_train(model_);
     i.ctx = (int)llama_n_ctx(ctx_);
     i.slots = (int)slots_.size();
+    i.loadMs = loadMs_;
+    i.contextMs = contextMs_;
+    const char *sys = llama_print_system_info();
+    if (sys) { i.system = sys; for (auto &ch : i.system) if (ch == '\t' || ch == '\n') ch = ' '; }
     return i;
 }
 
@@ -283,7 +324,8 @@ int Core::acquire(const std::string &key, const std::vector<int32_t> &prompt, Ge
             } else {
                 llama_memory_seq_rm(llama_get_memory(ctx_), idx, -1, -1);
             }
-            remove(path.c_str());
+            // the file stays: it is still a true prefix of what the NPC holds, so a crash before the next flush loses nothing;
+            // the next eviction or flush overwrites it, and reset() removes it
         }
     }
     // 2. a prefix another NPC's slot holds (the shared preamble): borrowed without copying memory
@@ -336,6 +378,10 @@ GenResult Core::generate(uint64_t ticket, const std::string &key, const std::str
     if (!loaded()) { r.error = "no model is loaded"; return r; }
     current_ = ticket;
     struct Done { Core *c; ~Done() { c->current_ = 0; c->publish(); } } done{this};
+    const double tStart = nowMs();
+    pinToCores(lp_.affinityMask);
+    r.threads = lp_.threads;
+    r.threadsBatch = lp_.threadsBatch;
     try {
         std::vector<int> t = tokenize(prompt);
         std::vector<int32_t> toks(t.begin(), t.end());
@@ -379,6 +425,13 @@ GenResult Core::generate(uint64_t ticket, const std::string &key, const std::str
             if (gp.chunkDelayMs > 0 && pos < toks.size()) std::this_thread::sleep_for(std::chrono::milliseconds(gp.chunkDelayMs));
         }
         r.prefillMs = nowMs() - t0;
+        r.kvTokens = (int)s.toks.size();
+        if (gp.maxTokens <= 0) {   // only read the prompt into the NPC's place (warming it up): nothing is sampled
+            r.finish = Finish::Length;
+            r.firstTokenMs = nowMs() - tStart;
+            s.last = ++clock_;
+            return r;
+        }
 
         // the sampler
         llama_sampler *smpl = llama_sampler_chain_init(llama_sampler_chain_default_params());
@@ -409,6 +462,7 @@ GenResult Core::generate(uint64_t ticket, const std::string &key, const std::str
         for (int n = 0; n < gp.maxTokens; n++) {
             if (cancelled_.load() == ticket) { r.finish = Finish::Cancelled; break; }
             llama_token tok = llama_sampler_sample(smpl, ctx_, -1);
+            if (r.generated == 0) r.firstTokenMs = nowMs() - tStart;
             if (llama_vocab_is_eog(vocab_, tok)) { r.finish = Finish::Eos; break; }
             char buf[256];
             int pl = llama_token_to_piece(vocab_, tok, buf, sizeof buf, 0, false);
@@ -453,6 +507,7 @@ GenResult Core::generate(uint64_t ticket, const std::string &key, const std::str
             emit(pending);
         }
         r.decodeMs = nowMs() - d0;
+        r.kvTokens = (int)s.toks.size();
         r.text = out;
         llama_sampler_free(smpl);
         s.last = ++clock_;

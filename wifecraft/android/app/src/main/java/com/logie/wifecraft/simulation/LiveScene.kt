@@ -469,7 +469,7 @@ class LiveScene(
             // the hips and head: from the playing clip's skeleton as it was read (anim/Requirements: its pelvis, its head over
             // the ground, its posture), else by what they do (a body resting on a bed laid out toward its head)
             val read = cineReads[i]
-            val scale = simulation.bodyScales[simulation.id(i)] ?: 1f
+            val scale = (simulation.bodyScales[simulation.id(i)] ?: 1f) * com.logie.wifecraft.anim.CharacterSize.active
             if (read != null && pose.playback != null && CinematicAnchors.performer(read, cineFrames[4 * i], cineFrames[4 * i + 1],
                     cineFrames[4 * i + 2], cineFrames[4 * i + 3], scale, pose.z, pose.floor, cinePoint)) {
                 val p = cinePoint
@@ -632,7 +632,7 @@ class LiveScene(
     /** Person [i]'s body for a conversation or JOI camera ([joiBody]): her bones as drawn, else estimates; a creature's skull by its spec. */
     private fun fillBody(i: Int, spec: com.logie.wifecraft.characters.CreatureSpec?) {
         simulation.pose(i, pose)
-        val scale = simulation.bodyScales[simulation.id(i)] ?: 1f
+        val scale = (simulation.bodyScales[simulation.id(i)] ?: 1f) * com.logie.wifecraft.anim.CharacterSize.active
         val sx = stageX(curX[i], curY[i]); val sy = stageY(curX[i], curY[i]); val z = oz + curZ[i]
         val facing = pose.facing + rotation
         if (spec != null) {

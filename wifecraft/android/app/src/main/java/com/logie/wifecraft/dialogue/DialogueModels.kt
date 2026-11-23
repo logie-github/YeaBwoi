@@ -119,7 +119,7 @@ data class DialogueConfig(
     val modelId: String? = null,
     /** A custom model's path (modelId "custom"). */
     val customPath: String? = null,
-    /** Threads for the model: 0 = chosen from the phone's cores (half of them, 2 to 4). */
+    /** Speed (Options -> Dialogue): 0 = Auto (the phone's performance cores: [ThreadPlan.choose]), else the number of threads, 3 to 6 by hand. */
     val threads: Int = 0,
     /** Tokens of KV cache shared by every NPC (2048 to 8192). */
     val context: Int = 6144,

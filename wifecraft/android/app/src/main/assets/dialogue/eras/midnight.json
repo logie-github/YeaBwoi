@@ -1,0 +1,43 @@
+{
+ "id": "midnight",
+ "label": "Midnight",
+ "order": 11,
+ "release": 2026,
+ "until": 2027,
+ "years": "the Void's assault on Quel'Thalas, the Worldsoul Saga's second chapter",
+ "present": "The world is Azeroth with the Void's army at the gates of Quel'Thalas and the Sunwell, the Light's beacon, under siege, while Horde and Alliance share a reopened Silvermoon.",
+ "world": "Xal'atath's Void forces have invaded Quel'Thalas and darkened the Sunwell into the Darkwell; Silvermoon, rebuilt, is open to both camps as a hub. The elven tribes are mustered, the Amani trolls of Zul'Aman and the Haranir of Harandar join the fight, and the Void's Voidstorm grows beyond. Alleria, Turalyon, Lor'themar, Liadrin, Khadgar and Valeera stand in the fight.",
+ "idiom": "Folk swear by the Light, the Sunwell and the Loa; coin is gold, silver and copper; Void is the enemy and the Light the hope; Silvermoon's scholars call it the Void's tide.",
+ "folk": {
+  "alliance": "You know of the Void's assault on Quel'Thalas and the Sunwell's peril; Silvermoon is a shared hub.",
+  "horde": "You know of the Void's assault on Quel'Thalas and the Sunwell's peril; Silvermoon is a shared hub.",
+  "neutral": "You hear dread news of the Void and the Sunwell, and trade in Silvermoon's open markets."
+ },
+ "classes": {},
+ "races": {},
+ "stances": {
+  "alliance>horde": "The Alliance and Horde share Silvermoon against the Void, with some tension.",
+  "horde>alliance": "The Horde shares Silvermoon with the Alliance against the Void, with some tension."
+ },
+ "introduces": [
+  "voidstorm",
+  "harandar",
+  "haranir",
+  "darkwell",
+  "devourer",
+  "nexus-point",
+  "averzian",
+  "salhadaar",
+  "zul'jarra",
+  "twilight's blade",
+  "silvermoon reborn",
+  "the reliquary",
+  "curse of ula'tek"
+ ],
+ "places": {
+  "dalaran": "Lies in ruin since the Void's work; its mages wander.",
+  "stormwind": "Stormwind: the Alliance's capital.",
+  "brill": "Brill: the Forsaken's village of Tirisfal.",
+  "dolanaar": "Dolanaar: a Teldrassil village, burned and mourned, its tree scarred."
+ }
+}

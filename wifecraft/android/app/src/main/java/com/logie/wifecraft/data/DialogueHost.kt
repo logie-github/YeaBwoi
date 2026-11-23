@@ -139,7 +139,7 @@ object DialogueHost {
                 try { while (true) { Thread.sleep(400); val p = model.loadProgress(); if (_state.value.phase == DialogueUiState.Phase.LOADING) _state.value = _state.value.copy(loadProgress = p) } } catch (_: InterruptedException) { }
             }, "wc-dialogue-load-progress").apply { isDaemon = true; start() }
             try {
-                val err = model.load(spec, f, cfg.resolveThreads(Runtime.getRuntime().availableProcessors()), cfg.context, cfg.slots, cfg.ambientTokensPerMinute)
+                val err = model.load(spec, f, cfg.threads, cfg.context, cfg.slots, cfg.ambientTokensPerMinute)
                 if (err != null) failLoad(err) else { _state.value = _state.value.copy(loadProgress = -1f); refresh() }
             } catch (e: OutOfMemoryError) {
                 failLoad("the phone ran out of memory loading the model; close other apps and try again")
@@ -156,6 +156,32 @@ object DialogueHost {
     }
 
     fun unload() { Thread({ model.unload(); refresh() }, "wc-dialogue-unload").start() }
+
+    // ---- speed: the timings, the thread count, the speed test ------------------------------------------------------------
+
+    /** What every request cost, the last 100 (empty before a model is loaded). */
+    val timings get() = model.timings
+
+    /** "Last replies: first word after X s, Y tok/s" and what it was made of. */
+    fun summary() = model.timings.summary()
+
+    /** The text "Copy timings" copies: the model's load time, the CPU, the kernels, the threads, and the last 100 requests. */
+    fun timingsReport(): String = model.report()
+
+    /** Speed in Options: 0 Auto, 3 to 6 threads; saved, and applied to the next answer without a reload. */
+    fun setSpeed(threads: Int) {
+        setConfig(config.copy(threads = threads))
+        model.setSpeed(threads)
+    }
+
+    /** The thread plan in force, in words. */
+    fun speedNote(): String = model.plan.note
+
+    /** The CPU's features and cores, in words (the kernels expected, the performance cores). */
+    fun cpuNote(): String = model.cpu.describe()
+
+    /** Runs the 64-token Speed test; null when no model is loaded. Call from a coroutine (it takes seconds). */
+    suspend fun speedTest(): com.logie.wifecraft.dialogue.SpeedResult? = if (started.get() && model.isLoaded) model.speedTest() else null
 
     /** The app leaves the foreground: the NPCs' places are written to disk. */
     fun saveState() { if (started.get() && model.isLoaded) Thread { model.saveState() }.start() }

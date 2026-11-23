@@ -16,7 +16,9 @@ import kotlin.math.sin
  * from the computed placement, in the pair's own frame (x its front, y its left, z up; [RoleDelta]), so it holds wherever
  * the pair's origin or the bed is. The next time that race plays that animation in that role (the live scene, autoplay,
  * cinematic, the Ready-to-play preview, a switch of positions: applied after the swap, by role), the delta is laid on top of
- * the computed placement; the animation itself is never changed or copied. A single actor on furniture (a gnome on a chair)
+ * the computed placement; the animation itself is never changed or copied. The yards are kept at Character size 1 (anim/CharacterSize:
+ * the bodies and the pair frame grow with it) and laid on times the size in force ([RoleDelta.scaled]; the player's own nudges in
+ * Build mode and saved spots are world yards as made, not scaled). A single actor on furniture (a gnome on a chair)
  * keys the item too. Precedence: the phone's own (files/build/race_offsets.json) over the shipped file
  * (assets/race_offsets.json, merged from build reports by tools/item_reports.py) over none. Pure.
  */
@@ -52,6 +54,9 @@ data class RoleDelta(val dx: Float, val dy: Float, val dz: Float, val dyawDeg: F
     val none: Boolean get() = abs(dx) < 1e-4f && abs(dy) < 1e-4f && abs(dz) < 1e-4f && abs(dyawDeg) < 0.05f
     operator fun plus(o: RoleDelta) = RoleDelta(dx + o.dx, dy + o.dy, dz + o.dz, ItemFrame.wrapDeg(dyawDeg + o.dyawDeg))
     operator fun minus(o: RoleDelta) = RoleDelta(dx - o.dx, dy - o.dy, dz - o.dz, ItemFrame.wrapDeg(dyawDeg - o.dyawDeg))
+
+    /** Its distances times [k] (the turn kept): a remembered offset is kept at Character size 1 and laid on at [com.logie.wifecraft.anim.CharacterSize.active]. */
+    fun scaled(k: Float): RoleDelta = if (k == 1f) this else RoleDelta(dx * k, dy * k, dz * k, dyawDeg)
 
     /** [role] moved by it (its offset from the pair's origin and its facing, both in the pair's frame). */
     fun applyTo(role: PlaybackRole): PlaybackRole =

@@ -75,6 +75,15 @@ android {
 		abortOnError = false
 		checkReleaseBuilds = false
 	}
+
+	// The dialogue model's CPU kernels are separate libraries (libggml-cpu-*.so) that ggml finds by listing the app's native-library
+	// folder and loads the best of for this phone (src/main/cpp/dialogue/CMakeLists.txt): they must be real files there, not mapped
+	// from inside the APK, so the libraries are extracted at install.
+	packaging {
+		jniLibs {
+			useLegacyPackaging = true
+		}
+	}
 }
 
 dependencies {

@@ -240,12 +240,15 @@ class ChatModeTest {
         val reqs = engine.requests
         assertTrue(reqs.all { it.npcId == "chat:jaina" && it.priority == DialoguePriority.SELECTED })
         assertEquals(0, reqs[0].history.size); assertEquals(2, reqs[1].history.size); assertEquals(4, reqs[2].history.size)
-        assertEquals("Do you come here often?", reqs[1].history[0].text)
+        // the history repeats what was sent (the model has read it): the turn's message with what the player said in it, then her reply
+        assertTrue("Do you come here often?" in reqs[1].history[0].text && reqs[1].history[0].text == reqs[0].user, "the first message as it was sent")
+        assertEquals("Aye.", reqs[1].history[1].text)
         assertEquals(6, s.log.size); assertEquals(true, s.log[0].fromYou); assertEquals(false, s.log[1].fromYou)
         assertEquals(ChatPrompt.CHAT_PREFIX + "jaina", s.engineId)
         // the history is rolling
         repeat(12) { run { s.say("again $it", engine) } }
-        assertEquals(ChatSession.HISTORY, s.history().size)
+        // dropped in a block (a prefix the model has read stays put), so it is between the two bounds, never past the cap
+        assertTrue(s.history().size in ChatSession.HISTORY_KEEP..ChatSession.HISTORY, "${s.history().size}")
     }
 
     @Test fun theHistoryIsClearedOnLeavingAndOnAReset() {
@@ -309,7 +312,7 @@ class ChatModeTest {
         assertTrue(topic in req.user, "the steer reaches the prompt")
         assertTrue("Brannok stands quietly, waiting for you to speak." in req.user)
         assertEquals(1, s.log.size, "only her line is in the log: no invented line of the user's")
-        assertEquals(1, s.history().size)
+        assertEquals(2, s.history().size, "the message she was asked with, and her line")
         assertFalse(s.toggleTopic(topic)); assertFalse(s.topicOn(topic))
         // the chips are labels and topics: none of them is a sentence anyone says
         assertTrue(ChatTopics.CHIPS.size >= 4 && ChatTopics.CHIPS.map { it.label }.containsAll(listOf("Her day", "The war", "Flirt", "Her past")))

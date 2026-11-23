@@ -48,7 +48,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.coerceIn
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.logie.wifecraft.data.DialogueHost
+import com.logie.wifecraft.data.DialogueUiState
 import com.logie.wifecraft.dialogue.ChatLength
+import com.logie.wifecraft.dialogue.ChatWait
 import com.logie.wifecraft.dialogue.ChatSession
 import com.logie.wifecraft.dialogue.ChatSetup
 import com.logie.wifecraft.dialogue.ChatTopics
@@ -274,7 +278,7 @@ fun ChatLayer(
                         val who = if (l.fromYou) session.youName else session.npcName
                         Text("$who: ${l.text}", style = WifeTheme.bodyStyle(if (l.fromYou) WifeTheme.textDim else WifeTheme.text))
                     }
-                    if (typing) Text("${session.npcName} is answering" + ".".repeat(1 + (local / 3) % 3), style = WifeTheme.captionStyle())
+                    if (typing) Text(ChatWait.thinking(session.npcName, System.currentTimeMillis() - session.typingSince, 1 + (local / 3) % 3), style = WifeTheme.captionStyle())
                     if (session.quiet && !typing) WifeNote("${session.npcName} says nothing.")
                 }
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
@@ -302,7 +306,9 @@ private fun ChatNeedsModel(onDownload: (() -> Unit)?, onRetry: () -> Unit, onBac
     Column(modifier.widthIn(max = 340.dp).wifeSurface().padding(WifeTheme.gapM), verticalArrangement = Arrangement.spacedBy(WifeTheme.gapS),
         horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Chat needs the dialogue model", style = WifeTheme.labelStyle(), textAlign = TextAlign.Center)
-        Text("Her words come from the model on your phone, and it is not there yet.", style = WifeTheme.captionStyle(), textAlign = TextAlign.Center)
+        val ds by DialogueHost.state.collectAsStateWithLifecycle()
+        if (ds.phase == DialogueUiState.Phase.LOADING) Text(ChatWait.loading(ds.loadProgress) + " (it is a big file; this takes a while)", style = WifeTheme.captionStyle(), textAlign = TextAlign.Center)
+        else Text("Her words come from the model on your phone, and it is not there yet.", style = WifeTheme.captionStyle(), textAlign = TextAlign.Center)
         Row(horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
             if (onDownload != null) WifeButton("Download it", onDownload)
             WifeButton("Try again", onRetry)

@@ -5,7 +5,8 @@
 
 set(WC_LLAMA_TAG "v1.0.0-b12359-b1b770d" CACHE STRING "llama.cpp release tag the app is built against")
 
-# llama.cpp's own options: the library only (no tools, tests, server, curl), CPU only, no OpenMP (ggml has its own pool)
+# llama.cpp's own options: the library only (no tools, tests, server, curl), CPU only (no GPU backend: see the README's note on
+# Adreno), no OpenMP (ggml has its own pool)
 set(LLAMA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -17,10 +18,20 @@ set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
 set(GGML_LLAMAFILE OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 if (ANDROID)
-    # arm64-v8a without GGML_NATIVE: say which instructions the kernels may use. dotprod (the int8 dot product of the
-    # quantised matmuls) and fp16 are in every phone with 8 GB or more of RAM; i8mm (about twice the prompt speed) is not
-    # in all of them, so it is left out rather than risk an illegal instruction.
-    set(GGML_CPU_ARM_ARCH "armv8.2-a+dotprod+fp16" CACHE STRING "" FORCE)
+    # arm64-v8a: the CPU kernels are chosen on the phone, not here. ggml builds the CPU backend once per feature set
+    # (GGML_CPU_ALL_VARIANTS: android_armv8.0_1 plain NEON, armv8.2 with dotprod and fp16, armv8.6 with i8mm, armv9 with SVE2, ...)
+    # as separate libraries (libggml-cpu-<variant>.so, loaded from the app's native-library folder: the manifest has
+    # extractNativeLibs) and, at load, keeps the best one this CPU can run (GGML_BACKEND_DL, Core::load's
+    # ggml_backend_load_all_from_path). i8mm roughly doubles the speed of reading a prompt and every Snapdragon 8 Gen 1 and later
+    # has it; a phone without it falls back to dotprod or to plain NEON by the same scoring, so no phone meets an illegal instruction.
+    # This needs shared libraries (libllama.so, libggml.so, libggml-base.so beside libwcdialogue.so).
+    set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
+    set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
+    set(GGML_BACKEND_DL ON CACHE BOOL "" FORCE)
+    set(GGML_CPU_ALL_VARIANTS ON CACHE BOOL "" FORCE)
+    set(GGML_CPU_KLEIDIAI OFF CACHE BOOL "" FORCE)
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,max-page-size=16384")
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,-z,max-page-size=16384")
 endif()
 
 if (WC_LLAMA_SOURCE_DIR)
@@ -45,6 +56,10 @@ if (ANDROID)
     add_library(wcdialogue SHARED dialogue_jni.cpp)
     target_link_libraries(wcdialogue PRIVATE wcdialogue_core log)
     target_compile_options(wcdialogue PRIVATE -O2 -Wall -Wno-unused-parameter)
-    # 16 KB page alignment (Android 15+ devices): llama.cpp's static code is linked in
+    # 16 KB page alignment (Android 15+ devices)
     target_link_options(wcdialogue PRIVATE -Wl,-z,max-page-size=16384)
+endif()
+
+if (ANDROID)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)   # nothing after this file asks for it, but the cache is shared with the rest of the build
 endif()

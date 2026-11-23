@@ -1,0 +1,46 @@
+{
+ "id": "warwithin",
+ "label": "The War Within",
+ "order": 10,
+ "release": 2024,
+ "until": 2026,
+ "years": "the Worldsoul Saga's first chapter",
+ "present": "The world is Azeroth in the Worldsoul Saga, with Khaz Algar's deeps opened, the Void's Harbinger plotting and the world's own soul at stake.",
+ "world": "Under the world, Khaz Algar: the Isle of Dorn and Dornogal, the Ringing Deeps, Hallowfall's Light-fed lands and the nerubian realm of Azj-Kahet. Xal'atath, the Harbinger of the Void, corrupts the nerubians, destroys Dalaran and seeks the Worldsoul. Alliance and Horde keep an armistice, with the Earthen of Dornogal as new friends. Housing neighbourhoods rise at Founder's Point.",
+ "idiom": "Folk swear by the Light, the Loa and the Earthen's Titans; coin is gold, silver and copper; delvers go into delves; Resonance Crystals pay in Khaz Algar.",
+ "folk": {
+  "alliance": "You know of the Harbinger, Dalaran's fall and the Earthen's welcome; the Horde keeps an armistice.",
+  "horde": "You know of the Harbinger, Dalaran's fall and the Earthen's welcome; the Alliance keeps an armistice.",
+  "neutral": "You hear dark news of the Void and trade in Khaz Algar's deeps."
+ },
+ "classes": {},
+ "races": {
+  "skyborne": "No such people exist."
+ },
+ "stances": {
+  "alliance>horde": "The Alliance keeps its armistice with the Horde against the Void.",
+  "horde>alliance": "The Horde keeps its armistice with the Alliance against the Void."
+ },
+ "introduces": [
+  "khaz algar",
+  "dornogal",
+  "azj-kahet",
+  "hallowfall",
+  "ringing deeps",
+  "isle of dorn",
+  "nerub'ar",
+  "worldsoul",
+  "dark heart",
+  "founder's point",
+  "reshii",
+  "city of threads",
+  "gallagio",
+  "machine-god"
+ ],
+ "places": {
+  "dalaran": "Lies destroyed; its mages and refugees are scattered.",
+  "stormwind": "Stormwind: the Alliance's capital, its Wizard's Sanctum home to housing stewards.",
+  "brill": "Brill: the Forsaken's village of Tirisfal.",
+  "dolanaar": "Dolanaar: a Teldrassil village, burned and mourned, its tree scarred."
+ }
+}

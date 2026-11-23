@@ -28,6 +28,9 @@ class DialogueDirector(
         random: Random = Random.Default, kink: KinkPack? = null) : this({ engine }, lore, sink, settings, random, kink)
 
     @Volatile var settings: DialogueSettings = settings
+    /** The era the scene was set in at its creation or changed from the scene menu (null: the place's own era, else [settings]' Default era). It applies from the next line. */
+    @Volatile var sceneEra: String? = null
+    @Volatile var sceneCustomYear: Int = 0
     val comfort = ComfortLedger()
     val steers = SteerBoard()
     private val runner = ModelRunner(engineOf)
@@ -82,7 +85,7 @@ class DialogueDirector(
         generation++
         runner.clear(); consent.reset(); comfort.clear(); steers.clearAll()
         history.clear(); lastSpoke.clear(); convs.clear(); pairCooldown.clear(); liveTurn.clear(); jois.clear(); runs.clear(); events.clear()
-        known = emptySet(); nextSpeechAt = 0.0; nullStreak = 0; systems.clear()
+        known = emptySet(); nextSpeechAt = 0.0; nullStreak = 0; systems.clear(); warmedIds.clear(); wasReady = false
     }
 
     fun historyOf(id: String): List<DialogueTurn> = history[id]?.toList().orEmpty()
@@ -147,6 +150,9 @@ class DialogueDirector(
     private var focusSent: Pair<String?, Set<String>>? = null
     private var focusEngine: DialogueEngine? = null
     private val seenProfiles = HashMap<String, NpcProfile>()
+    // the NPCs whose persona was handed to the runtime to read ahead of their first line (warm-up), and whether the model was ready last frame
+    private val warmedIds = HashSet<String>()
+    private var wasReady = false
 
     /** The NPC the player has selected and the pair that is talking (a sexual stage's, else the selected one's, else a conversation's). */
     private fun focusOf(v: SceneView): Pair<String?, Set<String>> {
@@ -161,18 +167,58 @@ class DialogueDirector(
 
     private fun syncEngine(v: SceneView) {
         val engine = engineOf()
+        applyEra(v, engine)
         // an NPC whose persona changed, or who left: their state in the model is given up (the next request reads the whole prompt again)
         val ids = v.people.map { it.profile.id }.toSet()
         for (p in v.people) {
             val old = seenProfiles.put(p.profile.id, p.profile)
-            if (old != null && old != p.profile) { systems.remove(p.profile.id); history.remove(p.profile.id); engine?.forget(p.profile.id) }
+            if (old != null && old != p.profile) { systems.remove(p.profile.id); history.remove(p.profile.id); warmedIds.remove(p.profile.id); engine?.forget(p.profile.id) }
         }
         for (id in seenProfiles.keys.toList()) if (id !in ids) {
-            seenProfiles.remove(id); systems.remove(id); history.remove(id); lastSpoke.remove(id); engine?.forget(id)
+            seenProfiles.remove(id); systems.remove(id); history.remove(id); lastSpoke.remove(id); warmedIds.remove(id); engine?.forget(id)
         }
-        if (engine == null) { focusEngine = null; focusSent = null; return }
+        if (engine == null) { focusEngine = null; focusSent = null; wasReady = false; return }
+        // the model came up (or was reloaded): what it read before is gone, the cast is read again
+        val readyNow = engine.ready
+        if (readyNow && !wasReady) warmedIds.clear()
+        wasReady = readyNow
+        if (readyNow && settings.enabled) warmUp(engine, v)
         val f = focusOf(v)
         if (engine !== focusEngine || f != focusSent) { focusEngine = engine; focusSent = f; engine.setFocus(f.first, f.second) }
+    }
+
+    /**
+     * Warm-up: the persona of the NPC the player has selected is read into the model at once, then those of the nearest few, one at a
+     * time and behind everything else, so the first line of each pays for its new words only (a persona is 250 to 450 tokens: 10 to
+     * 30 seconds of reading on the phone, the first time). The prompt is the very system text the NPC's requests send.
+     */
+    private fun warmUp(engine: DialogueEngine, v: SceneView) {
+        if (v.people.none { it.profile.id !in warmedIds }) return
+        fun sys(p: NpcProfile) = systems.getOrPut(p.id) { PersonaPrompt.system(p, lore) }
+        v.people.firstOrNull { it.selected && it.profile.id !in warmedIds }?.let { warmedIds += it.profile.id; engine.warm(it.profile.id, sys(it.profile), urgent = true) }
+        var room = WARM_MAX - warmedIds.size
+        if (room <= 0) return
+        for (p in v.people.sortedBy { it.cameraDistance }) {
+            if (room <= 0) break
+            if (warmedIds.add(p.profile.id)) { engine.warm(p.profile.id, sys(p.profile), urgent = false); room-- }
+        }
+    }
+
+    /** The era in force (the scene's own, else the place's, else Options' Default era), set on the lore's [PersonaKit]; a change flushes every persona (the system prompts, the talk so far, the runtime's state). */
+    private fun applyEra(v: SceneView, engine: DialogueEngine?) {
+        val kit = lore.kit ?: return
+        val id = sceneEra ?: kit.eraForPlace(v.place.name) ?: settings.era
+        val year = if (sceneEra != null) sceneCustomYear else settings.customYear
+        val before = kit.eraKey
+        kit.setEra(id, year)
+        if (kit.eraKey != before) { systems.clear(); history.clear(); warmedIds.clear(); seenProfiles.keys.forEach { engine?.forget(it) } }
+    }
+
+    /** The persona kit's per-turn notes (relationships of those present, topics the talk touches), or null. */
+    private fun personaNotes(me: NpcProfile, v: SceneView, c: Candidate): String? {
+        val kit = lore.kit ?: return null
+        val said = listOfNotNull(c.conv?.heard, c.conv?.seed) + history[me.id]?.takeLast(2)?.map { it.text }.orEmpty()
+        return kit.turnNotes(me, v.people.filter { it.profile.id != me.id }.map { it.profile }, said.joinToString(" "))
     }
 
     private fun recent() = events.map { it.second }
@@ -253,21 +299,25 @@ class DialogueDirector(
             me, v, c.mode, other, band, desire, steers.hints(me.id, other?.id), recent(),
             stageName = c.speaker.stageName, heard = c.conv?.heard, seed = c.conv?.seed?.takeIf { c.conv.heard == null },
             kink = kink, joiStage = joiStageFor(c, band), dirty = settings.dirty, maxWords = if (settings.dirty >= DirtyLevel.DEPRAVED) 34 else 28,
-        ))
+        )).let { u -> personaNotes(me, v, c)?.let { "$it\n$u" } ?: u }
         val lv = settings.dirty
-        val req = DialogueRequest(me.id, system, history[me.id]?.toList().orEmpty(), user, maxTokens = if (lv >= DirtyLevel.DEPRAVED) 76 else 64,
-            temperature = lv.temperature, topP = lv.topP, repeatPenalty = lv.repeatPenalty)
-        val gen = generation
-        val prio = (c.score * 10).toInt()
         val urgency = when {
             c.speaker.selected || c.other?.selected == true || c.mode == TalkMode.LIVE -> DialoguePriority.SELECTED
             c.conv != null -> DialoguePriority.PAIR
             c.score >= 1.5f -> DialoguePriority.NEARBY
             else -> DialoguePriority.AMBIENT
         }
+        // a line is 28 words (34 at the filthiest levels): about 40 (48) tokens, so 40 (48) is the cap for unprompted talk; the one the
+        // player is watching may run on to 56 (64). Each token not written is a fifth of a second on the phone.
+        val cap = if (lv >= DirtyLevel.DEPRAVED) 48 else 40
+        val caught = arrayOfNulls<String>(1)
+        val req = DialogueRequest(me.id, system, history[me.id]?.toList().orEmpty(), user, maxTokens = if (urgency <= DialoguePriority.PAIR) cap + 16 else cap,
+            temperature = lv.temperature, topP = lv.topP, repeatPenalty = lv.repeatPenalty, priority = urgency, tag = "speech", guard = guardInto(caught), sentences = LineCleaner.MAX_SENTENCES)
+        val gen = generation
+        val prio = (c.score * 10).toInt()
         runner.submit(prio, "speech", req, ttl = 15.0, urgency = urgency) { raw ->
             if (gen != generation) return@submit
-            onAnswer(c, req, raw, retried = false, gen, prio)
+            onAnswer(c, req, raw, retried = false, gen, prio, caught)
         }
     }
 
@@ -294,24 +344,32 @@ class DialogueDirector(
         return stage
     }
 
-    private fun onAnswer(c: Candidate, req: DialogueRequest, raw: String?, retried: Boolean, gen: Int, prio: Int) {
+    /** A stream check that remembers the first wrong word it saw in [into] (the answer is then stopped: see [DialogueRequest.guard]). */
+    private fun guardInto(into: Array<String?>): (String) -> Boolean = { text -> StreamGuard.problem(text)?.also { into[0] = it } != null }
+
+    private fun onAnswer(c: Candidate, req: DialogueRequest, raw: String?, retried: Boolean, gen: Int, prio: Int, caught: Array<String?>) {
         val me = c.speaker.profile
-        val line = LineCleaner.clean(raw, me.name)
-        if (line == null) {
+        // the stream check stopped it: the wrong word is already known (nothing was read to the end)
+        val early = if (raw == null) caught[0] else null
+        val line = if (early != null) null else LineCleaner.clean(raw, me.name)
+        if (line == null && early == null) {
             // nothing came back (no model, busy, a bad answer): ask less and less often, never in a tight loop
             nullStreak++
             nextSpeechAt = clock + minOf(1.0 * (1 shl minOf(nullStreak - 1, 4)), 16.0)
             return
         }
         nullStreak = 0
-        val bad = Anachronisms.find(line)
+        val bad = early ?: Anachronisms.find(line!!)
         if (bad != null) {
-            if (!retried) {
-                val again = req.copy(user = req.user + "\nSpeak as people of Azeroth do; do not use the word \"$bad\" or anything like it.")
-                runner.submit(prio, "speech", again, ttl = 15.0, urgency = req.priority) { r2 -> if (gen == generation) onAnswer(c, again, r2, retried = true, gen, prio) }
+            // asked again once, and only for the NPC the player is watching or a pair: unprompted talk is not worth a second answer, the line is dropped
+            if (!retried && req.priority <= DialoguePriority.PAIR) {
+                val c2 = arrayOfNulls<String>(1)
+                val again = req.copy(user = req.user + "\n" + StreamGuard.note(bad), guard = guardInto(c2))
+                runner.submit(prio, "speech", again, ttl = 15.0, urgency = req.priority) { r2 -> if (gen == generation) onAnswer(c, again, r2, retried = true, gen, prio, c2) }
             } else nextSpeechAt = clock + 1.0
             return
         }
+        line!!
         if (deliver(me.id, line, c.mode, c.other?.profile?.id, consentLine = false)) {
             val tl = lastSpoke
             tl[me.id] = clock
@@ -352,6 +410,8 @@ class DialogueDirector(
         const val SOLO_GAP = 30.0
         const val PAIR_COOLDOWN = 45.0
         const val JOI_CHANCE = 0.25f
+        /** How many NPCs of a scene are read ahead into the model (the places are six: chats and the speed test need some too). */
+        const val WARM_MAX = 4
     }
 }
 
