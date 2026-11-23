@@ -63,25 +63,19 @@ object DialogueAssets {
 }
 
 /**
- * The dialogue layer's interface over a scene: while [steerOpen], the steer window (topic and direction chips, free text, a strength, on the whole
- * scene, one NPC or a pair). Everything it changes goes to the GL thread as a command; what it shows is the director's snapshot.
+ * The steer panel, in the chrome's sheet (the side in landscape, above the dock in portrait): topic and direction chips, free text, a
+ * strength, on the whole scene, one NPC or a pair. Everything it changes goes to the GL thread as a command; what it shows is the
+ * director's snapshot.
  */
 @Composable
-fun DialogueOverlay(
-    director: DialogueDirector,
-    live: LiveScene,
-    names: Map<String, String>,
-    steerOpen: Boolean,
-    onCloseSteer: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun SteerSheet(director: DialogueDirector, live: LiveScene, names: Map<String, String>) {
     var snap by remember(director) { mutableStateOf(director.snapshot) }
     LaunchedEffect(director) { while (true) { snap = director.snapshot; delay(300) } }
-    if (steerOpen) SteerWindow(director, live, names, snap, onCloseSteer)
+    SteerBody(director, live, names, snap)
 }
 
 @Composable
-private fun SteerWindow(director: DialogueDirector, live: LiveScene, names: Map<String, String>, snap: DialogueSnapshot, onClose: () -> Unit) {
+private fun SteerBody(director: DialogueDirector, live: LiveScene, names: Map<String, String>, snap: DialogueSnapshot) {
     val ids = remember(names) { names.keys.toList() }
     val labels = remember(names) { ids.map { names[it] ?: it } }
     var who by remember { mutableIntStateOf(0) }
@@ -108,9 +102,9 @@ private fun SteerWindow(director: DialogueDirector, live: LiveScene, names: Map<
         }
         return "${e.steer.text} (${e.steer.strength.label.lowercase()}, $on)"
     }
-    Overlay(onClose) {
-        WifeWindow("Steer the talk", onClose, Modifier.widthIn(min = 280.dp, max = 520.dp).heightIn(max = 560.dp).padding(WifeTheme.gapL)) {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
+    run {
+        run {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
                 WifeSectionHeader("Who")
                 WifeTabs(listOf("Everyone") + labels, who, { who = it; if (with == who) with = 0 })
                 if (who > 0) {

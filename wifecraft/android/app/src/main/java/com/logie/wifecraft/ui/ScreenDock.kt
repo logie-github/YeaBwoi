@@ -116,7 +116,7 @@ object ScreenFeatures {
         ScreenFeature("menu.life", "scene menu: NPC's life", "menu window / More", 2),
         ScreenFeature("menu.freeze", "scene menu: Freeze", "menu window", 2, false),
         ScreenFeature("menu.build", "scene menu: Build mode", "menu window / More (first row) / mode chip", 2),
-        ScreenFeature("menu.steer", "scene menu: Steer the talk", "menu window / JOI dock", 2),
+        ScreenFeature("menu.steer", "scene menu: Steer the talk", "menu window -> SHEET (Steer)", 2),
         ScreenFeature("menu.limits", "scene menu: Consent and limits", "menu window / More", 3, false),
         ScreenFeature("menu.era", "scene menu: Era", "menu window", 3, false),
         ScreenFeature("menu.options", "scene menu: Options", "menu window", 2, false),

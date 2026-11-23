@@ -748,7 +748,6 @@ fun LiveSceneScreen(
             cast.associate { it.id to com.logie.wifecraft.dialogue.Profiles.of(it) }, com.logie.wifecraft.dialogue.PlaceView(locationName), { feed.cinematic })
         onDispose { live.dialogue = null }
     }
-    var steerOpen by remember(live) { mutableStateOf(false) }
     // an NPC hesitating before a stage (the director's snapshot, polled): the persuasion chips are the dock until it is settled or put off
     var hesitantNow by remember(live) { mutableStateOf<com.logie.wifecraft.dialogue.HesitantView?>(null) }
     var persuadeLater by remember(live) { mutableStateOf<String?>(null) }
@@ -2039,9 +2038,9 @@ fun LiveSceneScreen(
             onExitMode = { exitMode() },
             sheetTitle = when (sheetPanel) {
                 ScreenPanel.TIME -> "Time and events"; ScreenPanel.MORE -> active?.id?.let { names[it] } ?: "More"
-                ScreenPanel.CHAT_LOG -> "Talk with ${chatActor?.let { names[it] } ?: ""}"; else -> ""
+                ScreenPanel.CHAT_LOG -> "Talk with ${chatActor?.let { names[it] } ?: ""}"; ScreenPanel.STEER -> "Steer the talk"; else -> ""
             },
-            framed = sheetPanel == ScreenPanel.TIME || sheetPanel == ScreenPanel.MORE || sheetPanel == ScreenPanel.CHAT_LOG,
+            framed = sheetPanel == ScreenPanel.TIME || sheetPanel == ScreenPanel.MORE || sheetPanel == ScreenPanel.CHAT_LOG || sheetPanel == ScreenPanel.STEER,
             onCloseSheet = { panel = ScreenPanel.NONE },
             onSheetRect = { autoRect = it },
         ) {
@@ -2055,6 +2054,7 @@ fun LiveSceneScreen(
                 } }, Modifier.fillMaxSize())
                 ScreenPanel.MOVE_PANEL -> MovePanel(mapper, view, Modifier.fillMaxSize())
                 ScreenPanel.CHAT_LOG -> ChatLogSheet(chatMode.session, chatTick)
+                ScreenPanel.STEER -> dialogueDirector?.let { SteerSheet(it, live, names) }
                 else -> Unit
             }
         }
@@ -2143,7 +2143,6 @@ fun LiveSceneScreen(
     }
     // Move mode's windows: what is this (the class picker), the one-time question, the report
     MoveWindows(mapper) { cast.firstOrNull { it.id == mapper.npc }?.let(::npcInfoOf) }
-    if (dialogueDirector != null) DialogueOverlay(dialogueDirector, live, names, steerOpen, { steerOpen = false })
     BuildWindows(build)
     val sayFor = rememberHeld(saying)
     if (sayFor != null) {
@@ -2194,7 +2193,7 @@ fun LiveSceneScreen(
         onFreeze = { on -> selected?.let { live.life.freeze(it, on) } },
         onLife = selected?.takeIf { selectedLife != null }?.let { id -> { menu = false; lifeWindow = id } },
         buildOn = build.on, onBuild = { if (build.on) { menu = false; build.leave() } else enterBuild() },
-        onDialogue = dialogueDirector?.let { { menu = false; steerOpen = true } },
+        onDialogue = dialogueDirector?.let { { menu = false; panel = ScreenPanel.STEER } },
         era = dialogueDirector?.let { (sceneEra ?: dialogue.era) to (if (sceneEra != null) sceneEraYear else dialogue.customYear) },
         onEra = dialogueDirector?.let { d -> { id: String, year: Int -> sceneEra = id; sceneEraYear = year; d.sceneEra = id; d.sceneCustomYear = year } },
         limitsLine = consent?.let { p -> ConsentEdit.summary(cast.map { p.limitsOf(it.id) }) },

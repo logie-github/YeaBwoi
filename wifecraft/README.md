@@ -441,14 +441,22 @@ The user: "the UI has gotten a little clunky with stuff overlapping other UI ...
 | Soft radial (Slower... End) | the dock while a flow runs; in More with a partner |
 | Build bar, Build panel, Move panel | Build's dock, the sheet (side or above the dock, never over the middle) |
 | Auto-play panel | the sheet |
-| JOI controls | the sheet slot (side or bottom); the mode chip leaves JOI |
-| JOI, Chat entries | the dock (JOI, Chat tiles); Chat's own layer as before |
+| JOI controls (framing tabs, dirty talk slider, Pause, Skip stage, Stop) | JOI's dock: Stop, Pause, Skip, Level (a row of the levels), Frame (one tap to the next), Steer (a row); the mode chip leaves JOI too |
+| JOI steer chips and her-words field | the row over the dock, opened by Steer |
+| JOI, Chat entries | the dock (JOI, Chat tiles) |
+| Chat's top-left panel (Leave, length tabs, zoom presets and slider, "You: ...") | Leave in Chat's dock and the mode chip; the row over the dock: View (presets, one tap to the next; pinch still zooms), Reply (length), You (who you are, a window) |
+| Chat's bottom panel (log, topic chips, field, Send) | the dock (field, Send), the row (topics, Log), the line over the row (the last thing said), the Log sheet (the whole talk) |
+| Hesitation bar | the dock while someone hesitates (the approaches, Later) and the line over it |
+| Steer window (menu, "Steer the talk") | the sheet slot (side in landscape, above the dock in portrait) |
+| "Ask before partner animations play" (window only) | the window and Options > Scene |
+| Build chip / menu entry | More's first row, and the menu |
+| Build hint ("Build mode is in the menu") | the one first-run tip (the bar, the gear, Build under More) |
 
 - **Playing an animation:** the Play animation window's rows have a play button at the end (one tap: it plays at once, in the order shown); tapping a row still picks it to read its details and the footer plays it. A partner animation plays at once in the roles last kept for it; the "Ask before partner animations play" switch (default off) brings back the "Ready to play" panel; it is in the animation window and on Options > Scene (`ui/ScenePrefs`), one setting that the running scene follows. Switch positions is in the dock while it plays.
 - **Consent and limits for the chosen NPC:** More has "Limits: <name>", which opens the window on that NPC's tab (the scene menu's entry opens it on the first). Each category card has Will, Ask and Won't on it already.
-- **Windows:** every window (`Overlay`) keeps clear of the cut-out, the bars and the keyboard.
+- **Windows:** every window (`Overlay`) keeps clear of the cut-out, the bars and the keyboard, and closes with Back or a tap outside. The animation browser, the Consent and Life windows, the scene menu, the Chat setup and the relationship picker are still windows (a dim sheet over the scene, each with its own close); the Steer panel moved into the sheet slot. `SceneHud.layout` and the old layout constants are still there: tests and the Build and Move panels read them.
 
-**Taps** (NPC chosen counts as one): partner animation 6 to 4 (NPC, partner, Partner, its play button; the confirm panel is off), solo animation 4 to 3 (NPC, Play, its play button), a limit for the chosen NPC 5 to 4 (NPC, More, Limits, Will/Ask/Won't), Switch positions 1 (2 with the HUD hidden before), Stop, Skip and Stop repeat 1 (up to 2 before, pager), Build in 2 from the menu or More (was the chip, 1, now gone from the top), leaving a mode 1 (the chip; before: up to 2 with the HUD hidden), time speed 2 (clock, speed; was 2), the feed 2 (clock, then it is in the sheet; was 1 plus a separate panel). The numbers are from the code; none was measured on a phone.
+**Taps** (NPC chosen counts as one; asserted as constants in `TapCounts`): first Chat 3 or more to 2 (Chat, Continue as <name>), Send 1, topic 1, view 1 (was a chip and a slider), JOI Stop, Pause, Skip, Frame 1 (Frame was a tab strip: 1 to 2), dirty talk level 2 (Level, the level; was a slider in a panel that hid after 5 s: 1 to 3), steer chips 2 (Steer, the chip), a persuasion chip 1, Build 2 from More (the menu 2; before 2 from the chip, now gone), Options > Scene switch 2 (Options, the switch). partner animation 6 to 4 (NPC, partner, Partner, its play button; the confirm panel is off), solo animation 4 to 3 (NPC, Play, its play button), a limit for the chosen NPC 5 to 4 (NPC, More, Limits, Will/Ask/Won't), Switch positions 1 (2 with the HUD hidden before), Stop, Skip and Stop repeat 1 (up to 2 before, pager), Build in 2 from the menu or More (was the chip, 1, now gone from the top), leaving a mode 1 (the chip; before: up to 2 with the HUD hidden), time speed 2 (clock, speed; was 2), the feed 2 (clock, then it is in the sheet; was 1 plus a separate panel). The numbers are from the code; none was measured on a phone.
 
 ## Life simulation
 
