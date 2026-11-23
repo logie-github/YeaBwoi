@@ -112,7 +112,7 @@ object DirtyTalk {
         DirtyLevel.HOT -> "Graphic, commanding and possessive: you are in total control, praising them with filth and barking short hard orders."
         DirtyLevel.NASTY -> "Crude, degrading and relentless: you mock them, humiliate them and call them filthy names, and you enjoy making them desperate."
         DirtyLevel.DEPRAVED -> "Extreme, perverse and shocking, as far as an adult fantasy goes: total ownership and debasement, denied and ruined orgasms, begging, worship, cum play, shameless filth no one says in daylight."
-        DirtyLevel.WTF -> "The absolute extreme, ten times beyond the nastiest thing you can imagine: relentless, over the top, absurdly intense; every line escalates past the last, with wild exaggeration and the most obscene talk you can invent. No limit, no pause, no softness."
+        DirtyLevel.WTF -> "The absolute extreme, ten times beyond the nastiest thing you can imagine: relentless, over the top, absurdly intense; every line escalates past the last, with wild exaggeration and the most obscene talk you can invent. The excess is sexual, never injury, gore or death. No limit, no pause, no softness."
     }
 
     /** The words she uses at [level]. */
@@ -164,6 +164,9 @@ object DirtyTalk {
     /** The retry note when a line was refused as wellness talk. */
     const val WELLNESS_NOTE = "Not like that: no breathing, calming or coaching talk. Say it as a filthy lover who gives orders and wants them to obey."
 
+    /** The retry note when a line is one she already said. */
+    const val REPEAT_NOTE = "You already said that. Say something different."
+
     /** The retry note when a line copied one of the shown lines. */
     const val COPY_NOTE = "Say something new, in the same voice."
 
@@ -200,5 +203,5 @@ object DirtyTalk {
      * or "him" it is still an idea for her to say or do now, as herself.
      */
     fun steerHint(text: String): String =
-        "This very moment something takes hold of you and comes out in this line: \"$text\". Take it as your own idea, say it as yourself to them (I and you), and do not mention that it was suggested."
+        "Your mind is on this right now: $text. Let it show in this line, in your own filthy words, as I and you; do not repeat these words back and do not say that anything was suggested."
 }

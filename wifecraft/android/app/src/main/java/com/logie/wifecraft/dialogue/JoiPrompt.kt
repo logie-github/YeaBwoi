@@ -169,8 +169,10 @@ object JoiPrompt {
         var empty = 0
         val shown = shown(r, pack)
         for (attempt in 0 until TRIES) {
-            val got = clean(engine.complete(request(r.copy(note = note), pack)), r.persona.name)
-            if (got == null || got in r.recent) { if (++empty >= 2) break; continue }   // nothing, the fourth wall or a repeat: once more, no more
+            val req = request(r.copy(note = note), pack)
+            val got = clean(engine.complete(req.copy(temperature = req.temperature + 0.06f * attempt)), r.persona.name)   // a little livelier each retry
+            if (got == null) { if (++empty >= 2) break; continue }   // nothing, or the fourth wall: once more, no more
+            if (got in r.recent) { note = DirtyTalk.REPEAT_NOTE; continue }   // a small model sticks: it is told, and gets another try
             if (DirtyTalk.refused(got, r.level)) { wellness = got; note = DirtyTalk.WELLNESS_NOTE }
             else if (DirtyTalk.copies(got, shown)) { copy = got; note = DirtyTalk.COPY_NOTE }
             else return got

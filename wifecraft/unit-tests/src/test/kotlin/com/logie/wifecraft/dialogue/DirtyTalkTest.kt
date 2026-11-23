@@ -179,6 +179,16 @@ class DirtyTalkTest {
         assertFalse(DirtyTalk.copies("Fist that sad cock harder and look at me while you do it, slut.", JoiPrompt.shown(req(DirtyLevel.NASTY), pack)))
     }
 
+    @Test fun aRepeatedLineIsAskedForAgainWithANoteAndALittleMoreHeat() {
+        val answers = ArrayDeque(listOf("Stroke it harder, you slut.", "Grip that cock and pump it fast, you filthy whore."))
+        val engine = ScriptedEngine { answers.removeFirst() }
+        assertEquals("Grip that cock and pump it fast, you filthy whore.", run { JoiPrompt.line(engine, req(DirtyLevel.NASTY, recent = listOf("Stroke it harder, you slut.")), pack) })
+        assertTrue(DirtyTalk.REPEAT_NOTE in engine.calls[1].user)
+        assertTrue(engine.calls[1].temperature > engine.calls[0].temperature)
+        // never the same line three times: nothing
+        assertNull(run { JoiPrompt.line(ScriptedEngine { "Stroke it harder, you slut." }, req(DirtyLevel.NASTY, recent = listOf("Stroke it harder, you slut.")), pack) })
+    }
+
     @Test fun nothingAtAllIsTriedTwiceAndTheFourthWallStillHolds() {
         val none = ScriptedEngine { null }
         assertNull(run { JoiPrompt.line(none, req(DirtyLevel.HOT), pack) }); assertEquals(2, none.calls.size)
