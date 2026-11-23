@@ -1044,6 +1044,8 @@ class MainActivity : ComponentActivity() {
                                 // Move mode's item mappings: what was classified and where its report is (ui/ItemMapperUi.kt)
                                 com.logie.wifecraft.ui.MappedItemsSection()
                                 com.logie.wifecraft.ui.RaceOffsetsSection()
+                                // Options → Mods → Import pack: animations, toys, dolls, handcuffs, a bed and a layer from one zip (ui/PackImportUi.kt)
+                                com.logie.wifecraft.ui.PackImportSection(animationLibrary, simsRigs, retargeter = { rig -> Retargeter(simsProfile, rig) })
                             }
                         },
                         sound = {

@@ -1865,7 +1865,7 @@ class SceneSimulation(
     /** [a] and [b] play a two-person animation of [id] no more intimate than [max] (and named by [words]). False: none fits. */
     private fun pairUp(a: Actor, b: Actor, id: InteractionId, max: Intimacy, words: List<String>?, directed: Boolean): Boolean {
         val gate = { name: String, emote: Int ->
-            val level = if (emote >= 0) PairKinds.ofEmote(emote) else PairKinds.of(name)
+            val level = if (emote >= 0) PairKinds.ofEmote(emote) else PairKinds.of(name, pairs.firstOrNull { it.name == name }?.kind.orEmpty())
             level.ordinal <= max.ordinal && (words == null || PairKinds.matches(name, words))
         }
         if (!pick(a, b, gate)) return false

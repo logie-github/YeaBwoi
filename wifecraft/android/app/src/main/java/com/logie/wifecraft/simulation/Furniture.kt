@@ -39,7 +39,10 @@ enum class FurnitureKind(val label: String) {
             "TABLE", "DESK", "DINING_TABLE" -> TABLE
             "COUNTER", "BAR", "COUNTERTOP" -> COUNTER
             "FLOOR", "RUG", "GROUND", "CARPET" -> FLOOR
-            else -> null
+            // the packs' own Sims categories (CHAIR_LIVING, TABLE_DINING_LONG, OTTOMAN, CHAIR_LOUNGE_SOFA...)
+            else -> when (com.logie.wifecraft.anim.StageLocations.canonical(name)) {
+                "BED" -> BED_DOUBLE; "COUCH" -> COUCH; "CHAIR" -> CHAIR; "TABLE" -> TABLE; else -> null
+            }
         }
     }
 }
