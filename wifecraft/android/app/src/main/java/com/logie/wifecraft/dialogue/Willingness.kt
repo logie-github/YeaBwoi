@@ -64,9 +64,10 @@ object WillingnessModel {
      * boldness), caution and devotion up, boldness, warmth and curiosity down, trust (friendship and romance) down, familiarity
      * (the comfort band) down.
      */
-    fun prior(lore: Lore, me: NpcProfile, other: NpcProfile, rel: Relation = Relation(), band: ComfortBand = ComfortBand.STRANGERS): Float {
+    fun prior(lore: Lore, me: NpcProfile, other: NpcProfile, rel: Relation = Relation(), band: ComfortBand = ComfortBand.STRANGERS,
+        attitudeScale: Float = 1f): Float {
         val d = me.disposition
-        val att = attitude(lore, me.raceId, other.raceId)
+        val att = attitude(lore, me.raceId, other.raceId) * attitudeScale.coerceIn(0f, 1f)
         val scale = (1f + d.prejudice * 0.6f - d.curiosity * 0.4f - d.warmth * 0.25f - d.boldness * 0.2f).coerceIn(0.3f, 1.6f)
         var r = 0.1f + att * scale + d.caution * 0.18f + d.devout * 0.12f - d.boldness * 0.1f - d.warmth * 0.08f - d.curiosity * 0.06f
         r -= (rel.friendship / 100f).coerceIn(-0.5f, 1f) * 0.25f + (rel.romance / 100f).coerceIn(-0.5f, 1f) * 0.3f
