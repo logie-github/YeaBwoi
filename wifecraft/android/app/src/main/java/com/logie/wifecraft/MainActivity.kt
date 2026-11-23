@@ -1022,6 +1022,7 @@ class MainActivity : ComponentActivity() {
                         onDialogue = { dialogueSettings = it; settings.dialogue = it },
                         dialogueExtra = { com.logie.wifecraft.ui.DialogueModelSection() },
                         graphics = { com.logie.wifecraft.ui.GraphicsPage() },
+                        scene = { com.logie.wifecraft.ui.ScenePage() },
                         mods = {
                             Column {
                                 ImportsSection(imports, listfile)

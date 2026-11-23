@@ -160,3 +160,55 @@ class ScreenModesTest {
         for (f in ScreenFeatures.all.filter { it.frequent }) assertTrue(f.taps <= TapCounts.MAX_FREQUENT + 1, "${f.id}: ${f.taps}")
     }
 }
+
+class ChromeGateTest {
+    private class Clock { var t = 0L }
+
+    @Test
+    fun fiveSecondsWithoutATouchHidesEverythingAndTheRevealingTouchIsSwallowed() {
+        val c = Clock(); val g = ChromeGate { c.t }
+        assertTrue(g.update(true, ScreenMode.CINEMATIC, false, false))
+        c.t = 4_999; assertTrue(g.update(true, ScreenMode.CINEMATIC, false, false))
+        c.t = 5_000; assertFalse(g.update(true, ScreenMode.CINEMATIC, false, false))
+        assertTrue(g.fading(), "it is fading out")
+        c.t = 5_500; assertFalse(g.fading())
+        assertTrue(g.touch(), "the touch that reveals is consumed")
+        assertTrue(g.fading(), "no taps while it fades in")
+        c.t = 5_899; assertTrue(g.fading())
+        c.t = 5_900; assertFalse(g.fading())
+        assertFalse(g.touch(), "now a touch is a tap")
+        assertTrue(g.update(true, ScreenMode.CINEMATIC, false, false))
+    }
+
+    @Test
+    fun aTouchRestartsTheCountAndNothingHidesBuildJoiChatASheetOrTheKeyboard() {
+        val c = Clock(); val g = ChromeGate { c.t }
+        g.update(true, ScreenMode.CINEMATIC, false, false)
+        c.t = 4_000; g.touch(); c.t = 8_000
+        assertTrue(g.update(true, ScreenMode.CINEMATIC, false, false), "4 s after the touch")
+        for (m in listOf(ScreenMode.BUILD, ScreenMode.MOVE, ScreenMode.JOI, ScreenMode.CHAT)) { c.t += 60_000; assertTrue(g.update(true, m, false, false), "$m") }
+        c.t += 60_000; assertTrue(g.update(true, ScreenMode.CINEMATIC, true, false), "a sheet or window is open")
+        c.t += 60_000; assertTrue(g.update(true, ScreenMode.CINEMATIC, false, true), "the keyboard is up")
+        c.t += 100; assertTrue(g.update(true, ScreenMode.CINEMATIC, false, false), "closing it counts as a touch")
+        c.t += 4_000; assertTrue(g.update(true, ScreenMode.CINEMATIC, false, false))
+        c.t += 1_100; assertFalse(g.update(true, ScreenMode.CINEMATIC, false, false))
+    }
+
+    @Test
+    fun outsideTheCinematicItNeverHides() {
+        val c = Clock(); val g = ChromeGate { c.t }
+        c.t = 999_999; assertTrue(g.update(false, ScreenMode.NORMAL, false, false)); assertFalse(g.fading())
+        assertFalse(g.touch())
+    }
+
+    @Test
+    fun theFirstRunTipIsOneToastShownOnceAndNeverOverAnotherThing() {
+        assertTrue(ScreenTips.due(false, true, ScreenMode.NORMAL, false, false))
+        assertFalse(ScreenTips.due(true, true, ScreenMode.NORMAL, false, false), "once")
+        assertFalse(ScreenTips.due(false, false, ScreenMode.NORMAL, false, false), "not before the scene is up")
+        assertFalse(ScreenTips.due(false, true, ScreenMode.NORMAL, false, true), "never stacked on another toast")
+        assertFalse(ScreenTips.due(false, true, ScreenMode.BUILD, false, false))
+        assertFalse(ScreenTips.due(false, true, ScreenMode.NORMAL, true, false))
+        assertTrue(ScreenTips.TEXT.contains("bar") && ScreenTips.TEXT.contains("menu") && ScreenTips.TEXT.contains("Build"))
+    }
+}

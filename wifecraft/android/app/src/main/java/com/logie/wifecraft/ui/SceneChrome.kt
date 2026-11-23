@@ -314,8 +314,11 @@ private fun ToastLine(toast: Toast?) {
 internal fun MoreSheet(
     more: List<HudSlot>, enabled: (HudSlot) -> Boolean, onSlot: (HudSlot) -> Unit,
     extras: List<Pair<String, () -> Unit>>, onDone: () -> Unit,
+    /** The first rows (Build mode: two taps from the dock, More then this). */
+    lead: List<Pair<String, () -> Unit>> = emptyList(),
 ) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ScreenPlan.GAP.dp)) {
+        for ((label, run) in lead) key(label) { WifeButton(label, { run(); onDone() }, Modifier.fillMaxWidth()) }
         for (slot in more) key(slot.key) { WifeButton(slot.label, { onSlot(slot) }, Modifier.fillMaxWidth(), enabled = enabled(slot)) }
         for ((label, run) in extras) key(label) { WifeButton(label, { run(); onDone() }, Modifier.fillMaxWidth()) }
     }

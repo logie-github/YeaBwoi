@@ -63,48 +63,19 @@ object DialogueAssets {
 }
 
 /**
- * The dialogue layer's two bits of interface over a scene: the persuasion bar (when an NPC hesitates before a stage: chips for the
- * ways to calm them) and, while [steerOpen], the steer window (topic and direction chips, free text, a strength, on the whole
- * scene, one NPC or a pair). Everything it changes goes to the GL thread as a command; what it shows is the director's snapshot.
+ * The steer panel, in the chrome's sheet (the side in landscape, above the dock in portrait): topic and direction chips, free text, a
+ * strength, on the whole scene, one NPC or a pair. Everything it changes goes to the GL thread as a command; what it shows is the
+ * director's snapshot.
  */
 @Composable
-fun DialogueOverlay(
-    director: DialogueDirector,
-    live: LiveScene,
-    names: Map<String, String>,
-    steerOpen: Boolean,
-    onCloseSteer: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun SteerSheet(director: DialogueDirector, live: LiveScene, names: Map<String, String>) {
     var snap by remember(director) { mutableStateOf(director.snapshot) }
     LaunchedEffect(director) { while (true) { snap = director.snapshot; delay(300) } }
-    val hesitant = snap.hesitant.firstOrNull()
-    Box(modifier.fillMaxSize()) {
-        if (hesitant != null && snap.active) {
-            HesitationBar(hesitant, { approach -> live.command { director.persuade(hesitant.npcId, approach) } },
-                Modifier.align(Alignment.BottomCenter).padding(WifeTheme.gapM).padding(bottom = 96.dp))  // over the dock (16 + 48) and its line (4 + 28)
-        }
-    }
-    if (steerOpen) SteerWindow(director, live, names, snap, onCloseSteer)
+    SteerBody(director, live, names, snap)
 }
 
 @Composable
-private fun HesitationBar(h: HesitantView, onApproach: (Approach) -> Unit, modifier: Modifier = Modifier) {
-    val shape = RoundedCornerShape(WifeTheme.buttonRadius)
-    Column(
-        modifier.widthIn(max = 520.dp).clip(shape).background(WifeTheme.slate).border(WifeTheme.trimWidth, WifeTheme.gold.copy(alpha = 0.6f), shape)
-            .padding(WifeTheme.gapM),
-        verticalArrangement = Arrangement.spacedBy(WifeTheme.gapS),
-    ) {
-        Text("${h.name} hesitates over ${h.otherName}. Calm them?", style = WifeTheme.bodyStyle())
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
-            for (a in Approach.entries) WifeChip(a.label, { onApproach(a) }, trailing = null)
-        }
-    }
-}
-
-@Composable
-private fun SteerWindow(director: DialogueDirector, live: LiveScene, names: Map<String, String>, snap: DialogueSnapshot, onClose: () -> Unit) {
+private fun SteerBody(director: DialogueDirector, live: LiveScene, names: Map<String, String>, snap: DialogueSnapshot) {
     val ids = remember(names) { names.keys.toList() }
     val labels = remember(names) { ids.map { names[it] ?: it } }
     var who by remember { mutableIntStateOf(0) }
@@ -131,9 +102,9 @@ private fun SteerWindow(director: DialogueDirector, live: LiveScene, names: Map<
         }
         return "${e.steer.text} (${e.steer.strength.label.lowercase()}, $on)"
     }
-    Overlay(onClose) {
-        WifeWindow("Steer the talk", onClose, Modifier.widthIn(min = 280.dp, max = 520.dp).heightIn(max = 560.dp).padding(WifeTheme.gapL)) {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
+    run {
+        run {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
                 WifeSectionHeader("Who")
                 WifeTabs(listOf("Everyone") + labels, who, { who = it; if (with == who) with = 0 })
                 if (who > 0) {
