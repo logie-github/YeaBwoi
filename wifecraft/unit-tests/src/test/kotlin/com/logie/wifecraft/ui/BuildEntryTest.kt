@@ -54,6 +54,6 @@ class BuildEntryTest {
         assertEquals(52f, BuildEntry.buttonTop(56f))
         assertEquals("Build", BuildEntry.chipLabel(false))
         assertNotEquals(BuildEntry.chipLabel(false), BuildEntry.chipLabel(true))
-        assertTrue(BuildEntry.HINT.contains("Cinematic"))
+        assertTrue(BuildEntry.HINT.contains("menu"))
     }
 }

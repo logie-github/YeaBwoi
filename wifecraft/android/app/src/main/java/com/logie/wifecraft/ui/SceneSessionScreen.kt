@@ -686,6 +686,9 @@ fun LiveSceneScreen(
     var saying by remember { mutableStateOf<String?>(null) }
     var chatting by remember { mutableStateOf<String?>(null) }
     var menu by remember { mutableStateOf(false) }
+    // the one sheet that may be open over the scene (ScreenPanels: Time, More; Build's and Move's panels and auto-play's follow their modes)
+    var panel by remember(live) { mutableStateOf(ScreenPanel.NONE) }
+    var autoRect by remember(live) { mutableStateOf<ScreenRect?>(null) }
     val names = remember(cast) { cast.associate { it.id to it.name } }
     // "Won't: <name>" on a two-person animation the owner or their partner won't do (the scene declines it all the same)
     val limitNoteOf: (String, String?, AnimationChoice) -> String? = { owner, with, c ->
@@ -697,8 +700,6 @@ fun LiveSceneScreen(
     var radialAvail by remember(live) { mutableStateOf<List<Pair<InteractionId, Boolean>>?>(null) }
     var lifeWindow by remember(live) { mutableStateOf<String?>(null) }
     var lifeTab by remember { mutableStateOf(LifeTab.NEEDS) }
-    var speedOpen by remember(live) { mutableStateOf(false) }
-    var feedOpen by remember(live) { mutableStateOf(false) }
     // the answer to the player's last interaction, and when it came (the same answer twice still shows twice)
     var lifeToast by remember(live) { mutableStateOf<Pair<LifeResult, Long>?>(null) }
     // immersive mode (Options' Immersion, Show life HUD off): the HUD hidden until a tap, then up a few seconds (HudReveal)
@@ -742,8 +743,7 @@ fun LiveSceneScreen(
         else if (cinematic && !build.on) cinematic = false
         else if (radial != null) radial = null
         else if (lifeWindow != null) lifeWindow = null
-        else if (speedOpen) speedOpen = false
-        else if (feedOpen) feedOpen = false
+        else if (panel != ScreenPanel.NONE) panel = ScreenPanel.NONE
         else if (saying != null) saying = null
         else if (chatting != null) chatting = null
         else if (pairPlay != null) pairPlay = null
@@ -1127,10 +1127,9 @@ fun LiveSceneScreen(
     // the toast shows a moment; the answer is kept (the scene's notice says the same: the help line doesn't repeat it)
     var toastShown by remember(live) { mutableStateOf(false) }
     LaunchedEffect(lifeToast) { if (lifeToast != null) { toastShown = true; delay(LifeHud.TOAST_MS); toastShown = false } }
-    LaunchedEffect(speedOpen) { if (speedOpen) { delay(SPEED_CLOSE_MS); speedOpen = false } }
-    LaunchedEffect(feedOpen, lifeShown?.events) {
+    LaunchedEffect(panel, lifeShown?.events) {
         val events = lifeShown?.events
-        if (feedOpen && events != null) { feedSeen.seeAll(events.map { it.hours to it.text }); feedSeenAt++ }
+        if (panel == ScreenPanel.TIME && events != null) { feedSeen.seeAll(events.map { it.hours to it.text }); feedSeenAt++ }
     }
     // the radial menu's items: what can be had where the NPC is (LifeControl.menu, answered on the GL thread)
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
@@ -1255,7 +1254,6 @@ fun LiveSceneScreen(
     })
     /** The world's speed from the clock's buttons (this scene only; Options' speed is where each scene starts). GL thread. */
     fun setSpeed(speed: ClockSpeed) {
-        speedOpen = false
         val c = clock ?: return
         live.command { sim -> c.speed = speed; sim.life?.setSpeed(LifeHud.lifeSpeed(speed)) }
     }
@@ -1382,7 +1380,7 @@ fun LiveSceneScreen(
             val layer = AnimArrays.of(JoiDragonSway.layer(0.5f, seed.toLong()))
             view.queueEvent { view.glBoneLayer(actorKey(id), layer) }
         }
-        radial = null; speedOpen = false; feedOpen = false; menu = false; choosingAnimation = null; walking = false
+        radial = null; panel = ScreenPanel.NONE; menu = false; choosingAnimation = null; walking = false
         cinematic = true
         joiActor = id
         joiTick++
@@ -1486,7 +1484,7 @@ fun LiveSceneScreen(
         val lore = chatLore ?: return
         val a = cast.firstOrNull { it.id == id } ?: return
         chatMode.open(id, CreatureNpcs.of(a.appearance) != null, JoiPrior(cinematic, cameraMode.name, furnitureView), ChatSetup(lore, chatNames, chatStore))
-        radial = null; speedOpen = false; feedOpen = false; menu = false; choosingAnimation = null; walking = false
+        radial = null; panel = ScreenPanel.NONE; menu = false; choosingAnimation = null; walking = false
         chatSheet = id
         chatTick++
         // the sheet is open: while the player picks who they are, her persona is read into the model (the first reply then pays for the new words only)
@@ -1594,6 +1592,24 @@ fun LiveSceneScreen(
         buildHintSeen = true
         try { buildPrefs.edit().putBoolean(BuildEntry.KEY_HINT_SEEN, true).apply() } catch (e: Exception) { }
     }
+    // the one toast line under the top bar (ToastQueue): an answer, a refusal, a problem after loading, the first-run Build hint
+    val toasts = remember(live) { ToastQueue() }
+    var toastNow by remember(live) { mutableStateOf<Toast?>(null) }
+    fun pushToast(text: String, danger: Boolean) {
+        val at = SystemClock.uptimeMillis()
+        toasts.show(text, danger, at)
+        toastNow = toasts.at(at)
+    }
+    LaunchedEffect(lifeToast) { lifeToast?.let { (result, _) -> pushToast(result.message, !result.accepted) } }
+    LaunchedEffect(status, revealed) { if (revealed && status != null) pushToast(status, true) }
+    LaunchedEffect(revealed, buildHintSeen) {
+        if (BuildEntry.hintShown(buildHintSeen, false, false, revealed)) { pushToast(BuildEntry.HINT, false); dismissBuildHint() }
+    }
+    LaunchedEffect(toastNow) {
+        val t = toastNow ?: return@LaunchedEffect
+        delay((if (t.danger) ToastQueue.PROBLEM_MS else ToastQueue.LIFE_MS) - (SystemClock.uptimeMillis() - t.at) + 50L)
+        toastNow = toasts.at(SystemClock.uptimeMillis())
+    }
     // the one way in (the HUD chip and the scene menu): cinematic mode goes on (BuildEntry.cinematicAfterEnter), then the orbit camera round what is selected
     fun enterBuild() {
         if (BuildEntry.cinematicAfterEnter(cinematic) != cinematic) cinematic = false
@@ -1605,7 +1621,7 @@ fun LiveSceneScreen(
         live.camera.setMode(CameraMode.ORBIT)
     }
     val windowOpen = choosingAnimation != null || furnitureMenu != null || saying != null || chatting != null ||
-        choosingPartner != null || pairPlay != null || menu || ending || mapper.on || build.on || chatActor != null || chatSheet != null
+        choosingPartner != null || pairPlay != null || menu || ending || panel != ScreenPanel.NONE || mapper.on || build.on || chatActor != null || chatSheet != null
     // cinematic mode's idle hide: counted while cinematic, not building, no window open; any touch restarts it (see observeTouches below)
     SideEffect { cineIdleClock.mode(cinematic, build.on, windowOpen) }
     LaunchedEffect(live, cinematic, build.on, windowOpen) {
@@ -1853,170 +1869,121 @@ fun LiveSceneScreen(
         // immersive mode hides it too until a tap (HudReveal); hidden, it isn't there to be touched
         val hudHidden = cineHidden || chatActor != null || (!cinematic && immersiveHud && !hudUp)
         val hudAlpha by animateFloatAsState(if (hudHidden) 0f else 1f, tween(MenuMotion.duration(CINEMATIC_HUD_MS, reduced)), label = "cinematicHud")
-        if (hudAlpha > 0f || cinematic) BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).graphicsLayer { alpha = hudAlpha }) {
-            val hud = SceneHud.layout(maxWidth.value, maxHeight.value)
-            val events = lifeShown?.events
-            val unseen = remember(events, feedSeenAt) { events?.let { e -> feedSeen.unseen(e.map { it.hours to it.text }) } ?: 0 }
-            SceneTopBar(locationName, { menu = true }, Modifier.align(Alignment.TopCenter).fillMaxWidth(),
-                face = clockNow?.takeIf { lifeOn }?.let { LifeHud.clockFace(it.hour, it.day, it.speed, h24) },
-                onClock = { speedOpen = !speedOpen; feedOpen = false },
-                unseen = if (lifeOn) unseen else -1, feedOpen = feedOpen,
-                onFeed = { feedOpen = !feedOpen; speedOpen = false }, reserveEnd = (CINEMATIC_SLOT_W + 2 * CINEMATIC_GAP).dp)
-            if (shown > 0f) {
-                val people = snapshot.people
-                val castModifier = Modifier.graphicsLayer { alpha = shown }
-                if (hud.castSide) {
-                    Column(
-                        castModifier.align(Alignment.TopStart).padding(start = SceneHud.MARGIN.dp, top = (SceneHud.TOP_H + 4f).dp,
-                            bottom = (hud.barH + 2 * SceneHud.SLOT_H + 3 * SceneHud.MARGIN).dp)
-                            .width(hud.castW.dp).verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        for (person in people) key(person.id) {
-                            CastFrame(names[person.id] ?: "", if (immersiveHud) "" else doing(person, names), person.id == selected, person.id == partnerId,
-                                { control = control.tapCast(person.id) }, Modifier.fillMaxWidth().height(hud.castH.dp),
-                                frameLife(person.id))
-                        }
-                    }
-                } else {
-                    Row(
-                        castModifier.align(Alignment.TopStart).padding(top = SceneHud.TOP_H.dp).fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()).padding(horizontal = SceneHud.MARGIN.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        for (person in people) key(person.id) {
-                            CastFrame(names[person.id] ?: "", if (immersiveHud) "" else doing(person, names), person.id == selected, person.id == partnerId,
-                                { control = control.tapCast(person.id) }, Modifier.width(hud.castW.dp).height(hud.castH.dp),
-                                frameLife(person.id))
-                        }
-                    }
-                }
-                CameraControls(CameraChoice(cameraMode, furnitureView), selected != null, viewNames,
-                    { cameraMode = it.mode; furnitureView = it.view }, live,
-                    Modifier.align(Alignment.TopEnd).graphicsLayer { alpha = shown }
-                        .padding(end = SceneHud.MARGIN.dp, top = SceneHud.cameraTop(hud).dp))
-                // the line of help (or the last refusal) with the partner chip, and the action bar: a fixed height, so
-                // choosing someone or a longer line never moves anything
-                // build mode: its bar in the action bar's place
-                if (build.on) BuildBar(build, Modifier.align(Alignment.BottomCenter).graphicsLayer { alpha = shown }
-                    .padding(bottom = SceneHud.MARGIN.dp, start = SceneHud.MARGIN.dp, end = SceneHud.MARGIN.dp))
-                else Column(
-                    Modifier.align(Alignment.BottomCenter).graphicsLayer { alpha = shown }.padding(bottom = SceneHud.MARGIN.dp)
-                        .width(hud.barW.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    val hint = SceneHud.hint(active != null, mate != null, cast.size, walking)
-                    // the life answer's toast said it already: the line keeps the help
-                    val toastText = lifeToast?.first?.message
-                    // while an animation plays: its part and loop counter ("Stage 2 · Cowgirl · Loop 3/5")
-                    // (immersive mode: no counters, only what the scene says back)
-                    val line = (snapshot.notice?.takeIf { it != toastText }
-                        ?: if (immersiveHud) null else (active?.playing ?: hint.takeIf { active != null })).orEmpty()
-                    Row(Modifier.fillMaxWidth().height(WifeTheme.touch), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
-                        // the chips scroll sideways, so none is ever clipped on a narrow phone (Build is under the Cinematic button, top right)
-                        Row(Modifier.weight(if (line.isEmpty()) 1f else 2f, fill = false).horizontalScroll(rememberScrollState()),
-                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
-                        AnimatedVisibility(mate != null && active != null, enter = fadeIn(tween(MenuMotion.duration(FrontMotion.GLOW_MS, reduced))),
-                            exit = fadeOut(tween(MenuMotion.duration(FrontMotion.GLOW_MS, reduced)))) {
-                            WifeChip("Partner: ${rememberHeld(mate)?.let { names[it] } ?: ""}", { control = control.clearPartner() })
-                        }
-                        val partControl = LocalPartControl.current
-                        val partNpc = active?.id?.takeIf { partControl?.has(it) == true }
-                        if (partControl != null && partNpc != null) {
-                            WifeChip(partControl.label(partNpc), { partControl.toggle(partNpc) }, trailing = null)
-                        }
-                        // Move mode (ui/ItemMapperUi.kt): the controlled NPC put on a tapped item and held, then reported
-                        // Build mode (ui/BuildModeUi.kt): markers, item interactions, live moves, reports; Move mode (the item
-                        // mapper, ui/ItemMapperUi.kt) is part of it (a selected object's Hold NPC here)
-                        if (mapper.on) WifeChip("Done moving", { mapper.leave() }, trailing = null)
-                        // the Gear switch (ui/GearUi.kt): the selected NPC's, and everyone's in the scene
-                        val gearControl = LocalGearControl.current
-                        if (gearControl != null) {
-                            val gearNpc = active?.id
-                            if (gearNpc != null) {
-                                val on = gearControl.isOn(gearNpc)
-                                WifeChip(if (on) "Gear off" else "Gear on", { gearControl.set(gearNpc, !on) }, trailing = null)
-                            }
-                            if (cast.size > 1) {
-                                val all = gearControl.allOn()
-                                WifeChip(if (all) "All gear off" else "All gear on", { gearControl.setAll(!all) }, trailing = null)
-                            }
-                        }
-                        }
-                        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                            if (line.isNotEmpty()) HudLine(line)
-                        }
-                    }
-                    Box(Modifier.fillMaxWidth().height(hud.barH.dp), contentAlignment = Alignment.BottomCenter) {
-                        Crossfade(active?.id, Modifier.fillMaxSize(), animationSpec = tween(MenuMotion.duration(MenuMotion.PAGE_MS, reduced)),
-                            label = "orders") { id ->
-                            if (id == null) {
-                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-                                    HudLine(SceneHud.hint(false, false, cast.size, false).ifEmpty { "Add NPCs to the scene to direct them." },
-                                        Modifier.height(WifeTheme.touch), centered = true)
-                                }
-                            } else {
-                                ActionBar(hud, slots, page, { page = it }, { slotEnabled(id, it) }, { act(id, it) })
-                            }
-                        }
-                    }
-                }
-            }
-            // the first-run hint pointing to Build mode (dismissed with Got it, or by entering it once)
-            if (shown > 0f && BuildEntry.hintShown(buildHintSeen, build.on, hudHidden, revealed) && !mapper.on) {
-                Tooltip(BuildEntry.HINT, Modifier.align(Alignment.BottomCenter).graphicsLayer { alpha = shown }
-                    .padding(start = SceneHud.MARGIN.dp, end = SceneHud.MARGIN.dp,
-                        bottom = hud.barH.dp + WifeTheme.touch + (2 * SceneHud.MARGIN + 6f).dp), onDismiss = { dismissBuildHint() })
-            }
-            // a problem after loading (a prop without a surface, a file that wouldn't come): a fixed-width note on top
-            ProblemNote(status.takeIf { revealed }, Modifier.align(Alignment.TopCenter).padding(top = (SceneHud.TOP_H + 4f).dp))
-            // the life HUD's pop-ups: the answer, the clock's speeds, the feed (over the rest; nothing under them moves)
-            LifeToast(lifeToast?.first?.takeIf { toastShown }, Modifier.align(Alignment.TopCenter)
-                .padding(top = (SceneHud.TOP_H + if (hud.castSide) 8f else hud.castH + 12f).dp, start = SceneHud.MARGIN.dp, end = SceneHud.MARGIN.dp))
-            SpeedStrip(speedOpen, clockNow?.speed ?: ClockSpeed.X1, { setSpeed(it) },
-                Modifier.align(Alignment.TopStart).padding(start = SceneHud.MARGIN.dp, top = SceneHud.TOP_H.dp))
-            FeedPanel(feedOpen, lifeShown?.events.orEmpty(), icons, { feedOpen = false },
-                Modifier.align(Alignment.TopEnd).padding(end = SceneHud.MARGIN.dp, top = SceneHud.TOP_H.dp, start = SceneHud.MARGIN.dp))
-            // Move mode's panel: what is held, the nudges, Report… and Done
-            if (revealed && !hudHidden) MovePanel(mapper, view, Modifier.align(Alignment.CenterEnd).padding(end = SceneHud.MARGIN.dp))
-            // build mode's panel: under the camera's buttons at the side (the gizmo stays in the middle, uncovered)
-            if (revealed && !hudHidden && !mapper.on) BuildPanel(build, active?.id?.let { npc -> { obj: SceneObject ->
-                    mapper.start(npc)
-                    mapper.tapItem(obj, furnitureMeasured[obj] ?: spots[obj]?.let { Furniture.of(obj, it) }, toStage, stageRotation)
-                } },
-                Modifier.align(Alignment.TopEnd).padding(end = SceneHud.MARGIN.dp, top = (SceneHud.cameraTop(hud) + CAMERA_BLOCK_H).dp,
-                    bottom = (SceneHud.SLOT_H + 3 * SceneHud.MARGIN).dp))
-            // Switch positions while a two-person animation plays (started again with the roles turned round)
-            val playingWith = active?.takeIf { it.performing }?.partner
-            if (revealed && !hudHidden && !feedOpen && pairPlay == null && active != null && playingWith != null) {
-                // left of the camera's buttons, on their row (it never covers them; Cinematic sits in the top bar)
-                WifeButton("Switch positions", { switchPlaying(active.id, playingWith) },
-                    Modifier.align(Alignment.TopEnd)
-                        .padding(top = (SceneHud.cameraTop(hud) + SWITCH_BELOW_BUILD).dp, end = (SceneHud.MARGIN + SceneHud.CAMERA_W + 2 * SceneHud.CAMERA_GAP).dp))
+        // the chrome (SceneChrome.kt): top bar, cast, camera, dock, sheet and toast, each placed by ScreenPlan (ScreenPlan.kt)
+        val screenMode = when {
+            chatActor != null -> ScreenMode.CHAT
+            joiActor != null -> ScreenMode.JOI
+            mapper.on -> ScreenMode.MOVE
+            build.on -> ScreenMode.BUILD
+            cinematic -> ScreenMode.CINEMATIC
+            else -> ScreenMode.NORMAL
+        }
+        LaunchedEffect(screenMode) { panel = PanelRules.onMode() }
+        val playingNow = active?.performing == true
+        val playingWith = active?.takeIf { it.performing }?.partner
+        val softOn = active != null && flow?.active == true && !mapper.on
+        val softNow = SoftControl.offered(flowPhase)
+        val dockPlan = when {
+            build.on -> DockModel.build()
+            joiActor != null || chatActor != null || active == null -> DockPlan(DockKind.NONE, emptyList())
+            softOn -> DockModel.soft(softNow.map { it.name }, softNow.map { if (it == SoftControl.POSITION) "Position" else it.label })
+            else -> DockModel.normal(slots, playingNow, playingWith != null)
+        }
+        val sheetPanel = when {
+            panel != ScreenPanel.NONE -> panel
+            mapper.on -> ScreenPanel.MOVE_PANEL
+            build.on -> ScreenPanel.BUILD_PANEL
+            screenMode == ScreenMode.CINEMATIC && cinematicSettings.autoplay -> ScreenPanel.AUTOPLAY
+            else -> ScreenPanel.NONE
+        }
+        val events = lifeShown?.events
+        val unseen = remember(events, feedSeenAt) { events?.let { e -> feedSeen.unseen(e.map { it.hours to it.text }) } ?: 0 }
+        val hint = SceneHud.hint(active != null, mate != null, cast.size, walking)
+        val toastText = lifeToast?.first?.message
+        val playLine = (snapshot.notice?.takeIf { it != toastText } ?: if (immersiveHud) null else (active?.playing ?: hint.takeIf { active != null })).orEmpty()
+        val contextLine = when {
+            build.on || joiActor != null || chatActor != null -> ""
+            active == null -> SceneHud.hint(false, false, cast.size, false).ifEmpty { "Add NPCs to the scene to direct them." }
+            mate != null -> "Partner: ${names[mate] ?: ""}" + (if (playLine.isEmpty()) "" else "  ·  $playLine")
+            else -> playLine
+        }
+        val gearControl = LocalGearControl.current
+        val partControl = LocalPartControl.current
+        val moreItems = ArrayList<Pair<String, () -> Unit>>()
+        if (active != null && mate != null) moreItems += "Clear partner" to { control = control.clearPartner() }
+        if (active != null && mate != null && !softOn) for (c in softNow) moreItems += c.label to { soft(c) }
+        val partNpc = active?.id?.takeIf { partControl?.has(it) == true }
+        if (partControl != null && partNpc != null) moreItems += partControl.label(partNpc) to { partControl.toggle(partNpc) }
+        if (gearControl != null && active != null) {
+            val gearOn = gearControl.isOn(active.id)
+            moreItems += (if (gearOn) "Gear off" else "Gear on") to { gearControl.set(active.id, !gearOn) }
+        }
+        if (gearControl != null && cast.size > 1) {
+            val allOn = gearControl.allOn()
+            moreItems += (if (allOn) "All gear off" else "All gear on") to { gearControl.setAll(!allOn) }
+        }
+        if (!build.on) moreItems += BuildEntry.menuLabel(false) to { enterBuild() }
+        if (consent != null && onLimits != null) moreItems += "Consent and limits" to { onLimits() }
+        fun exitMode() {
+            when (screenMode) {
+                ScreenMode.CHAT -> chatLeave = true
+                ScreenMode.JOI -> joiLeave = true
+                ScreenMode.MOVE -> mapper.leave()
+                ScreenMode.BUILD -> build.leave()
+                ScreenMode.CINEMATIC -> cinematic = false
+                ScreenMode.NORMAL -> Unit
             }
         }
-        // the soft controls: with a partner chosen or a flow under way, while the HUD is up
-        if (revealed && !hudHidden && !mapper.on && (flow != null || (active != null && mate != null))) {
-            Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).graphicsLayer { alpha = hudAlpha }) {
-                SoftRadial(SoftControl.offered(flowPhase), { soft(it) }, Modifier.align(Alignment.CenterEnd).padding(end = SceneHud.MARGIN.dp))
+        SceneChrome(
+            mode = screenMode, panel = sheetPanel, chromeAlpha = hudAlpha * shown, place = locationName,
+            face = clockNow?.takeIf { lifeOn }?.let { LifeHud.clockFace(it.hour, it.day, it.speed, h24) },
+            unseen = if (lifeOn) unseen else -1,
+            people = snapshot.people, names = names, selected = selected, partnerId = partnerId, plainCast = immersiveHud,
+            doing = { person -> doing(person, names) }, frameLife = { id -> frameLife(id) }, onCast = { id -> control = control.tapCast(id) },
+            camera = CameraChoice(cameraMode, furnitureView), canFollow = selected != null, viewNames = viewNames,
+            onCamera = { cameraMode = it.mode; furnitureView = it.view }, live = live,
+            dock = dockPlan,
+            dockEnabled = { item -> val sid = active?.id; if (sid != null && item.order != null) slots.firstOrNull { it.key == item.id }?.let { slotEnabled(sid, it) } ?: true else true },
+            onDock = { item ->
+                val sid = active?.id
+                if (item.id == "more") panel = PanelRules.open(panel, ScreenPanel.MORE, screenMode)
+                else {
+                    panel = ScreenPanel.NONE
+                    if (dockPlan.kind == DockKind.SOFT) SoftControl.entries.firstOrNull { it.name == item.id }?.let { soft(it) }
+                    else if (item.id == "switch") { if (sid != null && playingWith != null) switchPlaying(sid, playingWith) }
+                    else if (sid != null) slots.firstOrNull { it.key == item.id }?.let { act(sid, it) }
+                }
+            },
+            buildDock = { BuildBar(build, Modifier.fillMaxSize()) },
+            context = contextLine, toast = toastNow,
+            onMenu = { panel = ScreenPanel.NONE; menu = true },
+            onTime = { panel = PanelRules.open(panel, ScreenPanel.TIME, screenMode) },
+            onCinematic = { cinematic = !cinematic; if (cinematic) { radial = null; panel = ScreenPanel.NONE; menu = false } },
+            onExitMode = { exitMode() },
+            sheetTitle = when (sheetPanel) { ScreenPanel.TIME -> "Time and events"; ScreenPanel.MORE -> active?.id?.let { names[it] } ?: "More"; else -> "" },
+            framed = sheetPanel == ScreenPanel.TIME || sheetPanel == ScreenPanel.MORE,
+            onCloseSheet = { panel = ScreenPanel.NONE },
+            onSheetRect = { autoRect = it },
+        ) {
+            when (sheetPanel) {
+                ScreenPanel.TIME -> TimeSheet(clockNow?.takeIf { lifeOn }?.speed, { setSpeed(it) }, events.orEmpty(), icons)
+                ScreenPanel.MORE -> MoreSheet(dockPlan.more, { slot -> active?.id?.let { slotEnabled(it, slot) } ?: true },
+                    { slot -> panel = ScreenPanel.NONE; active?.id?.let { act(it, slot) } }, moreItems, { panel = ScreenPanel.NONE })
+                ScreenPanel.BUILD_PANEL -> BuildPanel(build, active?.id?.let { npc -> { obj: SceneObject ->
+                    mapper.start(npc)
+                    mapper.tapItem(obj, furnitureMeasured[obj] ?: spots[obj]?.let { Furniture.of(obj, it) }, toStage, stageRotation)
+                } }, Modifier.fillMaxSize())
+                ScreenPanel.MOVE_PANEL -> MovePanel(mapper, view, Modifier.fillMaxSize())
+                else -> Unit
             }
         }
         // cinematic auto-play: the pair's animations one after another, each change under a cut (CinematicUi, CinematicAutoplay)
         CinematicAutoplayHost(cinematic && cinematicSettings.autoplay && joiActor == null && chatActor == null, live, cineDirector, cinematicSettings,
             selected ?: flow?.a, partnerId ?: flow?.b, cast.map { it.id }, autoPairs, needs.pairs, furnitureAt, bodyScales,
             controls = cinematic && !cineHidden && revealed && joiActor == null && chatActor == null, treatAs = treatAs, hold = holdAnimations,
-            consent = consent)
-        CinematicLayer(cinematic, cineHidden, revealed && shown > 0f && (cinematic || !immersiveHud || hudUp), {
-            // (while JOI mode runs the button ends it: what was on comes back)
-            if (joiActor != null) joiLeave = true else if (chatActor != null) chatLeave = true else {
-                cinematic = !cinematic
-                if (cinematic) { radial = null; speedOpen = false; feedOpen = false; menu = false }
-            }
-        }, { cineIdleClock.touch(); cineIdle = false }, { live.aspect = it; cineLook.viewAspect = it }, frame = if (chatActor != null) com.logie.wifecraft.simulation.CinematicFrame.FULL else cinematicSettings.frame,
-            // in the top bar, left of the feed and the gear (the bar keeps the room free: SceneTopBar's reserveEnd)
-            topBarEnd = SceneHud.MARGIN + TOP_ICON_W * (if (lifeOn) 2 else 1) + CINEMATIC_GAP,
-            onBuild = if (BuildEntry.chipShown(mapper.on)) ({ if (build.on) build.leave() else enterBuild() }) else null, buildOn = build.on)
+            consent = consent, panelRect = autoRect.takeIf { sheetPanel == ScreenPanel.AUTOPLAY })
+        CinematicLayer(cinematic, cineHidden, { cineIdleClock.touch(); cineIdle = false }, { live.aspect = it; cineLook.viewAspect = it },
+            frame = if (chatActor != null) com.logie.wifecraft.simulation.CinematicFrame.FULL else cinematicSettings.frame)
         // JOI mode: the subtitles in the film frame's lower third, and (the interface up) its controls
         if (joiActor != null) JoiLayer(joiMode, joiTick, cinematicSettings.frame, controls = !cineHidden && revealed,
             creature = live.joiCreature != null, onDownloadModel = { com.logie.wifecraft.data.DialogueHost.startDownload() },
@@ -2190,59 +2157,7 @@ private fun useLabel(item: SceneObject): String = when (item) {
 private fun emoteHeld(anim: Int): Boolean =
     PartnerEmotes.ALL.firstOrNull { it.anim == anim }?.let { it.loop || EmotePlayability.heldByName(it.name) } ?: false
 
-/** The top bar: the place and the clock in a slate pill, the scene menu's gear at the other end, over a soft shade. */
-@Composable
-private fun SceneTopBar(
-    place: String,
-    onMenu: () -> Unit,
-    modifier: Modifier,
-    /** The world clock's face (null: none; the phone's own time is shown), and a tap on it (the speed buttons). */
-    face: ClockFace? = null,
-    onClock: () -> Unit = {},
-    /** The feed's new events (-1: no feed button), whether it is open, and its button. */
-    unseen: Int = -1,
-    feedOpen: Boolean = false,
-    onFeed: () -> Unit = {},
-    /** Room kept free left of the feed and the gear (the Cinematic button is drawn there, over the bar). */
-    reserveEnd: Dp = 0.dp,
-) {
-    val context = LocalContext.current
-    val h24 = remember(context) { android.text.format.DateFormat.is24HourFormat(context) }
-    var time by remember { mutableStateOf(clockNow(h24)) }
-    LaunchedEffect(h24, face != null) { while (face == null) { time = clockNow(h24); delay(15_000) } }
-    Box(modifier.height(SceneHud.TOP_H.dp).background(Brush.verticalGradient(listOf(Color(0x8C000000), Color.Transparent)))) {
-        Row(Modifier.fillMaxSize().padding(horizontal = SceneHud.MARGIN.dp), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween) {
-            val shape = RoundedCornerShape(50)
-            Row(
-                Modifier.weight(1f, fill = false).clip(shape).background(WifeTheme.slate).border(WifeTheme.trimWidth, WifeTheme.trimSoft, shape)
-                    .padding(start = WifeTheme.gapL, end = if (face != null) WifeTheme.gapS else WifeTheme.gapL, top = if (face != null) 0.dp else 6.dp,
-                        bottom = if (face != null) 0.dp else 6.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapM),
-            ) {
-                Text(place, Modifier.weight(1f, fill = false), style = WifeTheme.headingStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (face != null) {
-                    // the world's clock: 48 dp to touch, a fixed width (it never moves the place's name as it ticks)
-                    Box(Modifier.height(WifeTheme.touch).semantics { contentDescription = face.description }.warPress(sound = "tab", onClick = onClock),
-                        contentAlignment = Alignment.CenterStart) {
-                        WorldClockFace(face)
-                    }
-                } else {
-                    // a fixed width: "12:59 PM" and "1:05 AM" take the same room
-                    Text(time, Modifier.width(72.dp), style = WifeTheme.bodyStyle(WifeTheme.text), maxLines = 1, textAlign = TextAlign.End)
-                }
-            }
-            Spacer(Modifier.width(WifeTheme.gapS + reserveEnd))
-            // together at the end (the Cinematic button is placed from the bar's end by their width)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (unseen >= 0) FeedButton(unseen, feedOpen, onFeed)
-                HudIconButton(HudGlyph.GEAR, onMenu, "Scene menu")
-            }
-        }
-    }
-}
-
-private fun clockNow(h24: Boolean): String {
+internal fun clockNow(h24: Boolean): String {
     val c = java.util.Calendar.getInstance()
     return SceneHud.clock(c.get(java.util.Calendar.HOUR_OF_DAY), c.get(java.util.Calendar.MINUTE), h24)
 }
@@ -2252,7 +2167,7 @@ private fun clockNow(h24: Boolean): String {
  * gold edge with a glow, the partner in rose with "Partner" said. The whole frame is the touch target (taps control, or let go).
  */
 @Composable
-private fun CastFrame(name: String, doing: String, controlled: Boolean, partner: Boolean, onClick: () -> Unit, modifier: Modifier,
+internal fun CastFrame(name: String, doing: String, controlled: Boolean, partner: Boolean, onClick: () -> Unit, modifier: Modifier,
                       life: FrameLife? = null) {
     val reduced = reduceMotion()
     val ms = MenuMotion.duration(FrontMotion.GLOW_MS, reduced)
@@ -2320,7 +2235,7 @@ private fun CastFrame(name: String, doing: String, controlled: Boolean, partner:
 }
 
 /** What a party frame shows of an NPC's life ([CastFrame]): their [person], the controlled NPC's [relation] to them, whether on screen. */
-private class FrameLife(
+internal class FrameLife(
     val person: LifePersonView,
     val relation: RelationGlyph,
     val onScreen: Boolean,
@@ -2336,11 +2251,11 @@ private data class ClockReading(val hour: Double, val day: Int, val speed: Clock
 
 /** A line of help over the scene, on a slate pill so it reads over any room. */
 @Composable
-private fun HudLine(text: String, modifier: Modifier = Modifier, centered: Boolean = false) {
+internal fun HudLine(text: String, modifier: Modifier = Modifier, centered: Boolean = false) {
     val shape = RoundedCornerShape(50)
     Box(
         modifier.clip(shape).background(WifeTheme.slate).border(WifeTheme.trimWidth, WifeTheme.trimSoft, shape)
-            .padding(horizontal = WifeTheme.gapL, vertical = 6.dp),
+            .padding(horizontal = WifeTheme.gapL, vertical = 2.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(rememberHeld(text) ?: "", style = WifeTheme.bodyStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -2348,50 +2263,15 @@ private fun HudLine(text: String, modifier: Modifier = Modifier, centered: Boole
     }
 }
 
-/**
- * The action bar: [SceneHud.SLOTS] slots a page in [HudLayout.cols] x [HudLayout.rows] (empty places kept, so the slots never
- * move), and the page button at its end (the game's action bar arrows: it turns the pages, and is dim with one page).
- */
-@Composable
-private fun ActionBar(
-    hud: HudLayout,
-    slots: List<HudSlot>,
-    page: Int,
-    onPage: (Int) -> Unit,
-    enabled: (HudSlot) -> Boolean,
-    onSlot: (HudSlot) -> Unit,
-) {
-    val pages = SceneHud.pages(slots.size)
-    val at = SceneHud.clampPage(page, slots.size)
-    val reduced = reduceMotion()
-    Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(SceneHud.GAP.dp), verticalAlignment = Alignment.Bottom) {
-        Crossfade(at, Modifier.weight(1f), animationSpec = tween(MenuMotion.duration(MenuMotion.PAGE_MS, reduced)), label = "page") { p ->
-            val shownSlots = SceneHud.page(slots, p)
-            Column(verticalArrangement = Arrangement.spacedBy(SceneHud.GAP.dp)) {
-                for (r in 0 until hud.rows) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(SceneHud.GAP.dp)) {
-                        for (c in 0 until hud.cols) {
-                            val slot = shownSlots.getOrNull(r * hud.cols + c)
-                            if (slot == null) Spacer(Modifier.width(hud.slotW.dp).height(SceneHud.SLOT_H.dp))
-                            else key(slot.key) { ActionSlot(slot, enabled(slot), { onSlot(slot) }, Modifier.width(hud.slotW.dp)) }
-                        }
-                    }
-                }
-            }
-        }
-        PageButton(at, pages, { onPage((at + 1) % pages) })
-    }
-}
-
 /** One action-bar slot: a slate key with the gold trim, its words; lit gold while on (Walk), glowing while pressed. */
 @Composable
-private fun ActionSlot(slot: HudSlot, enabled: Boolean, onClick: () -> Unit, modifier: Modifier) {
+internal fun ActionSlot(label: String, lit: Boolean, enabled: Boolean, onClick: () -> Unit, modifier: Modifier) {
     val play = LocalSounds.current
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val reduced = reduceMotion()
     val glow by animateFloatAsState(
-        when { !enabled -> 0f; pressed -> 1f; slot.lit -> 0.75f; else -> 0f },
+        when { !enabled -> 0f; pressed -> 1f; lit -> 0.75f; else -> 0f },
         tween(MenuMotion.duration(FrontMotion.GLOW_MS, reduced)), label = "slot",
     )
     val sink by animateFloatAsState(MenuMotion.pressScale(pressed && enabled, reduced), tween(MenuMotion.duration(MenuMotion.PRESS_MS, reduced)), label = "press")
@@ -2400,7 +2280,7 @@ private fun ActionSlot(slot: HudSlot, enabled: Boolean, onClick: () -> Unit, mod
         modifier
             .height(SceneHud.SLOT_H.dp)
             .graphicsLayer { scaleX = sink; scaleY = sink }
-            .semantics { if (slot.lit) contentDescription = "${slot.label}, on" }
+            .semantics { if (lit) contentDescription = "$label, on" }
             .clickable(source, null, enabled = enabled, role = Role.Button, onClick = { if (gate.pass()) { play("click"); onClick() } })
             .drawBehind {
                 val r = CornerRadius(WifeTheme.buttonRadius.toPx())
@@ -2421,41 +2301,18 @@ private fun ActionSlot(slot: HudSlot, enabled: Boolean, onClick: () -> Unit, mod
     ) {
         val color = when {
             !enabled -> WowColors.grey
-            slot.lit || glow > 0.5f -> Color.White
+            lit || glow > 0.5f -> Color.White
             else -> WifeTheme.gold
         }
-        Text(slot.label, style = frizStyle(13.sp, color), textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(label, style = frizStyle(13.sp, color), textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
 
-/** The action bar's page button: "1/2" between two small chevrons; 48 dp; dim and still with one page. */
-@Composable
-private fun PageButton(page: Int, pages: Int, onNext: () -> Unit) {
-    val many = pages > 1
-    Column(
-        Modifier.width(SceneHud.PAGER_W.dp).height(SceneHud.SLOT_H.dp)
-            .semantics { contentDescription = "Action bar page ${page + 1} of $pages" }
-            .warPress(many, sound = "tab", onClick = onNext),
-        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
-    ) {
-        val tint = if (many) WifeTheme.gold else WifeTheme.trimSoft
-        Canvas(Modifier.width(14.dp).height(7.dp)) {
-            drawLine(tint, Offset(0f, size.height), Offset(size.width / 2, 0f), 1.6.dp.toPx())
-            drawLine(tint, Offset(size.width / 2, 0f), Offset(size.width, size.height), 1.6.dp.toPx())
-        }
-        Text("${page + 1}/$pages", style = WifeTheme.captionStyle(if (many) WifeTheme.text else WifeTheme.textDim), maxLines = 1)
-        Canvas(Modifier.width(14.dp).height(7.dp)) {
-            drawLine(tint, Offset(0f, 0f), Offset(size.width / 2, size.height), 1.6.dp.toPx())
-            drawLine(tint, Offset(size.width / 2, size.height), Offset(size.width, 0f), 1.6.dp.toPx())
-        }
-    }
-}
-
-private enum class HudGlyph { GEAR, PLUS, MINUS, UP, DOWN }
+internal enum class HudGlyph { GEAR, PLUS, MINUS, UP, DOWN }
 
 /** A round slate button with a gold glyph: 40 dp drawn, 48 dp to touch. */
 @Composable
-private fun HudIconButton(
+internal fun HudIconButton(
     glyph: HudGlyph,
     onClick: () -> Unit,
     description: String,
@@ -2531,39 +2388,9 @@ private fun Modifier.holdRepeat(enabled: Boolean, step: () -> Unit): Modifier {
         })
 }
 
-/**
- * The camera's controls at the screen's right: the camera button (Room view, Orbit, Follow: a tap gives the next), and under
- * it, while an orbit is shown, the up and down buttons (the view rises and lowers along the room's height) beside zoom in and
- * out, all held to repeat and eased by the camera's springs. Their place is kept while they are hidden: nothing moves.
- */
-@Composable
-private fun CameraControls(choice: CameraChoice, canFollow: Boolean, viewNames: List<String>, onChoice: (CameraChoice) -> Unit,
-                           live: LiveScene, modifier: Modifier) {
-    val reduced = reduceMotion()
-    val orbit = choice.mode != CameraMode.ROOM
-    val controlsAlpha by animateFloatAsState(if (orbit) 1f else 0f,
-        tween(MenuMotion.duration(if (orbit) MenuMotion.WINDOW_IN_MS else MenuMotion.WINDOW_OUT_MS, reduced)), label = "cameraControls")
-    Column(modifier.width(SceneHud.CAMERA_W.dp), verticalArrangement = Arrangement.spacedBy(SceneHud.CAMERA_GAP.dp)) {
-        CameraModeButton(choice, canFollow, viewNames) { onChoice(SceneHud.nextCamera(choice, canFollow, viewNames.size)) }
-        // hidden: an empty space of the same size (touches go through to the room); shown or fading: the buttons
-        if (!orbit && controlsAlpha <= 0f) {
-            Spacer(Modifier.width(SceneHud.CAMERA_W.dp).height((2 * SceneHud.SLOT_H + SceneHud.CAMERA_GAP).dp))
-        } else Row(Modifier.graphicsLayer { alpha = controlsAlpha }, horizontalArrangement = Arrangement.spacedBy(SceneHud.CAMERA_GAP.dp)) {
-            Column(verticalArrangement = Arrangement.spacedBy(SceneHud.CAMERA_GAP.dp)) {
-                HudIconButton(HudGlyph.UP, { live.camera.liftBy(SceneCamera.LIFT_STEP) }, "Camera up", enabled = orbit, hold = true)
-                HudIconButton(HudGlyph.DOWN, { live.camera.liftBy(-SceneCamera.LIFT_STEP) }, "Camera down", enabled = orbit, hold = true)
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(SceneHud.CAMERA_GAP.dp)) {
-                HudIconButton(HudGlyph.PLUS, { live.camera.zoomBy(1.25f) }, "Zoom in", enabled = orbit, hold = true)
-                HudIconButton(HudGlyph.MINUS, { live.camera.zoomBy(0.8f) }, "Zoom out", enabled = orbit, hold = true)
-            }
-        }
-    }
-}
-
 /** The camera button: the mode's name on a slate pill with the gold trim, 48 dp to touch, a fixed width (no shift). */
 @Composable
-private fun CameraModeButton(choice: CameraChoice, canFollow: Boolean, viewNames: List<String>, onClick: () -> Unit) {
+internal fun CameraModeButton(choice: CameraChoice, canFollow: Boolean, viewNames: List<String>, onClick: () -> Unit) {
     val pill = RoundedCornerShape(50)
     val lit = choice.mode != CameraMode.ROOM || choice.view >= 0
     Box(
@@ -2577,17 +2404,6 @@ private fun CameraModeButton(choice: CameraChoice, canFollow: Boolean, viewNames
     ) {
         Text(SceneHud.cameraLabel(choice, viewNames.getOrNull(choice.view)), style = frizStyle(13.sp, if (lit) Color.White else WifeTheme.gold), maxLines = 1,
             overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
-    }
-}
-
-/** A problem said over the view after loading, in a box of fixed greatest width, faded in and out. */
-@Composable
-private fun ProblemNote(problem: String?, modifier: Modifier) {
-    AnimatedVisibility(problem != null, modifier, enter = fadeIn(), exit = fadeOut()) {
-        val shape = RoundedCornerShape(WifeTheme.buttonRadius)
-        Text(rememberHeld(problem) ?: "", Modifier.widthIn(max = 520.dp).clip(shape).background(WifeTheme.slate)
-            .border(WifeTheme.trimWidth, WifeTheme.danger.copy(alpha = 0.7f), shape).padding(horizontal = WifeTheme.gapM, vertical = WifeTheme.gapS),
-            style = WifeTheme.bodyStyle(), maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -2748,8 +2564,6 @@ private const val PAN_SLOPS = 2f
 private const val LONG_PRESS_MS = 520L
 /** The life and the clock are kept this often while a scene runs (and when it ends). */
 private const val LIFE_SAVE_MS = 30_000L
-/** The clock's speed buttons close by themselves after this long. */
-private const val SPEED_CLOSE_MS = 5_000L
 
 /**
  * Over the 3D view while the scene loads: the scene's name, what is loading (a fixed-width line: changing numbers never
@@ -2850,12 +2664,3 @@ private class ImmersionFeed {
     @Volatile var flow: FlowNow? = null
     @Volatile var cinematic = false
 }
-
-/** The camera's buttons' height under cameraTop: the mode button, then two rows of 48 dp buttons (build mode's panel goes under). */
-/** Switch positions sits below the Build button (which hangs under the Cinematic button), dp. */
-private const val SWITCH_BELOW_BUILD = 48f
-private const val CAMERA_BLOCK_H = 48f + 4f + 2 * 48f + 4f + 8f
-/** The top bar's feed and gear buttons (48 dp each), the Cinematic button's slot in the bar and its gap. */
-private const val TOP_ICON_W = 48f
-private const val CINEMATIC_SLOT_W = 96f
-private const val CINEMATIC_GAP = 8f

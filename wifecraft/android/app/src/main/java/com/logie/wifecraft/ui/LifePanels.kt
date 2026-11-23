@@ -599,6 +599,30 @@ fun FeedPanel(visible: Boolean, events: List<LifeEvent>, icons: GameIcons?, onCl
     }
 }
 
+/**
+ * The time sheet (the place and clock pill opens it): the clock's speed buttons (when the world's clock runs: [speed] null hides them)
+ * and what happened lately, newest first, each with its icon and when. The feed's button and panel are folded into it.
+ */
+@Composable
+fun TimeSheet(speed: ClockSpeed?, onSpeed: (ClockSpeed) -> Unit, events: List<LifeEvent>, icons: GameIcons?) {
+    if (speed != null) {
+        WifeSectionHeader("Speed")
+        SpeedStrip(true, speed, onSpeed)
+    }
+    WifeSectionHeader("Recent events")
+    val shown = events.take(LifeHud.FEED)
+    if (shown.isEmpty()) WifeNote("Nothing has happened yet.", Modifier.padding(bottom = WifeTheme.gapS))
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        for (e in shown) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
+            LifeIconView(e.icon, 24.dp, icons)
+            Column(Modifier.weight(1f)) {
+                Text(e.text, style = WifeTheme.bodyStyle(), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(LifeHud.eventTime(e.hours), style = WifeTheme.captionStyle(), maxLines = 1)
+            }
+        }
+    }
+}
+
 // ------------------------------------------------------------------------------------------------ the radial menu
 
 /** A radial menu to show: whose ([title]), a line under it ([subtitle]), its items, its centre in px (NaN: the screen's). */

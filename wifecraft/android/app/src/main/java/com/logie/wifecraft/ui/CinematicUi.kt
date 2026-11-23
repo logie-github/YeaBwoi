@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
@@ -87,19 +89,14 @@ const val CINEMATIC_PEEK_MS = 5_000L
 const val CINEMATIC_HUD_MS = 400
 
 /**
- * Cinematic mode's layer over the live scene: the Cinematic button (beside the camera button, in its look; lit while the mode
- * runs, dimmed while the HUD is hidden: pressing it ends the mode) and, while the HUD is hidden, a sheet over the view that
- * takes every touch (the black bars round the frame included): a tap brings the HUD back for a while ([onPeek]); no drag turns
- * the camera under the director. Reports the 3D view's width over height ([onAspect]) for the director's framing and the film
- * bars: its [frame]'s in the mode ([FilmFrame.fit]), the screen's otherwise.
+ * Cinematic mode's layer over the live scene: while the HUD is hidden, a sheet over the view that takes every touch (the black bars
+ * round the frame included): a tap brings the HUD back for a while ([onPeek]); no drag turns the camera under the director. (The
+ * Cinematic button and the way out of the mode are the chrome's: SceneChrome.) Reports the 3D view's width over height
+ * ([onAspect]) for the director's framing and the film bars: its [frame]'s in the mode ([FilmFrame.fit]), the screen's otherwise.
  */
 @Composable
-fun CinematicLayer(on: Boolean, hudHidden: Boolean, shown: Boolean, onToggle: () -> Unit, onPeek: () -> Unit,
-                   onAspect: (Float) -> Unit, modifier: Modifier = Modifier, frame: CinematicFrame = CinematicFrame.FULL,
-                   /** dp from the end to the button's right edge in the top bar (null: beside the camera's buttons, as before). */
-                   topBarEnd: Float? = null,
-                   /** The Build button directly under the Cinematic button (same look and size): null hides it; [buildOn] lights it. */
-                   onBuild: (() -> Unit)? = null, buildOn: Boolean = false) {
+fun CinematicLayer(on: Boolean, hudHidden: Boolean, onPeek: () -> Unit,
+                   onAspect: (Float) -> Unit, modifier: Modifier = Modifier, frame: CinematicFrame = CinematicFrame.FULL) {
     var screen by remember { mutableStateOf(IntSize.Zero) }
     val aspectOut by rememberUpdatedState(onAspect)
     LaunchedEffect(screen, on, frame) {
@@ -110,22 +107,6 @@ fun CinematicLayer(on: Boolean, hudHidden: Boolean, shown: Boolean, onToggle: ()
             // the interface is hidden: this sheet takes every touch (the touch that shows it again is no tap in the scene)
             Box(Modifier.fillMaxSize().semantics { contentDescription = "Cinematic view: touch to show the controls" }
                 .pointerInput(Unit) { detectTapGestures(onPress = { onPeek(); tryAwaitRelease() }) })
-        }
-        // hidden, the button goes with the rest of the interface
-        if (shown && !hudHidden) {
-            val buttonAlpha = 1f
-            BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-                val hud = SceneHud.layout(maxWidth.value, maxHeight.value)
-                // in the top bar's kept room (it covers no other control), else beside the camera's buttons
-                val place = if (topBarEnd != null) Modifier.padding(end = topBarEnd.dp, top = ((SceneHud.TOP_H - 48f) / 2f).coerceAtLeast(0f).dp)
-                    else Modifier.padding(end = (SceneHud.MARGIN + SceneHud.CAMERA_W + 2 * SceneHud.CAMERA_GAP).dp, top = SceneHud.cameraTop(hud).dp)
-                CinematicButton(on, onToggle, Modifier.align(Alignment.TopEnd).graphicsLayer { alpha = buttonAlpha }.then(place))
-                // Build, stacked right under it (the same column, the same end), lit while Build mode is on
-                if (onBuild != null && topBarEnd != null) {
-                    BuildChipButton(buildOn, onBuild, Modifier.align(Alignment.TopEnd)
-                        .padding(end = topBarEnd.dp, top = (BuildEntry.buttonTop(SceneHud.TOP_H)).dp))
-                }
-            }
         }
     }
 }
@@ -178,6 +159,8 @@ fun CinematicAutoplayHost(
     hold: Boolean = false,
     /** The Consent and limits policy: auto-play never chooses an animation either of the two won't do, in either role. */
     consent: com.logie.wifecraft.simulation.ConsentPolicy? = null,
+    /** Where the panel goes (the chrome's sheet, in dp); null: the bottom left, as before. */
+    panelRect: ScreenRect? = null,
 ) {
     val auto = remember(live) { CinematicAutoplay() }
     var cover by remember(live) { mutableFloatStateOf(0f) }
@@ -281,9 +264,9 @@ fun CinematicAutoplayHost(
     Box(modifier.fillMaxSize()) {
         if (on) Box(Modifier.fillMaxSize().graphicsLayer { alpha = cover }.background(Color.Black))
         if (on && controls) {
-            CinematicAutoplayPanel(playing, notice, paused, stay, pace, { auto.next() }, { paused = !paused }, { stay = !stay },
-                { pace = it }, Modifier.align(Alignment.BottomStart).windowInsetsPadding(WindowInsets.safeDrawing)
-                    .padding(start = WifeTheme.gapL, bottom = WifeTheme.gapL))
+            val place = if (panelRect != null) Modifier.align(Alignment.TopStart).offset(panelRect.l.dp, panelRect.t.dp).size(panelRect.w.dp, panelRect.h.dp)
+                else Modifier.align(Alignment.BottomStart).windowInsetsPadding(WindowInsets.safeDrawing).padding(start = WifeTheme.gapL, bottom = WifeTheme.gapL)
+            CinematicAutoplayPanel(playing, notice, paused, stay, pace, { auto.next() }, { paused = !paused }, { stay = !stay }, { pace = it }, place)
         }
     }
 }

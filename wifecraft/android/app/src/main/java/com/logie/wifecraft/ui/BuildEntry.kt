@@ -14,7 +14,7 @@ object BuildEntry {
     fun menuLabel(on: Boolean): String = if (on) "Leave Build mode" else "Build mode"
     /** The scene menu's line under the button. */
     fun menuDetail(on: Boolean): String = if (on) "Back to the scene's own controls" else "Move things, mark places, make props interactive"
-    const val HINT = "New: Build mode. Tap Build under the Cinematic button in the top right, or open it from the gear menu."
+    const val HINT = "New: Build mode is in the menu (the gear) and in More."
     const val PREFS = "build_entry"
     const val KEY_HINT_SEEN = "hint_seen"
 

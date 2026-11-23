@@ -974,20 +974,18 @@ fun rememberBuildController(live: LiveScene, view: SceneView): BuildController {
     return build
 }
 
-/** The Build bar at the bottom: Select, Marker, Move, Interact, Send, then undo, redo and Done. */
+/** Build's dock (the chrome's bottom row, 48 dp high, scrolling sideways): Select, Marker, Move, Interact, New, Send, then undo, redo and Done. */
 @Composable
 fun BuildBar(build: BuildController, modifier: Modifier = Modifier) {
     if (!build.on) return
     val s = build.state
-    WifePanel(modifier, padding = WifeTheme.gapS) {
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs),
-            verticalAlignment = Alignment.CenterVertically) {
-            for (t in BuildBarTool.entries) WifeButton(t.label, { build.setTool(t) }, Modifier.widthIn(min = 84.dp),
-                kind = if (s.tool == t) WifeButtonKind.PRIMARY else WifeButtonKind.SECONDARY)
-            WifeButton("Undo", { build.undo() }, enabled = s.canUndo, kind = WifeButtonKind.QUIET)
-            WifeButton("Redo", { build.redo() }, enabled = s.canRedo, kind = WifeButtonKind.QUIET)
-            WifeButton("Done", { build.leave() })
-        }
+    Row(modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS),
+        verticalAlignment = Alignment.CenterVertically) {
+        for (t in BuildBarTool.entries) WifeButton(t.label, { build.setTool(t) }, Modifier.widthIn(min = 72.dp),
+            kind = if (s.tool == t) WifeButtonKind.PRIMARY else WifeButtonKind.SECONDARY)
+        WifeButton("Undo", { build.undo() }, Modifier.widthIn(min = 72.dp), enabled = s.canUndo, kind = WifeButtonKind.QUIET)
+        WifeButton("Redo", { build.redo() }, Modifier.widthIn(min = 72.dp), enabled = s.canRedo, kind = WifeButtonKind.QUIET)
+        WifeButton("Done", { build.leave() }, Modifier.widthIn(min = 72.dp))
     }
 }
 

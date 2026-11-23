@@ -231,7 +231,7 @@ fun ChatLayer(
             if (last != null) { subtitle = last.text; delay((SpeechBubbleModel.holdSeconds(last.text) * 1000).toLong()); subtitle = null }
         }
         Column(
-            Modifier.align(Alignment.TopStart).windowInsetsPadding(WindowInsets.safeDrawing).padding(start = 8.dp, top = 8.dp)
+            Modifier.align(Alignment.TopStart).windowInsetsPadding(WindowInsets.safeDrawing).padding(start = 16.dp, top = 64.dp)
                 .widthIn(max = 340.dp).wifeSurface().padding(WifeTheme.gapS),
             verticalArrangement = Arrangement.spacedBy(WifeTheme.gapXs),
         ) {
