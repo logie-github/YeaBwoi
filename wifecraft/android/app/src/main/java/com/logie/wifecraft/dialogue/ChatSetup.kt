@@ -11,7 +11,7 @@ import kotlin.random.Random
  */
 
 /** The player's character as the NPC meets them. */
-data class ChatCharacter(val name: String, val raceId: Int, val female: Boolean, val classId: Int) {
+data class ChatCharacter(val name: String, val raceId: Int, val female: Boolean, val classId: Int, val relationship: ChatRelationship = ChatRelationship()) {
     /** The character as the dialogue's own person type: the one the comfort ledger and the willingness model know ([ID] is the pseudo NPC id). */
     fun profile(): NpcProfile = NpcProfile(ID, name, raceId, female, classId, emptyList(), "", Disposition())
 
@@ -90,6 +90,9 @@ class ChatSetup(val lore: Lore, private val names: ChatNames = ChatNames(null), 
         private set
     var name: String = ""
         private set
+    /** Who they are to her (Stranger until chosen); remembered with the rest. */
+    var relationship = ChatRelationship()
+        private set
     /** Set when a stored choice was found and used to fill the sheet. */
     var remembered = false
         private set
@@ -110,10 +113,10 @@ class ChatSetup(val lore: Lore, private val names: ChatNames = ChatNames(null), 
     /** Opens the sheet: the remembered choice fills it (the sex included: it was asked once). */
     fun open() {
         phase = ChatSetupPhase.OPEN
-        raceId = null; female = null; classId = null; name = ""; remembered = false
+        raceId = null; female = null; classId = null; name = ""; remembered = false; relationship = ChatRelationship()
         decode(store?.load())?.let { c ->
             if (races.any { it.id == c.raceId } && classes.any { it.id == c.classId }) {
-                raceId = c.raceId; female = c.female; classId = c.classId; name = c.name; remembered = true
+                raceId = c.raceId; female = c.female; classId = c.classId; name = c.name; relationship = c.relationship; remembered = true
             }
         }
     }
@@ -121,6 +124,8 @@ class ChatSetup(val lore: Lore, private val names: ChatNames = ChatNames(null), 
     fun pickRace(id: Int) { if (races.any { it.id == id }) raceId = id }
     fun pickSex(female: Boolean) { this.female = female }
     fun pickClass(id: Int) { if (classes.any { it.id == id }) classId = id }
+    fun pickRelationship(kind: ChatRelationship.Kind) { relationship = relationship.copy(kind = kind) }
+    fun typeRelationship(text: String) { relationship = relationship.copy(custom = text.replace(Regex("\\s+"), " ").take(ChatRelationship.MAX_CUSTOM)) }
     fun typeName(text: String) { name = text.replace(Regex("\\s+"), " ").take(MAX_NAME) }
 
     /** The race's name generator: fills the name with a random one for the race (and sex, once picked), another than the last. Needs a race. */
@@ -137,6 +142,7 @@ class ChatSetup(val lore: Lore, private val names: ChatNames = ChatNames(null), 
         if (female == null) add("Sex")
         if (classId == null) add("Class")
         if (name.isBlank()) add("Name")
+        if (relationship.kind == ChatRelationship.Kind.CUSTOM && relationship.text.isEmpty()) add("What you are to her")
     }
 
     val canStart: Boolean get() = phase == ChatSetupPhase.OPEN && missing().isEmpty()
@@ -144,7 +150,7 @@ class ChatSetup(val lore: Lore, private val names: ChatNames = ChatNames(null), 
     /** Start: the character (and the choice is remembered), or null while something is missing. */
     fun start(): ChatCharacter? {
         if (!canStart) return null
-        val c = ChatCharacter(name.trim(), raceId!!, female!!, classId!!)
+        val c = ChatCharacter(name.trim(), raceId!!, female!!, classId!!, relationship.let { it.copy(custom = it.text) })
         store?.save(encode(c))
         phase = ChatSetupPhase.STARTED
         return c
@@ -158,13 +164,21 @@ class ChatSetup(val lore: Lore, private val names: ChatNames = ChatNames(null), 
         /** The order the sheet lists the races: the creator's eleven, then the others. */
         val RACE_ORDER = listOf("human", "dwarf", "nightelf", "gnome", "draenei", "worgen", "orc", "undead", "tauren", "troll", "bloodelf", "goblin", "pandaren")
 
-        fun encode(c: ChatCharacter): String = JSONObject().put("name", c.name).put("race", c.raceId).put("female", c.female).put("class", c.classId).toString()
+        fun encode(c: ChatCharacter): String =
+            JSONObject().put("name", c.name).put("race", c.raceId).put("female", c.female).put("class", c.classId)
+                .put("rel", c.relationship.kind.name).put("relText", c.relationship.custom).toString()
+
+        /** Keeps a relationship changed during the chat as the remembered choice (the character stays as it was). */
+        fun rememberRelationship(store: ChatStore?, r: ChatRelationship) {
+            val c = decode(store?.load()) ?: return
+            store?.save(encode(c.copy(relationship = r)))
+        }
 
         fun decode(text: String?): ChatCharacter? {
             if (text.isNullOrBlank()) return null
             return runCatching {
                 val o = JSONObject(text)
-                ChatCharacter(o.getString("name"), o.getInt("race"), o.getBoolean("female"), o.getInt("class"))
+                ChatCharacter(o.getString("name"), o.getInt("race"), o.getBoolean("female"), o.getInt("class"), ChatRelationship.decode(o))
             }.getOrNull()
         }
     }

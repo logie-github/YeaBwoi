@@ -17,6 +17,8 @@ class ChatSession(
     val place: PlaceView = PlaceView("the place"),
     private val kink: KinkContext? = null,
     private val random: Random = Random.Default,
+    /** Called when the relationship is changed during the chat (the screen keeps it as the remembered choice). */
+    private val onRelationship: ((ChatRelationship) -> Unit)? = null,
 ) {
     data class Line(val fromYou: Boolean, val text: String)
 
@@ -47,8 +49,25 @@ class ChatSession(
     @Volatile var quiet: Boolean = false
         private set
 
-    /** The ease between her and the player's character, through her own nature. */
-    val band: ComfortBand get() = comfort.band(npc.disposition, npc.id, ChatCharacter.ID)
+    /** What they are to her: from the setup sheet, changeable during the chat (it applies from the next reply). */
+    @Volatile var relationship: ChatRelationship = you.relationship
+        private set
+
+    fun changeRelationship(r: ChatRelationship) {
+        val c = r.copy(custom = r.text)
+        relationship = c
+        onRelationship?.invoke(c)
+    }
+
+    /** How many messages they have sent in this talk. */
+    var exchanges = 0
+        private set
+
+    /**
+     * The ease between her and the player's character, through her own nature; never under what their relationship starts it at
+     * (strangers: nothing, a friend: familiar, a spouse: very comfortable). A fresh session has no leftover comfort.
+     */
+    val band: ComfortBand get() = maxOf(comfort.band(npc.disposition, npc.id, ChatCharacter.ID), relationship.baseBand)
 
     /** The system prompt in use (stable all chat long). */
     fun systemPrompt(): String = system
@@ -80,7 +99,7 @@ class ChatSession(
             val reply = ask(said, engine)
             if (reply == null) { quiet = true; return null }
             synchronized(lines) { lines += Line(false, reply) }
-            if (said != null) { remember(DialogueTurn.Role.USER, said); afterExchange(said) }
+            if (said != null) { remember(DialogueTurn.Role.USER, said); afterExchange(said); exchanges++ }
             remember(DialogueTurn.Role.ASSISTANT, reply)
             return reply
         } finally { typing = false; partial = "" }
@@ -88,12 +107,12 @@ class ChatSession(
 
     private suspend fun ask(said: String?, engine: DialogueEngine): String? {
         val desire = (said != null && ChatPrompt.raisesDesire(said)) || steers.forPair(npc.id, ChatCharacter.ID).any { it.text == ChatTopics.DESIRE } ||
-            (band >= ComfortBand.FAMILIAR && random.nextFloat() < npc.disposition.desireTalk * 0.5f)
+            (exchanges >= ChatPrompt.NEUTRAL_EXCHANGES + 1 && band >= ComfortBand.FAMILIAR && random.nextFloat() < npc.disposition.desireTalk * 0.5f)
         var note: String? = null
         repeat(2) { attempt ->
-            val turn = ChatPrompt.Turn(npc, you, place, band, steers.hints(npc.id, ChatCharacter.ID), said, desire, length, kink, note, dirty)
+            val turn = ChatPrompt.Turn(npc, you, place, band, steers.hints(npc.id, ChatCharacter.ID), said, desire, length, kink, note, dirty, relationship, exchanges)
             val user = ChatPrompt.user(lore, turn)
-            val req = ChatPrompt.request(system, turns.toList(), user, npc.id, length, { p -> partial = ChatClean.preview(p, npc.name, length) }, dirty)
+            val req = ChatPrompt.request(system, turns.toList(), user, npc.id, length, { p -> partial = ChatClean.preview(p, npc.name, length) }, if (desire) dirty else DirtyLevel.DEFAULT)
             val raw = engine.complete(req)
             if (raw == null) return null   // no answer at all: asking again would not help
             val line = ChatClean.clean(raw, npc.name, length)
@@ -139,7 +158,7 @@ class ChatSession(
     /** The talk forgotten: the log, the history, the ease and the steers (leaving the chat, a reloaded scene). */
     fun reset() {
         synchronized(lines) { lines.clear() }
-        turns.clear(); comfort.clear(); steers.clearAll()
+        turns.clear(); comfort.clear(); steers.clearAll(); exchanges = 0; relationship = you.relationship
         partial = ""; typing = false; quiet = false
     }
 
