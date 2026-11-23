@@ -33,6 +33,18 @@ import com.logie.wifecraft.anim.CheckedAnimation
 import com.logie.wifecraft.anim.Profile
 import com.logie.wifecraft.anim.Retargeter
 import com.logie.wifecraft.story.Vec3
+import com.logie.wifecraft.dialogue.Disposition
+import com.logie.wifecraft.dialogue.Profiles
+import com.logie.wifecraft.simulation.ActCatalogue
+import com.logie.wifecraft.simulation.ActGroup
+import com.logie.wifecraft.simulation.ConsentAct
+import com.logie.wifecraft.simulation.ConsentBook
+import com.logie.wifecraft.simulation.ConsentPolicy
+import com.logie.wifecraft.simulation.NpcLimits
+import com.logie.wifecraft.simulation.PartnerEmotes
+import com.logie.wifecraft.ui.ConsentNpc
+import com.logie.wifecraft.ui.ConsentScreen
+import com.logie.wifecraft.ui.ConsentWindow
 import com.logie.wifecraft.ui.AnimImportScreen
 import com.logie.wifecraft.ui.AnimLibraryScreen
 import com.logie.wifecraft.ui.AnimationViewport
@@ -211,7 +223,7 @@ class MainActivity : ComponentActivity() {
     private val simsRigs by lazy { RigStore(animationDirectory) }
     private val simsProfile by lazy { Profile.load(assets.open("sims_profile.json").bufferedReader().use { it.readText() }) }
 
-    private enum class Screen { TITLE, GATHER, SETUP, CREATOR, ANIMATIONS, IMPORT, IMPORT_WICKED_WHIMS, LIBRARY, LIVE }
+    private enum class Screen { TITLE, GATHER, SETUP, CONSENT, CREATOR, ANIMATIONS, IMPORT, IMPORT_WICKED_WHIMS, LIBRARY, LIVE }
     private enum class Panel { NONE, OPTIONS, UPDATE }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -399,6 +411,11 @@ class MainActivity : ComponentActivity() {
         var updateStatus by remember { mutableStateOf("") }
         var wifiOnly by remember { mutableStateOf(settings.wifiOnly) }
         var step by remember { mutableStateOf(SetupStep.LOCATION) }
+        // Consent and limits (after the objects, before the scene loads): the remembered limits, the scene's policy, its switch and window
+        var consentBook by remember { mutableStateOf(ConsentBook.parse(settings.consentLimits)) }
+        var consentPolicy by remember { mutableStateOf<ConsentPolicy?>(null) }
+        var consentSceneOnly by remember { mutableStateOf(false) }
+        var limitsOpen by remember { mutableStateOf(false) }
         var location by remember { mutableStateOf<String?>(null) }
         var cast by remember { mutableStateOf(emptySet<String>()) }
         var availableClips by remember { mutableStateOf(emptyList<CheckedAnimation>()) }
@@ -425,7 +442,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         LaunchedEffect(screen) {
-            if (screen == Screen.ANIMATIONS || screen == Screen.LIVE || screen == Screen.SETUP) {
+            if (screen == Screen.ANIMATIONS || screen == Screen.LIVE || screen == Screen.SETUP || screen == Screen.CONSENT) {
                 availableClips = withContext(Dispatchers.IO) { animationLibrary.list().map { CheckedAnimation(it) } }
                 pairs = withContext(Dispatchers.IO) { runCatching { animationLibrary.pairs() }.getOrDefault(emptyList()) }
             }
@@ -453,6 +470,21 @@ class MainActivity : ComponentActivity() {
         // a man's body-part settings: in npc-roster.json for the user's own NPCs, in npc-looks.json for the others
         val roster = remember(savedRoster, starters, npcLooks) { (savedRoster + starters).map { npcLooks.apply(it) } }
         val chosen = remember(roster, cast) { roster.filter { it.id in cast } }
+        // the acts the Consent and limits screen lists: every two-person animation of the catalogue by category (read from the
+        // animations' own kind and pack, so a new pack appears by itself) and the base emotes; read off the main thread
+        val consentOpen = screen == Screen.CONSENT || screen == Screen.LIVE
+        val consentGroups by produceState(emptyList<ActGroup>(), availableClips, pairs, consentOpen) {
+            value = if (!consentOpen) emptyList() else withContext(Dispatchers.Default) {
+                val choices = animationChoices(availableClips) + pairs.filter { it.enabled }.map { it.choice() }
+                ActCatalogue.group(choices.filter { it.participantCount == 2 && it.exclusiveTo == null }.map { ConsentAct.of(it) } +
+                    PartnerEmotes.ALL.map { ConsentAct.emote(it) })
+            }
+        }
+        val consentKey = ConsentBook.sceneKey(location ?: "", cast)
+        fun keepConsent(id: String, limits: NpcLimits) {
+            consentBook = consentBook.with(id, limits, if (consentSceneOnly) consentKey else null)
+            settings.consentLimits = consentBook.toJson().toString()
+        }
 
         LaunchedEffect(complete) {
             if (art == null && "interface" in complete) {
@@ -568,10 +600,34 @@ class MainActivity : ComponentActivity() {
                                 when (step) {
                                     SetupStep.LOCATION -> step = SetupStep.CAST
                                     SetupStep.CAST -> step = SetupStep.OBJECTS
-                                    SetupStep.OBJECTS -> if (location != null && chosen.isNotEmpty()) screen = Screen.LIVE
+                                    SetupStep.OBJECTS -> if (location != null && chosen.isNotEmpty()) {
+                                        // the limits as remembered (the cast's own, or this scene's), then the screen that sets them
+                                        val dispositions = chosen.associate { it.id to Profiles.of(it).disposition }
+                                        consentSceneOnly = chosen.any { consentBook.hasScene(it.id, consentKey) }
+                                        consentPolicy = ConsentPolicy(consentBook.forCast(chosen.map { it.id }, consentKey), { id -> dispositions[id] ?: Disposition() })
+                                        limitsOpen = false
+                                        screen = Screen.CONSENT
+                                    }
                                 }
                             },
                         ) }
+                    }
+                    Screen.CONSENT -> {
+                        val policy = consentPolicy
+                        if (policy == null) LaunchedEffect(Unit) { screen = Screen.SETUP }
+                        else ConsentScreen(
+                            chosen.map { ConsentNpc(it.id, it.name) }, consentGroups, policy,
+                            sceneOnly = consentSceneOnly,
+                            onSceneOnly = { on ->
+                                consentSceneOnly = on
+                                for (a in chosen) keepConsent(a.id, policy.limitsOf(a.id))
+                            },
+                            onChanged = { id, limits -> keepConsent(id, limits) },
+                            onBack = { screen = Screen.SETUP },
+                            onSkip = { screen = Screen.LIVE },
+                            onStart = { screen = Screen.LIVE },
+                            loading = availableClips.isEmpty() && pairs.isEmpty(),
+                        )
                     }
                     Screen.CREATOR -> {
                         val c = checkNotNull(catalog)
@@ -889,7 +945,14 @@ class MainActivity : ComponentActivity() {
                                 voiceScale[0] = if (v == null) 1f else IntensityMix.voice(v, immersiveSettings.voice)
                                 audio?.intensity(v, immersiveSettings.atmosphere, immersiveSettings.rain)
                             },
+                            consent = consentPolicy,
+                            onLimits = { limitsOpen = true },
                         ) } }
+                        // the scene menu's Limits: the same screen as a window; what changes applies from the next act
+                        consentPolicy?.let { policy ->
+                            ConsentWindow(limitsOpen, { limitsOpen = false }, chosen.map { ConsentNpc(it.id, it.name) }, consentGroups, policy,
+                                onChanged = { id, limits -> keepConsent(id, limits) })
+                        }
                     }
                 }
                 if (screen == Screen.CREATOR && npcLoading) {

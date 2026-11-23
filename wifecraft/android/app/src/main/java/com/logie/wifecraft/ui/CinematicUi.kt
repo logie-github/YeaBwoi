@@ -176,6 +176,8 @@ fun CinematicAutoplayHost(
     treatAs: Map<String, TreatAs> = emptyMap(),
     /** Build mode is on: the sequence stands on its current shot ([CinematicAutoplay.hold]; nothing changes until it is left). */
     hold: Boolean = false,
+    /** The Consent and limits policy: auto-play never chooses an animation either of the two won't do, in either role. */
+    consent: com.logie.wifecraft.simulation.ConsentPolicy? = null,
 ) {
     val auto = remember(live) { CinematicAutoplay() }
     var cover by remember(live) { mutableFloatStateOf(0f) }
@@ -206,6 +208,13 @@ fun CinematicAutoplayHost(
         }
     }
     auto.options = options
+    // (asked at every choice: a limit changed while it plays holds from the next animation)
+    val limitActs = remember(pairs) { pairs.associate { it.id to com.logie.wifecraft.simulation.ConsentAct.of(it) } }
+    val allowedClip: (AutoClip) -> Boolean = { clip ->
+        consent == null || a == null || b == null ||
+            consent.allowsPair(a, b, limitActs[clip.id] ?: com.logie.wifecraft.simulation.ConsentAct(clip.id, clip.name))
+    }
+    auto.allowed = allowedClip
     auto.installed = pairs.size
     auto.people = if (a != null && b != null) 2 else 1
     auto.pace = pace

@@ -1,5 +1,6 @@
 #include "dialogue_core.h"
 
+
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
@@ -119,7 +120,15 @@ uint64_t Core::rssBytes() {
 #endif
 }
 
+namespace {
+std::atomic<float> gLoadProgress{0.0f};
+bool loadProgressCb(float progress, void *) { gLoadProgress.store(progress); return true; }
+}  // namespace
+
+float Core::loadProgress() { return gLoadProgress.load(); }
+
 bool Core::load(const LoadParams &p, std::string &error) {
+    gLoadProgress.store(0.0f);
     unload();
     lp_ = p;
     if (!gBackendUp.exchange(true)) {
@@ -132,6 +141,7 @@ bool Core::load(const LoadParams &p, std::string &error) {
     try {
         llama_model_params mp = llama_model_default_params();
         mp.n_gpu_layers = 0;
+        mp.progress_callback = loadProgressCb;   // a 7 GB file takes a while to read: the page shows how far it is
         mp.load_mode = p.mlock ? LLAMA_LOAD_MODE_MMAP_MLOCK : LLAMA_LOAD_MODE_MMAP;   // mapped: the OS can drop what is not in use
         model_ = llama_model_load_from_file(p.path.c_str(), mp);
         if (!model_) { error = "the model file could not be read (" + p.path + ")"; return false; }
@@ -192,10 +202,12 @@ ModelInfo Core::info() const {
 std::vector<int> Core::tokenize(const std::string &text) const {
     std::vector<int> out;
     if (!vocab_) return out;
-    int n = -llama_tokenize(vocab_, text.c_str(), (int32_t)text.size(), nullptr, 0, false, true);
+    // the model's own rule for a start-of-text mark (Mistral Nemo wants <s>; Qwen takes none), the same for every prompt so prefixes still match
+    const bool addBos = llama_vocab_get_add_bos(vocab_);
+    int n = -llama_tokenize(vocab_, text.c_str(), (int32_t)text.size(), nullptr, 0, addBos, true);
     if (n <= 0) return out;
     out.resize((size_t)n);
-    int got = llama_tokenize(vocab_, text.c_str(), (int32_t)text.size(), (llama_token *)out.data(), n, false, true);
+    int got = llama_tokenize(vocab_, text.c_str(), (int32_t)text.size(), (llama_token *)out.data(), n, addBos, true);
     if (got < 0) out.clear(); else out.resize((size_t)got);
     return out;
 }

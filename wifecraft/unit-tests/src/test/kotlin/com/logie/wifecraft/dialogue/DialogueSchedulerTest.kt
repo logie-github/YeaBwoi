@@ -207,10 +207,29 @@ class DialogueSchedulerTest {
         level = LoadLevel.STRUGGLING
         val amb = async { s.complete(req("amb", DialoguePriority.AMBIENT)) }
         Thread.sleep(100)
-        clock.addAndGet(21_000)                  // past the ambient wait of 20 s
+        clock.addAndGet(41_000)                  // past the ambient wait of 40 s (the 12B model is slow: the waits are twice the 4B model's)
         assertNull(amb.await())
         assertEquals(1L, s.stats.value.dropped)
         assertEquals(0, backend.started.size)
+    }
+
+    @Test fun theSlowModelsWaitsAreLongerThanTheOldOnes() = run {
+        val s = scheduler()
+        level = LoadLevel.STRUGGLING
+        val amb = async { s.complete(req("amb", DialoguePriority.AMBIENT)) }
+        Thread.sleep(100)
+        clock.addAndGet(30_000)                  // the old ambient wait was 20 s: now it is still waiting
+        Thread.sleep(400)
+        assertEquals(0L, s.stats.value.dropped, "30 s is inside the 40 s ambient wait")
+        clock.addAndGet(11_000)
+        assertNull(amb.await())
+    }
+
+    @Test fun aRequestAsksForNoMoreRepeatPenaltyThanTheModelLikes() = run {
+        val s = scheduler()
+        assertEquals("a: reply", s.complete(req("a", DialoguePriority.SELECTED).copy(repeatPenalty = 1.3f)))
+        assertTrue(backend.started.last().repeatPenalty <= 1.08f)
+        assertTrue(backend.started.last().stop.containsAll(listOf("<|im_start|>", "<|im_end|>")), "leaked turn marks end an answer")
     }
 
     @Test fun aNewerUnpromptedLineReplacesTheOlderOfTheSameNpc() = run {

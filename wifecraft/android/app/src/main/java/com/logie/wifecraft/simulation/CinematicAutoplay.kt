@@ -78,10 +78,12 @@ class AutoplayPlanner(seed: Long = Random.nextLong()) {
          * them ([FurnitureAvailability]): a clip that fits no piece here goes where it nearly fits ([FurnitureFit.fit] relaxed),
          * else loosely on any piece, else on the open floor (never left out; [AutoClip.floorRests] only says whether it rests on it).
          */
-        fun options(places: List<AutoPlace>, clips: List<AutoClip>, bodyUnit: Float = FurnitureFit.DEFAULT_BODY_UNIT): List<AutoOption> {
+        fun options(places: List<AutoPlace>, clips: List<AutoClip>, bodyUnit: Float = FurnitureFit.DEFAULT_BODY_UNIT,
+                    /** The limits: a clip this refuses (an act one of the two won't do, in either role) is left out. */
+                    allowed: (AutoClip) -> Boolean = { true }): List<AutoOption> {
             val out = ArrayList<AutoOption>()
             for (c in clips) {
-                if (c.requirement.actors.size != 2) continue
+                if (c.requirement.actors.size != 2 || !allowed(c)) continue
                 val before = out.size
                 for (p in places) FurnitureFit.fit(c.requirement, p.furniture, bodyUnit)?.let { out += AutoOption(p, c, it) }
                 if (out.size > before) continue
@@ -218,6 +220,11 @@ class CinematicAutoplay(private val planner: AutoplayPlanner = AutoplayPlanner()
     }
 
     var options: List<AutoOption> = emptyList()
+    /**
+     * The limits, asked at every choice (they can change while it plays): a clip this refuses is not chosen. None left: the
+     * models' own base animations, which the scene filters by the same limits.
+     */
+    var allowed: (AutoClip) -> Boolean = { true }
     /** How many people take part (two, or fewer: nothing plays). */
     var people = 2
     /** Whether any partner animation is installed at all (for the notice when nothing fits). */
@@ -389,7 +396,7 @@ class CinematicAutoplay(private val planner: AutoplayPlanner = AutoplayPlanner()
 
     private fun begin(): List<AutoStep> {
         log("choose")
-        val b = planner.next(options, beat, pace, people) ?: return emptyList()
+        val b = planner.next(options.filter { allowed(it.clip) }, beat, pace, people) ?: return emptyList()
         pending = b
         walking = false
         cutOnly = false
