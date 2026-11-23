@@ -196,11 +196,24 @@ class DirtyTalkTest {
         assertNull(run { JoiPrompt.line(wall, req(DirtyLevel.HOT), pack) })
     }
 
+    @Test fun theFrontOfThePromptIsTheSameThroughAStageForTheRuntimesCache() {
+        val a = req(DirtyLevel.NASTY, "build"); val b = req(DirtyLevel.NASTY, "build", recent = listOf("Stroke it, slut.", "Faster."), steer = "be meaner")
+            .copy(steer = setOf(JoiSteer.TEASE), action = "your hand is stroking them, quickly")
+        assertEquals(JoiPrompt.system(a, pack), JoiPrompt.system(b, pack))
+        assertEquals(JoiPrompt.history(a, pack), JoiPrompt.history(b, pack))
+        assertNotEquals(JoiPrompt.user(a, pack), JoiPrompt.user(b, pack))
+        // the stage's hint is in the user message (it changes with the stage), the level's register in the system (it does not)
+        assertTrue("This moment:" in JoiPrompt.user(a, pack) && "This moment:" !in JoiPrompt.system(a, pack))
+        assertNotEquals(JoiPrompt.system(a, pack), JoiPrompt.system(req(DirtyLevel.HOT, "build"), pack))
+        assertEquals(JoiPrompt.system(req(DirtyLevel.NASTY, "edge"), pack), JoiPrompt.system(req(DirtyLevel.NASTY, "countdown"), pack))
+        assertTrue(JoiPrompt.request(a, pack).tag == "joi")
+    }
+
     // ---- consent care: afterglow only
 
     @Test fun noCareLineIsMixedIntoTheStagesButTheAfterglow() {
-        for (l in DirtyLevel.entries) for (s in stages.filter { it != "afterglow" }) assertFalse("Care" in JoiPrompt.system(req(l, s), pack), "${l.label} $s")
-        assertTrue("Care, if it fits" in JoiPrompt.system(req(DirtyLevel.CUTE, "afterglow"), pack))
+        for (l in DirtyLevel.entries) for (s in stages.filter { it != "afterglow" }) assertFalse("Care" in JoiPrompt.user(req(l, s), pack), "${l.label} $s")
+        assertTrue("Care, if it fits" in JoiPrompt.user(req(DirtyLevel.CUTE, "afterglow"), pack))
         assertFalse("therapist" in JoiPrompt.system(req(DirtyLevel.WTF, "setup"), pack))
         // the setup stage no longer asks for consent in the line: orders, not questions
         assertFalse("word to stop" in pack.joiHint("setup", KinkQuery(Band.INTIMATE))!!)

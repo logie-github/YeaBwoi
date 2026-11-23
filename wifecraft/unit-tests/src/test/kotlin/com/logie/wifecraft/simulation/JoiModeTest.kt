@@ -257,7 +257,7 @@ class JoiModeTest {
         assertEquals("Slower now. Good.", run { JoiPrompt.line(engine, r, pack) })
         val req = engine.requests.single()
         assertEquals(com.logie.wifecraft.dialogue.DialoguePriority.SELECTED, req.priority)
-        assertTrue(JoiSteer.TEASE.instruction in req.system)
+        assertTrue(JoiSteer.TEASE.instruction in req.user)
     }
 
     @Test fun aReplyThatBreaksTheWorldIsRefusedAndRetried() {
