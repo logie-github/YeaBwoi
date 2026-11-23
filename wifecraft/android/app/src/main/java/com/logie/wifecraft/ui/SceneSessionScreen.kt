@@ -1481,6 +1481,8 @@ fun LiveSceneScreen(
         radial = null; speedOpen = false; feedOpen = false; menu = false; choosingAnimation = null; walking = false
         chatSheet = id
         chatTick++
+        // the sheet is open: while the player picks who they are, her persona is read into the model (the first reply then pays for the new words only)
+        runCatching { joiEngine()?.warm(com.logie.wifecraft.dialogue.ChatPrompt.CHAT_PREFIX + id, com.logie.wifecraft.dialogue.ChatPrompt.system(com.logie.wifecraft.dialogue.Profiles.of(a), lore, CreatureNpcs.of(a.appearance) != null), urgent = true) }
     }
     fun cancelChat() { chatMode.cancel(); chatSheet = null; chatTick++ }
     fun startChat() {
@@ -1494,6 +1496,8 @@ fun LiveSceneScreen(
                 { r -> ChatSetup.rememberRelationship(chatStore, r) }).also { it.dirty = dialogue.dirty }
         }, joiEngine() != null)
         if (!started) return
+        // the person before her is known now: her whole system prompt is read while the player types the first message
+        runCatching { chatMode.session?.warmUp(joiEngine(), withContext = true) }
         chatSheet = null
         chatCamera.restart(); chatCamera.creature = spec != null
         chatMode.gestures.reset()

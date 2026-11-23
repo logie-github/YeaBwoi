@@ -8,9 +8,12 @@ package com.logie.wifecraft.dialogue
 
 /** How long a reply may be (the Chat controls' Short/Normal/Long). */
 enum class ChatLength(val label: String, val sentences: Int, val chars: Int, val words: Int, val tokens: Int) {
-    SHORT("Short", 1, 150, 24, 60),
-    NORMAL("Normal", 2, 280, 42, 100),
-    LONG("Long", 3, 440, 66, 150);
+    // [tokens] is the most the model may write (a reply is cut at its sentences before that): about 1.4 tokens a word with the
+    // punctuation, so 24 words are about 35 tokens, 42 about 60 and 66 about 95: the caps leave room for a long last sentence and
+    // no more. At 4 to 6 tokens a second on the phone every token not written is 0.2 seconds saved.
+    SHORT("Short", 1, 150, 24, 45),
+    NORMAL("Normal", 2, 280, 42, 80),
+    LONG("Long", 3, 440, 66, 140);
 
     companion object { fun of(name: String?): ChatLength = entries.firstOrNull { it.name == name } ?: NORMAL }
 }
@@ -46,33 +49,57 @@ object ChatTopics {
 }
 
 object ChatPrompt {
-    /** The persona's rules without the line about length (the chat's own length is set per reply). */
-    val RULES: String = PersonaPrompt.RULES.replace("Speak in short natural lines, one or two sentences. ", "Speak in natural lines. ")
-
     /** Words that mean the user raised desire themselves (the talk may go there at once, as the NPC's nature allows). */
     private val DESIRE_RE = Regex("\\b(sex|sexy|bed|kiss|naked|touch|lust|want you|desire|aroused|body|bodies|breasts?|thighs?|undress|seduce|lover|make love|fuck\\w*|fantasy|fantasies|cock|cunt|pussy|tits|ass|cum|horny|slut|whore)\\b", RegexOption.IGNORE_CASE)
     fun raisesDesire(text: String): Boolean = DESIRE_RE.containsMatchIn(text)
 
+    /** What a chat adds after the persona and before the context: the setting of the talk (the same for everyone she talks to). */
+    const val FRAME = "Someone stands before you and you talk face to face. They are an ordinary person of this world, like you. " +
+        "Answer what they say, remember it, and now and then ask or tell them something."
+
     /**
-     * The system prompt: stable for the NPC all chat long (the person in front of her is in each turn). A dragon (Sindragosa) has
-     * her own voice: ancient, imperious, patient, cold.
+     * The system prompt's stable part, for the NPC all chat long: the shared world and rules, her persona, the chat's frame
+     * ([FRAME]). Its first lines are the very bytes of the NPC's ambient persona ([PersonaPrompt.persona]), so what the model
+     * read for one it borrows for the other. A dragon (Sindragosa) has her own voice: ancient, imperious, patient, cold.
      */
     fun system(npc: NpcProfile, lore: Lore, dragon: Boolean): String {
         val b = StringBuilder()
         if (dragon) {
-            b.append("You are ${npc.name}, a frost dragon of great age and power, an adult being of Azeroth. ").append(PersonaPrompt.ERA).append('\n')
+            b.append(PersonaPrompt.SHARED).append("\n\n")
+            b.append("You are ${npc.name}, a frost dragon of great age and power, an adult being of Azeroth.\n")
             if (npc.bio.isNotBlank()) b.append("About you: ").append(npc.bio.trim()).append('\n')
             b.append("Your voice: ancient, imperious, patient and cold as the high ice; vast and unhurried, never crude, never hurried; ")
                 .append("you regard mortals as small warm creatures and speak to them as a queen speaks to a petitioner, but you are not blind to a mortal who earns your interest. ")
                 .append("In love and in bed you are dominant, as a being of your age would be.\n")
-            b.append(RULES)
         } else {
-            b.append(PersonaPrompt.system(npc, lore).replace(PersonaPrompt.RULES, RULES))
+            b.append(PersonaPrompt.persona(npc, lore))
         }
-        b.append("\nSomeone stands in front of you and you are talking with them face to face, as people do. They are an ordinary person of this world, like you. ")
-        b.append("Answer what they say, remember what has been said, and now and then ask them something or tell them something of yourself.")
+        b.append(PersonaPrompt.LENGTH_CHAT).append('\n').append(FRAME)
         return b.toString()
     }
+
+    /**
+     * What stays the same for a whole talk, read once and kept with the persona: the place, who stands before her, what they are
+     * to her, and what she knows of them and the place (at most [KNOW_ITEMS] snippets, [KNOW_CHARS] characters). It goes in the
+     * system message, after [system]'s stable part, so the history that follows it is a prefix the model has already read; it is
+     * rebuilt (and read again) only when what they are to her changes.
+     */
+    fun context(lore: Lore, me: NpcProfile, you: ChatCharacter, place: PlaceView, rel: ChatRelationship): String {
+        val b = StringBuilder()
+        b.append(SceneContext.place(place)).append('\n')
+        b.append(presence(you, lore, rel)).append('\n')
+        rel.note(you.name)?.let { b.append(it).append('\n') }
+        val spouse = rel.tier == ChatRelationship.Tier.SPOUSE
+        val know = if (spouse) emptyList() else lore.forScene(me.raceId, me.classId, place.name, listOf(you.raceId to you.classId), withBodies = false, maxChars = KNOW_CHARS, includeSelf = false, maxItems = KNOW_ITEMS)
+        if (know.isNotEmpty()) b.append("What you know: ").append(know.joinToString(" ")).append('\n')
+        b.append("You are only talking; nothing intimate is happening this moment. Talk of the world, your day, the person before you, the place, lore and gossip. ")
+        b.append("Do not make the sounds of lovemaking and do not describe an act as it happens.")
+        return b.toString()
+    }
+
+    /** Lore snippets a chat's context carries, and their length: two, so the context stays about 150 tokens. */
+    const val KNOW_ITEMS = 2
+    const val KNOW_CHARS = 420
 
     /** "a woman", "a man". */
     private fun sexWord(female: Boolean) = if (female) "woman" else "man"
@@ -132,15 +159,19 @@ object ChatPrompt {
         val exchanges: Int = 0,
     )
 
-    /** The user message of one turn: the place, who stands before her and what the lore says of them, the ease, steers, what was said, the task. */
-    fun user(lore: Lore, t: Turn): String {
+    /**
+     * The user message of one turn, whole: [context] and [tail] together (the shape the prompt had before the context moved into the
+     * system message; kept for the tests and for anyone who asks for one message).
+     */
+    fun user(lore: Lore, t: Turn): String = context(lore, t.me, t.you, t.place, t.relationship) + "\n" + tail(lore, t)
+
+    /**
+     * What changes from turn to turn, and nothing else: how at ease they are, the opening stance for the first exchanges, her
+     * wariness, the desire notes when the talk goes there, the steers, what they said and the task. Kept short (about 60 tokens
+     * in an ordinary turn): it is the only part of the prompt the model has to read anew each turn.
+     */
+    fun tail(lore: Lore, t: Turn): String {
         val b = StringBuilder()
-        b.append(SceneContext.place(t.place)).append('\n')
-        b.append(presence(t.you, lore, t.relationship)).append('\n')
-        t.relationship.note(t.you.name)?.let { b.append(it).append('\n') }
-        val spouse = t.relationship.tier == ChatRelationship.Tier.SPOUSE
-        val know = if (spouse) emptyList() else lore.forScene(t.me.raceId, t.me.classId, t.place.name, listOf(t.you.raceId to t.you.classId), withBodies = false, maxChars = 900, includeSelf = false)
-        if (know.isNotEmpty()) b.append("What you know: ").append(know.joinToString(" ")).append('\n')
         b.append("You and ${t.you.name} are ${t.band.label} with each other.\n")
         val opening = t.exchanges < NEUTRAL_EXCHANGES
         if (opening) b.append(neutralStance(t.relationship)).append('\n')
@@ -156,9 +187,7 @@ object ChatPrompt {
             kinkNotes(lore, t)?.let { b.append(it) }
         }
         for (s in t.steers) b.append(s.hint()).append('\n')
-        b.append("You are only talking; nothing intimate is happening this moment. Talk of the world, your day, the person before you, the place, lore and gossip")
-        if (t.desireTopic) b.append(", or, as your nature and your ease with them allow, of desire, bodies, memories and what you would like to do with someone; that is talk only")
-        b.append(". Do not make the sounds of lovemaking and do not describe an act as it happens.\n")
+        if (t.desireTopic) b.append("As your nature and your ease with them allow, you may talk of desire, bodies, memories and what you would like to do with someone; that is talk only.\n")
         if (t.heard != null) b.append("${t.you.name} says to you: \"").append(t.heard).append("\"\n")
         else b.append("${t.you.name} stands quietly, waiting for you to speak.\n")
         t.retryNote?.let { b.append(it).append('\n') }
@@ -172,7 +201,7 @@ object ChatPrompt {
         val me = t.me
         val q = KinkQuery(t.band.kink, TurnPrompt.personalityWords(me), TurnPrompt.roleOf(me.disposition),
             listOfNotNull(lore.raceKey(me.raceId), lore.raceKey(t.you.raceId)),
-            listOfNotNull(lore.className(me.classId), lore.className(t.you.classId)).map { it.replace(" ", "").lowercase() }, stage = "flirt", limit = 3, level = t.dirty)
+            listOfNotNull(lore.className(me.classId), lore.className(t.you.classId)).map { it.replace(" ", "").lowercase() }, stage = "flirt", limit = KINK_SNIPPETS, level = t.dirty)
         val sb = StringBuilder()
         val snippets = k.snippets(q)
         if (snippets.isNotEmpty()) sb.append("Ideas you may draw on, in your own words: ").append(snippets.joinToString(" ")).append('\n')
@@ -182,11 +211,18 @@ object ChatPrompt {
         return sb.takeIf { it.isNotEmpty() }?.toString()
     }
 
-    /** The request for a turn: its own state in the runtime ("chat:" + the NPC's id), selected priority, the length's cap, partial text passed on. */
+    /**
+     * The request for a turn: its own state in the runtime ("chat:" + the NPC's id), selected priority, the length's token cap and
+     * sentence stop, partial text passed on, and [guard] (the streamed-text check that ends a wrong answer early).
+     */
     fun request(system: String, history: List<DialogueTurn>, user: String, npcId: String, length: ChatLength, onPartial: ((String) -> Unit)?,
-        dirty: DirtyLevel = DirtyLevel.DEFAULT): DialogueRequest =
+        dirty: DirtyLevel = DirtyLevel.DEFAULT, guard: ((String) -> Boolean)? = null): DialogueRequest =
         DialogueRequest(npcId = CHAT_PREFIX + npcId, system = system, history = history, user = user, maxTokens = length.tokens,
-            temperature = dirty.temperature, topP = dirty.topP, repeatPenalty = dirty.repeatPenalty, priority = DialoguePriority.SELECTED, onPartial = onPartial)
+            temperature = dirty.temperature, topP = dirty.topP, repeatPenalty = dirty.repeatPenalty, priority = DialoguePriority.SELECTED, onPartial = onPartial,
+            tag = "chat", guard = guard, sentences = length.sentences)
+
+    /** The kink pack's snippets a flirting turn draws on. */
+    const val KINK_SNIPPETS = 2
 
     const val CHAT_PREFIX = "chat:"
 }

@@ -27,7 +27,9 @@ object NativeDialogue {
         }
     }
 
-    external fun nativeLoad(path: ByteArray, threads: Int, threadsBatch: Int, ctx: Int, slots: Int, ubatch: Int, kvBits: Int, nice: Int, stateDir: ByteArray): String?
+    external fun nativeLoad(path: ByteArray, threads: Int, threadsBatch: Int, ctx: Int, slots: Int, ubatch: Int, kvBits: Int, nice: Int, stateDir: ByteArray, affinityMask: Long): String?
+    /** New thread counts for the next generations (Speed in Options); call from the scheduler's worker, between generations. */
+    external fun nativeSetThreads(threads: Int, threadsBatch: Int)
     external fun nativeLoadProgress(): Float
     external fun nativeUnload()
     external fun nativeGenerate(
@@ -46,13 +48,18 @@ object NativeDialogue {
 data class ModelInfo(
     val description: String, val sizeBytes: Long, val params: Long, val trainContext: Int, val context: Int, val slots: Int,
     val liveSlots: Int, val liveTokens: Int, val residentBytes: Long,
+    /** How long the model file took to load and the context to be made, milliseconds. */
+    val loadMs: Long = 0, val contextMs: Long = 0,
+    /** llama.cpp's own line on the CPU features in use ("CPU : NEON = 1 | ARM_FMA = 1 | DOTPROD = 1 | MATMUL_INT8 = 1 ...") and the backends: which kernels really run. */
+    val system: String = "",
 ) {
     companion object {
         fun parse(s: String?): ModelInfo? {
             val f = s?.split('\t') ?: return null
             if (f.size < 9) return null
             return ModelInfo(f[0], f[1].toLongOrNull() ?: 0, f[2].toLongOrNull() ?: 0, f[3].toIntOrNull() ?: 0, f[4].toIntOrNull() ?: 0,
-                f[5].toIntOrNull() ?: 0, f[6].toIntOrNull() ?: 0, f[7].toIntOrNull() ?: 0, f[8].toLongOrNull() ?: 0)
+                f[5].toIntOrNull() ?: 0, f[6].toIntOrNull() ?: 0, f[7].toIntOrNull() ?: 0, f[8].toLongOrNull() ?: 0,
+                f.getOrNull(9)?.toLongOrNull() ?: 0, f.getOrNull(10)?.toLongOrNull() ?: 0, f.drop(11).joinToString(" ").trim())
         }
     }
 }
@@ -63,11 +70,11 @@ class NativeBackend(private val stateDir: File? = null) : DialogueBackend {
     override val loaded: Boolean get() = isLoaded
 
     /** Loads the model (blocking, seconds: call off the main thread). Null when it worked, else why not. */
-    fun load(path: File, threads: Int, ctx: Int, slots: Int, kvBits: Int = 8, ubatch: Int = 128, nice: Int = 8): String? {
+    fun load(path: File, plan: ThreadPlan, ctx: Int, slots: Int, kvBits: Int = 8, ubatch: Int = 128, nice: Int = 0): String? {
         if (!NativeDialogue.available) return "the dialogue library is not available (${NativeDialogue.loadError ?: "not built for this phone"})"
         if (!path.isFile) return "the model file is not there"
         stateDir?.mkdirs()
-        val err = NativeDialogue.nativeLoad(path.path.toByteArray(), threads, threads + 1, ctx, slots, ubatch, kvBits, nice, (stateDir?.path ?: "").toByteArray())
+        val err = NativeDialogue.nativeLoad(path.path.toByteArray(), plan.decode, plan.prefill, ctx, slots, ubatch, kvBits, nice, (stateDir?.path ?: "").toByteArray(), plan.coreMask)
         isLoaded = err == null
         return err
     }
@@ -86,6 +93,8 @@ class NativeBackend(private val stateDir: File? = null) : DialogueBackend {
         return parseResult(line)
     }
 
+    override fun setThreads(decode: Int, prefill: Int) { if (isLoaded) NativeDialogue.nativeSetThreads(decode, prefill) }
+
     override fun cancel(ticket: Long) { if (isLoaded) NativeDialogue.nativeCancel(ticket) }
     override fun reset(npcId: String) { if (isLoaded) NativeDialogue.nativeReset(npcId.toByteArray()) }
     override fun resetAll() { if (isLoaded) NativeDialogue.nativeResetAll() }
@@ -93,9 +102,9 @@ class NativeBackend(private val stateDir: File? = null) : DialogueBackend {
     override fun close() { if (isLoaded) { isLoaded = false; NativeDialogue.nativeUnload() } }
 
     companion object {
-        /** "finish \t prompt \t reused \t shared \t restored \t generated \t prefillMs \t decodeMs \t error" (cpp/dialogue/dialogue_jni.cpp). */
+        /** "finish \t prompt \t reused \t shared \t restored \t generated \t prefillMs \t decodeMs \t firstTokenMs \t kvTokens \t threads \t threadsBatch \t error" (cpp/dialogue/dialogue_jni.cpp). */
         fun parseResult(line: String): BackendResult {
-            val f = line.split('\t', limit = 9)
+            val f = line.split('\t', limit = 13)
             val finish = when (f[0]) {
                 "eos" -> DialogueFinish.EOS
                 "length" -> DialogueFinish.LENGTH
@@ -105,7 +114,7 @@ class NativeBackend(private val stateDir: File? = null) : DialogueBackend {
             }
             fun i(k: Int) = f.getOrNull(k)?.toIntOrNull() ?: 0
             fun d(k: Int) = f.getOrNull(k)?.toDoubleOrNull() ?: 0.0
-            return BackendResult(finish, f.getOrNull(8)?.ifEmpty { null }, i(1), i(2), i(3), i(4), i(5), d(6), d(7))
+            return BackendResult(finish, f.getOrNull(12)?.ifEmpty { null }, i(1), i(2), i(3), i(4), i(5), d(6), d(7), d(8), i(9), i(10), i(11))
         }
     }
 }

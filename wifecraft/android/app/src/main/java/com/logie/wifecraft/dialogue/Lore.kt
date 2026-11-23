@@ -81,7 +81,7 @@ class Lore(json: String) {
      * their race's body.
      */
     fun forScene(speakerRace: Int, speakerClass: Int, place: String, others: List<Pair<Int, Int>>, withBodies: Boolean, maxChars: Int = 1500,
-        includeSelf: Boolean = true): List<String> {
+        includeSelf: Boolean = true, maxItems: Int = Int.MAX_VALUE): List<String> {
         val out = ArrayList<String>()
         if (includeSelf) {
             race(speakerRace)?.let { out += "You are ${it.name}: ${it.about} Customs: ${it.customs}" }
@@ -90,17 +90,20 @@ class Lore(json: String) {
         place(place)?.let { out += "Where you are: $it" }
         if (includeSelf) factionAbout(faction(speakerRace)).takeIf { it.isNotEmpty() }?.let { out += "Your people: $it" }
         val seen = HashSet<Int>()
+        // with a short list (maxItems) the place and the stance are what the others add: who they are is in the scene's own list of people
+        val compact = maxItems != Int.MAX_VALUE
         for ((race, cls) in others) {
             if (!seen.add(race)) continue
             val r = race(race) ?: continue
-            out += "Another here is ${r.name} (${faction(race).label}): ${r.about}"
+            if (!compact) out += "Another here is ${r.name} (${faction(race).label}): ${r.about}"
             stance(speakerRace, race)?.let { out += "How your kind looks on theirs: $it" }
             if (withBodies) body(race)?.let { out += "Their body: $it" }
-            className(cls)?.let { out += "Their calling, $it." }
+            if (!compact) className(cls)?.let { out += "Their calling, $it." }
         }
         var total = 0
         val kept = ArrayList<String>()
         for (x in out) {
+            if (kept.size >= maxItems) break
             if (total + x.length + 1 > maxChars && kept.isNotEmpty()) break
             total += x.length + 1
             kept += x

@@ -51,4 +51,5 @@ fun DialogueModelSection() {
         WifeButton("Delete the earlier models (frees ${mb(st.oldModelBytes)})", { DialogueHost.deleteOldModels() })
     }
     WifeSwitchRow("Download over mobile data too", cfg.mobileData, { DialogueHost.setConfig(cfg.copy(mobileData = it)) }, detail = "Off: Wi-Fi only")
+    DialogueSpeedSection()
 }

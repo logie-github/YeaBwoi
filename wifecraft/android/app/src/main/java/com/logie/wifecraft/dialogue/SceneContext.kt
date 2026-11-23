@@ -61,10 +61,13 @@ object SceneContext {
         return sb.toString()
     }
 
-    fun people(me: String, view: SceneView, lore: Lore, maxPeople: Int = 5): String {
-        val others = view.people.filter { it.profile.id != me }
+    fun people(me: String, view: SceneView, lore: Lore, maxPeople: Int = 5): String = people(me, view, lore, maxPeople, null) ?: "Nobody else is here."
+
+    /** The people in the room but [me] (and [except]), the nearest [maxPeople]; null when there is nobody to list. */
+    fun people(me: String, view: SceneView, lore: Lore, maxPeople: Int, except: String?): String? {
+        val others = view.people.filter { it.profile.id != me && it.profile.id != except }
             .sortedBy { it.cameraDistance }.take(maxPeople)
-        if (others.isEmpty()) return "Nobody else is here."
+        if (others.isEmpty()) return null
         return others.joinToString("\n") { o ->
             val p = o.profile
             val r = lore.race(p.raceId)?.name ?: "stranger"
@@ -103,6 +106,13 @@ enum class TalkMode {
  * prompt so its prefix is stable per NPC.
  */
 object TurnPrompt {
+    /** What an unprompted line's prompt carries of the scene: three people, two lore snippets of at most 360 characters (it is read anew for every line). */
+    const val PRESENT_MAX = 3
+    const val KNOW_ITEMS = 2
+    const val KNOW_CHARS = 400
+    /** The kink pack's snippets a line draws on. */
+    const val KINK_SNIPPETS = 2
+
     class Input(
         val me: NpcProfile,
         val view: SceneView,
@@ -129,11 +139,13 @@ object TurnPrompt {
     fun build(lore: Lore, i: Input): String {
         val b = StringBuilder()
         b.append(SceneContext.place(i.view.place)).append('\n')
-        b.append("Present:\n").append(SceneContext.people(i.me.id, i.view, lore)).append('\n')
+        // the partner is told of below: the list is for the others in the room
+        val present = SceneContext.people(i.me.id, i.view, lore, maxPeople = PRESENT_MAX, except = i.partner?.id)
+        if (present != null) b.append("Present:\n").append(present).append('\n')
         SceneContext.events(i.me.id, i.events, i.view)?.let { b.append(it).append('\n') }
         val others = i.view.people.filter { it.profile.id != i.me.id }.sortedBy { it.cameraDistance }.take(4).map { it.profile.raceId to it.profile.classId }
         val withBodies = i.partner != null && (i.mode == TalkMode.LIVE || (i.band.bodyTalk && i.desireTopic))
-        val know = lore.forScene(i.me.raceId, i.me.classId, i.view.place.name, others, withBodies = false, maxChars = 900, includeSelf = false)
+        val know = lore.forScene(i.me.raceId, i.me.classId, i.view.place.name, others, withBodies = false, maxChars = KNOW_CHARS, includeSelf = false, maxItems = KNOW_ITEMS)
         if (know.isNotEmpty()) b.append("What you know: ").append(know.joinToString(" ")).append('\n')
         if (i.partner != null) {
             val pr = lore.race(i.partner.raceId)
@@ -169,7 +181,7 @@ object TurnPrompt {
     fun roleOf(d: Disposition): String? = when (d.style) { "dominant" -> "dom"; "shy" -> "sub"; "bold" -> "switch"; else -> null }
 
     /** The pack's query for [i]: the band mapped, the natures, the races and classes of the two, the stage. */
-    fun kinkQuery(lore: Lore, i: Input, limit: Int = 3): KinkQuery {
+    fun kinkQuery(lore: Lore, i: Input, limit: Int = KINK_SNIPPETS): KinkQuery {
         val people = listOfNotNull(i.me, i.partner)
         return KinkQuery(i.band.kink, personalityWords(i.me), roleOf(i.me.disposition),
             people.mapNotNull { lore.raceKey(it.raceId) }, people.mapNotNull { lore.className(it.classId)?.replace(" ", "")?.lowercase() },
