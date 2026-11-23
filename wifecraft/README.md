@@ -444,7 +444,7 @@ The user: "the UI has gotten a little clunky with stuff overlapping other UI ...
 | JOI controls | the sheet slot (side or bottom); the mode chip leaves JOI |
 | JOI, Chat entries | the dock (JOI, Chat tiles); Chat's own layer as before |
 
-- **Playing an animation:** the Play animation window's rows have a play button at the end (one tap: it plays at once, in the order shown); tapping a row still picks it to read its details and the footer plays it. A partner animation plays at once in the roles last kept for it; the "Ask before partner animations play" switch in the window (default off) brings back the "Ready to play" panel. Switch positions is in the dock while it plays.
+- **Playing an animation:** the Play animation window's rows have a play button at the end (one tap: it plays at once, in the order shown); tapping a row still picks it to read its details and the footer plays it. A partner animation plays at once in the roles last kept for it; the "Ask before partner animations play" switch (default off) brings back the "Ready to play" panel; it is in the animation window and on Options > Scene (`ui/ScenePrefs`), one setting that the running scene follows. Switch positions is in the dock while it plays.
 - **Consent and limits for the chosen NPC:** More has "Limits: <name>", which opens the window on that NPC's tab (the scene menu's entry opens it on the first). Each category card has Will, Ask and Won't on it already.
 - **Windows:** every window (`Overlay`) keeps clear of the cut-out, the bars and the keyboard.
 

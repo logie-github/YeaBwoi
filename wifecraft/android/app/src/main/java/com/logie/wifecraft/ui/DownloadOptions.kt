@@ -74,7 +74,7 @@ fun <T> StateFlow<T>.collectThrottled(urgent: (T?, T) -> Boolean = { _, _ -> fal
     return throttled.collectAsStateWithLifecycle(value)
 }
 
-private enum class Page(val label: String) { SOUND("Sound"), GRAPHICS("Graphics"), IMMERSION("Immersion"), TIME("Time"), CINEMATIC("Cinematic"), DIALOGUE("Dialogue"), DOWNLOADS("Downloads"), MODS("Mods") }
+private enum class Page(val label: String) { SOUND("Sound"), GRAPHICS("Graphics"), SCENE("Scene"), IMMERSION("Immersion"), TIME("Time"), CINEMATIC("Cinematic"), DIALOGUE("Dialogue"), DOWNLOADS("Downloads"), MODS("Mods") }
 
 /** What the Downloads page's controls do (data/DownloadHub's commands, wired by the activity). */
 class DownloadActions(
@@ -137,11 +137,13 @@ fun DownloadOptions(
     onKeepOn: (Set<Int>) -> Unit = {},
     /** The Graphics page (ui/GraphicsOptions.kt's GraphicsPage; null: no Graphics page). */
     graphics: (@Composable () -> Unit)? = null,
+    /** The Scene page (the live scene's own switches: ui/ScenePrefs; null: no Scene page). */
+    scene: (@Composable () -> Unit)? = null,
 ) {
     var page by remember { mutableStateOf(Page.SOUND) }
-    val pages = remember(clock != null, cinematic != null, immersive != null, graphics != null, dialogue != null) {
+    val pages = remember(clock != null, cinematic != null, immersive != null, graphics != null, dialogue != null, scene != null) {
         Page.entries.filter { (it != Page.TIME || clock != null) && (it != Page.CINEMATIC || cinematic != null) &&
-            (it != Page.IMMERSION || immersive != null) && (it != Page.GRAPHICS || graphics != null) &&
+            (it != Page.IMMERSION || immersive != null) && (it != Page.GRAPHICS || graphics != null) && (it != Page.SCENE || scene != null) &&
             (it != Page.DIALOGUE || dialogue != null) }
     }
     val reduced = reduceMotion()
@@ -191,6 +193,7 @@ fun DownloadOptions(
                             Page.DIALOGUE -> if (dialogue != null) DialoguePage(dialogue, onDialogue, dialogueExtra)
                             Page.MODS -> mods()
                             Page.GRAPHICS -> graphics?.invoke()
+                            Page.SCENE -> scene?.invoke()
                         }
                     }
                 }

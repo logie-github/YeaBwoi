@@ -426,6 +426,14 @@ fun LiveSceneScreen(
     var playOptions by remember(playKey) { mutableStateOf(PlayOptions.decode(runCatching { playPrefs.getString(playKey, null) }.getOrNull())) }
     // Options-style switch kept with them: a partner animation asks ("Ready to play") before it plays; off: it plays at once, in the roles last kept
     var askPairs by remember(playContext) { mutableStateOf(runCatching { playPrefs.getBoolean(ASK_PAIR_KEY, false) }.getOrDefault(false)) }
+    // Options > Scene has the same switch: follow it while the scene runs
+    DisposableEffect(playPrefs) {
+        val l = android.content.SharedPreferences.OnSharedPreferenceChangeListener { p, k ->
+            if (k == ScenePrefs.ASK_PAIR) askPairs = runCatching { p.getBoolean(ScenePrefs.ASK_PAIR, false) }.getOrDefault(false)
+        }
+        playPrefs.registerOnSharedPreferenceChangeListener(l)
+        onDispose { playPrefs.unregisterOnSharedPreferenceChangeListener(l) }
+    }
     fun chooseAskPairs(on: Boolean) {
         askPairs = on
         runCatching { playPrefs.edit().putBoolean(ASK_PAIR_KEY, on).apply() }
