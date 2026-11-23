@@ -753,6 +753,7 @@ class MainActivity : ComponentActivity() {
                         wickedWhims = screen == Screen.IMPORT_WICKED_WHIMS,
                     )
                     Screen.LIVE -> {
+                        remember { com.logie.wifecraft.graphics.CharacterSizeSetting.beginScene(applicationContext) }   // (the Character size in force before anyone is dressed)
                         val preset = stages.first { it.id == location }
                         val indoor = preset.views.getValue("inside")
                         val camera = checkNotNull(indoor.camera)

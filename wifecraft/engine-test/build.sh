@@ -141,3 +141,9 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -DWC_NO_GL -I"$engine" \
     "$here/sparkle_test.cpp" "$engine/sparkle.cpp" \
     -o "$here/build/sparkle_test"
 echo "$here/build/sparkle_test"
+# The rooms against their people (README, "Character size"): each place's ceiling, doorways and furniture heights from its wall
+# triangles and locations.json: build/scale_measure FILES_DIR LOCATIONS_JSON [--only=ID,ID] (needs GL like the harness).
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/scale_measure.cpp" "$engine"/*.cpp \
+    -lEGL -lGLESv2 -lz -lpthread -o "$here/build/scale_measure"
+echo "$here/build/scale_measure"

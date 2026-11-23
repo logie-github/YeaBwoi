@@ -54,16 +54,19 @@ class PairAlignmentAudit {
     private val locale = Locale.ROOT
     private fun f(x: Double) = String.format(locale, "%.2f", x)
 
-    /** The tolerances a stage is flagged at (cm, degrees): see README, "Alignment audit". */
+    /**
+     * The tolerances a stage is flagged at (cm, degrees): see README, "Alignment audit". The distances are times the Character size in
+     * force (ALIGN_SIZE: the bodies are that much bigger, so the same contact in body units is that many more centimetres).
+     */
     object Tol {
-        const val RETARGET_CM = 2.0
-        const val PLACE_CM = 3.0
-        const val HIPS_CM = 6.0
-        const val PEN_CM = 4.0
+        val RETARGET_CM: Double get() = 2.0 * com.logie.wifecraft.anim.CharacterSize.active
+        val PLACE_CM: Double get() = 3.0 * com.logie.wifecraft.anim.CharacterSize.active
+        val HIPS_CM: Double get() = 6.0 * com.logie.wifecraft.anim.CharacterSize.active
+        val PEN_CM: Double get() = 4.0 * com.logie.wifecraft.anim.CharacterSize.active
         const val FACING_DEG = 15.0
-        const val SINK_CM = 4.0
-        const val FLOAT_CM = 6.0
-        const val DRIFT_CM = 3.0
+        val SINK_CM: Double get() = 4.0 * com.logie.wifecraft.anim.CharacterSize.active
+        val FLOAT_CM: Double get() = 6.0 * com.logie.wifecraft.anim.CharacterSize.active
+        val DRIFT_CM: Double get() = 3.0 * com.logie.wifecraft.anim.CharacterSize.active
     }
 
     class Combo(val name: String, val a: Body, val b: Body, val sizeA: Float, val sizeB: Float, val scaleA: Float, val scaleB: Float)
@@ -71,6 +74,9 @@ class PairAlignmentAudit {
     @Test
     fun audit() {
         val packPath = System.getenv("ALIGN_PACK") ?: return
+        // ALIGN_SIZE: the Character size (anim/CharacterSize) the audit runs at, as a factor (default 1: the bodies as they were); the
+        // stills' bodies and the pair frame grow with it, the furniture does not
+        System.getenv("ALIGN_SIZE")?.toFloatOrNull()?.let { com.logie.wifecraft.anim.CharacterSize.force(it) }
         val rigPath = System.getenv("ALIGN_RIG") ?: error("ALIGN_RIG: a package with the Sims humanoid rigs")
         val out = File(System.getenv("ALIGN_OUT") ?: error("ALIGN_OUT")).also { it.mkdirs() }
         val label = System.getenv("ALIGN_LABEL") ?: File(packPath).name
@@ -311,7 +317,7 @@ class PairAlignmentAudit {
                     for ((slot, body) in listOf(0 to combo.a, 1 to combo.b)) {
                         val eve = body.name.startsWith("eve_")
                         val look = if (eve) System.getenv("ALIGN_EVE_LOOK") else "${System.getenv("ALIGN_LOOKS")}/${body.name}.look"
-                        val height = if (eve || body.name.endsWith("_f")) HumanScale.FEMALE_HEIGHT else HumanScale.MALE_HEIGHT
+                        val height = (if (eve || body.name.endsWith("_f")) HumanScale.FEMALE_HEIGHT else HumanScale.MALE_HEIGHT) * com.logie.wifecraft.anim.CharacterSize.active
                         val s = if (slot == 0) sA else sB
                         plan.append("actor $slot $look $height ${HumanScale.PAIR}\n")
                         if (eve) plan.append("eve $slot 1\n")
@@ -492,5 +498,5 @@ class PairAlignmentAudit {
     }
 
     /** SceneSimulation's HUMAN_BODY_UNIT (private there): one body unit of a human-scale body in yards. */
-    object SceneUnit { val HUMAN = BodyGeometry.REF_UNIT * HumanScale.PAIR }
+    object SceneUnit { val HUMAN: Double get() = BodyGeometry.REF_UNIT * HumanScale.PAIR }
 }

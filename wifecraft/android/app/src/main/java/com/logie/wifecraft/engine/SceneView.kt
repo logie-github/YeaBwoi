@@ -6,6 +6,7 @@ import android.os.SystemClock
 import com.logie.wifecraft.anim.Anim
 import com.logie.wifecraft.anim.AnimArrays
 import com.logie.wifecraft.anim.FleshProfile
+import com.logie.wifecraft.anim.CharacterSize
 import com.logie.wifecraft.anim.HumanScale
 import com.logie.wifecraft.bodyparts.EveOptions
 import com.logie.wifecraft.bodyparts.ModelParts
@@ -170,6 +171,8 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     private val sizes = mutableMapOf<String, Float>()
     /** GL thread: an actor drawn at human scale (anim/HumanScale): the scale that stands in for its look's own. */
     private val humanScales = mutableMapOf<String, Float>()
+    /** GL thread: the actors that are people of the live scene or the ghost (the Character size applies: [CharacterSize]); creatures and previews are not. */
+    private val sizedPeople = mutableSetOf<String>()
     /** Each live person's size over a human's of their sex ([HumanScale.bodyScale]: 1 at human scale, a dwarf's or gnome's own). */
     private val bodyRatios = java.util.concurrent.ConcurrentHashMap<String, Float>()
     /** GL thread: people whose flesh is to be measured (dressed or redressed since), and the frames each has been tried. */
@@ -542,13 +545,18 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
             humanScales.remove(key)
             if (sex != null && HumanScale.applies(key)) bodyRatios[key] = HumanScale.bodyScale(raceId, sex == Sex.FEMALE)
             else bodyRatios.remove(key)
+            sizedPeople.remove(key)
             if (sex != null && HumanScale.applies(key) && HumanScale.keepsOwnSize(raceId)) {
-                sizes[key]?.let { if (it != 1f) Native.setActorScale(h, added, call.scale * it) }
+                // (a person: the Character size on top, CharacterSize; the pair frame's yards, HumanScale.PAIR, go with it)
+                sizedPeople.add(key)
+                val size = (sizes[key] ?: 1f) * CharacterSize.active
+                if (size != 1f) Native.setActorScale(h, added, call.scale * size)
                 Native.humanRootMotion(h, added, HumanScale.PAIR * HumanScale.pairScale(raceId, sex == Sex.FEMALE))
             } else if (sex != null && HumanScale.applies(key)) {
+                sizedPeople.add(key)
                 val human = HumanScale.scale(Native.standHeight(h, added), sex == Sex.FEMALE)
                 humanScales[key] = human
-                Native.setActorScale(h, added, human * (sizes[key] ?: 1f))
+                Native.setActorScale(h, added, human * (sizes[key] ?: 1f) * CharacterSize.active)
                 Native.humanRootMotion(h, added, HumanScale.PAIR)
             } else {
                 sizes[key]?.let { if (it != 1f) Native.setActorScale(h, added, call.scale * it) }
@@ -569,7 +577,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         if (onReady != null) main.post { onReady() }
     }
 
-    override fun removeActor(key: String) = post { h, ids -> ids.remove(key)?.let { Native.removeActor(h, it) }; bodies.remove(key); fleshWanted.remove(key); if (fleshes.remove(key) != null) fleshVersion++; sizes.remove(key); humanScales.remove(key); bodyRatios.remove(key); requestedAnimations.remove(key); actorParts.remove(key); partRaces.remove(key); modelSets.remove(key); eveOptions.remove(key); hdBodies.remove(key) }
+    override fun removeActor(key: String) = post { h, ids -> ids.remove(key)?.let { Native.removeActor(h, it) }; bodies.remove(key); fleshWanted.remove(key); if (fleshes.remove(key) != null) fleshVersion++; sizes.remove(key); humanScales.remove(key); sizedPeople.remove(key); bodyRatios.remove(key); requestedAnimations.remove(key); actorParts.remove(key); partRaces.remove(key); modelSets.remove(key); eveOptions.remove(key); hdBodies.remove(key) }
 
     /**
      * The actor [key]'s size over a human's of its sex as the live scene draws it (1 at human scale, a dwarf's or gnome's own:
@@ -586,7 +594,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         sizes[key] = factor
         val id = ids[key]
         val look = humanScales[key] ?: bodies[key]?.second
-        if (id != null && look != null) Native.setActorScale(h, id, look * factor)
+        if (id != null && look != null) Native.setActorScale(h, id, look * factor * (if (key in sizedPeople) CharacterSize.active else 1f))
     }
 
     override fun removeAll() = post { h, ids ->
@@ -597,6 +605,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         if (fleshes.isNotEmpty()) { fleshes.clear(); fleshVersion++ }
         sizes.clear()
         humanScales.clear()
+        sizedPeople.clear()
         bodyRatios.clear()
         poses.clear()
         requestedAnimations.clear()

@@ -132,7 +132,7 @@ object PairBedPlan {
                 val file = File(clipDir, "${c.slug}_$role.anim").also { if (!it.isFile) it.writeText(animText(lifted(a.copy(loop = false), slot.z))) }
                 val female = i == 1
                 lines.append("actor $i ${File(looks, if (female) "human_f.look" else "human_m.look").absolutePath} " +
-                    "${f(HumanScale.target(female))} ${f(HumanScale.PAIR * HumanScale.pairScale(1, female))}\n")
+                    "${f(HumanScale.target(female) * com.logie.wifecraft.anim.CharacterSize.active)} ${f(HumanScale.PAIR * HumanScale.pairScale(1, female))}\n")
                 // the sink: a clip over or under its floor at its height (Scene::kRaised), else stood on the floor
                 lines.append("place $i ${f(w.x)} ${f(w.y)} ${f(w.z)} ${f(p.facing)}${if (kotlin.math.abs(lift) > 0.01f) " raw" else ""}\n")
                 lines.append("clip $i ${file.absolutePath}\n")
@@ -149,7 +149,8 @@ object PairBedPlan {
                 val top = origin.z + (piece?.spec?.regions?.firstOrNull()?.height ?: 0.85f) + 0.35
                 val yaw = (piece?.yaw ?: 0f).toDouble()
                 for ((view, turn) in listOf("side" to yaw - Math.PI / 2, "3q" to yaw + Math.PI / 4)) {
-                    val ex = cx + Math.cos(turn) * 2.9; val ey = cy + Math.sin(turn) * 2.9
+                    val back = 2.9 * com.logie.wifecraft.anim.CharacterSize.active   // (the stills stand back as far as the bodies are bigger)
+                    val ex = cx + Math.cos(turn) * back; val ey = cy + Math.sin(turn) * back
                     plan.append(String.format(locale, "camera %.3f %.3f %.3f %.3f %.3f %.3f 38\n", ex, ey, top + 1.0, cx, cy, top - 0.15))
                     val d = maxOf(c.pair.a.duration, c.pair.b.duration)
                     for (frac in listOf(0.25, 0.5)) plan.append("render ${File(out, "${slug}_${view}_${(frac * 100).toInt()}.png").absolutePath} 960 540 ${(d * frac * 1000).toInt()}\n")

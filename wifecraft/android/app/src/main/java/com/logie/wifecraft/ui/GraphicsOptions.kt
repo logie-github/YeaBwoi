@@ -20,6 +20,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.logie.wifecraft.anim.CharacterSize
+import com.logie.wifecraft.graphics.CharacterSizeSetting
 import com.logie.wifecraft.graphics.Graphics
 import com.logie.wifecraft.graphics.GraphicsPreset
 import com.logie.wifecraft.graphics.GraphicsSettings
@@ -101,6 +103,15 @@ fun GraphicsPage() {
     WifeNote("Cinematic mode draws its own vignette and grain; these are left to it while it is on.")
 
     WifeSectionHeader("People")
+    CharacterSizeSetting.load(context)
+    val sizePercent = CharacterSizeSetting.percent
+    WifeSliderRow("Character size", sizePercent, { CharacterSizeSetting.set(context, it) },
+        valueText = if (CharacterSize.isMatch(sizePercent)) "Match the room ($sizePercent%)" else "$sizePercent%",
+        range = CharacterSize.MIN..CharacterSize.MAX)
+    WifeButton("Match the room", { CharacterSizeSetting.set(context, CharacterSize.MATCH_ROOM) }, Modifier.fillMaxWidth())
+    WifeNote("Every person, with their clothes, hair, parts and what they hold, drawn this much of their usual size so they fit " +
+        "the rooms' beds, doors and chairs (the game draws its rooms large). Each race keeps its size next to the others'; " +
+        "pairs, seats and cameras follow. For the next scene you enter.")
     WifeSliderRow("Skin shading", s.skin, { edit(s.copy(skin = it)) })
     WifeSliderRow("Hair highlights", s.hair, { edit(s.copy(hair = it)) })
     WifeSliderRow("Eye highlights", s.eyes, { edit(s.copy(eyes = it)) })

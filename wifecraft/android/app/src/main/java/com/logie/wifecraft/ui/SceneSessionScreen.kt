@@ -409,6 +409,10 @@ fun LiveSceneScreen(
     /** Opens the Consent and limits window from the scene menu (null: the menu has none). */
     onLimits: (() -> Unit)? = null,
 ) {
+    // the Character size in force for this scene (before anything below is built from the pair frame; held until the scene ends)
+    val sizeContext = LocalContext.current
+    remember { com.logie.wifecraft.graphics.CharacterSizeSetting.beginScene(sizeContext) }
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { com.logie.wifecraft.graphics.CharacterSizeSetting.endScene() } }
     // the scene's seed: one per scene, so a scene replays the same way from it (the tests use it so)
     val seed = remember(cast, objects) { Random.nextLong() }
     val choices = remember(clips, pairs) { animationChoices(clips) + pairs.filter { it.enabled }.map { it.choice() } }
@@ -902,7 +906,8 @@ fun LiveSceneScreen(
         // the pack's props (Options → Mods → Import pack): the toys, dolls and layers of the stage that plays, drawn at its origin
         val propStore = com.logie.wifecraft.props.PropStore(java.io.File(context.filesDir, "pack/props"))
         val packOptions = com.logie.wifecraft.pack.PackOptions(java.io.File(context.filesDir, "pack/options.json"))
-        val propDriver = com.logie.wifecraft.props.PropStageDriver(propStore, { kind -> packOptions.shows(kind) })
+        val propDriver = com.logie.wifecraft.props.PropStageDriver(propStore, { kind -> packOptions.shows(kind) },
+            { com.logie.wifecraft.props.PropStageDriver.DEFAULT_SCALE * com.logie.wifecraft.anim.CharacterSize.active })   // (the props grow with the bodies: Character size)
         var momentNanos = 0L
         var motionNanos = 0L
         var intensityNanos = 0L
