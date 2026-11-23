@@ -27,6 +27,8 @@ class ChatSession(
     val comfort = ComfortLedger()
     val steers = SteerBoard()
     var length = ChatLength.NORMAL
+    /** How filthy her words are when the talk turns to desire (Options' Dirty talk level; the screen sets it from the settings). */
+    @Volatile var dirty: DirtyLevel = DirtyLevel.DEFAULT
 
     private val lines = ArrayList<Line>()
     private val turns = ArrayDeque<DialogueTurn>()
@@ -89,9 +91,9 @@ class ChatSession(
             (band >= ComfortBand.FAMILIAR && random.nextFloat() < npc.disposition.desireTalk * 0.5f)
         var note: String? = null
         repeat(2) { attempt ->
-            val turn = ChatPrompt.Turn(npc, you, place, band, steers.hints(npc.id, ChatCharacter.ID), said, desire, length, kink, note)
+            val turn = ChatPrompt.Turn(npc, you, place, band, steers.hints(npc.id, ChatCharacter.ID), said, desire, length, kink, note, dirty)
             val user = ChatPrompt.user(lore, turn)
-            val req = ChatPrompt.request(system, turns.toList(), user, npc.id, length) { p -> partial = ChatClean.preview(p, npc.name, length) }
+            val req = ChatPrompt.request(system, turns.toList(), user, npc.id, length, { p -> partial = ChatClean.preview(p, npc.name, length) }, dirty)
             val raw = engine.complete(req)
             if (raw == null) return null   // no answer at all: asking again would not help
             val line = ChatClean.clean(raw, npc.name, length)

@@ -21,7 +21,8 @@
     "orc": "Orc command is plain: a level voice that expects to be heard.",
     "warrior": "Drill-sergeant cadence: stand, hold, count it out.",
     "paladin": "A steady, righteous tone; rules are vows."
-   }
+   },
+   "hot": "Take total charge: bark short orders, make them obey, and tell them filthy how good they are when they do."
   },
   {
    "id": "role-sub",
@@ -42,7 +43,8 @@
    "tw": {
     "priest": "Gives themselves over like a penitent, a willing kind of humility.",
     "nightelf": "Quiet, dignified surrender, never meek."
-   }
+   },
+   "hot": "Beg for it: say what you'd let them do to you and how badly you need to be told what to do."
   },
   {
    "id": "role-switch",
@@ -62,7 +64,8 @@
    "tw": {
     "rogue": "Steals the lead and hands it back with a grin.",
     "druid": "Shifts roles like shapes: wolf, then deer."
-   }
+   },
+   "hot": "Tease about who is on top tonight: threaten to take control, dare them to try to take it back."
   },
   {
    "id": "role-brat",
@@ -85,7 +88,8 @@
     "gnome": "Sasses from boot height and enjoys being lifted.",
     "rogue": "Slips the leash, leaves a dagger-bright smirk.",
     "bloodelf": "Imperious, delighted to be corrected."
-   }
+   },
+   "hot": "Talk back and dare them to make you: be a mouthy little shit begging for punishment and a firm hand."
   },
   {
    "id": "role-tamer",
@@ -107,7 +111,8 @@
    "tw": {
     "hunter": "Treats it like gentling a skittish beast: patience, then reward.",
     "orc": "Booming amusement; never genuinely angry."
-   }
+   },
+   "hot": "Answer the mouth with a smirk and a promise: you'll put them in their place and they'll thank you for it."
   },
   {
    "id": "role-sadomaso",
@@ -128,7 +133,8 @@
    "tw": {
     "warlock": "Pain as currency, spent knowingly.",
     "deathknight": "Cold hands, honest about limits; pain is old company."
-   }
+   },
+   "hot": "Talk about hurting them just right, how they'll ache, how red you'll make them, how they'll beg for more."
   },
   {
    "id": "role-rigger",
@@ -148,7 +154,8 @@
    "tw": {
     "rogue": "Quick clever hands, fond of neat knots.",
     "hunter": "Snare-craft turned gentle; knows rope and knots."
-   }
+   },
+   "hot": "Tie them and describe it: ropes round wrists, nowhere to go, helpless and hard and yours to use."
   },
   {
    "id": "role-power",
@@ -168,7 +175,8 @@
    "tw": {
     "warlock": "A contract with clauses and an exit.",
     "paladin": "An oath, kept both ways."
-   }
+   },
+   "hot": "Spell out who owns what: their cock, their orgasm, their hands all belong to you and you hand them back when you like."
   },
   {
    "id": "pet-handler",
@@ -191,7 +199,8 @@
     "worgen": "A natural fit, all growl and loyalty.",
     "hunter": "The handler knows the craft of training.",
     "druid": "Takes the shape, keeps the mind."
-   }
+   },
+   "hot": "Make them your pet: heel, beg, sit, good dog, drool at your feet and be rewarded with a pat and a leash."
   },
   {
    "id": "dds-little",
@@ -212,7 +221,8 @@
    "tw": {
     "priest": "Tender, motherly Light-blessings.",
     "draenei": "Gentle, protective, hands warm as a hearth."
-   }
+   },
+   "hot": "Baby them filthily: call them your good little thing, tell them what a messy needy pet they are and how you'll look after it."
   },
   {
    "id": "bond-rope",
@@ -235,7 +245,8 @@
     "rogue": "Ties like a smuggler, neat and quick.",
     "hunter": "Trapper's knots, gentle ones.",
     "orc": "Chain and leather rather than silk."
-   }
+   },
+   "hot": "Rope them tight and tell them how helpless they are, how every knot makes them leak."
   },
   {
    "id": "bond-cuffs",
@@ -256,7 +267,8 @@
    "tw": {
     "paladin": "Silvered cuffs of the Argent kind, a little holy.",
     "warlock": "Fel-forged and warm; runes that gleam."
-   }
+   },
+   "hot": "Cuffs on, key in your hand: they can't touch, can't stop you, can only drip and beg."
   },
   {
    "id": "bond-spreader",
@@ -276,7 +288,8 @@
    "tw": {
     "bloodelf": "Proud, poised, reluctant to be seen shaking.",
     "draenei": "Hooves braced, tail twitching."
-   }
+   },
+   "hot": "Spread them wide with nowhere to hide: everything open and on show for you to use as you please."
   },
   {
    "id": "bond-blind",
@@ -297,7 +310,8 @@
    "tw": {
     "nightelf": "Moon-silk scarf; the shaded dark is no stranger.",
     "mage": "Dims candles, sharpens the hearing."
-   }
+   },
+   "hot": "Blindfolded and shaking: they won't know where the next touch lands, only that it will."
   },
   {
    "id": "impact-spank",
@@ -318,7 +332,8 @@
    "tw": {
     "tauren": "Broad hand, gentle, planned.",
     "warrior": "Crisp and measured; counts aloud."
-   }
+   },
+   "hot": "Spank them red and make them count each one, thank you for it, and beg for another."
   },
   {
    "id": "impact-implement",
@@ -340,7 +355,8 @@
    "tw": {
     "hunter": "Uses a riding crop, like gentling a mount.",
     "orc": "Leather strap, heavy and honest."
-   }
+   },
+   "hot": "Crop, paddle or flogger: tell them exactly where it will land and how they will thank you for the sting."
   },
   {
    "id": "sens-wax",
@@ -361,7 +377,8 @@
    "tw": {
     "mage": "Warms the wax with a flicker of fire; careful about the heat.",
     "priest": "Votive candles, a ritual twist."
-   }
+   },
+   "hot": "Hot wax on bare skin, dripping down their cock and thighs, and you make them hold still for it."
   },
   {
    "id": "sens-ice",
@@ -383,7 +400,8 @@
     "mage": "Frost conjured in the palm, a trick turned tender.",
     "deathknight": "Cold hands, a different kind of chill.",
     "undead": "Chilled skin already, they borrow warmth."
-   }
+   },
+   "hot": "Ice melting down their chest and over their balls; they gasp, you laugh and keep going."
   },
   {
    "id": "sens-feather",
@@ -405,7 +423,8 @@
    "tw": {
     "nightelf": "A hawk's feather, the soft gift of the wilds.",
     "druid": "Pollen, moss and petals instead of silks."
-   }
+   },
+   "hot": "Tease them with fingertips and feathers, everywhere but where they need it, until they whimper."
   },
   {
    "id": "oc-denial",
@@ -428,7 +447,8 @@
    "tw": {
     "paladin": "Denial feels like a vow of patience, with a sly smile.",
     "warlock": "The release is a bargain, struck with relish."
-   }
+   },
+   "hot": "Edge them over and over, deny them, make them ask and ask until they are crying for the right to cum."
   },
   {
    "id": "oc-ruin",
@@ -449,7 +469,8 @@
    },
    "tw": {
     "warlock": "A demon's cruelty, a luxury she asks to indulge."
-   }
+   },
+   "hot": "Pull their hands away at the last second and watch the orgasm leak out ruined and useless, and laugh."
   },
   {
    "id": "oc-permit",
@@ -470,7 +491,8 @@
    },
    "tw": {
     "priest": "Absolution given, the release a blessing."
-   }
+   },
+   "hot": "Make them beg for permission, say it clearly, then let them cum only on your word."
   },
   {
    "id": "praise-core",
@@ -490,7 +512,8 @@
    "tw": {
     "paladin": "Says it with proud warmth, Light-bright.",
     "priest": "A blessing in the shape of a compliment."
-   }
+   },
+   "hot": "Tell them what a good, obedient, desperate thing they are, and mean every word of it."
   },
   {
    "id": "degrade-play",
@@ -512,7 +535,8 @@
    "tw": {
     "orc": "Gruff insults, plain, never cruel for cruelty's sake.",
     "bloodelf": "Disdainful hauteur, played to the hilt."
-   }
+   },
+   "hot": "Call them filthy names, tell them what a worthless needy whore they are, and make them say it back."
   },
   {
    "id": "humiliate-soft",
@@ -534,7 +558,8 @@
    "tw": {
     "gnome": "Laughs warmly at the size difference.",
     "goblin": "Needles with a grin and a price."
-   }
+   },
+   "hot": "Mock their eagerness: point out how fast they leak, how they can't last, how red their face is."
   },
   {
    "id": "service-core",
@@ -556,7 +581,8 @@
    "tw": {
     "priest": "Service as devotion.",
     "paladin": "Squire and lord, a chivalrous game."
-   }
+   },
+   "hot": "Make them serve: kneel, lick, fetch, worship, and be rewarded with a use of their mouth."
   },
   {
    "id": "protocol",
@@ -580,7 +606,8 @@
     "paladin": "Vows and titles come naturally.",
     "warlock": "Contract clauses: spelled out and signed.",
     "warrior": "Drill and discipline."
-   }
+   },
+   "hot": "Make them address you properly, ask permission for everything, and be punished for every slip."
   },
   {
    "id": "collar",
@@ -602,7 +629,8 @@
    "tw": {
     "worgen": "A collar for the beast, a mark of belonging.",
     "draenei": "Crystal-set collar, almost a jewel."
-   }
+   },
+   "hot": "A collar and leash: they're yours, led around and shown off, and they love it."
   },
   {
    "id": "rp-captive",
@@ -624,7 +652,8 @@
    "tw": {
     "rogue": "A silent capture in the dark, rope at the ready.",
     "deathknight": "The cold interrogator."
-   }
+   },
+   "hot": "You've captured them; they're helpless in your hands and you'll make them talk, whimper and beg."
   },
   {
    "id": "rp-interrogate",
@@ -645,7 +674,8 @@
    "tw": {
     "priest": "Confession and penance.",
     "warlock": "Demands names, true ones."
-   }
+   },
+   "hot": "Question them with a hand on their cock; every wrong answer gets denied and every right one almost rewarded."
   },
   {
    "id": "rp-monster",
@@ -668,7 +698,8 @@
     "worgen": "Growls and pins, ever careful.",
     "hunter": "The classic stalk and snare.",
     "rogue": "Sneaks from the dark."
-   }
+   },
+   "hot": "Hunt them, chase them down and pin them, growl what you'll do when you catch them."
   },
   {
    "id": "rp-cnc",
@@ -686,7 +717,8 @@
    "voice": {
     "care": "Say the word and it ends, always."
    },
-   "tw": {}
+   "tw": {},
+   "hot": "Play at taking what you want while they pretend to resist and secretly can't wait."
   },
   {
    "id": "exhib",
@@ -708,7 +740,8 @@
    "tw": {
     "bloodelf": "Vain and generous with a gaze.",
     "gnome": "Shy until they aren't."
-   }
+   },
+   "hot": "Make them put it on show: fuck out in the open, anyone could see, and they leak at the thought."
   },
   {
    "id": "breed",
@@ -730,7 +763,8 @@
    "tw": {
     "orc": "Fierce, ancestral pride in kin.",
     "troll": "Voodoo fertility charms and cheerful boasting."
-   }
+   },
+   "hot": "Talk about filling them up and claiming them, a mess dripping out afterwards, theirs and yours."
   },
   {
    "id": "size",
@@ -755,7 +789,8 @@
     "gnome": "Small, bold, fearless about it.",
     "tauren": "Hoof and arm span make the difference plain.",
     "goblin": "Swagger the whole time."
-   }
+   },
+   "hot": "Revel in the size difference: how big you are, how small they feel, what they can and can't take."
   },
   {
    "id": "creature",
@@ -782,7 +817,8 @@
     "undead": "Cold, stitched skin and a hollow chest; strangely tender.",
     "tauren": "Warm hide, a big heart.",
     "troll": "Tusk, tail and swagger."
-   }
+   },
+   "hot": "Lean into the claws, the fur, the tail, the horns, the heat and the teeth: what your body does to theirs."
   },
   {
    "id": "fantasy-magic",
@@ -805,7 +841,8 @@
     "mage": "Arcane tethers that hum.",
     "warlock": "A demon in the rafters: bound pleasure.",
     "shaman": "Spirits as witnesses."
-   }
+   },
+   "hot": "A spell that makes them obey, makes them throb, makes them cum when you snap your fingers."
   },
   {
    "id": "fantasy-lightchaste",
@@ -827,7 +864,8 @@
    "tw": {
     "paladin": "Sworn to patience until the vow is eased.",
     "priest": "Confession as release."
-   }
+   },
+   "hot": "A holy vow broken a stroke at a time; every blasphemous moan a sin you'll make them repeat."
   },
   {
    "id": "fantasy-contract",
@@ -848,7 +886,8 @@
    "tw": {
     "warlock": "Demon-trade cheek, read the fine print.",
     "goblin": "Always negotiating, enjoys it."
-   }
+   },
+   "hot": "A bargain for their orgasm: name your price, make them agree, collect."
   },
   {
    "id": "fantasy-wild",
@@ -870,7 +909,8 @@
     "worgen": "The moon heat; they hold the thread of control.",
     "druid": "Shapeshift, paw to hand.",
     "hunter": "Runs with the pack."
-   }
+   },
+   "hot": "Go feral: bite, growl, claw, rut like animals in heat with nothing held back."
   },
   {
    "id": "fantasy-spirit",
@@ -891,7 +931,8 @@
    "tw": {
     "shaman": "Totems and elemental charge.",
     "tauren": "Earth-mother blessing."
-   }
+   },
+   "hot": "A chant, a candle, a ritual binding them to you: they spill into the flame and say your name."
   },
   {
    "id": "kiss-tease",
@@ -913,7 +954,8 @@
    "tw": {
     "bloodelf": "Poised and amused.",
     "human": "Warm and plain-spoken."
-   }
+   },
+   "hot": "Hold their eyes, lean close, and tell them in a whisper exactly what you want to do to them."
   },
   {
    "id": "hold-wrists",
@@ -934,7 +976,8 @@
    "tw": {
     "orc": "Big, careful hands.",
     "rogue": "Quick catch, softer hold."
-   }
+   },
+   "hot": "Pin their wrists and tell them to take it, hold still, and be quiet while you use them."
   },
   {
    "id": "sensory-deprive",
@@ -955,7 +998,8 @@
    "tw": {
     "nightelf": "Shadowed groves, soft dark.",
     "mage": "A hush spell, soft as velvet."
-   }
+   },
+   "hot": "Take sight and sound: all they have is your voice and the ache between their legs."
   },
   {
    "id": "rough",
@@ -977,7 +1021,8 @@
    "tw": {
     "orc": "Broad hands, careful about bruises.",
     "warrior": "Skilled with the grip."
-   }
+   },
+   "hot": "Pull hair, pin them down, grip hard and take what you want while they hold on and beg for more."
   },
   {
    "id": "wrestle",
@@ -998,7 +1043,8 @@
    "tw": {
     "warrior": "Spar first, play after.",
     "orc": "Orcish challenge."
-   }
+   },
+   "hot": "Fight for the top: pin them, grind on them, and make the loser's cock pay."
   },
   {
    "id": "body-worship",
@@ -1020,7 +1066,8 @@
    "tw": {
     "priest": "Reverent, like prayer.",
     "draenei": "Admires the glow of skin."
-   }
+   },
+   "hot": "Worship every inch: tell them how hungry you are for their body, how you'd lick and kiss and take it all."
   },
   {
    "id": "rule-chores",
@@ -1041,7 +1088,8 @@
    "tw": {
     "warrior": "Drill orders.",
     "rogue": "Notes slipped in a pocket."
-   }
+   },
+   "hot": "Hand out filthy rules: no touching, no cumming, report back with a mess to show."
   },
   {
    "id": "aftercare-bond",
@@ -1062,7 +1110,8 @@
    "tw": {
     "priest": "Light-warmed hands and a hymn hum.",
     "druid": "Herbal tea, moss pillow."
-   }
+   },
+   "hot": "After, hold them close, wipe them down, and say one dirty, fond thing for the road."
   }
  ]
 }

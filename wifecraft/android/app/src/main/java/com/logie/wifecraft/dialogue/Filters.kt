@@ -7,7 +7,7 @@ object Anachronisms {
         "internet", "email", "e-mail", "phone", "smartphone", "computer", "laptop", "wifi", "wi-fi", "tv", "television", "movie", "movies", "youtube",
         "netflix", "tinder", "facebook", "google", "microsoft", "iphone", "uber", "pizza", "coffee", "weekend", "selfie", "boyfriend", "girlfriend",
         "gym", "america", "american", "europe", "robot", "app", "apps", "online", "download",
-        "software", "hashtag", "emoji", "vibe", "vibes", "hang out", "hanging out", "no worries", "my bad", "sucks", "dating app",
+        "software", "hashtag", "emoji", "vibe", "vibes", "hang out", "hanging out", "no worries", "my bad", "dating app",
         "player", "players", "npc", "npcs", "quest log", "menu", "cinematic", "ai", "chatbot", "language model", "simulation",
     )
     private val SLANG = Regex("(^|[.!?]\\s+)cool\\b|\\b(that's|that is|so|pretty|really|very) cool\\b", RegexOption.IGNORE_CASE)

@@ -122,6 +122,8 @@ object TurnPrompt {
         val kink: KinkContext? = null,
         /** The stage of an in-world JOI this line belongs to ([KinkPack.joiPlan]), or null. */
         val joiStage: String? = null,
+        /** How filthy the words are (Options' Dirty talk level): the register of what she says about and in desire. */
+        val dirty: DirtyLevel = DirtyLevel.DEFAULT,
     )
 
     fun build(lore: Lore, i: Input): String {
@@ -140,6 +142,7 @@ object TurnPrompt {
             b.append(". You and ${i.partner.first} are ${i.band.label} with each other.\n")
             if (withBodies) lore.body(i.partner.raceId)?.let { b.append("Their body, for you to draw on as you like: ").append(it).append('\n') }
             if (i.mode == TalkMode.LIVE || i.desireTopic) lore.kinkGuide(i.band.key)?.let { b.append("How open you are now: ").append(it).append('\n') }
+            if (i.mode == TalkMode.LIVE || i.desireTopic) b.append(DirtyTalk.register(i.dirty)).append('\n')
             if (i.mode == TalkMode.LIVE || i.desireTopic) b.append("In bed you are ${i.me.disposition.style}; your pace of loosening is ${paceWord(i.me.disposition)}.\n")
         }
         kinkNotes(lore, i)?.let { b.append(it) }
@@ -170,7 +173,7 @@ object TurnPrompt {
         val people = listOfNotNull(i.me, i.partner)
         return KinkQuery(i.band.kink, personalityWords(i.me), roleOf(i.me.disposition),
             people.mapNotNull { lore.raceKey(it.raceId) }, people.mapNotNull { lore.className(it.classId)?.replace(" ", "")?.lowercase() },
-            stage = if (i.joiStage != null) "joi" else if (i.mode == TalkMode.LIVE) "scene" else "flirt", limit = limit)
+            stage = if (i.joiStage != null) "joi" else if (i.mode == TalkMode.LIVE) "scene" else "flirt", limit = limit, level = i.dirty)
     }
 
     private fun kinkNotes(lore: Lore, i: Input): String? {
@@ -181,9 +184,10 @@ object TurnPrompt {
         val snippets = k.snippets(q)
         if (snippets.isNotEmpty()) sb.append("Ideas you may draw on, in your own words: ").append(snippets.joinToString(" ")).append('\n')
         i.joiStage?.let { st -> k.joiHint(st, q)?.let { sb.append("The one telling the other what to do, this step: ").append(it).append('\n') } }
-        if (i.mode == TalkMode.LIVE) k.care(q)?.let { sb.append("Care between you: ").append(it).append('\n') }
-        val ex = k.examples(q, 1).firstOrNull()
-        if (ex != null) sb.append("A sample of the register (do not copy it):\n").append(ex.render()).append('\n')
+        // no consent-care line here: it makes her sound like a therapist; care belongs to the care and aftercare stages
+        val lines = k.dirty()?.examples(i.dirty, if (i.mode == TalkMode.LIVE) "live" else "chat", 4, i.me.female, (i.heard?.length ?: 0) + i.stageName.length)
+        if (!lines.isNullOrEmpty()) sb.append(DirtyTalk.examplesBlock(lines, "Lines in this register, for the feel (never copy them, say something new):"))
+        else k.examples(q, 1).firstOrNull()?.let { sb.append("A sample of the register (do not copy it):\n").append(it.render()).append('\n') }
         return sb.takeIf { it.isNotEmpty() }?.toString()
     }
 
@@ -191,7 +195,7 @@ object TurnPrompt {
 
     private fun modeText(i: Input): String = when (i.mode) {
         TalkMode.LIVE -> "Right now you are in the middle of ${i.stageName.ifBlank { "lovemaking" }} with ${i.partner?.first ?: "your partner"}. " +
-            "Speak as the moment takes you: what is being done, what you like, what you want next, with the sounds of it. Keep to what your nature and your ease with them allow."
+            "Speak as the moment takes you: what is being done, what you like, what you want next, with the sounds of it, in the register above."
         TalkMode.WORLD -> "Nothing intimate is happening this moment. Talk of the world, your day, the people here, the place, lore and gossip" +
             (if (i.desireTopic) ", or, as your nature and ease allow, of desire, bodies, memories and what you would like to do with someone; that is talk only" else "") +
             ". Do not make the sounds of lovemaking and do not describe an act as it happens."

@@ -1,6 +1,8 @@
 package com.logie.wifecraft.simulation
 
 import com.logie.wifecraft.dialogue.Band
+import com.logie.wifecraft.dialogue.DirtyLevel
+import com.logie.wifecraft.dialogue.DirtyTalk
 import com.logie.wifecraft.dialogue.JoiSteer
 import kotlin.random.Random
 
@@ -61,6 +63,9 @@ class JoiSubtitles {
     fun push(cue: Cue) { queue.addLast(cue) }
 
     fun clear() { queue.clear(); current = null; shown = 0f; gap = 0f }
+
+    /** Drops the cues waiting behind the one on show (a steer typed meanwhile replaces them); the one showing stays. */
+    fun dropQueued() { queue.clear() }
 
     fun advance(dt: Float) {
         if (dt <= 0f) return
@@ -127,6 +132,8 @@ class JoiMode(
     private val countdown: (Band, Long) -> Pair<Int, Int>,
     private val paces: Map<String, String> = JoiPacing.DEFAULT_PACES,
     private val seed: Long = Random.nextLong(),
+    /** The Dirty talk level a JOI starts at ([DirtyLevel.DEFAULT], or Options' choice: the screen sets [defaultLevel] before [enter]). */
+    var defaultLevel: DirtyLevel = DirtyLevel.DEFAULT,
 ) {
     companion object {
         /** The comfort bands a JOI offers (the plan is empty below Intimate), the default first. */
@@ -146,6 +153,20 @@ class JoiMode(
     var framing = JoiFraming.AUTO
         private set
     val steer = LinkedHashSet<JoiSteer>()
+    /**
+     * How filthy her words are, Cute .. WTF??!: the slider. It is this session's own (Options' default is [defaultLevel]) and applies from
+     * the next line asked; it subsumes the comfort band, which only raises how bold the plan and the notes are ([DirtyLevel.joiBand]).
+     */
+    var level = defaultLevel
+        private set
+    /**
+     * What the viewer typed to steer her ([DirtyTalk.cleanSteer]): standing, in every line asked, until cleared or the mode is left. Null: none.
+     * [steerEpoch] counts its changes, so the host can cancel a line being written under the old one.
+     */
+    var customSteer: String? = null
+        private set
+    var steerEpoch = 0
+        private set
     val subtitles = JoiSubtitles()
     /** The hand stroke she gives when a handjob is picked: its tempo follows the stage, her words and the chips ([JoiStroke]). */
     val stroke = JoiStroke()
@@ -196,6 +217,9 @@ class JoiMode(
     fun enter(actor: String, creature: Boolean, prior: JoiPrior, modelReady: Boolean) {
         this.actor = actor; this.creature = creature; this.prior = prior
         subtitles.clear(); events.clear(); steer.clear()
+        customSteer = null; steerEpoch++
+        level = defaultLevel
+        band = maxOf(BANDS[0], level.joiBand)
         misses = 0
         if (modelReady) begin() else phase = JoiPhase.NEEDS_MODEL
     }
@@ -218,6 +242,7 @@ class JoiMode(
     fun leave(): JoiPrior {
         phase = JoiPhase.OFF
         subtitles.clear(); events.clear(); awaiting = false; count = null; stageIndex = -1; stages = emptyList()
+        customSteer = null; steerEpoch++
         stroke.stop(); soloHold = 0f
         actor = null; creature = false
         return prior
@@ -228,6 +253,26 @@ class JoiMode(
     fun togglePause() { if (phase == JoiPhase.PAUSED) resume() else pause() }
 
     fun setFraming(f: JoiFraming) { framing = f }
+
+    /** Another dirty talk level, from the next line asked (the one on show and any already written stay; the plan is not changed). */
+    fun setLevel(l: DirtyLevel) { level = l }
+
+    /**
+     * A steer typed by the viewer, at any point (also while a line is showing): it stands until [clearSteerText] and goes into the next
+     * line asked. The line already written for after the one showing, and any being written, are dropped, so it is the very next line
+     * that carries it; the one showing is left to finish. Blank text clears. Returns whether a steer is in force.
+     */
+    fun setSteerText(text: String?): Boolean {
+        val t = DirtyTalk.cleanSteer(text)
+        if (t == customSteer) return t != null
+        customSteer = t
+        steerEpoch++
+        // not while the count's numbers are running: they are not the model's
+        if (active && !(stage == "countdown" && introDone)) { subtitles.dropQueued(); serial++; awaiting = false }
+        return t != null
+    }
+
+    fun clearSteerText() { setSteerText(null) }
 
     fun toggleSteer(s: JoiSteer) { if (!steer.add(s)) steer.remove(s); stroke.steer(steer) }
 
