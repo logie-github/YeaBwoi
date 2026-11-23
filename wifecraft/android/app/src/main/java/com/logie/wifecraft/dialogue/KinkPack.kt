@@ -5,7 +5,7 @@ import org.json.JSONObject
 
 /*
  * The kink and JOI knowledge pack: researched notes the on-device model is handed as short prompt snippets (nothing is
- * trained). Data lives in assets/dialogue/kink (five JSON files); this file loads it and picks the few snippets a prompt can afford.
+ * trained). Data lives in assets/dialogue/kink (six JSON files); this file loads it and picks the few snippets a prompt can afford.
  * Pure Kotlin plus org.json, so the JVM tests run it. Retrieval is deterministic: the same query gives the same snippets.
  * Everything here is for the app's adult (18+) characters; every entry assumes consent, a way to stop, and care.
  */
@@ -32,11 +32,15 @@ data class KinkQuery(
     val stage: String? = null,
     val tags: Set<String> = emptySet(),
     val limit: Int = 3,
+    /** The dirty talk level the notes are for (null: none chosen; the comfort band alone decides). From Spicy up a note is the filthy idea, not the safety guidance, and no care line is added to it. */
+    val level: DirtyLevel? = null,
 )
 
 data class KinkEntry(
     val id: String, val cat: String, val intensity: Int, val role: String, val band: Band,
     val tags: List<String>, val concept: String, val voice: Map<String, String>, val twists: Map<String, String>,
+    /** What this is in a filthy mouth, one sentence: shown instead of [concept] from the Spicy level up (null: the concept is). */
+    val hot: String? = null,
 )
 
 data class KinkExample(
@@ -61,13 +65,19 @@ interface KinkContext {
     fun care(query: KinkQuery): String?
     /** A hint for one stage of an in-world JOI, flavoured by personality, race and band; null when the pair is not ready. */
     fun joiHint(stageId: String, query: KinkQuery): String?
+    /** The few-shot lines and register of the dirty talk levels (null: the pack has none). */
+    fun dirty(): DirtyPack? = null
 }
 
 class KinkPack(
     val entries: List<KinkEntry>, val care: List<CareEntry>, val examples: List<KinkExample>,
     val joiStages: List<JoiStage>, val joiVariants: Map<String, String>, val joiTwists: Map<String, String>,
     val joiByBand: Map<String, String>, val twists: Map<String, String>,
+    val dirtyPack: DirtyPack? = null,
 ) : KinkContext {
+
+    override fun dirty(): DirtyPack? = dirtyPack
+
 
     private fun roleOk(entryRole: String, q: KinkQuery): Boolean =
         entryRole == "any" || q.role == null || q.role == "switch" || entryRole == q.role
@@ -107,6 +117,11 @@ class KinkPack(
         val key = when (q.stage?.lowercase()) {
             "care", "aftercare" -> "care"; "negotiate" -> "talk"; "joi" -> "order"; else -> if (q.role == "sub") "beg" else "order"
         }
+        if (q.level?.explicit == true && e.hot != null) {
+            val sbh = StringBuilder(e.hot)
+            twistFor(e, q)?.let { sbh.append(' ').append(it) }
+            return clip(sbh.toString(), MAX_CHARS)
+        }
         val v = e.voice[key] ?: e.voice["praise"] ?: e.voice.values.firstOrNull()
         val sb = StringBuilder(e.concept)
         if (v != null) sb.append(" e.g. \"").append(v).append('"')
@@ -131,8 +146,10 @@ class KinkPack(
         val n = query.limit.coerceIn(1, 4)
         val picked = retrieve(query.copy(limit = n))
         val out = picked.map { render(it, query) }.toMutableList()
-        val intense = picked.any { it.intensity >= 3 } || query.stage?.lowercase() in setOf("scene", "joi", "care", "aftercare", "negotiate")
-        if (intense) care(query)?.let { c -> if (out.size >= n) out[out.size - 1] = c else out.add(c) }
+        val careStage = query.stage?.lowercase() in setOf("care", "aftercare", "negotiate")
+        val intense = picked.any { it.intensity >= 3 } || careStage || query.stage?.lowercase() in setOf("scene", "joi")
+        // a dirty talk level that is explicit gets no consent-care line mixed into its notes (it makes her sound like a therapist): care and aftercare stages only
+        if (intense && (query.level?.explicit != true || careStage)) care(query)?.let { c -> if (out.size >= n) out[out.size - 1] = c else out.add(c) }
         return out
     }
 
@@ -162,7 +179,7 @@ class KinkPack(
         val sb = StringBuilder(st.hint)
         pers?.let { sb.append(' ').append(it) }
         tw?.let { sb.append(' ').append(it) }
-        return clip(sb.toString(), MAX_CHARS + 60)
+        return clip(sb.toString(), MAX_CHARS + 140)
     }
 
     /**
@@ -212,7 +229,7 @@ class KinkPack(
                 val o = concepts.getJSONObject(it)
                 KinkEntry(o.getString("id"), o.getString("cat"), o.getInt("i"), o.optString("role", "any"),
                     Band.fromWire(o.optString("band")), strs(o.optJSONArray("tags")), o.getString("concept"),
-                    strMap(o.optJSONObject("voice")), strMap(o.optJSONObject("tw")))
+                    strMap(o.optJSONObject("voice")), strMap(o.optJSONObject("tw")), o.optString("hot").ifEmpty { null })
             }
             val careArr = read("care.json")?.let { JSONObject(it).getJSONArray("entries") }
             val care = careArr?.let { a -> (0 until a.length()).map {
@@ -233,8 +250,9 @@ class KinkPack(
                 JoiStage(o.getString("id"), o.getString("hint"), o.optString("care").ifEmpty { null }, Band.fromWire(o.optString("min_band", "strangers")), o.optString("pace"))
             } } ?: emptyList()
             val twists = read("twists.json")?.let { strMap(JSONObject(it).optJSONObject("twists")) } ?: emptyMap()
+            val dirty = read("dirty.json")?.let { runCatching { DirtyPack.parse(it) }.getOrNull() }
             return KinkPack(entries, care, examples, stages, strMap(joi?.optJSONObject("variants")), strMap(joi?.optJSONObject("twists")),
-                strMap(joi?.optJSONObject("by_band")), twists)
+                strMap(joi?.optJSONObject("by_band")), twists, dirty)
         }
     }
 }

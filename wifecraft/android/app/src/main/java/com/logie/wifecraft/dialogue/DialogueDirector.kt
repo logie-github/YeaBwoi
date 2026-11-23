@@ -249,9 +249,11 @@ class DialogueDirector(
         val user = TurnPrompt.build(lore, TurnPrompt.Input(
             me, v, c.mode, other, band, desire, steers.hints(me.id, other?.id), recent(),
             stageName = c.speaker.stageName, heard = c.conv?.heard, seed = c.conv?.seed?.takeIf { c.conv.heard == null },
-            kink = kink, joiStage = joiStageFor(c, band),
+            kink = kink, joiStage = joiStageFor(c, band), dirty = settings.dirty, maxWords = if (settings.dirty >= DirtyLevel.DEPRAVED) 34 else 28,
         ))
-        val req = DialogueRequest(me.id, system, history[me.id]?.toList().orEmpty(), user, maxTokens = 60, temperature = 0.85f)
+        val lv = settings.dirty
+        val req = DialogueRequest(me.id, system, history[me.id]?.toList().orEmpty(), user, maxTokens = if (lv >= DirtyLevel.DEPRAVED) 76 else 64,
+            temperature = lv.temperature, topP = lv.topP, repeatPenalty = lv.repeatPenalty)
         val gen = generation
         val prio = (c.score * 10).toInt()
         val urgency = when {
