@@ -35,7 +35,8 @@ import kotlin.math.sqrt
  */
 object PairAlignment {
     /** Yards per body unit of the generic body (the human man's and woman's mean standing pelvis). */
-    val AUTHORED_UNIT = BodyGeometry.REF_UNIT * HumanScale.PAIR
+    /** One body unit in yards at the Character size in force (README, "Character size": ALIGN_SIZE in the audit). */
+    val AUTHORED_UNIT: Double get() = BodyGeometry.REF_UNIT * HumanScale.PAIR
     const val CM_PER_YARD = 91.44
 
     /** A body: its flesh (and skeleton), its standing pelvis in yards as drawn, and its pair scale (a gnome's size; else 1). */

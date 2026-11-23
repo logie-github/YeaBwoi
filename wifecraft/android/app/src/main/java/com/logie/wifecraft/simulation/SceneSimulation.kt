@@ -1141,7 +1141,7 @@ class SceneSimulation(
     @Volatile var placement: ((animation: String, role: Int, actorId: String, otherId: String?, furniture: SceneObject?) -> RoleDelta?)? = null
 
     private fun remembered(animation: String, role: Int, actor: Actor, other: Actor?, furniture: SceneObject?): RoleDelta? =
-        runCatching { placement?.invoke(animation, role, actor.id, other?.id, furniture) }.getOrNull()
+        runCatching { placement?.invoke(animation, role, actor.id, other?.id, furniture)?.scaled(com.logie.wifecraft.anim.CharacterSize.active) }.getOrNull()
 
     /**
      * The creature NPCs of the cast (actor id to [CreatureSpec]; Sindragosa's dragon): each is drawn by her own game
@@ -2510,9 +2510,10 @@ class SceneSimulation(
         /**
          * One body unit (a human's standing pelvis) in yards as the live scene draws a clip: the reference body's pelvis
          * ([BodyGeometry.REF_UNIT], 1.441) across the floor at [HumanScale.PAIR] (the humans' mean pelvis over it), which is
-         * also how high a human's pelvis is drawn (the man's 1.130, the woman's 1.216; their mean 1.173).
+         * also how high a human's pelvis is drawn (the man's 1.130, the woman's 1.216; their mean 1.173), all times the Character size
+         * in force ([com.logie.wifecraft.anim.CharacterSize]: the bodies and the pair frame grow together, the furniture does not).
          */
-        val HUMAN_BODY_UNIT = (BodyGeometry.REF_UNIT * HumanScale.PAIR).toFloat()
+        val HUMAN_BODY_UNIT: Float get() = (BodyGeometry.REF_UNIT * HumanScale.PAIR).toFloat()
         private const val DEG = 0.017453292f
         private val NO_PLACE = Any()
         private const val SPACED = ":spaced"

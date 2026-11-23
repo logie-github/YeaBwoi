@@ -1,6 +1,8 @@
 package com.logie.wifecraft.simulation
 
 import com.logie.wifecraft.anim.ActorRequirement
+import com.logie.wifecraft.anim.BodyGeometry
+import com.logie.wifecraft.anim.HumanScale
 import com.logie.wifecraft.anim.Posture
 import com.logie.wifecraft.anim.Requirement
 import com.logie.wifecraft.anim.Surface
@@ -430,6 +432,8 @@ data class FurnitureFit(
         const val DEFAULT_BODY_UNIT = 0.95f * FurnitureSpec.YARDS_PER_METRE
         /** Heights (metres) within this of a surface rest on it. */
         const val HEIGHT_TOLERANCE_M = 0.16f
+        /** The human body unit at Character size 1 (the reference body's pelvis, 1.441, times [HumanScale.PAIR_BASE]), yards. */
+        val BASE_BODY_UNIT = (BodyGeometry.REF_UNIT * HumanScale.PAIR_BASE).toFloat()
         /** How far a lying body's head or feet may hang past its surface (metres). */
         const val OVERHANG_M = 0.3f
         /** How far from the furniture a floor-level actor may be (metres). */
@@ -493,7 +497,10 @@ data class FurnitureFit(
             // (loose: what an animation is marked for is only a preference, so any piece but the bare floor is tried, wide heights)
             if (r.actors.isEmpty() || !(if (loose) f.kind != FurnitureKind.FLOOR else if (relaxed) allowsRelaxed(r.surface, f.kind) else allows(r.surface, f.kind))) return null
             val k = f.spec.unitsPerMetre
-            val tol = (if (loose) LOOSE_TOLERANCE_M else if (relaxed) RELAXED_TOLERANCE_M else HEIGHT_TOLERANCE_M) * k
+            // (a body bigger than the human one the heights were tuned on, by the Character size, misses a seat or a floor by that much more:
+            // its tolerances grow with it, never below the usual)
+            val grow = maxOf(1f, bodyUnit / BASE_BODY_UNIT)
+            val tol = (if (loose) LOOSE_TOLERANCE_M else if (relaxed) RELAXED_TOLERANCE_M else HEIGHT_TOLERANCE_M) * k * grow
             val overhang = if (loose) LOOSE_OVERHANG_M else if (relaxed) RELAXED_OVERHANG_M else OVERHANG_M
             val onPartner = BooleanArray(r.actors.size) { onPartner(r, it) }
             // (a body resting on its partner is placed by where its partner goes)
@@ -544,7 +551,7 @@ data class FurnitureFit(
                         }
                         if (b.feetOnFloor) {
                             // (relaxed too: feet on the floor are never lifted off it more than the usual tolerance)
-                            if (abs(lift) > HEIGHT_TOLERANCE_M * k) { ok = false; break }
+                            if (abs(lift) > HEIGHT_TOLERANCE_M * k * grow) { ok = false; break }
                             val (fx, fy) = place(b.feetX, b.feetY)
                             if (f.spec.regions.any { it.solid && it.height > tol && it.contains(fx, fy, -0.1f * k) && land.region !== it }) { ok = false; break }
                         }
