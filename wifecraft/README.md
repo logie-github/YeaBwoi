@@ -443,7 +443,11 @@ The user: "the UI has gotten a little clunky with stuff overlapping other UI ...
 | Auto-play panel | the sheet |
 | JOI, Chat | the dock (JOI, Chat) and the mode chip; their own layers as before |
 
-**Taps** (NPC chosen counts as one): partner animation 6 to 4 (the confirm panel is the next step), Switch positions 1 (2 with the HUD hidden before), Stop, Skip and Stop repeat 1 (up to 2 before, pager), Build in 2 from the menu or More (was the chip, 1, now gone from the top), leaving a mode 1 (the chip; before: up to 2 with the HUD hidden), time speed 2 (clock, speed; was 2), the feed 2 (clock, then it is in the sheet; was 1 plus a separate panel). The numbers are from the code; none was measured on a phone.
+- **Playing an animation:** the Play animation window's rows have a play button at the end (one tap: it plays at once, in the order shown); tapping a row still picks it to read its details and the footer plays it. A partner animation plays at once in the roles last kept for it; the "Ask before partner animations play" switch in the window (default off) brings back the "Ready to play" panel. Switch positions is in the dock while it plays.
+- **Consent and limits for the chosen NPC:** More has "Limits: <name>", which opens the window on that NPC's tab (the scene menu's entry opens it on the first). Each category card has Will, Ask and Won't on it already.
+- **Windows:** every window (`Overlay`) keeps clear of the cut-out, the bars and the keyboard.
+
+**Taps** (NPC chosen counts as one): partner animation 6 to 4 (NPC, partner, Partner, its play button; the confirm panel is off), solo animation 4 to 3 (NPC, Play, its play button), a limit for the chosen NPC 5 to 4 (NPC, More, Limits, Will/Ask/Won't), Switch positions 1 (2 with the HUD hidden before), Stop, Skip and Stop repeat 1 (up to 2 before, pager), Build in 2 from the menu or More (was the chip, 1, now gone from the top), leaving a mode 1 (the chip; before: up to 2 with the HUD hidden), time speed 2 (clock, speed; was 2), the feed 2 (clock, then it is in the sheet; was 1 plus a separate panel). The numbers are from the code; none was measured on a phone.
 
 ## Life simulation
 

@@ -11,6 +11,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -101,7 +104,9 @@ fun Overlay(onDismiss: () -> Unit, visible: Boolean = true, content: @Composable
     val leaving = !state.targetState
     Box(
         Modifier.fillMaxSize().graphicsLayer { alpha = shown }.background(Scrim)
-            .clickable(remember { MutableInteractionSource() }, null) { if (!leaving && gate.pass()) dismiss() },
+            .clickable(remember { MutableInteractionSource() }, null) { if (!leaving && gate.pass()) dismiss() }
+            // every window keeps clear of the cut-out, the bars and the keyboard (those that did already: the insets are used once)
+            .windowInsetsPadding(WindowInsets.safeDrawing),
         contentAlignment = Alignment.Center,
     ) {
         // Taps on the panel stay on the panel.

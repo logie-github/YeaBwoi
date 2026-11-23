@@ -416,6 +416,7 @@ class MainActivity : ComponentActivity() {
         var consentPolicy by remember { mutableStateOf<ConsentPolicy?>(null) }
         var consentSceneOnly by remember { mutableStateOf(false) }
         var limitsOpen by remember { mutableStateOf(false) }
+        var limitsFocus by remember { mutableStateOf<String?>(null) }
         var location by remember { mutableStateOf<String?>(null) }
         var cast by remember { mutableStateOf(emptySet<String>()) }
         var availableClips by remember { mutableStateOf(emptyList<CheckedAnimation>()) }
@@ -949,12 +950,13 @@ class MainActivity : ComponentActivity() {
                                 audio?.intensity(v, immersiveSettings.atmosphere, immersiveSettings.rain)
                             },
                             consent = consentPolicy,
-                            onLimits = { limitsOpen = true },
+                            onLimits = { limitsFocus = null; limitsOpen = true },
+                            onLimitsFor = { id -> limitsFocus = id; limitsOpen = true },
                         ) } }
                         // the scene menu's Limits: the same screen as a window; what changes applies from the next act
                         consentPolicy?.let { policy ->
                             ConsentWindow(limitsOpen, { limitsOpen = false }, chosen.map { ConsentNpc(it.id, it.name) }, consentGroups, policy,
-                                onChanged = { id, limits -> keepConsent(id, limits) })
+                                onChanged = { id, limits -> keepConsent(id, limits) }, focus = limitsFocus)
                         }
                     }
                 }
