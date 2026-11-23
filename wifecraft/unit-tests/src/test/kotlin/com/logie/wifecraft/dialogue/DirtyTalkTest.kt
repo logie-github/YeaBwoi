@@ -121,6 +121,7 @@ class DirtyTalkTest {
         assertNull(Anachronisms.find("She sucks him off."))
         assertTrue(Anachronisms.find("okay then") != null)   // the anachronisms stay
         assertTrue(JoiPrompt.breaksWorld("Good player, keep looking at the screen."))
+        assertTrue(JoiPrompt.breaksWorld("An army of orphans will watch you.")); assertNull(JoiPrompt.clean("Stroke it for the kids, slut."))   // adults only
     }
 
     @Test fun everyShownLineIsInWorldAndPassesTheFilters() {

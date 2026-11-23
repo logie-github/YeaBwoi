@@ -138,8 +138,11 @@ object JoiPrompt {
             temperature = if (r.persona.dragon) 0.75f else r.level.temperature, topP = r.level.topP, repeatPenalty = r.level.repeatPenalty,
             priority = DialoguePriority.SELECTED, tag = "joi")
 
-    /** Whether [text] names something outside the room. */
-    fun breaksWorld(text: String): Boolean = FOURTH_WALL.containsMatchIn(text)
+    /** Adults only: a JOI line that names a child or anyone under age (a small model's wild escalation can reach for one) is refused like the fourth wall. */
+    private val MINORS = Regex("\\b(child|children|kid|kids|orphans?|schoolgirls?|schoolboys?|underage|minors?|teens?|teenagers?|toddlers?|infants?|newborns?|little (boy|girl)s?)\\b", RegexOption.IGNORE_CASE)
+
+    /** Whether [text] names something outside the room, or a minor. */
+    fun breaksWorld(text: String): Boolean = FOURTH_WALL.containsMatchIn(text) || MINORS.containsMatchIn(text)
 
     /**
      * The model's reply cleaned for a subtitle: quotes, asterisk actions and stage directions in brackets taken out, a
