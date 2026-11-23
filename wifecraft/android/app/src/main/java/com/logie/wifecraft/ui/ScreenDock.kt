@@ -1,0 +1,139 @@
+package com.logie.wifecraft.ui
+
+// Pure Kotlin (JVM-tested: ScreenPlanTest): what the one dock at the bottom of the scene holds in each mode, and the registry of
+// every control the scene had with where it is now and how many taps it takes. The dock never pages: what does not fit goes
+// into the More sheet, so nothing is "on page 2".
+
+/** What the dock is for: the NPC's orders, the animation playing, Build's tools, JOI, Chat, or nothing. */
+enum class DockKind { NONE, NORMAL, PLAYING, BUILD, JOI, CHAT }
+
+/** One target in the dock: [id], its short [label], the order it gives ([order], null: a dock-only target), [lit], its narrowest width. */
+data class DockItem(val id: String, val label: String, val order: HudOrder? = null, val lit: Boolean = false, val minW: Float = ScreenPlan.TOUCH)
+
+/** The dock: its [kind], its [items] and the orders that went into More ([more]; the "more" item is in [items] when there are any). */
+data class DockPlan(val kind: DockKind, val items: List<DockItem>, val more: List<HudSlot> = emptyList()) {
+    val size: Int get() = items.size
+    /** The narrowest the dock can be without scrolling: the targets and the gaps between. */
+    val minWidth: Float get() = items.sumOf { it.minW.toDouble() }.toFloat() + ScreenPlan.GAP * max0(items.size - 1)
+    private fun max0(n: Int) = if (n < 0) 0 else n
+}
+
+object DockModel {
+    /** The most targets any dock holds (six fit 328 dp: a 360 dp phone less its margins). */
+    const val MAX = 6
+
+    val BUILD_TOOLS = listOf("Select", "Marker", "Move", "Interact", "New", "Send", "Undo", "Redo", "Done")
+
+    private fun short(slot: HudSlot): DockItem = DockItem(slot.key, when (slot.order) {
+        HudOrder.PLAY -> "Play"
+        HudOrder.PARTNER -> "Partner"
+        else -> slot.label
+    }, slot.order, slot.lit)
+
+    /**
+     * The dock for the NPC's [slots] ([SceneHud.orders]). While an animation plays ([performing]) it holds its Stop, Skip, Stop repeat
+     * and, with a pair ([pair]), Switch; otherwise Walk, Play, Partner (or Actions), JOI and Chat where they are offered. Everything
+     * else the orders hold is in [DockPlan.more], behind the More target.
+     */
+    fun normal(slots: List<HudSlot>, performing: Boolean, pair: Boolean): DockPlan {
+        if (slots.isEmpty()) return DockPlan(DockKind.NONE, emptyList())
+        val want: List<HudOrder> = if (performing) listOf(HudOrder.STOP, HudOrder.SKIP, HudOrder.STOP_REPEAT)
+            else buildList {
+                add(HudOrder.WALK); add(HudOrder.PLAY)
+                if (slots.any { it.order == HudOrder.PARTNER }) add(HudOrder.PARTNER) else add(HudOrder.LIFE)
+                add(HudOrder.JOI); add(HudOrder.CHAT_MODE)
+            }
+        val primary = want.mapNotNull { o -> slots.firstOrNull { it.order == o } }
+        val items = ArrayList<DockItem>()
+        for (s in primary) items += short(s).let { if (s.order == HudOrder.STOP_REPEAT) it.copy(label = "Loop off") else it }
+        if (performing && pair) items.add(minOf(1, items.size), DockItem("switch", "Switch"))
+        val rest = slots.filter { s -> primary.none { it.key == s.key } }
+        if (rest.isNotEmpty()) items += DockItem("more", "More")
+        return DockPlan(if (performing) DockKind.PLAYING else DockKind.NORMAL, items.take(MAX), rest)
+    }
+
+    /** Build's dock: its tools, undo, redo and Done (it scrolls where the screen is narrow). */
+    fun build(): DockPlan = DockPlan(DockKind.BUILD, BUILD_TOOLS.map { DockItem(it.lowercase(), it, minW = 72f) })
+
+    /** JOI's dock: Stop, Pause, Skip, the level (one button that goes round) and Steer. */
+    fun joi(): DockPlan = DockPlan(DockKind.JOI, listOf(DockItem("stop", "Stop"), DockItem("pause", "Pause"), DockItem("skip", "Skip"),
+        DockItem("level", "Level", minW = 96f), DockItem("steer", "Steer")))
+
+    /** Chat's dock: the text field and Send (Leave is the mode chip). */
+    fun chat(): DockPlan = DockPlan(DockKind.CHAT, listOf(DockItem("field", "Say", minW = 160f), DockItem("send", "Send")))
+}
+
+/** One control the scene had: its [id], where it was ([old]), where it is ([slot]: a slot or sheet), the taps it takes now and whether it is used often. */
+data class ScreenFeature(val id: String, val old: String, val slot: String, val taps: Int, val frequent: Boolean = true)
+
+/** Every control the scene screen had, kept: nothing is dropped by the redesign (a test counts them). */
+object ScreenFeatures {
+    val all: List<ScreenFeature> = listOf(
+        ScreenFeature("menu", "gear", "TOP_START menu", 1),
+        ScreenFeature("menu.resume", "scene menu: Resume", "menu window", 2),
+        ScreenFeature("menu.life", "scene menu: NPC's life", "menu window / More", 2),
+        ScreenFeature("menu.freeze", "scene menu: Freeze", "menu window", 2, false),
+        ScreenFeature("menu.build", "scene menu: Build mode", "menu window / mode chip", 2),
+        ScreenFeature("menu.steer", "scene menu: Steer the talk", "menu window / JOI dock", 2),
+        ScreenFeature("menu.limits", "scene menu: Consent and limits", "menu window / More", 3, false),
+        ScreenFeature("menu.era", "scene menu: Era", "menu window", 3, false),
+        ScreenFeature("menu.options", "scene menu: Options", "menu window", 2, false),
+        ScreenFeature("menu.end", "scene menu: End scene", "menu window", 3, false),
+        ScreenFeature("menu.time", "feed button, clock speeds", "menu window / TOP_START place", 1),
+        ScreenFeature("place.clock", "clock face and speed strip", "TOP_START place -> Time sheet", 1),
+        ScreenFeature("place.feed", "Feed button and panel", "Time sheet", 2),
+        ScreenFeature("camera.mode", "camera button", "CAMERA", 1),
+        ScreenFeature("camera.keys", "camera up, down, zoom", "CAMERA keys", 1),
+        ScreenFeature("cinematic", "Cinematic button", "TOP_END / mode chip", 1),
+        ScreenFeature("build.chip", "Build chip under Cinematic", "menu window / More / mode chip", 2),
+        ScreenFeature("cast.select", "cast frames", "CAST", 1),
+        ScreenFeature("dock.walk", "Walk slot", "dock", 1),
+        ScreenFeature("dock.actions", "Actions slot", "dock / More", 1),
+        ScreenFeature("dock.play", "Play animation slot", "dock", 3),
+        ScreenFeature("dock.partner", "Partner animation slot", "dock", 4),
+        ScreenFeature("dock.joi", "JOI slot", "dock", 2),
+        ScreenFeature("dock.chat", "Chat slot", "dock", 2),
+        ScreenFeature("more.say", "Say slot", "More sheet", 4, false),
+        ScreenFeature("more.chatwith", "Chat with slot", "More sheet", 4, false),
+        ScreenFeature("more.release", "Release slot", "More sheet", 2),
+        ScreenFeature("more.use", "Use <object> slots", "More sheet", 2),
+        ScreenFeature("more.freewill", "Free will slot", "More sheet", 2, false),
+        ScreenFeature("more.clearqueue", "Clear queue slot", "More sheet", 2, false),
+        ScreenFeature("play.stop", "Stop slot", "dock (playing)", 1),
+        ScreenFeature("play.skip", "Skip slot", "dock (playing)", 1),
+        ScreenFeature("play.loop", "Stop repeat slot", "dock (playing)", 1),
+        ScreenFeature("play.switch", "Switch positions button", "dock (playing)", 1),
+        ScreenFeature("chip.partner", "Partner chip", "DOCK_CONTEXT", 1),
+        ScreenFeature("chip.part", "Part chip", "More sheet", 2, false),
+        ScreenFeature("chip.gear", "Gear on/off chip", "More sheet", 2),
+        ScreenFeature("chip.allgear", "All gear chip", "More sheet", 2, false),
+        ScreenFeature("line.help", "line of help", "DOCK_CONTEXT", 0),
+        ScreenFeature("toast.answer", "life toast", "TOAST", 0),
+        ScreenFeature("toast.problem", "problem note", "TOAST", 0),
+        ScreenFeature("toast.hint", "first-run Build hint", "TOAST", 0),
+        ScreenFeature("soft", "soft radial (continue, flow)", "dock (flow)", 1),
+        ScreenFeature("autoplay", "cinematic auto-play panel", "Auto-play sheet", 1),
+        ScreenFeature("hesitation", "hesitation bar", "dock (hesitation)", 1),
+        ScreenFeature("build.bar", "Build bar", "dock (Build)", 1),
+        ScreenFeature("build.panel", "Build panel", "SHEET", 1),
+        ScreenFeature("move.panel", "Move panel", "SHEET", 1),
+        ScreenFeature("joi.controls", "JOI controls", "dock (JOI) + SHEET", 1),
+        ScreenFeature("joi.level", "JOI level tabs", "dock (JOI)", 1),
+        ScreenFeature("joi.steer", "JOI steer chips and text", "SHEET (Steer)", 2),
+        ScreenFeature("chat.leave", "Chat Leave", "mode chip", 1),
+        ScreenFeature("chat.field", "Chat text field", "dock (Chat)", 1),
+        ScreenFeature("chat.log", "Chat log", "SHEET (Chat log)", 1),
+        ScreenFeature("chat.setup", "Chat setup sheet", "window", 2),
+        ScreenFeature("anim.browser", "Animation browser", "window", 3),
+        ScreenFeature("pair.confirm", "Ready to play panel", "Options toggle (off)", 0, false),
+        ScreenFeature("radial", "radial NPC menu", "long press / More", 1),
+        ScreenFeature("life.window", "Life window", "window", 2),
+        ScreenFeature("consent", "Consent window", "window", 3, false),
+        ScreenFeature("options", "Options", "window", 2, false),
+        ScreenFeature("perf", "performance overlay", "TOP_END (debug)", 0, false),
+    )
+
+    /** The slots a feature may name (the first word before " / " or " -> "), to check none is left without a place. */
+    val places: Set<String> = setOf("TOP_START", "TOP_END", "CAMERA", "CAST", "dock", "More", "Time", "menu", "DOCK_CONTEXT", "TOAST", "SHEET",
+        "Options", "window", "long", "mode", "Auto-play", "scene", "Steer")
+}
