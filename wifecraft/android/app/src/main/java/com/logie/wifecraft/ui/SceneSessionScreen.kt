@@ -880,6 +880,10 @@ fun LiveSceneScreen(
         val arousal = Array(live.count) { com.logie.wifecraft.bodyparts.ArousalTracker() }
         val lookAt = arrayOfNulls<String>(live.count)
         val keyOf = ids.indices.associate { ids[it] to keys[it] }
+        // the pack's props (Options → Mods → Import pack): the toys, dolls and layers of the stage that plays, drawn at its origin
+        val propStore = com.logie.wifecraft.props.PropStore(java.io.File(context.filesDir, "pack/props"))
+        val packOptions = com.logie.wifecraft.pack.PackOptions(java.io.File(context.filesDir, "pack/options.json"))
+        val propDriver = com.logie.wifecraft.props.PropStageDriver(propStore, { kind -> packOptions.shows(kind) })
         var momentNanos = 0L
         var motionNanos = 0L
         var intensityNanos = 0L
@@ -899,6 +903,8 @@ fun LiveSceneScreen(
                     else -> FurniturePose.FLOOR
                 }
                 view.glPlace(keys[index], x, y, z, facing, pose, sx, sy, sz)
+                propDriver.place(index, x, y, z, facing)
+                if (index == ids.size - 1) view.setProps(propDriver.frame(frameMs)) { id -> propStore.modelFile(id).takeIf { it.isFile }?.readBytes() }
                 val standing = heads.getOrElse(index) { 2.05f }
                 val base = if (pose == FurniturePose.RAISED) z else sz
                 speechSpots.headAt(index, sx, sy, base + SpeechLayout.head(standing, pose == FurniturePose.SIT, pose == FurniturePose.REST))
@@ -916,6 +922,7 @@ fun LiveSceneScreen(
             }
 
             override fun playback(index: Int, clip: ClipPlayback?) {
+                propDriver.play(index, clip?.let { c -> playback[c.clip]?.sourceName }, frameMs)
                 val key = keys[index]
                 val creature = creatureOf[index]
                 // a creature's own stage (DragonStages): the creature's layer over her own animation, the person's reach on her

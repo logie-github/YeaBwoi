@@ -35,7 +35,19 @@ class PropStore(val root: File) {
     fun model(guid: Long): PropModel? = runCatching { PropFile.read(modelFile(guid).readBytes()) }.getOrNull()
     fun clip(name: String): PropClip? = clipFile(name).takeIf { it.isFile }?.let { runCatching { PropClip.fromBytes(it.readBytes()) }.getOrNull() }
 
-    fun index(): List<PropInfo> = runCatching {
+    private class Cached<T>(var stamp: Long = -1, var value: T)
+    private val indexCache = Cached<List<PropInfo>>(value = emptyList())
+    private val usesCache = Cached<List<PropUse>>(value = emptyList())
+
+    /** [read]'s result for [file], read again only when the file changed (the scene asks every frame). */
+    private fun <T> cached(c: Cached<T>, file: File, read: () -> T): T {
+        val stamp = if (file.isFile) file.lastModified() * 31 + file.length() else 0L
+        synchronized(c) { if (c.stamp != stamp) { c.value = read(); c.stamp = stamp }; return c.value }
+    }
+
+    fun index(): List<PropInfo> = cached(indexCache, File(root, "index.json")) { readIndex() }
+
+    private fun readIndex(): List<PropInfo> = runCatching {
         val a = JSONArray(File(root, "index.json").readText())
         List(a.length()) { i ->
             val o = a.getJSONObject(i)
@@ -45,7 +57,9 @@ class PropStore(val root: File) {
         }
     }.getOrDefault(emptyList())
 
-    fun uses(): List<PropUse> = runCatching {
+    fun uses(): List<PropUse> = cached(usesCache, File(root, "links.json")) { readUses() }
+
+    private fun readUses(): List<PropUse> = runCatching {
         val a = JSONArray(File(root, "links.json").readText())
         List(a.length()) { i ->
             val o = a.getJSONObject(i)

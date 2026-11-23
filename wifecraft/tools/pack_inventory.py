@@ -31,7 +31,7 @@ SNR, AUDIO_SNS, NMAP = 0x01A527DB, 0xFD04E3BE, 0x0166038C
 # Resource types this tool names beyond dbpf.TYPES (the rest print as hex).
 EXTRA = {SNR: "SNR", AUDIO_SNS: "SNS", NMAP: "NMAP", 0xB61DE6B4: "OBJ-KEY?", 0x3C2A8647: "THUMB", 0x01357924: "OBJ-REF?",
          0x81CA1A10: "MTBL?"}
-KINDS = ("animations", "bodylayers", "props", "furniture")
+KINDS = ("animations", "body-layer", "props", "furniture")
 
 
 def type_name(t):
@@ -149,10 +149,10 @@ def prop_refs(inv):
 
 
 def classify(inv, all_refs):
-    """What a package is, from its resources: animations, props, bodylayers, furniture or other.
+    """What a package is, from its resources: animations, props, body-layer, furniture or other.
 
     - CLIP resources and a WickedWhims tuning whose stages name actor clips: animations (also when it names props);
-    - objects (OBJD + MODL): props when the package's own stages use them, bodylayers when only stages of another package
+    - objects (OBJD + MODL): props when the package's own stages use them, body-layer when only stages of another package
       do (an animation-linked layer: the cum mesh), furniture when no stage names them (a bed);
     - anything else (a purchase menu's tuning, a script's string tables): other.
     """
@@ -164,7 +164,7 @@ def classify(inv, all_refs):
         if guids & own:
             return "props"
         if guids & all_refs:
-            return "bodylayers"
+            return "body-layer"
         return "furniture"
     if inv["clips"] and has_stage_clips:
         return "animations"

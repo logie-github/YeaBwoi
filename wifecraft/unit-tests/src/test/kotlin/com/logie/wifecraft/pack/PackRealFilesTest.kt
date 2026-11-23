@@ -30,9 +30,36 @@ class PackRealFilesTest {
         }
         for (i in store.index()) {
             val m = store.model(i.guid)!!
-            out.append("  ${i.guid} ${i.kind} ${m.vertexCount} v ${m.triangleCount} t ${m.textures.size} tex size ${m.size.joinToString("x") { "%.2f".format(it) }} bones ${m.bones.size}\n")
+            out.append("  ${i.guid} ${i.kind} ${m.vertexCount} v ${m.triangleCount} t ${m.textures.size} tex size ${m.size.joinToString("x") { "%.2f".format(it) }} bones ${m.bones.size}")
+            if (i.kind == PackKind.FURNITURE) com.logie.wifecraft.props.PropFootprint.of(m).let { out.append(" footprint half ${"%.2f".format(it.halfX)} x ${"%.2f".format(it.halfY)} yd, surface ${"%.2f".format(it.surface)} yd") }
+            out.append('\n')
         }
         System.getenv("WIFECRAFT_PACK_OUT")?.let { File(it).writeText(out.toString()) }
         assertTrue(files.isNotEmpty())
+    }
+
+    /** The real pack.zip (WIFECRAFT_PACK_ZIP) through the importer with the object handlers and a recording animation handler. */
+    @Test fun importsTheRealPack() {
+        val zip = System.getenv("WIFECRAFT_PACK_ZIP")?.let(::File)?.takeIf { it.isFile } ?: return
+        val root = Files.createTempDirectory("realpack").toFile()
+        val store = PropStore(File(root, "props"))
+        val handlers = mapOf(
+            PackKind.ANIMATIONS to PackHandler { e, _, c ->
+                HandlerResult(EntryStatus.IMPORTED, "${c?.clips} clips, ${c?.stages?.size} stages (recorded only)")
+            },
+            PackKind.PROPS to ObjectHandler(store, PackKind.PROPS), PackKind.BODY_LAYER to ObjectHandler(store, PackKind.BODY_LAYER),
+            PackKind.FURNITURE to ObjectHandler(store, PackKind.FURNITURE), PackKind.SCRIPT_INFO to ScriptNoteHandler(),
+        )
+        val imp = PackImporter(File(root, "pack"), handlers)
+        val out = StringBuilder()
+        val t0 = System.nanoTime()
+        val r = imp.import({ zip.inputStream() }) { p -> if (p.phase == "Importing") out.append("") }
+        out.append("first import (${(System.nanoTime() - t0) / 1_000_000} ms): ${r.summary()}\n")
+        for (x in r.results) out.append("  ${x.status.label.padEnd(10)} ${x.routedAs.key.padEnd(11)} ${x.entry.file}: ${x.detail}${if (x.note.isNotEmpty()) " [" + x.note + "]" else ""}\n")
+        for (i in r.ignored) out.append("  ignored ${i.first}: ${i.second}\n")
+        val r2 = imp.import({ zip.inputStream() })
+        out.append("second import: ${r2.summary()}\n")
+        System.getenv("WIFECRAFT_PACK_OUT2")?.let { File(it).writeText(out.toString()) }
+        assertTrue(r.ok, r.summary())
     }
 }

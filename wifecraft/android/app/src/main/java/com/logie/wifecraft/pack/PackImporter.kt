@@ -80,7 +80,7 @@ class PackImporter(
                 return PackReport(null, emptyList(), e.message, zip.ignored)
             }
             val ignored = ArrayList(zip.ignored)
-            val listed = manifest.entries.map { it.path }.toSet() + PackManifest.MANIFEST_PATH
+            val listed = manifest.entries.map { it.path }.toSet() + PackManifest.MANIFEST_PATH + PackManifest.README_PATH
             for (name in zip.files.keys) if (name !in listed) ignored += name to "not listed in the manifest"
             val state = State.read(stateFile)
             val done = if (force) HashMap() else state.done(manifest.name)

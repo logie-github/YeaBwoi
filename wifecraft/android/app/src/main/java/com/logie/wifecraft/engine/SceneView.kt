@@ -212,6 +212,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
                 if (d != null) {
                     d.drive(System.nanoTime())
                     applySparkles()
+                    applyProps()
                     applyGizmo()
                     Native.render(handle, width, height, Clock.now())
                     com.logie.wifecraft.graphics.Graphics.glFrame(handle)   // (Options' Graphics: timings, the governor)
@@ -458,6 +459,37 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         if (s === sparkleApplied && d == sparkleAppliedDensity) return
         sparkleApplied = s; sparkleAppliedDensity = d
         Native.sparkles(handle, s, d)
+    }
+
+    // Props (props/: a Sims object as a ".wcprop"): their files are given to the renderer once each, this frame's copies when they changed
+    @Volatile private var propSet: com.logie.wifecraft.props.PropFrame? = null
+    private var propApplied: com.logie.wifecraft.props.PropFrame? = null
+    private val propsLoaded = HashSet<Long>()
+
+    /**
+     * The props to draw from the next frame ([frame]: ids and matrices; [model] gives the file of an object id not yet sent to
+     * the renderer). Any thread; none to clear.
+     */
+    fun setProps(frame: com.logie.wifecraft.props.PropFrame, model: (Long) -> ByteArray?) {
+        propModel = model
+        propSet = frame
+    }
+    @Volatile private var propModel: (Long) -> ByteArray? = { null }
+
+    /** GL thread, each frame: the props' files sent once, the frame's copies given to the renderer when they changed. */
+    private fun applyProps() {
+        val f = propSet ?: return
+        if (f === propApplied) return
+        propApplied = f
+        for (id in f.ids) {
+            // each file is tried once: an id with no file is never asked for again
+            if (propsLoaded.add(id)) {
+                val bytes = propModel(id) ?: continue
+                val err = Native.loadProp(handle, id, bytes)
+                if (err.isNotEmpty()) android.util.Log.w("Wifecraft", "prop $id was not taken: $err")
+            }
+        }
+        Native.props(handle, f.ids, f.matrices)
     }
 
     /** The body language and the motes off (a scene ending). Any thread. */

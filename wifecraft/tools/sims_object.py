@@ -81,8 +81,8 @@ def decode_vertex(buf, base, elements):
             v = tuple(x / 32767.0 for x in struct.unpack_from("<4h", buf, o))
         elif fmt == 10:  # Short4N
             v = tuple(x / 32767.0 for x in struct.unpack_from("<4h", buf, o))
-        elif fmt == 6:  # two unsigned 16-bit numbers over 65535 (texture coordinates)
-            v = tuple(x / 65535.0 for x in struct.unpack_from("<2H", buf, o))
+        elif fmt == 6:  # two signed 16-bit numbers over 32767 (texture coordinates: 32767 is 1.0)
+            v = tuple(x / 32767.0 for x in struct.unpack_from("<2h", buf, o))
         elif fmt == 9:
             v = tuple(x / 32767.0 for x in struct.unpack_from("<2h", buf, o))
         elif fmt in (4, 8):
@@ -123,17 +123,16 @@ def meshes(mlod_bytes):
         data = ibuf[16:]
         n = nprims * 3
         o = start_i * 2
-        if iflags & 2:
-            idx = list(struct.unpack_from("<%dI" % n, data, start_i * 4))
-        elif iflags & 1:  # differenced: the sum runs on through the whole buffer
-            deltas = struct.unpack_from("<%dh" % (start_i + n), data, 0)
+        width = 4 if iflags & 2 else 2
+        if iflags & 1:  # differenced: the sum runs on through the whole buffer
+            deltas = struct.unpack_from("<%d%s" % (start_i + n, "i" if width == 4 else "h"), data, 0)
             acc, run = 0, []
             for dlt in deltas:
                 acc += dlt
                 run.append(acc)
             idx = run[start_i:]
         else:
-            idx = list(struct.unpack_from("<%dH" % n, data, o))
+            idx = list(struct.unpack_from("<%d%s" % (n, "I" if width == 4 else "H"), data, start_i * width))
         pos, nor, uv, bi, bw = [], [], [], [], []
         for v in range(nverts):
             d = decode_vertex(vbuf, stream_off + v * stride, els)

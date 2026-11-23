@@ -52,6 +52,8 @@ data class PackManifest(val schema: Int, val name: String, val entries: List<Pac
         const val SCHEMA = 1
         const val FORMAT = "wifecraft-pack"
         const val MANIFEST_PATH = "pack/manifest.json"
+        /** A note for people who open the zip; the app reads nothing in it. */
+        const val README_PATH = "pack/README.txt"
         const val MAX_ENTRIES = 512
         const val MAX_ENTRY_BYTES = 256L * 1024 * 1024
         const val MAX_TOTAL_BYTES = 1024L * 1024 * 1024

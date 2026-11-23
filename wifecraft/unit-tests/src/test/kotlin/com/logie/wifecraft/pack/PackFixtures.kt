@@ -132,7 +132,7 @@ internal object PackFixtures {
 
     /**
      * An MLOD (one 3-vertex shadow stub, then a quad of two triangles: 4 vertices of 32 bytes: Short4 position, unsigned-byte
-     * normal, two u16 UVs, bone indices, weights, tangent, a second UV; indices stored as differences) with a material using
+     * normal, two signed-short UVs, bone indices, weights, tangent, a second UV; indices stored as differences) with a material using
      * the diffuse texture [tex].
      */
     fun mlod(instance: Long, group: Int, tex: Triple<Long, Int, Int>?, quad: List<FloatArray> = listOf(
@@ -150,7 +150,7 @@ internal object PackFixtures {
             for (k in 0 until 3) verts.u16((p[k] * 32767f).toInt())
             verts.u16(32767)                                   // w
             verts.u8(128).u8(255).u8(128).u8(255)              // the normal: (0, 1, 0)
-            verts.u16((uvs[i][0] * 65535f).toInt().coerceAtMost(65535)).u16((uvs[i][1] * 65535f).toInt().coerceAtMost(65535))
+            verts.u16((uvs[i][0] * 32767f).toInt()).u16((uvs[i][1] * 32767f).toInt())
             verts.u32(0).u32(0xFF).u32(0).u32(0)               // bone indices, weights, tangent, second uv
         }
         val vbuf = W().bytes("VBUF".toByteArray()).u32(0x101).u32(0).u32(0x10000000).bytes(verts.get())

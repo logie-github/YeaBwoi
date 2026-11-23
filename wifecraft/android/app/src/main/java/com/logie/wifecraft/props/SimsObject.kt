@@ -55,7 +55,7 @@ class SimsObject(
  * OBJD (the object's definition: its model, rig and slot keys are found by their types in it, an instance written as its high
  * half first), MODL (its LODs as external keys), MLOD (the meshes), their VRTF (the vertex layout), VBUF and IBUF (the buffers:
  * indices may be stored as differences), MATD or MTST (the material; an MTST lists a MATD per variant, chosen by the object's
- * variant name). Positions are Short4 over 32767, UVs two u16 over 65535, normals unsigned bytes. Only what a rigid draw needs is
+ * variant name). Positions are Short4 over 32767, UVs two signed shorts over 32767 (32767 is 1.0), normals unsigned bytes. Only what a rigid draw needs is
  * kept; nothing is run.
  */
 object SimsObjects {
@@ -220,7 +220,7 @@ object SimsObjects {
         for (p in params(d)) {
             if (p[1] == 1 && p[2] == 4 && p[3] >= 0 && p[3] + 16 <= d.size) {
                 val c = FloatArray(4) { b.getFloat(p[3] + it * 4) }
-                if (c.all { it.isFinite() && it in 0f..1f }) return c
+                if (c.all { it.isFinite() && it in 0f..1f } && c.any { it > 0.01f }) return c
             }
         }
         return null
@@ -291,7 +291,7 @@ object SimsObjects {
                 val o = base + uvEl[3]
                 when (uvEl[2]) {
                     1 -> { uv[i * 2] = v.getFloat(o); uv[i * 2 + 1] = v.getFloat(o + 4) }
-                    else -> { uv[i * 2] = (v.getShort(o).toInt() and 0xFFFF) / 65535f; uv[i * 2 + 1] = (v.getShort(o + 2).toInt() and 0xFFFF) / 65535f }
+                    else -> { uv[i * 2] = v.getShort(o) / 32767f; uv[i * 2 + 1] = v.getShort(o + 2) / 32767f }
                 }
             }
         }

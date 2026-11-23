@@ -165,4 +165,84 @@ class PackModelTest {
         assertNull(SimsObjects.keyIn(b, SimsObjects.T_RIG))
         assertTrue(Dbpf.isDbpf(PackFixtures.dbpf()))
     }
+
+    @Test fun theNewPacksAuthorsMarkAnUncategorisedTwoPersonStageAsSexual() {
+        val map = com.logie.wifecraft.bodyparts.ArousalMap.parse(File(System.getProperty("wifecraft.assets"), "arousal_map.json").readText())
+        for (clip in listOf("LPGS:PosePack_1_set_2", "CherryPie:PosePack_9_set_1", "Femdomania:Pose_set_3", "0nizu_Toy_a0")) {
+            val c = map.classify(com.logie.wifecraft.bodyparts.StageHints(listOf("Mystery", clip), "", 2))
+            assertTrue(c.intimate, clip)
+        }
+        assertTrue(!map.classify(com.logie.wifecraft.bodyparts.StageHints(listOf("Mystery", "Unknown:pose_set_1"), "", 2)).intimate)
+    }
+
+    // ---------------------------------------------------------------------------------------- the stage's props
+
+    private fun storeWithToy(): Pair<com.logie.wifecraft.props.PropStore, Long> {
+        val dir = Files.createTempDirectory("stagepack").toFile()
+        val guid = 424242L
+        val toyPkg = File(dir, "toy.package").also {
+            it.writeBytes(PackFixtures.objectPackage(guid, 0x77L, withTuning = StageSpec("Toy Solo", "VAGINAL", "FLOOR", listOf("T:a", "T:b"), props = listOf(Triple(0, listOf(guid), "T:prop")))))
+        }
+        val store = com.logie.wifecraft.props.PropStore(File(dir, "props"))
+        store.importPackage(toyPkg, PackKind.PROPS)
+        // the prop's own clip: it moves 1 m forward (Sims z) over one second
+        val frames = FloatArray(31 * 7) { i -> if (i % 7 == 0) (i / 7) / 30f else if (i % 7 == 6) 1f else 0f }
+        store.clipFile("T:prop").also { it.parentFile.mkdirs() }.writeBytes(PropClip(1f, 1f / 30f, frames).toBytes())
+        return store to guid
+    }
+
+    @Test fun theDriverPutsTheStagesPropAtTheFirstActorsOriginMovedByItsClip() {
+        val (store, guid) = storeWithToy()
+        val d = com.logie.wifecraft.props.PropStageDriver(store, scale = { 2f })
+        assertEquals(0, d.frame(0).count, "nobody plays yet")
+        d.place(0, 10f, 20f, 3f, 0f); d.place(1, 11f, 20f, 3f, 3.14f)
+        d.play(0, "T:a", 1000)
+        assertEquals(0, d.frame(1000).count, "the stage needs all its actors' clips: b is not playing")
+        d.play(1, "t:b", 1000)
+        val f = d.frame(1500)    // half a second in: the clip has moved 0.5 m forward (x), scaled by 2
+        assertEquals(1, f.count)
+        assertEquals(guid, f.ids[0])
+        assertEquals(10f + 1f, f.matrices[12], 1e-3f)
+        assertEquals(20f, f.matrices[13], 1e-3f)
+        assertEquals(3f, f.matrices[14], 1e-3f)
+        assertEquals(2f, f.matrices[0], 1e-3f, "the mesh is scaled")
+        // turned by the first actor's facing: a quarter turn sends the forward travel to +y
+        d.place(0, 10f, 20f, 3f, Math.PI.toFloat() / 2)
+        val g = d.frame(1500)
+        assertEquals(10f, g.matrices[12], 1e-3f)
+        assertEquals(21f, g.matrices[13], 1e-3f)
+        // looped: a clip of one second at 1.5 s into it is where it was at 0.5 s
+        assertEquals(g.matrices[13], d.frame(2500).matrices[13], 1e-3f)
+        // stopped
+        d.play(0, null, 3000)
+        assertEquals(0, d.frame(3000).count)
+    }
+
+    @Test fun aKindSwitchedOffIsNotDrawnAndAModelThatIsMissingIsLeftOut() {
+        val (store, _) = storeWithToy()
+        val d = com.logie.wifecraft.props.PropStageDriver(store, shows = { it != PackKind.PROPS })
+        d.place(0, 0f, 0f, 0f, 0f); d.place(1, 1f, 0f, 0f, 0f); d.play(0, "T:a", 0); d.play(1, "T:b", 0)
+        assertEquals(0, d.frame(100).count)
+        val file = File(Files.createTempDirectory("opt").toFile(), "o.json")
+        val opts = PackOptions(file)
+        assertTrue(opts.shows(PackKind.PROPS) && opts.shows(PackKind.BODY_LAYER))
+        opts.set(bodyLayer = false)
+        val again = PackOptions(file)
+        assertTrue(!again.shows(PackKind.BODY_LAYER) && again.shows(PackKind.PROPS), "the switches are kept")
+    }
+
+    @Test fun aFurnitureModelsFootprintAndSurfaceComeFromItsMesh() {
+        // a slab 2 x 1 x 0.1 m (top face at 0.5 m up) with a thin post to 1.0 m: the surface is the slab's top, not the post's cap
+        fun quad(z: Float, hx: Float, hy: Float) = floatArrayOf(-hx, -hy, z, hx, -hy, z, hx, hy, z, -hx, hy, z)
+        val slab = quad(0.5f, 1f, 0.5f)
+        val post = quad(1.0f, 0.02f, 0.02f)
+        val pos = slab + post + quad(0f, 1f, 0.5f)
+        val idx = intArrayOf(0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 10, 9, 8, 11, 10)
+        val model = com.logie.wifecraft.props.PropModel(1L, floatArrayOf(-1f, -0.5f, 0f, 1f, 0.5f, 1f), emptyList(),
+            listOf(com.logie.wifecraft.props.PropMesh(pos, null, null, idx, floatArrayOf(1f, 1f, 1f, 1f), -1)), emptyList())
+        val spot = com.logie.wifecraft.props.PropFootprint.of(model, 1f)
+        assertEquals(1f, spot.halfX, 1e-3f)
+        assertEquals(0.5f, spot.halfY, 1e-3f)
+        assertEquals(0.5f, spot.surface, 0.03f)
+    }
 }
