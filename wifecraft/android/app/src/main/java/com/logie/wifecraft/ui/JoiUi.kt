@@ -8,12 +8,14 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -132,8 +134,10 @@ fun JoiLayer(
     mode: JoiMode, tick: Int, frame: CinematicFrame, controls: Boolean, creature: Boolean,
     onDownloadModel: (() -> Unit)?, onRetry: () -> Unit, onStop: () -> Unit, onChanged: () -> Unit,
     modifier: Modifier = Modifier,
-    /** Where the controls go (the chrome's sheet, dp; the side in landscape, above the bottom in portrait); null: the top left, as before. */
-    controlsRect: ScreenRect? = null,
+    /** The row over the dock ([row]: the level picker or the steer field) and where the plan put it (dp); the dock itself is the chrome's. */
+    row: DockRowKind = DockRowKind.NONE, rowRect: ScreenRect? = null, onRow: (DockRowKind) -> Unit = {},
+    /** The top of the dock and its row, dp from the screen's top: the subtitles end above it (null: the lower third of the film frame). */
+    stackTop: Float? = null,
 ) {
     @Suppress("UNUSED_VARIABLE") val redraw = tick
     var typed by remember { mutableStateOf("") }   // the steer being typed: kept while the controls hide
@@ -152,7 +156,10 @@ fun JoiLayer(
                     if (text != null) {
                         val number = mode.subtitles.isNumber
                         val size = with(density) { (rect.height * if (number) 0.16f else 0.052f).toSp() }
-                        Box(Modifier.align(Alignment.BottomCenter).padding(bottom = frameH * 0.11f, start = frameW * 0.06f, end = frameW * 0.06f)) {
+                        // a ninth up the frame, or above the dock and its row where they reach higher
+                        val lift = frameH * 0.11f
+                        val clear = if (stackTop != null) (frameTop + frameH - stackTop.dp + 8.dp) else 0.dp
+                        Box(Modifier.align(Alignment.BottomCenter).padding(bottom = if (clear > lift) clear else lift, start = frameW * 0.06f, end = frameW * 0.06f)) {
                             Text(
                                 text, textAlign = TextAlign.Center,
                                 modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Color.Black.copy(alpha = if (number) 0f else 0.45f)).padding(horizontal = 14.dp, vertical = 6.dp),
@@ -164,10 +171,13 @@ fun JoiLayer(
                 }
             }
         }
-        if (controls && controlsRect != null) JoiControls(mode, creature, typed, { typed = it }, controlsRect.h.dp, onStop, onChanged,
-            Modifier.align(Alignment.TopStart).offset(controlsRect.l.dp, controlsRect.t.dp).size(controlsRect.w.dp, controlsRect.h.dp))
-        else if (controls) JoiControls(mode, creature, typed, { typed = it }, maxHeight - 72.dp, onStop, onChanged,
-            Modifier.align(Alignment.TopStart).windowInsetsPadding(WindowInsets.safeDrawing).padding(start = 8.dp, top = 64.dp))
+        if (controls && rowRect != null && row != DockRowKind.NONE) At(rowRect) {
+            when (row) {
+                DockRowKind.JOI_LEVEL -> JoiLevelRow(mode, onChanged) { onRow(DockRowKind.NONE) }
+                DockRowKind.JOI_STEER -> JoiSteerRow(mode, typed, { typed = it }, onChanged) { onRow(DockRowKind.NONE) }
+                else -> Unit
+            }
+        }
     }
 }
 
@@ -187,35 +197,22 @@ private fun NeedsModel(mode: JoiMode, onDownload: (() -> Unit)?, onRetry: () -> 
     }
 }
 
+/** The level picker: Cute .. WTF??!, this session's own (Options' default is where it starts); applies from the next line, and closes. */
 @Composable
-private fun JoiControls(mode: JoiMode, creature: Boolean, typed: String, onTyped: (String) -> Unit, maxHeight: Dp, onStop: () -> Unit, onChanged: () -> Unit, modifier: Modifier) {
-    Column(modifier.widthIn(max = 380.dp).heightIn(max = maxHeight).wifeSurface().verticalScroll(rememberScrollState()).padding(WifeTheme.gapS),
-        verticalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS), verticalAlignment = Alignment.CenterVertically) {
-            Text("JOI", style = WifeTheme.labelStyle())
-            Text(mode.stage?.replaceFirstChar { it.uppercase() }?.let { "$it ${mode.stageIndex + 1}/${mode.stageCount}" } ?: "", style = WifeTheme.captionStyle())
-        }
-        if (!creature) {
-            val framings = JoiFraming.SHOWN
-            WifeTabs(framings.map { it.label }, framings.indexOf(mode.framing).coerceAtLeast(0), { mode.setFraming(framings[it]); onChanged() })
-        } else Text("Her head, circled slowly", style = WifeTheme.captionStyle())
-        // the dirty talk level: Cute .. WTF??!, this session's own (Options' default is where it starts); applies from the next line
-        val levels = DirtyLevel.entries
-        WifeSliderRow("Dirty talk", mode.level.ordinal, { mode.setLevel(levels[it.coerceIn(0, levels.lastIndex)]); onChanged() },
-            valueText = mode.level.label, range = 0..levels.lastIndex)
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
-            for (s in JoiSteer.entries) WifeChip(s.label, { mode.toggleSteer(s); onChanged() }, trailing = if (s in mode.steer) "✓" else null)
-        }
- // a steer of her own words: the very next line carries it, and it stands (a chip) until cleared
-        Row(horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs), verticalAlignment = Alignment.CenterVertically) {
-            WowTextField(typed, { onTyped(it.take(DirtyTalk.STEER_MAX)) }, "Steer her, e.g. talk about her ass", Modifier.weight(1f))
-            WifeButton("Steer", { mode.setSteerText(typed); onTyped(""); onChanged() })
-        }
+private fun JoiLevelRow(mode: JoiMode, onChanged: () -> Unit, onDone: () -> Unit) {
+    Row(Modifier.fillMaxSize().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs), verticalAlignment = Alignment.CenterVertically) {
+        for (l in DirtyLevel.entries) WifeChip(l.label, { mode.setLevel(l); onChanged(); onDone() }, trailing = if (mode.level == l) "✓" else null)
+    }
+}
+
+/** The steer row: a field of her own words (the very next line carries it; it stands as a chip until cleared) and the steer chips. */
+@Composable
+private fun JoiSteerRow(mode: JoiMode, typed: String, onTyped: (String) -> Unit, onChanged: () -> Unit, onDone: () -> Unit) {
+    val send = { if (typed.isNotBlank()) { mode.setSteerText(typed); onTyped(""); onChanged(); onDone() } }
+    Row(Modifier.fillMaxSize().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs), verticalAlignment = Alignment.CenterVertically) {
+        WowTextField(typed, { onTyped(it.take(DirtyTalk.STEER_MAX)) }, "Steer her, e.g. talk about her ass", Modifier.width(240.dp).fillMaxHeight(), onSend = send)
+        WifeButton("Steer", { send() }, enabled = typed.isNotBlank())
         mode.customSteer?.let { s -> WifeChip(s, { mode.clearSteerText(); onChanged() }) }
-        Row(horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapS)) {
-            WifeButton(if (mode.phase == JoiPhase.PAUSED) "Resume" else "Pause", { mode.togglePause(); onChanged() })
-            WifeButton("Skip stage", { mode.skip(); onChanged() })
-            WifeButton("Stop", onStop)
-        }
+        for (st in JoiSteer.entries) WifeChip(st.label, { mode.toggleSteer(st); onChanged() }, trailing = if (st in mode.steer) "✓" else null)
     }
 }

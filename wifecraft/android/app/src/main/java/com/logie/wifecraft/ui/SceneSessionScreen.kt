@@ -140,6 +140,7 @@ import com.logie.wifecraft.simulation.JoiAnimations
 import com.logie.wifecraft.simulation.JoiCamera
 import com.logie.wifecraft.simulation.JoiClip
 import com.logie.wifecraft.simulation.JoiFraming
+import com.logie.wifecraft.simulation.JoiPhase
 import com.logie.wifecraft.simulation.JoiHandjobs
 import com.logie.wifecraft.simulation.JoiStroke
 import com.logie.wifecraft.simulation.StrokeHands
@@ -635,6 +636,8 @@ fun LiveSceneScreen(
     var strokeEnds by remember(live) { mutableLongStateOf(0L) }
     var strokeRuns by remember(live) { mutableIntStateOf(0) }
     var joiLeave by remember(live) { mutableStateOf(false) }
+    // the row over JOI's dock: its level picker or its steer field (null: closed)
+    var joiRow by remember(live) { mutableStateOf(DockRowKind.NONE) }
     var joiPersona by remember(live) { mutableStateOf<JoiPersona?>(null) }
     // Chat mode (the Chat order: ChatMode, ChatCamera, ui/ChatUi.kt): who she is (null: off), the setup sheet's NPC (null: closed), the redraw count, a leave asked for
     var chatActor by remember(live) { mutableStateOf<String?>(null) }
@@ -748,6 +751,7 @@ fun LiveSceneScreen(
 
     BackHandler {
         if (panel != ScreenPanel.NONE && (joiActor != null || chatActor != null)) panel = ScreenPanel.NONE
+        else if (joiActor != null && joiRow != DockRowKind.NONE) joiRow = DockRowKind.NONE
         else if (joiActor != null) joiLeave = true
         else if (chatActor != null) chatLeave = true
         else if (chatSheet != null) chatMode.cancel().also { chatSheet = null }
@@ -1394,6 +1398,7 @@ fun LiveSceneScreen(
         radial = null; panel = ScreenPanel.NONE; menu = false; choosingAnimation = null; walking = false
         cinematic = true
         joiActor = id
+        joiRow = DockRowKind.NONE
         joiTick++
     }
     fun leaveJoi() {
@@ -1408,6 +1413,7 @@ fun LiveSceneScreen(
         runCatching { cameraMode = CameraMode.valueOf(prior.cameraMode) }
         furnitureView = prior.cameraView
         joiActor = null
+        joiRow = DockRowKind.NONE
         joiLeave = false
     }
     LaunchedEffect(joiLeave) { if (joiLeave) leaveJoi() }
@@ -1897,13 +1903,13 @@ fun LiveSceneScreen(
         val dockPlan = when {
             build.on -> DockModel.build()
             chatActor != null -> DockModel.chat()
-            joiActor != null || active == null -> DockPlan(DockKind.NONE, emptyList())
+            joiActor != null -> DockModel.joi(live.joiCreature != null, joiMode.phase == JoiPhase.PAUSED, joiMode.framing.label, joiRow)
+            active == null -> DockPlan(DockKind.NONE, emptyList())
             softOn -> DockModel.soft(softNow.map { it.name }, softNow.map { if (it == SoftControl.POSITION) "Position" else it.label })
             else -> DockModel.normal(slots, playingNow, playingWith != null)
         }
         val sheetPanel = when {
             panel != ScreenPanel.NONE -> panel
-            screenMode == ScreenMode.JOI -> ScreenPanel.STEER
             mapper.on -> ScreenPanel.MOVE_PANEL
             build.on -> ScreenPanel.BUILD_PANEL
             screenMode == ScreenMode.CINEMATIC && cinematicSettings.autoplay -> ScreenPanel.AUTOPLAY
@@ -1960,7 +1966,17 @@ fun LiveSceneScreen(
             dockEnabled = { item -> val sid = active?.id; if (sid != null && item.order != null) slots.firstOrNull { it.key == item.id }?.let { slotEnabled(sid, it) } ?: true else true },
             onDock = { item ->
                 val sid = active?.id
-                if (item.id == "more") panel = PanelRules.open(panel, ScreenPanel.MORE, screenMode)
+                if (dockPlan.kind == DockKind.JOI) {
+                    when (item.id) {
+                        "stop" -> joiLeave = true
+                        "pause" -> { joiMode.togglePause(); joiTick++ }
+                        "skip" -> { joiMode.skip(); joiTick++ }
+                        "frame" -> { val all = JoiFraming.SHOWN; joiMode.setFraming(all[(all.indexOf(joiMode.framing) + 1) % all.size]); joiTick++ }
+                        "level" -> joiRow = if (joiRow == DockRowKind.JOI_LEVEL) DockRowKind.NONE else DockRowKind.JOI_LEVEL
+                        "steer" -> joiRow = if (joiRow == DockRowKind.JOI_STEER) DockRowKind.NONE else DockRowKind.JOI_STEER
+                    }
+                }
+                else if (item.id == "more") panel = PanelRules.open(panel, ScreenPanel.MORE, screenMode)
                 else {
                     panel = ScreenPanel.NONE
                     if (dockPlan.kind == DockKind.SOFT) SoftControl.entries.firstOrNull { it.name == item.id }?.let { soft(it) }
@@ -1969,7 +1985,7 @@ fun LiveSceneScreen(
                 }
             },
             buildDock = { BuildBar(build, Modifier.fillMaxSize()) },
-            row = screenMode == ScreenMode.CHAT, onPlan = { chromePlan = it },
+            row = screenMode == ScreenMode.CHAT || (screenMode == ScreenMode.JOI && joiRow != DockRowKind.NONE), onPlan = { chromePlan = it },
             context = contextLine, toast = toastNow,
             onMenu = { panel = ScreenPanel.NONE; menu = true },
             onTime = { panel = PanelRules.open(panel, ScreenPanel.TIME, screenMode) },
@@ -2007,7 +2023,7 @@ fun LiveSceneScreen(
         if (joiActor != null) JoiLayer(joiMode, joiTick, cinematicSettings.frame, controls = !cineHidden && revealed,
             creature = live.joiCreature != null, onDownloadModel = { com.logie.wifecraft.data.DialogueHost.startDownload() },
             onRetry = { if (joiEngine() != null) joiMode.modelReady(); joiTick++ }, onStop = { joiLeave = true }, onChanged = { joiTick++ },
-            controlsRect = autoRect.takeIf { sheetPanel == ScreenPanel.STEER })
+            row = joiRow, rowRect = ScreenPlan.find(chromePlan, "row"), onRow = { joiRow = it }, stackTop = ScreenPlan.stackTop(chromePlan))
         // Chat mode: the setup sheet, and (the camera in front of her) her subtitles, the log, the topic chips and the text field
         chatSheet?.let { sid ->
             val setup = chatMode.setup

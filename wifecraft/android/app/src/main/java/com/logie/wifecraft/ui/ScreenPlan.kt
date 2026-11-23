@@ -110,6 +110,10 @@ object ScreenPlan {
         if (mode != ScreenMode.CHAT && mode != ScreenMode.JOI) keepOut(w, h)
         else if (wide(w, h)) ScreenRect(0.30f * w, 0.30f * h, 0.55f * w, 0.50f * h) else ScreenRect(0.33f * w, 0.30f * h, 0.62f * w, 0.45f * h)
 
+    /** The top (dp) of the dock and its row, or null when neither is placed. */
+    fun stackTop(plan: List<ScreenPlaced>): Float? =
+        plan.filter { it.slot == ScreenSlot.DOCK || it.slot == ScreenSlot.DOCK_ROW }.minOfOrNull { it.rect.t }
+
     /** How much of the screen's height the bottom stack (dock, row, line) covers, 0..1, from [plan]: the chat camera frames her above it. */
     fun bottomShare(plan: List<ScreenPlaced>, h: Float): Float {
         val top = plan.filter { it.slot == ScreenSlot.DOCK || it.slot == ScreenSlot.DOCK_ROW || it.slot == ScreenSlot.DOCK_CONTEXT }.minOfOrNull { it.rect.t } ?: return 0f
