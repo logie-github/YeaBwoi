@@ -140,6 +140,8 @@ class JoiMode(
         val BANDS = listOf(Band.INTIMATE, Band.UNINHIBITED)
         /** The next line is asked for this long (seconds) before the one shown ends. */
         const val LEAD = 1.6f
+        /** [lead] for a pipelined JOI: the next line is asked for as soon as the one before it has come (so while a line is on show the next is being written). */
+        const val AHEAD = 1000f
         /** Consecutive missing answers before the mode waits for the model. */
         const val MAX_MISSES = 3
         /** Seconds an ask may stay unanswered before it counts as missed. */
@@ -168,6 +170,28 @@ class JoiMode(
     var steerEpoch = 0
         private set
     val subtitles = JoiSubtitles()
+    /**
+     * The next line is asked for when the one on show has this many seconds left (and nothing waits behind it): [LEAD] by default, [AHEAD]
+     * to write the next line while the current one is on show, which is what keeps a slow model from leaving the screen empty between lines.
+     */
+    var lead: Float = LEAD
+    /**
+     * The line being written, as far as it has come (a subtitle that types itself out): empty when none is or when a subtitle is on show
+     * ([visibleText] says what the screen draws). Written by [offerPartial], cleared by [offerLine].
+     */
+    var partial: String = ""
+        private set
+    /** What the subtitle layer draws: the cue on show, else the line as it is being written, else null. */
+    val visibleText: String? get() = subtitles.text ?: partial.ifEmpty { null }
+    /**
+     * How far the NPC's persona has been read into the model, 0 to 1 (the runner sets it from the engine's warm-up while a line is awaited): below 1
+     * with nothing on screen the layer says "Getting ready..." with a bar.
+     */
+    var readiness: Float = 1f
+        private set
+    fun setReadiness(p: Float) { readiness = p.coerceIn(0f, 1f) }
+    /** True while the first words are awaited with nothing on screen and the model is still reading her persona. */
+    val gettingReady: Boolean get() = phase == JoiPhase.RUNNING && awaiting && subtitles.idle && partial.isEmpty() && readiness < 1f
     /** The hand stroke she gives when a handjob is picked: its tempo follows the stage, her words and the chips ([JoiStroke]). */
     val stroke = JoiStroke()
     /** Seconds no solo animation is due (the host holds them while a handjob runs). */
@@ -241,7 +265,7 @@ class JoiMode(
     /** Leaves the mode: what was on before ([JoiPrior]) comes back from the host. Returns it. */
     fun leave(): JoiPrior {
         phase = JoiPhase.OFF
-        subtitles.clear(); events.clear(); awaiting = false; count = null; stageIndex = -1; stages = emptyList()
+        subtitles.clear(); events.clear(); awaiting = false; partial = ""; readiness = 1f; count = null; stageIndex = -1; stages = emptyList()
         customSteer = null; steerEpoch++
         stroke.stop(); soloHold = 0f
         actor = null; creature = false
@@ -268,7 +292,7 @@ class JoiMode(
         customSteer = t
         steerEpoch++
         // not while the count's numbers are running: they are not the model's
-        if (active && !(stage == "countdown" && introDone)) { subtitles.dropQueued(); serial++; awaiting = false }
+        if (active && !(stage == "countdown" && introDone)) { subtitles.dropQueued(); serial++; awaiting = false; partial = "" }
         return t != null
     }
 
@@ -294,20 +318,20 @@ class JoiMode(
         stages = plan(b, seed)
         val at = stages.indexOf(now).takeIf { it >= 0 } ?: stageIndex.coerceAtMost(stages.size - 1)
         stageIndex = at - 1
-        serial++; awaiting = false; subtitles.clear()
+        serial++; awaiting = false; partial = ""; subtitles.clear()
         nextStage()
     }
 
     /** Skips to the next stage now (the line asked for is dropped, the subtitle too). */
     fun skip() {
         if (!active) return
-        serial++; awaiting = false; subtitles.clear()
+        serial++; awaiting = false; partial = ""; subtitles.clear()
         nextStage()
     }
 
     private fun nextStage() {
         stageIndex++
-        awaiting = false; linesInStage = 0; stageClock = 0f; introDone = false; count = null
+        awaiting = false; partial = ""; linesInStage = 0; stageClock = 0f; introDone = false; count = null
         val st = stage
         if (st == null) { events += JoiEvent.Finished; phase = JoiPhase.OFF; stroke.stop(); return }
         stroke.onStage(st)
@@ -329,7 +353,7 @@ class JoiMode(
      */
     fun offerLine(forSerial: Int, text: String?) {
         if (forSerial != serial || !awaiting) return
-        awaiting = false
+        awaiting = false; partial = ""
         if (text == null) {
             misses++
             if (misses >= MAX_MISSES) { phase = JoiPhase.NEEDS_MODEL; events += JoiEvent.ModelLost }
@@ -339,6 +363,12 @@ class JoiMode(
         linesInStage++
         subtitles.push(JoiSubtitles.Cue(text, JoiSubtitles.hold(text, pace), gapAfter = JoiSubtitles.gap(pace)))
         if (stage == "countdown" && !introDone) introDone = true
+    }
+
+    /** The words of the line asked for with [forSerial] as far as they have come (cleaned by the host); dropped when the ask is no longer the current one. */
+    fun offerPartial(forSerial: Int, text: String) {
+        if (forSerial != serial || !awaiting) return
+        partial = text
     }
 
     /** Advances by [dt] seconds. Events come out of [drain]. */
@@ -360,11 +390,11 @@ class JoiMode(
             if (soloHold <= 0f) events += JoiEvent.AnimationDue(JoiPacing.energy(st), st, stageLeft(st))
         }
         if (st == "countdown") { updateCount(step); return }
-        val due = !awaiting && subtitles.queued == 0 && subtitles.remaining <= LEAD
+        val due = !awaiting && subtitles.queued == 0 && subtitles.remaining <= lead
         if (stageClock >= stageBudget && linesInStage > 0 && subtitles.idle && !awaiting) { nextStage(); return }
         if (stageClock >= stageBudget + ASK_TIMEOUT && !awaiting) { nextStage(); return }
         if (due && (stageClock < stageBudget || linesInStage == 0)) ask(st, null)
-        else if (awaiting && askedFor >= ASK_TIMEOUT) { awaiting = false; misses++; if (misses >= MAX_MISSES) { phase = JoiPhase.NEEDS_MODEL; events += JoiEvent.ModelLost } }
+        else if (awaiting && askedFor >= ASK_TIMEOUT) { awaiting = false; partial = ""; misses++; if (misses >= MAX_MISSES) { phase = JoiPhase.NEEDS_MODEL; events += JoiEvent.ModelLost } }
     }
 
     /** Seconds the stage has left (the count's: its beats and the line before them). */
@@ -372,7 +402,7 @@ class JoiMode(
         if (st == "countdown") ((count ?: countStart) * beatSeconds + 2f).coerceAtLeast(0f) else (stageBudget - stageClock).coerceAtLeast(0f)
 
     private fun ask(st: String, from: Int?) {
-        serial++; awaiting = true; askedFor = 0f
+        serial++; awaiting = true; askedFor = 0f; partial = ""
         events += JoiEvent.NeedLine(st, serial, from)
     }
 

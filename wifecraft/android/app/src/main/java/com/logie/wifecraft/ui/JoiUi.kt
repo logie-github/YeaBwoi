@@ -45,13 +45,12 @@ import androidx.compose.ui.unit.dp
 import com.logie.wifecraft.dialogue.DialogueEngine
 import com.logie.wifecraft.dialogue.DirtyLevel
 import com.logie.wifecraft.dialogue.DirtyTalk
-import com.logie.wifecraft.dialogue.JoiLineRequest
 import com.logie.wifecraft.dialogue.JoiPersona
-import com.logie.wifecraft.dialogue.JoiPrompt
 import com.logie.wifecraft.dialogue.JoiSteer
 import com.logie.wifecraft.dialogue.KinkContext
 import com.logie.wifecraft.simulation.CinematicFrame
 import com.logie.wifecraft.simulation.FilmFrame
+import com.logie.wifecraft.simulation.JoiDriver
 import com.logie.wifecraft.simulation.JoiEvent
 import com.logie.wifecraft.simulation.JoiFraming
 import com.logie.wifecraft.simulation.JoiMode
@@ -83,7 +82,9 @@ fun JoiRunner(
     val scope = rememberCoroutineScope()
     LaunchedEffect(mode, running) {
         if (!running) return@LaunchedEffect
-        val recent = ArrayList<String>()
+        val driver = JoiDriver(mode, pack)
+        mode.lead = JoiMode.AHEAD   // the next line is written while this one is on show
+        driver.warmUp(engineNow(), personaNow)
         var last = android.os.SystemClock.uptimeMillis()
         var pending: Job? = null
         var epoch = mode.steerEpoch
@@ -95,23 +96,13 @@ fun JoiRunner(
             // a steer typed meanwhile: the line being written under the old one is given up (the mode already dropped its answer and the queued line)
             if (mode.steerEpoch != epoch) { epoch = mode.steerEpoch; pending?.cancel() }
             mode.update(dt)
+            driver.tickReadiness(engineNow(), personaNow)
             for (e in mode.drain()) when (e) {
                 is JoiEvent.NeedLine -> {
                     val p = personaNow
                     val eng = engineNow()
-                    val steer = mode.steer.toSet()
-                    val band = mode.band
-                    val recentNow = recent.toList()
-                    val actionNow = mode.action()
-                    val levelNow = mode.level
-                    val steerTextNow = mode.customSteer
                     pending = scope.launch {
-                        val text = if (p != null && eng != null)
-                            runCatching { JoiPrompt.line(eng, JoiLineRequest(p, e.stage, band, steer, recentNow, e.countdownFrom, npcId = mode.actor.orEmpty(), action = actionNow,
-                                level = levelNow, customSteer = steerTextNow), pack) }.getOrNull()
-                        else null
-                        mode.offerLine(e.serial, text)
-                        if (text != null) { recent += text; while (recent.size > 6) recent.removeAt(0) }
+                        driver.fetch(eng, p, e)
                         redraw()
                     }
                 }
@@ -152,7 +143,8 @@ fun JoiLayer(
             when {
                 mode.phase == JoiPhase.NEEDS_MODEL -> NeedsModel(mode, onDownloadModel, onRetry, onStop, Modifier.align(Alignment.Center))
                 else -> {
-                    val text = mode.subtitles.text
+                    val text = mode.visibleText
+                    if (text == null && mode.gettingReady) GettingReady(mode.readiness, Modifier.align(Alignment.BottomCenter).padding(bottom = frameH * 0.14f))
                     if (text != null) {
                         val number = mode.subtitles.isNumber
                         val size = with(density) { (rect.height * if (number) 0.16f else 0.052f).toSp() }
@@ -177,6 +169,18 @@ fun JoiLayer(
                 DockRowKind.JOI_STEER -> JoiSteerRow(mode, typed, { typed = it }, onChanged) { onRow(DockRowKind.NONE) }
                 else -> Unit
             }
+        }
+    }
+}
+
+/** "Getting ready..." with a bar while the model reads her persona (the first line of a JOI, after a level change): shown instead of a silent wait. */
+@Composable
+private fun GettingReady(progress: Float, modifier: Modifier) {
+    Column(modifier.clip(RoundedCornerShape(10.dp)).background(Color.Black.copy(alpha = 0.45f)).padding(horizontal = 14.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("Getting ready...", style = TextStyle(color = Color.White, fontWeight = FontWeight.Medium))
+        Box(Modifier.size(width = 160.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(Color.White.copy(alpha = 0.25f))) {
+            Box(Modifier.size(width = (160f * progress.coerceIn(0f, 1f)).dp, height = 4.dp).background(Color.White))
         }
     }
 }

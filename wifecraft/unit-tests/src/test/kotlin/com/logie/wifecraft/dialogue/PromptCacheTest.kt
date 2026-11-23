@@ -170,7 +170,7 @@ class PromptCacheTest {
     }
 
     @Test fun theLengthSettingCapsTheTokensAndTheSentences() {
-        assertEquals(listOf(45, 80, 140), ChatLength.entries.map { it.tokens }, "Short, Normal, Long")
+        assertEquals(listOf(30, 60, 100), ChatLength.entries.map { it.tokens }, "Short, Normal, Long")
         assertEquals(listOf(1, 2, 3), ChatLength.entries.map { it.sentences })
         for (l in ChatLength.entries) {
             val r = ChatPrompt.request("sys", emptyList(), "hi", "jaina", l, null)

@@ -1396,13 +1396,25 @@ fun LiveSceneScreen(
     }
     // (the engine is the runtime's, when a model is loaded: DialogueRuntime.engine; Options > Mods > Dialogue model downloads it)
     fun joiEngine(): DialogueEngine? = com.logie.wifecraft.dialogue.DialogueRuntime.engine?.takeIf { it.ready }
-    fun startJoi(id: String) {
-        val a = cast.firstOrNull { it.id == id } ?: return
+    fun joiPersonaFor(id: String): JoiPersona? {
+        val a = cast.firstOrNull { it.id == id } ?: return null
         val spec = CreatureNpcs.of(a.appearance)
-        joiPersona = JoiPersona(
+        return JoiPersona(
             a.name, listOfNotNull(JoiPrompt.raceKey(a.appearance.raceId)), listOfNotNull(JoiPrompt.classKey(a.appearance.classId)),
             JoiPrompt.personalitiesFrom(a.appearance.personality?.traits.orEmpty(), spec != null), "dom", spec != null, a.appearance.personality?.bio.orEmpty(),
             female = a.appearance.sex == Sex.FEMALE)
+    }
+    // the NPC is chosen: her JOI prefix is read into the model now (at the level Options sets), so a tap on JOI finds it read; a level or a model change reads it again
+    LaunchedEffect(selected, joiEngine()?.compactPrompts, dialogue.dirty) {
+        val id = selected ?: return@LaunchedEffect
+        val eng = joiEngine() ?: return@LaunchedEffect
+        val p = joiPersonaFor(id) ?: return@LaunchedEffect
+        JoiPrompt.warm(eng, com.logie.wifecraft.dialogue.JoiLineRequest(p, "setup", com.logie.wifecraft.dialogue.Band.INTIMATE, npcId = id, level = dialogue.dirty, compact = eng.compactPrompts), kink, urgent = false)
+    }
+    fun startJoi(id: String) {
+        val a = cast.firstOrNull { it.id == id } ?: return
+        val spec = CreatureNpcs.of(a.appearance)
+        joiPersona = joiPersonaFor(id)
         joiMode.defaultLevel = dialogue.dirty   // Options > Dialogue > Dirty talk level; the panel's slider is this session's own
         joiMode.enter(id, spec != null, JoiPrior(cinematic, cameraMode.name, furnitureView), joiEngine() != null)
         joiCamera.restart(); joiCamera.creature = spec != null; joiCamera.framing = joiMode.framing
@@ -1524,7 +1536,7 @@ fun LiveSceneScreen(
         chatSheet = id
         chatTick++
         // the sheet is open: while the player picks who they are, her persona is read into the model (the first reply then pays for the new words only)
-        runCatching { joiEngine()?.warm(com.logie.wifecraft.dialogue.ChatPrompt.CHAT_PREFIX + id, com.logie.wifecraft.dialogue.ChatPrompt.system(com.logie.wifecraft.dialogue.Profiles.of(a), lore, CreatureNpcs.of(a.appearance) != null), urgent = true) }
+        runCatching { joiEngine()?.let { eng -> eng.warm(com.logie.wifecraft.dialogue.ChatPrompt.CHAT_PREFIX + id, com.logie.wifecraft.dialogue.ChatPrompt.system(com.logie.wifecraft.dialogue.Profiles.of(a), lore, CreatureNpcs.of(a.appearance) != null, eng.compactPrompts), urgent = true) } }
     }
     fun cancelChat() { chatMode.cancel(); chatSheet = null; chatTick++ }
     fun startChat() {

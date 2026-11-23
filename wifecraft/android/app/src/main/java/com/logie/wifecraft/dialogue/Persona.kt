@@ -112,10 +112,16 @@ object PersonaPrompt {
      * the scene), then [LENGTH_AMBIENT] last. Nothing in it changes from line to line. How much of the lore it carries is capped
      * ([PEOPLE_CHARS], [FACTION_CHARS]): the race's and the side's paragraphs are read once per NPC, so they are short.
      */
-    fun system(p: NpcProfile, lore: Lore): String = persona(p, lore) + LENGTH_AMBIENT
+    fun system(p: NpcProfile, lore: Lore, compact: Boolean = false): String = persona(p, lore, compact) + LENGTH_AMBIENT
 
-    /** [shared] and this NPC, without the closing line about how long a line is (chat and ambient talk each add their own). */
-    fun persona(p: NpcProfile, lore: Lore): String {
+    /**
+     * [shared] and this NPC, without the closing line about how long a line is (chat and ambient talk each add their own).
+     * [compact] (the Fast model): the rules in a third of the words, the people and the calling cut short, no side paragraph and the
+     * character core and era slice held to [PersonaBudget.CORE_COMPACT] and [PersonaBudget.ERA_COMPACT] tokens; the persona then
+     * stays under about 200 tokens.
+     */
+    fun persona(p: NpcProfile, lore: Lore, compact: Boolean = false): String {
+        if (compact) return compactPersona(p, lore)
         val race = lore.race(p.raceId)
         val sex = when (p.female) { true -> "woman"; false -> "man"; null -> "person" }
         val calling = lore.className(p.classId)?.let { " $it" } ?: ""
@@ -136,6 +142,27 @@ object PersonaPrompt {
 
     const val PEOPLE_CHARS = 220
     const val FACTION_CHARS = 110
+    const val PEOPLE_CHARS_COMPACT = 100
+    const val CALLING_CHARS_COMPACT = 90
+    const val BIO_CHARS_COMPACT = 140
+
+    private fun compactPersona(p: NpcProfile, lore: Lore): String {
+        val race = lore.race(p.raceId)
+        val sex = when (p.female) { true -> "woman"; false -> "man"; null -> "person" }
+        val calling = lore.className(p.classId)?.let { " $it" } ?: ""
+        val b = StringBuilder()
+        b.append(shared(lore, compact = true)).append("\n\n")
+        b.append("You are ${p.name}, a ${race?.name ?: "traveller"}$calling $sex of Azeroth, a full-grown adult.\n")
+        val tr = p.traits.mapNotNull { TRAIT_TEXT[it.uppercase()] }
+        if (tr.isNotEmpty()) b.append("Your nature: ").append(tr.take(2).joinToString("; ")).append(".\n")
+        if (p.bio.isNotBlank()) b.append("About you: ").append(cap(p.bio, BIO_CHARS_COMPACT)).append('\n')
+        if (race != null) b.append("Your voice: ").append(race.register).append(". ")
+        b.append("In love and in bed you are ").append(p.disposition.style).append(".\n")
+        race?.let { b.append("Your people: ").append(cap("${it.about} ${it.customs}", PEOPLE_CHARS_COMPACT)).append('\n') }
+        lore.className(p.classId)?.let { b.append("Your calling: ").append(cap(lore.classAbout(p.classId).orEmpty(), CALLING_CHARS_COMPACT)).append('\n') }
+        lore.kit?.let { b.append(it.systemAddition(p, lore, compact = true)).append('\n') }
+        return b.toString()
+    }
 
     /** [text] cut at a sentence end (else a word) to at most [max] characters. */
     fun cap(text: String, max: Int): String {
@@ -144,15 +171,29 @@ object PersonaPrompt {
         val cut = t.take(max)
         val end = maxOf(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "))
         if (end > max / 2) return cut.substring(0, end + 1)
-        return cut.substringBeforeLast(' ', cut).trimEnd(',', ';', ':', ' ') + "."
+        // no sentence end: at the last comma or semicolon in the second half, else at a word that does not leave a connecting word hanging
+        val comma = maxOf(cut.lastIndexOf(", "), cut.lastIndexOf("; "))
+        var out = if (comma > max / 2) cut.substring(0, comma) else cut.substringBeforeLast(' ', cut)
+        while (true) {
+            val last = out.substringAfterLast(' ', "").lowercase().trimEnd(',', ';', ':')
+            if (last in DANGLING && out.contains(' ')) out = out.substringBeforeLast(' ') else break
+        }
+        return out.trimEnd(',', ';', ':', ' ') + "."
     }
+
+    private val DANGLING = setOf("and", "the", "of", "a", "an", "to", "in", "with", "but", "or", "for", "by", "on", "at", "as", "that", "who", "from", "its", "their", "his", "her")
 
     /**
      * The world and the rules every NPC lives by, in the prompt's own terms, first in every system prompt: the era line in force
      * ([era]) and [RULES_CORE]. The same text for every NPC and every mode (for as long as the era is the same), so the model reads it
      * once and every later NPC borrows it.
      */
-    fun shared(lore: Lore? = null): String = (if (lore != null) era(lore) else ERA) + "\n" + RULES_CORE
+    fun shared(lore: Lore? = null, compact: Boolean = false): String = (if (lore != null) era(lore) else ERA) + "\n" + (if (compact) RULES_COMPACT else RULES_CORE)
+
+    /** [RULES_CORE] in about 60 tokens instead of 120, for the small model. */
+    const val RULES_COMPACT = "You are a real person of this world and know nothing beyond it. Speak in the first person, in your own voice, in the speech of your time, " +
+        "with no modern words or things; what lies beyond Azeroth only puzzles you. Say only the words you speak aloud: no narration, quotes or name tags. " +
+        "You decide what you want, and usually say yes to what you desire."
 
     /** The rules without the era and without the line about how long a line is (the closing line is the mode's own). */
     const val RULES_CORE = "You are a real person living in this world; this is your whole life and you know nothing beyond it. " +

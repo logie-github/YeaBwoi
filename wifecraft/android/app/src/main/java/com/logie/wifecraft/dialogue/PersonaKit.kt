@@ -18,6 +18,10 @@ import org.json.JSONObject
 object PersonaBudget {
     const val CORE = 280
     const val ERA = 150
+    /** The compact prompts' (the Fast model): the stable prefix of a named NPC stays about 350 tokens. */
+    const val CORE_COMPACT = 110
+    const val ERA_COMPACT = 45
+    const val CUSTOM_COMPACT = 40
     const val REL = 60            // each, at most REL_MAX of them
     const val REL_MAX = 2
     const val TOPIC = 70          // each, at most TOPIC_MAX of them
@@ -232,9 +236,14 @@ class PersonaKit(val eras: List<EraPack>, val profiles: Map<String, CharProfile>
     }
 
     /** The whole system-prompt addition for [p]: the core and era slice of a named NPC, the era frame and custom note otherwise. */
-    fun systemAddition(p: NpcProfile, lore: Lore): String {
+    fun systemAddition(p: NpcProfile, lore: Lore, compact: Boolean = false): String {
         val c = profileOf(p)
         val e = era
+        if (compact) {
+            if (c != null) return core(c, e, PersonaBudget.CORE_COMPACT) + "\n" + eraSlice(c, e, PersonaBudget.ERA_COMPACT)
+            return listOfNotNull(eraSlice(null, e, PersonaBudget.ERA_COMPACT),
+                customNote(lore.raceKey(p.raceId), lore.faction(p.raceId), lore.className(p.classId), e, PersonaBudget.CUSTOM_COMPACT)).joinToString("\n")
+        }
         if (c != null) return core(c, e) + "\n" + eraSlice(c, e)
         return listOfNotNull(eraSlice(null, e), customNote(lore.raceKey(p.raceId), lore.faction(p.raceId), lore.className(p.classId), e)).joinToString("\n")
     }
@@ -262,20 +271,24 @@ class PersonaKit(val eras: List<EraPack>, val profiles: Map<String, CharProfile>
      * sections the talk mentions (a person, a place, a thing in the NPC's past that has happened by the era). [present]: the others in
      * the scene; [text]: what was just said and what the NPC is to answer. Null: nothing to add.
      */
-    fun turnNotes(me: NpcProfile, present: List<NpcProfile>, text: String, e: EraPack = era): String? {
+    fun turnNotes(me: NpcProfile, present: List<NpcProfile>, text: String, e: EraPack = era, compact: Boolean = false): String? {
         val c = profileOf(me) ?: return null
+        val relMax = if (compact) 1 else PersonaBudget.REL_MAX
+        val topicMax = if (compact) 1 else PersonaBudget.TOPIC_MAX
+        val relTokens = if (compact) 40 else PersonaBudget.REL
+        val topicTokens = if (compact) 45 else PersonaBudget.TOPIC
         val lower = text.lowercase()
         val out = ArrayList<String>()
         val used = HashSet<String>()
         for (o in present) {
-            if (out.size >= PersonaBudget.REL_MAX) break
+            if (out.size >= relMax) break
             val r = relationFor(c, o.named ?: o.id, o.name, e) ?: continue
-            if (used.add(r.name)) out += relationText(c, r, e)
+            if (used.add(r.name)) out += relationText(c, r, e, relTokens)
         }
-        if (out.size < PersonaBudget.REL_MAX) for (r in c.relations.values) {
-            if (out.size >= PersonaBudget.REL_MAX) break
+        if (out.size < relMax) for (r in c.relations.values) {
+            if (out.size >= relMax) break
             if (r.name in used || (r.from?.let(::orderOf) ?: Int.MIN_VALUE) > e.order) continue
-            if (wordHit(lower, r.name.lowercase()) || wordHit(lower, r.name.substringBefore(' ').lowercase())) { used += r.name; out += relationText(c, r, e) }
+            if (wordHit(lower, r.name.lowercase()) || wordHit(lower, r.name.substringBefore(' ').lowercase())) { used += r.name; out += relationText(c, r, e, relTokens) }
         }
         val topics = ArrayList<Pair<Int, String>>()
         for (t in c.backstory + c.topics) {
@@ -289,7 +302,7 @@ class PersonaKit(val eras: List<EraPack>, val profiles: Map<String, CharProfile>
         generic(listOf("like", "love", "favourite", "favorite", "enjoy", "fond", "hate", "dislike"), "What you like and dislike:", c.likes)
         generic(listOf("afraid", "fear", "scared", "dread", "nightmare"), "What you fear:", c.fears)
         generic(listOf("secret", "hide", "hiding", "confess", "truth"), "A secret you keep, told only if trust is earned:", c.secrets)
-        val best = topics.sortedByDescending { it.first }.take(PersonaBudget.TOPIC_MAX).map { Tokens.fit(it.second, PersonaBudget.TOPIC) }
+        val best = topics.sortedByDescending { it.first }.take(topicMax).map { Tokens.fit(it.second, topicTokens) }
         val all = out.map { "About them: $it" } + best.map { "You recall: $it" }
         return if (all.isEmpty()) null else all.joinToString("\n")
     }

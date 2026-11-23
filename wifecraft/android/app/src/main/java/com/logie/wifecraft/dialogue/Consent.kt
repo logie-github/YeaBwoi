@@ -75,7 +75,7 @@ class ConsentCoordinator(
             val rel = relation(me.id, other.id)
             val band = comfort.band(me.disposition, me.id, other.id, rel.friendship, rel.romance)
             val prior = WillingnessModel.prior(lore, me, other, rel, band)
-            val req = DialogueRequest(me.id, PersonaPrompt.system(me, lore), emptyList(), askPrompt(me, other, prior, band, s.stage), maxTokens = 70, temperature = 0.6f)
+            val req = DialogueRequest(me.id, PersonaPrompt.system(me, lore), emptyList(), askPrompt(me, other, prior, band, s.stage), maxTokens = 70, temperature = 0.6f, spoken = false)
             runner.submit(PRIORITY, "consent", req, ttl = DECIDE_WAIT, urgency = DialoguePriority.SELECTED) { raw ->
                 if (gen != generation || sessions[s.key] !== s || s.phase != Phase.DECIDING) return@submit
                 val v = WillingnessModel.parse(raw)
@@ -141,7 +141,7 @@ class ConsentCoordinator(
             "You are hesitant about lying with ${other?.name ?: "them"}. ${who} tries to calm you: ${approach.label.lowercase()}. " +
                 "Your fear is ${fearText(h.fear)} and your nature is ${me.disposition.style}. React in character. " +
                 "Reply as JSON only: {\"reaction\":\"calmer\" or \"same\" or \"warier\",\"line\":\"one short sentence you say\"}",
-            maxTokens = 70, temperature = 0.7f)
+            maxTokens = 70, temperature = 0.7f, spoken = false)
         runner.submit(PRIORITY, "consent", req, ttl = DECIDE_WAIT, urgency = DialoguePriority.SELECTED) { raw ->
             if (gen != generation) return@submit
             s.busy = false

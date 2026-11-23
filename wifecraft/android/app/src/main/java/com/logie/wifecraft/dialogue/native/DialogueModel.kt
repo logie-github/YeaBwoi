@@ -36,7 +36,9 @@ class DialogueModel(
         override val ready: Boolean get() = scheduler?.ready == true
         override fun forget(npcId: String) { scheduler?.forget(npcId) }
         override fun setFocus(selected: String?, pair: Set<String>) { scheduler?.setFocus(selected, pair) }
-        override fun warm(npcId: String, system: String, urgent: Boolean) { scheduler?.warm(npcId, system, urgent) }
+        override fun warm(npcId: String, system: String, urgent: Boolean, history: List<DialogueTurn>) { scheduler?.warm(npcId, system, urgent, history) }
+        override fun warmProgress(npcId: String): Float = scheduler?.warmProgress(npcId) ?: 1f
+        override val compactPrompts: Boolean get() = scheduler?.compactPrompts == true
     }
 
     val isLoaded: Boolean get() = scheduler?.ready == true
@@ -45,11 +47,11 @@ class DialogueModel(
      * Loads [file] as [spec] (blocking, reading a 7.5 GB file takes tens of seconds: call it off the main thread, see [loadProgress]). Returns null when it worked, else why not
      * (in words for the Options page). Replaces a model already loaded.
      */
-    fun load(spec: DialogueModelSpec, file: File, manualThreads: Int = 0, ctx: Int = 6144, slots: Int = 6, ambientTokensPerMinute: Int = 300): String? {
+    fun load(spec: DialogueModelSpec, file: File, manualThreads: Int = 0, ctx: Int = 6144, slots: Int = 6, ambientTokensPerMinute: Int = 300, calibratedThreads: Int = 0): String? {
         unload()
-        val stateDir = stateRoot?.let { File(it, spec.id.replace(Regex("[^A-Za-z0-9._-]"), "_")) }
+        val stateDir = stateRoot?.let { File(it, spec.stateName) }
         val b = NativeBackend(stateDir)
-        val p = ThreadPlan.choose(cpu, manualThreads)
+        val p = ThreadPlan.choose(cpu, manualThreads, calibratedThreads)
         plan = p
         val t0 = System.nanoTime()
         val err = b.load(file, p, ctx, slots)
@@ -58,7 +60,7 @@ class DialogueModel(
         synchronized(lock) {
             backend = b
             this.spec = spec
-            scheduler = DialogueScheduler(b, spec.template, TokenBudget(ambientTokensPerMinute), loadSignal, timings = timings)
+            scheduler = DialogueScheduler(b, spec.template, TokenBudget(ambientTokensPerMinute), loadSignal, timings = timings, compact = spec.compact)
         }
         DialogueRuntime.engine = engine   // the scenes' directors read it each call
         return null
@@ -72,8 +74,8 @@ class DialogueModel(
         private set
 
     /** Speed in Options: Auto (0) or 3 to 6 threads; applies to the next answer, no reload. */
-    fun setSpeed(manualThreads: Int) {
-        val p = ThreadPlan.choose(cpu, manualThreads)
+    fun setSpeed(manualThreads: Int, calibratedThreads: Int = 0) {
+        val p = ThreadPlan.choose(cpu, manualThreads, calibratedThreads)
         plan = p
         scheduler?.setThreads(p.decode, p.prefill)
     }
@@ -82,9 +84,14 @@ class DialogueModel(
      * The text "Copy timings" puts on the clipboard (and a developer reads real phone numbers from): the model, how long it took to
      * load, the CPU's features and cores, the kernels llama.cpp reports, the thread plan, then the last 100 requests, one line each.
      */
-    fun report(): String {
+    fun report(): String = timings.toText(header())
+
+    /** "Report slow replies": [header] and the replies slower than 5 s with their phases ([TimingLog.slowReport]). */
+    fun slowReport(): String = timings.slowReport(header())
+
+    private fun header(): String {
         val i = info()
-        val header = buildString {
+        return buildString {
             append("Wifecraft dialogue timings\n")
             append("model: ").append(spec?.id ?: "none").append(if (i != null) " (${i.description}, ${i.sizeBytes / 1_000_000} MB)" else "").append('\n')
             if (i != null) append("load: ").append(loadWallMs).append(" ms in all (model ").append(i.loadMs).append(" ms, context ").append(i.contextMs).append(" ms); context ")
@@ -92,8 +99,8 @@ class DialogueModel(
             append(cpu.describe()).append('\n')
             append("threads: ").append(plan.note).append('\n')
             if (i != null && i.system.isNotBlank()) append("llama.cpp: ").append(i.system).append('\n')
+            append("prompts: ").append(if (spec?.compact == true) "compact" else "full").append("; speed target: a line in ").append(SpeedTarget.LINE_SECONDS.toInt()).append(" s\n")
         }
-        return timings.toText(header)
     }
 
     /**
@@ -102,14 +109,41 @@ class DialogueModel(
      */
     suspend fun speedTest(): SpeedResult? {
         val s = scheduler ?: return null
-        val req = DialogueRequest("speedtest", PersonaPrompt.shared(), emptyList(), "Tell me, in your own words, about a long road you once walked.",
+        val req = DialogueRequest("speedtest", PersonaPrompt.shared(null, spec?.compact == true), emptyList(), "Tell me, in your own words, about a long road you once walked.",
             maxTokens = 64, temperature = 0.7f, priority = DialoguePriority.SELECTED, seed = 7, tag = "speedtest", maxWaitMs = 120_000L)
         val before = timings.added
         val text = s.complete(req)
         s.forget("speedtest")
         val t = timings.all().lastOrNull { it.tag == "speedtest" } ?: return null
         if (text == null || timings.added == before) return null
-        return SpeedResult(t.firstWordMs / 1000.0, t.decodeTokensPerSecond, t.generated, t.prefillTokensPerSecond, SpeedHint.of(t.decodeTokensPerSecond))
+        return SpeedResult(t.firstWordMs / 1000.0, t.decodeTokensPerSecond, t.generated, t.prefillTokensPerSecond, SpeedHint.of(t.decodeTokensPerSecond),
+            SpeedTarget.estimate(t.prefillTokensPerSecond, t.decodeTokensPerSecond))
+    }
+
+    /**
+     * The first-run calibration ([ThreadCalibration]): the model writes [ThreadCalibration.TRIAL_TOKENS] tokens with each candidate thread count
+     * (about three seconds each with the Fast model) and the fastest count is returned and put in force. Null when no model is loaded or
+     * nothing could be measured; the thread plan is restored to what it was then. Call from a coroutine, once, soon after the model loads
+     * (it holds the model while it runs).
+     */
+    suspend fun calibrate(): List<ThreadCalibration.Trial>? {
+        val s = scheduler ?: return null
+        val before = plan
+        val trials = ArrayList<ThreadCalibration.Trial>()
+        try {
+            for (t in ThreadCalibration.candidates(cpu)) {
+                s.setThreads(t, before.prefill)
+                val mark = timings.added
+                val req = DialogueRequest("calibrate", PersonaPrompt.shared(null, spec?.compact == true), emptyList(), "Tell me, in your own words, about a long road you once walked.",
+                    maxTokens = ThreadCalibration.TRIAL_TOKENS, temperature = 0.7f, priority = DialoguePriority.SELECTED, seed = 11, tag = "calibrate", maxWaitMs = 120_000L)
+                s.complete(req)
+                s.forget("calibrate")
+                val row = timings.all().lastOrNull { it.tag == "calibrate" }
+                if (timings.added == mark || row == null) continue
+                trials += ThreadCalibration.Trial(t, row.decodeTokensPerSecond)
+            }
+        } finally { s.setThreads(before.decode, before.prefill) }
+        return trials.takeIf { it.isNotEmpty() }
     }
 
     /** Saves the NPCs' places and frees the model's memory. */
@@ -155,7 +189,10 @@ class DialogueModel(
 }
 
 /** What the Speed test found. */
-data class SpeedResult(val firstWordSeconds: Double, val tokensPerSecond: Double, val tokens: Int, val prefillTokensPerSecond: Double, val hint: String?) {
+data class SpeedResult(val firstWordSeconds: Double, val tokensPerSecond: Double, val tokens: Int, val prefillTokensPerSecond: Double, val hint: String?,
+    /** What the two speeds mean for a JOI line or a chat reply against the 5 s target ([SpeedTarget]); null when a speed is unknown. */
+    val estimate: SpeedTarget.Estimate? = null) {
     fun text(): String = String.format(java.util.Locale.ROOT, "First word after %.1f s, then %.1f tokens a second (%d tokens written)%s.", firstWordSeconds, tokensPerSecond, tokens,
-        if (prefillTokensPerSecond > 0) String.format(java.util.Locale.ROOT, "; it reads a prompt at %.0f tokens a second", prefillTokensPerSecond) else "")
+        if (prefillTokensPerSecond > 0) String.format(java.util.Locale.ROOT, "; it reads a prompt at %.0f tokens a second", prefillTokensPerSecond) else "") +
+        (estimate?.let { " " + it.text() } ?: "")
 }

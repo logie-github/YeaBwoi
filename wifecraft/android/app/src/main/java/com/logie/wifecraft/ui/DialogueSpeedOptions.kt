@@ -42,7 +42,7 @@ fun DialogueSpeedSection() {
     val choices = listOf("Auto", "3", "4", "5", "6")
     val selected = when (cfg.threads) { 0 -> 0; in 3..6 -> cfg.threads - 2; else -> 0 }
     WifeTabs(choices, selected, { DialogueHost.setSpeed(if (it == 0) 0 else it + 2) })
-    WifeNote("Threads the model uses. Auto keeps them on the phone's fast cores (a thread on a slow core makes the others wait); try 4 or 5 by hand if the answers drag. It applies to the next answer, no reload.")
+    WifeNote("Threads the model uses. Auto keeps them on the phone's fast cores (a thread on a slow core makes the others wait) and, the first time the Fast model loads, tries 3, 4, 5 and 6 threads for a few seconds and keeps the fastest; or choose by hand. It applies to the next answer, no reload.")
     if (loaded) WifeNote(DialogueHost.speedNote() + ". " + DialogueHost.cpuNote())
 
     val s = DialogueHost.summary()
@@ -68,4 +68,10 @@ fun DialogueSpeedSection() {
         cm?.setPrimaryClip(ClipData.newPlainText("Wifecraft dialogue timings", DialogueHost.timingsReport()))
     })
     WifeNote("Copies the load time, this phone's CPU, which kernels run and the last ${DialogueHost.timings.capacity} requests (waiting, reading, writing, first word), so the numbers can be read off this phone.")
+    WifeButton("Report slow replies", {
+        val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        cm?.setPrimaryClip(ClipData.newPlainText("Wifecraft slow replies", DialogueHost.slowReport()))
+    })
+    WifeNote("Copies the model, this phone's CPU and the replies that took longer than 5 seconds with where the time went (queue, reading the prompt, first word, writing) and the prompt sizes: numbers only, nothing that was said. Paste it to the developer.")
+    DialogueHost.lastCalibration?.let { WifeNote("Thread calibration (first run): $it") }
 }

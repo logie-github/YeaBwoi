@@ -44,11 +44,17 @@ class ChatSession(
     private var systemText: String = ""
     private var systemFor: ChatRelationship? = null
     private var systemEra: String? = lore.kit?.eraKey
+    /** The compact prompts (the Fast model) are in force: set from the engine at the warm-up and at each reply. */
+    @Volatile private var compact: Boolean = false
+    private var systemCompact: Boolean = false
+
+    /** The engine the talk will use: a small model reads the compact prompts; a change makes the persona and the context again. */
+    private fun useEngine(engine: DialogueEngine?) { if (engine != null) compact = engine.compactPrompts }
 
     /** An era change (the scene menu) changes the persona: her system prompt is made again, from the next reply. */
     private fun refreshSystem() {
         val k = lore.kit?.eraKey
-        if (k != systemEra) { systemEra = k; persona = ChatPrompt.system(npc, lore, dragon); systemFor = null }
+        if (k != systemEra || compact != systemCompact) { systemEra = k; systemCompact = compact; persona = ChatPrompt.system(npc, lore, dragon, compact); systemFor = null }
     }
 
     /** The talk so far (newest last); readable from the screen. */
@@ -88,7 +94,7 @@ class ChatSession(
     fun systemPrompt(): String {
         refreshSystem()
         val rel = relationship
-        if (systemFor != rel) { systemText = persona + "\n\n" + ChatPrompt.context(lore, npc, you, place, rel); systemFor = rel }
+        if (systemFor != rel) { systemText = persona + "\n\n" + ChatPrompt.context(lore, npc, you, place, rel, compact); systemFor = rel }
         return systemText
     }
 
@@ -104,8 +110,12 @@ class ChatSession(
      * the new words only. [withContext]: once the chat has started (who stands before her is known), the context too, while the player types.
      */
     fun warmUp(engine: DialogueEngine?, withContext: Boolean = false) {
+        useEngine(engine)
         if (engine?.ready == true) engine.warm(engineId, if (withContext) systemPrompt() else personaPrompt(), urgent = true)
     }
+
+    /** How far her persona has been read into [engine], 0 to 1 (1: ready, or no engine): the "Getting ready..." line while a reply is awaited. */
+    fun readiness(engine: DialogueEngine?): Float = engine?.warmProgress(engineId) ?: 1f
 
     /** The persona's id in the runtime for this chat ([ChatPrompt.CHAT_PREFIX] + her id), to be given up when the chat ends. */
     val engineId: String get() = ChatPrompt.CHAT_PREFIX + npc.id
@@ -128,6 +138,7 @@ class ChatSession(
         if (typing) return null
         val said = text?.trim()?.takeIf { it.isNotEmpty() }
         if (engine == null || !engine.ready) { quiet = true; return null }
+        useEngine(engine)
         acceptedTail = null
         typing = true; quiet = false; partial = ""; typingSince = System.currentTimeMillis()
         if (said != null) synchronized(lines) { lines += Line(true, said) }
@@ -153,12 +164,14 @@ class ChatSession(
         var note: String? = null
         val system = systemPrompt()
         repeat(2) { attempt ->
-            val turn = ChatPrompt.Turn(npc, you, place, band, steers.hints(npc.id, ChatCharacter.ID), said, desire, length, kink, note, dirty, relationship, exchanges)
-            val user = (lore.kit?.turnNotes(npc, emptyList(), said.orEmpty())?.let { "$it\n" } ?: "") + ChatPrompt.tail(lore, turn)
+            val turn = ChatPrompt.Turn(npc, you, place, band, steers.hints(npc.id, ChatCharacter.ID), said, desire, length, kink, note, dirty, relationship, exchanges, compact)
+            val user = (lore.kit?.turnNotes(npc, emptyList(), said.orEmpty(), compact = compact)?.let { "$it\n" } ?: "") + ChatPrompt.tail(lore, turn)
             // a wrong word is seen while the reply is still being written: it is stopped there (nothing of it is shown) and asked again at once
             var caught: String? = null
             val guard: (String) -> Boolean = { text -> StreamGuard.problem(text).also { if (it != null) caught = it } != null }
-            val req = ChatPrompt.request(system, turns.toList(), user, npc.id, length, { p -> partial = ChatClean.preview(p, npc.name, length) },
+            // the engine hands over the answer piece by piece: the reply so far is what the bubble shows (word by word, as it is written)
+            val written = StringBuilder()
+            val req = ChatPrompt.request(system, turns.toList(), user, npc.id, length, { p -> written.append(p); partial = ChatClean.preview(StreamGuard.settled(written.toString()), npc.name, length) },
                 if (desire) dirty else DirtyLevel.DEFAULT, guard)
             val raw = engine.complete(req)
             if (raw == null) {
@@ -241,8 +254,10 @@ class ChatSession(
 /** What the chat says while she is writing: honest about the wait (a 12B model on a phone takes seconds to begin). */
 object ChatWait {
     /** The words after her name while a reply is made and no word of it has come yet: "answering" for the first 3 seconds, then how long. */
-    fun thinking(name: String, elapsedMs: Long, dots: Int): String {
+    fun thinking(name: String, elapsedMs: Long, dots: Int, readiness: Float = 1f): String {
         val s = (elapsedMs / 1000).coerceAtLeast(0)
+        // her persona is still being read into the model: say so, with how far it is, rather than leave a silent wait
+        if (readiness < 1f) return "Getting ready... ${(readiness.coerceIn(0f, 1f) * 100).toInt()}%"
         return if (s < 3) "$name is answering" + ".".repeat(dots.coerceIn(1, 3)) else "$name is thinking" + ".".repeat(dots.coerceIn(1, 3)) + " $s s"
     }
 
