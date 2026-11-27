@@ -43,6 +43,7 @@ add_library(wcengine SHARED
     engine/softbody.cpp
     engine/terrain.cpp
     engine/tissue.cpp
+    engine/tissuedraw.cpp
     engine/wmo.cpp)
 
 target_compile_options(wcengine PRIVATE -O2 -Wall -Wno-unused-parameter)

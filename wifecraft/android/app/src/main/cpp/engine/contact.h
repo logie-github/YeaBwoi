@@ -76,6 +76,7 @@ struct ContactIn {
 
 // One contact as the shader takes it (world space).
 struct ContactOut {
+    uint32_t key = 0;          // the input's (Slot's) key: the same contact from frame to frame
     V3 pos, normal;
     float radius = 0.05f;
     float depth = 0;           // the dent now (metres, spring-smoothed; negative never)
