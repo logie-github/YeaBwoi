@@ -194,6 +194,7 @@ void ContactSolver::step(float dtSeconds) {
         if (cap == 0) s.fade = 0;
         if (s.fade < 0.01f || outN_ >= kContactMax) continue;
         ContactOut o;
+        o.key = s.key;
         o.pos = s.pos; o.normal = s.normal; o.radius = s.radius;
         o.depth = s.x * s.fade;
         o.softness = s.soft;

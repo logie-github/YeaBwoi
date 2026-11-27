@@ -48,6 +48,7 @@ uint16_t tissueHalf(float f) {
 
 void TissueRegion::build(const TissueSpec& s) {
     spec_ = s;
+    haveFrame_ = false;
     const float sp = std::max(s.spacing, 0.008f);
     nu_ = std::clamp(int(std::ceil(2 * s.halfU / sp)) + 1, 5, 14);
     nv_ = std::clamp(int(std::ceil(2 * s.halfV / sp)) + 1, 5, 14);
@@ -189,12 +190,14 @@ void TissueRegion::gather() {
         }
         H.axisN = nw; H.push = in.push;
         // the kernel's nodes
-        const float rho = std::max(in.radius, 1.25f * std::max(du_, dv_));
+        const float rho = std::max(in.radius, 1.6f * std::max(du_, dv_));
         H.count = 0;
         float sum = 0;
         for (int n = 0; n < int(X_.size()) && H.count < 48; ++n) {
             if (w_[size_t(n)] <= 0) continue;
-            const float r2 = (X_[size_t(n)] - M).dot(X_[size_t(n)] - M) / (rho * rho);
+            const V3 dn = X_[size_t(n)] - M;
+            const float rz = std::max(rho, 1.15f * dw_);       // (the layers across the depth are far apart)
+            const float r2 = (dn.x * dn.x + dn.y * dn.y) / (rho * rho) + dn.z * dn.z / (rz * rz);
             if (r2 >= 1) continue;
             const float k = (1 - r2) * (1 - r2);
             H.n[H.count] = n; H.wgt[H.count] = k; sum += k; ++H.count;
@@ -394,14 +397,17 @@ void TissueRegion::exportField(float* out) const {
     sacc.assign(N, 0.0f); scnt.assign(N, 0.0f);
     for (const Tet& T : tet_) {
         const V3 e1 = x_[size_t(T.n[1])] - x_[size_t(T.n[0])], e2 = x_[size_t(T.n[2])] - x_[size_t(T.n[0])], e3 = x_[size_t(T.n[3])] - x_[size_t(T.n[0])];
-        const float J = det3(e1, e2, e3) / (6.0f * T.V0) - 1.0f;
+        // the skin's own stretch: how far the cell's x and y edges have drawn apart (positive) or together (negative) in the frame's plane
+        const V3 s1 = e1, s2 = e2, s3 = e3;
+        V3 f0 = s1 * T.B[0] + s2 * T.B[1] + s3 * T.B[2], f1 = s1 * T.B[3] + s2 * T.B[4] + s3 * T.B[5];
+        const float J = f0.dot(u1_) + f1.dot(v1_) - 2.0f;
         for (int c = 0; c < 4; ++c) { sacc[size_t(T.n[c])] += J; scnt[size_t(T.n[c])] += 1.0f; }
     }
     for (size_t n = 0; n < N; ++n) {
         V3 d = w_[n] > 0 ? x_[n] - anchor(int(n)) : V3();
         if (!fin(d)) d = V3();
         out[n * 4] = d.x; out[n * 4 + 1] = d.y; out[n * 4 + 2] = d.z;
-        out[n * 4 + 3] = std::clamp(scnt[n] > 0 ? sacc[n] / scnt[n] : 0.0f, -0.5f, 0.5f);
+        out[n * 4 + 3] = std::clamp(scnt[n] > 0 ? sacc[n] / scnt[n] : 0.0f, -1.0f, 1.0f);
     }
 }
 

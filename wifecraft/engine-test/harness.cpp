@@ -1169,6 +1169,34 @@ int main(int argc, char** argv) {
             int level = 2, load = 0; float soft = 1; ss >> level >> soft; ss >> load;
             scene.setFleshContact(level, soft);
             scene.setContactLoad(load);
+        } else if (cmd == "tissue") {
+            // tissue LEVEL JIGGLE: Options' Soft tissue (Scene::setSoftTissue: 0 off, 1 low, 2 high; jiggle 0..2)
+            int level = 2; float jig = 1; ss >> level >> jig;
+            scene.setSoftTissue(level, jig);
+        } else if (cmd == "tinfo") {
+            int name; ss >> name;
+            if (actors.count(name))
+                if (const TissueDraw* t = scene.tissueOf(actors[name])) {
+                    std::printf("tissue %d: %d regions in the field, %d handles;", name, t->usedN, t->handles);
+                    for (int r = 0; r < kTissueRegions; ++r) if (t->on[r]) std::printf(" [%d @%.3f,%.3f,%.3f u%.2f,%.2f,%.2f w%.2f,%.2f,%.2f: %d nodes %d free, max %.1f mm%s]", r, t->reg[r].frameOrigin().x, t->reg[r].frameOrigin().y, t->reg[r].frameOrigin().z, t->reg[r].frameU().x, t->reg[r].frameU().y, t->reg[r].frameU().z, t->reg[r].frameW().x, t->reg[r].frameW().y, t->reg[r].frameW().z, t->reg[r].count(), t->reg[r].freeCount(), t->reg[r].maxDisplacement() * 1000, t->reg[r].asleep() ? " asleep" : "");
+                    std::printf("\n");
+                }
+        } else if (cmd == "tmanual") {
+            // tmanual N KEY X Y Z NX NY NZ RADIUS PUSH GRIP PX PY PZ: a hand on person N's tissue (world), fed every frame; tmreset N clears them
+            int name; unsigned key; float x, y, z, nx, ny, nz, r, d, g, px, py, pz;
+            ss >> name >> key >> x >> y >> z >> nx >> ny >> nz >> r >> d >> g >> px >> py >> pz;
+            if (actors.count(name)) {
+                std::vector<TissueHandle> list;
+                if (const TissueDraw* t = scene.tissueOf(actors[name])) list = t->manual;
+                TissueHandle h; h.key = key; h.rest = V3(x, y, z); h.normal = V3(nx, ny, nz).normalized(); h.radius = r; h.push = d; h.grip = g; h.pull = V3(px, py, pz);
+                bool found = false;
+                for (auto& q : list) if (q.key == key) { q = h; found = true; }
+                if (!found) list.push_back(h);
+                scene.setTissueManual(actors[name], list);
+            }
+        } else if (cmd == "tmreset") {
+            int name; ss >> name;
+            if (actors.count(name)) scene.setTissueManual(actors[name], {});
         } else if (cmd == "finger") {
             // finger SIZE CHARSIZE: the player's finger size (Finger size slider as a multiple, 1 default) and Character size (1.25 is "Match the room"):
             // the touches' pad radius is 1.1 cm * SIZE * CHARSIZE / 0.9144 world units, whatever body they touch
