@@ -1641,7 +1641,7 @@ fun LiveSceneScreen(
     }
     LaunchedEffect(view, revealed, cast.size) { if (revealed) for (c in cast) stockingBook.of(c.id)?.let { view.setStockings(actorKey(c.id), it.toFloats()); stockCtl.pushLook(c.id, false) } }
     val interactGear = LocalGearControl.current
-    val interactPoses = remember(chatSolos) { PoseLibrary.available(chatSolos).map { it.first } }
+    val interactPoses = remember(chatSolos) { PoseLibrary.available(chatSolos.keys.toList()).map { it.first } }
     fun interactPersona(id: String): InteractPersona {
         val d = cast.firstOrNull { it.id == id }?.let { com.logie.wifecraft.dialogue.Profiles.of(it).disposition } ?: com.logie.wifecraft.dialogue.Disposition()
         return InteractPersona(d, 0f, 0.3f, dialogue.dirty)
@@ -1689,7 +1689,7 @@ fun LiveSceneScreen(
                 val turn = PoseLibrary.turnOf(action.pose)
                 if (turn != null) { live.interactTurnBy(id, turn); interactCamera.yaw = InteractZoom.wrap(interactCamera.yaw - turn) }
                 else {
-                    val clip = PoseLibrary.clipsFor(action.pose, chatSolos).firstOrNull()
+                    val clip = PoseLibrary.clipsFor(action.pose, chatSolos.keys.toList()).firstOrNull()
                     if (clip == null) interactSay("No ${action.pose.label.lowercase()} animation yet: import one in the Animation library.", true)
                     else {
                         val choice = choices.firstOrNull { it.id == clip.key && it.participantCount == 1 }
