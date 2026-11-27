@@ -73,6 +73,8 @@ data class GraphicsSettings(
     val fleshContact: Int = 2,
     /** The skin's softness for Flesh contact, a percentage (0..200, 100: as the body's regions are: breasts, rear, thighs and belly soft; hips, ribs and shins stiff). */
     val fleshSoftness: Int = 100,
+    /** Finger size, a percentage (50..200, 100: a fingertip 2.2 cm across): the size of the dent a touch makes and of a pinch's ridge ([FingerSize]; the player's finger, not the body's). */
+    val fingerSize: Int = 100,
 ) {
     /** Within limits (a hand-edited or old file can't break the renderer). */
     fun clamped(): GraphicsSettings = copy(
@@ -90,15 +92,16 @@ data class GraphicsSettings(
         sharpen = sharpen.coerceIn(0, 100), eyes = eyes.coerceIn(0, 100), thinSkin = thinSkin.coerceIn(0, 100),
         sheenMax = sheenMax.coerceIn(0, 100),
         fleshContact = fleshContact.coerceIn(0, 2), fleshSoftness = fleshSoftness.coerceIn(0, 200),
+        fingerSize = FingerSize.clamp(fingerSize),
     )
 
     /** The effects alone (the preset, the target, the switches about the page itself left out): what a preset sets. */
-    fun effects(): GraphicsSettings = copy(preset = GraphicsPreset.STANDARD, targetFps = 60, adaptive = true, overlay = false, sharpInBuild = true, focusFollows = true)
+    fun effects(): GraphicsSettings = copy(preset = GraphicsPreset.STANDARD, targetFps = 60, adaptive = true, overlay = false, sharpInBuild = true, focusFollows = true, fingerSize = FingerSize.DEFAULT)
 
     /** A preset's effects, keeping this page's target, Adaptive quality and overlay. CUSTOM keeps the effects as they are. */
     fun withPreset(p: GraphicsPreset): GraphicsSettings =
         if (p == GraphicsPreset.CUSTOM) copy(preset = p)
-        else presetEffects(p).copy(preset = p, targetFps = targetFps, adaptive = adaptive, overlay = overlay, focusFollows = focusFollows)
+        else presetEffects(p).copy(preset = p, targetFps = targetFps, adaptive = adaptive, overlay = overlay, focusFollows = focusFollows, fingerSize = fingerSize)
 
     /** After a switch or slider moved: the preset whose effects these are, else CUSTOM. */
     fun withMatchingPreset(): GraphicsSettings {
@@ -162,7 +165,7 @@ data class GraphicsSettings(
         .put("shafts", shafts).put("haze", haze).put("vignette", vignette).put("grain", grain).put("chroma", chroma)
         .put("sharpen", sharpen).put("eyes", eyes).put("thinSkin", thinSkin).put("sheenFollows", sheenFollows)
         .put("sheenMax", sheenMax).put("sharpInBuild", sharpInBuild).put("focusFollows", focusFollows)
-        .put("fleshContact", fleshContact).put("fleshSoftness", fleshSoftness)
+        .put("fleshContact", fleshContact).put("fleshSoftness", fleshSoftness).put("fingerSize", fingerSize)
 
     companion object {
         /** engine/graphics_settings.h's kCount. */
@@ -243,6 +246,7 @@ data class GraphicsSettings(
                     focusFollows = o.optBoolean("focusFollows", d.focusFollows),
                     fleshContact = o.optInt("fleshContact", d.fleshContact),
                     fleshSoftness = o.optInt("fleshSoftness", d.fleshSoftness),
+                    fingerSize = o.optInt("fingerSize", d.fingerSize),
                 ).clamped()
             } catch (e: Exception) { DEFAULT }
         }

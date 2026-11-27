@@ -11,8 +11,8 @@ import kotlin.random.Random
 // decided by her willingness (how tender the part is, her nature, how well she knows the player, her mood). What she does about it
 // (a blush, a giggle, a turn of the head, a step back...) is chosen by the part, the verdict, her nature and a seed.
 
-/** How a touch is made: a tap, a stroke along her, or a pull at what she wears (the stockings). */
-enum class TouchKind { TAP, STROKE, PULL }
+/** How a touch is made: a tap, a stroke along her, a pull at what she wears (the stockings), or a pinch of her skin between two fingers. */
+enum class TouchKind { TAP, STROKE, PULL, PINCH }
 
 /** What she lets happen: [ALLOW], [HESITATE] (not sure: she shows it and the touch goes no further) or [DECLINE] (in character). */
 enum class Verdict { ALLOW, HESITATE, DECLINE }
@@ -60,6 +60,8 @@ object TouchConsent {
         r -= p.mood.coerceIn(-1f, 1f) * 0.1f
         // a touch that goes along her body is less than one that stays at a private part
         if (kind == TouchKind.STROKE) r += 0.04f
+        // a pinch is more than a touch in the same place
+        if (kind == TouchKind.PINCH) r += 0.06f
         return r.coerceIn(0f, 1f)
     }
 
@@ -139,7 +141,7 @@ object InteractReactions {
     val DECLINING = listOf(ReactionKind.SWAT, ReactionKind.STEP_BACK, ReactionKind.LOOK_AWAY)
 
     /** The weight her nature gives [k]: the bold lean in, the shy blush and look away, the tender smile. */
-    private fun natured(k: ReactionKind, p: InteractPersona): Float {
+    internal fun natured(k: ReactionKind, p: InteractPersona): Float {
         val d = p.disposition
         return when (k) {
             ReactionKind.LEAN_IN -> 1f + d.boldness * 1.2f - d.caution
@@ -178,6 +180,7 @@ object InteractReactions {
             verdict == Verdict.DECLINE -> HapticPattern(longArrayOf(30, 60, 30), intArrayOf(200, 0, 200))
             verdict == Verdict.HESITATE -> HapticPattern(longArrayOf(25), intArrayOf(90))
             kind == TouchKind.PULL -> HapticPattern(longArrayOf(12, 18, 12), intArrayOf(amp, 0, amp))
+            kind == TouchKind.PINCH -> PinchHaptics.start(region)
             kind == TouchKind.STROKE -> HapticPattern(longArrayOf(10), intArrayOf((amp * 0.6f).toInt().coerceAtLeast(1)))
             else -> HapticPattern(longArrayOf(18), intArrayOf(amp))
         }
@@ -190,7 +193,7 @@ object InteractReactions {
     fun choose(hit: TouchHit, kind: TouchKind, verdict: Verdict, persona: InteractPersona, rnd: Random, recent: List<ReactionKind> = emptyList()): Reaction {
         val region = hit.region
         val k = when (verdict) {
-            Verdict.ALLOW -> pick(allowedKinds(region), persona, rnd, recent)
+            Verdict.ALLOW -> pick(if (kind == TouchKind.PINCH) SkinPinchReactions.allowedKinds(region) else allowedKinds(region), persona, rnd, recent)
             Verdict.HESITATE -> pick(HESITATING.map { it to 1f }, persona, rnd, recent)
             Verdict.DECLINE -> pick(DECLINING.map { it to 1f }, persona, rnd, recent)
         }
@@ -211,7 +214,7 @@ object InteractReactions {
             Verdict.ALLOW -> 0.25f + persona.disposition.desireTalk * 0.35f + (if (TouchConsent.sensitivity(region) > 0.4f) 0.2f else 0f)
             else -> 1f
         }
-        val line = if (rnd.nextFloat() < speakChance) InteractLines.line(verdict, k, hit, persona, rnd) else null
+        val line = if (rnd.nextFloat() < speakChance) (if (kind == TouchKind.PINCH && verdict == Verdict.ALLOW) SkinPinchReactions.line(persona, rnd) else InteractLines.line(verdict, k, hit, persona, rnd)) else null
         return Reaction(k, verdict, expressionOf(k, persona), turn, step, line, haptic(region, verdict, kind), seconds = if (verdict == Verdict.ALLOW) 1.8f else 2.4f)
     }
 }

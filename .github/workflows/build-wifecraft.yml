@@ -133,7 +133,7 @@ jobs:
 
           Choose a preset scene, select or create NPCs, and pick the interactable furniture. NPCs act on their own until you select one and give them a command. Partner animations ask who joins, show a Ready to play preview with A and B roles, and can switch positions before and during play.
 
-          Create NPCs in a Create-a-Sim style creator: race and sex, face, hair, makeup, accessories, personality, and a full-body sculpt (22 sliders, a Bust & Butt designer that updates live on the GPU, hold-and-drag on the body). Each NPC has one Gear switch: on wears the class's starting outfit, off is nude. There are two bodies: the Liard HD figure wherever a set is imported for the race and sex (a switch in Options and a per-character "Use game model instead"), else the game's own model; the Eve body is gone.
+          Create NPCs in a Create-a-Sim style creator: race and sex, face, hair, makeup, accessories, personality, and a full-body sculpt (22 sliders, a Bust & Butt designer that updates live on the GPU, hold-and-drag on the body). Each NPC has one Gear switch: on wears the class's starting outfit, off is nude. There are two bodies: the Liard HD figure wherever a set is imported for the race and sex (a switch in Options and a per-character switch to use the game model instead), else the game's own model; the Eve body is gone.
 
           Cinematic mode plays a random sequence of compatible animations on the bed, floor, couch, chair or table, with a new camera angle at every change, a 4:3 frame, per-area lighting taken from each zone's own fog and ambient colours, and an auto-play panel. Immersive mode hides the interface.
 

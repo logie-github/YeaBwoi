@@ -14,15 +14,19 @@ constexpr float kGarmentLayer = 0.85f;   // a garment on the skin follows 85% of
 
 struct ContactDraw {
     ContactSolver solver;
-    // a touch (Interact: pushTouch): held until released or kTouchHoldMs has passed since the last push
-    struct Touch { bool on = false; ContactIn in; uint32_t lastMs = 0, holdMs = 1500; };
+    // the fingers (Interact: pushTouch, one per pointer id 0..kTouchPointers-1): each held until released or its holdMs has passed since
+    // its last push. Two close fingers on soft skin that close in on each other make a pinch (contact.h's PinchTracker).
+    struct Touch { bool on = false; ContactIn in; uint32_t lastMs = 0, holdMs = 1500; float pad = 0.012f, pressure = 0; };
     static constexpr uint32_t kTouchHoldMs = 1500;   // (the default hold: a tap asks for less)
-    Touch touch;
+    Touch touches[kTouchPointers];
+    PinchTracker pinches;
+    int pinching = 0;                    // the last frame's pinches (stats)
+    bool anyTouch() const { for (const Touch& t : touches) if (t.on) return true; return false; }
     std::vector<ContactIn> manual;       // fed every frame (the desktop check's presses; Scene::setContactManual)
     int derived = 0;                     // the last frame's derived contacts (stats)
     float radiusScale = 1;               // the dent's radius times this: a coarse mesh (the game's own body) needs a broader dent than its triangles can show
 
-    bool active() const { return solver.count() > 0; }
+    bool active() const { return solver.count() > 0 || solver.pinchCount() > 0; }
     void uniforms(unsigned program) const;                  // GL thread: the block for the contacts now (none: uCtN 0)
     static void off(unsigned program);
     static void layer(unsigned program, float scale, float shade);
