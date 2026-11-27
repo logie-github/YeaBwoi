@@ -126,30 +126,30 @@ A named character (Tess, Sally...) follows the same rule by the race and sex of 
 
 **Old saves and settings.** An NPC saved with an Eve block (`"eve":{...}`) loads as before without it (the block is ignored and not written back), then follows the table above, so a woman who wore Eve is the Liard figure if her race has a set and the game's model if not. The settings key `eveDefault` is removed. At the first launch of a build without Eve (`bodyparts/LegacyEve.cleanup`, once, `Settings.legacyEveCleaned`) the phone deletes what it holds of it, with a log line (`Eve body scrapped: deleted ...`) for each: `files/bodyparts/eve`, `files/bodyparts/eve.new`, `files/eve`, the import's cache folder and the pictures drawn with it (`files/thumbs/*_e<8 hex>*.png`); a folder that can't be deleted is tried again at the next launch. Nothing else is touched (the HD sets, the male parts, the saved looks). The body-part (male parts) loader, the Sims 4 animation importer, the Sims object loader and the DBPF reader stay: other features use them.
 
-**Coverage today** (a Liard set = `tools/hd/recipes/*.json` converted by `tools/hd/whd_convert.py` from Liard's Art's models; the sets themselves are never committed and are imported on the phone, so "set" below means the recipe exists and the set has been made on the desktop; **checked** = `engine-test/hdbody_test` ran on it against the game's model; nothing has run on a phone):
+**Coverage today** (a Liard set is made on a computer by `tools/hd/whd_convert.py` from a recipe in `tools/hd/recipes/*.json` and Liard's Art's model, then imported on the phone; the sets and the models are never committed. **checked** = `engine-test/hdbody_test` ran on the set against the game's model for that race and sex on the desktop (the read and write-back, every weight on a bone the model has, the limbs within 0.03 degrees of the model's, the neck and pelvis within a few centimetres, the edge stretch in seven poses); nothing has run on a phone):
 
 | Race | Woman | Man |
 | --- | --- | --- |
 | Human | Liard, checked | Liard, checked |
 | Night Elf | Liard, checked | Liard, checked |
-| Blood Elf | Liard (made, not yet checked) | Liard, checked |
-| Void Elf | Liard (the Blood Elf woman's body, race 29; made, not yet checked) | game model |
+| Blood Elf | Liard, checked | Liard, checked |
+| Void Elf | Liard, checked (the Blood Elf woman's body, race 29) | game model |
 | Nightborne | game model | Liard, checked (the night elf man's body, race 27) |
-| Draenei | Liard (made, not yet checked) | game model |
-| Lightforged Draenei | Liard (the Draenei woman's body, race 30; made, not yet checked) | game model |
-| Orc | Liard (made, not yet checked) | game model |
-| Mag'har Orc | Liard (the Orc woman's body, race 36; made, not yet checked) | game model |
-| Troll | Liard (made, not yet checked) | game model |
-| Zandalari Troll | Liard (the Troll woman's body, race 31; made, not yet checked) | game model |
-| Undead | Liard (made, not yet checked) | game model |
-| Gnome | Liard (made, not yet checked) | game model |
-| Goblin | Liard (made, not yet checked) | game model |
-| Pandaren (races 24, 25 and 26 share it) | Liard (made for race 24; not yet checked) | game model |
+| Draenei | Liard, checked | game model |
+| Lightforged Draenei | Liard, checked (the Draenei woman's body, race 30) | game model |
+| Orc | Liard, checked | game model |
+| Mag'har Orc | Liard, checked (the Orc woman's body, race 36) | game model |
+| Troll | Liard, checked | game model |
+| Zandalari Troll | Liard, checked (the Troll woman's body, race 31) | game model |
+| Undead | Liard, checked | game model |
+| Gnome | Liard, checked | game model |
+| Goblin | game model: the first conversion has no joints and the import refuses it ("convert the model again"); the source files are needed again | game model |
+| Pandaren (races 24, 25 and 26 share it) | Liard, checked (no hair set; the model has no pelvis key bone: `M2Model::findWowBone("Pelvis")` takes its Waist) | game model |
 | Dwarf, Dark Iron Dwarf, Tauren, Highmountain Tauren, Worgen, Kul Tiran, Vulpera, Mechagnome | game model | game model |
 
 Options → Mods → HD Models lists the sets imported and says which races and sexes are drawn as Liard (`Bodies.coverageLine`); every other race and sex is the game's model. More sets come as Liard's Art makes the models and a recipe is written for each; none needs any change in the app.
 
-**Tested on the JVM** (`BodiesTest`): every race of the app's list at both sexes resolves to Liard exactly where a set is imported and to the game's model everywhere else (the reason is given for the game's model only); no third body whatever the Gear switch, class or sex; the HD switch as the override (on by default; off forces the game's model, no set or no context the same); the per-character choice saved and read back and its picture mark; an old save with an Eve block loads, is written back without it and resolves like any other woman; the one-time cleanup (deletes exactly the Eve folders and pictures, logs each, does nothing the second time, touches nothing else); the coverage line. `CasTest` (every slider on both bodies), `GearTest` (the class outfits, the Liard figure with Gear on and off, the men's parts), `HdModelsTest` (the decision table). On the desktop `engine-test/sculpt_test` (the sculpt's maths on a made-up body the way the Liard figure takes it, `gameBody` off, and the game's way, the live morph against the CPU sculpt). **Not run:** nothing of the Android side (Compose, the Options page, the cleanup at launch, the JNI calls) has run on a phone; the sculpt on a real Liard figure was not run (`hdbody_test` needs the game's model files and a set).
+**Tested on the JVM** (`BodiesTest`): every race of the app's list at both sexes resolves to Liard exactly where a set is imported and to the game's model everywhere else (the reason is given for the game's model only); no third body whatever the Gear switch, class or sex; the HD switch as the override (on by default; off forces the game's model, no set or no context the same); the per-character choice saved and read back and its picture mark; an old save with an Eve block loads, is written back without it and resolves like any other woman; the one-time cleanup (deletes exactly the Eve folders and pictures, logs each, does nothing the second time, touches nothing else); the coverage line. the import refusing a set with no neck and pelvis joints; the Pandaren's three races on one set; `CasTest` (every slider on both bodies), `GearTest` (the class outfits, the Liard figure with Gear on and off, the men's parts), `HdModelsTest` (the decision table). On the desktop `engine-test/sculpt_test` (the sculpt's maths on a made-up body the way the Liard figure takes it, `gameBody` off, and the game's way, the live morph against the CPU sculpt). **Not run:** nothing of the Android side (Compose, the Options page, the cleanup at launch, the JNI calls) has run on a phone; the sculpt on a real Liard figure was not run (`hdbody_test` needs the game's model files and a set).
 
 ## Sindragosa (a creature NPC) and HD creature textures
 

@@ -42,6 +42,17 @@ class BodiesTest {
         }
     }
 
+    @Test fun aSetWithoutItsNeckAndPelvisJointsIsNotTaken() {
+        // (the Goblin woman's first conversion had none: the fit would refuse it, so it would always have been the game's model)
+        val d = tmp()
+        val good = hd.whd(9, 1)
+        val bad = String(good, Charsets.ISO_8859_1).replace("\"Neck1\"", "\"Nexk1\"").toByteArray(Charsets.ISO_8859_1)
+        val f = File(d, "9_1.whd").apply { writeBytes(bad) }
+        val ex = kotlin.runCatching { HdSetInfo.read(f) }.exceptionOrNull()
+        assertTrue(ex is BodyPartFormatException && "neck and pelvis" in ex.message.orEmpty(), ex?.message)
+        assertEquals(9, HdSetInfo.read(File(d, "ok.whd").apply { writeBytes(good) }).race)
+    }
+
     @Test fun aPandarenSetServesTheThreePandarenRaces() {
         val c = ctx(races = listOf(24 to 1))
         for (r in listOf(24, 25, 26)) {

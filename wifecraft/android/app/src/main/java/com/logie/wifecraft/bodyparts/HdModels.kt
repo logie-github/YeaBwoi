@@ -139,6 +139,11 @@ class HdSetInfo(
                 for (k in listOf("vertexBlob", "indexBlob")) if (m.optInt(k, -1) !in 0 until blobs) throw BodyPartFormatException("${f.name} is damaged (a mesh without its data).")
             }
             if (!body) throw BodyPartFormatException("${f.name} has no body.")
+            // the fit scales and stands the figure by its neck and pelvis joints (engine/hdbody.cpp fitHd): a set without them could
+            // only ever be drawn as the game's model, so it isn't taken (Bodies would call it Liard)
+            val joints = o.optJSONObject("joints")
+            if (joints == null || !joints.has("Neck1") || !joints.has("Pelvis"))
+                throw BodyPartFormatException("${f.name} has no neck and pelvis joints: convert the model again.")
             fun labels(key: String): List<String> = o.optJSONArray(key)?.let { a -> List(a.length()) { a.optJSONObject(it)?.optString("label").orEmpty() } }.orEmpty()
             val outfits = o.optJSONArray("outfits")?.let { a ->
                 List(a.length()) { i ->

@@ -644,6 +644,8 @@ int M2Model::findWowBone(const std::string& name) const {
             int p = findWowBone(r.childOf);
             if (p >= 0) for (size_t i = 0; i < bones.size(); ++i) if (bones[i].parent == p) return int(i);
         }
+        // a skeleton of the Mists' time (the Pandaren's) has no pelvis key: its Waist, the bone under the Root, is the pelvis
+        if (name == "Pelvis") return findWowBone("Waist");
         return -1;
     }
     return -1;
