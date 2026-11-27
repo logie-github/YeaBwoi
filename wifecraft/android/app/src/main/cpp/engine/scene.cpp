@@ -56,9 +56,29 @@ uniform highp sampler2D uMorphIdx;
 uniform highp sampler2D uMorphData;
 uniform vec4 uMorphW[16];
 uniform vec4 uMorphB[16];
+// Flesh contact (contact.h; ContactDraw::uniforms): uCtN contacts (0: off), each in world space: uCtA position and radius, uCtB
+// outward normal and depth, uCtC bulge, squeeze, flush, blanch. The skin is pressed in along the normal (falloff (1-q^2)^2), a ring
+// of the dent's volume rises round it (bulge) and the skin round it draws toward it (squeeze); the pressure shading is the fragment shader's
+// (the same block; uCtShade: 0 for a garment, which only follows the skin at uCtLayer of the depth). The fragment shader leans the normal by the dent's slope.
+uniform int uCtN;
+uniform vec4 uCtA[8];
+uniform vec4 uCtB[8];
+uniform vec4 uCtC[8];
+uniform float uCtLayer;
+uniform float uCtShade;
+// The pinch (contact.h's PinchOut; two fingertips closing in on one skin and lifting a fold between them): uPnA the first fingertip and the
+// fold's half-width, uPnB the second and the fold's height, uPnC the skin's normal and each fingertip's own dent, uPnD squeeze, flush,
+// blanch, taut, uPnE lean toward gravity, ripple, pad radius.
+uniform int uPnN;
+uniform vec4 uPnA[2];
+uniform vec4 uPnB[2];
+uniform vec4 uPnC[2];
+uniform vec4 uPnD[2];
+uniform vec4 uPnE[2];
 out vec3 vWorld;
 out vec3 vNormal;
 out vec2 vUv;
+float ctStep(float a, float b, float x) { float t = clamp((x - a) / (b - a), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }
 mat4 bone(float i) {
     int b = int(i + 0.5);
     return mat4(texelFetch(uBones, ivec2(0, b), 0), texelFetch(uBones, ivec2(1, b), 0),
@@ -121,8 +141,76 @@ void main() {
         sp.xyz += off * uSoftGain;
     }
     vec4 p = uWorld * sp;
+    vec3 nrm = mat3(uWorld) * (mat3(skin) * aNormal);
+    if (uCtN > 0 && uCtLayer > 0.0 && total > 0.0) {
+        vec3 nn = normalize(nrm);
+        vec3 off = vec3(0.0);
+        for (int i = 0; i < 8; ++i) {
+            if (i >= uCtN) break;
+            vec3 d = p.xyz - uCtA[i].xyz;
+            float R = uCtA[i].w;
+            float r = length(d);
+            float q = r / R;
+            if (q >= 1.6) continue;
+            vec3 cn = uCtB[i].xyz;
+            float depth = uCtB[i].w * uCtLayer;
+            float nd = dot(nn, cn);
+            float facing = ctStep(-0.1, 0.45, nd);
+            float facingRing = ctStep(-0.3, 0.3, nd);
+            float fo = q < 1.0 ? (1.0 - q * q) * (1.0 - q * q) : 0.0;
+            float ring = ctStep(0.7, 1.0, q) * (1.0 - ctStep(1.0, 1.6, q));
+            float bulge = uCtC[i].x * uCtLayer;
+            vec3 tang = d - cn * dot(d, cn);
+            float prs = clamp(depth / 0.02, 0.0, 1.0);
+            off += cn * (-(depth * fo * facing) + bulge * ring * facingRing) - tang * (uCtC[i].y * prs * fo * facing);
+        }
+        p.xyz += off;
+    }
+    if (uPnN > 0 && uCtLayer > 0.0 && total > 0.0) {
+        vec3 nn = normalize(nrm);
+        vec3 off = vec3(0.0);
+        for (int i = 0; i < 2; ++i) {
+            if (i >= uPnN) break;
+            vec3 pa = uPnA[i].xyz, pb = uPnB[i].xyz, N = uPnC[i].xyz;
+            float pad = max(uPnE[i].z, 1e-5);
+            vec3 ab = pb - pa;
+            ab -= N * dot(ab, N);
+            float lt = length(ab);
+            vec3 u = lt > 1e-7 ? ab / lt : normalize(abs(N.x) < 0.9 ? vec3(1.0, 0.0, 0.0) - N * N.x : vec3(0.0, 1.0, 0.0) - N * N.y);
+            vec3 v = normalize(cross(N, u));
+            float L = max(lt, 0.5 * pad);
+            vec3 mid = 0.5 * (pa + pb);
+            vec3 r = p.xyz - mid;
+            float s = dot(r, u), t = dot(r, v);
+            float w = max(uPnA[i].w, 1e-5);
+            float Re = 3.0 * pad, Rt = w + 2.0 * pad;
+            float e = max(abs(s) - 0.5 * L, 0.0);
+            if ((e >= Re && abs(s) > 0.5 * L) || abs(t) >= Rt) continue;
+            float facing = ctStep(-0.1, 0.45, dot(nn, N));
+            float H = min(max(uPnB[i].w, 0.0), 1.1 * L + 0.3 * pad);
+            float x = abs(s) / (0.5 * L + 1.2 * pad), y = t / (1.3 * w);
+            float k = 1.0 - y * y;
+            float height = (x < 1.0 && abs(y) < 1.0) ? 0.7 * H * pow(1.0 - x * x, 1.4) * k * k : 0.0;
+            float Rf = 0.9 * pad;
+            float qa = length(p.xyz - pa) / Rf, qb = length(p.xyz - pb) / Rf;
+            float fa = qa < 1.0 ? (1.0 - qa * qa) * (1.0 - qa * qa) : 0.0;
+            float fb = qb < 1.0 ? (1.0 - qb * qb) * (1.0 - qb * qb) : 0.0;
+            height -= uPnC[i].w * (fa + fb);
+            height *= uCtLayer;
+            float press = clamp(uPnB[i].w / (2.0 * pad), 0.0, 1.0);
+            float m0 = uPnD[i].x * press * Re;
+            float qe = e / Re;
+            float D = abs(s) <= 0.5 * L ? m0 * abs(s) / (0.5 * L) : m0 * (qe < 1.0 ? (1.0 - qe * qe) * (1.0 - qe * qe) : 0.0);
+            float qt = abs(t) / Rt;
+            float ft2 = qt < 1.0 ? (1.0 - qt * qt) * (1.0 - qt * qt) : 0.0;
+            vec3 g = vec3(0.0, 0.0, -1.0);
+            g -= N * dot(g, N);
+            off += N * (height * facing) - u * ((s >= 0.0 ? 1.0 : -1.0) * D * ft2 * facing * uCtLayer) + g * (max(height, 0.0) * uPnE[i].x * facing);
+        }
+        p.xyz += off;
+    }
     vWorld = p.xyz;
-    vNormal = mat3(uWorld) * (mat3(skin) * aNormal);
+    vNormal = nrm;
     vUv = aUv;
     gl_Position = uViewProj * p;
 }
@@ -135,6 +223,19 @@ in vec3 vNormal;
 in vec2 vUv;
 in vec4 vColor;
 uniform sampler2D uTex;
+// Flesh contact (the vertex shader's block): the pressure's colour is worked out here, per fragment, so a coarse mesh shows it smoothly
+uniform highp int uCtN;   // (highp: the vertex stage's int is, and the two must match)
+uniform vec4 uCtA[8];
+uniform vec4 uCtB[8];
+uniform vec4 uCtC[8];
+uniform float uCtShade;
+uniform float uCtLayer;
+uniform highp int uPnN;
+uniform vec4 uPnA[2];
+uniform vec4 uPnB[2];
+uniform vec4 uPnC[2];
+uniform vec4 uPnD[2];
+uniform vec4 uPnE[2];
 uniform vec4 uColor;
 uniform float uAlphaRef;
 uniform int uUnlit;
@@ -148,6 +249,8 @@ uniform vec3 uEye;
 uniform vec4 uGhost;   // the placement editor's ghost: its colour mixed toward rgb by a (a 0: none)
 uniform vec3 uRimColor;   // cinematic mode's rim light on a person (0: none) and the way toward it
 uniform vec3 uRimDir;
+uniform float uSheen;   // the stockings' Fresnel sheen (0: none) and the side light on them (stockdraw.cpp); 0 everywhere else
+uniform float uSide;
 // Options' Graphics (scene_gfx.cpp): a person's skin (uSkinKind 1) and hair (2) shaded with uSkinFx (wrap, sheen, warm
 // scatter, hair's highlight); 0 everywhere else, and all 0 at Standard: the light as before. uSkinFx2: the eyes' highlights
 // (uSkinKind 3, the eyes' own mesh: texture type 19) and the thin-skin tint. uSkinActor, the person drawn: their sheen
@@ -232,12 +335,137 @@ vec3 skinShade(vec3 albedo, vec3 lit, vec3 n, float d) {
 void main() {
     vec4 c = texture(uTex, vUv) * uColor;
     if (c.a < uAlphaRef) discard;
+    vec3 ctSlope = vec3(0.0);
+    if (uCtN > 0) {
+        // the dent's colour (pale where the blood is pushed out, a flush ring round it that outlives the touch, the pressing body's
+        // occlusion in the middle) and its slope (the shading normal leans as the dent's surface does), per fragment: a mesh of
+        // centimetre triangles shows a smooth dent
+        float blanch = 0.0;
+        float flush = 0.0;
+        vec3 nv = normalize(vNormal);
+        for (int i = 0; i < 8; ++i) {
+            if (i >= uCtN) break;
+            vec3 d = vWorld - uCtA[i].xyz;
+            float R = uCtA[i].w;
+            float r = length(d);
+            float q = r / R;
+            if (q >= 1.6) continue;
+            vec3 cn = uCtB[i].xyz;
+            float nd = dot(nv, cn);
+            float facing = smoothstep(-0.1, 0.45, nd);
+            float facingRing = smoothstep(-0.3, 0.3, nd);
+            float k = clamp(1.0 - q * 1.25 * q * 1.25, 0.0, 1.0);
+            blanch = max(blanch, uCtC[i].w * k * k * facing);
+            flush = max(flush, uCtC[i].z * (1.0 - smoothstep(0.9, 1.5, q)) * (0.35 + 0.65 * smoothstep(0.1, 0.7, q)) * facingRing);
+            float depth = uCtB[i].w * uCtLayer;
+            float bulge = uCtC[i].x * uCtLayer;
+            float dF = q < 1.0 ? -4.0 * q * (1.0 - q * q) : 0.0;
+            float a = smoothstep(0.7, 1.0, q), b = 1.0 - smoothstep(1.0, 1.6, q);
+            float t1 = clamp((q - 0.7) / 0.3, 0.0, 1.0), t2 = clamp((q - 1.0) / 0.6, 0.0, 1.0);
+            float da = (q > 0.7 && q < 1.0) ? 6.0 * t1 * (1.0 - t1) / 0.3 : 0.0;
+            float db = (q > 1.0 && q < 1.6) ? -6.0 * t2 * (1.0 - t2) / 0.6 : 0.0;
+            float dh = -depth * facing * dF + bulge * facingRing * (da * b + a * db);   // d(height along the normal) / dq
+            vec3 tang = d - cn * dot(d, cn);
+            ctSlope += tang * (dh / (max(r, 1e-4) * R));
+        }
+        if (uCtShade > 0.0) {
+            float lum = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+            vec3 pale = mix(c.rgb, vec3(lum) + vec3(0.05, 0.045, 0.045), 0.22);
+            vec3 flushed = c.rgb * vec3(1.05, 0.93, 0.93) + vec3(0.02, 0.0, 0.0);
+            c.rgb = mix(mix(c.rgb, flushed, clamp(flush, 0.0, 1.0) * uCtShade * 0.6), pale, clamp(blanch, 0.0, 1.0) * uCtShade * 0.6);
+            c.rgb *= 1.0 - 0.08 * clamp(blanch, 0.0, 1.0) * uCtShade;
+        }
+    }
+    if (uPnN > 0) {
+        // the pinch, per fragment: the fold's slope (steep flanks catch the light), the paler crest, the flush at the pads, the darker crease at the
+        // foot of each flank, the taut skin's lighter tone and the faint ripples across the pull
+        vec3 nv = normalize(vNormal);
+        float pb = 0.0, pf = 0.0, pt = 0.0, crease = 0.0;
+        for (int i = 0; i < 2; ++i) {
+            if (i >= uPnN) break;
+            vec3 pa = uPnA[i].xyz, pbp = uPnB[i].xyz, N = uPnC[i].xyz;
+            float pad = max(uPnE[i].z, 1e-5);
+            vec3 ab = pbp - pa;
+            ab -= N * dot(ab, N);
+            float lt = length(ab);
+            vec3 u = lt > 1e-7 ? ab / lt : normalize(abs(N.x) < 0.9 ? vec3(1.0, 0.0, 0.0) - N * N.x : vec3(0.0, 1.0, 0.0) - N * N.y);
+            vec3 v = normalize(cross(N, u));
+            float L = max(lt, 0.5 * pad);
+            vec3 mid = 0.5 * (pa + pbp);
+            vec3 r = vWorld - mid;
+            float s = dot(r, u), t = dot(r, v);
+            float w = max(uPnA[i].w, 1e-5);
+            float Re = 3.0 * pad, Rt = w + 2.0 * pad;
+            float e = max(abs(s) - 0.5 * L, 0.0);
+            if ((e >= Re && abs(s) > 0.5 * L) || abs(t) >= Rt) continue;
+            float facing = smoothstep(-0.1, 0.45, dot(nv, N));
+            float H = min(max(uPnB[i].w, 0.0), 1.1 * L + 0.3 * pad) * uCtLayer;
+            float x = abs(s) / (0.5 * L), y = t / w;
+            float k = max(1.0 - y * y, 0.0);
+            float fs = x < 1.0 ? pow(1.0 - x * x, 1.4) : 0.0;
+            float ft = abs(y) < 1.0 ? k * k : 0.0;
+            pb = max(pb, uPnD[i].z * smoothstep(0.30, 0.85, fs) * sqrt(max(k, 0.0)) * facing);
+            float Rp = 0.9 * pad;
+            float qa = length(vWorld - pa) / Rp, qb = length(vWorld - pbp) / Rp;
+            float fa = qa < 1.0 ? (1.0 - qa * qa) * (1.0 - qa * qa) : 0.0;
+            float fbb = qb < 1.0 ? (1.0 - qb * qb) * (1.0 - qb * qb) : 0.0;
+            pf = max(pf, uPnD[i].y * max(fa, fbb) * facing);
+            pt = max(pt, uPnD[i].w * (abs(t) < 1.4 * Rt ? 1.0 - smoothstep(0.0, 1.4 * Rt, abs(t)) : 0.0) * facing);
+            // the slope of the fold (analytic): along s and across t
+            float sg = s >= 0.0 ? 1.0 : -1.0;
+            float dfs = x < 1.0 ? -1.4 * pow(1.0 - x * x, 0.4) * 2.0 * x * sg * 2.0 / L : 0.0;
+            float dft = abs(y) < 1.0 ? -4.0 * y * k / w : 0.0;
+            ctSlope += (u * (H * dfs * ft) + v * (H * fs * dft)) * facing;
+            // the fingertips' own dents
+            float Rf = 0.9 * pad;
+            vec3 da = vWorld - pa, db = vWorld - pbp;
+            float qa2 = length(da) / Rf, qb2 = length(db) / Rf;
+            float fd = uPnC[i].w * uCtLayer;
+            if (qa2 < 1.0) { vec3 ta = da - N * dot(da, N); ctSlope += ta * (fd * facing * 4.0 * qa2 * (1.0 - qa2 * qa2) / (max(length(da), 1e-4) * Rf)); }
+            if (qb2 < 1.0) { vec3 tb = db - N * dot(db, N); ctSlope += tb * (fd * facing * 4.0 * qb2 * (1.0 - qb2 * qb2) / (max(length(db), 1e-4) * Rf)); }
+            // the darker crease at the foot of each flank (AO), where the fold meets the skin
+            float eb = abs(s) - 0.5 * L;
+            float band = smoothstep(-0.5 * pad, 0.0, eb) * (1.0 - smoothstep(0.3 * pad, 1.5 * pad, eb));
+            float across = 1.0 - smoothstep(0.5 * w, w + pad, abs(t));
+            float prog = clamp(uPnB[i].w / (1.2 * pad), 0.0, 1.0);
+            crease = max(crease, band * across * prog * facing);
+            // the creases across the pull, outside the pads: fine ripples, stronger with the tension, radiating a little from the pad ends
+            float lam = 0.6 * pad;
+            float env = smoothstep(0.0, 0.5 * pad, e) * (e < Re ? pow(1.0 - (e / Re) * (e / Re), 2.0) : 0.0) * (1.0 - smoothstep(0.6 * w, Rt, abs(t)));
+            float ph = 6.2831853 * e / lam + 1.6 * t / w;
+            ctSlope += u * (sg * 0.10 * uPnE[i].y * env * cos(ph) * facing);
+            crease = max(crease, 0.18 * uPnE[i].y * env * (0.5 + 0.5 * cos(ph)) * facing);
+        }
+        if (uCtShade > 0.0) {
+            float lum = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+            vec3 pale = mix(c.rgb, vec3(lum) + vec3(0.07, 0.065, 0.065), 0.38);
+            vec3 flushed = c.rgb * vec3(1.09, 0.88, 0.88) + vec3(0.03, 0.0, 0.0);
+            vec3 light = mix(c.rgb, vec3(lum) + vec3(0.04), 0.10) * 1.04;
+            c.rgb = mix(c.rgb, light, clamp(pt, 0.0, 1.0) * uCtShade * 0.7);
+            c.rgb = mix(mix(c.rgb, flushed, clamp(pf, 0.0, 1.0) * uCtShade * 0.75), pale, clamp(pb, 0.0, 1.0) * uCtShade * 0.8);
+            c.rgb *= 1.0 - 0.30 * clamp(crease, 0.0, 1.0) * uCtShade;
+        }
+    }
     vec3 rgb = c.rgb;
+    float lift = 0.0;
     if (uUnlit == 0) {
-        vec3 n = normalize(vNormal);
+        vec3 n = normalize(vNormal - ctSlope);
         float d = max(dot(n, -uSunDir), 0.0);
         rgb *= uAmbient + uSunColor * d;
         if (uSkinKind > 0) rgb = skinShade(c.rgb, rgb, n, d);
+        if (uSheen > 0.0 || uSide > 0.0) {
+            vec3 v = normalize(uEye - vWorld);
+            float nv = clamp(abs(dot(n, v)), 0.0, 1.0);
+            float fres = pow(1.0 - nv, 3.0);
+            float spec = pow(max(dot(n, normalize(-uSunDir + v)), 0.0), 36.0);
+            float sh = (fres * 0.6 + spec * 0.5) * uSheen;
+            rgb += (uSunColor * 0.6 + uAmbient * 0.6 + vec3(0.12)) * sh;
+            // the side light: a warm raking light from the camera's right that shows the weave and its stretch
+            float g = max(dot(n, normalize(cross(vec3(0.0, 0.0, 1.0), v))), 0.0);
+            float sl = (g * 0.35 + (1.0 - nv) * g * 0.55) * uSide;
+            rgb += vec3(1.0, 0.86, 0.7) * sl;
+            lift = sh * 0.7 + sl * 0.6;
+        }
         if (dot(uRimColor, uRimColor) > 0.0) {
             float edge = 1.0 - clamp(dot(n, normalize(uEye - vWorld)), 0.0, 1.0);
             rgb += c.rgb * uRimColor * (edge * edge) * (0.35 + 0.65 * max(dot(n, uRimDir), 0.0));
@@ -246,7 +474,7 @@ void main() {
     float f = clamp((distance(vWorld, uEye) - uFog.x) / max(uFog.y - uFog.x, 1.0), 0.0, 1.0);
     rgb = mix(rgb, uFogColor, f);
     rgb = mix(rgb, uGhost.rgb, uGhost.a);
-    fragColor = vec4(rgb, uOpaque == 1 ? 1.0 : c.a);
+    fragColor = vec4(rgb, uOpaque == 1 ? 1.0 : min(1.0, c.a + lift));
 }
 )";
 
@@ -1572,6 +1800,7 @@ void Scene::drawModel(ModelGl& mg, const M4& world, const std::map<uint32_t, uin
         glUniform1i(loc(p, "uOpaque"), mat.blend == 0 ? 1 : 0);
         glUniform1i(loc(p, "uUnlit"), (mat.flags & 1) ? 1 : 0);
         if (softBodyDraw_) SoftDraw::setGain(p, softGeosetGain(sm.id));
+        if (contactDraw_) ContactDraw::layer(p, sm.id < 100 ? 1.0f : kGarmentLayer, tex.type == 1 ? 1.0f : 0.0f);   // (the skin's dent in full, a garment's at 85%)
         if (blend) { glEnable(GL_BLEND); blendFor(mat.blend); glDepthMask(GL_FALSE); }
         if (mat.flags & 16) glDepthMask(GL_FALSE);
         // A character's tabard flap (geoset group 12: 1202..1204) lies on the hips' own surface at the waist: drawn a little
@@ -1625,17 +1854,21 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     bool soft = a.soft.active();
     if (soft) { glUseProgram(m2Prog_); a.soft.uniforms(m2Prog_, a.soft.bodyGate()); }
     softBodyDraw_ = soft;
+    contactDraw_ = contactLevel_ != kContactOff && a.contact.active();
+    if (contactLevel_ != kContactOff) { glUseProgram(m2Prog_); a.contact.uniforms(m2Prog_); }   // (flesh contact: contactdraw.cpp)
     skinOf(a, w);   // (scene_gfx.cpp: the sheen, the eyes, the thin parts)
     // (a flap hung as cloth is drawn from its simulated points instead of skinned: drawCloth)
     if (a.hd.active) {
         // the HD figure instead of the game's model, its clothing and parts (hdscene.cpp); what it holds still hangs on it
         if (!transparent) drawHd(a, w, bodyTint);   // (with the soft body's uniforms still set)
-        if (transparent) drawStockings(a, w);
+        if (transparent) { if (contactDraw_) ContactDraw::layer(m2Prog_, 0.95f, 0.0f); drawStockings(a, w); }   // (stockings follow the skin: contactdraw.h)
         // an HD body whose own genitals are hidden (setHdGenitalMask): the parts drawn in their place, on the game skeleton
         // the HD figure is fitted to (hdscene.cpp hdCheck fits the HD body again without its own genitals' triangles)
         if (!a.parts.hdGenitalMask.empty()) drawParts(a, w, transparent, nowMs, bodyTint);
         softBodyDraw_ = false;
         if (soft) SoftDraw::off(m2Prog_);
+        if (contactDraw_) ContactDraw::off(m2Prog_);
+        contactDraw_ = false;
         std::fill(drawSkin_, drawSkin_ + 4, 0.0f);
         drawAttached(a, w, nowMs, transparent);
         return;
@@ -1648,7 +1881,7 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     if (cloth && !transparent) drawCloth(a, w, bodyTint);
     softBodyDraw_ = false;
     if (soft) SoftDraw::setGain(m2Prog_, 1.0f);
-    if (transparent) { drawBodyLayer(a, w); drawStockings(a, w); }   // (the skinned models below are the person's too: drawSkin_ still theirs)
+    if (transparent) { drawBodyLayer(a, w); if (contactDraw_) ContactDraw::layer(m2Prog_, 0.95f, 0.0f); drawStockings(a, w); }   // (the skinned models below are the person's too: drawSkin_ still theirs)
     for (size_t i = 0; i < a.skinned.size(); ++i) {
         Skinned& e = a.skinned[i];
         std::map<uint32_t, uint32_t> tex = a.drawTextures;
@@ -1661,6 +1894,8 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     // the body parts with the body's own tint and skin shading (drawSkin_ still the person's)
     drawParts(a, w, transparent, nowMs, bodyTint);
     if (soft) SoftDraw::off(m2Prog_);
+    if (contactDraw_) ContactDraw::off(m2Prog_);
+    contactDraw_ = false;
     std::fill(drawSkin_, drawSkin_ + 4, 0.0f);
     drawAttached(a, w, nowMs, transparent);
 }
@@ -1794,6 +2029,8 @@ void Scene::render(int width, int height, uint32_t nowMs) {
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 4, GLsizei(e.mats.size()), GL_RGBA, GL_FLOAT, e.mats.data());
         }
     }
+
+    stepContacts(clock);   // (flesh contact: derived from the posed bodies, springs advanced; contactdraw.cpp)
 
     litUniforms(wmoProg_, light_, eye_, viewProj);
     drawCity(false);

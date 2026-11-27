@@ -146,3 +146,14 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/stockings_test.cpp" "$engine/stockings.cpp" "$engine/stockfabric.cpp" "$engine/bodypick.cpp" \
     -o "$here/build/stockings_test"
 echo "$here/build/stockings_test"
+# Flesh contact's maths (engine/contact.h: the dent's falloff, the bulge ring's volume, the springs at 60 and 20 fps, the cap and merge, the
+# derivation from proxies, the pick's regions): build/contact_test, exit 0 when all pass. No GL, no game files.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/contact_test.cpp" "$engine/contact.cpp" \
+    -o "$here/build/contact_test"
+echo "$here/build/contact_test"
+# The pinch's maths (engine/contact.h: the profile, its volume, the spring, the tracker's pairing): build/pinch_test, exit 0 when all pass.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/pinch_test.cpp" "$engine/contact.cpp" \
+    -o "$here/build/pinch_test"
+echo "$here/build/pinch_test"

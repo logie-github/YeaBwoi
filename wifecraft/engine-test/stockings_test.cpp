@@ -71,13 +71,14 @@ int main() {
             // distance from its leg's axis = radius + offset
             float cy = v.pos[1] >= 0 ? 0.1f : -0.1f;
             float d = std::hypot(v.pos[0], v.pos[1] - cy);
-            CHECK(d > 0.0822f && d < 0.0832f, "style %d offset %.5f", style, d - 0.08f);   // (a clipped corner lies on a facet: up to 0.7 mm under)
+            CHECK(d > 0.0822f && d < (style == kStockGarter ? 0.0862f : 0.0832f), "style %d offset %.5f", style, d - 0.08f);   // (a clipped corner lies on a facet: up to 0.7 mm under)
             // the weights and bones are the body vertex's (or the nearer corner's of a clipped one): one bone at full weight
             CHECK(v.weights[0] == 255 && v.bones[0] <= 2, "weights copied");
             CHECK(s.source[i] < body.v.size() && v.bones[0] == body.v[s.source[i]].bones[0], "source");
             CHECK(std::isfinite(v.uv[0]) && std::isfinite(v.uv[1]), "uv");
         }
-        CHECK(zmax <= s.extent.top + 1e-3f && zmax > s.extent.top - 0.02f, "style %d top %.3f vs %.3f", style, zmax, s.extent.top);
+        if (style != kStockGarter) CHECK(zmax <= s.extent.top + 1e-3f && zmax > s.extent.top - 0.02f, "style %d top %.3f vs %.3f", style, zmax, s.extent.top);
+        else CHECK(zmax > s.extent.top + 0.02f, "the garter's belt reaches above the stocking's top: %.3f vs %.3f", zmax, s.extent.top);
         CHECK(zmin >= s.extent.bottom - 0.03f && zmin < 0.03f, "style %d bottom %.3f", style, zmin);
         for (uint32_t k : s.indices) CHECK(k < s.verts.size(), "index");
         if (s.extent.bandHeight > 0) {

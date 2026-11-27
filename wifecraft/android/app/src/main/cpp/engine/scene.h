@@ -16,6 +16,7 @@
 #include "boneanim.h"
 #include "bonelayer.h"
 #include "cloth.h"
+#include "contactdraw.h"
 #include "hdbody.h"
 #include "grade.h"
 #include "location.h"
@@ -140,6 +141,23 @@ public:
     uint32_t animClock() const { return animClock_; }
     // Options' Soft body for everyone on stage (softbody.h: kSoftOff .. kSoftStrong); applies from the next frame.
     void setSoftBody(int level);
+    // Options' Flesh contact (contact.h; contactdraw.cpp): `level` kContactOff/Low/High, `softness` 0..2 (1: as the regions say). From the next frame.
+    void setFleshContact(int level, float softness);
+    // The frame-time governor's step (0 as it is, 1 four contacts, 2 off: contactCap).
+    void setContactLoad(int load);
+    // Interact's touch: a finger at the screen point presses her skin with `pressure` 0..1 (the contact follows the finger until
+    // releaseTouch, or `holdMs` after the last push: a tap asks for 250). Returns the body part's region (ContactRegion) hit, -1 a miss.
+    // Multi-touch: `pointer` 0..4 is the finger (each its own contact; two close ones on soft skin pinching are a pinch), `padRadius` the
+    // fingertip pad's radius in world units (<= 0: the default, 1.1 cm; the caller scales it by Finger size and Character size).
+    int pushTouch(int id, int pointer, float sx, float sy, int width, int height, float pressure, int holdMs = 1500, float padRadius = 0);
+    // pointer < 0: every finger on this person.
+    void releaseTouch(int id, int pointer = -1);
+    // Everything an actor's skin was doing forgotten at once (a new scene, the desktop check between shots).
+    void resetContacts(int id);
+    // The desktop check: presses fed every frame to an actor (world space); an empty list clears them.
+    void setContactManual(int id, const std::vector<ContactIn>& list);
+    // What an actor's skin is doing now (the drawn contacts), or null.
+    const ContactDraw* contactOf(int id) const;
     // Whether an actor is a character (a playable race's model, the creator's or an NPC of those races): only a character
     // has a soft body; a creature (a boar, a wolf) never does, whatever its bones and skin look like. Actors start as not.
     void setCharacter(int id, bool character);
@@ -384,7 +402,8 @@ public:
     size_t stockingTriangles(int id) const;
     // The fabric (stockfabric.h): a finger down at the screen point grabs the stocking there (false: nothing of it is under the point), drag
     // moves it (the view plane), release lets go (it springs back). State: tension 0..1, runs torn, dead triangles, grabbed.
-    bool stockGrab(int id, float sx, float sy, int width, int height);
+    bool stockGrab(int id, float sx, float sy, int width, int height, bool dry = false);   // dry: only whether the stocking is there
+    void stockLook(int id, float elasticity, float tearStrain, float sheen, float side);
     void stockDrag(int id, float sx, float sy, int width, int height);
     void stockRelease(int id);
     bool stockUndo(int id);
@@ -640,6 +659,7 @@ private:
         std::vector<uint32_t> wtris;     // the shell's triangles on the fabric's vertices (the same order as shell.indices)
         std::vector<V3> rest;            // the fabric's rest positions
         bool fabricReady = false, pulling = false, moving = false;
+        float sheen = 0, side = 0;       // the Fresnel sheen and the side light (stockLook)
         uint64_t lastMs = 0, aliveSig = 0;
         std::vector<float> posBuf;       // the shell vertices' positions as uploaded
     };
@@ -707,6 +727,7 @@ private:
         int boneAnimRoot = -1;
         std::vector<std::pair<int, float>> breath;   // a held imported pose breathes: these bones, by these shares
         SoftDraw soft;                 // the soft body (softbody.h)
+        ContactDraw contact;           // flesh contact (contact.h, contactdraw.cpp)
         ClothGl cloth;                 // a tabard flap hung as cloth (cloth.h)
         bool character = false;        // setCharacter: the soft body applies (a creature's never does)
         MotionState motion;            // the additive body language (setMotion; motionlayer.h)
@@ -881,6 +902,12 @@ private:
     bool cityLoaded_ = false;
     bool cityShown_ = true;
     int softLevel_ = kSoftNatural;
+    int contactLevel_ = kContactHigh, contactLoad_ = 0;   // Options' Flesh contact, the governor's step
+    float contactSoftness_ = 1.0f;
+    bool contactDraw_ = false;         // drawModel is drawing an actor whose skin has contacts (the uniforms set)
+    uint32_t contactClock_ = 0;
+    bool contactStarted_ = false;
+    void stepContacts(uint32_t clock);  // contactdraw.cpp: derives, steps (once a frame, after the poses; the animation clock's change is its dt)
     bool softBodyDraw_ = false;        // drawModel is drawing an actor's body with its soft body on
     // The person drawModel is drawing (scene_gfx.cpp skinOf, each frame before they are drawn): kLitFs's uSkinActor (their
     // sheen; 1 in w when their thin parts can be found), uEyeC (the eyeballs' centres, world; far away: none), uThinHead

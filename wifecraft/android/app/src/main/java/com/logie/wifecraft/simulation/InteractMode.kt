@@ -18,7 +18,7 @@ import kotlin.random.Random
 enum class InteractTool(val label: String) { TOUCH("Touch"), LOOK("Look") }
 
 /** The tabs of the commands sheet. */
-enum class InteractTab(val label: String) { COMMANDS("Commands"), POSE("Pose"), OUTFIT("Outfit") }
+enum class InteractTab(val label: String) { COMMANDS("Commands"), POSE("Pose"), OUTFIT("Outfit"), STOCKINGS("Stockings") }
 
 /** What the player's last screen was before entering, to put back on leaving (as Chat mode's prior). */
 data class InteractPrior(val cinematic: Boolean, val cameraMode: String, val cameraView: Int)
@@ -33,6 +33,12 @@ sealed class CommandResult {
     data class Hesitates(val action: InteractAction, val line: String) : CommandResult()
     /** The next tap on the floor is where she goes. */
     object AwaitSpot : CommandResult()
+    /** The pull at her stockings is allowed now (the player calmed her): the next pinch takes hold. */
+    object PullAllowed : CommandResult()
+    /** She will not have the stockings pulled ([line] is what she says). */
+    data class PullDeclined(val line: String) : CommandResult()
+    /** She hesitates still over the stockings. */
+    data class PullHesitates(val line: String) : CommandResult()
     /** Nothing in the words is something she can be told. */
     data class Unknown(val text: String) : CommandResult()
 }
@@ -55,8 +61,16 @@ class InteractMode(seed: Long = Random.nextLong()) {
     var pending: InteractAction? = null; private set
     var hesitation: Hesitation? = null; private set
     /** The haptics switch and the sound switch of the panel (the sound is the stockings' fabric: step three). */
-    var haptics = true
-    var sound = false
+    var stock = StockOptions()
+    var haptics: Boolean
+        get() = stock.haptics
+        set(v) { stock = stock.copy(haptics = v) }
+    var sound: Boolean
+        get() = stock.sound
+        set(v) { stock = stock.copy(sound = v) }
+    /** The part whose pull she hesitates at (the persuasion chips are up for it), and whether the player has calmed her over pulling at her stockings. */
+    var pendingPull: TouchRegion? = null; private set
+    var pullGranted = false; private set
     var prior: InteractPrior? = null; private set
     /** How much she has come to trust the player in this session (0..0.25): accepted touches raise it, a refused one lowers it. */
     var trust = 0f; private set
@@ -69,14 +83,14 @@ class InteractMode(seed: Long = Random.nextLong()) {
     fun enter(id: String, before: InteractPrior): Boolean {
         if (on) return false
         actor = id; prior = before; tool = InteractTool.TOUCH; tab = null; tell = false; following = false; staying = false
-        awaitingSpot = false; pending = null; hesitation = null; trust = 0f; recent.clear(); lastReaction = null; accepted = 0; refused = 0
+        awaitingSpot = false; pending = null; hesitation = null; pendingPull = null; pullGranted = false; trust = 0f; recent.clear(); lastReaction = null; accepted = 0; refused = 0
         return true
     }
 
     /** Leaves the mode; what the screen was before. */
     fun leave(): InteractPrior? {
         val p = prior
-        actor = null; prior = null; tab = null; tell = false; following = false; staying = false; awaitingSpot = false; pending = null; hesitation = null
+        actor = null; prior = null; tab = null; tell = false; following = false; staying = false; awaitingSpot = false; pending = null; hesitation = null; pendingPull = null; pullGranted = false
         return p
     }
 
@@ -100,7 +114,13 @@ class InteractMode(seed: Long = Random.nextLong()) {
         val id = actor ?: return null
         if (tool != InteractTool.TOUCH) return null
         val p = persona(base)
-        val v = TouchConsent.verdict(policy, id, hit.region, kind, p)
+        var v = TouchConsent.verdict(policy, id, hit.region, kind, p)
+        if (kind == TouchKind.PULL && v == Verdict.HESITATE && pullGranted) v = Verdict.ALLOW
+        if (kind == TouchKind.PULL && v == Verdict.HESITATE && pendingPull == null) {
+            // the persuasion chips go up for the pull (Reassure, Flatter, Be patient...): she lets the stockings be pulled once calmed
+            pendingPull = hit.region
+            hesitation = Hesitation(id, "player", TouchConsent.resistance(hit.region, kind, p).coerceIn(com.logie.wifecraft.dialogue.WillingnessModel.AGREE_BELOW, com.logie.wifecraft.dialogue.WillingnessModel.REFUSE_AT - 0.01f), p.disposition, Fear.GENERAL)
+        }
         val r = InteractReactions.choose(hit, kind, v, p, rnd, recent)
         recent += r.kind
         if (recent.size > 4) recent.removeAt(0)
@@ -128,7 +148,7 @@ class InteractMode(seed: Long = Random.nextLong()) {
         return when (InteractGate.verdict(policy, id, action, p)) {
             Verdict.DECLINE -> { refused++; trust = (trust - 0.05f).coerceAtLeast(0f); CommandResult.Declined(action, InteractLines.refusal(p, rnd)) }
             Verdict.HESITATE -> {
-                pending = action
+                pending = action; pendingPull = null
                 hesitation = Hesitation(id, "player", InteractGate.resistance(action, p), p.disposition, Fear.GENERAL)
                 CommandResult.Hesitates(action, InteractLines.hesitation(p, rnd))
             }
@@ -155,6 +175,13 @@ class InteractMode(seed: Long = Random.nextLong()) {
     /** The player's try at calming her with [approach]: what the pending command comes to ([Do] when she agrees, [Declined] when she gives up, else she hesitates still). */
     fun persuade(approach: Approach, base: InteractPersona): CommandResult? {
         val h = hesitation ?: return null
+        if (pendingPull != null) {
+            return when (h.persuade(approach)) {
+                Hesitation.Outcome.AGREED -> { trust = (trust + 0.03f).coerceAtMost(0.25f); pendingPull = null; hesitation = null; pullGranted = true; CommandResult.PullAllowed }
+                Hesitation.Outcome.REFUSED -> { pendingPull = null; hesitation = null; refused++; CommandResult.PullDeclined(InteractLines.refusal(persona(base), rnd)) }
+                Hesitation.Outcome.STILL_HESITANT -> CommandResult.PullHesitates(InteractLines.hesitation(persona(base), rnd))
+            }
+        }
         val act = pending ?: return null
         return when (h.persuade(approach)) {
             Hesitation.Outcome.AGREED -> { trust = (trust + 0.03f).coerceAtMost(0.25f); perform(act) }
@@ -164,10 +191,10 @@ class InteractMode(seed: Long = Random.nextLong()) {
     }
 
     /** "Later": the hesitation is let go. */
-    fun later() { pending = null; hesitation = null }
+    fun later() { pending = null; hesitation = null; pendingPull = null }
 
     /** Whether the persuasion chips are up. */
-    val persuading: Boolean get() = pending != null && hesitation != null
+    val persuading: Boolean get() = (pending != null || pendingPull != null) && hesitation != null
 
     /**
      * "Tell her...": the words go through the keyword intents first; when they name nothing and [model] has a pick among [InteractAction.catalogue]

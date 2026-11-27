@@ -11,8 +11,8 @@ import kotlin.random.Random
 // decided by her willingness (how tender the part is, her nature, how well she knows the player, her mood). What she does about it
 // (a blush, a giggle, a turn of the head, a step back...) is chosen by the part, the verdict, her nature and a seed.
 
-/** How a touch is made: a tap, a stroke along her, or a pull at what she wears (the stockings). */
-enum class TouchKind { TAP, STROKE, PULL }
+/** How a touch is made: a tap, a stroke along her, a pull at what she wears (the stockings), or a pinch of her skin between two fingers. */
+enum class TouchKind { TAP, STROKE, PULL, PINCH }
 
 /** What she lets happen: [ALLOW], [HESITATE] (not sure: she shows it and the touch goes no further) or [DECLINE] (in character). */
 enum class Verdict { ALLOW, HESITATE, DECLINE }
@@ -32,13 +32,14 @@ object TouchConsent {
         TouchRegion.HEAD -> 0.05f; TouchRegion.HAIR -> 0.08f; TouchRegion.SHOULDER -> 0.08f; TouchRegion.ARM -> 0.06f
         TouchRegion.HAND -> 0.08f; TouchRegion.BACK -> 0.14f; TouchRegion.FACE -> 0.26f; TouchRegion.KNEE -> 0.14f
         TouchRegion.CALF -> 0.18f; TouchRegion.FOOT -> 0.3f; TouchRegion.NECK -> 0.32f; TouchRegion.BELLY -> 0.45f
-        TouchRegion.THIGH -> 0.52f; TouchRegion.HIP -> 0.56f; TouchRegion.CHEST -> 0.86f; TouchRegion.BUTT -> 0.86f
+        TouchRegion.THIGH -> 0.52f; TouchRegion.HIP -> 0.56f; TouchRegion.CHEST -> 0.86f; TouchRegion.BUTT -> 0.86f; TouchRegion.GROIN -> 0.95f
     }
 
     /** The words that put a touch into a category of [ActCategories] (an act's name and kind are read by words). */
     private fun kindWord(r: TouchRegion): String = when (r) {
         TouchRegion.CHEST, TouchRegion.BUTT, TouchRegion.HIP, TouchRegion.THIGH -> "grope"
         TouchRegion.FOOT -> "foot"
+        TouchRegion.GROIN -> "intimate touch"
         TouchRegion.FACE, TouchRegion.NECK, TouchRegion.BELLY -> "caress"
         else -> "pat"
     }
@@ -59,6 +60,8 @@ object TouchConsent {
         r -= p.mood.coerceIn(-1f, 1f) * 0.1f
         // a touch that goes along her body is less than one that stays at a private part
         if (kind == TouchKind.STROKE) r += 0.04f
+        // a pinch is more than a touch in the same place
+        if (kind == TouchKind.PINCH) r += 0.06f
         return r.coerceIn(0f, 1f)
     }
 
@@ -118,6 +121,7 @@ object InteractReactions {
         TouchRegion.NECK -> 1
         TouchRegion.SHOULDER, TouchRegion.ARM, TouchRegion.HAND, TouchRegion.BACK -> 2
         TouchRegion.CHEST, TouchRegion.BELLY, TouchRegion.HIP, TouchRegion.BUTT, TouchRegion.THIGH -> 3
+        TouchRegion.GROIN -> 5
         TouchRegion.KNEE, TouchRegion.CALF, TouchRegion.FOOT -> 4
         TouchRegion.NONE -> 2
     }
@@ -128,6 +132,7 @@ object InteractReactions {
         1 -> listOf(ReactionKind.SHIVER to 3f, ReactionKind.BLUSH to 2f, ReactionKind.TURN_HEAD to 1.5f, ReactionKind.LEAN_IN to 1.5f)
         2 -> listOf(ReactionKind.SMILE to 3f, ReactionKind.TURN_HEAD to 2f, ReactionKind.LEAN_IN to 1.5f, ReactionKind.GIGGLE to 1f)
         3 -> listOf(ReactionKind.BLUSH to 3f, ReactionKind.GIGGLE to 2f, ReactionKind.TURN_HEAD to 2f, ReactionKind.SHIVER to 1.5f, ReactionKind.LEAN_IN to 1f)
+        5 -> listOf(ReactionKind.SHIVER to 3f, ReactionKind.BLUSH to 2.5f, ReactionKind.LEAN_IN to 1.5f, ReactionKind.TURN_HEAD to 1f, ReactionKind.GIGGLE to 0.5f)
         else -> listOf(ReactionKind.GIGGLE to 3f, ReactionKind.FLINCH to 2f, ReactionKind.SHIVER to 1.5f, ReactionKind.BLUSH to 1f)
     }
 
@@ -136,7 +141,7 @@ object InteractReactions {
     val DECLINING = listOf(ReactionKind.SWAT, ReactionKind.STEP_BACK, ReactionKind.LOOK_AWAY)
 
     /** The weight her nature gives [k]: the bold lean in, the shy blush and look away, the tender smile. */
-    private fun natured(k: ReactionKind, p: InteractPersona): Float {
+    internal fun natured(k: ReactionKind, p: InteractPersona): Float {
         val d = p.disposition
         return when (k) {
             ReactionKind.LEAN_IN -> 1f + d.boldness * 1.2f - d.caution
@@ -175,6 +180,7 @@ object InteractReactions {
             verdict == Verdict.DECLINE -> HapticPattern(longArrayOf(30, 60, 30), intArrayOf(200, 0, 200))
             verdict == Verdict.HESITATE -> HapticPattern(longArrayOf(25), intArrayOf(90))
             kind == TouchKind.PULL -> HapticPattern(longArrayOf(12, 18, 12), intArrayOf(amp, 0, amp))
+            kind == TouchKind.PINCH -> PinchHaptics.start(region)
             kind == TouchKind.STROKE -> HapticPattern(longArrayOf(10), intArrayOf((amp * 0.6f).toInt().coerceAtLeast(1)))
             else -> HapticPattern(longArrayOf(18), intArrayOf(amp))
         }
@@ -187,7 +193,7 @@ object InteractReactions {
     fun choose(hit: TouchHit, kind: TouchKind, verdict: Verdict, persona: InteractPersona, rnd: Random, recent: List<ReactionKind> = emptyList()): Reaction {
         val region = hit.region
         val k = when (verdict) {
-            Verdict.ALLOW -> pick(allowedKinds(region), persona, rnd, recent)
+            Verdict.ALLOW -> pick(if (kind == TouchKind.PINCH) SkinPinchReactions.allowedKinds(region) else allowedKinds(region), persona, rnd, recent)
             Verdict.HESITATE -> pick(HESITATING.map { it to 1f }, persona, rnd, recent)
             Verdict.DECLINE -> pick(DECLINING.map { it to 1f }, persona, rnd, recent)
         }
@@ -208,7 +214,7 @@ object InteractReactions {
             Verdict.ALLOW -> 0.25f + persona.disposition.desireTalk * 0.35f + (if (TouchConsent.sensitivity(region) > 0.4f) 0.2f else 0f)
             else -> 1f
         }
-        val line = if (rnd.nextFloat() < speakChance) InteractLines.line(verdict, k, hit, persona, rnd) else null
+        val line = if (rnd.nextFloat() < speakChance) (if (kind == TouchKind.PINCH && verdict == Verdict.ALLOW) SkinPinchReactions.line(persona, rnd) else InteractLines.line(verdict, k, hit, persona, rnd)) else null
         return Reaction(k, verdict, expressionOf(k, persona), turn, step, line, haptic(region, verdict, kind), seconds = if (verdict == Verdict.ALLOW) 1.8f else 2.4f)
     }
 }
@@ -248,9 +254,30 @@ object InteractLines {
         "natural" to listOf("Mm, you've got me shivering.", "That's making me warm.", "Oh, that's rather good."),
     )
 
+    // an allowed touch at the groin from Spicy up: by her style, suggestive and in her voice (the model's lines take the level further)
+    private val INTIMATE: Map<String, List<String>> = mapOf(
+        "shy" to listOf("Oh... there. Just... slowly.", "I can't think when you do that.", "Please be gentle... don't stop."),
+        "bold" to listOf("Now you're getting somewhere.", "Mm. Don't stop there.", "Good. Keep going and I'll show you what that does."),
+        "tender" to listOf("Mm, that's... oh, love, yes.", "Stay there. Softly.", "You know just how, don't you."),
+        "dominant" to listOf("Slowly. Exactly there.", "Good. You've earned a little more.", "Mm. Don't you dare stop."),
+        "natural" to listOf("Oh... that's good.", "Mm, right there.", "Keep doing that."),
+    )
+    private val INTIMATE_HOT: Map<String, List<String>> = mapOf(
+        "shy" to listOf("I'm so wet... I mean, warm... oh, I can't hide it.", "Don't stop, please, don't stop."),
+        "bold" to listOf("Feel how ready I am for you.", "Faster, or I'll take over."),
+        "tender" to listOf("I'm aching for you. Please, love.", "Keep touching me, I'm so close to melting."),
+        "dominant" to listOf("Harder. And don't look away.", "You feel how I'm soaked for you. Keep going."),
+        "natural" to listOf("God, yes, I'm really into this.", "More. Don't stop."),
+    )
+
     /** One line for a touch (null: none for this combination). */
     fun line(verdict: Verdict, k: ReactionKind, hit: TouchHit, p: InteractPersona, rnd: Random): String? {
         val style = p.disposition.style
+        if (verdict == Verdict.ALLOW && hit.region == TouchRegion.GROIN && p.dirty >= DirtyLevel.SPICY) {
+            val t = if (p.dirty >= DirtyLevel.HOT) INTIMATE_HOT else INTIMATE
+            val l = t[style] ?: t.getValue("natural")
+            return l[rnd.nextInt(l.size)]
+        }
         val table = when (verdict) {
             Verdict.DECLINE -> DECLINE
             Verdict.HESITATE -> HESITATE

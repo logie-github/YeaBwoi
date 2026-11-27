@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.logie.wifecraft.anim.CharacterSize
 import com.logie.wifecraft.graphics.CharacterSizeSetting
+import com.logie.wifecraft.graphics.FingerSize
 import com.logie.wifecraft.graphics.Graphics
 import com.logie.wifecraft.graphics.GraphicsPreset
 import com.logie.wifecraft.graphics.GraphicsSettings
@@ -120,6 +121,13 @@ fun GraphicsPage() {
     WifeSwitchRow("Skin sheen follows intensity", s.sheenFollows, { edit(s.copy(sheenFollows = it)) },
         detail = "The skin grows a light wet sheen as a scene's moment builds, and keeps it a while after")
     WifeSliderRow("Maximum sheen", s.sheenMax, { edit(s.copy(sheenMax = it)) }, valueText = "${s.sheenMax}%")
+    GfxDropdownRow("Flesh contact", listOf("Off", "Low", "High")[s.fleshContact.coerceIn(0, 2)],
+        listOf(0 to "Off", 1 to "Low (4 at a time)", 2 to "High (8 at a time)")) { q: Int -> edit(s.copy(fleshContact = q)) }
+    WifeSliderRow("Softness", s.fleshSoftness, { edit(s.copy(fleshSoftness = it)) }, valueText = "${s.fleshSoftness}%", range = 0..200)
+    WifeSliderRow("Finger size", s.fingerSize, { edit(s.copy(fingerSize = FingerSize.clamp(it))) }, valueText = "%.2fx".format(s.fingerSize / 100f), range = FingerSize.MIN..FingerSize.MAX)
+    WifeNote("Finger size is your own fingertip on her skin (1x: about 2.2 cm across, whatever size she is): the width of a touch's dent and of the fold two fingers pinch up.")
+    WifeNote("The skin dents where a hand, a mouth or another body presses (breasts, rear, thighs and belly give most; hips, ribs and shins little), " +
+        "bulges a little round the dent, springs back when the pressure goes and shows it: pale in the middle, a flush that fades. Softness scales how deep.")
 
     WifeSectionHeader("Atmosphere")
     WifeSliderRow("Light shafts", s.shafts, { edit(s.copy(shafts = it)) })

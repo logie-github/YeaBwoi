@@ -963,11 +963,40 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         main.post { onHit(hit) }
     }
 
+    /**
+     * Flesh contact: a finger at the screen point presses actor [key]'s skin (a dent under it that springs back, with the skin's pressure
+     * colour) with [pressure] 0..1, held [holdMs] after this call unless pushed again; [releaseTouch] lets go. Interact mode calls it only
+     * for a touch she allows.
+     */
+    fun pushTouch(key: String, sx: Float, sy: Float, w: Int, h: Int, pressure: Float, holdMs: Int = 250) = pushTouch(key, 0, sx, sy, w, h, pressure, holdMs, 0f)
+
+    /**
+     * Multi-touch: finger [pointer] (0..4) at the screen point presses actor [key]'s skin. Each finger is its own contact; two on one
+     * soft skin that close in on each other become a pinch. [padRadius]: the fingertip's radius in world units
+     * ([com.logie.wifecraft.graphics.FingerSize.padRadius]; 0: the engine's default, a 1.1 cm pad at Character size 1).
+     */
+    fun pushTouch(key: String, pointer: Int, sx: Float, sy: Float, w: Int, h: Int, pressure: Float, holdMs: Int, padRadius: Float) = post { handle, ids ->
+        ids[key]?.let { Native.pushTouch(handle, it, pointer, sx, sy, w, h, pressure, holdMs, padRadius) }
+    }
+    /** Lets every finger of [key] go (the skin springs back). */
+    fun releaseTouch(key: String) = releaseTouch(key, -1)
+    /** Lets finger [pointer] of [key] go (a negative pointer: every finger). */
+    fun releaseTouch(key: String, pointer: Int) = post { handle, ids -> ids[key]?.let { Native.releaseTouch(handle, it, pointer) } }
+
     /** A finger down on actor [key]'s stocking at the screen point: [onGrab] (main thread) whether it took hold of the fabric. */
     fun stockGrab(key: String, sx: Float, sy: Float, w: Int, h: Int, onGrab: (Boolean) -> Unit) = post { handle, ids ->
         val ok = ids[key]?.let { Native.stockGrab(handle, it, sx, sy, w, h) } ?: false
         main.post { onGrab(ok) }
     }
+
+    /** Whether there is stocking at the screen point (nothing is grabbed): [onCovered] on the main thread. */
+    fun stockProbe(key: String, sx: Float, sy: Float, w: Int, h: Int, onCovered: (Boolean) -> Unit) = post { handle, ids ->
+        val ok = ids[key]?.let { Native.stockProbe(handle, it, sx, sy, w, h) } ?: false
+        main.post { onCovered(ok) }
+    }
+
+    /** The fabric's give and look: [look] is elasticity 0..1, the tearing strain, the Fresnel sheen 0..1, the side light 0..1 (simulation/StockOptions.look). */
+    fun stockLook(key: String, look: FloatArray) = post { handle, ids -> ids[key]?.let { Native.stockLook(handle, it, look[0], look[1], look[2], look[3]) } }
 
     /** The finger moves: the grabbed fabric follows it in the view plane. */
     fun stockDrag(key: String, sx: Float, sy: Float, w: Int, h: Int) = post { handle, ids -> ids[key]?.let { Native.stockDrag(handle, it, sx, sy, w, h) } }

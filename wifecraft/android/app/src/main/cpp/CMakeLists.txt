@@ -19,6 +19,8 @@ add_library(wcengine SHARED
     engine/buildview.cpp
     engine/bytes.cpp
     engine/cloth.cpp
+    engine/contact.cpp
+    engine/contactdraw.cpp
     engine/daylight.cpp
     engine/grade.cpp
     engine/hdbody.cpp
