@@ -63,11 +63,6 @@ import com.logie.wifecraft.simulation.PartnerPair
 import com.logie.wifecraft.simulation.PartnerSoundSink
 import com.logie.wifecraft.simulation.IntensityMix
 import com.logie.wifecraft.ui.PartnerSoundsSection
-import com.logie.wifecraft.bodyparts.EveContext
-import com.logie.wifecraft.bodyparts.EveFitTable
-import com.logie.wifecraft.bodyparts.EveImportRunner
-import com.logie.wifecraft.bodyparts.EveOptionsEditor
-import com.logie.wifecraft.bodyparts.EveStore
 import com.logie.wifecraft.bodyparts.HdContext
 import com.logie.wifecraft.bodyparts.HdImportRunner
 import com.logie.wifecraft.bodyparts.HdSetInfo
@@ -91,9 +86,7 @@ import com.logie.wifecraft.ui.GearControl
 import com.logie.wifecraft.ui.LocalGearControl
 import com.logie.wifecraft.ui.classOutfits
 import com.logie.wifecraft.ui.PartImportSection
-import com.logie.wifecraft.ui.EveImportSection
 import com.logie.wifecraft.ui.HdModelsSection
-import com.logie.wifecraft.ui.casEveBinding
 import com.logie.wifecraft.creator.Catalog
 import com.logie.wifecraft.creator.CreatorModel
 import com.logie.wifecraft.creator.CsvTables
@@ -178,24 +171,6 @@ class MainActivity : ComponentActivity() {
     /** files/bodyparts: the named characters' model sets cut on the phone and the imported body-part sets. */
     private val partsRoot by lazy { File(filesDir, "bodyparts") }
 
-    // ---- the Eve body (bodyparts/EveStore, EveDress): the set in files/bodyparts/eve, imported in Options, loaded into the 3D view
-    private val eveStore by lazy { EveStore(partsRoot) }
-    private val eveRunner by lazy { EveImportRunner(eveStore, { assetText("sims_profile.json").orEmpty() }) }
-    private val eveFitJson by lazy { assetText("eve_fit.json").orEmpty() }
-    private val eveFit by lazy { runCatching { EveFitTable.parse(eveFitJson) }.getOrNull() }
-    /** Whether the set is loaded into the 3D view (its last load said ""); every dressing path asks [eveContext]. */
-    @Volatile private var eveLoaded = false
-    @Volatile private var eveDefaultOn = false
-
-    private fun eveContext(): EveContext = EveContext(eveLoaded && eveStore.installed(), eveFit, eveDefaultOn, eveStore.signature())
-
-    /** The set loaded into [view] (or taken out: none imported). Main thread. */
-    private fun loadEve(view: SceneView) {
-        if (!eveStore.installed()) { eveLoaded = false; return }
-        // ready from now on for the dressing (the GL thread loads it before any actor dressed after this call is drawn)
-        eveLoaded = true
-        view.loadEveSet(eveStore.dir.path, eveFitJson) { why -> if (why.isNotEmpty()) { eveLoaded = false; android.util.Log.w("Wifecraft", "Eve set: $why") } }
-    }
     // ---- HD Models (bodyparts/HdModels): the sets in files/bodyparts/hd, imported in Options, loaded into the 3D view
     private val hdStore by lazy { HdStore(partsRoot) }
     private val hdRunner by lazy { HdImportRunner(hdStore) }
@@ -244,16 +219,17 @@ class MainActivity : ComponentActivity() {
         files.planner = { Prefetch.plan(Catalog.build(tables), tables) }
         listfile = ListfileNames(File(filesDir, "cache/listfile-character.csv"))
         imports = ImportStore(filesDir, listfile, supportedKinds = setOf(ImportKind.RALIA, ImportKind.BODY, ImportKind.UNDEAD))
-        eveDefaultOn = settings.eveDefault
+        // the Eve body is scrapped: what the phone still holds of it is deleted once (bodyparts/LegacyEve), never loaded
+        if (!settings.legacyEveCleaned) {
+            val done = com.logie.wifecraft.bodyparts.LegacyEve.cleanup(filesDir, cacheDir, false) { android.util.Log.i("Wifecraft", it) }
+            settings.legacyEveCleaned = done
+        }
         hdOn = settings.hdModels
         hdTexOn = settings.hdCreatureTextures
         com.logie.wifecraft.bodyparts.ArousalControl.mode = settings.partArousal
         // a finished HD import or a Remove: the sets (re)loaded into the 3D view
         hdRunner.listen { st -> if (st is HdImportRunner.State.Done) runOnUiThread { scene?.let { loadHd(it) } ?: run { hdSets = hdStore.sets().associateBy { it.key } } } }
-        // a finished import or a Remove: the set (re)loaded into the 3D view, if there is one
-        eveRunner.listen { st -> if (st is EveImportRunner.State.Done) runOnUiThread { scene?.let { loadEve(it) } ?: run { eveLoaded = eveStore.installed() } } }
         dresser = Dresser(files, tables, imports, lifecycleScope).apply {
-            eve = { eveContext() }
             hd = { hdContext() }
             hdTextures = com.logie.wifecraft.creator.HdTextureCache(File(filesDir, "hdtex"), files.dir) { hdTexOn }
             named = namedCast
@@ -307,7 +283,7 @@ class MainActivity : ComponentActivity() {
         sceneAudio?.volumes = Mixer.sceneVolumes(m)
     }
 
-    private fun sceneView(): SceneView = scene ?: SceneView(this, files.dir.path).also { scene = it; it.softBody(Settings(this).softBody); loadEve(it); loadHd(it) }
+    private fun sceneView(): SceneView = scene ?: SceneView(this, files.dir.path).also { scene = it; it.softBody(Settings(this).softBody); loadHd(it) }
 
     private fun readText(file: AtomicFile): String? = if (file.baseFile.exists()) file.readFully().decodeToString() else null
 
@@ -560,7 +536,7 @@ class MainActivity : ComponentActivity() {
                     Screen.SETUP -> {
                         val previewView = if (step == SetupStep.OBJECTS) null else sceneView()
                         val portraits = if (step == SetupStep.CAST) {
-                            remember { Thumbs(applicationContext, files, previewView, tables, { imports }, { namedCast }, { eveContext() }, { hdContext() }) }.also { source ->
+                            remember { Thumbs(applicationContext, files, previewView, tables, { imports }, { namedCast }, { hdContext() }) }.also { source ->
                                 DisposableEffect(source) { onDispose { source.close() } }
                             }
                         } else null
@@ -637,7 +613,7 @@ class MainActivity : ComponentActivity() {
                         val view = sceneView()
                         val model = remember { CreatorModel(c, checkNotNull(defaultAppearance(c))) }
                         val key = "npc-preview"
-                        val portraits = remember(view) { Thumbs(applicationContext, files, view, tables, { imports }, { namedCast }, { eveContext() }, { hdContext() }) }
+                        val portraits = remember(view) { Thumbs(applicationContext, files, view, tables, { imports }, { namedCast }, { hdContext() }) }
                         var backdropRace by remember { mutableStateOf<Int?>(null) }
                         var backdropStatus by remember { mutableStateOf<String?>(null) }
                         var backdropRetry by remember { mutableIntStateOf(0) }
@@ -693,7 +669,9 @@ class MainActivity : ComponentActivity() {
                         // HD Models in the creator (ui/CasPanels.kt LocalCasHd): the figure's own rows for a race and sex with a set
                         val hdBinding = remember(hdSets, hdOn) {
                             if (!hdOn || hdSets.isEmpty()) null
-                            else com.logie.wifecraft.ui.CasHdBinding(setFor = { a -> hdSets[a.raceId * 10 + if (a.sex == com.logie.wifecraft.creator.Sex.FEMALE) 1 else 0] })
+                            else com.logie.wifecraft.ui.CasHdBinding(
+                                setFor = { a -> if (a.hd?.useGame == true) null else hdSets[com.logie.wifecraft.bodyparts.Bodies.key(a.raceId, a.sex)] },
+                                available = { a -> hdSets[com.logie.wifecraft.bodyparts.Bodies.key(a.raceId, a.sex)] })
                         }
                         androidx.compose.runtime.CompositionLocalProvider(com.logie.wifecraft.ui.LocalCasHd provides hdBinding) {
                         CreatorScreen(
@@ -714,10 +692,6 @@ class MainActivity : ComponentActivity() {
                                 }.onFailure { problem = "The NPC could not be saved." }
                             },
                             onBack = { screen = Screen.SETUP },
-                            // the Body tab's Eve rows (bodyparts/EveOptionsEditor: the imported set's lists, the races it leaves out)
-                            eve = remember(eveLoaded, eveDefaultOn) {
-                                casEveBinding(eveStore.index()?.takeIf { eveLoaded }?.let { EveOptionsEditor(it, eveFit) }, eveDefaultOn)
-                            },
                         )
                         }
                         backdropStatus?.let { message ->
@@ -1026,10 +1000,6 @@ class MainActivity : ComponentActivity() {
                         mods = {
                             Column {
                                 ImportsSection(imports, listfile)
-                                var eveDefault by remember { mutableStateOf(settings.eveDefault) }
-                                EveImportSection(eveRunner, eveStore, eveDefault, onDefault = { on ->
-                                    eveDefault = on; settings.eveDefault = on; eveDefaultOn = on
-                                }, raliaOn = imports.hasRalia())
                                 var hdSwitch by remember { mutableStateOf(settings.hdModels) }
                                 HdModelsSection(hdRunner, hdStore, hdSwitch, onSwitch = { on ->
                                     hdSwitch = on; settings.hdModels = on; hdOn = on

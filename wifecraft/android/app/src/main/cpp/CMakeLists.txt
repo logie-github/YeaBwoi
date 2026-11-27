@@ -13,6 +13,7 @@ add_library(wcengine SHARED
     engine/bodypick.cpp
     engine/stockings.cpp
     engine/stockdraw.cpp
+    engine/stockfabric.cpp
     engine/bodyrig.cpp
     engine/bodyshape.cpp
     engine/buildview.cpp
@@ -23,14 +24,13 @@ add_library(wcengine SHARED
     engine/hdbody.cpp
     engine/hdscene.cpp
     engine/editview.cpp
-    engine/evebody.cpp
-    engine/evescene.cpp
     engine/json.cpp
     engine/location.cpp
     engine/m2.cpp
     engine/modelpart.cpp
     engine/motionlayer.cpp
     engine/particles.cpp
+    engine/png.cpp
     engine/sparkle.cpp
     engine/postfx.cpp
     engine/propmesh.cpp
@@ -46,4 +46,4 @@ target_compile_options(wcengine PRIVATE -O2 -Wall -Wno-unused-parameter)
 
 # The on-device dialogue model (llama.cpp and its wrapper: libwcdialogue.so); the app loads it only when a model is on the phone.
 add_subdirectory(dialogue)
-target_link_libraries(wcengine GLESv3 EGL log z)   # z: the Eve body's PNG files (engine/evebody.cpp)
+target_link_libraries(wcengine GLESv3 EGL log z)   # z: the HD sets' PNG textures (engine/png.cpp)

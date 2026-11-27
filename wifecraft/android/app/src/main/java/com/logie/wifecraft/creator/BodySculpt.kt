@@ -33,7 +33,7 @@ enum class SculptPart(val label: String) {
 /**
  * The Body tab's sculpt sliders, each from -1 to 1 (0: the body as made), on every body: the game's own (every race's default
  * model, both sexes: cpp/engine/sculpt.h on its whole vertex list, bind pose, so it bends with its bones as before; the robe's
- * and sleeves' geosets on it follow) and the Eve body alike. Height is the actor's scale and Leg Length the skeleton's
+ * and sleeves' geosets on it follow) and the Liard HD figure alike. Height is the actor's scale and Leg Length the skeleton's
  * (cpp/engine/bodyrig.h, [legFactor]); the others move the mesh ([mesh]). [sided] sliders can differ left and right
  * ([BodySculpt.sides], the creator's Symmetry off). The engine takes them in this order ([BodySculpt.toArray]; sculpt.h's
  * SculptSlider): the first eleven as they always were, the rest added after them, so older saves read back unchanged.
@@ -50,7 +50,7 @@ enum class SculptSlider(val key: String, val label: String, val part: SculptPart
     HIPS("hips", "Hips", SculptPart.HIPS),
     BUTT("butt", "Butt", SculptPart.HIPS),
     THIGHS("thighs", "Thighs", SculptPart.LEGS),
-    /** The skeleton's legs (engine/bodyrig.h): on every body, Eve's or the game's own. */
+    /** The skeleton's legs (engine/bodyrig.h): on every body, the Liard figure's or the game's own. */
     LEG_LENGTH("legLength", "Leg Length", SculptPart.LEGS, mesh = false, sided = false),
     NECK("neck", "Neck", SculptPart.NECK, sided = false),
     CHEST("chest", "Chest", SculptPart.CHEST),
@@ -228,28 +228,28 @@ data class BodySculpt(val values: Map<SculptSlider, Float> = emptyMap(), val sid
 
 /**
  * Who changes the body as the sliders say: the engine (engine/SceneView.setSculpt, cpp/engine/sculpt.h: the game's own body
- * or the Eve body), a recording fake in the tests. [supports] says which sliders show live: every one on every body now.
+ * or the HD figure), a recording fake in the tests. [supports] says which sliders show live: every one on every body now.
  */
 interface BodySculptApplier {
     fun supports(slider: SculptSlider): Boolean
     fun apply(actorKey: String, sculpt: BodySculpt)
 }
 
-/** What each kind of body takes: every drawn slider, the game's own body and the Eve body alike. */
+/** What each kind of body takes: every drawn slider, the game's own model and the Liard HD figure alike. */
 object SculptSupport {
     @Suppress("UNUSED_PARAMETER")
-    fun supports(slider: SculptSlider, eveBody: Boolean): Boolean = slider.drawn
+    fun supports(slider: SculptSlider, body: com.logie.wifecraft.bodyparts.BodyKind): Boolean = slider.drawn
 
     /** Why a slider is greyed (null: it isn't). */
-    fun why(slider: SculptSlider, eveBody: Boolean): String? = if (!supports(slider, eveBody)) NOT_DRAWN else null
+    fun why(slider: SculptSlider, body: com.logie.wifecraft.bodyparts.BodyKind): String? = if (!supports(slider, body)) NOT_DRAWN else null
 
     /** (No slider is undrawn now; kept for a slider added before the engine draws it.) */
     const val NOT_DRAWN = "Not drawn yet"
 }
 
 /** A stand-in applier (tests; the screen before the engine answers): keeps what it was given. */
-class RecordingSculptApplier(private val eveBody: Boolean) : BodySculptApplier {
+class RecordingSculptApplier(private val body: com.logie.wifecraft.bodyparts.BodyKind) : BodySculptApplier {
     val applied = ArrayList<Pair<String, BodySculpt>>()
-    override fun supports(slider: SculptSlider) = SculptSupport.supports(slider, eveBody)
+    override fun supports(slider: SculptSlider) = SculptSupport.supports(slider, body)
     override fun apply(actorKey: String, sculpt: BodySculpt) { applied += actorKey to sculpt }
 }

@@ -1,5 +1,5 @@
-// The skeleton edited per actor: the creator's Leg Length slider (sculpt.h kSculptLegLength) and the Eve body's proportions
-// (evebody.h EveProportions: her legs, torso, arms and hands at a realistic length under the Warcraft head). Header only and
+// The skeleton edited per actor: the creator's Leg Length slider (sculpt.h kSculptLegLength), and on another rig of the same
+// bones (an HD figure's: hdbody.h HdFit::rigPivots) the model's animation run about that rig's joints. Header only and
 // GL-free (scene.cpp's animate uses it; engine-test/sculpt_test checks its maths on a made-up skeleton).
 //
 // The shared model is never changed. Instead each bone gets a bind deformation D (bind pose -> edited bind pose), by its
@@ -15,12 +15,12 @@
 // Stretches act along the bone only, so girths stay. D agrees with itself at every joint (the parent's and the child's maps
 // take the child's pivot to the same place), so the skin stays joined. The posed matrices are the model's own animation run
 // on the edited skeleton (the pivots D moves them to; the shins' key translations scaled) times D: any vertex in the model's
-// bind space (the Warcraft body, the Eve body fitted to the unedited skeleton, cloth, attachments) is carried into the
+// bind space (the Warcraft body, the HD figure fitted to the unedited skeleton, cloth, attachments) is carried into the
 // edited bind and posed there, so everything skinned on the actor agrees with no refit. The whole body is then raised or
 // lowered so the feet meet the ground as the animation puts them on the model's own skeleton (standing: by `lift`).
 //
 // legLengthFactor maps the Leg Length slider (-1..1) to a factor on `legs`: 0.85 at -1, 1 at 0, 1.2 at +1 (linear on each
-// side); Eve's own proportions are multiplied by it.
+// side).
 #pragma once
 
 #include <algorithm>
@@ -64,7 +64,7 @@ struct LegEdit {
     float factor = 1;                 // the shins' key moves are scaled by this (the legs' factor)
     BodyScale scale;
     const void* model = nullptr;      // what it was made for (Scene: made again when the model or the factors change)
-    const void* base = nullptr;       // the rig's pivots it was made on (the Eve rig's; null: the model's own)
+    const void* base = nullptr;       // the rig's pivots it was made on (an HD figure's rig; null: the model's own)
     std::vector<V3> pivots;           // per bone: the edited bind pivots
     std::vector<M4> bind;             // per bone: D, the model's bind pose -> the edited bind pose
     std::vector<uint8_t> part;        // per bone: LegPart
@@ -92,7 +92,7 @@ inline M4 legStretch(V3 c, V3 d, float k, V3 t) {
 
 // The pure core: the edit from pivots and parents (tests build their own). Inactive when the factors are all ~1, a leg lacks
 // a bone, or a factor isn't finite.
-// `force`: active even with every factor 1 (`pivots` are another rig's, the Eve rig's, not the model's own).
+// `force`: active even with every factor 1 (`pivots` are another rig's, an HD figure's, not the model's own).
 inline LegEdit makeBodyEdit(const std::vector<V3>& pivots, const std::vector<int16_t>& parents, const BodyBones& bb, BodyScale k,
                             bool force = false) {
     LegEdit e;
@@ -206,7 +206,7 @@ inline LegEdit bodyEditOf(const M2Model& m, BodyScale k) {
     return e;
 }
 
-// The edit on another rig of the same bones (the Eve rig: each bone's pivot where Eve's joint is, evebody.h EveBody::rigPivots):
+// The edit on another rig of the same bones (an HD figure's rig: each bone's pivot where its joint is, hdbody.h HdFit::rigPivots):
 // the model's animation run about those pivots, active whatever the factors.
 inline LegEdit bodyEditFrom(const M2Model& m, const std::vector<V3>& basePivots, BodyScale k) {
     if (basePivots.size() != m.bones.size()) return bodyEditOf(m, k);

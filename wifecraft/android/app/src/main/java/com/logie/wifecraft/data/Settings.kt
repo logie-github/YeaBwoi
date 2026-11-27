@@ -124,13 +124,12 @@ class Settings(context: Context) {
         set(v) = prefs.edit().putString("partSet", v ?: "").apply()
 
     /**
-     * Options' "Use the Eve body for new women" (bodyparts/EveDress): a woman with no Eve choice of her own (a new NPC, a named
-     * character, a starter, an NPC saved before) is drawn with the imported Eve body. Off by default. The set itself is
-     * files/bodyparts/eve (EveStore: imported, its status read from its set.json).
+     * The Eve body was scrapped: its files are deleted once (bodyparts/LegacyEve) and its settings key removed. True once the
+     * cleanup has run (a folder that couldn't be deleted leaves it false: tried again at the next launch).
      */
-    var eveDefault: Boolean
-        get() = prefs.getBoolean("eveDefault", false)
-        set(v) = prefs.edit().putBoolean("eveDefault", v).apply()
+    var legacyEveCleaned: Boolean
+        get() = prefs.getBoolean("legacyEveCleaned", false)
+        set(v) = prefs.edit().putBoolean("legacyEveCleaned", v).remove("eveDefault").apply()
 
     /**
      * Options' HD Models switch (bodyparts/HdModels): with it on, every race and sex with an imported HD set is drawn as its

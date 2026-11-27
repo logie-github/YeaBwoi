@@ -8,7 +8,6 @@ import com.logie.wifecraft.anim.AnimArrays
 import com.logie.wifecraft.anim.FleshProfile
 import com.logie.wifecraft.anim.CharacterSize
 import com.logie.wifecraft.anim.HumanScale
-import com.logie.wifecraft.bodyparts.EveOptions
 import com.logie.wifecraft.bodyparts.ModelParts
 import com.logie.wifecraft.bodyparts.PartDraw
 import com.logie.wifecraft.bodyparts.PartFits
@@ -82,8 +81,6 @@ class CameraInfo(
  */
 interface LookSource {
     class Prepared(val call: DressCall? = null, val body: BodyCall = BodyCall.NONE, val character: Boolean = false, val error: String? = null,
-        /** The Eve body on the look (bodyparts/EveDress); null: her own body. */
-        val eve: EveOptions? = null,
         /** The HD figure on the look (bodyparts/HdDress's decision); null or not `on`: the game's model. */
         val hd: com.logie.wifecraft.bodyparts.HdDress.Decision? = null)
     /** A prop's files ([model]); null when they are here, else why not. */
@@ -567,7 +564,6 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
             partRaces[key] = raceId
             applyParts(h, key, added)
             applyModelSet(h, key, added)
-            applyEve(h, key, added)
             applyHd(h, key, added)
         }
         Native.character(h, id, character)
@@ -577,7 +573,7 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         if (onReady != null) main.post { onReady() }
     }
 
-    override fun removeActor(key: String) = post { h, ids -> ids.remove(key)?.let { Native.removeActor(h, it) }; bodies.remove(key); fleshWanted.remove(key); if (fleshes.remove(key) != null) fleshVersion++; sizes.remove(key); humanScales.remove(key); sizedPeople.remove(key); bodyRatios.remove(key); requestedAnimations.remove(key); actorParts.remove(key); partRaces.remove(key); modelSets.remove(key); eveOptions.remove(key); hdBodies.remove(key) }
+    override fun removeActor(key: String) = post { h, ids -> ids.remove(key)?.let { Native.removeActor(h, it) }; bodies.remove(key); fleshWanted.remove(key); if (fleshes.remove(key) != null) fleshVersion++; sizes.remove(key); humanScales.remove(key); sizedPeople.remove(key); bodyRatios.remove(key); requestedAnimations.remove(key); actorParts.remove(key); partRaces.remove(key); modelSets.remove(key); hdBodies.remove(key) }
 
     /**
      * The actor [key]'s size over a human's of its sex as the live scene draws it (1 at human scale, a dwarf's or gnome's own:
@@ -612,7 +608,6 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         actorParts.clear()
         partRaces.clear()
         modelSets.clear()
-        eveOptions.clear()
         hdBodies.clear()
     }
 
@@ -699,66 +694,6 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     fun partSkinUvs(actorKey: String, onResult: (FloatArray) -> Unit) = post { h, ids ->
         val uvs = ids[actorKey]?.let { Native.partSkinUvs(h, it) } ?: FloatArray(0)
         main.post { onResult(uvs) }
-    }
-
-    // ---- the Eve body (cpp engine/evebody.h; bodyparts/EveConvert, EveOptions, EveRule)
-
-    /** GL thread: each key's Eve options ([setEveBody]), put on again when the actor is made anew. */
-    private val eveOptions = mutableMapOf<String, EveOptions>()
-    /** GL thread: the Eve set given ([loadEveSet]) and the scene it was loaded into (a new scene loads it again). */
-    private var eveSet: Pair<String, String>? = null
-    private var eveLoadedInto = 0L
-
-    /** GL thread: the set loaded into [h] if it isn't yet; "" when it is, else why not. */
-    private fun ensureEveSet(h: Long): String {
-        val set = eveSet ?: return "no Eve set"
-        if (eveLoadedInto == h) return ""
-        val why = Native.loadEveSet(h, set.first, set.second)
-        if (why.isEmpty()) eveLoadedInto = h else android.util.Log.w("Wifecraft", "Eve set: $why")
-        return why
-    }
-
-    /** GL thread: the key's Eve options on its actor [id] (a new actor, or after a change). */
-    private fun applyEve(h: Long, key: String, id: Int) {
-        val o = eveOptions[key] ?: return
-        if (o.on && ensureEveSet(h).isNotEmpty()) return
-        Native.setEveBody(h, id, o.on, o.bottom, o.tone, o.overlaySlot, o.overlayShade, o.opacity, o.bones)
-    }
-
-    /**
-     * The converted Eve set in [dir] (files/bodyparts/eve, bodyparts/EveConvert) with the fit table's text [fitJson]
-     * (assets/eve_fit.json), for every actor from now on; [onResult] (main thread) gets "" or why it can't be read.
-     */
-    fun loadEveSet(dir: String, fitJson: String, onResult: (String) -> Unit = {}) = post { h, ids ->
-        eveSet = dir to fitJson
-        eveLoadedInto = 0L
-        val why = ensureEveSet(h)
-        if (why.isEmpty()) for ((key, id) in ids) applyEve(h, key, id)
-        main.post { onResult(why) }
-    }
-
-    /**
-     * The actor [actorKey]'s Eve body ([options]; its `on` false: its own body). The caller decides when the look allows it
-     * (bodyparts/EveRule.applies: a woman, unclothed); the engine also says no for a race its fit table excludes. Set before
-     * the actor is on stage it waits for it; kept for a new model of the key; the swap follows every change of look.
-     */
-    fun setEveBody(actorKey: String, options: EveOptions) = post { h, ids ->
-        eveOptions[actorKey] = options
-        ids[actorKey]?.let { applyEve(h, actorKey, it) }
-        if (actorKey != GHOST_KEY) fleshWanted[actorKey] = 0   // (her flesh is measured again on the body she shows)
-    }
-
-    /** The actor [actorKey] back in her own body. */
-    fun clearEveBody(actorKey: String) = post { h, ids ->
-        eveOptions.remove(actorKey)
-        ids[actorKey]?.let { Native.clearEveBody(h, it) }
-        if (actorKey != GHOST_KEY) fleshWanted[actorKey] = 0
-    }
-
-    /** What became of the actor's Eve body (Native.eveStatus's "on|NECK|ANKLE|SHADE|MS|why"); [onResult] on the main thread. */
-    fun eveStatus(actorKey: String, onResult: (String) -> Unit) = post { h, ids ->
-        val st = ids[actorKey]?.let { Native.eveStatus(h, it) } ?: "no such actor"
-        main.post { onResult(st) }
     }
 
     // ---- HD Models (cpp engine/hdbody.h, hdscene.cpp; bodyparts/HdModels: HdStore, HdDress)
@@ -1056,12 +991,9 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     /** Puts [spec] (creator/StockingSpec.toFloats; null: none) on actor [key]; kept across a new look, drawn under the gear (engine/stockdraw.cpp). */
     fun setStockings(key: String, spec: FloatArray?) = post { handle, ids -> ids[key]?.let { Native.setStockings(handle, it, spec) } }
 
-    /** [setSculpt] by the Eve body's name for it: the sculpt is drawn on the fitted Eve mesh (engine/sculpt.h, evescene.cpp). */
-    fun setEveSculpt(key: String, values: FloatArray) = setSculpt(key, values)
-
     /**
      * The creator's sculpt sliders on actor [key] (creator/BodySculpt.toArray: the sliders, then their sides): the game's own
-     * body is sculpted again (at most six times a second while they change), the Eve body takes them as it is fitted.
+     * body is sculpted again (at most six times a second while they change), the HD figure is fitted again with them (hdscene.cpp hdCheck).
      */
     fun setSculpt(key: String, values: FloatArray) = post { handle, ids ->
         ids[key]?.let { Native.setSculpt(handle, it, values) }
@@ -1306,8 +1238,6 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
             post { _, _ -> ghostWanted = gen; sizes[GHOST_KEY] = scale }
             // an NPC's ghost stands as the live scene draws it: at human scale, a dwarf or gnome at its own (a creature at its own)
             val sex = if (kind == PlaceKind.NPC) appearance?.sex else null
-            // the Eve body as the scene would draw her (set before the dress: fitted once)
-            p.eve.let { e -> if (e != null) setEveBody(GHOST_KEY, e) else clearEveBody(GHOST_KEY) }
             p.hd.let { d -> if (d != null && d.on) setHdBody(GHOST_KEY, d) else clearHdBody(GHOST_KEY) }
             dress(GHOST_KEY, call, p.body, p.character, sex = sex, raceId = appearance?.raceId ?: 0) { why -> done(false, why) }
             post { h, ids ->

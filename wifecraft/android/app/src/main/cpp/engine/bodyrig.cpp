@@ -1,6 +1,6 @@
 // The Scene's side of the creator's body pick and sculpt (bodypick.h, sculpt.h): a model's bones named into regions and the
-// sculpt's rig, the tap's ray against the actor as posed, and the sculpt kept on the actor (the Eve body takes it as it is
-// fitted: evescene.cpp).
+// sculpt's rig, the tap's ray against the actor as posed, and the sculpt kept on the actor (an HD figure takes it as it is
+// fitted: hdscene.cpp hdCheck).
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -66,15 +66,17 @@ int Scene::pickBodyDetail(int id, float sx, float sy, int width, int height, flo
     float scale = a.scale > 1e-6f ? a.scale : 1.0f;
     V3 o = unturn(rel) * (1.0f / scale);
     V3 dm = unturn(d);
-    // the body as drawn: Eve's with the cut body, else the shaped body, else the model's own
-    const bool eve = a.eve.active && a.eve.measure.host >= 0;
+    // the body as drawn: the HD figure's body (below), else the shaped body, else the model's own
+    const bool hd = a.hd.active && a.hd.fit.bodyVertexEnd > 0;
     const BodyGl& b = a.body;
     const bool own = !b.shaped.empty() && !b.indices.empty() && !b.submeshes.empty();
-    const std::vector<M2Vertex>& verts = eve ? a.eve.measure.verts : own ? b.shaped : m.vertices;
-    const std::vector<uint32_t>& idx = eve ? a.eve.measure.indices : own ? b.indices : m.indices;
-    const std::vector<M2Submesh>& subs = eve ? a.eve.measure.subs : own ? b.submeshes : m.submeshes;
+    std::vector<M2Submesh> hdSubs;
+    if (hd) { hdSubs.resize(1); hdSubs[0].indexCount = uint32_t(a.hd.fit.bodyIndices.size()); }
+    const std::vector<M2Vertex>& verts = hd ? a.hd.fit.verts : own ? b.shaped : m.vertices;
+    const std::vector<uint32_t>& idx = hd ? a.hd.fit.bodyIndices : own ? b.indices : m.indices;
+    const std::vector<M2Submesh>& subs = hd ? hdSubs : own ? b.submeshes : m.submeshes;
     if (boneRegionsModel_ != &m) { boneRegions_ = boneRegionsOf(m); boneRegionsModel_ = &m; }
-    BodyPickHit hit = pickBody(verts, idx, subs, a.geosets, a.mats, boneRegions_, o, dm);
+    BodyPickHit hit = pickBody(verts, idx, subs, hd ? std::vector<uint16_t>{0} : a.geosets, a.mats, boneRegions_, o, dm);
     // the hair: a style that is a model of its own (not the body's geosets) is not in these triangles, so a tap round the
     // head that misses the body, or lands on the top of the head, is the hair
     const int head = m.findWowBone("Head"), pelvis = m.findWowBone("Pelvis");
@@ -109,7 +111,7 @@ void Scene::setSculpt(int id, const float* values, size_t count) {
     auto it = actors_.find(id);
     if (it == actors_.end() || (!values && count)) return;
     it->second.sculptWant.assign(values, values + std::min(count, size_t(kSculptValues)));
-    // taken on the next frame (sculptSync): the Eve body fitted again with it (evescene.cpp: eveCheck mixes it into the key),
+    // taken on the next frame (sculptSync): the HD figure fitted again with it (hdscene.cpp: hdCheck mixes it into the key),
     // the game's own body sculpted again (refreshBody)
 }
 
@@ -161,20 +163,19 @@ std::vector<float> texelRows(size_t texels) {
 } // namespace
 
 void Scene::sculptSync(Actor& a) {
-    // the Eve body on her: asked for and offered for this model (else the game's body carries the sculpt)
-    bool eve = a.eve.requested && eveSet_ && a.mesh && a.mesh->model;
-    if (eve) { const EveRaceFit* fit = eveSet_->fits.forModel(a.mesh->model->fileId); eve = fit && fit->enabled; }
+    // the HD figure drawn on her (else the game's body carries the sculpt): it is fitted again with each sculpt taken (hdCheck)
+    const bool hd = a.hd.active;
     BodyGl& b = a.body;
     const uint64_t t = steadyMs();
-    // the live sculpt (the game's body; Eve's fit is made again on the worker, evescene.cpp): with its fields made, every
-    // change is drawn at once on the GPU and the CPU sculpt follows when the sliders rest
-    const bool live = !eve && sculptThrottle_ &&
+    // the live sculpt (the game's body; the HD figure's fit is made again at most six times a second, hdscene.cpp): with its
+    // fields made, every change is drawn at once on the GPU and the CPU sculpt follows when the sliders rest
+    const bool live = !hd && sculptThrottle_ &&
                       (a.sculptWant == a.sculpt ? b.morphIdxTex != 0 && b.morphGen == b.baseGen : sculptMorphReady(a));
     if (a.sculptWant != a.sculpt) {
-        if (eve || live || !sculptThrottle_ || a.sculptAtMs == 0 || t - a.sculptAtMs >= kSculptMinMs) { a.sculpt = a.sculptWant; a.sculptAtMs = t ? t : 1; }
+        if (live || !sculptThrottle_ || a.sculptAtMs == 0 || t - a.sculptAtMs >= kSculptMinMs) { a.sculpt = a.sculptWant; a.sculptAtMs = t ? t : 1; }
     }
-    // what the game's body carries: the mesh sliders while Eve is off (under Eve the body is cut and Eve takes them)
-    std::vector<float> want = eve ? std::vector<float>() : meshValues(a.sculpt);
+    // what the game's body carries: the mesh sliders while no HD figure is drawn (under it the HD figure takes them)
+    std::vector<float> want = hd ? std::vector<float>() : meshValues(a.sculpt);
     if (want == b.sculpted) { b.live.clear(); b.staleAtMs = 0; return; }
     if (live) {
         if (want != b.live) { b.live = want; b.liveAtMs = t; if (!b.staleAtMs) b.staleAtMs = t ? t : 1; }

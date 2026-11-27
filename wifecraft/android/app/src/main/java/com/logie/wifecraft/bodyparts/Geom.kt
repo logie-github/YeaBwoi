@@ -25,7 +25,7 @@ class SimsMesh(
     val references: List<ResourceKey>,
     /** Vertex elements this reader skipped (usage code and size), and anything else worth knowing; empty when all read. */
     val notes: List<String>,
-    /** The second UV set's u,v per vertex (null: the mesh has one set). Only the Eve body keeps it (EveConvert). */
+    /** The second UV set's u,v per vertex (null: the mesh has one set). Read for any mesh that has one; no body is drawn from it now. */
     val uvs2: FloatArray? = null,
 ) {
     val triangleCount: Int get() = indices.size / 3

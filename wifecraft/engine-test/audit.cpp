@@ -20,9 +20,9 @@
 //   place SLOT X Y Z FACING [raw]          where the app put them (the engine's floor pose; raw: Scene::kRaised, not stood on the floor)
 //   clip SLOT PATH | emote SLOT ANIM LOOP | still SLOT     what they play (from the case's clock 0)
 //   hide SLOT
-//   eveset DIR FIT_JSON                    the converted Eve set and the fit table (Scene::loadEveSet, as the harness's)
-//   eve SLOT 0|1                           person SLOT in the Eve body on her own rig (Scene::setEveBody; the fit at once):
-//                                          `flesh` then measures her as the app does (her skin, her rig's joints)
+//   hdset PATH                             a Liard HD set (.whd; Scene::loadHdSet, as the harness's)
+//   hd SLOT RACE SEX 0|1                   person SLOT as the HD figure of RACE and SEX on the game's skeleton (Scene::setHdBody; the
+//                                          fit at once): `flesh` then measures it as the app does (its skin, its rig's joints)
 //   flesh SLOT OUT                         writes the person's flesh as the app reads it (Scene::actorFlesh, engine/flesh.h):
 //                                          the packed floats on one line, then a line per segment; and how long it took
 //   case ID key=value...                   starts a case: its keys go into every CSV row (rest0=, rest1=: sit|lie|kneel|floor|stand)
@@ -250,16 +250,20 @@ static bool bodyOf(const Scene& scene, int id, Body& out) {
     const ModelInfo& info = infoOf(m);
     const M4 world = M4::translation(a.position) * M4::rotationZ(a.facing) * M4::scaling(V3(a.scale, a.scale, a.scale));
     const bool shaped = !a.body.shaped.empty() && !a.body.indices.empty();
-    // in the Eve body: her skin and the model's cut body as one (the flesh measure's mesh), skinned on her rig (a.mats)
-    const bool eve = a.eve.active && a.eve.measure.host >= 0;
-    const std::vector<M2Vertex>& verts = eve ? a.eve.measure.verts : shaped ? a.body.shaped : m.vertices;
-    const std::vector<uint32_t>& idx = eve ? a.eve.measure.indices : shaped ? a.body.indices : m.indices;
-    const std::vector<M2Submesh>& subs = eve ? a.eve.measure.subs : shaped && !a.body.submeshes.empty() ? a.body.submeshes : m.submeshes;
+    // as an HD figure: its body mesh (the flesh measure's mesh), skinned on its rig (a.mats)
+    const bool hd = a.hd.active && a.hd.fit.bodyVertexEnd > 0;
+    std::vector<M2Submesh> hdSubs;
+    if (hd) { hdSubs.resize(1); hdSubs[0].indexCount = uint32_t(a.hd.fit.bodyIndices.size()); }
+    const std::vector<uint16_t> hdGeosets{0};
+    const std::vector<uint16_t>& geosets = hd ? hdGeosets : a.geosets;
+    const std::vector<M2Vertex>& verts = hd ? a.hd.fit.verts : shaped ? a.body.shaped : m.vertices;
+    const std::vector<uint32_t>& idx = hd ? a.hd.fit.bodyIndices : shaped ? a.body.indices : m.indices;
+    const std::vector<M2Submesh>& subs = hd ? hdSubs : shaped && !a.body.submeshes.empty() ? a.body.submeshes : m.submeshes;
     std::vector<uint8_t> used(verts.size(), 0);
     for (const M2Batch& b : m.batches) {
         if (b.submesh >= subs.size()) continue;
         const M2Submesh& sm = subs[b.submesh];
-        if (!a.geosets.empty() && std::find(a.geosets.begin(), a.geosets.end(), sm.id) == a.geosets.end()) continue;
+        if (!geosets.empty() && std::find(geosets.begin(), geosets.end(), sm.id) == geosets.end()) continue;
         for (uint32_t k = sm.indexStart; k < sm.indexStart + sm.indexCount && k < idx.size(); ++k) if (idx[k] < used.size()) used[idx[k]] = 1;
     }
     out = Body();
@@ -464,7 +468,6 @@ int main(int argc, char** argv) {
     Scene scene(lookup);
     scene.initGl();
     scene.setSoftBody(kSoftOff);
-    scene.setEveAsync(false);   // (the Eve fit at once: each measure and picture shows the body asked for)
 
     // one framebuffer for the measure's poses (tiny) and one per picture size
     auto target = [](int w, int h) {
@@ -628,19 +631,23 @@ int main(int argc, char** argv) {
                                  kFleshSegs[s].name, int(q[0]), q[1], q[2], q[3], q[4], q[5], q[6]);
                 }
                 // the trunk's skin across and through at the hip joints, the waist and the chest (the stance, model units;
-                // her measure's mesh in Eve): a check of the segments' reach against the skin itself
+                // the HD figure's body mesh): a check of the segments' reach against the skin itself
                 const M2Model& m = *a.mesh->model;
-                const bool eve = a.eve.active && a.eve.measure.host >= 0;
-                const LegEdit legs = a.eve.active && !a.eve.body.rigPivots.empty() ? bodyEditFrom(m, a.eve.body.rigPivots, a.eve.body.scale) : LegEdit();
+                const bool hd = a.hd.active && a.hd.fit.bodyVertexEnd > 0;
+                const LegEdit legs = hd && !a.hd.fit.rigPivots.empty() ? bodyEditFrom(m, a.hd.fit.rigPivots, BodyScale()) : LegEdit();
+                std::vector<M2Submesh> hdSb;
+                if (hd) { hdSb.resize(1); hdSb[0].indexCount = uint32_t(a.hd.fit.bodyIndices.size()); }
+                const std::vector<uint16_t> hdGs{0};
+                const std::vector<uint16_t>& gs = hd ? hdGs : a.geosets;
                 std::vector<M4> mats; standMatrices(m, mats, legs.active ? &legs : nullptr);
-                const std::vector<M2Vertex>& vs = eve ? a.eve.measure.verts : (!a.body.shaped.empty() ? a.body.shaped : m.vertices);
-                const std::vector<uint32_t>& ix = eve ? a.eve.measure.indices : (!a.body.shaped.empty() ? a.body.indices : m.indices);
-                const std::vector<M2Submesh>& sb = eve ? a.eve.measure.subs : (!a.body.shaped.empty() && !a.body.submeshes.empty() ? a.body.submeshes : m.submeshes);
+                const std::vector<M2Vertex>& vs = hd ? a.hd.fit.verts : (!a.body.shaped.empty() ? a.body.shaped : m.vertices);
+                const std::vector<uint32_t>& ix = hd ? a.hd.fit.bodyIndices : (!a.body.shaped.empty() ? a.body.indices : m.indices);
+                const std::vector<M2Submesh>& sb = hd ? hdSb : (!a.body.shaped.empty() && !a.body.submeshes.empty() ? a.body.submeshes : m.submeshes);
                 std::vector<uint8_t> used(vs.size(), 0);
                 for (const M2Batch& bt : m.batches) {
                     if (bt.submesh >= sb.size()) continue;
                     const M2Submesh& sm = sb[bt.submesh];
-                    if (!a.geosets.empty() && std::find(a.geosets.begin(), a.geosets.end(), sm.id) == a.geosets.end()) continue;
+                    if (!gs.empty() && std::find(gs.begin(), gs.end(), sm.id) == gs.end()) continue;
                     for (uint32_t k = sm.indexStart; k < sm.indexStart + sm.indexCount && k < ix.size(); ++k) if (ix[k] < used.size()) used[ix[k]] = 1;
                 }
                 auto jointAt = [&](const char* n) { int b = m.findWowBone(n); return b >= 0 && size_t(b) < mats.size() ? mats[size_t(b)].point(legs.active ? legs.pivots[size_t(b)] : m.bones[size_t(b)].pivot) : V3(0, 0, 0); };
@@ -660,17 +667,15 @@ int main(int argc, char** argv) {
             } else std::fprintf(f, "# not measured\n");
             std::fclose(f);
             std::fprintf(stderr, "flesh slot %d: %s in %.2f ms\n", slot, ok ? "measured" : "NOT measured", ms);
-        } else if (cmd == "eveset") {
-            std::string d, fitPath, err; ss >> d >> fitPath;
-            std::ifstream fin(fitPath);
-            std::string fj((std::istreambuf_iterator<char>(fin)), std::istreambuf_iterator<char>());
-            bool ok = scene.loadEveSet(d, fj, err);
-            std::fprintf(stderr, "eveset %s: %s\n", d.c_str(), ok ? "ok" : err.c_str());
-        } else if (cmd == "eve") {
-            int slot, on = 0; ss >> slot >> on;
+        } else if (cmd == "hdset") {
+            std::string path, err; ss >> path;
+            bool ok = scene.loadHdSet(path, err);
+            std::fprintf(stderr, "hdset %s: %s\n", path.c_str(), ok ? "ok" : err.c_str());
+        } else if (cmd == "hd") {
+            int slot, race = 0, sex = 0, on = 0; ss >> slot >> race >> sex >> on;
             if (!slotKey.count(slot)) continue;
-            EveOptions o; o.on = on != 0;
-            scene.setEveBody(cache[slotKey[slot]].id, o);
+            HdOptions o; o.on = on != 0;
+            scene.setHdBody(cache[slotKey[slot]].id, race, sex, o);
             target(32, 32);
             scene.render(32, 32, clock0);   // the fit is made on the next frame
         } else if (cmd == "hide") {

@@ -415,7 +415,6 @@ bool Scene::initGl() {
         a.soft.forget();
         a.cloth.vao = a.cloth.vbo = a.cloth.ibo = a.cloth.tex = 0;   // (its texture is composed again with the skin)
         for (PartSlot& s : a.parts.slots) s.tex = s.vao = s.vbo = 0;   // (uploaded again from its kept pixels when next drawn)
-        a.eve.forgetGl();                              // (and the Eve body's, from its kept vertices and pixels)
         a.hd.forgetGl();                               // (and the HD figure's, from its kept fit)
     }
     hdTex_.clear();   // (the HD figures' textures decoded again when drawn)
@@ -445,7 +444,6 @@ void Scene::releaseGl() {
         a.soft.forget();
         a.cloth.vao = a.cloth.vbo = a.cloth.ibo = a.cloth.tex = 0;   // (its texture is composed again with the skin)
         for (PartSlot& s : a.parts.slots) s.tex = s.vao = s.vbo = 0;
-        a.eve.forgetGl();
         a.hd.forgetGl();
     }
     hdTex_.clear();
@@ -755,7 +753,6 @@ void Scene::removeActor(int id) {
     dropPartGl(it->second.parts);
     it->second.soft.release(glReady_);
     dropClothGl(it->second, true);
-    dropEveGl(it->second);
     dropHdGl(it->second);
     actors_.erase(it);
 }
@@ -959,31 +956,20 @@ bool Scene::actorFlesh(int id, std::vector<float>& out) {
     mix(shaped ? a.body.moved : 0);
     mix(shaped ? a.body.indices.size() : 0);
     for (size_t i = 0; i < a.body.morph.size(); i += 97) { uint32_t bits; std::memcpy(&bits, &a.body.morph[i], 4); mix(bits); }
-    mix(a.eve.active ? a.eve.key : 0);   // (the Eve body: measured on its own skin)
     mix(a.hd.active ? a.hd.key : 0);     // (the HD figure: measured on its own body)
     for (float f : a.body.sculpted) { uint32_t bits; std::memcpy(&bits, &f, 4); mix(bits); }   // (the game's body sculpted)
-    // the skeleton as she is drawn (bodyrig.h: Eve's proportions, Leg Length)
-    BodyScale legK = a.eve.active ? a.eve.body.scale : BodyScale();
+    // the skeleton as she is drawn (bodyrig.h: Leg Length)
+    BodyScale legK;
     if (a.sculpt.size() > size_t(kSculptLegLength)) legK.legs *= legLengthFactor(a.sculpt[size_t(kSculptLegLength)]);
     for (float f : {legK.legs, legK.torso, legK.arms, legK.hands, legK.spread}) { uint32_t bits; std::memcpy(&bits, &f, 4); mix(bits); }
     if (key == 0) key = 1;
     if (a.fleshKey != key) {
-        const bool eve = a.eve.active && a.eve.measure.host >= 0;
-        const LegEdit legs = a.hd.active && !a.hd.fit.rigPivots.empty() ? bodyEditFrom(m, a.hd.fit.rigPivots, legK)
-                           : a.eve.active && !a.eve.body.rigPivots.empty() ? bodyEditFrom(m, a.eve.body.rigPivots, legK) : bodyEditOf(m, legK);
+        const LegEdit legs = a.hd.active && !a.hd.fit.rigPivots.empty() ? bodyEditFrom(m, a.hd.fit.rigPivots, legK) : bodyEditOf(m, legK);
         const LegEdit* lp = legs.active ? &legs : nullptr;
-        // (in Eve: her trunk and thighs read by the segments the model's own skin has where she is: flesh.h FleshGuide)
-        FleshGuide guide;
-        guide.byArea = eve;
-        if (eve && a.eve.baseReady && a.eve.measure.verts.size() >= a.eve.body.verts.size()) {
-            guide.from = a.eve.measure.verts.size() - a.eve.body.verts.size();
-            guide.idx = &a.eve.baseIndices; guide.subs = &a.eve.baseSubs;
-        }
         std::vector<M2Submesh> hdSubs;
         if (a.hd.active) { hdSubs.resize(1); hdSubs[0].indexCount = uint32_t(a.hd.fit.bodyIndices.size()); }
         FleshMeasure f = a.hd.active ? measureFlesh(m, a.hd.fit.verts, a.hd.fit.bodyIndices, hdSubs, std::vector<uint16_t>{0}, nullptr, lp)
-                       : eve ? measureFlesh(m, a.eve.measure.verts, a.eve.measure.indices, a.eve.measure.subs, a.geosets, nullptr, lp, &guide)
-                             : measureFlesh(m, shaped ? a.body.shaped : m.vertices, shaped ? a.body.indices : m.indices,
+                       : measureFlesh(m, shaped ? a.body.shaped : m.vertices, shaped ? a.body.indices : m.indices,
                                             shaped && !a.body.submeshes.empty() ? a.body.submeshes : m.submeshes, a.geosets, nullptr, lp);
         a.flesh = f.ok ? f.pack() : std::vector<float>();
         a.fleshKey = key;
@@ -1305,11 +1291,6 @@ void Scene::stepSoft(Actor& a, uint32_t now) {
             a.soft.rebuild(m, a.hd.fit.verts, a.hd.fit.bodyIndices, one, std::vector<uint16_t>{0}, glReady_);
             std::vector<SoftRegion> rg = a.soft.sim.regions();
             if (hdBreastRegions(m, a.hd.fit.verts, a.hd.fit.bodyVertexEnd, rg)) a.soft.sim.setRegions(rg);
-        } else if (a.eve.active && a.eve.measure.host >= 0) {
-            // the Eve body's skin is what moves: its regions found on it, the breasts measured on its own vertices
-            a.soft.rebuild(m, a.eve.measure.verts, a.eve.measure.indices, a.eve.measure.subs, a.geosets, glReady_);
-            std::vector<SoftRegion> rg = a.soft.sim.regions();
-            if (eveBreastRegions(m, a.eve.body, rg)) a.soft.sim.setRegions(rg);
         } else {
             a.soft.rebuild(m, b.shaped.empty() ? m.vertices : b.shaped, own ? b.indices : m.indices,
                            own ? b.submeshes : m.submeshes, a.geosets, glReady_);
@@ -1329,15 +1310,12 @@ void Scene::animate(Actor& a, uint32_t now) {
     struct Done { Actor& a; uint32_t now; ~Done() { a.animating = false; a.animatedAt = now; } } done{a, now};
     M2Model& m = *a.mesh->model;
     bool hasSeq = a.seq >= 0 && size_t(a.seq) < m.sequences.size();
-    // the skeleton edited for this actor (bodyrig.h): the Eve body's proportions and the sculpt's Leg Length on them, made
-    // again when either changes
+    // the skeleton edited for this actor (bodyrig.h): the sculpt's Leg Length, made again when it changes
     {
-        BodyScale k = a.eve.active ? a.eve.body.scale : BodyScale();
+        BodyScale k;
         if (a.sculpt.size() > size_t(kSculptLegLength)) k.legs *= legLengthFactor(a.sculpt[size_t(kSculptLegLength)]);
-        // (an Eve body with her own rig: the animation runs about her joints, evebody.h EveBody::rigPivots)
         // (an HD figure: the animation runs about its joints, hdbody.h HdFit::rigPivots)
-        const std::vector<V3>* rig = a.hd.active && !a.hd.fit.rigPivots.empty() ? &a.hd.fit.rigPivots
-                                   : a.eve.active && !a.eve.body.rigPivots.empty() ? &a.eve.body.rigPivots : nullptr;
+        const std::vector<V3>* rig = a.hd.active && !a.hd.fit.rigPivots.empty() ? &a.hd.fit.rigPivots : nullptr;
         const void* base = rig ? rig->data() : nullptr;
         if (a.legEdit.model != &m || !(a.legEdit.scale == k) || a.legEdit.base != base) a.legEdit = rig ? bodyEditFrom(m, *rig, k) : bodyEditOf(m, k);
     }
@@ -1668,7 +1646,6 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
               transparent, kActorTex, &a.composed, a.body.vao, a.body.vao ? &a.body.submeshes : nullptr);
     if (morph) { glUseProgram(m2Prog_); glUniform1i(loc(m2Prog_, "uMorphOn"), 0); }
     if (cloth && !transparent) drawCloth(a, w, bodyTint);
-    if (!transparent && a.eve.active) drawEve(a, w, bodyTint);   // (with the soft body's uniforms still set)
     softBodyDraw_ = false;
     if (soft) SoftDraw::setGain(m2Prog_, 1.0f);
     if (transparent) { drawBodyLayer(a, w); drawStockings(a, w); }   // (the skinned models below are the person's too: drawSkin_ still theirs)
@@ -1740,7 +1717,6 @@ void Scene::render(int width, int height, uint32_t nowMs) {
         if (!a.body.dirty && !a.body.missing.empty())
             for (uint32_t f : a.body.missing) if (!files_(f).empty()) { a.body.dirty = true; break; }
         sculptSync(a); // (the creator's sculpt taken: bodyrig.cpp)
-        eveCheck(a);   // (the Eve body's look or options changed: the body is cut and fitted again)
         hdCheck(a);    // (the HD figure's model, set or options changed: fitted again; hdscene.cpp)
         if (a.body.dirty) refreshBody(a);
         bool arrived = false;
@@ -2412,7 +2388,6 @@ void Scene::refreshBody(Actor& a) {
             std::fprintf(stderr, "body sculpt: %zu of %zu vertices moved (most %.4f), %zu triangles eased, %zu turned over, %.1f ms\n",
                          st.moved, b.shaped.size(), st.maxMove, st.eased, st.flipped, b.sculptMs);
         }
-        eveRefit(a);   // the Eve body (evescene.cpp): fitted to the body as shaped, the body under it cut
         b.shapeDirty = false;
     }
     if (!b.shaped.empty()) {

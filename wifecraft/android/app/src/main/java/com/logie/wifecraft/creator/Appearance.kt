@@ -1,6 +1,5 @@
 package com.logie.wifecraft.creator
 
-import com.logie.wifecraft.bodyparts.EveOptions
 import org.json.JSONObject
 
 /** Wrath++'s own body options (WrathppBody.kt, the realm's registry 1101 to 1103): Shape, Style and Density, by value. */
@@ -70,11 +69,6 @@ data class Appearance(
     val sculpt: BodySculpt? = null,
     /** The Personality tab ([CasPersonality]: traits, preferences, bio, colour); null: the defaults. Saved as `"personality":{...}`. */
     val personality: CasPersonality? = null,
-    /**
-     * The Eve body's options (bodyparts/EveOptions, EveDress); null: not chosen (Options' "Use the Eve body for new women"
-     * decides). Saved as `"eve":{...}` only when set: older saves load as null and are written back the same.
-     */
-    val eve: EveOptions? = null,
     /** The class whose default clothing Gear on wears (ChrClasses id; [ClassOutfits.CIVILIAN] 0: none). */
     val classId: Int = 0,
     /**
@@ -98,7 +92,6 @@ data class Appearance(
             .also { json -> parts?.takeIf { it != PartOptions() }?.let { json.put("parts", it.toJson()) } }
             .also { json -> sculpt?.takeIf { !it.isNeutral }?.let { json.put("sculpt", it.toJson()) } }
             .also { json -> personality?.takeIf { !it.isDefault }?.let { json.put("personality", it.toJson()) } }
-            .also { json -> eve?.let { json.put("eve", it.toJson()) } }
             .also { json -> hd?.let { json.put("hd", it.toJson()) } }
     }
 
@@ -117,11 +110,12 @@ data class Appearance(
                 val character = n.optString("character"); val variant = n.optString("variant")
                 if (character.isEmpty() || variant.isEmpty()) null else NamedLook(character, variant)
             }
+            // (a save from before the Eve body was scrapped may carry an `"eve":{...}` block: ignored, and not written back)
             return Appearance(o.getInt("race"), sex, picks, body, o.optBoolean("gear", true) && !cleared,
                 o.optBoolean("undead", false), o.optInt("undeadSkin", 0).coerceAtLeast(0),
                 named = named, parts = PartOptions.fromJson(o.optJSONObject("parts")),
                 sculpt = BodySculpt.fromJson(o.optJSONObject("sculpt")), personality = CasPersonality.fromJson(o.optJSONObject("personality")),
-                eve = o.optJSONObject("eve")?.let { EveOptions.fromJson(it) }, classId = o.optInt("class", 0).coerceAtLeast(0),
+                classId = o.optInt("class", 0).coerceAtLeast(0),
                 hd = o.optJSONObject("hd")?.let { com.logie.wifecraft.bodyparts.HdOptions.fromJson(it) })
         }
     }

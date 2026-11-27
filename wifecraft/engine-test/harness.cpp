@@ -54,7 +54,6 @@
 //   ghost MODEL X Y Z YAW SCALE | ghostlook LOOKFILE X Y Z YAW   the ghost of what is about to be placed (a prop, a look)
 //   ghostmove X Y Z YAW | ghostclear
 //   thumb prop FILE_ID|look LOOKFILE SIZE OUT.png   a library thumbnail (Scene::thumbnail), drawn between frames
-//   thumbeve ON [BOTTOM TONE SLOT SHADE OPACITY [BONES]]   the Eve body on the look pictures that follow (ThumbLook::eve)
 //   card LOOKFILE W H LO HI AZ EL FITWIDTH CLEAR OUT.png   a Transmog card (Scene::ThumbFrame; RGBA PNG when CLEAR), timed
 //   camerainfo                                 prints the camera as last drawn (Scene::cameraInfo)
 //   timing on|off                              prints how long each later command took (what the GL thread would stall)
@@ -424,13 +423,10 @@ static Light preset(const std::string& name) {
     return l;
 }
 
-// The Eve body on the look pictures that follow (thumbeve; Native.thumbEve's options): off until set.
-static EveOptions gThumbEve;
 
 // A look file as Scene::thumbnail takes it.
 static Scene::ThumbLook thumbLook(const LookFile& lf) {
     Scene::ThumbLook t;
-    t.eve = gThumbEve;
     t.model = lf.model; t.scale = lf.scale; t.textures = lf.tex; t.geo = lf.geo; t.layers = lf.layers; t.extras = lf.extras;
     if (lf.body) { t.morph = lf.morph; t.bodyK = lf.bodyK; t.bodyFold = lf.bodyFold; }
     return t;
@@ -568,7 +564,6 @@ int main(int argc, char** argv) {
     Scene scene(lookup);
     scene.setSculptThrottle(false);   // (each still shows the sculpt it was given)
     scene.initGl();
-    scene.setEveAsync(false);   // (each render shows the fit asked for; `eveasync 1` puts it on the worker as the app does)
     std::map<int, int> actors, props;
     Light light;
 
@@ -923,21 +918,6 @@ int main(int argc, char** argv) {
             if (target >= 0) scene.setPartSkin(actors[name], target);   // (the root blended to it: bodypart.h blendRootToSkin)
             bool ok = scene.attachPart(actors[name], part, img.px.data(), img.w, img.h);
             std::fprintf(stderr, "part %d %s (%s %s): %s, skin %06X\n", name, pd.id.c_str(), pd.state.c_str(), pd.variant.c_str(), ok ? "ok" : "FAILED", target < 0 ? 0 : target);
-        } else if (cmd == "eveset") {
-            // eveset DIR FIT_JSON: the converted Eve set (bodyparts/EveConvert) and the fit table (assets/eve_fit.json)
-            std::string d, fitPath, err; ss >> d >> fitPath;
-            Bytes fj;
-            readFile(fitPath, fj);
-            bool ok = scene.loadEveSet(d, std::string(fj.begin(), fj.end()), err);
-            std::fprintf(stderr, "eveset %s: %s\n", d.c_str(), ok ? "ok" : err.c_str());
-        } else if (cmd == "eve") {
-            // eve N ON [BOTTOM TONE SLOT SHADE OPACITY [BONES]]: person N's Eve body (Scene::setEveBody; -1: auto / none; BONES 0:
-            // Keep undead bones off)
-            int name, on; EveOptions o; std::string bottom = "plain";
-            ss >> name >> on;
-            if (ss >> bottom) { o.bottom = bottom; ss >> o.tone >> o.overlaySlot >> o.overlayShade >> o.opacity; int bones = 1; if (ss >> bones) o.bones = bones != 0; }
-            o.on = on != 0;
-            if (actors.count(name)) scene.setEveBody(actors[name], o);
         } else if (cmd == "hdset") {
             // hdset PATH: an HD model set (.whd: tools/hd/whd_convert.py), kept under its race and sex
             std::string path, err; ss >> path;
@@ -959,37 +939,6 @@ int main(int argc, char** argv) {
                 std::printf("hdstatus %d: requested %d active %d set '%s' status '%s' scale %.3f limbDeg %.2f verts %zu tris %zu unmapped %zu fit %.1f ms\n", name,
                             st.requested, st.active, st.set.c_str(), st.status.c_str(), st.stats.scale, st.stats.jointError, st.stats.vertices,
                             st.stats.triangles, st.stats.unmapped, st.stats.ms);
-        } else if (cmd == "eveasync") {
-            // eveasync 0|1: the Eve fit at once on this thread (the harness's default) or on the worker (the app's)
-            int on = 0; ss >> on; scene.setEveAsync(on != 0);
-        } else if (cmd == "evesettle") {
-            // evesettle N MAXFRAMES [FRAME_MS]: frames drawn (64 x 64, the clock held) until person N's fit is swapped in, each
-            // frame's time on this (the GL) thread printed; FRAME_MS (default 16) the frame's pace (the worker runs meanwhile)
-            int name, maxFrames, pace = 16; ss >> name >> maxFrames; ss >> pace;
-            if (!actors.count(name)) continue;
-            static uint32_t settleT = 0;
-            double worst = 0, sum = 0, swapMs = 0; int n = 0, swapAt = -1;
-            for (int f = 0; f < maxFrames; ++f) {
-                Scene::EveStatus before; scene.eveStatus(actors[name], before);
-                auto t0 = std::chrono::steady_clock::now();
-                scene.render(64, 64, settleT);
-                glFinish();
-                double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-                Scene::EveStatus st; scene.eveStatus(actors[name], st);
-                worst = std::max(worst, ms); sum += ms; ++n;
-                if (before.pending && !st.pending) { swapAt = f; swapMs = ms; }
-                if (!st.pending && f > 0 && swapAt >= 0) {
-                    // one more frame: the Eve body's own upload is drawn then
-                    auto t1 = std::chrono::steady_clock::now();
-                    scene.render(64, 64, settleT); glFinish();
-                    double up = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t1).count();
-                    std::printf("evesettle %d: swapped in at frame %d (%.2f ms that frame, then %.2f ms), %d frames mean %.2f ms worst %.2f ms; "
-                                "the fit's GL-thread share %.2f ms\n", name, swapAt, swapMs, up, n, sum / n, worst, st.glMs);
-                    break;
-                }
-                if (!st.pending && swapAt < 0 && f > 0) { std::printf("evesettle %d: nothing pending (%s)\n", name, st.status.c_str()); break; }
-                std::this_thread::sleep_for(std::chrono::milliseconds(pace));
-            }
         } else if (cmd == "frametime") {
             // frametime N W H: N frames drawn (the clock held), their mean and worst time on this thread
             int n, w, h; ss >> n >> w >> h;
@@ -1062,8 +1011,8 @@ int main(int argc, char** argv) {
             // bodypick N X Y W H: the part of person N's body at pixel (X, Y) of a W x H view of the last camera (bodypick.h)
             int name, w, h; float x, y; ss >> name >> x >> y >> w >> h;
             std::printf("bodypick %d %.0f %.0f: %d\n", name, x, y, actors.count(name) ? scene.pickBodyRegion(actors[name], x, y, w, h) : -1);
-        } else if (cmd == "evemeasure") {
-            // evemeasure N: person N's flesh measure (Scene::actorFlesh, as the simulation reads it) and soft-body regions
+        } else if (cmd == "fleshmeasure") {
+            // fleshmeasure N: person N's flesh measure (Scene::actorFlesh, as the simulation reads it) and soft-body regions
             int name; ss >> name;
             if (!actors.count(name)) continue;
             std::vector<float> fl;
@@ -1079,17 +1028,6 @@ int main(int argc, char** argv) {
                     std::printf("soft %d region %zu: kind %d centre %.3f %.3f %.3f radii %.3f %.3f %.3f weight %.2f\n", name, r, int(g.kind),
                                 g.centre.x, g.centre.y, g.centre.z, g.radii.x, g.radii.y, g.radii.z, g.weight);
                 }
-        } else if (cmd == "evestatus") {
-            int name; ss >> name;
-            Scene::EveStatus st;
-            if (actors.count(name) && scene.eveStatus(actors[name], st))
-                std::printf("evestatus %d: %s %s fit %.1f ms skin %.1f ms unit %.3f kHip %.3f kShoulder %.3f cut %zu/%zu tris (kept %zu) "
-                            "edges neck %zu ankles %zu/%zu rings %zu/%zu/%zu move neck %.4f/%.4f ankles %.4f/%.4f neck %06X ankle %06X ref %06X shade %d (%.1f) eve %zu body %zu\n",
-                            name, st.active ? "ON" : "off", st.status.c_str(), st.stats.ms, st.composeMs, st.stats.unit, st.stats.kHip, st.stats.kShoulder,
-                            st.stats.cutTriangles, st.stats.cutTriangles + st.stats.keptTriangles, st.stats.keptTriangles, st.stats.neckEdges,
-                            st.stats.ankleEdges[0], st.stats.ankleEdges[1], st.stats.ringSnapped[0], st.stats.ringSnapped[1], st.stats.ringSnapped[2],
-                            st.stats.ringMoveMean[0], st.stats.ringMoveMax[0], st.stats.ringMoveMean[1], st.stats.ringMoveMax[1], st.neck, st.ankle,
-                            st.reference, st.shade, st.shadeDist, st.eveTriangles, st.bodyTriangles);
         } else if (cmd == "partstate") {
             int name, st; ss >> name >> st;
             if (actors.count(name)) scene.setPartState(actors[name], st);
@@ -1334,13 +1272,6 @@ int main(int argc, char** argv) {
             int actor = scene.ghostActorId();
             scene.ghostClear();
             if (actor) scene.removeActor(actor);
-        } else if (cmd == "thumbeve") {
-            // thumbeve ON [BOTTOM TONE SLOT SHADE OPACITY [BONES]]: the Eve body on the look pictures (thumb, card) that follow
-            int on = 0; EveOptions o; std::string bottom;
-            ss >> on;
-            if (ss >> bottom) { o.bottom = bottom; ss >> o.tone >> o.overlaySlot >> o.overlayShade >> o.opacity; int bones = 1; if (ss >> bones) o.bones = bones != 0; }
-            o.on = on != 0;
-            gThumbEve = o;
         } else if (cmd == "thumb") {
             std::string kind, asset, out; int size = 160;
             ss >> kind >> asset >> size >> out;

@@ -91,7 +91,6 @@ import kotlin.math.roundToInt
  * The character creator: the Create-a-Character shell ([CasScreen]: tabs, the character in the middle, the tab's panel) over
  * the same [CreatorModel]; [classic] the Wrath++/Shadowlands layout below ([ClassicCreatorScreen]), kept whole.
  * @param onLook the look to draw whenever the appearance changes (resolved off the main thread); the host dresses its actor with it.
- * @param eve the Eve body's options on the look (the Body tab's Eve section; null until the host binds them).
  */
 @Composable
 fun CreatorScreen(
@@ -110,12 +109,11 @@ fun CreatorScreen(
     portraits: Thumbs? = null,
     onLook: (ResolvedLook) -> Unit = {},
     classic: Boolean = false,
-    eve: CasEveBinding? = null,
 ) {
     if (classic) ClassicCreatorScreen(model, art, scene, tables, onFinish, onBack, atlas, initialName, actorKey, randomName, onPreviewRace,
         iconSource, portraits, onLook)
     else CasScreen(model, art, scene, tables, onFinish, onBack, atlas, initialName, actorKey, randomName, onPreviewRace,
-        iconSource, portraits, onLook, eve)
+        iconSource, portraits, onLook)
 }
 
 /** The Wrath++/Shadowlands creator as it was (the race step, then Customize). @param onLook as [CreatorScreen]'s. */

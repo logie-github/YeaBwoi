@@ -99,15 +99,6 @@ class PairAlignmentAudit {
             if (gf != null) combos += Combo("human_m+gnome_f", m, Body("gnome_f", gf, gf.pelvis.toDouble(), HumanScale.GNOME_FEMALE.toDouble()),
                 1f, HumanScale.GNOME_FEMALE, 1f, HumanScale.GNOME_FEMALE)
         }
-        // the Eve body (README, "Her own rig"): a woman in Eve measured on her own rig (engine-test/audit's `eve` then `flesh`:
-        // her skin's flesh, her rig's joints), ALIGN_EVE the races (eve_<race>.flesh; default human), with the human man both ways
-        if (hm != null) for (race in (System.getenv("ALIGN_EVE") ?: "human").split(',').map { it.trim() }.filter { it.isNotEmpty() }) {
-            val ev = measured("eve_$race") ?: continue
-            val w = Body("eve_$race", ev, ev.pelvis.toDouble())
-            val m = Body("human_m", hm, hm.pelvis.toDouble())
-            combos += Combo("human_m+eve_$race", m, w, 1f, 1f, 1f, 1f)
-            combos += Combo("eve_$race+human_m", w, m, 1f, 1f, 1f, 1f)
-        }
         // ALIGN_COMBOS: only these body pairs (comma-separated names; the generic one is always kept: the retarget's measure)
         System.getenv("ALIGN_COMBOS")?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.takeIf { it.isNotEmpty() }?.let { keep ->
             combos.retainAll { it.name == "generic" || it.name in keep }
@@ -310,17 +301,12 @@ class PairAlignmentAudit {
                     val plan = StringBuilder()
                     plan.append("files ${System.getenv("ALIGN_FILES")}\nlocation ${System.getenv("ALIGN_LOCATIONS")} embassy inside\nfloor $floor\n")
                     plan.append("case $slug kind=pair\nclearsolids\nclearprops\n")
-                    // each body's look: the man and the default woman dressed (ALIGN_LOOKS); a woman in Eve nude by design
-                    // (ALIGN_EVE_LOOK, her race's look, the set and table by ALIGN_EVE_SET and ALIGN_EVE_FIT)
-                    if (combo.a.name.startsWith("eve_") || combo.b.name.startsWith("eve_"))
-                        plan.append("eveset ${System.getenv("ALIGN_EVE_SET")} ${System.getenv("ALIGN_EVE_FIT")}\n")
+                    // each body's look: the man and the default woman dressed (ALIGN_LOOKS)
                     for ((slot, body) in listOf(0 to combo.a, 1 to combo.b)) {
-                        val eve = body.name.startsWith("eve_")
-                        val look = if (eve) System.getenv("ALIGN_EVE_LOOK") else "${System.getenv("ALIGN_LOOKS")}/${body.name}.look"
-                        val height = (if (eve || body.name.endsWith("_f")) HumanScale.FEMALE_HEIGHT else HumanScale.MALE_HEIGHT) * com.logie.wifecraft.anim.CharacterSize.active
+                        val look = "${System.getenv("ALIGN_LOOKS")}/${body.name}.look"
+                        val height = (if (body.name.endsWith("_f")) HumanScale.FEMALE_HEIGHT else HumanScale.MALE_HEIGHT) * com.logie.wifecraft.anim.CharacterSize.active
                         val s = if (slot == 0) sA else sB
                         plan.append("actor $slot $look $height ${HumanScale.PAIR}\n")
-                        if (eve) plan.append("eve $slot 1\n")
                         plan.append(String.format(locale, "place $slot %.4f %.4f %.4f %.4f raw\n", sx + s.x, sy + s.y, floor + base + (if (slot == 0) la else lb),
                             Math.toRadians(s.yawDeg.toDouble())))
                         plan.append("clip $slot ${File(dir, if (slot == 0) "a.anim" else "b.anim").absolutePath}\n")

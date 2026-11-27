@@ -8,14 +8,13 @@
 //   - the set's weights already name the game's bones (the converter mapped the HD rig's authored weights onto them by the
 //     recipe's table): each is looked up on the model (M2Model::findWowBone); a name the model lacks falls back to the
 //     nearest vertex of the model's own skin (hdTransferWeights: the game body's weights where the HD vertex lies);
-//   - the HD figure is scaled so its neck joint stands as high as the model's (as the Eve body is: the same height to the
-//     shoulders), its pelvis over the model's;
+//   - the HD figure is scaled so its neck joint stands as high as the model's (the same height to the shoulders), its pelvis over the model's;
 //   - its limbs are turned to point as the model's rest pose does (upper arm, forearm, hand by its middle and index-to-pinky
 //     line, fingers, thigh, shin, foot), skinned by its own weights about its own joints (linear blend), so the game's
 //     animations, made for that rest pose, turn them the same way;
 //   - every bone's pivot is put at the HD figure's joint (rigPivots: bodyrig.h bodyEditFrom runs the model's animations about
-//     them, as for the Eve rig); bones without one move with their nearest placed ancestor.
-// Drawn (hdscene.cpp) with the m2 program on the actor's bones, like the Eve body: the body (less the triangles the chosen
+//     them); bones without one move with their nearest placed ancestor.
+// Drawn (hdscene.cpp) with the m2 program on the actor's bones: the body (less the triangles the chosen
 // outfit covers), the eyes and brows, the chosen hair, outfit and jewellery, each part with its texture: the skin tinted by
 // the chosen tint, the face and body marks laid over it, the hair recoloured by its tint.
 //
@@ -156,7 +155,7 @@ HdFit fitHd(const M2Model& m, const HdSet& set, const HdOptions& o, std::string&
 void hdTransferWeights(const M2Model& m, const std::vector<uint16_t>& geosets, const std::vector<V3>& points,
                        std::vector<std::array<uint8_t, 4>>& bones, std::vector<std::array<uint8_t, 4>>& weights);
 
-// The breasts' soft-body regions measured on the HD body (as eveBreastRegions does on Eve's).
+// The breasts' soft-body regions measured on the HD body.
 size_t hdBreastRegions(const M2Model& m, const std::vector<M2Vertex>& verts, uint32_t end, std::vector<SoftRegion>& regions);
 
 // A texture of the set as drawn: decoded, `overlay` (-1 none) laid over it, recoloured for hair by `hairTint` (null none).

@@ -283,7 +283,7 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
         normalize(null)
     }
 
-    /** Any other part of the look changed by [transform] (a field this model has no rows for: the Eve body's options), race and sex kept. */
+    /** Any other part of the look changed by [transform] (a field this model has no rows for: the HD figure's options), race and sex kept. */
     fun edit(transform: (Appearance) -> Appearance) {
         appearance = transform(appearance).copy(raceId = model.race.id, sex = model.sex)
     }

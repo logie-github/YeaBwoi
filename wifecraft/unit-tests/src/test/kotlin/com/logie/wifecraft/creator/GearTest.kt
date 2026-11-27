@@ -1,10 +1,7 @@
 package com.logie.wifecraft.creator
 
-import com.logie.wifecraft.bodyparts.EveContext
-import com.logie.wifecraft.bodyparts.EveDress
-import com.logie.wifecraft.bodyparts.EveFitTable
-import com.logie.wifecraft.bodyparts.EveOptions
-import com.logie.wifecraft.bodyparts.EveRule
+import com.logie.wifecraft.bodyparts.HdContext
+import com.logie.wifecraft.bodyparts.HdDress
 import com.logie.wifecraft.bodyparts.ModelParts
 import com.logie.wifecraft.bodyparts.PartChoice
 import com.logie.wifecraft.characters.GearSwitch
@@ -23,12 +20,13 @@ import kotlin.test.assertTrue
 /**
  * The Gear switch (Appearance.gear, creator/ClassOutfits, characters/GearSwitch): Gear on wears the class's default clothing
  * (assets/class_outfits.json, tools/class_outfits.py), Gear off is nude; older saves' Transmog outfits load as one or the
- * other; the Eve body and the men's parts follow; the named characters switch between their outfit and their nude look.
+ * other; the Liard HD figure and the men's parts follow; the named characters switch between their outfit and their nude look.
  */
 class GearTest {
     private val assets = File(System.getProperty("wifecraft.assets") ?: "../android/app/src/main/assets")
     private val outfits = ClassOutfits.parse(File(assets, "class_outfits.json").readText())
-    private val covering = EveRule.COVERING_SLOTS
+    /** The slots whose clothing covers the body (shirt, chest, robe, waist, legs, wrists, hands, tabard). */
+    private val covering = setOf(4, 5, 6, 7, 9, 10, 19)
 
     // ---- the class outfits
 
@@ -103,23 +101,25 @@ class GearTest {
         assertEquals(named, outfits.dressed(named))
     }
 
-    @Test fun theEveBodyAndTheMensPartsFollowTheSwitch() {
-        val fit = EveFitTable.parse(File(assets, "eve_fit.json").readText())
-        val ctx = EveContext(true, fit, defaultOn = false, signature = "s")
-        val woman = Appearance(4, Sex.FEMALE, eve = EveOptions(on = true), classId = 8)
-        val model = fit.forRace(4)!!.models.first()
-        // Gear off: nude, she wears Eve
+    @Test fun theLiardBodyAndTheMensPartsFollowTheSwitch() {
+        // a Liard set for night elf women (race 4): Gear off is the bare HD figure, Gear on wears the set's outfit for her class
+        val set = com.logie.wifecraft.bodyparts.HdSetInfo(File("4_1.whd"), 4, 1, "NE", emptyList(),
+            listOf(com.logie.wifecraft.bodyparts.HdSetInfo.Outfit("Civilian", listOf(0)), com.logie.wifecraft.bodyparts.HdSetInfo.Outfit("Rogue", listOf(4))),
+            emptyList(), emptyList(), false, emptyList(), emptyList(), emptyList(), 1, 1)
+        val ctx = HdContext(true, mapOf(set.key to set), "s")
+        val woman = Appearance(4, Sex.FEMALE, classId = 4)
         val nude = outfits.dressed(woman.copy(gear = false))
-        assertTrue(EveRule.unclothed(nude))
-        assertNotNull(EveDress.decide(woman.copy(gear = false), nude, model, ctx).options)
-        // Gear on: her class's clothes cover her, her own body as today
+        val bare = HdDress.decide(woman.copy(gear = false), nude, ctx)
+        assertTrue(bare.on); assertEquals(-1, bare.outfit)
         val dressed = outfits.dressed(woman)
-        assertFalse(EveRule.unclothed(dressed))
-        assertEquals("her look is clothed", EveDress.decide(woman, dressed, model, ctx).why)
-        // the raw appearance says the same before it is dressed (the recruit's clothes still to be put on)
-        assertFalse(EveRule.unclothed(woman)); assertTrue(EveRule.unclothed(woman.copy(gear = false)))
-        // every class's outfit for her covers her
-        for (c in outfits.classesFor(4)) assertFalse(EveRule.unclothed(outfits.dressed(woman.copy(classId = c.id))), c.name)
+        val worn = HdDress.decide(woman, dressed, ctx)
+        assertTrue(worn.on); assertEquals(1, worn.outfit)
+        // no set for the race: the game's own model, whatever the Gear switch says
+        val orc = Appearance(2, Sex.FEMALE, classId = 1)
+        assertFalse(HdDress.decide(orc, outfits.dressed(orc), ctx).on)
+        assertFalse(HdDress.decide(orc.copy(gear = false), outfits.dressed(orc.copy(gear = false)), ctx).on)
+        // every class's outfit for her covers her (the game's model's clothing)
+        for (c in outfits.classesFor(4)) assertTrue(outfits.dressed(woman.copy(classId = c.id)).clothing.keys.any { it in covering }, c.name)
         // a man's parts: shown with Gear off only
         val man = Appearance(1, Sex.MALE, classId = 1)
         assertTrue(PartChoice.lowerBodyBare(outfits.dressed(man.copy(gear = false))))
