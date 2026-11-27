@@ -69,6 +69,10 @@ data class GraphicsSettings(
     val sharpInBuild: Boolean = true,
     /** Depth of field's sharp band follows the NPC the camera is about ([com.logie.wifecraft.simulation.FocusTarget]); off: the old band round the camera's target. */
     val focusFollows: Boolean = true,
+    /** Flesh contact (engine/contact.h): the skin dents where a hand, a mouth or another body presses. 0 Off, 1 Low (4 contacts at a time), 2 High (8, the default). */
+    val fleshContact: Int = 2,
+    /** The skin's softness for Flesh contact, a percentage (0..200, 100: as the body's regions are: breasts, rear, thighs and belly soft; hips, ribs and shins stiff). */
+    val fleshSoftness: Int = 100,
 ) {
     /** Within limits (a hand-edited or old file can't break the renderer). */
     fun clamped(): GraphicsSettings = copy(
@@ -85,6 +89,7 @@ data class GraphicsSettings(
         vignette = vignette.coerceIn(0, 100), grain = grain.coerceIn(0, 100), chroma = chroma.coerceIn(0, 100),
         sharpen = sharpen.coerceIn(0, 100), eyes = eyes.coerceIn(0, 100), thinSkin = thinSkin.coerceIn(0, 100),
         sheenMax = sheenMax.coerceIn(0, 100),
+        fleshContact = fleshContact.coerceIn(0, 2), fleshSoftness = fleshSoftness.coerceIn(0, 200),
     )
 
     /** The effects alone (the preset, the target, the switches about the page itself left out): what a preset sets. */
@@ -143,6 +148,8 @@ data class GraphicsSettings(
         v[23] = if (timers) 1f else 0f
         v[24] = c.eyes / 100f
         v[25] = c.thinSkin / 100f
+        v[26] = c.fleshContact.toFloat()
+        v[27] = c.fleshSoftness / 100f
         return v
     }
 
@@ -155,10 +162,11 @@ data class GraphicsSettings(
         .put("shafts", shafts).put("haze", haze).put("vignette", vignette).put("grain", grain).put("chroma", chroma)
         .put("sharpen", sharpen).put("eyes", eyes).put("thinSkin", thinSkin).put("sheenFollows", sheenFollows)
         .put("sheenMax", sheenMax).put("sharpInBuild", sharpInBuild).put("focusFollows", focusFollows)
+        .put("fleshContact", fleshContact).put("fleshSoftness", fleshSoftness)
 
     companion object {
         /** engine/graphics_settings.h's kCount. */
-        const val NATIVE_COUNT = 26
+        const val NATIVE_COUNT = 28
         const val SCALE_MIN = 60
         const val SCALE_MAX = 125
         val TARGETS = listOf(60, 90, 120)
@@ -233,6 +241,8 @@ data class GraphicsSettings(
                     sheenMax = o.optInt("sheenMax", d.sheenMax),
                     sharpInBuild = o.optBoolean("sharpInBuild", d.sharpInBuild),
                     focusFollows = o.optBoolean("focusFollows", d.focusFollows),
+                    fleshContact = o.optInt("fleshContact", d.fleshContact),
+                    fleshSoftness = o.optInt("fleshSoftness", d.fleshSoftness),
                 ).clamped()
             } catch (e: Exception) { DEFAULT }
         }
@@ -242,8 +252,8 @@ data class GraphicsSettings(
 /**
  * What the governor lowers, in the order it lowers them (and raises them back in reverse): the render scale first, then
  * the AO's and shadows' quality, bloom, depth of field, MSAA, the Ultra extras, the render scale further, AO and shadows
- * altogether, the thin-skin tint, the skin, hair and sheen shading, and the eyes' highlights last (they cover a few pixels:
- * the cheapest). A step that changes nothing for the settings is skipped. Texture detail is memory, not frame time: never
+ * altogether, the thin-skin tint, the skin, hair and sheen shading, and the eyes' highlights (they cover a few pixels:
+ * the cheapest); Flesh contact goes to 4 contacts after MSAA and off at the very last step. A step that changes nothing for the settings is skipped. Texture detail is memory, not frame time: never
  * the governor's.
  */
 enum class QualityStep(val label: String) {
@@ -252,12 +262,14 @@ enum class QualityStep(val label: String) {
     BLOOM("Bloom off"),
     DOF("Depth of field off"),
     MSAA("MSAA off"),
+    FLESH_CONTACT_LOW("Flesh contact to 4 contacts"),
     SHAFTS_HAZE("Light shafts and haze off"),
     RENDER_SCALE_LOW("Render scale to 70%"),
     AO_SHADOWS("AO and shadows off"),
     THIN_SKIN("Thin-skin tint off"),
     SKIN("Skin, hair and sheen shading off"),
-    EYES("Eye highlights off");
+    EYES("Eye highlights off"),
+    FLESH_CONTACT_OFF("Flesh contact off");
 
     fun appliesTo(s: GraphicsSettings): Boolean = when (this) {
         RENDER_SCALE -> s.renderScale > 85
@@ -271,6 +283,8 @@ enum class QualityStep(val label: String) {
         THIN_SKIN -> s.thinSkin > 0
         SKIN -> s.skin > 0 || s.hair > 0 || (s.sheenFollows && s.sheenMax > 0)
         EYES -> s.eyes > 0
+        FLESH_CONTACT_LOW -> s.fleshContact >= 2
+        FLESH_CONTACT_OFF -> s.fleshContact > 0
     }
 
     fun apply(s: GraphicsSettings): GraphicsSettings = when (this) {
@@ -285,6 +299,8 @@ enum class QualityStep(val label: String) {
         THIN_SKIN -> s.copy(thinSkin = 0)
         SKIN -> s.copy(skin = 0, hair = 0, sheenMax = 0)
         EYES -> s.copy(eyes = 0)
+        FLESH_CONTACT_LOW -> s.copy(fleshContact = minOf(s.fleshContact, 1))
+        FLESH_CONTACT_OFF -> s.copy(fleshContact = 0)
     }
 
     companion object {
@@ -293,7 +309,7 @@ enum class QualityStep(val label: String) {
          * picture soft), shadows and AO first, then the haze, MSAA, and the people's shading last.
          */
         val SHARP_ORDER: List<QualityStep> = listOf(
-            AO_SHADOW_QUALITY, AO_SHADOWS, BLOOM, DOF, SHAFTS_HAZE, MSAA, THIN_SKIN, SKIN, EYES,
+            AO_SHADOW_QUALITY, AO_SHADOWS, BLOOM, DOF, SHAFTS_HAZE, MSAA, FLESH_CONTACT_LOW, THIN_SKIN, SKIN, EYES, FLESH_CONTACT_OFF,
         )
     }
 }

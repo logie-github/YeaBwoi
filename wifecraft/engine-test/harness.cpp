@@ -1161,6 +1161,47 @@ int main(int argc, char** argv) {
             BoneAnim ba;
             if (actors.count(name) && readBoneAnim(path, ba))
                 std::fprintf(stderr, "boneanim %d: %d of %zu tracks found their bone\n", name, scene.setBoneAnim(actors[name], ba, 0), ba.tracks.size());
+        } else if (cmd == "fleshcontact") {
+            // fleshcontact LEVEL SOFTNESS: Options' Flesh contact (Scene::setFleshContact: 0 off, 1 low, 2 high; softness 0..2) and load N (the governor's step)
+            int level = 2, load = 0; float soft = 1; ss >> level >> soft; ss >> load;
+            scene.setFleshContact(level, soft);
+            scene.setContactLoad(load);
+        } else if (cmd == "touch") {
+            // touch N SX SY W H PRESSURE: a finger at the screen point presses person N's skin (Scene::pushTouch); prints the region hit
+            int name, w, h; float sx, sy, pr; ss >> name >> sx >> sy >> w >> h >> pr;
+            if (actors.count(name)) std::printf("touch %d: region %d\n", name, scene.pushTouch(actors[name], sx, sy, w, h, pr));
+        } else if (cmd == "untouch") {
+            int name; ss >> name;
+            if (actors.count(name)) scene.releaseTouch(actors[name]);
+        } else if (cmd == "ctpress") {
+            // ctpress N KEY X Y Z NX NY NZ RADIUS DEPTH REGION: a press on person N fed every frame (world); ctclear N empties them
+            int name, region; unsigned key; float x, y, z, nx, ny, nz, r, d;
+            ss >> name >> key >> x >> y >> z >> nx >> ny >> nz >> r >> d >> region;
+            if (actors.count(name)) {
+                std::vector<ContactIn> list;
+                if (const ContactDraw* cd = scene.contactOf(actors[name])) list = cd->manual;
+                ContactIn c; c.key = key; c.pos = V3(x, y, z); c.normal = V3(nx, ny, nz).normalized(); c.radius = r; c.depth = d; c.region = region;
+                bool found = false;
+                for (auto& q : list) if (q.key == key) { q = c; found = true; }
+                if (!found) list.push_back(c);
+                scene.setContactManual(actors[name], list);
+            }
+        } else if (cmd == "ctreset") {
+            int name; ss >> name;
+            if (actors.count(name)) scene.resetContacts(actors[name]);
+        } else if (cmd == "ctclear") {
+            int name; ss >> name;
+            if (actors.count(name)) scene.setContactManual(actors[name], {});
+        } else if (cmd == "ctinfo") {
+            // ctinfo N: the contacts drawn on person N now (count, derived this frame, each depth/bulge/flush/blanch in mm)
+            int name; ss >> name;
+            if (actors.count(name)) if (const ContactDraw* cd = scene.contactOf(actors[name])) {
+                std::printf("ctinfo %d: drawn %d derived %d\n", name, cd->solver.count(), cd->derived);
+                for (int i = 0; i < cd->solver.count(); ++i) {
+                    const ContactOut& o = cd->solver.out()[i];
+                    std::printf("  at %.3f %.3f %.3f n %.2f %.2f %.2f r %.3f depth %.1f mm bulge %.1f mm flush %.2f blanch %.2f\n", o.pos.x, o.pos.y, o.pos.z, o.normal.x, o.normal.y, o.normal.z, o.radius, o.depth * 1000, o.bulge * 1000, o.flush, o.blanch);
+                }
+            }
         } else if (cmd == "soft") {
             std::string l; ss >> l;
             scene.setSoftBody(softLevel(l));
@@ -1218,6 +1259,14 @@ int main(int argc, char** argv) {
         } else if (cmd == "select") {
             int name = 0; ss >> name;
             scene.select(props.count(name) ? 1 : 0, props.count(name) ? props[name] : 0);
+        } else if (cmd == "pickbody") {
+            // pickbody N SX SY W H: Scene::pickBodyDetail's numbers for the point (Interact mode's region input: code, side, height, forward, across, z, front, geoset)
+            int name, w, h; float sx, sy; ss >> name >> sx >> sy >> w >> h;
+            if (actors.count(name)) {
+                float d[8];
+                int code = scene.pickBodyDetail(actors[name], sx, sy, w, h, d);
+                std::printf("pickbody %.0f,%.0f: code %d h %.3f across %.3f front %.0f z %.3f\n", sx, sy, code & 255, d[2], d[4], d[6], d[5]);
+            }
         } else if (cmd == "pick") {
             float sx, sy; int w, h;
             ss >> sx >> sy >> w >> h;
@@ -1469,7 +1518,7 @@ int main(int argc, char** argv) {
                     int b = mm->findWowBone(bone);
                     if (b < 0 || size_t(b) >= mats.size()) { std::printf(" %s=?", bone.c_str()); continue; }
                     V3 p = mats[size_t(b)].point(mm->bones[size_t(b)].pivot);
-                    std::printf(" %s=(%.3f,%.3f,%.3f)", bone.c_str(), p.x, p.y, p.z);
+                    std::printf(" %s[%d]=(%.3f,%.3f,%.3f)", bone.c_str(), b, p.x, p.y, p.z);
                 }
                 std::printf("\n");
             }

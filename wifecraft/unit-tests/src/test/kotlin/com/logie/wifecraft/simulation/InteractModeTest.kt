@@ -45,9 +45,72 @@ class InteractModeTest {
         assertEquals(TouchRegion.SHOULDER, r(RegionMap.C_ARMS, 0.86f, across = 0.1f))
     }
 
+    @Test fun theGroinIsItsOwnRegionByHeightAndMiddleLine() {
+        fun r(code: Int, h: Float, across: Float = 0f, front: Boolean = true) = RegionMap.classify(detail(code, h, across, front))?.region
+        // from in front, between the crotch and the top of the mons, near the middle line (measured on the default body and the HD figure)
+        assertEquals(TouchRegion.GROIN, r(RegionMap.C_HIPS, 0.58f))
+        assertEquals(TouchRegion.GROIN, r(RegionMap.C_LEGS, 0.57f, across = 0.02f))
+        assertEquals(TouchRegion.GROIN, r(RegionMap.C_HIPS, RegionMap.GROIN_LOW))
+        // beside it, above it and below it are not
+        assertEquals(TouchRegion.HIP, r(RegionMap.C_HIPS, 0.5f))
+        assertEquals(TouchRegion.THIGH, r(RegionMap.C_LEGS, 0.57f, across = 0.06f))
+        assertEquals(TouchRegion.BELLY, r(RegionMap.C_HIPS, 0.62f))
+        assertEquals(TouchRegion.THIGH, r(RegionMap.C_LEGS, 0.4f))
+        // from behind it is the butt, never the groin
+        assertEquals(TouchRegion.BUTT, r(RegionMap.C_HIPS, 0.58f, front = false))
+        assertEquals(TouchRegion.BUTT, r(RegionMap.C_LEGS, 0.57f, front = false))
+        assertTrue(RegionMap.isGroin(0.58f, 0.0f) && !RegionMap.isGroin(0.58f, 0.05f) && !RegionMap.isGroin(0.5f, 0f))
+    }
+
+    @Test fun theGroinIsAnIntimateTouchGatedByHerWillingnessAndTheWont() {
+        assertEquals(ActCategories.INTIMATE, TouchConsent.category(TouchRegion.GROIN))
+        assertEquals("Intimate touch", ActCategories.INTIMATE)
+        assertTrue(ActCategories.INTIMATE in ActCategories.ORDER)
+        assertTrue(ActCategories.INTIMATE in ActCategories.of(TouchConsent.act(TouchRegion.GROIN)))
+        assertTrue(TouchConsent.sensitivity(TouchRegion.GROIN) > TouchConsent.sensitivity(TouchRegion.BUTT))
+        // a Won't on Hands does not touch it; a Won't on Intimate touch declines the groin and leaves the thigh alone
+        val hands = ConsentPolicy(mapOf("a" to NpcLimits().withCategory(ActCategories.HANDS, Stance.WONT)))
+        assertNotEquals(Verdict.DECLINE, TouchConsent.verdict(hands, "a", TouchRegion.GROIN, TouchKind.TAP, bold.copy(affinity = 1f)))
+        val wont = ConsentPolicy(mapOf("a" to NpcLimits().withCategory(ActCategories.INTIMATE, Stance.WONT)))
+        for (k in TouchKind.entries) assertEquals(Verdict.DECLINE, TouchConsent.verdict(wont, "a", TouchRegion.GROIN, k, bold.copy(affinity = 1f)))
+        assertNotEquals(Verdict.DECLINE, TouchConsent.verdict(wont, "a", TouchRegion.THIGH, TouchKind.TAP, bold.copy(affinity = 1f)))
+        // a Will the player set allows it whoever she is; with nothing set a stranger shy girl does not allow it, and she says so in character
+        val will = ConsentPolicy(mapOf("a" to NpcLimits().withCategory(ActCategories.INTIMATE, Stance.WILL)))
+        assertEquals(Verdict.ALLOW, TouchConsent.verdict(will, "a", TouchRegion.GROIN, TouchKind.TAP, shy))
+        assertNotEquals(Verdict.ALLOW, TouchConsent.verdict(ConsentPolicy(), "a", TouchRegion.GROIN, TouchKind.TAP, shy))
+        // a stroke that reaches it stops there under a Won't, once, and goes through under a Will
+        val g = StrokeGate(wont, "a") { bold }
+        assertEquals(StrokeGate.Step.Kind.GO, g.sample(hit(TouchRegion.THIGH), kotlin.random.Random(1)).kind)
+        val stop = g.sample(hit(TouchRegion.GROIN), kotlin.random.Random(1))
+        assertEquals(StrokeGate.Step.Kind.STOP, stop.kind); assertEquals(TouchRegion.GROIN, g.stoppedAt)
+        assertEquals(StrokeGate.Step.Kind.NONE, g.sample(hit(TouchRegion.THIGH), kotlin.random.Random(1)).kind)
+        val g2 = StrokeGate(will, "a") { shy }
+        assertEquals(StrokeGate.Step.Kind.GO, g2.sample(hit(TouchRegion.GROIN), kotlin.random.Random(1)).kind)
+    }
+
+    @Test fun anAllowedGroinTouchSpeaksInHerStyleByTheDirtyTalkLevel() {
+        val rnd = kotlin.random.Random(7)
+        for (style in listOf("shy", "bold", "tender", "dominant", "natural")) {
+            val d = bold.disposition
+            val p = bold.copy(disposition = d, dirty = DirtyLevel.CUTE)
+            // Cute and Mild: the same lines as any private part; Spicy and up: its own, by style
+            val cute = InteractLines.line(Verdict.ALLOW, ReactionKind.SHIVER, hit(TouchRegion.GROIN), p, rnd)
+            val spicy = InteractLines.line(Verdict.ALLOW, ReactionKind.SHIVER, hit(TouchRegion.GROIN), p.copy(dirty = DirtyLevel.SPICY), rnd)
+            val hot = InteractLines.line(Verdict.ALLOW, ReactionKind.SHIVER, hit(TouchRegion.GROIN), p.copy(dirty = DirtyLevel.HOT), rnd)
+            assertNotNull(cute); assertNotNull(spicy); assertNotNull(hot)
+        }
+        // a refusal is the same at every level
+        val a = InteractLines.line(Verdict.DECLINE, ReactionKind.SWAT, hit(TouchRegion.GROIN), bold.copy(dirty = DirtyLevel.CUTE), kotlin.random.Random(3))
+        val b = InteractLines.line(Verdict.DECLINE, ReactionKind.SWAT, hit(TouchRegion.GROIN), bold.copy(dirty = DirtyLevel.WTF), kotlin.random.Random(3))
+        assertEquals(a, b)
+        // the reaction a groin touch gets when allowed is one of its own kinds
+        val kinds = InteractReactions.allowedKinds(TouchRegion.GROIN).map { it.first }
+        assertTrue(ReactionKind.SHIVER in kinds && ReactionKind.BLUSH in kinds)
+    }
+
     @Test fun everyTouchableRegionIsReachableFromSomeHit() {
         val seen = HashSet<TouchRegion>()
-        for (code in 1..10) for (h in listOf(0.02f, 0.1f, 0.15f, 0.28f, 0.4f, 0.5f, 0.6f, 0.75f, 0.88f, 0.95f)) for (front in listOf(true, false)) for (across in listOf(0f, 0.2f))
+        for (code in 1..10) for (h in listOf(0.02f, 0.1f, 0.15f, 0.28f, 0.4f, 0.5f, 0.58f, 0.6f, 0.75f, 0.88f, 0.95f)) for (front in listOf(true, false)) for (across in listOf(0f, 0.2f))
             RegionMap.regionOf(code, h, across, front)?.let { seen += it }
         assertEquals(TouchRegion.TOUCHABLE.toSet(), seen)
     }

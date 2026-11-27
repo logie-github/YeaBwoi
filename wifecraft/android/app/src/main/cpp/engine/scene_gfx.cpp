@@ -32,6 +32,7 @@ void Scene::setGraphics(const float* v, int n) {
     g.read(v, n);
     const bool aniso = g.anisotropy != gfx_.anisotropy;
     gfx_ = g;
+    setFleshContact(g.fleshContact, g.fleshSoftness);   // (Options' Flesh contact: contact.h)
     postfx_.configure(g);
     if (aniso && glReady_) {
         for (auto& [key, t] : textures_)

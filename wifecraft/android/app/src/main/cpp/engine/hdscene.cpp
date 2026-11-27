@@ -253,6 +253,7 @@ void Scene::drawHd(Actor& a, const M4& world, const float tint[4]) {
         glUniform4fv(gl::loc(p, "uColor"), 1, c);
         glUniform1f(gl::loc(p, "uAlphaRef"), part.alphaTest ? 0.5f : -1.0f);
         glUniform1i(gl::loc(p, "uOpaque"), part.alphaTest ? 0 : 1);
+        if (contactDraw_) ContactDraw::layer(p, part.role == 0 ? 1.0f : part.role == 1 ? 0.0f : kGarmentLayer, part.role == 0 ? 1.0f : 0.0f);   // (flesh contact: the skin's dent in full, a garment's at 85%, hair none)
         // the skin shaded as a person's skin is (the model's own skin: drawModel's skinKind 1), its texture its own layout
         const bool asSkin = skinFx && part.role == 0;
         if (asSkin) {

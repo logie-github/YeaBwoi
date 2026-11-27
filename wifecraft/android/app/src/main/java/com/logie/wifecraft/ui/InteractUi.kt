@@ -127,6 +127,7 @@ internal fun InteractTouchLayer(
                             view.pickBodyDetail(actorKey, at.x, at.y, w, h) { d ->
                                 if (g != null) {
                                     val step = g.sample(RegionMap.classify(d), rnd)
+                                    if (step.kind == StrokeGate.Step.Kind.GO || step.kind == StrokeGate.Step.Kind.NEW_PART) view.pushTouch(actorKey, at.x, at.y, w, h, 0.5f, 200)   // (flesh contact: the skin gives under a touch she allows)
                                     if (step.kind != StrokeGate.Step.Kind.NONE) {
                                         ripple(at.x, at.y, if (step.kind == StrokeGate.Step.Kind.STOP) 2 else 0)
                                         onStrokeStep(step)
@@ -138,6 +139,7 @@ internal fun InteractTouchLayer(
                     f.consume()
                 }
             }
+            view.releaseTouch(actorKey)   // (flesh contact: the finger is up, the skin springs back)
             if (!moved && !multi) {
                 val at = last
                 if (mode.tool == InteractTool.TOUCH) {
@@ -145,6 +147,7 @@ internal fun InteractTouchLayer(
                         val hit = RegionMap.classify(d)
                         if (hit != null) {
                             val r = onTouch(hit, TouchKind.TAP)
+                            if (r != null && r.verdict == Verdict.ALLOW) view.pushTouch(actorKey, at.x, at.y, w, h, 0.6f)   // (flesh contact: a dent under a tap she allows)
                             ripple(at.x, at.y, if (r == null) 0 else if (r.verdict == Verdict.ALLOW) 1 else 2)
                         } else onBackgroundTap(at.x, at.y, w, h)
                     }

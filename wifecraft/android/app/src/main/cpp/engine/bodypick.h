@@ -32,6 +32,7 @@ struct BodyPickHit {
     uint8_t region = kRegionNone;
     float t = 0;      // along the ray (model space)
     V3 point;         // model space, posed
+    V3 normal;        // the hit triangle's unit normal, turned toward the ray's origin (model space, posed)
     uint16_t geoset = 0;   // the hit submesh's geoset id (the garment slot's: group = id / 100)
 };
 

@@ -53,6 +53,8 @@ object ActCategories {
     const val DANCING = "Dancing and teasing"
     const val FRIENDLY = "Friendly and play"
     const val HANDS = "Hands"
+    /** The groin touched in Interact mode (a hand, a stroke, a tap): [TouchRegion.GROIN]; its own category, gated by her willingness and the Won't. */
+    const val INTIMATE = "Intimate touch"
     const val ORAL = "Oral"
     const val VAGINAL = "Vaginal"
     const val ANAL = "Anal"
@@ -68,7 +70,7 @@ object ActCategories {
     const val OTHER = "Other"
 
     /** The known categories in the order they are listed. */
-    val ORDER = listOf(KISSING, DANCING, FRIENDLY, HANDS, ORAL, VAGINAL, ANAL, TOYS, BONDAGE, FEMDOM, CUCKOLD, FOOT, PUBLIC, ROUGH, GROUP, CLIMAX)
+    val ORDER = listOf(KISSING, DANCING, FRIENDLY, HANDS, INTIMATE, ORAL, VAGINAL, ANAL, TOYS, BONDAGE, FEMDOM, CUCKOLD, FOOT, PUBLIC, ROUGH, GROUP, CLIMAX)
 
     // "=word": the whole word; otherwise anywhere (also with the spaces left out: "blow job" is "blowjob")
     private val EXPLICIT: List<Pair<String, List<String>>> = listOf(
@@ -82,6 +84,7 @@ object ActCategories {
         ROUGH to listOf("=rough", "=spank", "=spanking", "=slap", "=slapping", "=choke", "=choking", "hair pull", "hairpull", "hardcore", "=brutal", "=bdsm", "=whip", "=flog", "facefuck", "throatfuck", "=slam", "=pounding"),
         ANAL to listOf("=anal", "=ass", "rimjob", "=rimming", "buttfuck"),
         ORAL to listOf("blowjob", "oraljob", "orajob", "=oral", "cunnilingus", "deepthroat", "fellatio", "=69", "sixty nine", "=suck", "=sucking", "=licking", "=lick", "=bj"),
+        INTIMATE to listOf("=intimate"),
         HANDS to listOf("handjob", "=fingering", "=fingered", "=finger", "manual", "=grope", "=groping", "=rubbing", "massage", "=handy"),
         CLIMAX to listOf("climax", "=cum", "cumshot", "=facial", "=orgasm", "=finish", "creampie", "bukkake", "ejaculat"),
         VAGINAL to listOf("vaginal", "vagnal", "missionary", "cowgirl", "doggy", "=sex", "=fuck", "=fucking", "=pussy", "=lotus", "scissoring", "mating press", "=riding"),
@@ -174,7 +177,7 @@ data class NpcLimits(
  */
 object ConsentDefaults {
     private val WEIGHT = mapOf(
-        ActCategories.KISSING to 0f, ActCategories.DANCING to 0f, ActCategories.FRIENDLY to 0f, ActCategories.HANDS to 0.1f,
+        ActCategories.KISSING to 0f, ActCategories.DANCING to 0f, ActCategories.FRIENDLY to 0f, ActCategories.HANDS to 0.1f, ActCategories.INTIMATE to 0.3f,
         ActCategories.ORAL to 0.2f, ActCategories.VAGINAL to 0.2f, ActCategories.CLIMAX to 0.2f, ActCategories.FOOT to 0.25f,
         ActCategories.TOYS to 0.28f, ActCategories.ANAL to 0.32f, ActCategories.ROUGH to 0.35f, ActCategories.PUBLIC to 0.35f,
         ActCategories.FEMDOM to 0.35f, ActCategories.BONDAGE to 0.38f, ActCategories.GROUP to 0.4f, ActCategories.CUCKOLD to 0.45f,

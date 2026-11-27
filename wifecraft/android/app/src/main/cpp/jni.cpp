@@ -542,6 +542,13 @@ JNIEXPORT jint JNICALL FN(pickBodyRegion)(JNIEnv*, jclass, jlong h, jint actor, 
     return scene(h)->pickBodyRegion(actor, sx, sy, w, ht);
 }
 
+// Flesh contact (engine/contact.h): a finger at the screen point presses actor's skin with pressure 0..1 for holdMs after this push (the
+// ContactRegion it hit, -1 a miss); releaseTouch lets go.
+JNIEXPORT jint JNICALL FN(pushTouch)(JNIEnv*, jclass, jlong h, jint actor, jfloat sx, jfloat sy, jint w, jint ht, jfloat pressure, jint holdMs) {
+    return scene(h)->pushTouch(actor, sx, sy, w, ht, pressure, holdMs);
+}
+JNIEXPORT void JNICALL FN(releaseTouch)(JNIEnv*, jclass, jlong h, jint actor) { scene(h)->releaseTouch(actor); }
+
 // Interact mode's touch: pickBodyRegion's code and detail (8 floats; see Scene::pickBodyDetail), null when the point misses her
 JNIEXPORT jfloatArray JNICALL FN(pickBodyDetail)(JNIEnv* env, jclass, jlong h, jint actor, jfloat sx, jfloat sy, jint w, jint ht) {
     float v[8];
