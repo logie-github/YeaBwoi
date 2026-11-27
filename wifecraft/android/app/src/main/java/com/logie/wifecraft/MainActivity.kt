@@ -198,7 +198,7 @@ class MainActivity : ComponentActivity() {
     private val simsRigs by lazy { RigStore(animationDirectory) }
     private val simsProfile by lazy { Profile.load(assets.open("sims_profile.json").bufferedReader().use { it.readText() }) }
 
-    private enum class Screen { TITLE, GATHER, SETUP, CONSENT, CREATOR, ANIMATIONS, IMPORT, IMPORT_WICKED_WHIMS, LIBRARY, LIVE }
+    private enum class Screen { TITLE, GATHER, SETUP, CONSENT, CREATOR, ANIMATIONS, IMPORT, IMPORT_WICKED_WHIMS, LIBRARY, LIVE, SECRET }
     private enum class Panel { NONE, OPTIONS, UPDATE }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -281,6 +281,14 @@ class MainActivity : ComponentActivity() {
         mix = m
         audio?.levels = m
         sceneAudio?.volumes = Mixer.sceneVolumes(m)
+    }
+
+    /** The hidden mode opened: one short buzz (whatever the Haptics setting says), unless the phone has no vibrator. */
+    private fun secretBuzz() {
+        try {
+            val v = getSystemService(android.os.Vibrator::class.java)
+            if (v != null && v.hasVibrator()) v.vibrate(android.os.VibrationEffect.createOneShot(45L, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+        } catch (e: Exception) { }
     }
 
     private fun sceneView(): SceneView = scene ?: SceneView(this, files.dir.path).also { scene = it; it.softBody(Settings(this).softBody); loadHd(it) }
@@ -419,7 +427,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         LaunchedEffect(screen) {
-            if (screen == Screen.ANIMATIONS || screen == Screen.LIVE || screen == Screen.SETUP || screen == Screen.CONSENT) {
+            if (screen == Screen.ANIMATIONS || screen == Screen.LIVE || screen == Screen.SETUP || screen == Screen.CONSENT || screen == Screen.SECRET) {
                 availableClips = withContext(Dispatchers.IO) { animationLibrary.list().map { CheckedAnimation(it) } }
                 pairs = withContext(Dispatchers.IO) { runCatching { animationLibrary.pairs() }.getOrDefault(emptyList()) }
             }
@@ -502,7 +510,8 @@ class MainActivity : ComponentActivity() {
         // the soundscape follows the screen: the title's music on the menus, a place's music and ambience in its live scene
         LaunchedEffect(screen, location) {
             val a = audio ?: return@LaunchedEffect
-            if (screen == Screen.LIVE) a.place(location ?: "") else a.title()
+            // (the hidden mode is silent: nothing of a place, no title music)
+            when (screen) { Screen.LIVE -> a.place(location ?: ""); Screen.SECRET -> a.silence(); else -> a.title() }
         }
         CompositionLocalProvider(LocalArt provides art, LocalWar provides menuArt, LocalSounds provides { name: String -> audio?.ui(name) }) {
             Box(Modifier.fillMaxSize()) {
@@ -521,6 +530,8 @@ class MainActivity : ComponentActivity() {
                         onGather = { screen = Screen.GATHER },
                         onOptions = { panel = Panel.OPTIONS },
                         onUpdates = { updateStatus = ""; panel = Panel.UPDATE },
+                        // the hidden mode's key (ui/SecretGestureLayer.kt): only once the game's files are here to show anyone; no sign of it until it opens
+                        onSecret = { if (catalog != null && roster.isNotEmpty()) { secretBuzz(); screen = Screen.SECRET } },
                     )
                     Screen.GATHER -> GatherHost(
                         listOf(
@@ -727,6 +738,42 @@ class MainActivity : ComponentActivity() {
                         onLibrary = { screen = Screen.LIBRARY },
                         wickedWhims = screen == Screen.IMPORT_WICKED_WHIMS,
                     )
+                    Screen.SECRET -> {
+                        // the hidden mode: one character kneeling in a void (README, "Hidden mode"; ui/SecretScene.kt)
+                        remember { com.logie.wifecraft.graphics.CharacterSizeSetting.beginScene(applicationContext) }
+                        val c = catalog
+                        if (c == null) LaunchedEffect(Unit) { screen = Screen.TITLE }
+                        else {
+                            val view = sceneView()
+                            val portraits = remember { Thumbs(applicationContext, files, view, tables, { imports }, { namedCast }, { hdContext() }) }
+                            DisposableEffect(portraits) { onDispose { portraits.close() } }
+                            val secretPrefs = remember { applicationContext.getSharedPreferences("wifecraft.interact", MODE_PRIVATE) }
+                            val secretSettings = remember { applicationContext.getSharedPreferences("wifecraft.secret", MODE_PRIVATE) }
+                            val host = remember(roster, availableClips, savedIds, consentBook, dialogueSettings) {
+                                com.logie.wifecraft.ui.SecretHost(
+                                    view, roster,
+                                    isStarter = { a -> a.id !in savedIds },
+                                    dress = { a, done -> dresser.dress(view, c, com.logie.wifecraft.ui.SECRET_KEY, outfits.dressed(a.appearance), emptySet(), done) },
+                                    cancelDress = { key -> dresser.cancel(key) },
+                                    withGear = { a, on -> GearSwitch.apply(a, on, namedCast) },
+                                    gearOn = { a -> GearSwitch.isOn(a.appearance, namedCast) },
+                                    keepGear = { a, on -> saveLooks(GearSwitch.remember(npcLooks, a, on, namedCast)) },
+                                    clips = availableClips,
+                                    policy = { a -> ConsentPolicy(consentBook.forCast(listOf(a.id), null), { _ -> Profiles.of(a).disposition }) },
+                                    persona = { a -> com.logie.wifecraft.simulation.InteractPersona(Profiles.of(a).disposition, 0f, 0.3f, dialogueSettings.dirty) },
+                                    portraits = portraits,
+                                    portraitActor = { a -> a.copy(appearance = outfits.dressed(a.appearance)) },
+                                    portraitDisplay = { a -> namedCast.choiceOf(a.appearance)?.display ?: 0 },
+                                    prefs = secretPrefs,
+                                    store = object : com.logie.wifecraft.simulation.SecretStore {
+                                        override fun read(): String? = try { secretSettings.getString("settings", null) } catch (e: Exception) { null }
+                                        override fun write(text: String) { try { secretSettings.edit().putString("settings", text).apply() } catch (e: Exception) { } }
+                                    },
+                                )
+                            }
+                            com.logie.wifecraft.ui.SecretScreen(host) { screen = Screen.TITLE }
+                        }
+                    }
                     Screen.LIVE -> {
                         remember { com.logie.wifecraft.graphics.CharacterSizeSetting.beginScene(applicationContext) }   // (the Character size in force before anyone is dressed)
                         val preset = stages.first { it.id == location }

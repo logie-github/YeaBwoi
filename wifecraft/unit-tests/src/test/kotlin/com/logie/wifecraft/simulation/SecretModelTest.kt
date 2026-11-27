@@ -161,11 +161,33 @@ class SecretModelTest {
         assertEquals(0, SecretVoid.OTHERS)
         assertTrue(SecretVoid.SOUND_SILENT)
         assertEquals(InteractView.FULL, SecretVoid.START_VIEW)
-        assertEquals(0f to 0f, SecretVoid.focusBand(false, 2.3f, 1.7f))
-        val (near, far) = SecretVoid.focusBand(true, 2.3f, 1.7f)
-        assertTrue(near > 0f && far > near)
+        val off = SecretVoid.focusBand(false, 2.3f, 1.7f)
+        assertTrue(off.second > 1000f && off.third == 0f)   // sharp everywhere
+        val (near, far, strength) = SecretVoid.focusBand(true, 2.3f, 1.7f)
+        assertTrue(near > 0f && far > near && strength > 0f)
         assertEquals(0f, SecretVoid.breathing(false))
         assertTrue(SecretVoid.breathing(true) in 0.1f..1f)
         assertTrue(SecretVoid.distanceRange().start >= 0.2f && SecretVoid.distanceRange().endInclusive <= 5f)
+    }
+
+    // ---- the mode is hidden
+
+    @Test fun noMenuTipOrTitleTextNamesTheHiddenMode() {
+        val dir = java.io.File(System.getProperty("wifecraft.ui") ?: return)
+        for (name in listOf("TitleScreen.kt", "MenuModel.kt", "DownloadOptions.kt", "SceneHud.kt")) {
+            val f = java.io.File(dir, name)
+            if (!f.exists()) continue
+            val literals = Regex("\"[^\"\\n]*\"").findAll(f.readText()).map { it.value.lowercase() }
+            assertTrue(literals.none { "secret" in it || "hidden mode" in it || "kneel" in it }, "$name names the hidden mode")
+        }
+    }
+
+    @Test fun theKeyIsOneConstantThatCanBeChanged() {
+        val other = SecretSpec(sequence = listOf(SwipeDirection.LEFT, SwipeDirection.RIGHT), taps = 2)
+        val g = SecretGesture(other)
+        fun sw(d: SwipeDirection, t: Long) = SecretTouch(t, t + 200, if (d == SwipeDirection.LEFT) -100f else 100f, 0f, 100f)
+        g.feed(sw(SwipeDirection.LEFT, 0)); g.feed(sw(SwipeDirection.RIGHT, 400))
+        g.feed(SecretTouch(800, 880, 0f, 0f, 1f))
+        assertEquals(SecretOutcome.OPEN, g.feed(SecretTouch(1100, 1180, 0f, 0f, 1f)))
     }
 }

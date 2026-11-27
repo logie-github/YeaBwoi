@@ -203,11 +203,14 @@ object SecretVoid {
     /** How far the view may go from her, in body heights (InteractZoom's limits). */
     fun distanceRange(): ClosedFloatingPointRange<Float> = InteractZoom.MIN_DISTANCE..InteractZoom.MAX_DISTANCE
 
-    /** The sharp band of depth of field round her at [distance] (body heights) for a body of [height]: near, far (world units); 0, 0 when off. */
-    fun focusBand(on: Boolean, distance: Float, height: Float): Pair<Float, Float> {
-        if (!on || !(height > 0f)) return 0f to 0f
+    /**
+     * The sharp band of depth of field round her at [distance] (body heights) for a body of [height]: near, far (world units) and the blur's strength.
+     * Off: a band that holds everything (no blur), not the renderer's own band, which would blur her in an empty void.
+     */
+    fun focusBand(on: Boolean, distance: Float, height: Float): Triple<Float, Float, Float> {
+        if (!on || !(height > 0f)) return Triple(0.05f, 100000f, 0f)
         val d = distance * height
-        return maxOf(0.05f, d - 0.75f * height) to d + 0.75f * height
+        return Triple(maxOf(0.05f, d - 0.75f * height), d + 0.75f * height, 0.7f)
     }
 
     /** The disc of her floor shadow: its radius in body heights, and how dark (0..1) at its middle. */
