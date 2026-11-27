@@ -64,6 +64,7 @@ internal fun modeLabel(mode: ScreenMode): String = when (mode) {
     ScreenMode.MOVE -> "Move"
     ScreenMode.JOI -> "JOI"
     ScreenMode.CHAT -> "Chat"
+    ScreenMode.INTERACT -> "Interact"
     ScreenMode.CINEMATIC -> "Cinematic"
     ScreenMode.NORMAL -> ""
 }
@@ -127,13 +128,13 @@ internal fun SceneChrome(
         val plan = remember(w, h, ins, state) { ScreenPlan.plan(w, h, ins, state) }
         val sheetRect = ScreenPlan.find(plan, "sheet")
         SideEffect { onSheetRect(sheetRect); onPlan(plan) }
-        val chip = mode == ScreenMode.BUILD || mode == ScreenMode.MOVE || mode == ScreenMode.JOI || mode == ScreenMode.CHAT
+        val chip = mode == ScreenMode.BUILD || mode == ScreenMode.MOVE || mode == ScreenMode.JOI || mode == ScreenMode.CHAT || mode == ScreenMode.INTERACT
         val shown = mode == ScreenMode.NORMAL || mode == ScreenMode.BUILD || mode == ScreenMode.MOVE || mode == ScreenMode.CINEMATIC
         // the way out of a mode stays whatever the rest does
         if (chip) At(ScreenPlan.find(plan, "mode")) { ModeChip(modeLabel(mode), onExitMode) }
         if (chromeAlpha > 0.01f) Box(Modifier.fillMaxSize().graphicsLayer { alpha = chromeAlpha }) {
             // ---- the top bar
-            if (mode != ScreenMode.JOI && mode != ScreenMode.CHAT) At(ScreenPlan.find(plan, "menu")) { HudIconButton(HudGlyph.GEAR, onMenu, "Menu") }
+            if (mode != ScreenMode.JOI && mode != ScreenMode.CHAT && mode != ScreenMode.INTERACT) At(ScreenPlan.find(plan, "menu")) { HudIconButton(HudGlyph.GEAR, onMenu, "Menu") }
             if (mode == ScreenMode.CINEMATIC) At(ScreenPlan.find(plan, "mode")) { ModeChip(modeLabel(mode), onExitMode) }
             val placeRect = ScreenPlan.find(plan, "place") ?: ScreenPlan.find(plan, "place.clock") ?: ScreenPlan.find(plan, "place.compact")
             val placeKind = if (ScreenPlan.find(plan, "place") != null) 2 else if (ScreenPlan.find(plan, "place.clock") != null) 1 else 0

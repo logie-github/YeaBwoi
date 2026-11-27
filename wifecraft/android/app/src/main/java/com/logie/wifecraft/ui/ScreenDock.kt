@@ -5,10 +5,10 @@ package com.logie.wifecraft.ui
 // into the More sheet, so nothing is "on page 2".
 
 /** What the dock is for: the NPC's orders, the animation playing, Build's tools, JOI, Chat, or nothing. */
-enum class DockKind { NONE, NORMAL, PLAYING, SOFT, BUILD, JOI, CHAT, PERSUADE }
+enum class DockKind { NONE, NORMAL, PLAYING, SOFT, BUILD, JOI, CHAT, PERSUADE, INTERACT }
 
 /** What the row over the dock holds (one at a time): Chat's chips, JOI's dirty talk levels or its steer field. */
-enum class DockRowKind { NONE, CHAT, JOI_LEVEL, JOI_STEER }
+enum class DockRowKind { NONE, CHAT, JOI_LEVEL, JOI_STEER, INTERACT_TELL }
 
 /** One target in the dock: [id], its short [label], the order it gives ([order], null: a dock-only target), [lit], its narrowest width. */
 data class DockItem(val id: String, val label: String, val order: HudOrder? = null, val lit: Boolean = false, val minW: Float = ScreenPlan.TOUCH)
@@ -76,12 +76,21 @@ object DockModel {
     /** Chat's dock: the text field, Send and Leave. Its chips (zoom, who you are, length, the log, topics) are the row over it. */
     fun chat(): DockPlan = DockPlan(DockKind.CHAT, listOf(DockItem("field", "Say", minW = 160f), DockItem("send", "Send"), DockItem("leave", "Leave", minW = 56f)))
 
+    /**
+     * Interact mode's dock: Back, Commands, the Touch/Look toggle (the tool now), Pose, Outfit, Talk (the "Tell her..." row) and More
+     * (it scrolls on a narrow screen, like Build's). While a command waits on her hesitation the dock is [persuade]'s instead.
+     */
+    fun interact(tool: String = "Touch", tab: String? = null, tell: Boolean = false): DockPlan = DockPlan(DockKind.INTERACT, listOf(
+        DockItem("back", "Back", minW = 64f), DockItem("commands", "Commands", lit = tab == "COMMANDS", minW = 88f),
+        DockItem("tool", tool, minW = 72f), DockItem("pose", "Pose", lit = tab == "POSE", minW = 64f),
+        DockItem("outfit", "Outfit", lit = tab == "OUTFIT", minW = 72f), DockItem("talk", "Talk", lit = tell, minW = 64f), DockItem("more", "More", minW = 64f)))
+
     /** The dock while an NPC hesitates and the player may calm them: one chip per approach and Later (scrolls like Build's). */
     fun persuade(labels: List<String>): DockPlan =
         DockPlan(DockKind.PERSUADE, (labels.map { DockItem(it, it, minW = maxOf(72f, 12f + 8f * it.length)) } + DockItem("later", "Later", minW = 72f)))
 
     /** Whether the dock of [kind] scrolls instead of sharing its width. */
-    fun scrolls(kind: DockKind): Boolean = kind == DockKind.BUILD || kind == DockKind.PERSUADE
+    fun scrolls(kind: DockKind): Boolean = kind == DockKind.BUILD || kind == DockKind.PERSUADE || kind == DockKind.INTERACT
 }
 
 /** The taps each thing takes, from the code (the NPC chosen is not counted); asserted by ScreenPlanTest so a change that adds a tap fails it. */
@@ -99,6 +108,12 @@ object TapCounts {
     const val JOI_LEVEL = 2                    // Level, the level
     const val JOI_STEER_TEXT = 2               // Steer, then type and Enter on the keyboard
     const val PERSUADE = 1
+    const val INTERACT_FROM_MORE = 2            // More, Interact
+    const val INTERACT_LEAVE = 1                // the chip "× Interact" (or Back)
+    const val INTERACT_TOUCH = 1                // a tap on her
+    const val INTERACT_POSE = 2                 // Pose, the pose
+    const val INTERACT_OUTFIT = 2               // Outfit, the entry
+    const val INTERACT_TELL = 2                 // Talk, then type and Enter on the keyboard
     const val BUILD_FROM_MORE = 2              // More, Build mode (the sheet's first row)
     const val BUILD_FROM_MENU = 2              // the menu, Build mode
     const val PAIR_CONFIRM_SWITCH_PLACES = 2   // Options, Scene, the switch (and the animation window's own switch)
@@ -177,6 +192,12 @@ object ScreenFeatures {
         ScreenFeature("chat.setup", "Chat setup sheet (Continue as <name>)", "window", 2),
         ScreenFeature("persuade.chips", "hesitation bar's persuasion chips", "dock (persuasion)", 1),
         ScreenFeature("persuade.later", "leave a hesitation for later", "dock (persuasion)", 1, false),
+        ScreenFeature("interact.enter", "no Interact mode", "More sheet (Interact)", 2),
+        ScreenFeature("interact.leave", "no Interact mode", "mode chip / dock (Interact) Back", 1),
+        ScreenFeature("interact.dock", "no Interact mode", "dock (Interact): Commands, Touch or Look, Pose, Outfit, Talk, More", 1),
+        ScreenFeature("interact.sheet", "no Interact mode", "SHEET (Interact: Commands, Pose, Outfit)", 2),
+        ScreenFeature("interact.tell", "no Interact mode", "row (Interact) Tell her", 2),
+        ScreenFeature("interact.persuade", "no Interact mode", "dock (persuasion)", 1),
         ScreenFeature("tip.firstrun", "first-run tip (the dock and the menu)", "TOAST", 0, false),
         ScreenFeature("options.scene.pair", "Ask before partner animations play (Options > Scene)", "Options", 2, false),
         ScreenFeature("anim.browser", "Animation browser", "window", 3),

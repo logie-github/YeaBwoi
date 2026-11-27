@@ -24,6 +24,7 @@
 //   dress N LOOKFILE                           dresses person N again (Native.dress): geosets, layers, extras
 //   boneanim N ANIMFILE                        an imported animation on person N (Scene::setBoneAnim; file below)
 //   bonestop N                                 takes it off (Scene::clearBoneAnim)
+//   stockings N ankle|knee|thigh|tights DENIER R G B [seam] [elastic] | stockings N off   procedural stockings (stockings.h)
 //   layer N ANIMFILE | layerstop N             an additive bone layer on person N (Scene::setBoneLayer; the anim file's rot
 //                                              tracks, bones by WoW-side name or "#N": the model's bone N)
 //   reach N TARGET BONE L|R ANIMFILE | reachstop N   person N's left or right arm on a point of person TARGET's bone BONE (an index of
@@ -1302,6 +1303,35 @@ int main(int argc, char** argv) {
             BoneAnim ba;
             if (actors.count(name) && readBoneAnim(path, ba))
                 std::fprintf(stderr, "layer %d: %d of %zu tracks found their bone\n", name, scene.setBoneLayer(actors[name], ba, 0), ba.tracks.size());
+        } else if (cmd == "stockings") {
+            // stockings N STYLE(ankle|knee|thigh|tights|off) DENIER R G B [seam] [elastic]: stockings.h on person N
+            int name; std::string style; ss >> name >> style;
+            if (actors.count(name)) {
+                if (style == "off") scene.setStockings(actors[name], nullptr);
+                else {
+                    StockSpec sp; std::string w; ss >> sp.denier >> sp.r >> sp.g >> sp.b;
+                    sp.style = style == "ankle" ? kStockAnkle : style == "knee" ? kStockKnee : style == "tights" ? kStockTights : kStockThigh;
+                    while (ss >> w) { if (w == "seam") sp.seam = true; if (w == "elastic") sp.lace = false; }
+                    scene.setStockings(actors[name], &sp);
+                }
+            }
+        } else if (cmd == "stockpull") {
+            // stockpull N SX SY DX DY STEPS W H: a finger down on person N's stocking at the screen point, dragged DX DY pixels in STEPS frames
+            // (each stepped 1/60 s), held; prints the tension and the runs. "stockrelease N [FRAMES]" lets go and steps; "stockundo N|all"
+            int name, steps, w, h; float sx, sy, dx, dy; ss >> name >> sx >> sy >> dx >> dy >> steps >> w >> h;
+            if (actors.count(name)) {
+                bool ok = scene.stockGrab(actors[name], sx, sy, w, h);
+                std::fprintf(stderr, "stockpull grab at %.0f,%.0f: %s\n", sx, sy, ok ? "took hold" : "nothing there");
+                for (int i = 1; ok && i <= steps; ++i) { scene.stockDrag(actors[name], sx + dx * i / steps, sy + dy * i / steps, w, h); renderTo(scene, "/dev/null", w, h, 5000 + 16 * uint32_t(i)); }
+                float st[4]; if (scene.stockState(actors[name], st)) std::fprintf(stderr, "stockpull tension %.2f runs %.0f dead %.0f\n", st[0], st[1], st[2]);
+            }
+        } else if (cmd == "stockrelease") {
+            static uint32_t relCount = 0;
+            int name, frames = 60; ss >> name >> frames;
+            if (actors.count(name)) { scene.stockRelease(actors[name]); for (int i = 0; i < frames; ++i) renderTo(scene, "/dev/null", 140, 180, 9000 + 16 * uint32_t(i) + 20000 * (++relCount)); }
+        } else if (cmd == "stockundo") {
+            std::string w; int name; ss >> name >> w;
+            if (actors.count(name)) { if (w == "all") scene.stockRepair(actors[name]); else scene.stockUndo(actors[name]); }
         } else if (cmd == "layerstop") {
             int name; ss >> name;
             if (actors.count(name)) scene.clearBoneLayer(actors[name]);

@@ -155,6 +155,25 @@ import com.logie.wifecraft.dialogue.ChatSession
 import com.logie.wifecraft.dialogue.ChatSetup
 import com.logie.wifecraft.dialogue.ChatStore
 import com.logie.wifecraft.anim.AnimArrays
+import com.logie.wifecraft.simulation.CommandResult
+import com.logie.wifecraft.simulation.HapticPattern
+import com.logie.wifecraft.simulation.InteractAction
+import com.logie.wifecraft.simulation.InteractCamera
+import com.logie.wifecraft.simulation.InteractLayers
+import com.logie.wifecraft.simulation.InteractMode
+import com.logie.wifecraft.simulation.InteractPersona
+import com.logie.wifecraft.simulation.InteractPrior
+import com.logie.wifecraft.simulation.InteractTab
+import com.logie.wifecraft.simulation.InteractTool
+import com.logie.wifecraft.simulation.InteractZoom
+import com.logie.wifecraft.simulation.OutfitAct
+import com.logie.wifecraft.simulation.PoseKind
+import com.logie.wifecraft.simulation.PoseLibrary
+import com.logie.wifecraft.simulation.Reaction
+import com.logie.wifecraft.simulation.StrokeGate
+import com.logie.wifecraft.simulation.TouchKind
+import com.logie.wifecraft.creator.StockingBook
+import com.logie.wifecraft.creator.StockingSpec
 import com.logie.wifecraft.characters.DragonStages
 import com.logie.wifecraft.simulation.PartnerPair
 import com.logie.wifecraft.simulation.PartnerSoundSink
@@ -654,6 +673,15 @@ fun LiveSceneScreen(
     val chatMode = remember(live) { ChatMode(seed.toLong() + 7) }
     var chatTick by remember(live) { mutableIntStateOf(0) }
     var chatLeave by remember(live) { mutableStateOf(false) }
+    // Interact mode (InteractMode, InteractCamera, ui/InteractUi.kt): who is at the centre (null: off), its state and camera, the redraw count, a leave asked for,
+    // the "Tell her..." field's text, a toast asked for (count, text, problem)
+    var interactActor by remember(live) { mutableStateOf<String?>(null) }
+    val interactMode = remember(live) { InteractMode(seed.toLong() + 13) }
+    val interactCamera = remember(live) { InteractCamera() }
+    var interactTick by remember(live) { mutableIntStateOf(0) }
+    var interactLeave by remember(live) { mutableStateOf(false) }
+    var interactTyped by remember(live) { mutableStateOf("") }
+    var interactToast by remember(live) { mutableStateOf<Triple<Int, String, Boolean>?>(null) }
     // Chat mode: her reply as the world's chat bubble over her head (set by the chat layer)
     var chatSpeech by remember(live) { mutableStateOf<String?>(null) }
     // cinematic mode's idle hide (CinematicIdle): all the interface goes after 5 s untouched, Build mode off, until the next touch
@@ -663,7 +691,7 @@ fun LiveSceneScreen(
     val cineNotify by rememberUpdatedState(onCinematic)
     SideEffect {
         // Chat mode: a clean full-width view (no film frame, no bars)
-        cineLook.settings = if (chatActor != null) cinematicSettings.copy(letterbox = false, frame = com.logie.wifecraft.simulation.CinematicFrame.FULL) else cinematicSettings
+        cineLook.settings = if (chatActor != null || interactActor != null) cinematicSettings.copy(letterbox = false, frame = com.logie.wifecraft.simulation.CinematicFrame.FULL) else cinematicSettings
         cineDirector.settings = cinematicSettings
         live.director = cineDirector
         cineLook.on = cinematic
@@ -769,7 +797,12 @@ fun LiveSceneScreen(
     SideEffect { live.furnitureView = views.getOrNull(furnitureView) }
 
     BackHandler {
-        if (panel != ScreenPanel.NONE && (joiActor != null || chatActor != null)) panel = ScreenPanel.NONE
+        if (interactActor != null) {
+            if (panel != ScreenPanel.NONE) panel = ScreenPanel.NONE
+            else if (interactMode.tell) { interactMode.toggleTell(); interactTick++ }
+            else interactLeave = true
+        }
+        else if (panel != ScreenPanel.NONE && (joiActor != null || chatActor != null)) panel = ScreenPanel.NONE
         else if (joiActor != null && joiRow != DockRowKind.NONE) joiRow = DockRowKind.NONE
         else if (joiActor != null) joiLeave = true
         else if (chatActor != null) chatLeave = true
@@ -1371,7 +1404,7 @@ fun LiveSceneScreen(
     val mate = partnerId?.takeIf { it != active?.id }
     val slots = if (active == null) emptyList()
         else SceneHud.orders(walking, mate != null, cast.size - 1, active.repeating, active.queued, uses, life = lifeOn,
-            performing = active.performing, joi = true, chatMode = true)
+            performing = active.performing, joi = true, chatMode = true, interact = true)
     var page by remember { mutableIntStateOf(0) }
     LaunchedEffect(selected) { page = 0 }
     // ---- JOI mode: the selected NPC gives a JOI to someone in the room (she believes: an NPC; the viewer only watches). The camera
@@ -1594,6 +1627,148 @@ fun LiveSceneScreen(
         live.order { sim -> sim.perform(id, order); null }
     }
     ChatRunner(chatMode, chatActor != null, { speaking -> playChatGesture(speaking) }, { chatTick++ })
+    // ---- Interact mode (simulation/InteractMode.kt, InteractCamera.kt, ui/InteractUi.kt): the camera centres on her, the touches and the commands
+    val interactPrefs = remember(context) { context.getSharedPreferences("wifecraft.interact", android.content.Context.MODE_PRIVATE) }
+    var stockingBook by remember(interactPrefs) { mutableStateOf(StockingBook.fromJson(try { interactPrefs.getString("stockings", null) } catch (e: Exception) { null })) }
+    fun interactSay(text: String, danger: Boolean = false) { interactToast = Triple((interactToast?.first ?: 0) + 1, text, danger) }
+    // her stockings (creator/Stockings.kt, engine/stockings.h): kept per NPC, put on the engine's actor again when she is on stage
+    fun applyStockings(id: String, spec: StockingSpec?) {
+        stockingBook = stockingBook.with(id, spec)
+        try { interactPrefs.edit().putString("stockings", stockingBook.toJson().toString()).apply() } catch (e: Exception) { }
+        view.setStockings(actorKey(id), spec?.toFloats())
+    }
+    LaunchedEffect(view, revealed, cast.size) { if (revealed) for (c in cast) stockingBook.of(c.id)?.let { view.setStockings(actorKey(c.id), it.toFloats()) } }
+    val interactGear = LocalGearControl.current
+    val interactPoses = remember(chatSolos) { PoseLibrary.available(chatSolos).map { it.first } }
+    fun interactPersona(id: String): InteractPersona {
+        val d = cast.firstOrNull { it.id == id }?.let { com.logie.wifecraft.dialogue.Profiles.of(it).disposition } ?: com.logie.wifecraft.dialogue.Disposition()
+        return InteractPersona(d, 0f, 0.3f, dialogue.dirty)
+    }
+    fun interactVibrate(p: HapticPattern) {
+        if (!interactMode.haptics) return
+        try {
+            val v = context.getSystemService(android.os.Vibrator::class.java)
+            if (v != null && v.hasVibrator()) v.vibrate(android.os.VibrationEffect.createWaveform(p.timings, p.amplitudes, -1))
+        } catch (e: Exception) { }
+    }
+    fun interactLayer(id: String, anim: com.logie.wifecraft.anim.Anim?, ms: Long) {
+        if (anim == null) return
+        val arrays = AnimArrays.of(anim)
+        view.queueEvent { view.glBoneLayer(actorKey(id), arrays) }
+        Handler(Looper.getMainLooper()).postDelayed({ view.queueEvent { view.glBoneLayer(actorKey(id), null) } }, ms)
+    }
+    fun interactPlay(r: Reaction) {
+        val id = interactActor ?: return
+        interactLayer(id, InteractLayers.layer(r), (InteractLayers.SECONDS * 1000f).toLong())
+        r.line?.let { line -> live.command { sim -> sim.say(id, line) } }
+        interactVibrate(r.haptic)
+        interactTick++
+    }
+    fun interactTouch(hit: com.logie.wifecraft.simulation.TouchHit, kind: TouchKind): Reaction? {
+        val id = interactActor ?: return null
+        val r = interactMode.touch(hit, kind, consent, interactPersona(id)) ?: return null
+        interactPlay(r)
+        return r
+    }
+    fun interactStroke(step: StrokeGate.Step) {
+        val id = interactActor ?: return
+        val r = step.reaction
+        if (r != null) interactPlay(r) else interactVibrate(com.logie.wifecraft.simulation.InteractReactions.haptic(step.region, com.logie.wifecraft.simulation.Verdict.ALLOW, TouchKind.STROKE))
+        if (r == null && step.kind == StrokeGate.Step.Kind.NEW_PART && id.isNotEmpty()) interactTick++
+    }
+    fun interactDo(action: InteractAction) {
+        val id = interactActor ?: return
+        when (action) {
+            is InteractAction.Pose -> {
+                val turn = PoseLibrary.turnOf(action.pose)
+                if (turn != null) { live.interactTurnBy(id, turn); interactCamera.yaw = InteractZoom.wrap(interactCamera.yaw - turn) }
+                else {
+                    val clip = PoseLibrary.clipsFor(action.pose, chatSolos).firstOrNull()
+                    if (clip == null) interactSay("No ${action.pose.label.lowercase()} animation yet: import one in the Animation library.", true)
+                    else {
+                        val choice = choices.firstOrNull { it.id == clip.key && it.participantCount == 1 }
+                        val order = if (choice != null) request(null, choice, PlayOptions())
+                            else PerformanceOrder(null, listOf(PlaybackRole(clip.key, Vec3(0f, 0f, 0f), 0f)), clip.seconds)
+                        live.order { sim -> sim.perform(id, order); null }
+                    }
+                }
+            }
+            is InteractAction.Look -> interactLayer(id, InteractLayers.look(action.target), 3700L)
+            is InteractAction.Express -> interactLayer(id, InteractLayers.expression(action.expression), (InteractLayers.SECONDS * 1000f).toLong())
+            is InteractAction.Outfit -> when (action.act) {
+                OutfitAct.GEAR_ON -> interactGear?.set(id, true)
+                OutfitAct.GEAR_OFF -> interactGear?.set(id, false)
+                OutfitAct.STOCKINGS_ON -> applyStockings(id, StockingSpec.fromWords(action.arg.orEmpty(), stockingBook.of(id) ?: StockingSpec()))
+                OutfitAct.STOCKINGS_OFF -> applyStockings(id, null)
+            }
+            InteractAction.Stay -> live.order { sim -> sim.stopAll(id); null }
+            InteractAction.Follow -> interactSay("Following is not built yet: she stays where she is.", true)
+            InteractAction.ComeHere, InteractAction.MoveToSpot -> interactSay("Tap the floor where she should go.")
+        }
+    }
+    fun interactResult(res: CommandResult) {
+        val id = interactActor ?: return
+        when (res) {
+            is CommandResult.Do -> interactDo(res.action)
+            is CommandResult.Declined -> { live.command { sim -> sim.say(id, res.line) }; interactVibrate(com.logie.wifecraft.simulation.InteractReactions.haptic(com.logie.wifecraft.simulation.TouchRegion.NONE, com.logie.wifecraft.simulation.Verdict.DECLINE)) }
+            is CommandResult.Hesitates -> live.command { sim -> sim.say(id, res.line) }
+            CommandResult.AwaitSpot -> interactSay("Tap the floor where she should go.")
+            is CommandResult.Unknown -> interactSay("She doesn't know what that means.", true)
+        }
+        interactTick++
+    }
+    fun interactAction(a: InteractAction) { val id = interactActor ?: return; interactResult(interactMode.command(a, consent, interactPersona(id))) }
+    fun interactTell(text: String) {
+        val id = interactActor ?: return
+        interactResult(interactMode.tell(text, consent, interactPersona(id)))
+    }
+    fun interactPersuade(a: com.logie.wifecraft.dialogue.Approach) {
+        val id = interactActor ?: return
+        interactMode.persuade(a, interactPersona(id))?.let { interactResult(it) }
+    }
+    fun interactBackground(x: Float, y: Float, w: Int, h: Int) {
+        val id = interactActor ?: return
+        if (!interactMode.spotTapped()) return
+        view.pick(x, y, w, h) { hit ->
+            if (hit != null && hit.kind == Hit.Kind.GROUND) {
+                val destination = toLocal(Vec3(hit.x, hit.y, hit.z))
+                live.order { sim -> sim.endHold(id); if (sim.walk(id, destination)) null else "There's no clear path to that spot." }
+            }
+        }
+    }
+    fun startInteract(id: String) {
+        val a = cast.firstOrNull { it.id == id } ?: return
+        if (CreatureNpcs.of(a.appearance) != null) { interactSay("Interact mode is for people, not creatures.", true); return }
+        if (!interactMode.enter(id, InteractPrior(cinematic, cameraMode.name, furnitureView))) return
+        radial = null; panel = ScreenPanel.NONE; menu = false; choosingAnimation = null; walking = false
+        interactCamera.restart()
+        live.interactCamera = interactCamera; live.interactActor = castIndex[id] ?: -1
+        // she turns to face the camera and stays where she stands; the others stand idle
+        live.joiPlace(id, false)
+        val others = cast.map { it.id }.filter { it != id }
+        live.command { sim -> for (o in others) sim.stopAll(o) }
+        cinematic = true
+        interactActor = id
+        interactTick++
+    }
+    fun leaveInteract() {
+        val id = interactActor ?: return
+        val prior = interactMode.leave()
+        live.interactCamera = null; live.interactActor = -1
+        view.queueEvent { view.glBoneLayer(actorKey(id), null) }
+        live.joiRelease(id)
+        if (prior != null) {
+            cinematic = prior.cinematic
+            runCatching { cameraMode = CameraMode.valueOf(prior.cameraMode) }
+            furnitureView = prior.cameraView
+        }
+        panel = ScreenPanel.NONE
+        interactActor = null
+        interactLeave = false
+        interactTick++
+    }
+    LaunchedEffect(interactLeave) { if (interactLeave) leaveInteract() }
+    LaunchedEffect(panel) { if (interactActor != null && panel != ScreenPanel.INTERACT && interactMode.sheetOpen) { interactMode.closeSheet(); interactTick++ } }
     fun act(id: String, slot: HudSlot) {
         when (slot.order) {
             HudOrder.WALK -> {
@@ -1605,6 +1780,7 @@ fun LiveSceneScreen(
             HudOrder.PARTNER -> partnerId?.let { sendToPartner(id, it) }
             HudOrder.JOI -> startJoi(id)
             HudOrder.CHAT_MODE -> openChat(id)
+            HudOrder.INTERACT -> startInteract(id)
             HudOrder.SAY -> saying = id
             HudOrder.CHAT -> {
                 val others = cast.filter { it.id != id }
@@ -1626,6 +1802,7 @@ fun LiveSceneScreen(
         HudOrder.PLAY, HudOrder.PARTNER, HudOrder.SAY, HudOrder.CHAT, HudOrder.LIFE -> ready
         HudOrder.JOI -> ready && !build.on && joiActor == null && chatActor == null && chatSheet == null
         HudOrder.CHAT_MODE -> ready && !build.on && chatLore != null && joiActor == null && chatActor == null && chatSheet == null
+        HudOrder.INTERACT -> ready && !build.on && !mapper.on && joiActor == null && chatActor == null && chatSheet == null && interactActor == null
         HudOrder.USE -> ready && SceneObject.entries.firstOrNull { it.name == slot.target }?.let { snapshot.available(it, id) } == true
         else -> true
     }
@@ -1649,6 +1826,7 @@ fun LiveSceneScreen(
         toastNow = toasts.at(at)
     }
     LaunchedEffect(lifeToast) { lifeToast?.let { (result, _) -> pushToast(result.message, !result.accepted) } }
+    LaunchedEffect(interactToast) { interactToast?.let { (_, text, danger) -> pushToast(text, danger) } }
     LaunchedEffect(status, revealed) { if (revealed && status != null) pushToast(status, true) }
     // the one first-run tip: where the dock, the menu and Build are (a single toast; tips never stack)
     var tipSeen by remember(buildPrefs) { mutableStateOf(try { buildPrefs.getBoolean(ScreenTips.KEY, false) } catch (e: Exception) { false }) }
@@ -1675,12 +1853,13 @@ fun LiveSceneScreen(
         live.camera.setMode(CameraMode.ORBIT)
     }
     val windowOpen = choosingAnimation != null || furnitureMenu != null || saying != null || chatting != null ||
-        choosingPartner != null || pairPlay != null || menu || ending || panel != ScreenPanel.NONE || mapper.on || build.on || chatActor != null || chatSheet != null || joiActor != null
+        choosingPartner != null || pairPlay != null || menu || ending || panel != ScreenPanel.NONE || mapper.on || build.on || chatActor != null || chatSheet != null || joiActor != null || interactActor != null
     // cinematic mode's idle hide: counted while cinematic, not building, no window open; any touch restarts it (see observeTouches below)
     // (ChromeGate / ChromeVisibility: 5 s untouched hides all of it; Build, JOI, Chat, a sheet, a window and the keyboard keep it up; the touch that
     // reveals it is swallowed and nothing is tapped while it fades)
     val imeUp = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val gateMode = when {
+        interactActor != null -> ScreenMode.INTERACT
         chatActor != null -> ScreenMode.CHAT
         joiActor != null -> ScreenMode.JOI
         mapper.on -> ScreenMode.MOVE
@@ -1925,6 +2104,11 @@ fun LiveSceneScreen(
             SpeechBubbles(speechSpots, remember(cast) { cast.map { it.name } }, List(cast.size) { if (it == ci) chatSpeech else null }, -1)
         }
         SceneLoadingCover(!revealed, locationName, status, progress)
+        // Interact mode: the touches on her and on the background (under the chrome, so the dock and the chip still take theirs)
+        interactActor?.let { iid ->
+            InteractTouchLayer(interactMode, interactTick, interactCamera, view, actorKey(iid), consent, { interactPersona(iid) },
+                { hit, kind -> interactTouch(hit, kind) }, { step -> interactStroke(step) }, { x, y, w, h -> interactBackground(x, y, w, h) })
+        }
 
         // the HUD, inside the screen's safe area (cut-outs, the hinge's bars, the gesture bar)
         val shown by animateFloatAsState(if (revealed) 1f else 0f, tween(MenuMotion.duration(MenuMotion.WINDOW_IN_MS, reduced)), label = "hud")
@@ -1935,6 +2119,7 @@ fun LiveSceneScreen(
         val hudAlpha by animateFloatAsState(if (hudHidden) 0f else 1f, tween(MenuMotion.duration(CINEMATIC_HUD_MS, reduced)), label = "cinematicHud")
         // the chrome (SceneChrome.kt): top bar, cast, camera, dock, sheet and toast, each placed by ScreenPlan (ScreenPlan.kt)
         val screenMode = when {
+            interactActor != null -> ScreenMode.INTERACT
             chatActor != null -> ScreenMode.CHAT
             joiActor != null -> ScreenMode.JOI
             mapper.on -> ScreenMode.MOVE
@@ -1950,6 +2135,8 @@ fun LiveSceneScreen(
         val hes = hesitantNow
         val persuading = hes != null && persuadeLater != hes.npcId && !build.on && !mapper.on && joiActor == null && chatActor == null
         val dockPlan = when {
+            interactActor != null -> if (interactMode.persuading) DockModel.persuade(com.logie.wifecraft.dialogue.Approach.entries.map { it.label })
+                else DockModel.interact(interactMode.tool.label, interactMode.tab?.name, interactMode.tell)
             build.on -> DockModel.build()
             chatActor != null -> DockModel.chat()
             persuading -> DockModel.persuade(com.logie.wifecraft.dialogue.Approach.entries.map { it.label })
@@ -1960,6 +2147,7 @@ fun LiveSceneScreen(
         }
         val sheetPanel = when {
             panel != ScreenPanel.NONE -> panel
+            interactActor != null -> ScreenPanel.NONE
             mapper.on -> ScreenPanel.MOVE_PANEL
             build.on -> ScreenPanel.BUILD_PANEL
             screenMode == ScreenMode.CINEMATIC && cinematicSettings.autoplay -> ScreenPanel.AUTOPLAY
@@ -1971,6 +2159,12 @@ fun LiveSceneScreen(
         val toastText = lifeToast?.first?.message
         val playLine = (snapshot.notice?.takeIf { it != toastText } ?: if (immersiveHud) null else (active?.playing ?: hint.takeIf { active != null })).orEmpty()
         val contextLine = when {
+            interactActor != null -> when {
+                interactMode.awaitingSpot -> "Tap the floor where she should go."
+                interactMode.persuading -> "${names[interactActor] ?: "She"} hesitates. Calm her?"
+                interactMode.tool == InteractTool.LOOK -> "Look: drag to turn the view, pinch to zoom."
+                else -> "Touch: tap or stroke her. Drag the background to turn the view."
+            }
             build.on || joiActor != null || chatActor != null -> ""
             persuading && hes != null -> "${hes.name} hesitates over ${hes.otherName}. Calm them?"
             active == null -> SceneHud.hint(false, false, cast.size, false).ifEmpty { "Add NPCs to the scene to direct them." }
@@ -1992,12 +2186,18 @@ fun LiveSceneScreen(
             val allOn = gearControl.allOn()
             moreItems += (if (allOn) "All gear off" else "All gear on") to { gearControl.setAll(!allOn) }
         }
-        val moreLead: List<Pair<String, () -> Unit>> = if (build.on) emptyList() else listOf(BuildEntry.menuLabel(false) to { enterBuild() })
+        if (interactActor != null) {
+            moreItems += (if (interactMode.haptics) "Haptics: on" else "Haptics: off") to { interactMode.haptics = !interactMode.haptics; interactTick++ }
+            moreItems += "Back to overview" to { interactCamera.overview(); interactTick++ }
+            interactActor?.let { id -> if (stockingBook.of(id) != null) moreItems += "Remove stockings" to { applyStockings(id, null); interactTick++ } }
+        }
+        val moreLead: List<Pair<String, () -> Unit>> = if (build.on || interactActor != null) emptyList() else listOf(BuildEntry.menuLabel(false) to { enterBuild() })
         if (consent != null && onLimitsFor != null && active != null) moreItems += "Limits: ${names[active.id] ?: ""}" to { onLimitsFor(active.id) }
         else if (consent != null && onLimits != null) moreItems += "Consent and limits" to { onLimits() }
         fun exitMode() {
             when (screenMode) {
                 ScreenMode.CHAT -> chatLeave = true
+                ScreenMode.INTERACT -> interactLeave = true
                 ScreenMode.JOI -> joiLeave = true
                 ScreenMode.MOVE -> mapper.leave()
                 ScreenMode.BUILD -> build.leave()
@@ -2017,7 +2217,22 @@ fun LiveSceneScreen(
             dockEnabled = { item -> val sid = active?.id; if (sid != null && item.order != null) slots.firstOrNull { it.key == item.id }?.let { slotEnabled(sid, it) } ?: true else true },
             onDock = { item ->
                 val sid = active?.id
-                if (dockPlan.kind == DockKind.JOI) {
+                if (interactActor != null) {
+                    if (dockPlan.kind == DockKind.PERSUADE) {
+                        if (item.id == "later") interactMode.later()
+                        else com.logie.wifecraft.dialogue.Approach.entries.firstOrNull { it.label == item.id }?.let { a -> interactPersuade(a) }
+                        interactTick++
+                    } else when (item.id) {
+                        "back" -> interactLeave = true
+                        "commands" -> { interactMode.openTab(InteractTab.COMMANDS); panel = if (interactMode.sheetOpen) ScreenPanel.INTERACT else ScreenPanel.NONE; interactTick++ }
+                        "pose" -> { interactMode.openTab(InteractTab.POSE); panel = if (interactMode.sheetOpen) ScreenPanel.INTERACT else ScreenPanel.NONE; interactTick++ }
+                        "outfit" -> { interactMode.openTab(InteractTab.OUTFIT); panel = if (interactMode.sheetOpen) ScreenPanel.INTERACT else ScreenPanel.NONE; interactTick++ }
+                        "tool" -> { interactMode.toggleTool(); interactTick++ }
+                        "talk" -> { interactMode.toggleTell(); panel = ScreenPanel.NONE; interactTick++ }
+                        "more" -> { interactMode.closeSheet(); panel = PanelRules.open(panel, ScreenPanel.MORE, screenMode); interactTick++ }
+                    }
+                }
+                else if (dockPlan.kind == DockKind.JOI) {
                     when (item.id) {
                         "stop" -> joiLeave = true
                         "pause" -> { joiMode.togglePause(); joiTick++ }
@@ -2042,7 +2257,7 @@ fun LiveSceneScreen(
                 }
             },
             buildDock = { BuildBar(build, Modifier.fillMaxSize()) },
-            row = screenMode == ScreenMode.CHAT || (screenMode == ScreenMode.JOI && joiRow != DockRowKind.NONE), onPlan = { chromePlan = it },
+            row = screenMode == ScreenMode.CHAT || (screenMode == ScreenMode.JOI && joiRow != DockRowKind.NONE) || (screenMode == ScreenMode.INTERACT && interactMode.tell), onPlan = { chromePlan = it },
             context = contextLine, toast = toastNow,
             onMenu = { panel = ScreenPanel.NONE; menu = true },
             onTime = { panel = PanelRules.open(panel, ScreenPanel.TIME, screenMode) },
@@ -2050,9 +2265,10 @@ fun LiveSceneScreen(
             onExitMode = { exitMode() },
             sheetTitle = when (sheetPanel) {
                 ScreenPanel.TIME -> "Time and events"; ScreenPanel.MORE -> active?.id?.let { names[it] } ?: "More"
-                ScreenPanel.CHAT_LOG -> "Talk with ${chatActor?.let { names[it] } ?: ""}"; ScreenPanel.STEER -> "Steer the talk"; else -> ""
+                ScreenPanel.CHAT_LOG -> "Talk with ${chatActor?.let { names[it] } ?: ""}"; ScreenPanel.STEER -> "Steer the talk"
+                ScreenPanel.INTERACT -> "Interact: ${interactActor?.let { names[it] } ?: ""}"; else -> ""
             },
-            framed = sheetPanel == ScreenPanel.TIME || sheetPanel == ScreenPanel.MORE || sheetPanel == ScreenPanel.CHAT_LOG || sheetPanel == ScreenPanel.STEER,
+            framed = sheetPanel == ScreenPanel.INTERACT || sheetPanel == ScreenPanel.TIME || sheetPanel == ScreenPanel.MORE || sheetPanel == ScreenPanel.CHAT_LOG || sheetPanel == ScreenPanel.STEER,
             onCloseSheet = { panel = ScreenPanel.NONE },
             onSheetRect = { autoRect = it },
         ) {
@@ -2066,9 +2282,17 @@ fun LiveSceneScreen(
                 } }, Modifier.fillMaxSize())
                 ScreenPanel.MOVE_PANEL -> MovePanel(mapper, view, Modifier.fillMaxSize())
                 ScreenPanel.CHAT_LOG -> ChatLogSheet(chatMode.session, chatTick)
+                ScreenPanel.INTERACT -> interactMode.tab?.let { tab ->
+                    InteractSheetBody(tab, { interactMode.openTab(it); if (!interactMode.sheetOpen) panel = ScreenPanel.NONE; interactTick++ }, interactCamera, interactTick,
+                        interactPoses, interactActor?.let { stockingBook.of(it) }, { interactAction(it) }, { spec -> interactActor?.let { applyStockings(it, spec) }; interactTick++ },
+                        { interactCamera.overview(); interactTick++ })
+                }
                 ScreenPanel.STEER -> dialogueDirector?.let { SteerSheet(it, live, names) }
                 else -> Unit
             }
+        }
+        if (interactActor != null && interactMode.tell) At(ScreenPlan.find(chromePlan, "row")) {
+            InteractTellRow(interactTyped, { interactTyped = it }, { text -> interactTell(text) })
         }
         // cinematic auto-play: the pair's animations one after another, each change under a cut (CinematicUi, CinematicAutoplay)
         CinematicAutoplayHost(cinematic && cinematicSettings.autoplay && joiActor == null && chatActor == null, live, cineDirector, cinematicSettings,

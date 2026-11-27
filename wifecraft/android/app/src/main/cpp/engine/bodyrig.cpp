@@ -40,6 +40,14 @@ std::vector<uint8_t> boneRegionsOf(const M2Model& m) {
 }
 
 int Scene::pickBodyRegion(int id, float sx, float sy, int width, int height) const {
+    return pickBodyDetail(id, sx, sy, width, height, nullptr);
+}
+
+// out (8 floats, may be null): region code, side (-1 her right, 0 middle, 1 her left), the hit's height over the head bone's pivot
+// (1 at the crown), forward (model x over the pelvis height), sideways (y), the model-space z over the pelvis height, 1 when the ray
+// came from in front of her (the hit's normal faces the eye), the hit's geoset id.
+int Scene::pickBodyDetail(int id, float sx, float sy, int width, int height, float* out) const {
+    if (out) for (int i = 0; i < 8; ++i) out[i] = 0;
     auto it = actors_.find(id);
     if (it == actors_.end() || width <= 0 || height <= 0) return kRegionNone;
     const Actor& a = it->second;
@@ -75,18 +83,24 @@ int Scene::pickBodyRegion(int id, float sx, float sy, int width, int height) con
     if (head >= 0 && size_t(head) < a.mats.size()) {
         const V3 hp = a.mats[size_t(head)].point(m.bones[size_t(head)].pivot);
         const float unit = std::max(pelvis >= 0 ? m.bones[size_t(pelvis)].pivot.z : 1.0f, 0.1f);
-        if (hit.region == kRegionHead && hit.point.z > hp.z + 0.1f * unit) return kRegionHair;
+        if (hit.region == kRegionHead && hit.point.z > hp.z + 0.1f * unit) { if (out) { out[0] = kRegionHair; out[1] = 0; out[2] = hit.point.z / std::max(hp.z, 0.1f); out[3] = hit.point.x / unit; out[4] = hit.point.y / unit; out[5] = hit.point.z / unit; out[6] = dm.x < 0 ? 1.f : 0.f; out[7] = float(hit.geoset); } return kRegionHair; }
         if (hit.region == kRegionNone) {
             V3 dn = dm.normalized();
             float along = (hp - o).dot(dn);
             float miss = (o + dn * along - hp).length();
-            if (along > 0 && miss < 0.2f * unit) return kRegionHair;
+            if (along > 0 && miss < 0.2f * unit) { if (out) out[0] = kRegionHair; return kRegionHair; }
         }
     }
     // the side of her body it landed on (bits 8-9: 1 her left, 2 her right, 0 the middle), for the creator's one-sided sculpt
     if (hit.region != kRegionNone && hit.region != kRegionHair) {
         const int pelvis = m.findWowBone("Pelvis");
         const float unit = std::max(pelvis >= 0 ? m.bones[size_t(pelvis)].pivot.z : 1.0f, 0.1f);
+        if (out) {
+            const float top = head >= 0 ? std::max(m.bones[size_t(head)].pivot.z, 0.1f) : 1.7f * unit;
+            out[0] = float(hit.region); out[1] = hit.point.y > 0.03f * unit ? 1.f : hit.point.y < -0.03f * unit ? -1.f : 0.f;
+            out[2] = hit.point.z / top; out[3] = hit.point.x / unit; out[4] = hit.point.y / unit; out[5] = hit.point.z / unit;
+            out[6] = dm.x < 0 ? 1.f : 0.f; out[7] = float(hit.geoset);
+        }
         if (hit.point.y > 0.03f * unit) return int(hit.region) | (1 << 8);
         if (hit.point.y < -0.03f * unit) return int(hit.region) | (2 << 8);
     }

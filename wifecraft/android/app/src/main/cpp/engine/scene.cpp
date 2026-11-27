@@ -743,6 +743,7 @@ void Scene::attach(int id, uint32_t attachmentId, uint32_t modelFileId, const st
 }
 
 void Scene::removeActor(int id) {
+    { auto f = actors_.find(id); if (f != actors_.end()) dropStockGl(f->second); }
     auto it = actors_.find(id);
     if (it == actors_.end()) return;
     if (it->second.boneTex && glReady_) glDeleteTextures(1, &it->second.boneTex);
@@ -1629,6 +1630,7 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     if (a.hd.active) {
         // the HD figure instead of the game's model, its clothing and parts (hdscene.cpp); what it holds still hangs on it
         if (!transparent) drawHd(a, w, bodyTint);   // (with the soft body's uniforms still set)
+        if (transparent) drawStockings(a, w);
         // an HD body whose own genitals are hidden (setHdGenitalMask): the parts drawn in their place, on the game skeleton
         // the HD figure is fitted to (hdscene.cpp hdCheck fits the HD body again without its own genitals' triangles)
         if (!a.parts.hdGenitalMask.empty()) drawParts(a, w, transparent, nowMs, bodyTint);
@@ -1646,7 +1648,7 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     if (cloth && !transparent) drawCloth(a, w, bodyTint);
     softBodyDraw_ = false;
     if (soft) SoftDraw::setGain(m2Prog_, 1.0f);
-    if (transparent) drawBodyLayer(a, w);   // (the skinned models below are the person's too: drawSkin_ still theirs)
+    if (transparent) { drawBodyLayer(a, w); drawStockings(a, w); }   // (the skinned models below are the person's too: drawSkin_ still theirs)
     for (size_t i = 0; i < a.skinned.size(); ++i) {
         Skinned& e = a.skinned[i];
         std::map<uint32_t, uint32_t> tex = a.drawTextures;

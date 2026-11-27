@@ -953,6 +953,45 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     }
 
     /**
+     * Interact mode's touch: where on actor [key]'s body the screen point lands, as [onHit] on the main thread with
+     * Native.pickBodyDetail's eight numbers (region code, side, height over the crown, forward, sideways, z, from the front, geoset id),
+     * null when the point misses her or she isn't here.
+     */
+    fun pickBodyDetail(key: String, sx: Float, sy: Float, w: Int, h: Int, onHit: (FloatArray?) -> Unit) = post { handle, ids ->
+        val id = ids[key]
+        val hit = if (id == null) null else Native.pickBodyDetail(handle, id, sx, sy, w, h)
+        main.post { onHit(hit) }
+    }
+
+    /** A finger down on actor [key]'s stocking at the screen point: [onGrab] (main thread) whether it took hold of the fabric. */
+    fun stockGrab(key: String, sx: Float, sy: Float, w: Int, h: Int, onGrab: (Boolean) -> Unit) = post { handle, ids ->
+        val ok = ids[key]?.let { Native.stockGrab(handle, it, sx, sy, w, h) } ?: false
+        main.post { onGrab(ok) }
+    }
+
+    /** The finger moves: the grabbed fabric follows it in the view plane. */
+    fun stockDrag(key: String, sx: Float, sy: Float, w: Int, h: Int) = post { handle, ids -> ids[key]?.let { Native.stockDrag(handle, it, sx, sy, w, h) } }
+
+    /** The finger lifts: the fabric springs back. */
+    fun stockRelease(key: String) = post { handle, ids -> ids[key]?.let { Native.stockRelease(handle, it) } }
+
+    /** Takes back the latest tear ([repairAll]: every tear): [onDone] (main thread) whether something came back. */
+    fun stockUndo(key: String, repairAll: Boolean, onDone: (Boolean) -> Unit) = post { handle, ids ->
+        val id = ids[key]
+        val ok = if (id == null) false else if (repairAll) { Native.stockRepair(handle, id); true } else Native.stockUndo(handle, id)
+        main.post { onDone(ok) }
+    }
+
+    /** The fabric's state: [onState] (main thread) tension 0..1, runs torn, dead triangles, grabbed 1/0; null: no stockings built. */
+    fun stockState(key: String, onState: (FloatArray?) -> Unit) = post { handle, ids ->
+        val s = ids[key]?.let { Native.stockState(handle, it) }
+        main.post { onState(s) }
+    }
+
+    /** Puts [spec] (creator/StockingSpec.toFloats; null: none) on actor [key]; kept across a new look, drawn under the gear (engine/stockdraw.cpp). */
+    fun setStockings(key: String, spec: FloatArray?) = post { handle, ids -> ids[key]?.let { Native.setStockings(handle, it, spec) } }
+
+    /**
      * The creator's sculpt sliders on actor [key] (creator/BodySculpt.toArray: the sliders, then their sides): the game's own
      * body is sculpted again (at most six times a second while they change), the HD figure is fitted again with them (hdscene.cpp hdCheck).
      */
