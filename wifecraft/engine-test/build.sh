@@ -162,3 +162,8 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/pinch_test.cpp" "$engine/contact.cpp" \
     -o "$here/build/pinch_test"
 echo "$here/build/pinch_test"
+# Spring-bone jiggle (engine/springbone.cpp: the chains' dynamics, the weights; no GL): build/springbone_test, exit 0 when all pass.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/springbone_test.cpp" "$engine/springbone.cpp" \
+    -o "$here/build/springbone_test"
+echo "$here/build/springbone_test"

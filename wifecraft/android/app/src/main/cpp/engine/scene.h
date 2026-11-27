@@ -18,6 +18,7 @@
 #include "cloth.h"
 #include "contactdraw.h"
 #include "tissuedraw.h"
+#include "springdraw.h"
 #include "hdbody.h"
 #include "grade.h"
 #include "location.h"
@@ -148,6 +149,10 @@ public:
     void setContactLoad(int load);
     // Options' Soft tissue (tissue.h): `level` 0 off, 1 low, 2 high; `jiggle` 0 .. 2 (1: as the material). From the next frame.
     void setSoftTissue(int level, float jiggle);
+    // Options' spring-bone jiggle (springbone.h): `level` 0 off, 1 low, 2 high; `amount` 0 .. 2; `preset` SbPreset (0 Natural, 1 ZZZ, 2 Subtle).
+    void setSpringBones(int level, float amount, int preset);
+    bool springStats(int id, int& helpers, int& chains, size_t& vertices, bool& asleep) const;
+    void kickSprings(int id, const V3& worldAt, const V3& velocity, float radius);
     // Hands on the tissue that no stage or touch makes (the desktop check's grips; a pinch): fed every frame until cleared.
     void setTissueManual(int id, const std::vector<TissueHandle>& list);
     const TissueDraw* tissueOf(int id) const;
@@ -735,6 +740,7 @@ private:
         SoftDraw soft;                 // the soft body (softbody.h)
         ContactDraw contact;           // flesh contact (contact.h, contactdraw.cpp)
         TissueDraw tissue;             // soft tissue (tissue.h, tissuedraw.cpp)
+        SpringDraw spring;             // spring-bone jiggle (springbone.h, springdraw.cpp)
         ClothGl cloth;                 // a tabard flap hung as cloth (cloth.h)
         bool character = false;        // setCharacter: the soft body applies (a creature's never does)
         MotionState motion;            // the additive body language (setMotion; motionlayer.h)
@@ -914,6 +920,12 @@ private:
     bool contactDraw_ = false;         // drawModel is drawing an actor whose skin has contacts (the uniforms set)
     uint32_t contactClock_ = 0;
     bool contactStarted_ = false;
+    void stepSprings(uint32_t clock);   // springdraw.cpp: the helper chains of every posed HD body
+    int springLevel_ = 2;
+    float springAmount_ = 1.0f;
+    int springPreset_ = 0;
+    uint32_t springClock_ = 0;
+    bool springStarted_ = false;
     void stepTissue(uint32_t clock);    // tissuedraw.cpp: the lattices of every posed body, from the contacts and the bones
     int tissueLevel_ = 2;               // Options' Soft tissue: 0 off, 1 low, 2 high
     float tissueJiggle_ = 1.0f;
