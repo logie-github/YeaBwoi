@@ -241,7 +241,12 @@ bool Scene::stockGrab(int id, float sx, float sy, int w, int h, bool dry) {
     s.pulling = true; s.moving = true; s.lastMs = nowMs();
     const V3 rest = s.rest[s.weld[size_t(best)]];
     if (!s.fabric.grab(rest, 0.05f, 0.05f)) { s.pulling = false; return false; }
-    s.posBuf.assign({float(best), bt, 0, 0, 0, 0});   // the grabbed shell vertex, the depth along the ray
+    // the grabbed shell vertex, the depth along the ray, and how far the vertex is off the ray (the pinch holds the fabric where the finger took it,
+    // not snapped to the finger)
+    const V3 pv = skinPoint(s.shell.verts[size_t(best)], a.mats);
+    const float dn = d.dot(fwd);
+    const V3 off = dn > 1e-4f ? pv - (o + d * ((pv - o).dot(fwd) / dn)) : V3();
+    s.posBuf.assign({float(best), bt, off.x, off.y, off.z, 0});
     return true;
 }
 
@@ -271,7 +276,7 @@ void Scene::stockDrag(int id, float sx, float sy, int w, int h) {
     const float depth = (posedRest - o).dot(fwd);
     const float denom = d.dot(fwd);
     if (denom < 1e-4f) return;
-    const V3 posedTo = o + d * (depth / denom);
+    const V3 posedTo = o + d * (depth / denom) + (s.posBuf.size() >= 5 ? V3(s.posBuf[2], s.posBuf[3], s.posBuf[4]) : V3());
     V3 delta = posedTo - posedRest;
     // posed -> bind space: undo the pinched vertex's heaviest bone's turn (the 3x3 of its matrix, a rotation and a uniform scale)
     int bone = s.shell.verts[sv].bones[0];
