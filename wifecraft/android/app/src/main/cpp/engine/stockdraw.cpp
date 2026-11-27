@@ -281,6 +281,12 @@ void Scene::stockDrag(int id, float sx, float sy, int w, int h) {
         float k = std::max(c0.dot(c0), 1e-6f);
         delta = V3(c0.dot(delta), c1.dot(delta), c2.dot(delta)) * (1.0f / k);
     }
+    // a pinch lifts the fabric off the skin as it is pulled (a tent), not only along it: out along the pinched vertex's normal by 0.8 of the way it was dragged
+    {
+        const M2Vertex& pv = s.shell.verts[sv];
+        V3 n(pv.normal[0], pv.normal[1], pv.normal[2]);
+        if (n.length() > 1e-4f) delta = delta + n.normalized() * (0.8f * delta.length());
+    }
     s.fabric.drag(s.rest[s.weld[sv]] + delta);
     s.moving = true;
 }
@@ -299,8 +305,8 @@ void Scene::stockFabricFrame(Actor& a) {
     // (the leg's own place: the fabric is bound to the bind-pose rest; the skinning in the shader carries it with the leg)
     const std::vector<V3>& p = s.fabric.positions();
     std::vector<M2Vertex>& v = s.shell.verts;
-    // (the solver's stretch is millimetres before the yarn gives: drawn 3x so the pinch reads as a tent, the springback and the tension unchanged)
-    const float gain = 3.0f;
+    // (the solver's stretch is millimetres before the yarn gives: drawn 2x so the pinch reads as a tent, the springback and the tension unchanged)
+    const float gain = 2.0f;
     for (size_t i = 0; i < v.size(); ++i) { const V3& r0 = s.rest[s.weld[i]]; const V3 q = r0 + (p[s.weld[i]] - r0) * gain; v[i].pos[0] = q.x; v[i].pos[1] = q.y; v[i].pos[2] = q.z; }
     glBindBuffer(GL_ARRAY_BUFFER, s.vbo);
     glBufferSubData(GL_ARRAY_BUFFER, 0, GLsizeiptr(v.size() * sizeof(M2Vertex)), v.data());
