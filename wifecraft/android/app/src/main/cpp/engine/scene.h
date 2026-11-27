@@ -16,7 +16,6 @@
 #include "boneanim.h"
 #include "bonelayer.h"
 #include "cloth.h"
-#include "evebody.h"
 #include "hdbody.h"
 #include "grade.h"
 #include "location.h"
@@ -173,34 +172,6 @@ public:
     // FleshMeasure::pack's layout), measured once per look and kept until the look changes. False while it can't be
     // measured yet (no such actor, its shape waiting for the next frame, a skeleton that isn't a person's).
     bool actorFlesh(int id, std::vector<float>& out);
-
-    // ---------------------------------------------------------------- the Eve body (evebody.h; evescene.cpp)
-    // The converted Eve set in `dir` (files/bodyparts/eve: set.json, its meshes, skins and overlays) with the fit table
-    // (assets/eve_fit.json's text), kept for the scene's life; a new call replaces it (every actor wearing Eve is fitted
-    // again). False and `error` when it can't be read; the actors then keep their own bodies.
-    bool loadEveSet(const std::string& dir, const std::string& fitJson, std::string& error);
-    // Eve on actor `id` with these options (on false: its own body). Applied at the next frame and again whenever its look
-    // changes: only on a model the fit table has a row for, enabled, and only while the caller says the look is unclothed
-    // (the caller decides: bodyparts/EveOptions.kt EveRule). Kept across dress().
-    void setEveBody(int id, const EveOptions& options);
-    void clearEveBody(int id);
-    // What became of it (the desktop check, the menus' note): drawn or why not, the fit's numbers, the colours matched.
-    struct EveStatus {
-        bool requested = false, active = false;
-        std::string status;
-        EveFitStats stats;
-        uint32_t neck = 0, ankle = 0, reference = 0;
-        int shade = -1;
-        float shadeDist = 0;
-        double composeMs = 0;
-        size_t eveTriangles = 0, bodyTriangles = 0;
-        double glMs = 0;           // the GL thread's share of the last fit (the snapshot and the swap; the uploads are the frame's)
-        bool pending = false;      // a fit is on the worker; what is drawn is the last one (or her own body)
-        uint32_t waitFrames = 0;   // frames it has waited
-    };
-    bool eveStatus(int id, EveStatus& out) const;
-    // The fit on a worker thread (default) or at once on the GL thread (the desktop's checks; pictures always are).
-    void setEveAsync(bool on);
 
     // ---------------------------------------------------------------- HD Models (hdbody.h; hdscene.cpp)
     // An HD model set (a .whd: tools/hd/whd_convert.py) kept for the scene's life under its race and sex; a new one of the
@@ -406,7 +377,7 @@ public:
     // posed this frame, the region of the bones the triangle hit is weighted to most (bodyrig.cpp). Bits 8-9: the side
     // (1 her left, 2 her right, 0 the middle or not told).
     int pickBodyRegion(int id, float sx, float sy, int width, int height) const;
-    // The creator's sculpt sliders (sculpt.h's order, -1..1) on actor `id`: the Eve body is fitted again with them, the
+    // The creator's sculpt sliders (sculpt.h's order, -1..1) on actor `id`: the HD figure is fitted again with them, the
     // game's own body sculpted again (bodyrig.cpp sculptSync: at most every kSculptMinMs while they change).
     void setSculpt(int id, const float* values, size_t count);
     // Off: every sculpt change is made on the next frame (the desktop harness's stills); on (the default) at most every
@@ -481,7 +452,6 @@ public:
         std::vector<DressModel> extras;
         std::vector<float> morph;
         float bodyK = 0, bodyFold = 0;
-        EveOptions eve;                          // the Eve body on the look (setEveBody's; `on` false: her own body)
         HdOptions hd;                            // the HD figure on the look (setHdBody's; `on` false: the game's model)
         int hdRace = 0, hdSex = 0;
     };
@@ -735,9 +705,8 @@ private:
         // actorFlesh's measure and the look it was made for (0: none yet)
         std::vector<float> flesh;
         uint64_t fleshKey = 0;
-        EveDraw eve;                   // the Eve body (evescene.cpp)
         HdDraw hd;                     // the HD figure drawn instead of the model (hdscene.cpp)
-        std::vector<float> sculpt;     // the creator's sculpt sliders (setSculpt; sculpt.h): the Eve body fitted with them
+        std::vector<float> sculpt;     // the creator's sculpt sliders (setSculpt; sculpt.h): the HD figure fitted with them
         std::vector<float> sculptWant; // what setSculpt last gave (taken into `sculpt` by sculptSync)
         uint64_t sculptAtMs = 0;       // when the game's body was last sculpted (steady clock)
         LegEdit legEdit;               // its Leg Length on the skeleton (bodyrig.h): made again when the slider or model changes
@@ -964,7 +933,7 @@ private:
     void dropDressGl(Actor& a);
     void dropBodyGl(Actor& a);
     void refreshBody(Actor& a);
-    void sculptSync(Actor& a);                     // before eveCheck: the sculpt taken (bodyrig.cpp)
+    void sculptSync(Actor& a);                     // before hdCheck: the sculpt taken (bodyrig.cpp)
     bool sculptThrottle_ = true;
     bool sculptHold_ = false;
     bool sculptMorphReady(Actor& a);               // the live sculpt's fields made for the body as it is (bodyrig.cpp)
@@ -993,21 +962,6 @@ private:
     void hdCheck(Actor& a);                                 // the model, the options or the set changed: fitted again
     void drawHd(Actor& a, const M4& world, const float tint[4]);
     void dropHdGl(Actor& a);
-    // the Eve body (evescene.cpp)
-    std::shared_ptr<EveSet> eveSet_;               // (shared with the worker's jobs)
-    void eveCheck(Actor& a);                       // before refreshBody: the look or options changed, so fit again
-    void eveRefit(Actor& a);                       // in refreshBody: the body's base kept, a fit sent
-    void eveOff(Actor& a);
-    bool eveOffered(Actor& a);
-    void eveStart(Actor& a, bool inRefresh);       // a fit sent to the worker (or computed at once)
-    void eveTake(Actor& a);                        // a finished fit swapped in
-    void eveSwap(Actor& a, EveResult& r, bool inRefresh, bool staged = false);
-    void eveStage(Actor& a);                       // a finished fit uploaded a slice a frame, then swapped in
-    void eveDropStage(Actor& a);
-    bool eveAsync_ = true;
-    std::unique_ptr<EveWorker> eveWorker_;         // (declared after the models and actors: stopped before they go)
-    void drawEve(Actor& a, const M4& world, const float tint[4]);
-    void dropEveGl(Actor& a);
 
     // ---- the placement editor's view (editview.cpp)
     struct Ghost {

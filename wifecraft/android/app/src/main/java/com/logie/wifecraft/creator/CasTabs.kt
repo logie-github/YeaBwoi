@@ -196,7 +196,7 @@ object CasRandomizer {
             }
             val height = (random.nextFloat() * 2f - 1f) * 0.3f
             val s = if (sculptable) BodySculpt.random(random, SCULPT_REACH).with(SculptSlider.HEIGHT, height) else BodySculpt().with(SculptSlider.HEIGHT, height)
-            // (every body takes the sculpt now, the game's own and the Eve body: the screen passes sculptable = true)
+            // (every body takes the sculpt now, the game's own and the Liard figure: the screen passes sculptable = true)
             model.setSculpt(s)
         }
         if (CasTab.PERSONALITY !in locks && traits.isNotEmpty()) {

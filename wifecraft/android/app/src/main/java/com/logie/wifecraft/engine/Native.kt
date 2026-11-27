@@ -164,17 +164,6 @@ object Native {
     /** Where to sample the actor's skin for the parts' tint: skin texture (u, v) pairs, v 0 at the top (empty: can't say). */
     @JvmStatic external fun partSkinUvs(scene: Long, actor: Int): FloatArray
 
-    // ---- the Eve body (cpp engine/evebody.h, evescene.cpp; bodyparts/EveConvert, EveOptions)
-    /** The converted Eve set in [dir] (files/bodyparts/eve) with the fit table's text (assets/eve_fit.json): "" or why it can't be read. */
-    @JvmStatic external fun loadEveSet(scene: Long, dir: String, fitJson: String): String
-    /**
-     * Eve on [actor] (bodyparts/EveOptions: [on], the lower body [bottom], [tone] -1 tinted / a tone's index, overlay [slot]
-     * -1 none, [shade] -1 nearest, [opacity] 0..1, [bones] Keep undead bones: EveBones); fitted at the next frame and again at each change of look. The caller
-     * says when the look is unclothed (EveRule); the engine refuses a race its fit table excludes.
-     */
-    @JvmStatic external fun setEveBody(scene: Long, actor: Int, on: Boolean, bottom: String, tone: Int, slot: Int, shade: Int, opacity: Float, bones: Boolean)
-    @JvmStatic external fun clearEveBody(scene: Long, actor: Int)
-
     // ---- HD Models (cpp engine/hdbody.h, hdscene.cpp; bodyparts/HdModels)
     /** An HD model set (.whd) loaded under its race and sex: "" or why it can't be read. */
     @JvmStatic external fun loadHdSet(scene: Long, path: String): String
@@ -196,8 +185,6 @@ object Native {
     /** The HD figure (as [setHdBody] takes it) on the NEXT [thumbLook] or [thumbCard] only, called right before it on the GL thread. */
     @JvmStatic external fun thumbHd(scene: Long, race: Int, sex: Int, on: Boolean, hair: Int, outfit: Int, eyes: Int, faceMark: Int,
                                     bodyMarks: Int, tint: Int, hairTint: Int, jewelry: IntArray, body: Int, shapes: FloatArray)
-    /** "on|NECK|ANKLE|SHADE|MS|why": drawn or not, the skin colours matched (RRGGBB), the overlay shade, the fit's cost, why not. */
-    @JvmStatic external fun eveStatus(scene: Long, actor: Int): String
 
     // ---- model parts (cpp engine/modelpart.h; bodyparts/ModelParts: the manifest and set.json)
     /**
@@ -334,7 +321,7 @@ object Native {
      * touched: 1 her left, 2 her right, 0 the middle).
      */
     @JvmStatic external fun pickBodyRegion(scene: Long, actor: Int, sx: Float, sy: Float, width: Int, height: Int): Int
-    /** The creator's sculpt sliders on [actor] (creator/BodySculpt.kt's order, -1..1, then their sides): the game's own body sculpted again, the Eve body fitted again with them (engine/sculpt.h). */
+    /** The creator's sculpt sliders on [actor] (creator/BodySculpt.kt's order, -1..1, then their sides): the game's own body sculpted again, the HD figure fitted again with them (engine/sculpt.h). */
     @JvmStatic external fun setSculpt(scene: Long, actor: Int, values: FloatArray)
 
     const val PICK_NONE = 0
@@ -421,11 +408,6 @@ object Native {
     ): IntArray?
     /** Why the last thumbnail couldn't be drawn. */
     @JvmStatic external fun thumbError(scene: Long): String
-    /**
-     * The Eve body (as [setEveBody] takes it) on the NEXT [thumbLook] or [thumbCard] only, called right before it on the GL
-     * thread; taken once (a picture without it is of her own body).
-     */
-    @JvmStatic external fun thumbEve(scene: Long, on: Boolean, bottom: String, tone: Int, slot: Int, shade: Int, opacity: Float, bones: Boolean)
 
     const val GIZMO_OFF = 0
     const val GIZMO_MOVE = 1

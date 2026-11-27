@@ -125,7 +125,6 @@ fun CasScreen(
     iconSource: GameIcons? = null,
     portraits: Thumbs? = null,
     onLook: (ResolvedLook) -> Unit = {},
-    eve: CasEveBinding? = null,
 ) {
     val context = LocalContext.current
     val atlas2 = atlas ?: remember { ArtAtlas.open(context) }
@@ -146,7 +145,6 @@ fun CasScreen(
     var camera by remember { mutableStateOf(CasCamera.FULL) }
     var turntable by remember { mutableStateOf(false) }
     var warmLight by remember { mutableStateOf(false) }
-    var eveBody by remember { mutableStateOf(false) }
     var presetsOpen by remember { mutableStateOf(false) }
     var focusRegion by remember { mutableStateOf(BodyRegion.NONE) }
     var glowAt by remember { mutableStateOf<Offset?>(null) }
@@ -201,13 +199,11 @@ fun CasScreen(
     val previewRace = remember(rev) { model.appearance.raceId }
     LaunchedEffect(previewRace) { onPreviewRace(previewRace) }
 
-    // the look, resolved where the table work is cheap to wait for; then the sculpt on the body dressed, and whether it is Eve's
+    // the look, resolved where the table work is cheap to wait for; then the sculpt on the body dressed
     LaunchedEffect(lookRev) {
         val look = withContext(Dispatchers.Default) { runCatching { model.resolved(tables) }.getOrNull() }
         if (look != null) onLook(look)
         sendSculpt()
-        delay(900)
-        scene.eveStatus(actorKey) { st -> eveBody = st.startsWith("on") }
     }
     LaunchedEffect(warmLight) { scene.light(com.logie.wifecraft.data.Lights.of(if (warmLight) "dusk" else "day")) }
 
@@ -407,7 +403,7 @@ fun CasScreen(
             Box(Modifier.offset(layout.panel.x.dp, layout.panel.y.dp).size(layout.panel.w.dp, layout.panel.h.dp)) {
                 CasPanel(
                     tab = tab, model = model, rev = rev, atlas = atlas2, icons = iconSource, portraits = portraits,
-                    eveBody = eveBody, focus = focusRegion,
+                    focus = focusRegion,
                     onChanged = { look -> changed(look) },
                     onSculpt = { send, done ->
                         if (done) changed(look = false)
@@ -415,7 +411,6 @@ fun CasScreen(
                         rev++
                     },
                     sculptRateMs = SCULPT_SEND_MS,
-                    eve = eve,
                     sculptUi = sculptUi,
                     sculptActions = sculptActions,
                 )

@@ -1,7 +1,5 @@
 package com.logie.wifecraft.engine
 
-import com.logie.wifecraft.bodyparts.EveContext
-import com.logie.wifecraft.bodyparts.EveDress
 import com.logie.wifecraft.bodyparts.HdContext
 import com.logie.wifecraft.bodyparts.HdDress
 import com.logie.wifecraft.bodyparts.ModelParts
@@ -69,10 +67,6 @@ class Dresser(
     @Volatile var partsRoot: File? = null
     /** The imported body-part set the men wear (Settings.partSet); null: none. */
     @Volatile var partSet: String? = null
-    /** The Eve set as the dressing needs it (bodyparts/EveDress: loaded or not, the fit table, Options' default); null: none. */
-    @Volatile var eve: () -> EveContext? = { null }
-    /** The keys Eve was put on (taken off again when a look no longer allows it). */
-    private val withEve = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     /** HD Models as the dressing needs it (bodyparts/HdDress: Options' switch, the loaded sets); null: none. */
     @Volatile var hd: () -> HdContext? = { null }
     /** The keys an HD figure was put on (taken off again when the look no longer has one). */
@@ -110,7 +104,6 @@ class Dresser(
         jobs.remove(key)?.cancel()
         extras.remove(key)?.cancel()
         bodies.remove(key)
-        withEve.remove(key)
         withHd.remove(key)
         // the actor leaves the stage with the caller (SceneView.removeActor or removeAll take its set and parts with it)
         withSets.remove(key)
@@ -147,20 +140,16 @@ class Dresser(
             }
             val set = call.set
             val parts = call.drawn != null && PartChoice.applies(a) && PartChoice.lowerBodyBare(a) && partSet != null
-            // the Eve body (bodyparts/EveDress): put on before the dress, so its first frame fits her once
             // the HD figure (bodyparts/HdDress): for a race and sex with an HD set it IS the character (the game's model not
-            // drawn), with Gear on and off; the Eve body never goes on it
+            // drawn), with Gear on and off; any other race and sex keeps the game's own model (bodyparts/Bodies)
             val hdDecision = HdDress.decide(a, call.drawn, hd())
             // (a man wearing the imported body parts: the HD body's own genitals hidden under them)
             if (hdDecision.on) { scene.setHdBody(key, hdDecision, partsOn = parts); withHd += key }
             else if (withHd.remove(key)) scene.clearHdBody(key)
-            val eveOptions = if (hdDecision.on) null else EveDress.decide(a, call.drawn, call.call.model, eve()).options
-            if (eveOptions != null) { scene.setEveBody(key, eveOptions); withEve += key }
-            else if (withEve.remove(key)) scene.clearEveBody(key)
             // the look's sex and race: the live scene's NPCs stand at human scale, the dwarves and gnomes at their own
             // (SceneView.dress, anim/HumanScale); the creator's and the previews' keys keep each race's own size
             scene.dress(key, call.call, call.body, character = call.character, onReady = {
-                // the creator's sculpt sliders (creator/BodySculpt): on the game's own body or the Eve body (engine/sculpt.h)
+                // the creator's sculpt sliders (creator/BodySculpt): on the game's own body or the HD figure (engine/sculpt.h)
                 scene.setSculpt(key, a.sculpt?.toArray() ?: FloatArray(0))
                 onComplete?.invoke()
                 if (set != null || parts) extras[key] = scope.launch {
@@ -329,7 +318,6 @@ class Dresser(
      */
     fun dressLook(scene: SceneView, key: String, look: ResolvedLook) {
         jobs.remove(key)?.cancel()
-        if (withEve.remove(key)) scene.clearEveBody(key)   // a display is drawn as the game has it
         if (withHd.remove(key)) scene.clearHdBody(key)
         bodies.remove(key)
         jobs[key] = scope.launch {

@@ -155,22 +155,23 @@ class CasTest {
     }
 
     @Test fun everyBodyTakesEverySlider() {
-        // the game's own bodies take the whole sculpt now (cpp/engine/sculpt.h, SculptOptions::gameBody), as the Eve body does
-        for (k in SculptSlider.entries) for (eve in listOf(false, true)) {
-            assertTrue(SculptSupport.supports(k, eveBody = eve), "$k"); assertNull(SculptSupport.why(k, eveBody = eve), "$k")
+        // the game's own bodies take the whole sculpt (cpp/engine/sculpt.h, SculptOptions::gameBody), as the Liard HD figure does
+        // (cpp/engine/hdscene.cpp hdCheck fits it again with the sliders)
+        for (k in SculptSlider.entries) for (kind in com.logie.wifecraft.bodyparts.BodyKind.entries) {
+            assertTrue(SculptSupport.supports(k, kind), "$k"); assertNull(SculptSupport.why(k, kind), "$k")
         }
         // leg length is the skeleton's (engine/bodyrig.h): live on every body, never greyed, never randomized
-        for (eve in listOf(false, true)) {
-            assertTrue(SculptSupport.supports(SculptSlider.LEG_LENGTH, eveBody = eve))
-            assertNull(SculptSupport.why(SculptSlider.LEG_LENGTH, eveBody = eve))
+        for (kind in com.logie.wifecraft.bodyparts.BodyKind.entries) {
+            assertTrue(SculptSupport.supports(SculptSlider.LEG_LENGTH, kind))
+            assertNull(SculptSupport.why(SculptSlider.LEG_LENGTH, kind))
         }
         assertTrue(SculptSlider.entries.all { it.drawn })
         for (seed in 1..10) assertEquals(0f, BodySculpt.random(Random(seed), 0.5f)[SculptSlider.LEG_LENGTH])
         val s = BodySculpt().with(SculptSlider.HEIGHT, 0.2f).with(SculptSlider.HIPS, 0.5f)
-        val wow = RecordingSculptApplier(false); wow.apply("a", s)
-        assertEquals(s, wow.applied.single().second)
-        val eve = RecordingSculptApplier(true); eve.apply("a", s)
-        assertEquals(s, eve.applied.single().second)
+        for (kind in com.logie.wifecraft.bodyparts.BodyKind.entries) {
+            val applier = RecordingSculptApplier(kind); applier.apply("a", s)
+            assertEquals(s, applier.applied.single().second)
+        }
     }
 
     // ---- personality

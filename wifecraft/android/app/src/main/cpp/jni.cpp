@@ -269,35 +269,6 @@ JNIEXPORT jfloatArray JNICALL FN(partSkinUvs)(JNIEnv* env, jclass, jlong h, jint
     return out;
 }
 
-// The Eve body (engine/evebody.h): the converted set in a folder with the fit table's text ("" or why not), one actor's
-// options (bodyparts/EveOptions: on, bottom, tone, overlay slot, shade, opacity), taken off, and what became of it.
-JNIEXPORT jstring JNICALL FN(loadEveSet)(JNIEnv* env, jclass, jlong h, jstring dir, jstring fitJson) {
-    std::string err;
-    bool ok = scene(h)->loadEveSet(str(env, dir), str(env, fitJson), err);
-    return env->NewStringUTF(ok ? "" : err.c_str());
-}
-
-JNIEXPORT void JNICALL FN(setEveBody)(JNIEnv* env, jclass, jlong h, jint id, jboolean on, jstring bottom, jint tone, jint slot, jint shade, jfloat opacity,
-                                      jboolean bones) {
-    wc::EveOptions o;
-    o.on = on;
-    o.bottom = str(env, bottom);
-    if (o.bottom.empty()) o.bottom = "plain";
-    o.tone = tone; o.overlaySlot = slot; o.overlayShade = shade; o.opacity = opacity;
-    o.bones = bones == JNI_TRUE;
-    scene(h)->setEveBody(id, o);
-}
-
-JNIEXPORT void JNICALL FN(clearEveBody)(JNIEnv*, jclass, jlong h, jint id) { scene(h)->clearEveBody(id); }
-
-JNIEXPORT jstring JNICALL FN(eveStatus)(JNIEnv* env, jclass, jlong h, jint id) {
-    wc::Scene::EveStatus st;
-    if (!scene(h)->eveStatus(id, st)) return env->NewStringUTF("no such actor");
-    char buf[256];
-    std::snprintf(buf, sizeof buf, "%s|%06X|%06X|%d|%.1f", st.active ? "on" : "off", st.neck, st.ankle, st.shade, st.stats.ms + st.composeMs);
-    return env->NewStringUTF((std::string(buf) + "|" + st.status).c_str());
-}
-
 // HD Models (engine/hdbody.h, hdscene.cpp): a set loaded under its race and sex ("" or why not), all of them dropped, one
 // actor drawn as its HD figure with its options (bodyparts/HdModels: hair, outfit, eyes, face mark, body marks, skin tint,
 // hair tint, jewellery), taken off, and what became of it ("on|off|scale|ms|triangles|why").
@@ -657,8 +628,6 @@ jfloatArray boxArray(JNIEnv* env, const V3& mn, const V3& mx) {
     return arr;
 }
 std::string gThumbError;
-// The Eve body for the next look picture (thumbEve, then thumbLook or thumbCard on the same GL thread): taken once.
-EveOptions gThumbEve;
 // The HD figure for the next look picture (thumbHd): taken once.
 HdOptions gThumbHd;
 int gThumbHdRace = 0, gThumbHdSex = 0;
@@ -755,8 +724,6 @@ Scene::ThumbLook thumbLookOf(JNIEnv* env, jint model, jfloat scale, jintArray ge
     for (size_t i = 0; i + kExtra <= ex.size(); i += kExtra) look.extras.push_back({ex[i], uint32_t(ex[i + 1]), uint32_t(ex[i + 2]), ex[i + 3]});
     look.morph = floats(env, morph);
     look.bodyK = k; look.bodyFold = fold;
-    look.eve = gThumbEve;
-    gThumbEve = EveOptions();
     look.hd = gThumbHd; look.hdRace = gThumbHdRace; look.hdSex = gThumbHdSex;
     gThumbHd = HdOptions();
     return look;
@@ -805,18 +772,6 @@ JNIEXPORT void JNICALL FN(thumbHd)(JNIEnv* env, jclass, jlong, jint race, jint s
     for (int j : ints(env, jewelry)) o.jewelry.push_back(j);
     o.shapes = floats(env, shapes);
     gThumbHd = o; gThumbHdRace = race; gThumbHdSex = sex;
-}
-
-// The Eve body (bodyparts/EveOptions) on the next look picture only (thumbLook or thumbCard right after, on this thread).
-JNIEXPORT void JNICALL FN(thumbEve)(JNIEnv* env, jclass, jlong, jboolean on, jstring bottom, jint tone, jint slot, jint shade, jfloat opacity,
-                                    jboolean bones) {
-    EveOptions o;
-    o.on = on == JNI_TRUE;
-    o.bottom = str(env, bottom);
-    if (o.bottom.empty()) o.bottom = "plain";
-    o.tone = tone; o.overlaySlot = slot; o.overlayShade = shade; o.opacity = opacity;
-    o.bones = bones == JNI_TRUE;
-    gThumbEve = o;
 }
 
 // [width, height, ARGB pixels...] or null: for the interface's textures, decoded off the GL thread.

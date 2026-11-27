@@ -103,8 +103,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun CasPanel(
     tab: CasTab, model: CreatorModel, rev: Int, atlas: ArtAtlas, icons: GameIcons?, portraits: Thumbs?,
-    eveBody: Boolean, focus: BodyRegion, onChanged: (look: Boolean) -> Unit, onSculpt: (send: Boolean, done: Boolean) -> Unit, sculptRateMs: Long,
-    eve: CasEveBinding? = null,
+    focus: BodyRegion, onChanged: (look: Boolean) -> Unit, onSculpt: (send: Boolean, done: Boolean) -> Unit, sculptRateMs: Long,
     sculptUi: CasSculptState = remember { CasSculptState() },
     sculptActions: CasSculptActions? = null,
 ) {
@@ -113,7 +112,7 @@ fun CasPanel(
             Text(tab.label, style = WifeTheme.titleStyle(), maxLines = 1, modifier = Modifier.weight(1f))
             val sub = rev.let {
                 when (tab) {
-                    CasTab.BODY -> if (eveBody) "Eve body" else "Warcraft body"
+                    CasTab.BODY -> if (LocalCasHd.current?.setFor?.invoke(model.appearance) != null) "HD body (Liard)" else "Game body"
                     CasTab.RACE -> model.model.race.name
                     else -> model.model.race.name + " · " + if (model.appearance.sex == Sex.FEMALE) "Female" else "Male"
                 }
@@ -126,7 +125,7 @@ fun CasPanel(
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll).padding(end = 6.dp)) {
             when (tab) {
                 CasTab.RACE -> CasRaceSection(model, rev, atlas, onChanged)
-                CasTab.BODY -> CasBodySection(model, rev, atlas, eveBody, focus, onChanged, onSculpt, sculptRateMs, eve, sculptUi, sculptActions)
+                CasTab.BODY -> CasBodySection(model, rev, atlas, focus, onChanged, onSculpt, sculptRateMs, sculptUi, sculptActions)
                 CasTab.PERSONALITY -> CasPersonalitySection(model, rev, icons, onChanged)
                 CasTab.OUTFIT -> { CasHdOutfitNote(model, rev, onChanged); CasGearSection(model, rev, onChanged) }
                 CasTab.FACE, CasTab.HAIR, CasTab.MAKEUP, CasTab.ACCESSORIES ->
@@ -243,8 +242,8 @@ fun rgbColour(v: Int) = Color(0xFF000000.toInt() or (v and 0xFFFFFF))
 
 @Composable
 private fun CasBodySection(
-    model: CreatorModel, rev: Int, atlas: ArtAtlas, eveBody: Boolean, focus: BodyRegion,
-    onChanged: (Boolean) -> Unit, onSculpt: (send: Boolean, done: Boolean) -> Unit, rateMs: Long, eve: CasEveBinding?,
+    model: CreatorModel, rev: Int, atlas: ArtAtlas, focus: BodyRegion,
+    onChanged: (Boolean) -> Unit, onSculpt: (send: Boolean, done: Boolean) -> Unit, rateMs: Long,
     sculptUi: CasSculptState, actions: CasSculptActions?,
 ) {
     var part by remember { mutableStateOf(0) }
@@ -261,12 +260,12 @@ private fun CasBodySection(
         }
     }, Modifier.padding(bottom = 6.dp))
     if (part == 0) {
+        CasBodyKindNote(model, rev, onChanged)
         if (rev.let { LocalCasHd.current?.setFor?.invoke(model.appearance) } != null) {
-            // an HD race: the figure's skin and marks here; the Eve body never goes on it
+            // a race and sex with a Liard set: the figure's skin and marks here
             CasHdSection(model, rev, LocalCasHd.current, onChanged, CasTab.BODY)
             return
         }
-        CasEveSection(model, rev, eve, onChanged)
         CasRows(remember(rev, model.appearance.raceId, model.appearance.sex) { CasTabs.rows(model, CasTab.BODY) }, model, atlas, onChanged)
         return
     }
@@ -282,7 +281,7 @@ private fun CasBodySection(
     val sculpt = rev.let { model.appearance.sculpt ?: BodySculpt() }
     var lastSent by remember { mutableLongStateOf(0L) }
     for (s in sculptUi.part.sliders(female)) {
-        val why = SculptSupport.why(s, eveBody)
+        val why = SculptSupport.why(s, bodyKindOf(model.appearance))
         CasSculptRow(s, sculpt[s], enabled = why == null, glow = s in focused, why = why, label = s.labelFor(female),
             onChange = { v ->
                 model.setSculpt((model.appearance.sculpt ?: BodySculpt()).with(s, v))
@@ -440,73 +439,44 @@ private fun CasDesignerSection(
 }
 
 /**
- * The Eve body's options for the Body tab: how the screen reads and writes them on the look (Appearance's own field, which the
- * Eve body's import work adds: the host passes this binding once it is there) and the converted set's lists (its lower-body
- * variants, skin tones, overlay slots). Null: the Eve body isn't available yet (no set imported, or the field not there).
- */
-class CasEveBinding(
-    val read: (Appearance) -> com.logie.wifecraft.bodyparts.EveOptions?,
-    val write: (Appearance, com.logie.wifecraft.bodyparts.EveOptions) -> Appearance,
-    val bottoms: List<String>, val tones: List<String>, val overlays: List<String>,
-    /** Why the rows are greyed for this look (a race the fit table leaves out: bodyparts/EveOptionsEditor.unavailable); null: they are not. */
-    val unavailable: (Appearance) -> String? = { null },
-)
-
-/** The Eve body switch, its lower body, its skin (her own tinted, or a tone of the set), its overlay and the overlay's strength. */
-@Composable
-private fun CasEveSection(model: CreatorModel, rev: Int, eve: CasEveBinding?, onChanged: (Boolean) -> Unit) {
-    WifeSectionHeader("Eve body")
-    if (eve == null) {
-        WifeNote("Import an Eve body set (Options → Mods → Eve body) to shape her with it: the sculpt sliders, its skin tones and overlays.",
-            Modifier.padding(bottom = 6.dp))
-        return
-    }
-    if (model.appearance.sex != Sex.FEMALE) { WifeNote("For women.", Modifier.padding(bottom = 6.dp)); return }
-    eve.unavailable(model.appearance)?.let { why -> WifeNote("Eve body: $why.", Modifier.padding(bottom = 6.dp)); return }
-    val o = rev.let { eve.read(model.appearance) ?: com.logie.wifecraft.bodyparts.EveOptions() }
-    fun set(next: com.logie.wifecraft.bodyparts.EveOptions) { model.edit { eve.write(it, next) }; onChanged(true) }
-    WifeSwitchRow("Eve body", o.on, { set(o.copy(on = it)) }, detail = "Drawn while she wears nothing over her body")
-    if (!o.on) return
-    // Keep undead bones (a Forsaken woman's alone: bodyparts/EveBones), on until turned off
-    com.logie.wifecraft.bodyparts.EveBones.shown(model.appearance, o)?.let { keep ->
-        WifeSwitchRow("Keep undead bones", keep, { set(o.copy(bones = it)) }, detail = "Her bones, torn skin and wounds on the Eve body")
-    }
-    @Composable
-    fun stepper(label: String, names: List<String>, at: Int, onAt: (Int) -> Unit) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 52.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(label, style = WifeTheme.labelStyle(), maxLines = 1, modifier = Modifier.weight(0.38f))
-            val n = names.size
-            Box(Modifier.size(44.dp).warPress(enabled = n > 1, repeatable = true) { onAt(Math.floorMod(at - 1, n)) }, contentAlignment = Alignment.Center) {
-                Text("◀", style = frizStyle(WifeTheme.label, WifeTheme.gold))
-            }
-            Box(Modifier.weight(0.62f).height(38.dp).clip(RoundedCornerShape(6.dp)).background(WifeTheme.slateDeep).border(1.dp, WifeTheme.trimSoft, RoundedCornerShape(6.dp)),
-                contentAlignment = Alignment.Center) {
-                Text(names.getOrNull(at) ?: "", style = frizStyle(WifeTheme.body, WifeTheme.gold), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            Box(Modifier.size(44.dp).warPress(enabled = n > 1, repeatable = true) { onAt(Math.floorMod(at + 1, n)) }, contentAlignment = Alignment.Center) {
-                Text("▶", style = frizStyle(WifeTheme.label, WifeTheme.gold))
-            }
-        }
-    }
-    if (eve.bottoms.isNotEmpty()) stepper("Lower body", eve.bottoms, eve.bottoms.indexOf(o.bottom).coerceAtLeast(0)) { set(o.copy(bottom = eve.bottoms[it])) }
-    val tones = listOf("Her own") + eve.tones
-    stepper("Skin", tones, (o.tone + 1).coerceIn(0, tones.size - 1)) { set(o.copy(tone = it - 1)) }
-    val overlays = listOf("None") + eve.overlays
-    stepper("Overlay", overlays, (o.overlaySlot + 1).coerceIn(0, overlays.size - 1)) { set(o.copy(overlaySlot = it - 1, overlayShade = -1)) }
-    if (o.overlaySlot >= 0) WifeSliderRow("Strength", (o.opacity * 100).roundToInt(), { set(o.copy(opacity = it / 100f)) })
-}
-
-/**
  * HD Models in the creator (bodyparts/HdModels): for a race and sex with an imported HD set ([setFor] non-null), the figure's
  * own choices replace the game's: the Body tab's skin tint and body marks, the Face tab's eyes and face marks, the Hair tab's
  * styles and colours, Accessories' jewellery; the Outfit tab's class picks the set's outfit (Gear on). The game's own option
  * rows for that race aren't shown (they change nothing on the HD figure). Provided by the host ([LocalCasHd]); null: no sets.
  */
 class CasHdBinding(
+    /** The set drawn for this look: a set imported for its race and sex and the character not asking for the game's model. */
     val setFor: (Appearance) -> com.logie.wifecraft.bodyparts.HdSetInfo?,
+    /** The set imported for its race and sex whatever the character asked ("Use game model instead" is offered where there is one). */
+    val available: (Appearance) -> com.logie.wifecraft.bodyparts.HdSetInfo? = setFor,
 )
 
 val LocalCasHd = staticCompositionLocalOf<CasHdBinding?> { null }
+
+/** Which body the creator's look is drawn with (the Options' switch, the imported sets and the character's own choice). */
+@Composable
+private fun bodyKindOf(a: Appearance): com.logie.wifecraft.bodyparts.BodyKind =
+    if (LocalCasHd.current?.setFor?.invoke(a) != null) com.logie.wifecraft.bodyparts.BodyKind.LIARD else com.logie.wifecraft.bodyparts.BodyKind.GAME
+
+/**
+ * The Body tab's read-only note, "Body: HD (Liard)" or "Body: Game model" (bodyparts/Bodies: there are only the two), with a
+ * per-character "Use game model instead" switch where a Liard set exists for her race and sex.
+ */
+@Composable
+private fun CasBodyKindNote(model: CreatorModel, rev: Int, onChanged: (Boolean) -> Unit) {
+    val hd = LocalCasHd.current
+    val a = rev.let { model.appearance }
+    val avail = hd?.available?.invoke(a)
+    val kind = if (hd?.setFor?.invoke(a) != null) com.logie.wifecraft.bodyparts.BodyKind.LIARD else com.logie.wifecraft.bodyparts.BodyKind.GAME
+    val note = if (kind == com.logie.wifecraft.bodyparts.BodyKind.LIARD) "Body: HD (Liard)"
+        else "Body: Game model" + if (avail != null) " (chosen)" else ""
+    WifeNote(note, Modifier.padding(bottom = 4.dp))
+    if (avail != null) {
+        val o = a.hd ?: com.logie.wifecraft.bodyparts.HdOptions()
+        WifeSwitchRow("Use game model instead", o.useGame, { on -> model.edit { it.copy(hd = o.copy(useGame = on)) }; onChanged(true) },
+            detail = "Draws this character on the game's own model instead of the Liard figure")
+    }
+}
 
 @Composable
 private fun CasHdOutfitNote(model: CreatorModel, rev: Int, onChanged: (Boolean) -> Unit) {

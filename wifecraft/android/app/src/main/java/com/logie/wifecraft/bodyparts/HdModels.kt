@@ -36,10 +36,13 @@ data class HdOptions(
     val body: Int = 0,
     /** The set's shape-key sliders ([HdSetInfo.shapes]), 0..1 each; missing ones 0. */
     val shapes: List<Float> = emptyList(),
+    /** "Use game model instead": this character is drawn as the game's own model even where a Liard set exists for its race and sex. */
+    val useGame: Boolean = false,
 ) {
     fun toJson(): JSONObject = JSONObject().put("hair", hair).put("outfit", outfit).put("eyes", eyes).put("faceMark", faceMark)
         .put("bodyMarks", bodyMarks).put("tint", tint).put("hairTint", hairTint).put("jewelry", JSONArray(jewelry))
         .also { if (body != 0) it.put("body", body) }
+        .also { if (useGame) it.put("useGame", true) }
         .also { if (shapes.any { v -> v != 0f }) it.put("shapes", JSONArray(shapes.map { v -> v.toDouble() })) }
 
     /** [shapes] with slider [i] at [v] (the list grown as needed). */
@@ -53,7 +56,8 @@ data class HdOptions(
             o.optBoolean("bodyMarks", false), o.optInt("tint", 0).coerceAtLeast(0), o.optInt("hairTint", 0).coerceAtLeast(0),
             o.optJSONArray("jewelry")?.let { a -> List(a.length()) { a.optInt(it, -1) }.filter { it >= 0 } }.orEmpty(),
             o.optInt("body", 0).coerceAtLeast(0),
-            o.optJSONArray("shapes")?.let { a -> List(a.length()) { a.optDouble(it, 0.0).toFloat().coerceIn(-1f, 2f) } }.orEmpty())
+            o.optJSONArray("shapes")?.let { a -> List(a.length()) { a.optDouble(it, 0.0).toFloat().coerceIn(-1f, 2f) } }.orEmpty(),
+            o.optBoolean("useGame", false))
     }
 }
 
@@ -347,9 +351,10 @@ object HdDress {
         if (ctx == null || !ctx.on) return Decision(null, null, -1, "HD Models is off")
         if (own == null) return Decision(null, null, -1, "not an NPC's look")
         if (drawn == null) return Decision(null, null, -1, "drawn as the game's own model")
-        val set = ctx.sets[drawn.raceId * 10 + if (drawn.sex == Sex.FEMALE) 1 else 0]
+        val set = ctx.sets[Bodies.key(drawn.raceId, drawn.sex)]
             ?: return Decision(null, null, -1, "no HD set for this race and sex")
         val o = own.hd ?: HdOptions()
+        if (o.useGame) return Decision(null, null, -1, "this character uses the game's model")
         var note: String? = null
         val outfit = when {
             o.outfit == -2 || !drawn.gear -> -1
@@ -363,7 +368,7 @@ object HdDress {
     /** A picture's cache mark: "" without HD, else "_h" and a stable hash of the sets and her choices. */
     fun cacheMark(ctx: HdContext?, a: Appearance?): String {
         if (ctx == null || !ctx.on || a == null) return ""
-        if (ctx.sets[a.raceId * 10 + if (a.sex == Sex.FEMALE) 1 else 0] == null) return ""
-        return "_h" + EveDress.fnv(ctx.signature + "|" + (a.hd ?: HdOptions()).toJson().toString() + "|" + a.gear + "|" + a.classId)
+        if (ctx.sets[Bodies.key(a.raceId, a.sex)] == null || a.hd?.useGame == true) return ""
+        return "_h" + LookHash.fnv(ctx.signature + "|" + (a.hd ?: HdOptions()).toJson().toString() + "|" + a.gear + "|" + a.classId)
     }
 }

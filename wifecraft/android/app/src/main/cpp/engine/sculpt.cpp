@@ -84,7 +84,7 @@ SculptRig sculptRig(const std::vector<V3>& pivots, const std::vector<int16_t>& p
     return r;
 }
 
-// The rig of a model by its WoW-side bone names (M2Model::findWowBone): the game's own models and the Eve rig alike.
+// The rig of a model by its WoW-side bone names (M2Model::findWowBone): the game's own models and an HD figure's rig (its pivots, hdscene.cpp) alike.
 SculptRig sculptRigOf(const M2Model& m) {
     SculptBones b;
     auto find = [&](const char* a, const char* alt = nullptr) { int i = m.findWowBone(a); return i >= 0 || !alt ? i : m.findWowBone(alt); };
@@ -122,7 +122,7 @@ bool sculptActive(const float* values, size_t count) {
 
 namespace {
 
-// The spine's depth at a height: the Eve body's is upright (its waist), the game's bodies follow their own curve.
+// The spine's depth at a height: an HD figure's is upright (its waist), the game's bodies follow their own curve.
 float spineDepth(const SculptRig& rig, bool gameBody, float z) {
     if (!gameBody) return rig.waist.x;
     const V3 j[4] = {rig.pelvis, rig.waist, rig.chest, rig.neck};
@@ -175,7 +175,7 @@ void composeSide(const float* s0, const float* bal, float side, bool gameBody, f
     auto add = [s](int k, float v) { s[k] = std::clamp(s[k] + v, -1.5f, 1.5f); };
     if (fat != 0) for (const Share& x : kFatShares) if (gameBody || !x.gameOnly) add(x.slider, x.share * fat);
     if (mus != 0) for (const Share& x : kMuscleShares) if (gameBody || !x.gameOnly) add(x.slider, x.share * mus);
-    if (!gameBody) s[kSculptNeck] = 0;   // (the Eve body's neck ring meets the Warcraft head: kept)
+    if (!gameBody) s[kSculptNeck] = 0;   // (an HD figure's neck ring meets the Warcraft head: kept)
 }
 
 // One vertex's moves for every slider at 1 (D[k], model units; the sliders that aren't moves, or that `need` leaves out: zero).

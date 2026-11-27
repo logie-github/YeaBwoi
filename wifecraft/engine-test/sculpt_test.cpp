@@ -545,13 +545,13 @@ int main(int argc, char** argv) {
         CHECK(st.maxMove <= kSculptMaxShare + 1e-5f && st.flipped == 0, "all at %+.0f: move %f flips %zu", s, st.maxMove, st.flipped);
     }
 
-    // the live sculpt against the CPU sculpt on the made-up body (the Eve way and the game's), the rings kept
+    // the live sculpt against the CPU sculpt on the made-up body (the HD figure's way, gameBody off, and the game's), the rings kept
     {
         std::vector<uint8_t> kept(B.verts.size(), 0);
         for (size_t i = 0; i < kept.size(); ++i) kept[i] = B.group[i] == 4 || B.group[i] == 5;
         SculptOptions game; game.gameBody = true;
         const float limit = 0.001f / 0.9144f;   // (0.1 cm of a 1-yard hip height)
-        MorphReport e = morphCheck("made-up (Eve way)", rig, B.verts, B.indices, {}, kept, limit, names);
+        MorphReport e = morphCheck("made-up (HD figure way)", rig, B.verts, B.indices, {}, kept, limit, names);
         std::vector<uint8_t> ankles(B.verts.size(), 0);   // (the game's way: the neck ring's copies at the torso's top move with it)
         for (size_t i = 0; i < ankles.size(); ++i) ankles[i] = B.group[i] == 5;
         MorphReport g = morphCheck("made-up (game's way)", rig, B.verts, B.indices, game, ankles, limit, names);
@@ -671,7 +671,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    // ---- the Eve body's proportions on the skeleton (bodyrig.h makeBodyEdit): torso, arms, hands, clavicles, legs together
+    // ---- the rig edit on the skeleton (bodyrig.h makeBodyEdit): torso, arms, hands, clavicles, legs together
     {
         // 0 root, 1 pelvis, 2/3 thighs, 4/5 calves, 6/7 feet, 8 spine, 9 chest, 10 neck, 11 head, 12/13 clavicles,
         // 14/15 upper arms, 16/17 forearms, 18/19 hands, 20 a left finger, 21 a left breast
@@ -782,7 +782,7 @@ int main(int argc, char** argv) {
             for (size_t i = 0; i < v.size(); ++i) if (B.group[i] == 4) { r1 = std::max(r1, std::hypot(v[i].pos[0], v[i].pos[1])); r0 = std::max(r0, std::hypot(B.verts[i].pos[0], B.verts[i].pos[1])); }
             CHECK(r1 > r0 + 1e-3f, "game neck + thickens the neck (%f > %f)", r1, r0);
             auto e = B.verts;
-            CHECK(applySculpt(rig, e, B.indices, vals, kSculptCount) == 0, "the Eve body's neck is kept");
+            CHECK(applySculpt(rig, e, B.indices, vals, kSculptCount) == 0, "the HD figure's neck is kept (gameBody off)");
         }
         // one side: the hips' balance (the left +1, the right 0 when the slider is 0.5 and the balance 0.5)
         {

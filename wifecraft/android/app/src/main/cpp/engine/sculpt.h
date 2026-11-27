@@ -1,4 +1,4 @@
-// The creator's sculpt sliders on a skinned body (the Eve body: evescene.cpp applies them after fitting it): the bind-pose
+// The creator's sculpt sliders on a skinned body (an HD figure: hdscene.cpp applies them after fitting it): the bind-pose
 // vertices moved by smooth regions made from their bone weights, so the body still bends with its bones as before.
 //
 //   - Regions: each bone belongs to a group (breast, chest, waist, pelvis, thigh, calf, upper arm, forearm, clavicle, other) by
@@ -10,7 +10,7 @@
 //     slider (-1..1) times a mask (0..1) times a fixed reach (a share of the body's own hip height), so it is bounded
 //     ([kSculptMaxShare] of the hip height at most), mirror-symmetric across the body (x forward, y left, z up: every move
 //     either keeps y's sign or scales it), and 0 for every slider leaves the body exactly as it was.
-//   - The neck and ankle rings (where Eve meets the Warcraft head and feet) are weighted to the neck, head and ankle bones,
+//   - The neck and ankle rings (where an HD figure's own body is cut off from the Warcraft head and feet) are weighted to the neck, head and ankle bones,
 //     which no move touches; [SculptOptions::pinned] keeps any other vertex (a seam) where it is.
 //   - Normals: those of moved vertices are made again from the triangles round them, shared by position among the copies
 //     that faced alike before (a UV seam's two keep one normal; an overlapping hidden geoset's do not), blended in by how far
@@ -42,7 +42,7 @@ namespace wc {
 enum SculptSlider {
     kSculptHeight = 0, kSculptShoulders, kSculptArms, kSculptBust, kSculptBustLift, kSculptWaist, kSculptBelly, kSculptHips,
     kSculptButt, kSculptThighs, kSculptLegLength,
-    // added after the first eleven (older saves and the Eve fit's arrays end before them)
+    // added after the first eleven (older saves' arrays end before them)
     kSculptNeck, kSculptChest, kSculptBustWidth, kSculptBustSpacing, kSculptShoulderSlope, kSculptUpperArms, kSculptForearms,
     kSculptCalves, kSculptButtLift, kSculptBodyFat, kSculptMuscle,
     // the bust and butt designer's shape sliders (added after the twenty-two; arrays that end before them leave them at 0)

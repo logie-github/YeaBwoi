@@ -4,8 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.LruCache
-import com.logie.wifecraft.bodyparts.EveContext
-import com.logie.wifecraft.bodyparts.EveDress
 import com.logie.wifecraft.characters.ImportedLooks
 import com.logie.wifecraft.characters.NamedCast
 import com.logie.wifecraft.creator.Appearance
@@ -47,8 +45,6 @@ class Thumbs(
     private val overrides: () -> Overrides = { ImportStore.current ?: Overrides.None },
     /** The named characters: a picture of one is of her chosen look (her display, her bare or partial stand-in...). */
     private val named: () -> NamedCast? = { null },
-    /** The Eve set as the dressing needs it (bodyparts/EveDress): an NPC's picture shows her Eve body as the scene does. */
-    private val eve: () -> EveContext? = { null },
     /** HD Models as the dressing needs it (bodyparts/HdDress): an NPC's picture shows her HD figure as the scene does. */
     private val hd: () -> com.logie.wifecraft.bodyparts.HdContext? = { null },
 ) : LookSource {
@@ -83,7 +79,7 @@ class Thumbs(
      */
     private fun keyOf(kind: PlaceKind, asset: Int, size: Int, appearance: Appearance? = null): String =
         kind.name.lowercase() + "_" + asset + (appearance?.let { "_" + Integer.toHexString(it.toJson().toString().hashCode()) } ?: "") +
-            (if (kind == PlaceKind.PROP) "" else importsMark() + EveDress.cacheMark(eve(), appearance) +
+            (if (kind == PlaceKind.PROP) "" else importsMark() +
                 com.logie.wifecraft.bodyparts.HdDress.cacheMark(hd(), appearance)) + "_" + size
 
     /** The HD figure for the next picture (Native.thumbHd); GL thread. */
@@ -189,7 +185,6 @@ class Thumbs(
             val p = look(job.kind, job.asset, job.appearance)
             val call = p.call ?: run { fail(job, p.error ?: "it has no look"); return null }
             pixels = onGl(view) { h ->
-                p.eve?.let { e -> Native.thumbEve(h, e.on, e.bottom, e.tone, e.overlaySlot, e.overlayShade, e.opacity, e.bones) }
                 p.hd?.takeIf { it.on }?.let { d -> thumbHd(h, d) }
                 Native.thumbLook(h, call.model, call.scale, call.geosetKeys, call.geosetValues, call.layerFiles, call.layerMeta,
                     call.tintColours, call.extraModels, p.body.morph, p.body.k, p.body.fold, job.size)
@@ -259,11 +254,9 @@ class Thumbs(
         val drawn = plan.drawn
         val body = if (drawn == null) BodyCall.NONE
             else runCatching { Dressing.body(files.dir.parentFile!!, drawn, o.hasBody()) }.getOrDefault(BodyCall.NONE)
-        // the Eve body as the scene draws her (a creature's or a display's picture never)
+        // the HD figure as the scene draws it (a creature's or a display's picture never)
         val hdDecision = if (kind == PlaceKind.CREATURE) null else com.logie.wifecraft.bodyparts.HdDress.decide(appearance, drawn, hd())
-        val eveOptions = if (kind == PlaceKind.CREATURE || hdDecision?.on == true) null
-            else EveDress.decide(appearance, drawn, resolved.model, eve()).options
-        return LookSource.Prepared(call, body, plan.character, eve = eveOptions, hd = hdDecision)
+        return LookSource.Prepared(call, body, plan.character, hd = hdDecision)
     }
 
     override fun prepareProp(model: Int, onDone: (String?) -> Unit) {

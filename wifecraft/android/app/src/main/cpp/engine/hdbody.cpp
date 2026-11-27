@@ -9,7 +9,7 @@
 #include <sstream>
 #include <unordered_map>
 
-#include "evebody.h"   // decodePng
+#include "png.h"
 #include "json.h"
 
 namespace wc {
