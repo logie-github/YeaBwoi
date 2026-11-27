@@ -9,7 +9,7 @@ package com.logie.wifecraft.simulation
 /** The parts of a body a touch can land on. */
 enum class TouchRegion(val label: String) {
     NONE(""), HEAD("head"), FACE("face"), HAIR("hair"), NECK("neck"), SHOULDER("shoulder"), CHEST("chest"), BELLY("belly"), HIP("hip"),
-    BUTT("butt"), THIGH("thigh"), KNEE("knee"), CALF("calf"), FOOT("foot"), HAND("hand"), BACK("back"), ARM("arm");
+    BUTT("butt"), GROIN("groin"), THIGH("thigh"), KNEE("knee"), CALF("calf"), FOOT("foot"), HAND("hand"), BACK("back"), ARM("arm");
 
     companion object {
         /** The regions a player can name by touching (every one but NONE). */
@@ -36,6 +36,14 @@ object RegionMap {
     const val THIGH_LOW = 0.33f
     const val KNEE_LOW = 0.24f
     const val CALF_LOW = 0.08f
+    /**
+     * The groin: a hit from in front, on the hips or the top of the legs, between [GROIN_LOW] and [GROIN_HIGH] over the crown and within
+     * [GROIN_HALF_WIDTH] of her middle line (in pelvis heights). The same bands as engine/contact.h (kGroinLow, kGroinHigh,
+     * kGroinHalfWidth), which the dent's softness uses; its own region, its own consent category ([ActCategories.INTIMATE]).
+     */
+    const val GROIN_LOW = 0.555f
+    const val GROIN_HIGH = 0.607f
+    const val GROIN_HALF_WIDTH = 0.04f
     /** How far a hit is round the side of her, in her own heights, before it counts as her arm's or hip's rather than front or back. */
     const val SIDE_WIDTH = 0.11f
 
@@ -67,6 +75,9 @@ object RegionMap {
         return TouchHit(region, slot, side, front, h)
     }
 
+    /** Whether a hit from in front at height [h] and sideways [across] is the groin's. */
+    fun isGroin(h: Float, across: Float): Boolean = h >= GROIN_LOW && h < GROIN_HIGH && kotlin.math.abs(across) < GROIN_HALF_WIDTH
+
     /** [classify]'s rule on the numbers: the coarse [code], the height [h] over the crown, the sideways offset [across] (in her own heights) and the side touched. */
     fun regionOf(code: Int, h: Float, across: Float, front: Boolean): TouchRegion? = when (code) {
         C_HAIR -> TouchRegion.HAIR
@@ -83,12 +94,14 @@ object RegionMap {
         C_WAIST -> if (front) TouchRegion.BELLY else TouchRegion.BACK
         C_HIPS -> when {
             !front -> TouchRegion.BUTT
+            isGroin(h, across) -> TouchRegion.GROIN
             h < BELLY_LOW && h >= HIP_LOW - 0.04f -> TouchRegion.HIP
             h >= BELLY_LOW -> TouchRegion.BELLY
             else -> TouchRegion.HIP
         }
         C_LEGS -> when {
             !front && h >= HIP_LOW - 0.04f -> TouchRegion.BUTT
+            front && isGroin(h, across) -> TouchRegion.GROIN
             h >= THIGH_LOW -> TouchRegion.THIGH
             h >= KNEE_LOW -> TouchRegion.KNEE
             h >= CALF_LOW -> TouchRegion.CALF

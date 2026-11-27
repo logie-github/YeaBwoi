@@ -38,6 +38,8 @@ struct GraphicsSettings {
         kTimers,            // 0/1: GPU timer queries per pass (the overlay, the governor)
         kEyes,              // 0..1 eye highlights: a glint and a wet sheen on the eyes' own mesh (texture type 19)
         kThinSkin,          // 0..1 thin-skin tint: ears, nose, lips, fingers lit through, warm (skinShade)
+        kFleshContact,      // 0 off, 1 low (4 contacts), 2 high (8): the skin dents under touch (contact.h)
+        kFleshSoftness,     // 0..2 the skin's softness for it (1: as the regions say)
         kCount
     };
 
@@ -57,6 +59,8 @@ struct GraphicsSettings {
     float vignette = 0, grain = 0, chroma = 0, sharpen = 0;
     bool timers = false;
     float eyes = 0, thinSkin = 0;
+    int fleshContact = 2;
+    float fleshSoftness = 1;
 
     static float unit(float v) { return std::isfinite(v) ? std::clamp(v, 0.0f, 1.0f) : 0.0f; }
 
@@ -93,6 +97,8 @@ struct GraphicsSettings {
         timers = at(kTimers, 0) > 0.5f;
         eyes = unit(at(kEyes, 0));
         thinSkin = unit(at(kThinSkin, 0));
+        fleshContact = std::clamp(int(std::lround(at(kFleshContact, 2))), 0, 2);
+        fleshSoftness = std::clamp(at(kFleshSoftness, 1), 0.0f, 2.0f);
     }
 
     // Whether the frame goes through the offscreen chain (postfx.h) at all. False: drawn straight to the screen as before.

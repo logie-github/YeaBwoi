@@ -963,6 +963,16 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         main.post { onHit(hit) }
     }
 
+    /**
+     * Flesh contact: a finger at the screen point presses actor [key]'s skin (a dent under it that springs back, with the skin's pressure
+     * colour) with [pressure] 0..1, held [holdMs] after this call unless pushed again; [releaseTouch] lets go. Interact mode calls it only
+     * for a touch she allows.
+     */
+    fun pushTouch(key: String, sx: Float, sy: Float, w: Int, h: Int, pressure: Float, holdMs: Int = 250) = post { handle, ids ->
+        ids[key]?.let { Native.pushTouch(handle, it, sx, sy, w, h, pressure, holdMs) }
+    }
+    fun releaseTouch(key: String) = post { handle, ids -> ids[key]?.let { Native.releaseTouch(handle, it) } }
+
     /** A finger down on actor [key]'s stocking at the screen point: [onGrab] (main thread) whether it took hold of the fabric. */
     fun stockGrab(key: String, sx: Float, sy: Float, w: Int, h: Int, onGrab: (Boolean) -> Unit) = post { handle, ids ->
         val ok = ids[key]?.let { Native.stockGrab(handle, it, sx, sy, w, h) } ?: false

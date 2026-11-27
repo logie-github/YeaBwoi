@@ -95,6 +95,8 @@ BodyPickHit pickBody(const std::vector<M2Vertex>& verts, const std::vector<uint3
             if (g == kRegionNone) continue;
             best = tt;
             hit.region = g; hit.t = tt; hit.point = o + d * tt; hit.geoset = curGeoset;
+            V3 nn = (at(b) - at(a)).cross(at(c) - at(a)).normalized();
+            hit.normal = nn.dot(d) > 0 ? nn * -1.0f : nn;
         }
     };
     if (subs.empty()) tryRange(0, uint32_t(indices.size()), false);

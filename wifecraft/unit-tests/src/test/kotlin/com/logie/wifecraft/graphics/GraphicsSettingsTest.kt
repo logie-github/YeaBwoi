@@ -18,8 +18,38 @@ class GraphicsSettingsTest {
         val effects = listOf(1, 4, 5, 6, 7, 9, 10, 12, 13, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25)
         for (i in effects) assertEquals(0f, v[i], "index $i")
         assertEquals(GraphicsSettings.presetEffects(GraphicsPreset.STANDARD), GraphicsSettings())
-        // nothing to lower at Standard but the render scale (the governor's last resort there)
-        assertEquals(listOf(QualityStep.RENDER_SCALE, QualityStep.RENDER_SCALE_LOW), d.applicableSteps())
+        // Flesh contact (High, 100%) is on by default: the array's last two numbers
+        assertEquals(2f, v[26]); assertEquals(1f, v[27])
+        // nothing to lower at Standard but the render scale and Flesh contact (the governor's last resorts there)
+        assertEquals(listOf(QualityStep.RENDER_SCALE, QualityStep.FLESH_CONTACT_LOW, QualityStep.RENDER_SCALE_LOW, QualityStep.FLESH_CONTACT_OFF), d.applicableSteps())
+    }
+
+    @Test fun fleshContactOptionsPersistAndClamp() {
+        val s = GraphicsSettings(fleshContact = 1, fleshSoftness = 150)
+        val back = GraphicsSettings.parse(s.toJson().toString())
+        assertEquals(1, back.fleshContact); assertEquals(150, back.fleshSoftness)
+        assertEquals(2, GraphicsSettings.parse("{}").fleshContact); assertEquals(100, GraphicsSettings.parse("{}").fleshSoftness)
+        val wild = GraphicsSettings(fleshContact = 9, fleshSoftness = 999).clamped()
+        assertEquals(2, wild.fleshContact); assertEquals(200, wild.fleshSoftness)
+        assertEquals(0, GraphicsSettings(fleshContact = -3, fleshSoftness = -5).clamped().fleshContact)
+        assertEquals(0, GraphicsSettings(fleshContact = -3, fleshSoftness = -5).clamped().fleshSoftness)
+        val v = GraphicsSettings(fleshContact = 1, fleshSoftness = 150).toNative(false)
+        assertEquals(1f, v[26]); assertEquals(1.5f, v[27])
+        assertEquals(0f, GraphicsSettings(fleshContact = 0, fleshSoftness = 0).toNative(false)[26])
+    }
+
+    @Test fun theGovernorGivesFleshContactFourContactsThenOffAtTheLastStep() {
+        val h = GraphicsSettings()
+        val steps = h.applicableSteps()
+        assertEquals(QualityStep.FLESH_CONTACT_OFF, steps.last())
+        val low = h.lowered(steps.indexOf(QualityStep.FLESH_CONTACT_LOW) + 1)
+        assertEquals(1, low.fleshContact)
+        assertEquals(0, h.lowered(steps.size).fleshContact)
+        // Low already: the step to four contacts is skipped, off remains
+        val l = GraphicsSettings(fleshContact = 1)
+        assertTrue(QualityStep.FLESH_CONTACT_LOW !in l.applicableSteps()); assertTrue(QualityStep.FLESH_CONTACT_OFF in l.applicableSteps())
+        // Off: neither
+        assertTrue(GraphicsSettings(fleshContact = 0).applicableSteps().none { it == QualityStep.FLESH_CONTACT_LOW || it == QualityStep.FLESH_CONTACT_OFF })
     }
 
     @Test fun persistsThroughJson() {
@@ -109,7 +139,7 @@ class GraphicsSettingsTest {
         val u = GraphicsSettings().withPreset(GraphicsPreset.ULTRA)
         val steps = u.applicableSteps()
         val i = steps.indexOf(QualityStep.AO_SHADOWS)
-        assertEquals(listOf(QualityStep.THIN_SKIN, QualityStep.SKIN, QualityStep.EYES), steps.subList(i + 1, steps.size))
+        assertEquals(listOf(QualityStep.THIN_SKIN, QualityStep.SKIN, QualityStep.EYES, QualityStep.FLESH_CONTACT_OFF), steps.subList(i + 1, steps.size))
         val noThin = u.lowered(i + 2)
         assertEquals(0, noThin.thinSkin); assertEquals(u.skin, noThin.skin); assertEquals(u.eyes, noThin.eyes)
         val noSkin = u.lowered(i + 3)
