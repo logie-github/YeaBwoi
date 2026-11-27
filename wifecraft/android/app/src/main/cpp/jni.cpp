@@ -571,6 +571,42 @@ JNIEXPORT jint JNICALL FN(pickBodyRegion)(JNIEnv*, jclass, jlong h, jint actor, 
     return scene(h)->pickBodyRegion(actor, sx, sy, w, ht);
 }
 
+// Interact mode's touch: pickBodyRegion's code and detail (8 floats; see Scene::pickBodyDetail), null when the point misses her
+JNIEXPORT jfloatArray JNICALL FN(pickBodyDetail)(JNIEnv* env, jclass, jlong h, jint actor, jfloat sx, jfloat sy, jint w, jint ht) {
+    float v[8];
+    int code = scene(h)->pickBodyDetail(actor, sx, sy, w, ht, v);
+    if (code == 0) return nullptr;
+    v[0] = float(code);
+    jfloatArray arr = env->NewFloatArray(8);
+    env->SetFloatArrayRegion(arr, 0, 8, v);
+    return arr;
+}
+
+// Stockings (engine/stockings.h): `v` = style, denier, r, g, b, seam, lace (null or empty: off). Returns the shell's triangles so far (0 until built).
+JNIEXPORT jint JNICALL FN(setStockings)(JNIEnv* env, jclass, jlong h, jint actor, jfloatArray v) {
+    if (!v || env->GetArrayLength(v) < 7) return scene(h)->setStockings(actor, nullptr);
+    float f[7];
+    env->GetFloatArrayRegion(v, 0, 7, f);
+    StockSpec sp;
+    sp.style = int(f[0]); sp.denier = int(f[1]); sp.r = f[2]; sp.g = f[3]; sp.b = f[4]; sp.seam = f[5] > 0.5f; sp.lace = f[6] > 0.5f;
+    return scene(h)->setStockings(actor, &sp);
+}
+
+// The stockings' fabric (engine/stockfabric.h): a finger on the stocking, its drag, its release, the state, undo and repair
+JNIEXPORT jboolean JNICALL FN(stockGrab)(JNIEnv*, jclass, jlong h, jint actor, jfloat sx, jfloat sy, jint w, jint ht) { return scene(h)->stockGrab(actor, sx, sy, w, ht); }
+JNIEXPORT void JNICALL FN(stockDrag)(JNIEnv*, jclass, jlong h, jint actor, jfloat sx, jfloat sy, jint w, jint ht) { scene(h)->stockDrag(actor, sx, sy, w, ht); }
+JNIEXPORT void JNICALL FN(stockRelease)(JNIEnv*, jclass, jlong h, jint actor) { scene(h)->stockRelease(actor); }
+JNIEXPORT jboolean JNICALL FN(stockUndo)(JNIEnv*, jclass, jlong h, jint actor) { return scene(h)->stockUndo(actor); }
+JNIEXPORT void JNICALL FN(stockRepair)(JNIEnv*, jclass, jlong h, jint actor) { scene(h)->stockRepair(actor); }
+JNIEXPORT jfloatArray JNICALL FN(stockState)(JNIEnv* env, jclass, jlong h, jint actor) {
+    float v[4];
+    if (!scene(h)->stockState(actor, v)) return nullptr;
+    jfloatArray arr = env->NewFloatArray(4);
+    env->SetFloatArrayRegion(arr, 0, 4, v);
+    return arr;
+}
+JNIEXPORT void JNICALL FN(stockIterations)(JNIEnv*, jclass, jlong h, jint n) { scene(h)->stockIterations(n); }
+
 JNIEXPORT void JNICALL FN(setSculpt)(JNIEnv* env, jclass, jlong h, jint actor, jfloatArray values) {
     std::vector<float> v;
     if (values) {

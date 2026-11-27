@@ -19,12 +19,13 @@ class ScreenPlanTest {
         ScreenMode.BUILD, ScreenMode.MOVE -> DockModel.build()
         ScreenMode.JOI -> DockModel.joi()
         ScreenMode.CHAT -> DockModel.chat()
+        ScreenMode.INTERACT -> DockModel.interact()
         ScreenMode.CINEMATIC -> DockPlan(DockKind.NONE, emptyList())
         ScreenMode.NORMAL -> DockModel.normal(SceneHud.orders(true, true, 2, true, 2, listOf("BED" to "Rest on bed"), life = true, performing = true, joi = true, chatMode = true), false, false)
     }
 
     /** The row over the dock is open in Chat (its chips) and, as a level picker or the steer field, in JOI. */
-    private fun rowsFor(mode: ScreenMode): List<Boolean> = if (mode == ScreenMode.CHAT || mode == ScreenMode.JOI) listOf(false, true) else listOf(false)
+    private fun rowsFor(mode: ScreenMode): List<Boolean> = if (mode == ScreenMode.CHAT || mode == ScreenMode.JOI || mode == ScreenMode.INTERACT) listOf(false, true) else listOf(false)
 
     private fun states(): List<Triple<ScreenState, Boolean, Float>> {
         val out = ArrayList<Triple<ScreenState, Boolean, Float>>()
@@ -154,7 +155,7 @@ class ScreenPlanTest {
         // each order of the action bar is in the dock or behind More, in every situation
         for (performing in listOf(false, true)) for (pair in listOf(false, true)) {
             val slots = SceneHud.orders(true, true, 2, repeating = true, queued = 2, uses = listOf("BED" to "Rest on bed", "TABLE" to "Read a book"),
-                life = true, performing = true, joi = true, chatMode = true)
+                life = true, performing = true, joi = true, chatMode = true, interact = true)
             val dock = DockModel.normal(slots, performing, pair)
             val reachable = dock.items.mapNotNull { it.order } + dock.more.map { it.order }
             for (o in HudOrder.entries) assertTrue(o in reachable, "$o is nowhere ($performing, $pair)")

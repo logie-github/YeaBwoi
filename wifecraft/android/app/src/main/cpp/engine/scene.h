@@ -29,6 +29,8 @@
 #include "postfx.h"
 #include "skin.h"
 #include "softbody.h"
+#include "stockfabric.h"
+#include "stockings.h"
 #include "wmath.h"
 #include "wmo.h"
 #include "glutil.h"
@@ -405,7 +407,23 @@ public:
     // The part of actor `id`'s body the screen point lands on (bodypick.h's BodyRegion; 0: none): its shown triangles as
     // posed this frame, the region of the bones the triangle hit is weighted to most (bodyrig.cpp). Bits 8-9: the side
     // (1 her left, 2 her right, 0 the middle or not told).
+    // Stockings (stockings.h) on a person, built from the body as drawn (the game's, the shaped or sculpted, Eve's); null takes them off.
+    // Returns how many triangles the shell has once built (0 until the next frame builds it; -1: no such person).
+    int setStockings(int id, const StockSpec* spec);
+    size_t stockingTriangles(int id) const;
+    // The fabric (stockfabric.h): a finger down at the screen point grabs the stocking there (false: nothing of it is under the point), drag
+    // moves it (the view plane), release lets go (it springs back). State: tension 0..1, runs torn, dead triangles, grabbed.
+    bool stockGrab(int id, float sx, float sy, int width, int height);
+    void stockDrag(int id, float sx, float sy, int width, int height);
+    void stockRelease(int id);
+    bool stockUndo(int id);
+    void stockRepair(int id);
+    bool stockState(int id, float* out4) const;   // tension, runs, dead triangles, grabbed (1/0)
+    void stockIterations(int n) { stockIter_ = n; }
+    int stockIter_ = 6;
     int pickBodyRegion(int id, float sx, float sy, int width, int height) const;
+    // pickBodyRegion with its detail (bodyrig.cpp: 8 floats, may be null): region, side, height over the crown, forward, sideways, z, from the front, geoset
+    int pickBodyDetail(int id, float sx, float sy, int width, int height, float* out) const;
     // The creator's sculpt sliders (sculpt.h's order, -1..1) on actor `id`: the Eve body is fitted again with them, the
     // game's own body sculpted again (bodyrig.cpp sculptSync: at most every kSculptMinMs while they change).
     void setSculpt(int id, const float* values, size_t count);
@@ -637,9 +655,28 @@ private:
         int panelPx[2] = {0, 0};         // its window's size (material pixels)
         bool active() const { return rig && rig->ok; }
     };
+    // The stockings (stockings.h) worn by an actor: the spec, the shell as last built and its GL objects (stockdraw.cpp).
+    struct StockGl {
+        bool on = false;
+        StockSpec spec;
+        uint64_t sig = 0;                // what the shell was built from (the body's vertices and the spec); 0: build again
+        unsigned vao = 0, vbo = 0, ibo = 0, tex = 0, bandTex = 0;
+        uint32_t bandStart = 0, count = 0;
+        StockShell shell;
+        size_t triangles = 0;
+        // the fabric (stockfabric.h) on the welded shell: pulled by a finger, torn, repaired
+        StockFabric fabric;
+        std::vector<uint32_t> weld;      // shell vertex -> the fabric's vertex
+        std::vector<uint32_t> wtris;     // the shell's triangles on the fabric's vertices (the same order as shell.indices)
+        std::vector<V3> rest;            // the fabric's rest positions
+        bool fabricReady = false, pulling = false, moving = false;
+        uint64_t lastMs = 0, aliveSig = 0;
+        std::vector<float> posBuf;       // the shell vertices' positions as uploaded
+    };
     struct Actor {
         ModelGl* mesh = nullptr;
         BodyGl body;
+        StockGl stock;
         ActorParts parts;
         std::vector<Attached> attached;
         std::map<uint32_t, uint32_t> textures;
@@ -976,6 +1013,9 @@ private:
     void refreshCloth(Actor& a);
     void stepCloth(Actor& a, uint32_t now);
     void drawCloth(Actor& a, const M4& world, const float tint[4]);
+    void drawStockings(Actor& a, const M4& world);   // (stockdraw.cpp)
+    void dropStockGl(Actor& a);
+    void stockFabricFrame(Actor& a);
     void dropClothGl(Actor& a, bool texture);
     // body parts (scene.cpp)
     std::map<int, std::unique_ptr<PartGl>> parts_;

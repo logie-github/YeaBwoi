@@ -237,6 +237,12 @@ class LiveScene(
     @Volatile var chatCamera: ChatCamera? = null
     @Volatile var chatActor = -1
     @Volatile var chatCreature: com.logie.wifecraft.characters.CreatureSpec? = null
+    /**
+     * Interact mode ([InteractCamera]; null: off): the camera centres on person [interactActor] (a cast index; -1 none), orbiting her chest as the
+     * player drags; she is turned to face the camera and kept where she stands ([joiPlace], [joiKeep]) unless told to move. Any thread.
+     */
+    @Volatile var interactCamera: InteractCamera? = null
+    @Volatile var interactActor = -1
     private var joiWas = false
     private var joiHoldFacing = Float.NaN
     private var joiSink: Sink? = null
@@ -451,7 +457,11 @@ class LiveScene(
         cineWas = on
         val jc = joiCamera
         val cc = chatCamera
-        if (on && jc != null && joiActor in 0 until n) {
+        val ic = interactCamera
+        if (on && ic != null && interactActor in 0 until n) {
+            joiWas = true
+            if (interactFrame(ic, interactActor, dt)) return
+        } else if (on && jc != null && joiActor in 0 until n) {
             joiWas = true
             if (joiFrame(jc, joiActor, dt)) return
         } else if (on && cc != null && chatActor in 0 until n) {
@@ -540,6 +550,15 @@ class LiveScene(
         return true
     }
 
+    /** Interact mode's frame (GL thread): her body as JOI mode reads it, and [ic]'s orbit round her chest laid over the camera. */
+    private fun interactFrame(ic: InteractCamera, i: Int, dt: Float): Boolean {
+        fillBody(i, null)
+        ic.visible = clearance?.let { c -> { eye: Vec3, at: Vec3 -> c.clear(eye, at) } }
+        if (!ic.update(dt, joiBody, aspect)) return false
+        camera.directPose(ic.eyeX, ic.eyeY, ic.eyeZ, ic.atX, ic.atY, ic.atZ, ic.fov)
+        return true
+    }
+
     /** Chat mode's frame (GL thread): her body as JOI mode reads it, and [cc]'s conversation framing laid over the camera. */
     private fun chatFrame(cc: ChatCamera, i: Int, dt: Float): Boolean {
         val spec = chatCreature
@@ -575,8 +594,9 @@ class LiveScene(
         var kind = FocusKind.NONE
         if (camera.directAmount > 0.5f) {
             inp.cx = camera.atX; inp.cy = camera.atY; inp.cz = camera.atZ
-            val jc = joiCamera; val cc = chatCamera
-            if (jc != null && joiActor in 0 until n) { kind = FocusKind.JOI; addPersonPoints(joiActor, false) }
+            val jc = joiCamera; val cc = chatCamera; val ic = interactCamera
+            if (ic != null && interactActor in 0 until n) { kind = FocusKind.CHAT; addPersonPoints(interactActor, false) }
+            else if (jc != null && joiActor in 0 until n) { kind = FocusKind.JOI; addPersonPoints(joiActor, false) }
             else if (cc != null && chatActor in 0 until n) { kind = FocusKind.CHAT; addPersonPoints(chatActor, false) }
             else {
                 kind = FocusKind.SHOT
@@ -664,13 +684,22 @@ class LiveScene(
         sim.holdAt(id, null, at, yaw, Activity.IDLE)
     }
 
+    /** Interact mode: [id] turns by [delta] radians from where she faces and is held there. Any thread. */
+    fun interactTurnBy(id: String, delta: Float) = command { sim ->
+        val at = sim.position(id) ?: return@command
+        val now = joiHoldFacing.takeIf { !it.isNaN() } ?: sim.people().firstOrNull { it.id == id }?.facing ?: 0f
+        val yaw = now + delta
+        joiHoldFacing = yaw
+        sim.holdAt(id, null, at, yaw, Activity.IDLE)
+    }
+
     /** JOI mode ends: [id] is let go back to their day. Any thread. */
     fun joiRelease(id: String) = command { sim -> joiHoldFacing = Float.NaN; sim.endHold(id) }
 
     /** While JOI mode runs, the speaker is put back where she stands after each solo animation (GL thread, each frame). */
     private fun joiKeep() {
-        val i = if (chatCamera != null) chatActor else joiActor
-        if ((joiCamera == null && chatCamera == null) || i !in 0 until n || joiHoldFacing.isNaN()) return
+        val i = if (interactCamera != null) interactActor else if (chatCamera != null) chatActor else joiActor
+        if ((joiCamera == null && chatCamera == null && interactCamera == null) || i !in 0 until n || joiHoldFacing.isNaN()) return
         val id = simulation.id(i)
         if (simulation.busy(id)) return
         val at = simulation.position(id) ?: return
