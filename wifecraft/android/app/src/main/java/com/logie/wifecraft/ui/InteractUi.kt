@@ -1,8 +1,6 @@
 package com.logie.wifecraft.ui
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,29 +14,40 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
 import com.logie.wifecraft.creator.StockingColours
 import com.logie.wifecraft.creator.StockingSpec
 import com.logie.wifecraft.creator.StockingStyle
 import com.logie.wifecraft.engine.SceneView
+import com.logie.wifecraft.graphics.FingerSize
+import com.logie.wifecraft.graphics.Graphics
 import com.logie.wifecraft.simulation.ConsentPolicy
 import com.logie.wifecraft.simulation.Expression
+import com.logie.wifecraft.simulation.HapticPattern
+import com.logie.wifecraft.simulation.FabricGauge
+import com.logie.wifecraft.simulation.FabricState
+import com.logie.wifecraft.simulation.FabricStatus
+import com.logie.wifecraft.simulation.PinchGesture
+import com.logie.wifecraft.simulation.StockOptions
 import com.logie.wifecraft.simulation.InteractAction
 import com.logie.wifecraft.simulation.InteractCamera
 import com.logie.wifecraft.simulation.InteractMode
 import com.logie.wifecraft.simulation.InteractPersona
 import com.logie.wifecraft.simulation.InteractTab
-import com.logie.wifecraft.simulation.InteractTool
 import com.logie.wifecraft.simulation.InteractView
 import com.logie.wifecraft.simulation.LookTarget
 import com.logie.wifecraft.simulation.OutfitAct
@@ -49,7 +58,7 @@ import com.logie.wifecraft.simulation.StrokeGate
 import com.logie.wifecraft.simulation.TouchHit
 import com.logie.wifecraft.simulation.TouchKind
 import com.logie.wifecraft.simulation.Verdict
-import kotlin.math.hypot
+import kotlin.math.roundToInt
 import kotlin.random.Random
 
 // Interact mode's screen pieces (InteractMode, simulation/InteractMode.kt, is the logic; SceneSessionScreen owns the state and plays what these report):
@@ -57,6 +66,20 @@ import kotlin.random.Random
 // the finger is), and the body of the commands sheet (the views, Commands, Pose, Outfit). Pure drawing and gestures: nothing here decides what she does.
 
 private class Ripple(val x: Float, val y: Float, val at: Long, val tone: Int)
+
+/**
+ * The pinch on her stockings, as the touch layer reaches the screen: [worn] whether she has stockings on, [verdict] the consent gate (a pull is a
+ * [TouchKind.PULL]; a refusal is played by the screen and the grab never starts), [onGrab] and [onEnd] the pull's start and end. [state] is the
+ * solver's state polled by the screen; [at] where the finger is while it carries fabric (the gauge's arc is drawn there).
+ */
+class PinchHost {
+    var worn: () -> Boolean = { false }
+    var verdict: (TouchHit) -> Verdict = { Verdict.ALLOW }
+    var onGrab: () -> Unit = {}
+    var onEnd: () -> Unit = {}
+    var state by mutableStateOf(FabricState.REST)
+    var at by mutableStateOf<Offset?>(null)
+}
 
 /** The layer over the scene while Interact mode runs. [onTouch] answers a tap on her body (null: no reaction), [onStroke] each step of a stroke. */
 @Composable
@@ -67,6 +90,7 @@ internal fun InteractTouchLayer(
     onStrokeStep: (StrokeGate.Step) -> Unit,
     onBackgroundTap: (Float, Float, Int, Int) -> Unit,
     modifier: Modifier = Modifier,
+    pinch: PinchHost? = null,
 ) {
     @Suppress("UNUSED_VARIABLE") val redraw = tick
     val ripples = remember { mutableStateListOf<Ripple>() }
@@ -79,82 +103,19 @@ internal fun InteractTouchLayer(
         }
     }
     fun ripple(x: Float, y: Float, tone: Int) { ripples.add(Ripple(x, y, android.os.SystemClock.uptimeMillis().also { clock = it }, tone)); if (ripples.size > 12) ripples.removeAt(0) }
-    Box(modifier.fillMaxSize().pointerInput(view, actorKey) {
-        val slop = 8.dp.toPx()
-        awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false)
-            val w = size.width
-            val h = size.height
-            var last = down.position
-            var moved = false
-            var multi = false
-            var span = 0f
-            // what the finger went down on: 0 not known yet, 1 her body, 2 the background
-            var target = 0
-            var gate: StrokeGate? = null
-            var nextSample = 0L
-            if (mode.tool == InteractTool.TOUCH) {
-                view.pickBodyDetail(actorKey, down.position.x, down.position.y, w, h) { d -> target = if (RegionMap.classify(d) != null) 1 else 2 }
-            } else target = 2
-            while (true) {
-                val event = awaitPointerEvent()
-                val pressed = event.changes.filter { it.pressed }
-                if (pressed.isEmpty()) break
-                if (pressed.size >= 2) {
-                    multi = true
-                    val a = pressed[0].position
-                    val b = pressed[1].position
-                    val s = hypot(a.x - b.x, a.y - b.y)
-                    if (span > 0f && s > 0f) camera.pinch(s / span)
-                    span = s
-                    pressed.forEach { it.consume() }
-                    continue
-                }
-                span = 0f
-                val f = pressed[0]
-                val dx = f.position.x - last.x
-                val dy = f.position.y - last.y
-                last = f.position
-                if (!moved && hypot(f.position.x - down.position.x, f.position.y - down.position.y) > slop) moved = true
-                if (moved && !multi) {
-                    if (target == 1 && mode.tool == InteractTool.TOUCH) {
-                        if (gate == null) gate = mode.stroke(policy, persona())
-                        val now = f.uptimeMillis
-                        if (now >= nextSample) {
-                            nextSample = now + 70L
-                            val at = f.position
-                            val g = gate
-                            view.pickBodyDetail(actorKey, at.x, at.y, w, h) { d ->
-                                if (g != null) {
-                                    val step = g.sample(RegionMap.classify(d), rnd)
-                                    if (step.kind == StrokeGate.Step.Kind.GO || step.kind == StrokeGate.Step.Kind.NEW_PART) view.pushTouch(actorKey, at.x, at.y, w, h, 0.5f, 200)   // (flesh contact: the skin gives under a touch she allows)
-                                    if (step.kind != StrokeGate.Step.Kind.NONE) {
-                                        ripple(at.x, at.y, if (step.kind == StrokeGate.Step.Kind.STOP) 2 else 0)
-                                        onStrokeStep(step)
-                                    }
-                                }
-                            }
-                        }
-                    } else camera.orbit(dx, dy, w.toFloat(), h.toFloat())
-                    f.consume()
-                }
-            }
-            view.releaseTouch(actorKey)   // (flesh contact: the finger is up, the skin springs back)
-            if (!moved && !multi) {
-                val at = last
-                if (mode.tool == InteractTool.TOUCH) {
-                    view.pickBodyDetail(actorKey, at.x, at.y, w, h) { d ->
-                        val hit = RegionMap.classify(d)
-                        if (hit != null) {
-                            val r = onTouch(hit, TouchKind.TAP)
-                            if (r != null && r.verdict == Verdict.ALLOW) view.pushTouch(actorKey, at.x, at.y, w, h, 0.6f)   // (flesh contact: a dent under a tap she allows)
-                            ripple(at.x, at.y, if (r == null) 0 else if (r.verdict == Verdict.ALLOW) 1 else 2)
-                        } else onBackgroundTap(at.x, at.y, w, h)
-                    }
-                } else onBackgroundTap(at.x, at.y, w, h)
-            }
-        }
-    }) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val vibrate = remember(context) { { p: HapticPattern -> interactVibrate(context, mode, p) } }
+    val pinchGesture = remember(view, actorKey) { PinchGesture() }
+    val personaNow by rememberUpdatedState(persona)
+    val onTouchNow by rememberUpdatedState(onTouch)
+    val onStrokeNow by rememberUpdatedState(onStrokeStep)
+    val onBackgroundNow by rememberUpdatedState(onBackgroundTap)
+    val env = remember(mode, camera, view, actorKey, policy) {
+        InteractTouchEnv(mode, camera, view, actorKey, policy, { personaNow() }, { hit, kind -> onTouchNow(hit, kind) }, { step -> onStrokeNow(step) },
+            { x, y, w, h -> onBackgroundNow(x, y, w, h) }, { x, y, tone -> ripple(x, y, tone) }, vibrate,
+            { FingerSize.padRadius(Graphics.settings.value.fingerSize) }, rnd, pinch, pinchGesture)
+    }
+    Box(modifier.fillMaxSize().interactMultiTouch(env)) {
         Canvas(Modifier.fillMaxSize()) {
             val now = clock
             for (r in ripples) {
@@ -163,8 +124,29 @@ internal fun InteractTouchLayer(
                 drawCircle(colour.copy(alpha = (1f - age) * 0.8f), radius = 14.dp.toPx() + 46.dp.toPx() * age, center = Offset(r.x, r.y), style = Stroke(width = 2.5.dp.toPx()))
                 drawCircle(colour.copy(alpha = (1f - age) * 0.35f), radius = 8.dp.toPx() + 24.dp.toPx() * age, center = Offset(r.x, r.y))
             }
+            // the tension gauge: a thin arc round the finger that carries fabric, filling as it tightens (cream, amber, red)
+            val finger = pinch?.at
+            if (pinch != null && finger != null) {
+                val t = pinch.state.tension.coerceIn(0f, 1f)
+                val radius = 40.dp.toPx()
+                val tl = Offset(finger.x - radius, finger.y - radius)
+                val box = Size(radius * 2, radius * 2)
+                val colour = when (FabricGauge.zone(t)) { 2 -> Color(0xFFE5574A); 1 -> Color(0xFFF2C46B); else -> Color(0xFFF1E9DA) }
+                drawArc(Color(0x66000000), 135f, 270f, false, tl, box, style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round))
+                if (t > 0.005f) drawArc(colour, 135f, 270f * t, false, tl, box, style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round))
+                drawCircle(colour.copy(alpha = 0.25f + 0.4f * t), radius = 6.dp.toPx(), center = finger)
+            }
         }
     }
+}
+
+/** A haptic pattern on the phone's vibrator, when the mode's Haptics switch is on (never throws). */
+private fun interactVibrate(context: android.content.Context, mode: InteractMode, p: HapticPattern) {
+    if (!mode.haptics) return
+    try {
+        val v = context.getSystemService(android.os.Vibrator::class.java)
+        if (v != null && v.hasVibrator()) v.vibrate(android.os.VibrationEffect.createWaveform(p.timings, p.amplitudes, -1))
+    } catch (e: Exception) { }
 }
 
 /** The "Tell her..." row (over the dock): a field and a button; [onTell] gets the words. */
@@ -186,6 +168,8 @@ internal fun InteractTellRow(typed: String, onTyped: (String) -> Unit, onTell: (
 internal fun InteractSheetBody(
     tab: InteractTab, onTab: (InteractTab) -> Unit, camera: InteractCamera, tick: Int, poses: List<PoseKind>, stockings: StockingSpec?,
     onAction: (InteractAction) -> Unit, onStockings: (StockingSpec?) -> Unit, onOverview: () -> Unit,
+    fabric: FabricState = FabricState.REST, options: StockOptions = StockOptions(), onOptions: (StockOptions) -> Unit = {},
+    onRestore: () -> Unit = {}, onRepairAll: () -> Unit = {},
 ) {
     @Suppress("UNUSED_VARIABLE") val redraw = tick
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ScreenPlan.GAP.dp)) {
@@ -194,6 +178,7 @@ internal fun InteractSheetBody(
         }
         when (tab) {
             InteractTab.COMMANDS -> {
+                InteractPinchHint()
                 WifeNote("View")
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
                     for (v in InteractView.entries) WifeChip(v.label, { camera.goTo(v) }, trailing = if (camera.current() == v) "✓" else null)
@@ -229,6 +214,43 @@ internal fun InteractSheetBody(
                 }
                 if (stockings != null) WifeButton("Remove stockings", { onStockings(null) }, Modifier.fillMaxWidth())
             }
+            InteractTab.STOCKINGS -> StockingsPanel(stockings, onStockings, fabric, options, onOptions, onRestore, onRepairAll)
         }
     }
+}
+
+/**
+ * The Stockings material panel: the fabric's status and tension gauge, Restore (takes back the latest damage) and Repair all, the yarn's thickness
+ * (denier 8 to 80, applied when the slider is let go: it makes the stocking again), the elasticity, and the side light, fabric sound and haptics switches.
+ */
+@Composable
+internal fun StockingsPanel(
+    stockings: StockingSpec?, onStockings: (StockingSpec?) -> Unit, fabric: FabricState, options: StockOptions,
+    onOptions: (StockOptions) -> Unit, onRestore: () -> Unit, onRepairAll: () -> Unit,
+) {
+    val status = FabricGauge.status(fabric)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        androidx.compose.material3.Text(status.label, style = WifeTheme.labelStyle(when (status) { FabricStatus.INTACT -> WifeTheme.good; FabricStatus.STRETCHING -> WifeTheme.gold; FabricStatus.TORN -> WifeTheme.danger }))
+        androidx.compose.material3.Text(FabricGauge.line(fabric), style = WifeTheme.captionStyle())
+    }
+    WifeProgress(fabric.tension)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
+        WifeButton("Restore", onRestore, Modifier.weight(1f), enabled = fabric.runs > 0)
+        WifeButton("Repair all", onRepairAll, Modifier.weight(1f), enabled = fabric.runs > 0)
+    }
+    if (stockings == null) {
+        WifeNote("She isn't wearing stockings.")
+        WifeButton("Put on thigh-highs", { onStockings(StockingSpec()) }, Modifier.fillMaxWidth())
+        return
+    }
+    var pending by remember(stockings.denier) { mutableIntStateOf(stockings.denier) }
+    val span = StockOptions.MAX_DENIER - StockOptions.MIN_DENIER
+    WifeNote("Yarn thickness: $pending D (${if (pending < 20) "sheer" else if (pending < 45) "semi-sheer" else "opaque"})")
+    WifeSlider((pending - StockOptions.MIN_DENIER) / span.toFloat(), { f -> pending = StockOptions.MIN_DENIER + (f * span).roundToInt() }, Modifier.fillMaxWidth(),
+        onFinished = { if (pending != stockings.denier) onStockings(stockings.copy(denier = pending)) })
+    WifeSliderRow("Elasticity", options.elasticity, { onOptions(options.copy(elasticity = it)) }, valueText = "${options.elasticity}%")
+    WifeSwitchRow("Side light", options.sideLight, { onOptions(options.copy(sideLight = it)) }, detail = "A raking light that shows the weave and its stretch")
+    WifeSwitchRow("Fabric sound", options.sound, { onOptions(options.copy(sound = it)) }, detail = "Friction while it stretches and a rip when it tears")
+    WifeSwitchRow("Haptics", options.haptics, { onOptions(options.copy(haptics = it)) }, detail = "Ticks as it tightens, a long buzz when it tears")
+    WifeNote("Touch tool: hold a finger on her stocking, then drag to pull it. Pull until the gauge is full and it tears into a run. Let go and it springs back.")
 }

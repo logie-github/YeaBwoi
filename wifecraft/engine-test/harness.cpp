@@ -25,6 +25,8 @@
 //   boneanim N ANIMFILE                        an imported animation on person N (Scene::setBoneAnim; file below)
 //   bonestop N                                 takes it off (Scene::clearBoneAnim)
 //   stockings N ankle|knee|thigh|tights DENIER R G B [seam] [elastic] | stockings N off   procedural stockings (stockings.h)
+//   stocklook N ELASTICITY TEAR_STRAIN SHEEN SIDE   the fabric's give and look; stockpull / stockpullto N SX SY DX DY STEPS W H [TENSION] / stockrelease / stockundo
+//                                              pull, hold at a tension, let go and mend (stockfabric.h)
 //   layer N ANIMFILE | layerstop N             an additive bone layer on person N (Scene::setBoneLayer; the anim file's rot
 //                                              tracks, bones by WoW-side name or "#N": the model's bone N)
 //   reach N TARGET BONE L|R ANIMFILE | reachstop N   person N's left or right arm on a point of person TARGET's bone BONE (an index of
@@ -565,6 +567,7 @@ int main(int argc, char** argv) {
     scene.setSculptThrottle(false);   // (each still shows the sculpt it was given)
     scene.initGl();
     std::map<int, int> actors, props;
+    float fingerSize = 1.0f, fingerChar = 1.0f;   // the `finger` command
     Light light;
 
     if (opt.count("--thumb") && !opt.count("--location")) {
@@ -1166,13 +1169,39 @@ int main(int argc, char** argv) {
             int level = 2, load = 0; float soft = 1; ss >> level >> soft; ss >> load;
             scene.setFleshContact(level, soft);
             scene.setContactLoad(load);
+        } else if (cmd == "finger") {
+            // finger SIZE CHARSIZE: the player's finger size (Finger size slider as a multiple, 1 default) and Character size (1.25 is "Match the room"):
+            // the touches' pad radius is 1.1 cm * SIZE * CHARSIZE / 0.9144 world units, whatever body they touch
+            ss >> fingerSize >> fingerChar;
         } else if (cmd == "touch") {
-            // touch N SX SY W H PRESSURE: a finger at the screen point presses person N's skin (Scene::pushTouch); prints the region hit
-            int name, w, h; float sx, sy, pr; ss >> name >> sx >> sy >> w >> h >> pr;
-            if (actors.count(name)) std::printf("touch %d: region %d\n", name, scene.pushTouch(actors[name], sx, sy, w, h, pr));
+            // touch N SX SY W H PRESSURE [POINTER]: a finger at the screen point presses person N's skin (Scene::pushTouch); prints the region hit
+            int name, w, h, ptr = 0; float sx, sy, pr; ss >> name >> sx >> sy >> w >> h >> pr; ss >> ptr;
+            if (actors.count(name)) std::printf("touch %d.%d: region %d\n", name, ptr, scene.pushTouch(actors[name], ptr, sx, sy, w, h, pr, 5000, kFingerPadM * fingerSize * fingerChar / kYardM));
         } else if (cmd == "untouch") {
-            int name; ss >> name;
-            if (actors.count(name)) scene.releaseTouch(actors[name]);
+            int name, ptr = -1; ss >> name; ss >> ptr;
+            if (actors.count(name)) scene.releaseTouch(actors[name], ptr);
+        } else if (cmd == "pinchat") {
+            // pinchat N SX SY W H DIRDEG DISTCM PRESSURE: finger 0 at the screen point, finger 1 along the screen direction DIRDEG so that the two fingertips are
+            // DISTCM centimetres apart on the skin (a bisection on the second's pixel offset against the world distance); prints both, the distance and the pinch
+            int name, w, h; float sx, sy, dir, cm, pr; ss >> name >> sx >> sy >> w >> h >> dir >> cm >> pr;
+            if (actors.count(name)) {
+                const float pad = kFingerPadM * fingerSize * fingerChar / kYardM, wpm = fingerChar / kYardM;
+                int r0 = scene.pushTouch(actors[name], 0, sx, sy, w, h, pr, 5000, pad);
+                const ContactDraw* cd = scene.contactOf(actors[name]);
+                float lo = 0, hi = 0.35f * w, best = 0;
+                const float want = cm * 0.01f * wpm, c = std::cos(dir * 3.14159265f / 180), sn = std::sin(dir * 3.14159265f / 180);
+                int r1 = -1;
+                for (int it = 0; it < 24 && cd; ++it) {
+                    float mid = 0.5f * (lo + hi);
+                    r1 = scene.pushTouch(actors[name], 1, sx + c * mid, sy + sn * mid, w, h, pr, 5000, pad);
+                    float d = r1 >= 0 ? (cd->touches[1].in.pos - cd->touches[0].in.pos).length() : 1e9f;
+                    if (d < want) lo = mid; else hi = mid;
+                    best = mid;
+                }
+                r1 = scene.pushTouch(actors[name], 1, sx + c * best, sy + sn * best, w, h, pr, 5000, pad);
+                if (cd) std::printf("pinchat %d: regions %d %d, fingers %.2f cm apart (asked %.2f), second at %.1f px\n", name, r0, r1,
+                                    (cd->touches[1].in.pos - cd->touches[0].in.pos).length() / wpm * 100, cm, best);
+            }
         } else if (cmd == "ctpress") {
             // ctpress N KEY X Y Z NX NY NZ RADIUS DEPTH REGION: a press on person N fed every frame (world); ctclear N empties them
             int name, region; unsigned key; float x, y, z, nx, ny, nz, r, d;
@@ -1192,6 +1221,16 @@ int main(int argc, char** argv) {
         } else if (cmd == "ctclear") {
             int name; ss >> name;
             if (actors.count(name)) scene.setContactManual(actors[name], {});
+        } else if (cmd == "pninfo") {
+            // pninfo N: the pinches drawn on person N now (ridge, dent, flush, blanch, taut) and the pairs
+            int name; ss >> name;
+            if (actors.count(name)) if (const ContactDraw* cd = scene.contactOf(actors[name])) {
+                std::printf("pninfo %d: drawn %d (tracker pairs %d)\n", name, cd->solver.pinchCount(), cd->pinches.pairs());
+                for (int i = 0; i < cd->solver.pinchCount(); ++i) {
+                    const PinchOut& o = cd->solver.pinchOut()[i];
+                    std::printf("  fingers %.2f cm apart, ridge %.1f mm dent %.1f mm squeeze %.2f flush %.2f blanch %.2f taut %.2f\n", (o.a - o.b).length() * 100 / (fingerChar / kYardM), o.ridge * 1000, o.dent * 1000, o.squeeze, o.flush, o.blanch, o.taut);
+                }
+            }
         } else if (cmd == "ctinfo") {
             // ctinfo N: the contacts drawn on person N now (count, derived this frame, each depth/bulge/flush/blanch in mm)
             int name; ss >> name;
@@ -1359,7 +1398,7 @@ int main(int argc, char** argv) {
                 if (style == "off") scene.setStockings(actors[name], nullptr);
                 else {
                     StockSpec sp; std::string w; ss >> sp.denier >> sp.r >> sp.g >> sp.b;
-                    sp.style = style == "ankle" ? kStockAnkle : style == "knee" ? kStockKnee : style == "tights" ? kStockTights : kStockThigh;
+                    sp.style = style == "ankle" ? kStockAnkle : style == "knee" ? kStockKnee : style == "tights" ? kStockTights : style == "garter" ? kStockGarter : kStockThigh;
                     while (ss >> w) { if (w == "seam") sp.seam = true; if (w == "elastic") sp.lace = false; }
                     scene.setStockings(actors[name], &sp);
                 }
@@ -1373,6 +1412,26 @@ int main(int argc, char** argv) {
                 std::fprintf(stderr, "stockpull grab at %.0f,%.0f: %s\n", sx, sy, ok ? "took hold" : "nothing there");
                 for (int i = 1; ok && i <= steps; ++i) { scene.stockDrag(actors[name], sx + dx * i / steps, sy + dy * i / steps, w, h); renderTo(scene, "/dev/null", w, h, 5000 + 16 * uint32_t(i)); }
                 float st[4]; if (scene.stockState(actors[name], st)) std::fprintf(stderr, "stockpull tension %.2f runs %.0f dead %.0f\n", st[0], st[1], st[2]);
+            }
+        } else if (cmd == "stocklook") {
+            // stocklook N ELASTICITY TEAR_STRAIN SHEEN SIDE: the fabric's give and look (Scene::stockLook)
+            int name; float e, t, sh, sd; ss >> name >> e >> t >> sh >> sd;
+            if (actors.count(name)) scene.stockLook(actors[name], e, t, sh, sd);
+        } else if (cmd == "stockpullto") {
+            // stockpullto N SX SY DX DY MAXSTEPS W H TENSION: as stockpull, but stops dragging once the tension reaches TENSION (the finger stays held)
+            int name, steps, w, h; float sx, sy, dx, dy, goal; ss >> name >> sx >> sy >> dx >> dy >> steps >> w >> h >> goal;
+            if (actors.count(name)) {
+                bool ok = scene.stockGrab(actors[name], sx, sy, w, h);
+                std::fprintf(stderr, "stockpullto grab at %.0f,%.0f: %s\n", sx, sy, ok ? "took hold" : "nothing there");
+                float st[4] = {0, 0, 0, 0};
+                int i = 1;
+                for (; ok && i <= steps; ++i) {
+                    scene.stockDrag(actors[name], sx + dx * i / steps, sy + dy * i / steps, w, h);
+                    renderTo(scene, "/dev/null", w, h, 5000 + 16 * uint32_t(i));
+                    scene.stockState(actors[name], st);
+                    if (st[0] >= goal || st[1] > 0) break;
+                }
+                std::fprintf(stderr, "stockpullto step %d tension %.2f runs %.0f dead %.0f\n", i, st[0], st[1], st[2]);
             }
         } else if (cmd == "stockrelease") {
             static uint32_t relCount = 0;

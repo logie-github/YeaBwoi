@@ -543,11 +543,12 @@ JNIEXPORT jint JNICALL FN(pickBodyRegion)(JNIEnv*, jclass, jlong h, jint actor, 
 }
 
 // Flesh contact (engine/contact.h): a finger at the screen point presses actor's skin with pressure 0..1 for holdMs after this push (the
-// ContactRegion it hit, -1 a miss); releaseTouch lets go.
-JNIEXPORT jint JNICALL FN(pushTouch)(JNIEnv*, jclass, jlong h, jint actor, jfloat sx, jfloat sy, jint w, jint ht, jfloat pressure, jint holdMs) {
-    return scene(h)->pushTouch(actor, sx, sy, w, ht, pressure, holdMs);
+// ContactRegion it hit, -1 a miss); `pointer` 0..4 is the finger, `padRadius` its pad in world units (<= 0: the default); releaseTouch lets one
+// finger go (pointer < 0: all of this person's).
+JNIEXPORT jint JNICALL FN(pushTouch)(JNIEnv*, jclass, jlong h, jint actor, jint pointer, jfloat sx, jfloat sy, jint w, jint ht, jfloat pressure, jint holdMs, jfloat padRadius) {
+    return scene(h)->pushTouch(actor, pointer, sx, sy, w, ht, pressure, holdMs, padRadius);
 }
-JNIEXPORT void JNICALL FN(releaseTouch)(JNIEnv*, jclass, jlong h, jint actor) { scene(h)->releaseTouch(actor); }
+JNIEXPORT void JNICALL FN(releaseTouch)(JNIEnv*, jclass, jlong h, jint actor, jint pointer) { scene(h)->releaseTouch(actor, pointer); }
 
 // Interact mode's touch: pickBodyRegion's code and detail (8 floats; see Scene::pickBodyDetail), null when the point misses her
 JNIEXPORT jfloatArray JNICALL FN(pickBodyDetail)(JNIEnv* env, jclass, jlong h, jint actor, jfloat sx, jfloat sy, jint w, jint ht) {
@@ -572,6 +573,8 @@ JNIEXPORT jint JNICALL FN(setStockings)(JNIEnv* env, jclass, jlong h, jint actor
 
 // The stockings' fabric (engine/stockfabric.h): a finger on the stocking, its drag, its release, the state, undo and repair
 JNIEXPORT jboolean JNICALL FN(stockGrab)(JNIEnv*, jclass, jlong h, jint actor, jfloat sx, jfloat sy, jint w, jint ht) { return scene(h)->stockGrab(actor, sx, sy, w, ht); }
+JNIEXPORT jboolean JNICALL FN(stockProbe)(JNIEnv*, jclass, jlong h, jint actor, jfloat sx, jfloat sy, jint w, jint ht) { return scene(h)->stockGrab(actor, sx, sy, w, ht, true); }
+JNIEXPORT void JNICALL FN(stockLook)(JNIEnv*, jclass, jlong h, jint actor, jfloat elasticity, jfloat tearStrain, jfloat sheen, jfloat side) { scene(h)->stockLook(actor, elasticity, tearStrain, sheen, side); }
 JNIEXPORT void JNICALL FN(stockDrag)(JNIEnv*, jclass, jlong h, jint actor, jfloat sx, jfloat sy, jint w, jint ht) { scene(h)->stockDrag(actor, sx, sy, w, ht); }
 JNIEXPORT void JNICALL FN(stockRelease)(JNIEnv*, jclass, jlong h, jint actor) { scene(h)->stockRelease(actor); }
 JNIEXPORT jboolean JNICALL FN(stockUndo)(JNIEnv*, jclass, jlong h, jint actor) { return scene(h)->stockUndo(actor); }

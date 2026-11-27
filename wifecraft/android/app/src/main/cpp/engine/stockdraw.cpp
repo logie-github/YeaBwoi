@@ -110,7 +110,7 @@ void Scene::drawStockings(Actor& a, const M4& world) {
         m2VertexLayout();
         glBindVertexArray(0);
         s.tex = makeTex(stockingWeave(s.spec, 512), 512);
-        s.bandTex = makeTex(stockingBand(s.spec, 256, s.spec.style == kStockTights), 256);
+        s.bandTex = makeTex(stockingBand(s.spec, 256, s.spec.style == kStockTights || s.spec.style == kStockGarter), 256);
         s.bandStart = sh.bandStart; s.count = uint32_t(sh.indices.size()); s.triangles = sh.indices.size() / 3;
         std::vector<uint32_t> wt;
         stockWeld(sh, s.weld, s.rest, wt);
@@ -133,6 +133,8 @@ void Scene::drawStockings(Actor& a, const M4& world) {
     glUniform1f(loc(p, "uAlphaRef"), 0.004f);
     glUniform1i(loc(p, "uOpaque"), 0);
     glUniform1i(loc(p, "uUnlit"), 0);
+    glUniform1f(loc(p, "uSheen"), s.sheen);
+    glUniform1f(loc(p, "uSide"), s.side);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(GL_FALSE);
@@ -141,6 +143,8 @@ void Scene::drawStockings(Actor& a, const M4& world) {
     if (s.bandStart) { glBindTexture(GL_TEXTURE_2D, s.tex); glDrawElements(GL_TRIANGLES, GLsizei(s.bandStart), GL_UNSIGNED_INT, nullptr); }
     if (s.count > s.bandStart) { glBindTexture(GL_TEXTURE_2D, s.bandTex); glDrawElements(GL_TRIANGLES, GLsizei(s.count - s.bandStart), GL_UNSIGNED_INT, (void*)(size_t(s.bandStart) * 4)); }
     glBindVertexArray(0);
+    glUniform1f(loc(p, "uSheen"), 0.0f);
+    glUniform1f(loc(p, "uSide"), 0.0f);
     glDisable(GL_BLEND);
     glDepthMask(GL_TRUE);
 }
@@ -206,7 +210,7 @@ V3 skinPoint(const M2Vertex& v, const std::vector<M4>& mats) {
 }
 }
 
-bool Scene::stockGrab(int id, float sx, float sy, int w, int h) {
+bool Scene::stockGrab(int id, float sx, float sy, int w, int h, bool dry) {
     auto it = actors_.find(id);
     if (it == actors_.end() || w <= 0 || h <= 0) return false;
     Actor& a = it->second;
@@ -214,9 +218,10 @@ bool Scene::stockGrab(int id, float sx, float sy, int w, int h) {
     if (!s.on || !s.fabricReady || s.shell.verts.empty()) return false;
     V3 o, d, fwd;
     modelRay(eye_, target_, fov_, a.position, a.facing, a.scale, sx, sy, w, h, o, d, fwd);
-    // the shell as posed: the nearest live vertex to the ray (within 4 cm) is the pinch
+    // the shell as posed: the live vertex nearest the camera among those within 3 cm of the ray (the stocking's near side, not the leg's far
+    // one), else the closest to the ray within 4 cm
     const auto& alive = s.fabric.alive();
-    int best = -1; float bd = 0.04f, bt = 0;
+    int best = -1, nearest = -1; float bd = 0.04f, bt = 0, nearAlong = 1e9f, nearT = 0;
     for (size_t t = 0; t < alive.size(); ++t) {
         if (!alive[t]) continue;
         for (int k = 0; k < 3; ++k) {
@@ -226,15 +231,29 @@ bool Scene::stockGrab(int id, float sx, float sy, int w, int h) {
             if (along <= 0) continue;
             float miss = (o + d * along - p).length();
             if (miss < bd) { bd = miss; best = int(sv); bt = along; }
+            if (miss < 0.03f && along < nearAlong) { nearAlong = along; nearest = int(sv); nearT = along; }
         }
     }
+    if (nearest >= 0) { best = nearest; bt = nearT; }
     if (best < 0) return false;
+    if (dry) return true;
     // (the finger's depth stays where the pinch is: it moves in the view plane)
     s.pulling = true; s.moving = true; s.lastMs = nowMs();
     const V3 rest = s.rest[s.weld[size_t(best)]];
     if (!s.fabric.grab(rest, 0.05f, 0.05f)) { s.pulling = false; return false; }
     s.posBuf.assign({float(best), bt, 0, 0, 0, 0});   // the grabbed shell vertex, the depth along the ray
     return true;
+}
+
+// the fabric's look and give (Interact mode's Stockings panel): elasticity 0..1 and the strain it tears at, the sheen 0..1 (a Fresnel highlight, glossier the sheerer),
+// the side light 0..1 (a raking light from the camera's side that shows the weave)
+void Scene::stockLook(int id, float elasticity, float tearStrain, float sheen, float side) {
+    auto it = actors_.find(id);
+    if (it == actors_.end()) return;
+    StockGl& s = it->second.stock;
+    s.fabric.params.elasticity = std::min(1.0f, std::max(0.0f, elasticity));
+    s.fabric.params.tearStrain = std::min(0.9f, std::max(0.1f, tearStrain));
+    s.sheen = std::min(1.0f, std::max(0.0f, sheen)); s.side = std::min(1.0f, std::max(0.0f, side));
 }
 
 void Scene::stockDrag(int id, float sx, float sy, int w, int h) {
@@ -262,6 +281,12 @@ void Scene::stockDrag(int id, float sx, float sy, int w, int h) {
         float k = std::max(c0.dot(c0), 1e-6f);
         delta = V3(c0.dot(delta), c1.dot(delta), c2.dot(delta)) * (1.0f / k);
     }
+    // a pinch lifts the fabric off the skin as it is pulled (a tent), not only along it: out along the pinched vertex's normal by 0.8 of the way it was dragged
+    {
+        const M2Vertex& pv = s.shell.verts[sv];
+        V3 n(pv.normal[0], pv.normal[1], pv.normal[2]);
+        if (n.length() > 1e-4f) delta = delta + n.normalized() * (0.8f * delta.length());
+    }
     s.fabric.drag(s.rest[s.weld[sv]] + delta);
     s.moving = true;
 }
@@ -280,7 +305,9 @@ void Scene::stockFabricFrame(Actor& a) {
     // (the leg's own place: the fabric is bound to the bind-pose rest; the skinning in the shader carries it with the leg)
     const std::vector<V3>& p = s.fabric.positions();
     std::vector<M2Vertex>& v = s.shell.verts;
-    for (size_t i = 0; i < v.size(); ++i) { const V3& q = p[s.weld[i]]; v[i].pos[0] = q.x; v[i].pos[1] = q.y; v[i].pos[2] = q.z; }
+    // (the solver's stretch is millimetres before the yarn gives: drawn 2x so the pinch reads as a tent, the springback and the tension unchanged)
+    const float gain = 2.0f;
+    for (size_t i = 0; i < v.size(); ++i) { const V3& r0 = s.rest[s.weld[i]]; const V3 q = r0 + (p[s.weld[i]] - r0) * gain; v[i].pos[0] = q.x; v[i].pos[1] = q.y; v[i].pos[2] = q.z; }
     glBindBuffer(GL_ARRAY_BUFFER, s.vbo);
     glBufferSubData(GL_ARRAY_BUFFER, 0, GLsizeiptr(v.size() * sizeof(M2Vertex)), v.data());
     // the live triangles only: the weave's, then the band's (the dead ones leave the index list: skin shows through)

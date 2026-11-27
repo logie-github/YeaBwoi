@@ -325,6 +325,9 @@ object Native {
     /** Stockings (engine/stockings.h): [spec] = style, denier, r, g, b, seam, lace (creator/StockingSpec.toFloats); null takes them off. Returns the shell's triangles so far. */
     /** The stockings' fabric (engine/stockfabric.h): a finger down on the stocking at the screen point (false: none there), its drag, its release, undo (false: nothing to undo), repair all, the state (tension 0..1, runs, dead triangles, grabbed; null: no fabric), the solver's passes per step. */
     @JvmStatic external fun stockGrab(scene: Long, actor: Int, sx: Float, sy: Float, width: Int, height: Int): Boolean
+    @JvmStatic external fun stockProbe(scene: Long, actor: Int, sx: Float, sy: Float, width: Int, height: Int): Boolean
+    /** The fabric's give and look (Interact mode's Stockings panel): elasticity 0..1, the strain it tears at, the Fresnel sheen 0..1, the side light 0..1. */
+    @JvmStatic external fun stockLook(scene: Long, actor: Int, elasticity: Float, tearStrain: Float, sheen: Float, side: Float)
     @JvmStatic external fun stockDrag(scene: Long, actor: Int, sx: Float, sy: Float, width: Int, height: Int)
     @JvmStatic external fun stockRelease(scene: Long, actor: Int)
     @JvmStatic external fun stockUndo(scene: Long, actor: Int): Boolean
@@ -334,8 +337,8 @@ object Native {
     @JvmStatic external fun setStockings(scene: Long, actor: Int, spec: FloatArray?): Int
     @JvmStatic external fun pickBodyDetail(scene: Long, actor: Int, sx: Float, sy: Float, width: Int, height: Int): FloatArray?
     /** Flesh contact (engine/contact.h): a finger at the screen point presses [actor]'s skin with [pressure] 0..1 for [holdMs] after this call (the contact region hit, -1 a miss). */
-    @JvmStatic external fun pushTouch(scene: Long, actor: Int, sx: Float, sy: Float, width: Int, height: Int, pressure: Float, holdMs: Int): Int
-    @JvmStatic external fun releaseTouch(scene: Long, actor: Int)
+    @JvmStatic external fun pushTouch(scene: Long, actor: Int, pointer: Int, sx: Float, sy: Float, width: Int, height: Int, pressure: Float, holdMs: Int, padRadius: Float): Int
+    @JvmStatic external fun releaseTouch(scene: Long, actor: Int, pointer: Int)
     /** The creator's sculpt sliders on [actor] (creator/BodySculpt.kt's order, -1..1, then their sides): the game's own body sculpted again, the HD figure fitted again with them (engine/sculpt.h). */
     @JvmStatic external fun setSculpt(scene: Long, actor: Int, values: FloatArray)
 

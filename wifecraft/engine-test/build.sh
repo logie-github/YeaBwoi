@@ -157,3 +157,8 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/contact_test.cpp" "$engine/contact.cpp" \
     -o "$here/build/contact_test"
 echo "$here/build/contact_test"
+# The pinch's maths (engine/contact.h: the profile, its volume, the spring, the tracker's pairing): build/pinch_test, exit 0 when all pass.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/pinch_test.cpp" "$engine/contact.cpp" \
+    -o "$here/build/pinch_test"
+echo "$here/build/pinch_test"

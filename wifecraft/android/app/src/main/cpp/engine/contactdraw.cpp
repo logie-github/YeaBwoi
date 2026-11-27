@@ -19,6 +19,24 @@ void ContactDraw::uniforms(unsigned p) const {
     glUniform1i(gl::loc(p, "uCtN"), n);
     glUniform1f(gl::loc(p, "uCtLayer"), 1.0f);
     glUniform1f(gl::loc(p, "uCtShade"), 1.0f);
+    const int np = std::min(solver.pinchCount(), kPinchMax);
+    glUniform1i(gl::loc(p, "uPnN"), np);
+    if (np > 0) {
+        float a[kPinchMax * 4] = {}, b[kPinchMax * 4] = {}, c[kPinchMax * 4] = {}, d[kPinchMax * 4] = {}, e[kPinchMax * 4] = {};
+        for (int i = 0; i < np; ++i) {
+            const PinchOut& o = solver.pinchOut()[i];
+            a[i * 4] = o.a.x; a[i * 4 + 1] = o.a.y; a[i * 4 + 2] = o.a.z; a[i * 4 + 3] = o.radius;
+            b[i * 4] = o.b.x; b[i * 4 + 1] = o.b.y; b[i * 4 + 2] = o.b.z; b[i * 4 + 3] = o.ridge;
+            c[i * 4] = o.normal.x; c[i * 4 + 1] = o.normal.y; c[i * 4 + 2] = o.normal.z; c[i * 4 + 3] = o.dent;
+            d[i * 4] = o.squeeze; d[i * 4 + 1] = o.flush; d[i * 4 + 2] = o.blanch; d[i * 4 + 3] = o.taut;
+            e[i * 4] = o.lean; e[i * 4 + 1] = o.ripple; e[i * 4 + 2] = o.pad;
+        }
+        glUniform4fv(gl::loc(p, "uPnA"), np, a);
+        glUniform4fv(gl::loc(p, "uPnB"), np, b);
+        glUniform4fv(gl::loc(p, "uPnC"), np, c);
+        glUniform4fv(gl::loc(p, "uPnD"), np, d);
+        glUniform4fv(gl::loc(p, "uPnE"), np, e);
+    }
     if (n <= 0) return;
     float a[kContactMax * 4] = {}, b[kContactMax * 4] = {}, c[kContactMax * 4] = {};
     for (int i = 0; i < n; ++i) {
@@ -32,7 +50,7 @@ void ContactDraw::uniforms(unsigned p) const {
     glUniform4fv(gl::loc(p, "uCtC"), n, c);
 }
 
-void ContactDraw::off(unsigned p) { glUniform1i(gl::loc(p, "uCtN"), 0); }
+void ContactDraw::off(unsigned p) { glUniform1i(gl::loc(p, "uCtN"), 0); glUniform1i(gl::loc(p, "uPnN"), 0); }
 
 void ContactDraw::layer(unsigned p, float scale, float shade) {
     glUniform1f(gl::loc(p, "uCtLayer"), scale);
@@ -59,18 +77,21 @@ void Scene::resetContacts(int id) {
     auto it = actors_.find(id);
     if (it == actors_.end()) return;
     it->second.contact.solver.clear();
-    it->second.contact.touch.on = false;
+    for (auto& t : it->second.contact.touches) t.on = false;
+    it->second.contact.pinches.clear();
     it->second.contact.manual.clear();
 }
 
-void Scene::releaseTouch(int id) {
+void Scene::releaseTouch(int id, int pointer) {
     auto it = actors_.find(id);
-    if (it != actors_.end()) it->second.contact.touch.on = false;
+    if (it == actors_.end()) return;
+    if (pointer < 0) { for (auto& t : it->second.contact.touches) t.on = false; return; }   // (every finger of this person)
+    if (pointer < kTouchPointers) it->second.contact.touches[pointer].on = false;
 }
 
-int Scene::pushTouch(int id, float sx, float sy, int width, int height, float pressure, int holdMs) {
+int Scene::pushTouch(int id, int pointer, float sx, float sy, int width, int height, float pressure, int holdMs, float padRadius) {
     auto it = actors_.find(id);
-    if (it == actors_.end() || width <= 0 || height <= 0) return -1;
+    if (it == actors_.end() || width <= 0 || height <= 0 || pointer < 0 || pointer >= kTouchPointers) return -1;
     Actor& a = it->second;
     if (!a.mesh || !a.mesh->model || !a.visible || !a.character) return -1;
     const M2Model& m = *a.mesh->model;
@@ -103,19 +124,27 @@ int Scene::pushTouch(int id, float sx, float sy, int width, int height, float pr
     const M4 w = M4::translation(a.position) * M4::rotationZ(a.facing) * M4::scaling(V3(scale, scale, scale));
     const bool front = dm.x < 0;
     const int region = contactRegionForPick(int(hit.region), hit.point.z / top, hit.point.y / unit, front);
+    // the player's fingertip, a fixed size in the world (contact.h: the pad radius in world units arrives from the caller, who knows the
+    // Finger size and Character size settings); a body's own scale does not change it
+    const float pad = std::isfinite(padRadius) && padRadius > 1e-4f ? std::clamp(padRadius, 0.002f, 0.08f) : kPadDefaultWorld;
     ContactIn in;
-    in.key = 0x7001u;
+    in.key = 0x7001u + uint32_t(pointer);
+    in.touch = true;
     in.pos = w.point(hit.point);
     // pressed along the skin's own normal there (the hit triangle's, turned toward the eye): along the view it would slide a grazing
     // surface sideways instead of pressing it in
     in.normal = (w.point(hit.point + hit.normal) - in.pos).normalized();
-    in.radius = 0.035f * (unit * scale / 0.9f);
-    in.depth = std::clamp(pressure, 0.0f, 1.0f) * 0.03f;
+    in.radius = fingerDentRadius(pad);
+    in.depth = fingerDentDepth(pad, pressure);
+    in.cap = fingerDentCap(pad);
     in.region = region;
-    a.contact.touch.on = true;
-    a.contact.touch.in = in;
-    a.contact.touch.lastMs = animClock_;
-    a.contact.touch.holdMs = uint32_t(std::clamp(holdMs, 50, 5000));
+    ContactDraw::Touch& tc = a.contact.touches[pointer];
+    tc.on = true;
+    tc.in = in;
+    tc.pad = pad;
+    tc.pressure = std::clamp(pressure, 0.0f, 1.0f);
+    tc.lastMs = animClock_;
+    tc.holdMs = uint32_t(std::clamp(holdMs, 50, 5000));
     return region;
 }
 
@@ -263,9 +292,23 @@ void Scene::stepContacts(uint32_t clock) {
     // ---- touch, the desktop check's presses, the insertion's entry
     for (auto& [id, a] : actors_) {
         ContactDraw& cd = a.contact;
-        if (cd.touch.on && clock - cd.touch.lastMs > cd.touch.holdMs) cd.touch.on = false;
+        for (auto& t : cd.touches) if (t.on && clock - t.lastMs > t.holdMs) t.on = false;
         if (contactLevel_ != kContactOff && contactLoad_ < 2) {
-            if (cd.touch.on) cd.solver.add(cd.touch.in);
+            // the fingers: two on soft skin closing in on each other are a pinch (their own dents are the pinch's); the rest plain touches
+            PinchTouch pt[kTouchPointers];
+            int npt = 0;
+            for (int k = 0; k < kTouchPointers; ++k) {
+                const ContactDraw::Touch& t = cd.touches[k];
+                if (!t.on) continue;
+                PinchTouch& q = pt[npt++];
+                q.pointer = k; q.pos = t.in.pos; q.normal = t.in.normal; q.pad = t.pad; q.pressure = t.pressure; q.region = t.in.region;
+            }
+            PinchIn pins[kPinchMax];
+            const int np = cd.pinches.update(pt, npt, (npt > 0 ? pt[0].pad / kFingerPadM : 1.0f / kYardM), pins, 0x7100u + uint32_t(id) * 4u);
+            cd.pinching = np;
+            for (int i = 0; i < np; ++i) cd.solver.addPinch(pins[i]);
+            for (int k = 0; k < kTouchPointers; ++k)
+                if (cd.touches[k].on && !cd.pinches.pinching(k)) cd.solver.add(cd.touches[k].in);
             for (const ContactIn& c : cd.manual) cd.solver.add(c);
             // the shaft pushing in: a dimple at the partner's entry, deeper with the insertion, a ring round it (the solver's bulge)
             const ActorParts& ap = a.parts;

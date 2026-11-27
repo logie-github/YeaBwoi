@@ -147,8 +147,11 @@ public:
     void setContactLoad(int load);
     // Interact's touch: a finger at the screen point presses her skin with `pressure` 0..1 (the contact follows the finger until
     // releaseTouch, or `holdMs` after the last push: a tap asks for 250). Returns the body part's region (ContactRegion) hit, -1 a miss.
-    int pushTouch(int id, float sx, float sy, int width, int height, float pressure, int holdMs = 1500);
-    void releaseTouch(int id);
+    // Multi-touch: `pointer` 0..4 is the finger (each its own contact; two close ones on soft skin pinching are a pinch), `padRadius` the
+    // fingertip pad's radius in world units (<= 0: the default, 1.1 cm; the caller scales it by Finger size and Character size).
+    int pushTouch(int id, int pointer, float sx, float sy, int width, int height, float pressure, int holdMs = 1500, float padRadius = 0);
+    // pointer < 0: every finger on this person.
+    void releaseTouch(int id, int pointer = -1);
     // Everything an actor's skin was doing forgotten at once (a new scene, the desktop check between shots).
     void resetContacts(int id);
     // The desktop check: presses fed every frame to an actor (world space); an empty list clears them.
@@ -399,7 +402,8 @@ public:
     size_t stockingTriangles(int id) const;
     // The fabric (stockfabric.h): a finger down at the screen point grabs the stocking there (false: nothing of it is under the point), drag
     // moves it (the view plane), release lets go (it springs back). State: tension 0..1, runs torn, dead triangles, grabbed.
-    bool stockGrab(int id, float sx, float sy, int width, int height);
+    bool stockGrab(int id, float sx, float sy, int width, int height, bool dry = false);   // dry: only whether the stocking is there
+    void stockLook(int id, float elasticity, float tearStrain, float sheen, float side);
     void stockDrag(int id, float sx, float sy, int width, int height);
     void stockRelease(int id);
     bool stockUndo(int id);
@@ -655,6 +659,7 @@ private:
         std::vector<uint32_t> wtris;     // the shell's triangles on the fabric's vertices (the same order as shell.indices)
         std::vector<V3> rest;            // the fabric's rest positions
         bool fabricReady = false, pulling = false, moving = false;
+        float sheen = 0, side = 0;       // the Fresnel sheen and the side light (stockLook)
         uint64_t lastMs = 0, aliveSig = 0;
         std::vector<float> posBuf;       // the shell vertices' positions as uploaded
     };
