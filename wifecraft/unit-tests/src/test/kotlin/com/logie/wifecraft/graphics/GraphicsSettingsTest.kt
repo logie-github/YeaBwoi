@@ -21,7 +21,8 @@ class GraphicsSettingsTest {
         // Flesh contact (High, 100%) is on by default: the array's last two numbers
         assertEquals(2f, v[26]); assertEquals(1f, v[27])
         // nothing to lower at Standard but the render scale and Flesh contact (the governor's last resorts there)
-        assertEquals(listOf(QualityStep.RENDER_SCALE, QualityStep.FLESH_CONTACT_LOW, QualityStep.RENDER_SCALE_LOW, QualityStep.FLESH_CONTACT_OFF), d.applicableSteps())
+        assertEquals(listOf(QualityStep.RENDER_SCALE, QualityStep.FLESH_CONTACT_LOW, QualityStep.RENDER_SCALE_LOW, QualityStep.FLESH_CONTACT_OFF,
+            QualityStep.SOFT_TISSUE_LOW, QualityStep.SOFT_LATTICE_OFF, QualityStep.SOFT_TISSUE_OFF), d.applicableSteps())
     }
 
     @Test fun fleshContactOptionsPersistAndClamp() {
@@ -41,7 +42,7 @@ class GraphicsSettingsTest {
     @Test fun theGovernorGivesFleshContactFourContactsThenOffAtTheLastStep() {
         val h = GraphicsSettings()
         val steps = h.applicableSteps()
-        assertEquals(QualityStep.FLESH_CONTACT_OFF, steps.last())
+        assertEquals(QualityStep.SOFT_TISSUE_OFF, steps.last())
         val low = h.lowered(steps.indexOf(QualityStep.FLESH_CONTACT_LOW) + 1)
         assertEquals(1, low.fleshContact)
         assertEquals(0, h.lowered(steps.size).fleshContact)
@@ -139,7 +140,8 @@ class GraphicsSettingsTest {
         val u = GraphicsSettings().withPreset(GraphicsPreset.ULTRA)
         val steps = u.applicableSteps()
         val i = steps.indexOf(QualityStep.AO_SHADOWS)
-        assertEquals(listOf(QualityStep.THIN_SKIN, QualityStep.SKIN, QualityStep.EYES, QualityStep.FLESH_CONTACT_OFF), steps.subList(i + 1, steps.size))
+        assertEquals(listOf(QualityStep.THIN_SKIN, QualityStep.SKIN, QualityStep.EYES, QualityStep.FLESH_CONTACT_OFF,
+            QualityStep.SOFT_TISSUE_LOW, QualityStep.SOFT_LATTICE_OFF, QualityStep.SOFT_TISSUE_OFF), steps.subList(i + 1, steps.size))
         val noThin = u.lowered(i + 2)
         assertEquals(0, noThin.thinSkin); assertEquals(u.skin, noThin.skin); assertEquals(u.eyes, noThin.eyes)
         val noSkin = u.lowered(i + 3)
@@ -177,5 +179,44 @@ class GraphicsSettingsTest {
         assertEquals(e.value, SkinSheen.Ease(e.value).step(0f, Float.NaN))
         val big = SkinSheen.Ease(); big.step(1f, 100f)
         assertTrue(big.value < 0.1f)                             // a long pause is taken as half a second at most
+    }
+
+    @Test fun softTissueOptionsPersistClampAndReachTheRenderer() {
+        val d = GraphicsSettings()
+        assertEquals(2, d.softTissue); assertEquals(100, d.jiggle); assertEquals(JiggleStyle.ZZZ, d.jiggleStyle); assertTrue(d.lattice)
+        val v = d.toNative(false)
+        assertEquals(32, GraphicsSettings.NATIVE_COUNT)
+        assertEquals(2f, v[28]); assertEquals(1f, v[29]); assertEquals(1f, v[30]); assertEquals(1f, v[31])
+        val s = GraphicsSettings(softTissue = 1, jiggle = 150, jiggleStyle = JiggleStyle.SUBTLE, lattice = false)
+        val back = GraphicsSettings.parse(s.toJson().toString())
+        assertEquals(s, back)
+        val n = s.toNative(false)
+        assertEquals(1f, n[28]); assertEquals(1.5f, n[29]); assertEquals(2f, n[30]); assertEquals(0f, n[31])
+        assertEquals(2, GraphicsSettings.parse("{}").softTissue); assertEquals(100, GraphicsSettings.parse("{}").jiggle)
+        assertEquals(JiggleStyle.ZZZ, GraphicsSettings.parse("{\"jiggleStyle\":\"nonsense\"}").jiggleStyle)
+        val wild = GraphicsSettings(softTissue = 9, jiggle = 999).clamped()
+        assertEquals(2, wild.softTissue); assertEquals(200, wild.jiggle)
+        val low = GraphicsSettings(softTissue = -4, jiggle = -9).clamped()
+        assertEquals(0, low.softTissue); assertEquals(0, low.jiggle)
+        assertEquals(listOf(0, 1, 2), JiggleStyle.entries.map { it.native })
+    }
+
+    @Test fun theGovernorLowersSoftTissueToLowThenTheLatticesThenOff() {
+        val h = GraphicsSettings()
+        val steps = h.applicableSteps()
+        val low = h.lowered(steps.indexOf(QualityStep.SOFT_TISSUE_LOW) + 1)
+        assertEquals(1, low.softTissue); assertTrue(low.lattice)
+        val noLattice = h.lowered(steps.indexOf(QualityStep.SOFT_LATTICE_OFF) + 1)
+        assertEquals(1, noLattice.softTissue); assertTrue(!noLattice.lattice)
+        // the spring bones' own level stays above 0 while the lattices are off; only the last step takes it to 0
+        assertEquals(0, h.lowered(steps.size).softTissue)
+        // Low already: no step to Low; Off: no soft tissue step at all
+        assertTrue(QualityStep.SOFT_TISSUE_LOW !in GraphicsSettings(softTissue = 1).applicableSteps())
+        assertTrue(GraphicsSettings(softTissue = 0).applicableSteps().none { it.name.startsWith("SOFT_") })
+        // already without lattices: that step is skipped
+        assertTrue(QualityStep.SOFT_LATTICE_OFF !in GraphicsSettings(lattice = false).applicableSteps())
+        // the sharp order takes them last too, and in the same order
+        val sharp = h.applicableSteps(sharp = true)
+        assertEquals(listOf(QualityStep.SOFT_TISSUE_LOW, QualityStep.SOFT_LATTICE_OFF, QualityStep.SOFT_TISSUE_OFF), sharp.takeLast(3))
     }
 }

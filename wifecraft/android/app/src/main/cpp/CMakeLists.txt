@@ -40,8 +40,11 @@ add_library(wcengine SHARED
     engine/scene_gfx.cpp
     engine/sculpt.cpp
     engine/skin.cpp
+    engine/springbone.cpp
+    engine/springdraw.cpp
     engine/softbody.cpp
     engine/terrain.cpp
+    engine/tessellate.cpp
     engine/tissue.cpp
     engine/tissuedraw.cpp
     engine/wmo.cpp)

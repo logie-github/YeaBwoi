@@ -84,6 +84,12 @@ uniform int uTsN;
 uniform highp sampler3D uTsTex;
 uniform vec4 uTsA[21];
 uniform vec4 uTsI[7];
+// Spring-bone jiggle (springbone.h, springdraw.cpp): uSbOn 1: each vertex (by gl_VertexID in uSbW: four texels' worth of helper index + weight
+// as index + 0.99 * weight, -1 none) is moved by its helpers' transforms (uSbM: four texels a helper, a column-major matrix in the parent bone's
+// bind space) before the skinning. The rest of its weight stays rigid.
+uniform int uSbOn;
+uniform highp sampler2D uSbW;
+uniform highp sampler2D uSbM;
 uniform vec3 uTsDim;
 out vec3 vWorld;
 out vec3 vNormal;
@@ -125,6 +131,28 @@ vec3 morphed() {
 }
 void main() {
     vec3 pos = morphed();
+    vec3 nIn = aNormal;
+    if (uSbOn != 0) {
+        int sw = textureSize(uSbW, 0).x;
+        vec4 h = texelFetch(uSbW, ivec2(gl_VertexID % sw, gl_VertexID / sw), 0);
+        vec3 acc = vec3(0.0), accN = vec3(0.0);
+        float sum = 0.0;
+        for (int k = 0; k < 4; ++k) {
+            float e = h[k];
+            if (e < 0.0) continue;
+            float ix = floor(e);
+            float wk = (e - ix) * (1.0 / 0.99);
+            int r = int(ix + 0.5);
+            mat4 D = mat4(texelFetch(uSbM, ivec2(0, r), 0), texelFetch(uSbM, ivec2(1, r), 0), texelFetch(uSbM, ivec2(2, r), 0), texelFetch(uSbM, ivec2(3, r), 0));
+            acc += wk * (D * vec4(pos, 1.0)).xyz;
+            accN += wk * (mat3(D) * aNormal);
+            sum += wk;
+        }
+        if (sum > 0.0) {
+            pos = pos * (1.0 - sum) + acc;
+            nIn = normalize(aNormal * (1.0 - sum) + accN);
+        }
+    }
     float total = aWeights.x + aWeights.y + aWeights.z + aWeights.w;
     mat4 skin = total > 0.0
         ? bone(aBones.x) * aWeights.x + bone(aBones.y) * aWeights.y + bone(aBones.z) * aWeights.z + bone(aBones.w) * aWeights.w
@@ -160,7 +188,7 @@ void main() {
         sp.xyz += off * uSoftGain;
     }
     vec4 p = uWorld * sp;
-    vec3 nrm = mat3(uWorld) * (mat3(skin) * aNormal);
+    vec3 nrm = mat3(uWorld) * (mat3(skin) * nIn);
     float tsCover = 0.0;
     float tsStrain = 0.0;
     if (uTsN > 0 && uCtLayer > 0.0 && total > 0.0) {
@@ -1924,12 +1952,14 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     contactDraw_ = (contactLevel_ != kContactOff && a.contact.active()) || a.tissue.active();
     if (contactLevel_ != kContactOff) { glUseProgram(m2Prog_); a.contact.uniforms(m2Prog_); }
     glUseProgram(m2Prog_);
+    a.spring.uniforms(m2Prog_);   // (spring-bone jiggle: springdraw.cpp; the HD figure only)
     a.tissue.uniforms(m2Prog_);   // (soft tissue's field: tissuedraw.cpp; uCtLayer scales it for a garment)
     skinOf(a, w);   // (scene_gfx.cpp: the sheen, the eyes, the thin parts)
     // (a flap hung as cloth is drawn from its simulated points instead of skinned: drawCloth)
     if (a.hd.active) {
         // the HD figure instead of the game's model, its clothing and parts (hdscene.cpp); what it holds still hangs on it
         if (!transparent) drawHd(a, w, bodyTint);   // (with the soft body's uniforms still set)
+        SpringDraw::off(m2Prog_);
         if (transparent) { if (contactDraw_) ContactDraw::layer(m2Prog_, 0.95f, 0.0f); drawStockings(a, w); }   // (stockings follow the skin: contactdraw.h)
         // an HD body whose own genitals are hidden (setHdGenitalMask): the parts drawn in their place, on the game skeleton
         // the HD figure is fitted to (hdscene.cpp hdCheck fits the HD body again without its own genitals' triangles)
@@ -1948,6 +1978,7 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     drawModel(*a.mesh, w, &a.drawTextures, cloth ? &a.cloth.bodyGeosets : &a.geosets, a.boneTex, a.seq, a.animTime % dur, nowMs, bodyTint,
               transparent, kActorTex, &a.composed, a.body.vao, a.body.vao ? &a.body.submeshes : nullptr);
     if (morph) { glUseProgram(m2Prog_); glUniform1i(loc(m2Prog_, "uMorphOn"), 0); }
+    SpringDraw::off(m2Prog_);   // (the spring bones' weights are the body's own: not for what it holds or wears as other models)
     if (cloth && !transparent) drawCloth(a, w, bodyTint);
     softBodyDraw_ = false;
     if (soft) SoftDraw::setGain(m2Prog_, 1.0f);
@@ -2102,6 +2133,7 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     }
 
     stepContacts(clock);   // (flesh contact: derived from the posed bodies, springs advanced; contactdraw.cpp)
+    stepSprings(clock);    // (spring-bone jiggle: springdraw.cpp)
     stepTissue(clock);     // (soft tissue: the lattices, fed by the contacts; tissuedraw.cpp)
 
     litUniforms(wmoProg_, light_, eye_, viewProj);
@@ -2675,6 +2707,7 @@ void Scene::refreshBody(Actor& a) {
                 std::fprintf(stderr, "body cut: %zu of %zu triangles left out\n", (before - b.indices.size()) / 3, before / 3);
             }
         }
+        if (!sculptOnly) tessellateOwnBody(a);   // (the soft regions split before the sculpt: springdraw.cpp; the sculpt then works on them)
         // the creator's sculpt (sculpt.h) on the game's own body: every vertex of the model (the skin and the clothing geosets
         // on it), in the bind pose, so it bends with its bones as before; the body before it kept for the next change
         b.sculptMs = 0;

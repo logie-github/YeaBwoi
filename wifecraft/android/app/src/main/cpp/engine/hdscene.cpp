@@ -7,6 +7,7 @@
 #include "glutil.h"
 #include "scene.h"
 #include "sculpt.h"
+#include "springdraw.h"
 
 namespace wc {
 
@@ -125,6 +126,7 @@ void Scene::hdCheck(Actor& a) {
     HdOptions opt = h.opt;
     opt.hideGenitals = h.hideGenitals || !a.parts.hdGenitalMask.empty();
     mix(opt.key());
+    mix(uint64_t(tessEdge_ * 1e6f)); mix(uint64_t(tessCap_));   // (the tessellation of the soft regions)
     for (float f : a.sculpt) { uint32_t bits; std::memcpy(&bits, &f, 4); mix(bits); }   // (the creator's sculpt sliders)
     if (key == 0) key = 1;
     if (key == h.key) return;
@@ -152,6 +154,13 @@ void Scene::hdCheck(Actor& a) {
         std::vector<int16_t> parents(m.bones.size());
         for (size_t i = 0; i < m.bones.size(); ++i) parents[i] = m.bones[i].parent;
         applySculpt(sculptRig(fit.rigPivots, parents, b), fit.verts, fit.indices, a.sculpt.data(), a.sculpt.size());
+    }
+    if (tessEdge_ > 0) {
+        TessStats ts;
+        const size_t added = hdTessellateSoft(m, fit, tessEdge_, size_t(tessCap_), &ts);
+        if (added) std::fprintf(stderr, "tessellation: %zu -> %zu vertices, %zu -> %zu triangles, soft edges p50 %.2f -> %.2f mm, p99 %.2f -> %.2f mm (HD units), %d passes%s, %.1f ms\n",
+                                ts.verticesBefore, ts.verticesAfter, ts.trianglesBefore, ts.trianglesAfter, ts.edgeP50Before * 1000, ts.edgeP50After * 1000,
+                                ts.edgeP99Before * 1000, ts.edgeP99After * 1000, ts.passes, ts.capped ? " (capped)" : "", ts.ms);
     }
     dropHdGl(a);
     h.set = it->second;
