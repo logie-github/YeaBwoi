@@ -1630,14 +1630,16 @@ fun LiveSceneScreen(
     // ---- Interact mode (simulation/InteractMode.kt, InteractCamera.kt, ui/InteractUi.kt): the camera centres on her, the touches and the commands
     val interactPrefs = remember(context) { context.getSharedPreferences("wifecraft.interact", android.content.Context.MODE_PRIVATE) }
     var stockingBook by remember(interactPrefs) { mutableStateOf(StockingBook.fromJson(try { interactPrefs.getString("stockings", null) } catch (e: Exception) { null })) }
+    val stockCtl = rememberStockFabric(view, live, interactMode, interactPrefs, seed.toLong(), interactActor) { actorKey(it) }
     fun interactSay(text: String, danger: Boolean = false) { interactToast = Triple((interactToast?.first ?: 0) + 1, text, danger) }
     // her stockings (creator/Stockings.kt, engine/stockings.h): kept per NPC, put on the engine's actor again when she is on stage
     fun applyStockings(id: String, spec: StockingSpec?) {
         stockingBook = stockingBook.with(id, spec)
         try { interactPrefs.edit().putString("stockings", stockingBook.toJson().toString()).apply() } catch (e: Exception) { }
         view.setStockings(actorKey(id), spec?.toFloats())
+        stockCtl.pushLook(id, interactActor == id)
     }
-    LaunchedEffect(view, revealed, cast.size) { if (revealed) for (c in cast) stockingBook.of(c.id)?.let { view.setStockings(actorKey(c.id), it.toFloats()) } }
+    LaunchedEffect(view, revealed, cast.size) { if (revealed) for (c in cast) stockingBook.of(c.id)?.let { view.setStockings(actorKey(c.id), it.toFloats()); stockCtl.pushLook(c.id, false) } }
     val interactGear = LocalGearControl.current
     val interactPoses = remember(chatSolos) { PoseLibrary.available(chatSolos).map { it.first } }
     fun interactPersona(id: String): InteractPersona {
@@ -1663,6 +1665,10 @@ fun LiveSceneScreen(
         r.line?.let { line -> live.command { sim -> sim.say(id, line) } }
         interactVibrate(r.haptic)
         interactTick++
+    }
+    SideEffect {
+        stockCtl.env = StockEnv({ interactActor }, { stockingBook }, { actorKey(it) }, { interactPersona(it) }, { id -> cast.firstOrNull { it.id == id }?.name ?: "She" }, { interactPlay(it) },
+            { id, a, ms -> interactLayer(id, a, ms) }, { interactVibrate(it) }, { id, line -> live.command { sim -> sim.say(id, line) } }, { interactSay(it) }, { interactTick++ }, { consent }, { toLocal(it) })
     }
     fun interactTouch(hit: com.logie.wifecraft.simulation.TouchHit, kind: TouchKind): Reaction? {
         val id = interactActor ?: return null
@@ -1702,8 +1708,8 @@ fun LiveSceneScreen(
                 OutfitAct.STOCKINGS_OFF -> applyStockings(id, null)
             }
             InteractAction.Stay -> live.order { sim -> sim.stopAll(id); null }
-            InteractAction.Follow -> interactSay("Following is not built yet: she stays where she is.", true)
-            InteractAction.ComeHere, InteractAction.MoveToSpot -> interactSay("Tap the floor where she should go.")
+            InteractAction.Follow, InteractAction.ComeHere -> stockCtl.comeToCamera(id, interactCamera)
+            InteractAction.MoveToSpot -> interactSay("Tap the floor where she should go.")
         }
     }
     fun interactResult(res: CommandResult) {
@@ -1712,6 +1718,7 @@ fun LiveSceneScreen(
             is CommandResult.Do -> interactDo(res.action)
             is CommandResult.Declined -> { live.command { sim -> sim.say(id, res.line) }; interactVibrate(com.logie.wifecraft.simulation.InteractReactions.haptic(com.logie.wifecraft.simulation.TouchRegion.NONE, com.logie.wifecraft.simulation.Verdict.DECLINE)) }
             is CommandResult.Hesitates -> live.command { sim -> sim.say(id, res.line) }
+            CommandResult.PullAllowed, is CommandResult.PullDeclined, is CommandResult.PullHesitates -> stockCtl.pullResult(id, res)
             CommandResult.AwaitSpot -> interactSay("Tap the floor where she should go.")
             is CommandResult.Unknown -> interactSay("She doesn't know what that means.", true)
         }
@@ -1749,11 +1756,13 @@ fun LiveSceneScreen(
         live.command { sim -> for (o in others) sim.stopAll(o) }
         cinematic = true
         interactActor = id
+        stockCtl.entered(id)
         interactTick++
     }
     fun leaveInteract() {
         val id = interactActor ?: return
         val prior = interactMode.leave()
+        stockCtl.left(id)
         live.interactCamera = null; live.interactActor = -1
         view.queueEvent { view.glBoneLayer(actorKey(id), null) }
         live.joiRelease(id)
@@ -2107,7 +2116,7 @@ fun LiveSceneScreen(
         // Interact mode: the touches on her and on the background (under the chrome, so the dock and the chip still take theirs)
         interactActor?.let { iid ->
             InteractTouchLayer(interactMode, interactTick, interactCamera, view, actorKey(iid), consent, { interactPersona(iid) },
-                { hit, kind -> interactTouch(hit, kind) }, { step -> interactStroke(step) }, { x, y, w, h -> interactBackground(x, y, w, h) })
+                { hit, kind -> interactTouch(hit, kind) }, { step -> interactStroke(step) }, { x, y, w, h -> interactBackground(x, y, w, h) }, pinch = stockCtl.host)
         }
 
         // the HUD, inside the screen's safe area (cut-outs, the hinge's bars, the gesture bar)
@@ -2285,7 +2294,9 @@ fun LiveSceneScreen(
                 ScreenPanel.INTERACT -> interactMode.tab?.let { tab ->
                     InteractSheetBody(tab, { interactMode.openTab(it); if (!interactMode.sheetOpen) panel = ScreenPanel.NONE; interactTick++ }, interactCamera, interactTick,
                         interactPoses, interactActor?.let { stockingBook.of(it) }, { interactAction(it) }, { spec -> interactActor?.let { applyStockings(it, spec) }; interactTick++ },
-                        { interactCamera.overview(); interactTick++ })
+                        { interactCamera.overview(); interactTick++ },
+                        fabric = stockCtl.fabric, options = interactMode.stock, onOptions = { stockCtl.setOptions(it) },
+                        onRestore = { interactActor?.let { stockCtl.restore(it) } }, onRepairAll = { interactActor?.let { stockCtl.repairAll(it) } })
                 }
                 ScreenPanel.STEER -> dialogueDirector?.let { SteerSheet(it, live, names) }
                 else -> Unit

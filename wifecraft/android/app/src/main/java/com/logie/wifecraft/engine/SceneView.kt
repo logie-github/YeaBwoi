@@ -969,6 +969,15 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
         main.post { onGrab(ok) }
     }
 
+    /** Whether there is stocking at the screen point (nothing is grabbed): [onCovered] on the main thread. */
+    fun stockProbe(key: String, sx: Float, sy: Float, w: Int, h: Int, onCovered: (Boolean) -> Unit) = post { handle, ids ->
+        val ok = ids[key]?.let { Native.stockProbe(handle, it, sx, sy, w, h) } ?: false
+        main.post { onCovered(ok) }
+    }
+
+    /** The fabric's give and look: [look] is elasticity 0..1, the tearing strain, the Fresnel sheen 0..1, the side light 0..1 (simulation/StockOptions.look). */
+    fun stockLook(key: String, look: FloatArray) = post { handle, ids -> ids[key]?.let { Native.stockLook(handle, it, look[0], look[1], look[2], look[3]) } }
+
     /** The finger moves: the grabbed fabric follows it in the view plane. */
     fun stockDrag(key: String, sx: Float, sy: Float, w: Int, h: Int) = post { handle, ids -> ids[key]?.let { Native.stockDrag(handle, it, sx, sy, w, h) } }
 

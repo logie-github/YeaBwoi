@@ -13,7 +13,7 @@
 
 namespace wc {
 
-enum StockStyle : int { kStockAnkle = 0, kStockKnee = 1, kStockThigh = 2, kStockTights = 3, kStockStyles = 4 };
+enum StockStyle : int { kStockAnkle = 0, kStockKnee = 1, kStockThigh = 2, kStockTights = 3, kStockGarter = 4, kStockStyles = 5 };   // garter: thigh-highs held by thin elastic straps from a waist belt
 
 struct StockSpec {
     int style = kStockThigh;

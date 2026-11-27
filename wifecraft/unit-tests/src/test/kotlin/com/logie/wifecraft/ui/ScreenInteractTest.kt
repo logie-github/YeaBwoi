@@ -91,4 +91,19 @@ class ScreenInteractTest {
             assertTrue(field.b <= h - ime + 0.01f)
         }
     }
+
+    @Test
+    fun theStockingsPanelIsOneTabOfTheSameSheetAndFitsAtEverySize() {
+        assertTrue(com.logie.wifecraft.simulation.InteractTab.entries.any { it.label == "Stockings" })
+        assertTrue(ScreenFeatures.all.any { it.id == "interact.stockings" })
+        // the panel is the sheet's body (it scrolls inside the sheet): the sheet is the same rect with it open, never over her, in every state
+        for ((w, h) in sizes) for (row in listOf(false, true)) {
+            val plan = ScreenPlan.plan(w, h, ScreenInsets(), state(ScreenPanel.INTERACT, row))
+            val sheet = assertNotNull(ScreenPlan.find(plan, "sheet"), "the sheet is up at ${w}x$h")
+            val keep = ScreenPlan.keepOut(w, h, ScreenMode.INTERACT)
+            assertFalse(sheet.intersects(keep), "the stockings panel covers her at ${w}x$h")
+            assertTrue(sheet.w >= 200f && sheet.h >= 120f, "the sheet holds the panel's status, gauge and buttons at ${w}x$h: ${sheet.w}x${sheet.h}")
+            for (o in plan) if (o.element != "sheet") assertFalse(sheet.intersects(o.rect), "${o.element} overlaps the sheet at ${w}x$h")
+        }
+    }
 }

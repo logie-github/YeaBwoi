@@ -88,6 +88,8 @@ val pureAudio = tasks.register<Copy>("pureAudio") {
     // the partner animations' sounds folder (resolution, names, hashes, zip import)
     from("../android/app/src/main/java/com/logie/wifecraft/audio/SoundNames.kt")
     from("../android/app/src/main/java/com/logie/wifecraft/audio/PartnerSounds.kt")
+    // the stockings' fabric sounds: the friction's and the rip's maths (StockSoundCore)
+    from("../android/app/src/main/java/com/logie/wifecraft/audio/StockSoundCore.kt")
     into(layout.buildDirectory.dir("gen/pureAudio"))
 }
 

@@ -148,6 +148,8 @@ uniform vec3 uEye;
 uniform vec4 uGhost;   // the placement editor's ghost: its colour mixed toward rgb by a (a 0: none)
 uniform vec3 uRimColor;   // cinematic mode's rim light on a person (0: none) and the way toward it
 uniform vec3 uRimDir;
+uniform float uSheen;   // the stockings' Fresnel sheen (0: none) and the side light on them (stockdraw.cpp); 0 everywhere else
+uniform float uSide;
 // Options' Graphics (scene_gfx.cpp): a person's skin (uSkinKind 1) and hair (2) shaded with uSkinFx (wrap, sheen, warm
 // scatter, hair's highlight); 0 everywhere else, and all 0 at Standard: the light as before. uSkinFx2: the eyes' highlights
 // (uSkinKind 3, the eyes' own mesh: texture type 19) and the thin-skin tint. uSkinActor, the person drawn: their sheen
@@ -233,11 +235,25 @@ void main() {
     vec4 c = texture(uTex, vUv) * uColor;
     if (c.a < uAlphaRef) discard;
     vec3 rgb = c.rgb;
+    float lift = 0.0;
     if (uUnlit == 0) {
         vec3 n = normalize(vNormal);
         float d = max(dot(n, -uSunDir), 0.0);
         rgb *= uAmbient + uSunColor * d;
         if (uSkinKind > 0) rgb = skinShade(c.rgb, rgb, n, d);
+        if (uSheen > 0.0 || uSide > 0.0) {
+            vec3 v = normalize(uEye - vWorld);
+            float nv = clamp(abs(dot(n, v)), 0.0, 1.0);
+            float fres = pow(1.0 - nv, 3.0);
+            float spec = pow(max(dot(n, normalize(-uSunDir + v)), 0.0), 36.0);
+            float sh = (fres * 0.6 + spec * 0.5) * uSheen;
+            rgb += (uSunColor * 0.6 + uAmbient * 0.6 + vec3(0.12)) * sh;
+            // the side light: a warm raking light from the camera's right that shows the weave and its stretch
+            float g = max(dot(n, normalize(cross(vec3(0.0, 0.0, 1.0), v))), 0.0);
+            float sl = (g * 0.35 + (1.0 - nv) * g * 0.55) * uSide;
+            rgb += vec3(1.0, 0.86, 0.7) * sl;
+            lift = sh * 0.7 + sl * 0.6;
+        }
         if (dot(uRimColor, uRimColor) > 0.0) {
             float edge = 1.0 - clamp(dot(n, normalize(uEye - vWorld)), 0.0, 1.0);
             rgb += c.rgb * uRimColor * (edge * edge) * (0.35 + 0.65 * max(dot(n, uRimDir), 0.0));
@@ -246,7 +262,7 @@ void main() {
     float f = clamp((distance(vWorld, uEye) - uFog.x) / max(uFog.y - uFog.x, 1.0), 0.0, 1.0);
     rgb = mix(rgb, uFogColor, f);
     rgb = mix(rgb, uGhost.rgb, uGhost.a);
-    fragColor = vec4(rgb, uOpaque == 1 ? 1.0 : c.a);
+    fragColor = vec4(rgb, uOpaque == 1 ? 1.0 : min(1.0, c.a + lift));
 }
 )";
 
