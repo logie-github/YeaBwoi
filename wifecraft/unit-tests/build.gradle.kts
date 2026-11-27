@@ -62,6 +62,7 @@ val pureData = tasks.register<Copy>("pureData") {
 val pureGraphics = tasks.register<Copy>("pureGraphics") {
     from("../android/app/src/main/java/com/logie/wifecraft/graphics/GraphicsSettings.kt")
     from("../android/app/src/main/java/com/logie/wifecraft/graphics/Governor.kt")
+    from("../android/app/src/main/java/com/logie/wifecraft/graphics/FingerSize.kt")
     into(layout.buildDirectory.dir("gen/pureGraphics"))
 }
 
