@@ -7,7 +7,9 @@
 #include <cstdint>
 #include <vector>
 
+#include "hdbody.h"
 #include "springbone.h"
+#include "tessellate.h"
 
 namespace wc {
 
@@ -28,5 +30,13 @@ struct SpringDraw {
     void forgetGl() { wTex = mTex = 0; needUpload = true; }
 };
 constexpr int kSpringTexW = 2048;
+
+// The spring rig of an HD fit: the skeleton's joints from the model's bones and the fit's rig pivots, the chains from the body's vertices.
+SbRig hdSpringRig(const M2Model& m, const HdFit& fit);
+// The same for the game's own model: its bones' pivots and the vertices that are drawn.
+SbRig modelSpringRig(const M2Model& m, const std::vector<V3>& pivots, const std::vector<M2Vertex>& verts);
+// The HD body's soft regions tessellated in the fit (tessellate.h): edges there at most `edgeShare` x the thigh's length (0.0095: about 4 mm
+// on a woman), at most `cap` new vertices; the body's vertices stay first (bodyVertexEnd, the other parts' indices shift). Returns the vertices added.
+size_t hdTessellateSoft(const M2Model& m, HdFit& fit, float edgeShare, size_t cap, TessStats* stats = nullptr);
 
 } // namespace wc

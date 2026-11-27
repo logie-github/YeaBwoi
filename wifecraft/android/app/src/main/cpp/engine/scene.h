@@ -151,6 +151,8 @@ public:
     void setSoftTissue(int level, float jiggle);
     // Options' spring-bone jiggle (springbone.h): `level` 0 off, 1 low, 2 high; `amount` 0 .. 2; `preset` SbPreset (0 Natural, 1 ZZZ, 2 Subtle).
     void setSpringBones(int level, float amount, int preset);
+    // The soft regions of the HD figure tessellated when it is fitted (tessellate.h): `edgeShare` of the thigh's length (0 off; 0.0095 about 4 mm), `cap` new vertices.
+    void setTessellation(float edgeShare, int cap);
     bool springStats(int id, int& helpers, int& chains, size_t& vertices, bool& asleep) const;
     void kickSprings(int id, const V3& worldAt, const V3& velocity, float radius);
     // Hands on the tissue that no stage or touch makes (the desktop check's grips; a pinch): fed every frame until cleared.
@@ -547,6 +549,8 @@ private:
         std::vector<uint32_t> indices;   // the shaped body's own triangles (bodyshape.h: the split sections' finer)
         std::vector<M2Submesh> submeshes;     // its sections' ranges in them
         bool shapeDirty = false;
+        uint64_t tessKey = 0;            // the tessellation (springdraw.cpp) the shaped body was made with
+        size_t tessAdded = 0;
         float k = 0, fold = 0;
         uint32_t design = 0;             // the design's file (dress: the type-1 layer at kBodyLayer)
         uint32_t hair = 0;               // the hair texture its colour comes from
@@ -920,7 +924,11 @@ private:
     bool contactDraw_ = false;         // drawModel is drawing an actor whose skin has contacts (the uniforms set)
     uint32_t contactClock_ = 0;
     bool contactStarted_ = false;
-    void stepSprings(uint32_t clock);   // springdraw.cpp: the helper chains of every posed HD body
+    void stepSprings(uint32_t clock);
+    void checkBodyTessellation(Actor& a);       // springdraw.cpp: the game's own body made again, tessellated, when the setting changed
+    void tessellateOwnBody(Actor& a);           // springdraw.cpp, from refreshBody: the shaped body's soft regions   // springdraw.cpp: the helper chains of every posed HD body
+    float tessEdge_ = 0.0125f;
+    int tessCap_ = 48000;
     int springLevel_ = 2;
     float springAmount_ = 1.0f;
     int springPreset_ = 0;

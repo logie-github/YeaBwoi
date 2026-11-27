@@ -44,6 +44,7 @@ add_library(wcengine SHARED
     engine/springdraw.cpp
     engine/softbody.cpp
     engine/terrain.cpp
+    engine/tessellate.cpp
     engine/tissue.cpp
     engine/tissuedraw.cpp
     engine/wmo.cpp)

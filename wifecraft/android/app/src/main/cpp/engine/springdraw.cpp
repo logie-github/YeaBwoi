@@ -25,8 +25,88 @@ unsigned makeTex(int w, int h, const float* data) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     return t;
 }
+struct BodyArrays {
+    std::vector<V3> pos;
+    std::vector<uint8_t> bi, bw;
+    SbBodyView view(size_t n) const { return SbBodyView{pos.data(), bi.data(), bw.data(), n}; }
+};
+BodyArrays arraysOf(const std::vector<M2Vertex>& verts) {
+    BodyArrays b;
+    b.pos.resize(verts.size()); b.bi.resize(verts.size() * 4); b.bw.resize(verts.size() * 4);
+    for (size_t i = 0; i < verts.size(); ++i) {
+        const M2Vertex& v = verts[i];
+        b.pos[i] = V3(v.pos[0], v.pos[1], v.pos[2]);
+        for (int k = 0; k < 4; ++k) { b.bi[i * 4 + size_t(k)] = v.bones[k]; b.bw[i * 4 + size_t(k)] = v.weights[k]; }
+    }
+    return b;
+}
 float slider(const std::vector<float>& v, int k) { return size_t(k) < v.size() ? v[size_t(k)] : 0.0f; }
 } // namespace
+
+SbRig modelSpringRig(const M2Model& m, const std::vector<V3>& pivots, const std::vector<M2Vertex>& verts) {
+    SbSkeleton sk;
+    const char* names[kSbJoints] = {"Pelvis", "Spine1", "Chest", "L_Thigh", "R_Thigh", "L_Calf", "R_Calf", "L_Breast", "R_Breast",
+                                    "L_UpperArm", "R_UpperArm", "L_Forearm", "R_Forearm"};
+    for (int j = 0; j < kSbJoints; ++j) {
+        int b = m.findWowBone(names[j]);
+        if (b >= 0 && size_t(b) < pivots.size()) { sk.bone[j] = b; sk.pivot[j] = pivots[size_t(b)]; }
+    }
+    BodyArrays arr = arraysOf(verts);
+    return buildSpringRig(arr.view(verts.size()), sk);
+}
+
+SbRig hdSpringRig(const M2Model& m, const HdFit& fit) {
+    SbSkeleton sk;
+    const char* names[kSbJoints] = {"Pelvis", "Spine1", "Chest", "L_Thigh", "R_Thigh", "L_Calf", "R_Calf", "L_Breast", "R_Breast",
+                                    "L_UpperArm", "R_UpperArm", "L_Forearm", "R_Forearm"};
+    for (int j = 0; j < kSbJoints; ++j) {
+        int b = m.findWowBone(names[j]);
+        if (b >= 0 && size_t(b) < fit.rigPivots.size()) { sk.bone[j] = b; sk.pivot[j] = fit.rigPivots[size_t(b)]; }
+    }
+    BodyArrays arr = arraysOf(fit.verts);
+    return buildSpringRig(arr.view(fit.bodyVertexEnd), sk);
+}
+
+size_t hdTessellateSoft(const M2Model& m, HdFit& fit, float edgeShare, size_t cap, TessStats* stats) {
+    if (edgeShare <= 0 || cap == 0 || fit.bodyVertexEnd == 0 || fit.bodyIndices.empty()) return 0;
+    SbRig rig = hdSpringRig(m, fit);
+    if (rig.empty()) return 0;
+    const size_t end = fit.bodyVertexEnd, bodyIdx = fit.bodyIndices.size();
+    BodyArrays arr = arraysOf(fit.verts);
+    std::vector<float> soft;
+    springSoftMask(rig, arr.view(end), soft);
+    std::vector<M2Vertex> bv(fit.verts.begin(), fit.verts.begin() + long(end));
+    std::vector<uint32_t> bi(fit.indices.begin(), fit.indices.begin() + long(bodyIdx));
+    std::vector<TessRange> ranges;
+    size_t bodyParts = 0;
+    for (const HdDrawPart& p : fit.parts) {
+        if (size_t(p.start) + p.count > bodyIdx) break;
+        ranges.push_back({p.start, p.count}); ++bodyParts;
+    }
+    const size_t added = tessellateSoftRegions(bv, bi, ranges, soft, edgeShare * rig.unit, cap, stats);
+    if (added == 0) return 0;
+    // the body's vertices first, then the others' (their indices up by `added`)
+    std::vector<M2Vertex> verts = std::move(bv);
+    verts.insert(verts.end(), fit.verts.begin() + long(end), fit.verts.end());
+    std::vector<uint32_t> idx = bi;
+    const size_t restFrom = bodyIdx;
+    for (size_t i = restFrom; i < fit.indices.size(); ++i) {
+        uint32_t x = fit.indices[i];
+        idx.push_back(x >= end ? x + uint32_t(added) : x);
+    }
+    const int64_t shift = int64_t(bi.size()) - int64_t(bodyIdx);
+    for (size_t i = 0; i < fit.parts.size(); ++i) {
+        if (i < bodyParts) { fit.parts[i].start = ranges[i].start; fit.parts[i].count = ranges[i].count; }
+        else fit.parts[i].start = uint32_t(int64_t(fit.parts[i].start) + shift);
+    }
+    fit.verts = std::move(verts);
+    fit.indices = std::move(idx);
+    fit.bodyIndices = bi;
+    fit.bodyVertexEnd = uint32_t(end + added);
+    fit.stats.vertices = fit.verts.size();
+    fit.stats.triangles = fit.indices.size() / 3;
+    return added;
+}
 
 void SpringDraw::uniforms(unsigned p) const {
     glUniform1i(gl::loc(p, "uSbW"), kUnitW);
@@ -41,10 +121,53 @@ void SpringDraw::uniforms(unsigned p) const {
 }
 void SpringDraw::off(unsigned p) { glUniform1i(gl::loc(p, "uSbOn"), 0); }
 
+namespace {
+uint64_t tessKeyOf(float edge, int cap) { return uint64_t(edge * 1e6f) * 1000003ull + uint64_t(cap) + 1; }
+}
+
+// The game's own body (no HD figure drawn instead): made again with its soft regions tessellated when the setting changed.
+void Scene::checkBodyTessellation(Actor& a) {
+    BodyGl& b = a.body;
+    const bool want = tessEdge_ > 0 && a.character && !a.hd.requested && a.mesh && a.mesh->model && a.mesh->model->vertices.size() < 400000;
+    const uint64_t key = want ? tessKeyOf(tessEdge_, tessCap_) : 0;
+    if (b.tessKey == key || !glReady_) return;
+    b.shapeDirty = true; b.dirty = true;   // (refreshBody makes it: tessellateOwnBody)
+    a.soft.dirty = true;
+}
+
+void Scene::tessellateOwnBody(Actor& a) {
+    BodyGl& b = a.body;
+    const M2Model& m = *a.mesh->model;
+    const bool want = tessEdge_ > 0 && a.character && !a.hd.requested && m.vertices.size() < 400000;
+    b.tessKey = want ? tessKeyOf(tessEdge_, tessCap_) : 0;
+    b.tessAdded = 0;
+    if (!want) return;
+    if (b.shaped.empty()) { b.shaped = m.vertices; b.indices = m.indices; b.submeshes = m.submeshes; }
+    std::vector<V3> piv(m.bones.size());
+    for (size_t i = 0; i < m.bones.size(); ++i) piv[i] = m.bones[i].pivot;
+    SbRig rig = modelSpringRig(m, piv, b.shaped);
+    if (rig.empty()) return;
+    BodyArrays arr = arraysOf(b.shaped);
+    std::vector<float> soft;
+    springSoftMask(rig, arr.view(b.shaped.size()), soft);
+    std::vector<TessRange> ranges;
+    for (const M2Submesh& s : b.submeshes) ranges.push_back({s.indexStart, s.indexCount});
+    TessStats ts;
+    b.tessAdded = tessellateSoftRegions(b.shaped, b.indices, ranges, soft, tessEdge_ * rig.unit, size_t(tessCap_), &ts);
+    for (size_t i = 0; i < b.submeshes.size() && i < ranges.size(); ++i) { b.submeshes[i].indexStart = ranges[i].start; b.submeshes[i].indexCount = ranges[i].count; }
+    std::fprintf(stderr, "body tessellation: %zu -> %zu vertices, %zu -> %zu triangles, soft edges p50 %.2f -> %.2f mm, %d passes%s, %.1f ms\n", ts.verticesBefore,
+                 ts.verticesAfter, ts.trianglesBefore, ts.trianglesAfter, ts.edgeP50Before * 1000, ts.edgeP50After * 1000, ts.passes, ts.capped ? " (capped)" : "", ts.ms);
+}
+
 void Scene::setSpringBones(int level, float amount, int preset) {
     springLevel_ = std::clamp(level, 0, 2);
     springAmount_ = std::isfinite(amount) ? std::clamp(amount, 0.0f, 2.0f) : 1.0f;
     springPreset_ = std::clamp(preset, 0, kSbPresets - 1);
+}
+
+void Scene::setTessellation(float edgeShare, int cap) {
+    tessEdge_ = std::isfinite(edgeShare) ? std::clamp(edgeShare, 0.0f, 0.05f) : 0.0125f;
+    tessCap_ = std::clamp(cap, 0, 200000);
 }
 
 bool Scene::springStats(int id, int& helpers, int& chains, size_t& vertices, bool& asleep) const {
@@ -67,32 +190,35 @@ void Scene::stepSprings(uint32_t clock) {
     springClock_ = clock; springStarted_ = true;
     for (auto& [id, a] : actors_) {
         SpringDraw& sd = a.spring;
-        if (springLevel_ <= 0 || !a.visible || !a.character || !a.mesh || !a.mesh->model || !a.hd.active || a.hd.fit.bodyVertexEnd == 0) {
+        if (springLevel_ <= 0 || !a.visible || !a.character || !a.mesh || !a.mesh->model) {
             if (sd.ready) { sd.sim.setSettings(SbSettings{SbPreset::Natural, 0, 0}); }
             continue;
         }
         if ((a.position - eye_).length() > 18.0f) continue;
-        const HdFit& fit = a.hd.fit;
+        checkBodyTessellation(a);
+        const bool hd = a.hd.active && a.hd.fit.bodyVertexEnd > 0;
+        if (a.hd.requested && !hd) continue;      // (its figure is not fitted yet: the game's body is not drawn)
         const M2Model& m = *a.mesh->model;
-        const uint64_t key = a.hd.key ^ 0x5b5b5b5bull;
+        // the vertices the draw uses: the HD fit's, else the actor's shaped body (its own buffer), else the model's own
+        const bool own = !hd && a.body.vao && !a.body.shaped.empty();
+        const std::vector<M2Vertex>& drawn = hd ? a.hd.fit.verts : own ? a.body.shaped : m.vertices;
+        const uint64_t key = (hd ? a.hd.key : uint64_t(reinterpret_cast<uintptr_t>(&m)) * 31 + (own ? a.body.shaped.size() * 7 + a.body.baseGen : 0) + 3) ^ 0x5b5b5b5bull;
         if (sd.builtKey != key || !sd.ready) {
             const auto t0 = std::chrono::steady_clock::now();
-            SbSkeleton sk;
-            const char* names[kSbJoints] = {"Pelvis", "Spine1", "Chest", "L_Thigh", "R_Thigh", "L_Calf", "R_Calf", "L_Breast", "R_Breast",
-                                            "L_UpperArm", "R_UpperArm", "L_Forearm", "R_Forearm"};
-            for (int j = 0; j < kSbJoints; ++j) {
-                int b = m.findWowBone(names[j]);
-                if (b >= 0 && size_t(b) < fit.rigPivots.size()) { sk.bone[j] = b; sk.pivot[j] = fit.rigPivots[size_t(b)]; }
+            SbRig rig;
+            if (hd) rig = hdSpringRig(m, a.hd.fit);
+            else {
+                std::vector<V3> piv(m.bones.size());
+                for (size_t i = 0; i < m.bones.size(); ++i) piv[i] = m.bones[i].pivot;
+                rig = modelSpringRig(m, piv, drawn);
             }
-            std::vector<V3> pos(fit.verts.size());
-            std::vector<uint8_t> bi(fit.verts.size() * 4), bw(fit.verts.size() * 4);
-            for (size_t i = 0; i < fit.verts.size(); ++i) {
-                const M2Vertex& v = fit.verts[i];
+            std::vector<V3> pos(drawn.size());
+            std::vector<uint8_t> bi(drawn.size() * 4), bw(drawn.size() * 4);
+            for (size_t i = 0; i < drawn.size(); ++i) {
+                const M2Vertex& v = drawn[i];
                 pos[i] = V3(v.pos[0], v.pos[1], v.pos[2]);
                 for (int k = 0; k < 4; ++k) { bi[i * 4 + size_t(k)] = v.bones[k]; bw[i * 4 + size_t(k)] = v.weights[k]; }
             }
-            SbBodyView body{pos.data(), bi.data(), bw.data(), size_t(fit.bodyVertexEnd)};
-            SbRig rig = buildSpringRig(body, sk);
             SbBodyView all{pos.data(), bi.data(), bw.data(), pos.size()};
             sd.sim.build(rig);
             computeSpringWeights(rig, all, sd.weights);

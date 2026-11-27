@@ -1978,6 +1978,7 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     drawModel(*a.mesh, w, &a.drawTextures, cloth ? &a.cloth.bodyGeosets : &a.geosets, a.boneTex, a.seq, a.animTime % dur, nowMs, bodyTint,
               transparent, kActorTex, &a.composed, a.body.vao, a.body.vao ? &a.body.submeshes : nullptr);
     if (morph) { glUseProgram(m2Prog_); glUniform1i(loc(m2Prog_, "uMorphOn"), 0); }
+    SpringDraw::off(m2Prog_);   // (the spring bones' weights are the body's own: not for what it holds or wears as other models)
     if (cloth && !transparent) drawCloth(a, w, bodyTint);
     softBodyDraw_ = false;
     if (soft) SoftDraw::setGain(m2Prog_, 1.0f);
@@ -2706,6 +2707,7 @@ void Scene::refreshBody(Actor& a) {
                 std::fprintf(stderr, "body cut: %zu of %zu triangles left out\n", (before - b.indices.size()) / 3, before / 3);
             }
         }
+        if (!sculptOnly) tessellateOwnBody(a);   // (the soft regions split before the sculpt: springdraw.cpp; the sculpt then works on them)
         // the creator's sculpt (sculpt.h) on the game's own body: every vertex of the model (the skin and the clothing geosets
         // on it), in the bind pose, so it bends with its bones as before; the body before it kept for the next change
         b.sculptMs = 0;

@@ -1222,6 +1222,10 @@ int main(int argc, char** argv) {
             // spring LEVEL AMOUNT PRESET: Options' spring-bone jiggle (Scene::setSpringBones: level 0 off, 1 low, 2 high; amount 0..2; preset 0 Natural, 1 ZZZ, 2 Subtle)
             int level = 2, preset = 0; float amount = 1; ss >> level >> amount >> preset;
             scene.setSpringBones(level, amount, preset);
+        } else if (cmd == "tess") {
+            // tess EDGESHARE CAP: the HD soft regions' tessellation (Scene::setTessellation; 0 off)
+            float e = 0.0095f; int cap = 40000; ss >> e >> cap;
+            scene.setTessellation(e, cap);
         } else if (cmd == "sbrun") {
             // sbrun NAME MODE AMP HZ OUT.png N STEPMS W H WARMMS: the person moves (hop, bounce, sway, stomp, walk) and N pictures are taken
             int name; std::string mode, out; float amp, hz; int n, w, h; uint32_t step, warm;
