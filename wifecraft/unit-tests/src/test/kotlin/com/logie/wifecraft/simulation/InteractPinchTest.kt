@@ -80,15 +80,15 @@ class InteractPinchTest {
 
     @Test fun aPinchReactionIsItsOwnByRegionAndNature() {
         for (r in listOf(TouchRegion.THIGH, TouchRegion.GROIN, TouchRegion.ARM, TouchRegion.NECK)) {
-            val kinds = PinchReactions.allowedKinds(r).map { it.first }
+            val kinds = SkinPinchReactions.allowedKinds(r).map { it.first }
             assertTrue(kinds.isNotEmpty() && kinds.all { it in ReactionKind.entries })
         }
-        assertNotEquals(PinchReactions.allowedKinds(TouchRegion.THIGH), InteractReactions.allowedKinds(TouchRegion.THIGH), "its own table")
-        assertTrue(PinchReactions.allowedKinds(TouchRegion.THIGH).any { it.first == ReactionKind.FLINCH })
-        val lines = (0 until 30).map { PinchReactions.line(shy, Random(it)) }.toSet()
+        assertNotEquals(SkinPinchReactions.allowedKinds(TouchRegion.THIGH), InteractReactions.allowedKinds(TouchRegion.THIGH), "its own table")
+        assertTrue(SkinPinchReactions.allowedKinds(TouchRegion.THIGH).any { it.first == ReactionKind.FLINCH })
+        val lines = (0 until 30).map { SkinPinchReactions.line(shy, Random(it)) }.toSet()
         assertTrue(lines.isNotEmpty() && lines.all { it.isNotBlank() })
         val chosen = (0 until 40).map { InteractReactions.choose(hit(TouchRegion.THIGH), TouchKind.PINCH, Verdict.ALLOW, bold, Random(it)).kind }.toSet()
-        assertTrue(chosen.all { k -> PinchReactions.allowedKinds(TouchRegion.THIGH).any { it.first == k } }, "$chosen")
+        assertTrue(chosen.all { k -> SkinPinchReactions.allowedKinds(TouchRegion.THIGH).any { it.first == k } }, "$chosen")
         assertEquals(PinchHaptics.start(TouchRegion.THIGH), InteractReactions.haptic(TouchRegion.THIGH, Verdict.ALLOW, TouchKind.PINCH))
     }
 

@@ -325,6 +325,9 @@ object Native {
     /** Stockings (engine/stockings.h): [spec] = style, denier, r, g, b, seam, lace (creator/StockingSpec.toFloats); null takes them off. Returns the shell's triangles so far. */
     /** The stockings' fabric (engine/stockfabric.h): a finger down on the stocking at the screen point (false: none there), its drag, its release, undo (false: nothing to undo), repair all, the state (tension 0..1, runs, dead triangles, grabbed; null: no fabric), the solver's passes per step. */
     @JvmStatic external fun stockGrab(scene: Long, actor: Int, sx: Float, sy: Float, width: Int, height: Int): Boolean
+    @JvmStatic external fun stockProbe(scene: Long, actor: Int, sx: Float, sy: Float, width: Int, height: Int): Boolean
+    /** The fabric's give and look (Interact mode's Stockings panel): elasticity 0..1, the strain it tears at, the Fresnel sheen 0..1, the side light 0..1. */
+    @JvmStatic external fun stockLook(scene: Long, actor: Int, elasticity: Float, tearStrain: Float, sheen: Float, side: Float)
     @JvmStatic external fun stockDrag(scene: Long, actor: Int, sx: Float, sy: Float, width: Int, height: Int)
     @JvmStatic external fun stockRelease(scene: Long, actor: Int)
     @JvmStatic external fun stockUndo(scene: Long, actor: Int): Boolean

@@ -18,7 +18,7 @@ class ReactionLimiter(private val gapMs: Long) {
     fun reset() { last = Long.MIN_VALUE / 4 }
 }
 
-object PinchReactions {
+object SkinPinchReactions {
     /** The reaction kinds a pinch of [region] may get when she allows it, with their weights before her nature. */
     fun allowedKinds(region: TouchRegion): List<Pair<ReactionKind, Float>> = when (region) {
         TouchRegion.CHEST, TouchRegion.BELLY, TouchRegion.HIP, TouchRegion.BUTT, TouchRegion.THIGH ->

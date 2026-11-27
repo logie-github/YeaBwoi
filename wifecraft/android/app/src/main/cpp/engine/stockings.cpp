@@ -47,6 +47,7 @@ StockExtent stockExtent(int style, float floorZ, float ankleZ, float kneeZ, floa
     switch (style) {
         case kStockAnkle: e.top = ankleZ + 0.05f * (kneeZ - ankleZ); e.bandHeight = 0.0f; break;
         case kStockKnee: e.top = kneeZ - 0.02f * (kneeZ - ankleZ); e.bandHeight = 0.05f * (kneeZ - ankleZ); break;
+        case kStockGarter:
         case kStockThigh: e.top = thigh; e.bandHeight = 0.10f * (pelvisZ - kneeZ); e.slope = 0.06f; break;
         default: e.top = pelvisZ + 0.14f * (pelvisZ - kneeZ); e.bandHeight = 0.055f * (pelvisZ - kneeZ); e.slope = 0.16f; break;
     }
@@ -76,7 +77,7 @@ bool buildStockings(const std::vector<M2Vertex>& verts, const std::vector<uint32
         uint8_t r = region[i];
         if (r == kRegionLegs || r == kRegionFeet) return true;
         // (the upper thigh is weighted to the pelvis, a tights' top reaches the waist's own bone: the clip keeps only what the style reaches)
-        return r == kRegionHips || (r == kRegionWaist && spec.style == kStockTights);
+        return r == kRegionHips || (r == kRegionWaist && (spec.style == kStockTights || spec.style == kStockGarter));
     };
     // the triangles of the shown submeshes
     std::vector<std::pair<uint32_t, uint32_t>> ranges;
@@ -99,16 +100,17 @@ bool buildStockings(const std::vector<M2Vertex>& verts, const std::vector<uint32
     const float bandBottom = ex.top - ex.bandHeight;
     std::vector<uint32_t> weave, band;
     out.minGap = 1e9f; out.maxGap = -1e9f;
+    bool forceBand = false; float extraOff = 0;   // the garter belt's and straps' pass: always the band's range, a little proud of the weave
     auto emit = [&](const std::vector<Corner>& poly) {
         if (poly.size() < 3) return;
         const uint32_t base = uint32_t(out.verts.size());
         float cz = 0;
         for (const Corner& c : poly) cz += hOf(c.v);
         cz /= float(poly.size());
-        const bool inBand = ex.bandHeight > 0 && cz >= bandBottom;
+        const bool inBand = forceBand || (ex.bandHeight > 0 && cz >= bandBottom);
         std::vector<float> us(poly.size());
         for (size_t i = 0; i < poly.size(); ++i) {
-            V3 p = P(poly[i].v) + N(poly[i].v).normalized() * spec.offset;
+            V3 p = P(poly[i].v) + N(poly[i].v).normalized() * (spec.offset + extraOff);
             int s = p.y >= 0 ? 0 : 1;
             us[i] = std::atan2(p.y - legY[s], p.x - legX[s]) / (2.0f * kPi) + 0.5f;   // 0 and 1 at the back
         }
@@ -119,12 +121,12 @@ bool buildStockings(const std::vector<M2Vertex>& verts, const std::vector<uint32
             const Corner& c = poly[i];
             M2Vertex v = c.v;
             V3 n = N(v).normalized();
-            V3 p = P(v) + n * spec.offset;
-            out.minGap = std::min(out.minGap, spec.offset); out.maxGap = std::max(out.maxGap, spec.offset);
+            V3 p = P(v) + n * (spec.offset + extraOff);
+            out.minGap = std::min(out.minGap, spec.offset + extraOff); out.maxGap = std::max(out.maxGap, spec.offset + extraOff);
             v.pos[0] = p.x; v.pos[1] = p.y; v.pos[2] = p.z;
             v.normal[0] = n.x; v.normal[1] = n.y; v.normal[2] = n.z;
             v.uv[0] = us[i];
-            v.uv[1] = inBand ? std::max(0.0f, std::min(1.0f, (ex.top - (p.z - slope * p.x)) / std::max(ex.bandHeight, 1e-4f))) : p.z / 0.045f;
+            v.uv[1] = forceBand ? 0.5f : inBand ? std::max(0.0f, std::min(1.0f, (ex.top - (p.z - slope * p.x)) / std::max(ex.bandHeight, 1e-4f))) : p.z / 0.045f;
             v.uv2[0] = inBand ? 1.0f : 0.0f; v.uv2[1] = 0;
             out.verts.push_back(v);
             out.source.push_back(c.src);
@@ -162,6 +164,41 @@ bool buildStockings(const std::vector<M2Vertex>& verts, const std::vector<uint32
                 emit(hi); emit(lo);
             } else emit(poly);
         }
+    }
+    if (spec.style == kStockGarter) {
+        // the garter: a belt at the waist and, on each thigh, a thin elastic strap at the front and the back from the belt down to the stocking's top, all cut
+        // from the same body triangles (the hips' and waist's) by planes, in the band's range (a plain elastic texture)
+        const StockExtent hx = stockExtent(kStockTights, floorZ, ankleZ, kneeZ, pelvisZ);
+        const float span = pelvisZ - kneeZ, beltTop = hx.top, beltBottom = beltTop - 0.075f * span, strapHalf = 0.011f, hs = hx.slope;
+        auto h2 = [&](const M2Vertex& v) { return v.pos[2] - hs * v.pos[0]; };
+        auto clipBy = [](const std::vector<Corner>& in, auto f) {
+            std::vector<Corner> o;
+            for (size_t i = 0; i < in.size(); ++i) {
+                const Corner& a = in[i]; const Corner& b = in[(i + 1) % in.size()];
+                const float fa = f(a.v), fb = f(b.v);
+                if (fa >= 0) o.push_back(a);
+                if ((fa >= 0) != (fb >= 0)) o.push_back(mix(a, b, fa / (fa - fb)));
+            }
+            return o;
+        };
+        forceBand = true; extraOff = 0.0025f;
+        const float strapLo = ex.top - 0.12f * span * 0.2f, strapHi = beltBottom + 0.004f;
+        for (auto [start, count] : ranges) {
+            for (uint32_t t = start; t + 2 < start + count && t + 2 < indices.size(); t += 3) {
+                uint32_t ix[3] = {indices[t], indices[t + 1], indices[t + 2]};
+                if (ix[0] >= verts.size() || ix[1] >= verts.size() || ix[2] >= verts.size()) continue;
+                if (!(wanted(ix[0]) && wanted(ix[1]) && wanted(ix[2]))) continue;
+                const std::vector<Corner> tri = {{verts[ix[0]], ix[0]}, {verts[ix[1]], ix[1]}, {verts[ix[2]], ix[2]}};
+                emit(clipBy(clipBy(tri, [&](const M2Vertex& v) { return h2(v) - beltBottom; }), [&](const M2Vertex& v) { return beltTop - h2(v); }));
+                for (int sd = 0; sd < 2; ++sd) {
+                    auto a = clipBy(clipBy(tri, [&](const M2Vertex& v) { return strapHi - h2(v); }), [&](const M2Vertex& v) { return h2(v) - strapLo; });
+                    a = clipBy(a, [&](const M2Vertex& v) { return v.pos[1] - (legY[sd] - strapHalf); });
+                    a = clipBy(a, [&](const M2Vertex& v) { return (legY[sd] + strapHalf) - v.pos[1]; });
+                    emit(a);
+                }
+            }
+        }
+        forceBand = false; extraOff = 0;
     }
     if (weave.empty() && band.empty()) return false;
     out.indices = weave; out.bandStart = uint32_t(out.indices.size());

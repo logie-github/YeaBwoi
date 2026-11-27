@@ -110,6 +110,21 @@ class InteractGesturesTest {
         assertEquals(FingerRole.TOUCH, g.roleOf(9))
     }
 
+    @Test fun aStockingGrabThatTakesHoldMakesTheTouchFingerTheGrabAndIgnoresALaterOne() {
+        val g = InteractGestures()
+        g.land(1, FingerTarget.BODY)
+        val ch = g.stockingGrabbed(1)
+        assertEquals(FingerRole.STOCKING, g.roleOf(1))
+        assertTrue(ch.any { it.id == 1L && it.from == FingerRole.TOUCH && it.to == FingerRole.STOCKING && it.slot == 0 }, "its touch is let go: $ch")
+        g.land(2, FingerTarget.BODY)
+        assertEquals(FingerRole.IGNORED, g.roleOf(2)); assertTrue(g.stockingActive)
+        g.up(1); g.up(2)
+        assertTrue(!g.stockingActive)
+        // not the first finger, or in Look: nothing
+        g.land(5, FingerTarget.BODY); g.land(6, FingerTarget.BODY)
+        assertTrue(g.stockingGrabbed(6).isEmpty())
+    }
+
     @Test fun aStockingFingerThatLandsSecondIsBodySoItCanPinch() {
         val g = InteractGestures()
         g.land(1, FingerTarget.BODY); g.land(2, FingerTarget.STOCKING)

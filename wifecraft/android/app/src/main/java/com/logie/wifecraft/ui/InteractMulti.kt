@@ -28,6 +28,7 @@ import com.logie.wifecraft.simulation.InteractMode
 import com.logie.wifecraft.simulation.InteractPersona
 import com.logie.wifecraft.simulation.InteractTool
 import com.logie.wifecraft.simulation.PinchGate
+import com.logie.wifecraft.simulation.PinchGesture
 import com.logie.wifecraft.simulation.PinchHaptics
 import com.logie.wifecraft.simulation.Reaction
 import com.logie.wifecraft.simulation.RegionMap
@@ -56,6 +57,9 @@ internal class InteractTouchEnv(
     /** The fingertip pad's radius in world units now (Finger size and Character size: graphics/FingerSize). */
     val pad: () -> Float,
     val rnd: Random,
+    /** The stockings' pull (hold on a stocking-covered part, then drag): null when the screen has none; its first-finger-alone precedence is kept here. */
+    val pinch: PinchHost? = null,
+    val stock: com.logie.wifecraft.simulation.PinchGesture = com.logie.wifecraft.simulation.PinchGesture(),
 )
 
 private class FingerState {
@@ -74,7 +78,10 @@ internal fun Modifier.interactMultiTouch(env: InteractTouchEnv): Modifier = poin
             val first = awaitFirstDown(requireUnconsumed = false)
             run.down(first.id.value, first.position.x, first.position.y)
             while (true) {
-                val event = awaitPointerEvent()
+                run.holdCheck()
+                val waitMs = run.holdWaitMs()
+                val event = (if (waitMs > 0L) withTimeoutOrNull(waitMs) { awaitPointerEvent() } else awaitPointerEvent())
+                if (event == null) { run.holdCheck(); continue }   // (the hold time passed with the finger still)
                 for (c in event.changes) {
                     when {
                         c.changedToDown() -> run.down(c.id.value, c.position.x, c.position.y)
@@ -102,6 +109,14 @@ private class InteractGestureRun(val env: InteractTouchEnv, val w: Int, val h: I
     var camX = 0f
     var camY = 0f
     var pinchBegun = false
+    // the stockings' pull: a hold on the first finger alone
+    var firstId = -1L
+    var firstDownMs = 0L
+    var firstX = 0f
+    var firstY = 0f
+    var downHit: TouchHit? = null
+    var holdDone = true
+    var stockUsed = false
 
     fun apply(changes: List<InteractGestures.Change>) {
         for (c in changes) {
@@ -115,12 +130,19 @@ private class InteractGestureRun(val env: InteractTouchEnv, val w: Int, val h: I
     }
 
     fun down(id: Long, x: Float, y: Float) {
-        if (g.count == 0) { apply(g.setLook(env.mode.tool == InteractTool.LOOK)); multi = false; camCount = 0 }
+        if (g.count == 0) {
+            apply(g.setLook(env.mode.tool == InteractTool.LOOK)); multi = false; camCount = 0
+            stockStep(env.stock.up()); stockUsed = false
+            firstId = id; firstX = x; firstY = y; firstDownMs = android.os.SystemClock.uptimeMillis(); downHit = null
+            holdDone = env.pinch == null || env.mode.tool != InteractTool.TOUCH
+        } else if (env.stock.active && !env.stock.held) stockStep(env.stock.up())   // (a second finger before the grab took hold: no pull)
         st[id] = FingerState()
         apply(g.down(id, x, y))
         if (!g.lookTool && g.roleOf(id) != FingerRole.CAMERA && g.roleOf(id) != FingerRole.IGNORED && g.roleOf(id) != FingerRole.STOCKING) {
             env.view.pickBodyDetail(env.actorKey, x, y, w, h) { d ->
-                apply(g.classified(id, if (RegionMap.classify(d) != null) FingerTarget.BODY else FingerTarget.BACKGROUND, env.actorKey))
+                val hit = RegionMap.classify(d)
+                if (id == firstId) downHit = hit
+                apply(g.classified(id, if (hit != null) FingerTarget.BODY else FingerTarget.BACKGROUND, env.actorKey))
             }
         }
     }
@@ -129,6 +151,7 @@ private class InteractGestureRun(val env: InteractTouchEnv, val w: Int, val h: I
         val f = g.finger(id) ?: return
         val s = st[id] ?: return
         g.move(id, x, y)
+        if (env.stock.active && id == firstId) { stockUsed = true; stockStep(env.stock.move(x, y, now)); return }   // (the finger carries the fabric, or was refused)
         if (!s.moved && hypot(x - f.downX, y - f.downY) > slop) s.moved = true
         if ((env.mode.tool == InteractTool.LOOK) != g.lookTool) apply(g.setLook(env.mode.tool == InteractTool.LOOK))
         when (f.role) {
@@ -218,7 +241,8 @@ private class InteractGestureRun(val env: InteractTouchEnv, val w: Int, val h: I
         val s = st[id]
         val role = f?.role
         val slot = f?.slot ?: -1
-        val tap = f != null && s != null && !s.moved && !multi
+        if (env.stock.active && id == firstId) { stockUsed = true; stockStep(env.stock.up()); env.pinch?.at = null }
+        val tap = f != null && s != null && !s.moved && !multi && !stockUsed
         apply(g.up(id))
         st.remove(id)
         if (slot >= 0 && role != null && (role == FingerRole.TOUCH || role == FingerRole.PINCH)) env.view.releaseTouch(env.actorKey, slot)   // (the finger is up, the skin springs back)
@@ -235,8 +259,41 @@ private class InteractGestureRun(val env: InteractTouchEnv, val w: Int, val h: I
         } else if (role == FingerRole.CAMERA || role == FingerRole.PENDING) env.onBackgroundTap(x, y, w, h)
     }
 
+    /** Milliseconds until the first finger has rested long enough to take hold of a stocking (0 or less: not waiting). */
+    fun holdWaitMs(): Long {
+        if (holdDone || g.count != 1 || st[firstId]?.moved != false || g.roleOf(firstId) != FingerRole.TOUCH) return -1L
+        return PinchGesture.HOLD_MS - (android.os.SystemClock.uptimeMillis() - firstDownMs)
+    }
+
+    /** The hold time has passed with the first finger still and alone on a part she can wear stockings on: the pull starts (the engine says whether there is stocking). */
+    fun holdCheck() {
+        val host = env.pinch ?: return
+        if (holdDone || g.count != 1 || st[firstId]?.moved != false || g.roleOf(firstId) != FingerRole.TOUCH) return
+        if (android.os.SystemClock.uptimeMillis() - firstDownMs < PinchGesture.HOLD_MS) return
+        holdDone = true
+        stockStep(env.stock.hold(downHit, firstX, firstY, host.worn()))
+    }
+
+    private fun stockStep(step: PinchGesture.Step) {
+        val host = env.pinch ?: return
+        when (step) {
+            is PinchGesture.Step.Probe -> env.view.stockProbe(env.actorKey, step.x, step.y, w, h) { c -> stockStep(env.stock.covered(c)) }
+            is PinchGesture.Step.Ask -> stockStep(env.stock.verdict(host.verdict(step.hit)))
+            is PinchGesture.Step.Grab -> env.view.stockGrab(env.actorKey, step.x, step.y, w, h) { ok ->
+                val next = env.stock.grabbed(ok)
+                if (env.stock.held) { stockUsed = true; apply(g.stockingGrabbed(firstId)); host.onGrab(); host.at = androidx.compose.ui.geometry.Offset(step.x, step.y) }
+                stockStep(next)
+            }
+            is PinchGesture.Step.Refused -> { stockUsed = true; env.ripple(firstX, firstY, 2) }
+            is PinchGesture.Step.Drag -> { env.view.stockDrag(env.actorKey, step.x, step.y, w, h); host.at = androidx.compose.ui.geometry.Offset(step.x, step.y) }
+            PinchGesture.Step.Release -> { env.view.stockRelease(env.actorKey); host.at = null; host.onEnd() }
+            PinchGesture.Step.NotPull, PinchGesture.Step.None -> Unit
+        }
+    }
+
     /** The gesture is over (or was cancelled): every contact lets go. */
     fun finish() {
+        stockStep(env.stock.up()); env.pinch?.at = null
         apply(g.cancelAll())
         env.view.releaseTouch(env.actorKey)   // (every finger of her: nothing stays pressed)
         gate.clear()

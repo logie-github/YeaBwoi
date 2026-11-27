@@ -98,6 +98,20 @@ class InteractGestures(private val maxContacts: Int = MAX_CONTACTS) {
         return out
     }
 
+    /**
+     * The stocking grab has taken hold with finger [id] (the first finger, alone: the hold-then-drag of the stockings' pull is decided by the
+     * layer, which asks the engine): it becomes [FingerRole.STOCKING] (its touch is let go) and any finger that lands while it holds is ignored.
+     */
+    fun stockingGrabbed(id: Long): List<Change> {
+        val f = finger(id) ?: return emptyList()
+        if (fingers.first() !== f || latch != Latch.NONE || look) return emptyList()
+        stockingHeld = true
+        return assign()
+    }
+
+    /** Whether a stocking grab holds a finger now. */
+    val stockingActive: Boolean get() = stockingHeld
+
     /** The tool changed (Touch <-> Look): contacts let go, the camera takes every finger in Look. */
     fun setLook(on: Boolean): List<Change> { if (look == on) return emptyList(); look = on; return assign() }
 

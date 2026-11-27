@@ -193,7 +193,7 @@ object InteractReactions {
     fun choose(hit: TouchHit, kind: TouchKind, verdict: Verdict, persona: InteractPersona, rnd: Random, recent: List<ReactionKind> = emptyList()): Reaction {
         val region = hit.region
         val k = when (verdict) {
-            Verdict.ALLOW -> pick(if (kind == TouchKind.PINCH) PinchReactions.allowedKinds(region) else allowedKinds(region), persona, rnd, recent)
+            Verdict.ALLOW -> pick(if (kind == TouchKind.PINCH) SkinPinchReactions.allowedKinds(region) else allowedKinds(region), persona, rnd, recent)
             Verdict.HESITATE -> pick(HESITATING.map { it to 1f }, persona, rnd, recent)
             Verdict.DECLINE -> pick(DECLINING.map { it to 1f }, persona, rnd, recent)
         }
@@ -214,7 +214,7 @@ object InteractReactions {
             Verdict.ALLOW -> 0.25f + persona.disposition.desireTalk * 0.35f + (if (TouchConsent.sensitivity(region) > 0.4f) 0.2f else 0f)
             else -> 1f
         }
-        val line = if (rnd.nextFloat() < speakChance) (if (kind == TouchKind.PINCH && verdict == Verdict.ALLOW) PinchReactions.line(persona, rnd) else InteractLines.line(verdict, k, hit, persona, rnd)) else null
+        val line = if (rnd.nextFloat() < speakChance) (if (kind == TouchKind.PINCH && verdict == Verdict.ALLOW) SkinPinchReactions.line(persona, rnd) else InteractLines.line(verdict, k, hit, persona, rnd)) else null
         return Reaction(k, verdict, expressionOf(k, persona), turn, step, line, haptic(region, verdict, kind), seconds = if (verdict == Verdict.ALLOW) 1.8f else 2.4f)
     }
 }

@@ -11,7 +11,9 @@ enum class StockingStyle(val label: String, val code: Int, val words: List<Strin
     ANKLE("Ankle", 0, listOf("ankle")),
     KNEE("Knee-high", 1, listOf("knee high", "knee-high", "kneehigh", "knee")),
     THIGH("Thigh-high", 2, listOf("thigh high", "thigh-high", "thighhigh", "thigh", "stockings", "stocking")),
-    TIGHTS("Pantyhose", 3, listOf("pantyhose", "tights", "hosiery", "nylons", "panty hose"));
+    TIGHTS("Pantyhose", 3, listOf("pantyhose", "tights", "hosiery", "nylons", "panty hose")),
+    /** Thigh-highs held up by thin elastic straps from a waist belt (the belt and straps are made with the shell: engine/stockings.cpp). */
+    GARTER("Garter", 4, listOf("garter", "suspender", "stockings with a belt"));
 
     companion object { fun ofCode(c: Int) = entries.firstOrNull { it.code == c } ?: THIGH }
 }
@@ -92,6 +94,7 @@ data class StockingSpec(
             // the most specific style word wins: pantyhose and tights before "thigh", knee before the generic "stockings"
             val style = when {
                 StockingStyle.TIGHTS.words.any { it in t } -> StockingStyle.TIGHTS
+                StockingStyle.GARTER.words.any { it in t } -> StockingStyle.GARTER
                 t.contains("ankle") -> StockingStyle.ANKLE
                 t.contains("knee") -> StockingStyle.KNEE
                 t.contains("thigh") || t.contains("stocking") -> StockingStyle.THIGH

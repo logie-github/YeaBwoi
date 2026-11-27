@@ -402,7 +402,8 @@ public:
     size_t stockingTriangles(int id) const;
     // The fabric (stockfabric.h): a finger down at the screen point grabs the stocking there (false: nothing of it is under the point), drag
     // moves it (the view plane), release lets go (it springs back). State: tension 0..1, runs torn, dead triangles, grabbed.
-    bool stockGrab(int id, float sx, float sy, int width, int height);
+    bool stockGrab(int id, float sx, float sy, int width, int height, bool dry = false);   // dry: only whether the stocking is there
+    void stockLook(int id, float elasticity, float tearStrain, float sheen, float side);
     void stockDrag(int id, float sx, float sy, int width, int height);
     void stockRelease(int id);
     bool stockUndo(int id);
@@ -658,6 +659,7 @@ private:
         std::vector<uint32_t> wtris;     // the shell's triangles on the fabric's vertices (the same order as shell.indices)
         std::vector<V3> rest;            // the fabric's rest positions
         bool fabricReady = false, pulling = false, moving = false;
+        float sheen = 0, side = 0;       // the Fresnel sheen and the side light (stockLook)
         uint64_t lastMs = 0, aliveSig = 0;
         std::vector<float> posBuf;       // the shell vertices' positions as uploaded
     };

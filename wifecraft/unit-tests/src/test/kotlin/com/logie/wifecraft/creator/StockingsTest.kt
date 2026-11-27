@@ -27,6 +27,8 @@ class StockingsTest {
         assertEquals(StockingStyle.KNEE, p("knee high socks").style)
         assertEquals(StockingStyle.TIGHTS, p("black pantyhose").style); assertEquals(StockingStyle.TIGHTS, p("wear tights").style)
         assertEquals(StockingStyle.ANKLE, p("ankle stockings").style)
+        assertEquals(StockingStyle.GARTER, p("garter belt stockings").style); assertEquals(StockingStyle.GARTER, p("wear suspender stockings").style)
+        assertEquals(4, StockingStyle.GARTER.code); assertEquals(StockingStyle.GARTER, StockingStyle.ofCode(4))
         assertEquals(StockingColours.RED, p("red thigh high stockings").colour); assertEquals(StockingColours.NAVY, p("navy tights").colour)
         assertEquals(15, p("sheer 15 denier tights").denier); assertEquals(12, p("sheer stockings").denier); assertEquals(70, p("thick opaque tights").denier)
         assertTrue(p("seamed stockings").seam); assertFalse(p("plain elastic stockings").lace)

@@ -348,6 +348,16 @@ private fun needsOf(choices: List<AnimationChoice>, library: List<PairAnim>, par
 private fun placedNeed(r: Requirement) = r.surface != Surface.UNKNOWN && "geometry" in r.basis
 
 /**
+ * One piece of [LiveSceneScreen]'s body. The JVM allows 64 KB of bytecode in one method, and the scene screen's body is
+ * far past what one method holds once Compose has inlined its groups, so the body is cut into nested pieces: each one's
+ * lambda is a method of its own. A piece sees everything declared above it (the lambdas capture it), so the code is the
+ * same as before. Nothing else: no state, no key, no behaviour. The pieces are not indented, to keep other changes to
+ * the body mergeable. New code does not go into a piece: it goes into a function of its own (README, Scene screen layout).
+ */
+@Composable
+private fun SceneSegment(content: @Composable () -> Unit) = content()
+
+/**
  * The live scene. Nothing here changes every frame: the simulation, the people's motion and the camera run on the GL
  * thread ([LiveScene] driving the [SceneView] through its [FrameDriver]); this screen gets a [SceneSnapshot] only when what
  * its menus show changed (at most ten a second), and sends the player's orders and touches back. The view fills the
@@ -643,6 +653,7 @@ fun LiveSceneScreen(
         live.clearance = CameraClearance { eye, at -> view.glWalkRoute(at, eye)?.size == 1 }
         onDispose { live.clearance = null }
     }
+    SceneSegment {  // part 2 of LiveSceneScreen (see SceneSegment)
     var snapshot by remember(live) { mutableStateOf(live.snapshot()) }
     // cinematic mode (the Cinematic button): the director's camera, the mood's light, the HUD hidden (a tap shows it a while)
     val cineLook = remember(live) { CinematicLook() }
@@ -827,6 +838,7 @@ fun LiveSceneScreen(
         else ending = true
     }
 
+    SceneSegment {  // part 3
     fun request(other: String?, choice: AnimationChoice, options: PlayOptions): PerformanceOrder {
         // one choice's roles for the scene (its clips kept under their keys) and one play's seconds
         fun rolesOf(c: AnimationChoice): Pair<List<PlaybackRole>, Float> {
@@ -937,219 +949,10 @@ fun LiveSceneScreen(
         live.preview = StagePreview(c.lead, order, p.item)
     }
 
-    // the GL thread drives every frame; the menus hear of changes only
-    val animate by rememberUpdatedState(onAnimate)
-    val sounds by rememberUpdatedState(partnerSounds)
-    val fetch by rememberUpdatedState(fetchAnim)
-    // the world clock as the top bar shows it: posted by the GL thread when its minute or speed changes
-    var clockNow by remember(live) { mutableStateOf<ClockReading?>(null) }
-    val timeOfDay by rememberUpdatedState(onTimeOfDay)
+    var clockNow by remember(live) { mutableStateOf<ClockReading?>(null) }  // the world clock as the top bar shows it: posted by the GL thread when its minute or speed changes
+    SceneFrameEffect(live, view, context, clock, life, speechSpots, lines, heads, creatureSpecs, playback, stageClasses, cineLook, feed, actorKey,
+        { next -> snapshot = next }, { reading -> clockNow = reading }, onAnimate, partnerSounds, fetchAnim, onTimeOfDay, onLifeSave, onIntensity)
     val saveLife by rememberUpdatedState(onLifeSave)
-    val intensityOut by rememberUpdatedState(onIntensity)
-    DisposableEffect(live, view) {
-        val main = Handler(Looper.getMainLooper())
-        val ids = Array(live.count) { live.id(it) }
-        val creatureOf = Array(live.count) { creatureSpecs[ids[it]] }
-        val keys = Array(live.count) { actorKey(ids[it]) }
-        // GL thread: the frame's time on the engine's clock; both of a pair start their clips from this one value
-        var frameMs = 0
-        val emoting = BooleanArray(live.count)
-        // main thread: the talking gestures' files asked for once each
-        val gestureFiles = HashSet<Long>()
-        // GL thread: the world clock's last frame, the light's hand-over, and when the face and the sound were last posted
-        val light = LightFeed()
-        var clockNanos = 0L
-        var clockKey = -1L
-        var soundNanos = 0L
-        // GL thread: each person's intensity (IntensityModel, eased), whom they look at, and when these were last looked at
-        val eases = Array(live.count) { IntensityEase() }
-        val sheens = Array(live.count) { SkinSheen.Ease() }   // the skin's wet sheen from the intensity (Options' Graphics)
-        val goals = FloatArray(live.count) { IntensityModel.IDLE }
-        // GL thread: each person's playing key (a partner stage's role), and their arousal (bodyparts/Arousal)
-        val playingKeys = arrayOfNulls<String>(live.count)
-        val arousal = Array(live.count) { com.logie.wifecraft.bodyparts.ArousalTracker() }
-        val lookAt = arrayOfNulls<String>(live.count)
-        val keyOf = ids.indices.associate { ids[it] to keys[it] }
-        // the pack's props (Options → Mods → Import pack): the toys, dolls and layers of the stage that plays, drawn at its origin
-        val propStore = com.logie.wifecraft.props.PropStore(java.io.File(context.filesDir, "pack/props"))
-        val packOptions = com.logie.wifecraft.pack.PackOptions(java.io.File(context.filesDir, "pack/options.json"))
-        val propDriver = com.logie.wifecraft.props.PropStageDriver(propStore, { kind -> packOptions.shows(kind) },
-            { com.logie.wifecraft.props.PropStageDriver.DEFAULT_SCALE * com.logie.wifecraft.anim.CharacterSize.active })   // (the props grow with the bodies: Character size)
-        var momentNanos = 0L
-        var motionNanos = 0L
-        var intensityNanos = 0L
-        val sink = object : LiveScene.Sink {
-            override fun camera(eyeX: Float, eyeY: Float, eyeZ: Float, atX: Float, atY: Float, atZ: Float, fov: Float) {
-                view.glCamera(eyeX, eyeY, eyeZ, atX, atY, atZ, fov)
-                speechSpots.layout(eyeX, eyeY, eyeZ, atX, atY, atZ, fov)   // the bubbles follow the heads with this camera
-            }
-
-            override fun focus(near: Float, far: Float, strength: Float) {
-                // Options' Graphics: Focus follows the NPC off: the renderer's own band round the camera's target
-                if (Graphics.settings.value.focusFollows) view.glFocus(near, far, strength) else view.glFocus(0f, 0f, 1f)
-            }
-
-            override fun place(index: Int, x: Float, y: Float, z: Float, facing: Float, furniture: SceneObject?, sx: Float, sy: Float, sz: Float) {
-                val pose = when {
-                    furniture?.action == Activity.SIT -> FurniturePose.SIT
-                    furniture?.action == Activity.REST -> FurniturePose.REST
-                    // a clip raised over its floor (onto a bed or seat), or lowered onto it in place of a bed (SceneSimulation's
-                    // floor plays: under sz): drawn at its height, not stood on the floor
-                    furniture == null && kotlin.math.abs(z - sz) > 0.01f -> FurniturePose.RAISED
-                    else -> FurniturePose.FLOOR
-                }
-                view.glPlace(keys[index], x, y, z, facing, pose, sx, sy, sz)
-                propDriver.place(index, x, y, z, facing)
-                if (index == ids.size - 1) view.setProps(propDriver.frame(frameMs)) { id -> propStore.modelFile(id).takeIf { it.isFile }?.readBytes() }
-                val standing = heads.getOrElse(index) { 2.05f }
-                val base = if (pose == FurniturePose.RAISED) z else sz
-                speechSpots.headAt(index, sx, sy, base + SpeechLayout.head(standing, pose == FurniturePose.SIT, pose == FurniturePose.REST))
-            }
-
-            override fun speech(index: Int, text: String?, id: Long) {
-                if (index in speechSpots.speaking.indices) speechSpots.speaking[index] = text != null
-                main.post { if (index in lines.indices) lines[index] = text }
-            }
-
-            override fun gesture(index: Int, animation: Int) {
-                val key = keys[index]
-                view.glAnimate(key, animation)   // this very frame
-                main.post { if (gestureFiles.add(index.toLong() shl 32 or animation.toLong())) fetch(key, animation) }
-            }
-
-            override fun playback(index: Int, clip: ClipPlayback?) {
-                propDriver.play(index, clip?.let { c -> playback[c.clip]?.sourceName }, frameMs)
-                val key = keys[index]
-                val creature = creatureOf[index]
-                // a creature's own stage (DragonStages): the creature's layer over her own animation, the person's reach on her
-                val stage = clip?.clip?.let { DragonStages.ofKey(it) }
-                if (creature != null) {
-                    // a creature never plays a Sims clip (nothing is retargeted onto her): her own game animation, looped
-                    view.glPlayAnimation(key, null)
-                    playingKeys[index] = clip?.clip
-                    emoting[index] = false
-                    view.glAnimate(key, creature.standAnimation)
-                    view.glBoneLayer(key, if (stage != null && stage.second == 1 && stage.first.creature == creature.character) stage.first.baked.layer else null)
-                    return
-                }
-                if (stage != null && stage.second == 0) {
-                    val at = creatureOf.indexOfFirst { it?.character == stage.first.creature }
-                    val r = stage.first.reach
-                    view.glReach(key, if (at >= 0) keys[at] else null, r.bone, r.left, stage.first.baked.reach)
-                } else view.glReach(key, null, 0, false, null)
-                val emote = clip?.let { PlaybackKeys.emoteOf(it.clip) }
-                playingKeys[index] = clip?.clip?.takeIf { emote == null }
-                val wasEmote = emoting[index]
-                emoting[index] = emote != null
-                if (emote != null) {
-                    // a Warcraft emote both play (no imported pair fits): its files, then the game animation from this frame,
-                    // held only when it is a held one (Dance); a wave or a bow plays once
-                    val start = frameMs
-                    val held = emoteHeld(emote)
-                    view.glPlayAnimation(key, null)
-                    main.post { fetch(key, emote); view.anim(key, emote, held, start) }
-                } else {
-                    view.glPlayAnimation(key, clip?.let { c ->
-                        playback[c.clip] ?: PreviewKeys.heldOf(c.clip)?.let { held -> playback[held]?.let(HoldFrame::of) }
-                    })
-                    if (wasEmote) { val start = frameMs; main.post { view.anim(key, 0, true, start) } }   // back to standing
-                }
-            }
-
-            override fun bonePoints(index: Int, out: FloatArray): Boolean = view.glBonePoints(keys[index], out)
-
-            override fun activity(index: Int, activity: Activity) {
-                view.glAnimate(keys[index], activity.animation)   // this very frame, with the placement
-                val id = ids[index]
-                main.post { animate(id, activity) }                // the imported clips and the files (main thread)
-            }
-
-            override fun sound(index: Int, name: String) {
-                val key = keys[index]
-                main.post { sounds.play(name, key) }
-            }
-        }
-        val emit: (SceneSnapshot) -> Unit = { next -> main.post { snapshot = next } }
-        view.driver = FrameDriver { now ->
-            frameMs = Clock.now()
-            if (clock != null) {
-                // the world's time moves while the scene runs (not while it loads or ends), the light and sound follow it
-                if (live.running) {
-                    if (clockNanos != 0L) clock.advance((now - clockNanos) / 1e9)
-                    clockNanos = now
-                } else clockNanos = 0L
-                light.next(clock)?.let { view.setTimeOfDay(it) }
-                val key = LifeHud.clockKey(clock.simHours, clock.speed)
-                if (key != clockKey) {
-                    clockKey = key
-                    val reading = ClockReading(clock.hourOfDay, clock.day, clock.speed)
-                    main.post { clockNow = reading }
-                }
-                if (now - soundNanos >= LifeHud.UI_MS * 1_000_000L) {
-                    soundNanos = now
-                    val hour = clock.lightHour
-                    val perHour = clock.realSecondsPerHour
-                    main.post { timeOfDay(hour, perHour) }
-                }
-            }
-            cineLook.frame(now)
-            view.glCinematic(cineLook.mood(), cineLook.vignette(), cineLook.grain(), cineLook.letterbox())
-            view.glZoneMood(cineLook.zoneMood(), cineLook.moodBoost())
-            live.frame(now, sink, emit)
-            // the body language (cpp engine/motionlayer.h) and the atmosphere, after the frame's placements
-            val imm = feed.settings
-            view.glMotionParams(imm.breathing / 100f, imm.idleMotion / 100f, imm.eyeContact)
-            val step = if (motionNanos == 0L) 0f else ((now - motionNanos) / 1e9f).coerceIn(0f, 0.1f)
-            motionNanos = now
-            if (now - momentNanos >= MOMENT_NANOS) {
-                momentNanos = now
-                val fl = feed.flow
-                for (i in 0 until live.count) {
-                    val other = if (fl == null) null else if (ids[i] == fl.a) fl.b else if (ids[i] == fl.b) fl.a else null
-                    goals[i] = if (fl != null && other != null) IntensityModel.of(live.moment(i), fl.phase, fl.tempo)
-                        else IntensityModel.of(live.moment(i))
-                    lookAt[i] = live.companion(i) ?: other
-                }
-            }
-            var most = 0f
-            for (i in 0 until live.count) {
-                val v = eases[i].step(goals[i], step)
-                if (v > most) most = v
-                view.glMotion(keys[i], v, lookAt[i]?.let { keyOf[it] })
-                view.glSheen(keys[i], sheens[i].step(SkinSheen.target(v, Graphics.effective), step))
-            }
-            // the body parts: each wearer's arousal from the stage they play and the intensity, and the partner whose entry the
-            // erect shaft goes into (the engine draws nothing for someone without the parts)
-            val partners = com.logie.wifecraft.bodyparts.StageKeys.partners(playingKeys)
-            for (i in 0 until live.count) {
-                val cls = playingKeys[i]?.let { stageClasses[it] } ?: com.logie.wifecraft.bodyparts.StageClass.NONE
-                val tracker = arousal[i]
-                val level = tracker.step(cls, eases[i].value, com.logie.wifecraft.bodyparts.ArousalControl.mode,
-                    com.logie.wifecraft.bodyparts.ArousalControl.override(ids[i]), step)
-                val p = partners[i]
-                val entry = if (p >= 0 && cls.intimate) tracker.entryFor(cls) else com.logie.wifecraft.bodyparts.PartEntryKind.NONE
-                view.glPartDrive(keys[i], level, if (p >= 0) keys[p] else null, entry.engine.coerceAtLeast(0), cls.rest)
-            }
-            val cine = feed.cinematic
-            view.glParticles(if (imm.particlesOn(cine)) MOTES else 0, if (cine) 0.9f else 0.6f)
-            live.camera.handheld = if (cine) imm.handheld / 100f else 0f
-            if (now - intensityNanos >= LifeHud.UI_MS * 1_000_000L) {
-                intensityNanos = now
-                val v = most
-                main.post { intensityOut(v) }
-            }
-        }
-        onDispose {
-            view.driver = null
-            main.removeCallbacksAndMessages(null)
-            sounds.stopAll()
-            view.clearAtmosphere()
-            intensityOut(null)
-            // the scene's life and time as they were last (the GL thread drives them no more)
-            // (the GL thread may still be finishing a frame: a failed read here loses only the last half minute, which the periodic save keeps)
-            if (life != null || clock != null) runCatching { saveLife(life?.toJson(), clock?.toJson()?.toString()) }
-        }
-    }
     LaunchedEffect(live, spots) {
         for ((item, spot) in spots) live.command { it.setSpot(item, spot) }
         build.baseSpots = spots
@@ -1390,6 +1193,7 @@ fun LiveSceneScreen(
         }
     })
 
+    SceneSegment {  // part 4
     // when the scene is in and a few frames of it are drawn (the NPCs' skins are composed a frame or so each), the cover fades
     var revealed by remember(live) { mutableStateOf(false) }
     LaunchedEffect(live, ready) {
@@ -1627,17 +1431,20 @@ fun LiveSceneScreen(
         live.order { sim -> sim.perform(id, order); null }
     }
     ChatRunner(chatMode, chatActor != null, { speaking -> playChatGesture(speaking) }, { chatTick++ })
+    SceneSegment {  // part 5: Interact mode
     // ---- Interact mode (simulation/InteractMode.kt, InteractCamera.kt, ui/InteractUi.kt): the camera centres on her, the touches and the commands
     val interactPrefs = remember(context) { context.getSharedPreferences("wifecraft.interact", android.content.Context.MODE_PRIVATE) }
     var stockingBook by remember(interactPrefs) { mutableStateOf(StockingBook.fromJson(try { interactPrefs.getString("stockings", null) } catch (e: Exception) { null })) }
+    val stockCtl = rememberStockFabric(view, live, interactMode, interactPrefs, seed.toLong(), interactActor) { actorKey(it) }
     fun interactSay(text: String, danger: Boolean = false) { interactToast = Triple((interactToast?.first ?: 0) + 1, text, danger) }
     // her stockings (creator/Stockings.kt, engine/stockings.h): kept per NPC, put on the engine's actor again when she is on stage
     fun applyStockings(id: String, spec: StockingSpec?) {
         stockingBook = stockingBook.with(id, spec)
         try { interactPrefs.edit().putString("stockings", stockingBook.toJson().toString()).apply() } catch (e: Exception) { }
         view.setStockings(actorKey(id), spec?.toFloats())
+        stockCtl.pushLook(id, interactActor == id)
     }
-    LaunchedEffect(view, revealed, cast.size) { if (revealed) for (c in cast) stockingBook.of(c.id)?.let { view.setStockings(actorKey(c.id), it.toFloats()) } }
+    LaunchedEffect(view, revealed, cast.size) { if (revealed) for (c in cast) stockingBook.of(c.id)?.let { view.setStockings(actorKey(c.id), it.toFloats()); stockCtl.pushLook(c.id, false) } }
     val interactGear = LocalGearControl.current
     val interactPoses = remember(chatSolos) { PoseLibrary.available(chatSolos.keys.toList()).map { it.first } }
     fun interactPersona(id: String): InteractPersona {
@@ -1663,6 +1470,10 @@ fun LiveSceneScreen(
         r.line?.let { line -> live.command { sim -> sim.say(id, line) } }
         interactVibrate(r.haptic)
         interactTick++
+    }
+    SideEffect {
+        stockCtl.env = StockEnv({ interactActor }, { stockingBook }, { actorKey(it) }, { interactPersona(it) }, { id -> cast.firstOrNull { it.id == id }?.name ?: "She" }, { interactPlay(it) },
+            { id, a, ms -> interactLayer(id, a, ms) }, { interactVibrate(it) }, { id, line -> live.command { sim -> sim.say(id, line) } }, { interactSay(it) }, { interactTick++ }, { consent }, { toLocal(it) })
     }
     fun interactTouch(hit: com.logie.wifecraft.simulation.TouchHit, kind: TouchKind): Reaction? {
         val id = interactActor ?: return null
@@ -1702,8 +1513,8 @@ fun LiveSceneScreen(
                 OutfitAct.STOCKINGS_OFF -> applyStockings(id, null)
             }
             InteractAction.Stay -> live.order { sim -> sim.stopAll(id); null }
-            InteractAction.Follow -> interactSay("Following is not built yet: she stays where she is.", true)
-            InteractAction.ComeHere, InteractAction.MoveToSpot -> interactSay("Tap the floor where she should go.")
+            InteractAction.Follow, InteractAction.ComeHere -> stockCtl.comeToCamera(id, interactCamera)
+            InteractAction.MoveToSpot -> interactSay("Tap the floor where she should go.")
         }
     }
     fun interactResult(res: CommandResult) {
@@ -1712,6 +1523,7 @@ fun LiveSceneScreen(
             is CommandResult.Do -> interactDo(res.action)
             is CommandResult.Declined -> { live.command { sim -> sim.say(id, res.line) }; interactVibrate(com.logie.wifecraft.simulation.InteractReactions.haptic(com.logie.wifecraft.simulation.TouchRegion.NONE, com.logie.wifecraft.simulation.Verdict.DECLINE)) }
             is CommandResult.Hesitates -> live.command { sim -> sim.say(id, res.line) }
+            CommandResult.PullAllowed, is CommandResult.PullDeclined, is CommandResult.PullHesitates -> stockCtl.pullResult(id, res)
             CommandResult.AwaitSpot -> interactSay("Tap the floor where she should go.")
             is CommandResult.Unknown -> interactSay("She doesn't know what that means.", true)
         }
@@ -1749,11 +1561,13 @@ fun LiveSceneScreen(
         live.command { sim -> for (o in others) sim.stopAll(o) }
         cinematic = true
         interactActor = id
+        stockCtl.entered(id)
         interactTick++
     }
     fun leaveInteract() {
         val id = interactActor ?: return
         val prior = interactMode.leave()
+        stockCtl.left(id)
         live.interactCamera = null; live.interactActor = -1
         view.queueEvent { view.glBoneLayer(actorKey(id), null) }
         live.joiRelease(id)
@@ -1989,105 +1803,13 @@ fun LiveSceneScreen(
         }
     }
 
+    SceneSegment {  // part 6
     val reduced = reduceMotion()
     Box(Modifier.fillMaxSize().background(SceneGround).observeTouches { if (chromeGate.touch()) cineIdle = false }) {
         AndroidView(
             { (view.parent as? ViewGroup)?.removeView(view); view },
             Modifier.fillMaxSize().cinematicFrame(cinematic, cinematicSettings.frame).onSizeChanged { speechSpots.width = it.width.toFloat(); speechSpots.height = it.height.toFloat() }.pointerInput(view, live) {
-                val slop = 8.dp.toPx()
-                val velocity = FloatArray(2)
-                // a drag or pinch on the room's view starts the orbit there (it begins exactly on the room's view)
-                // a still finger held this long opens the radial menu on what is under it (with the life simulation)
-                val longPressOn = life != null
-                fun beginOrbit() {
-                    val next = SceneHud.cameraForTouch(cameraMode)
-                    if (next != cameraMode) { cameraMode = next; live.camera.setMode(next) }
-                }
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    // build mode: a finger down on a gizmo handle drags it along its axis (not the camera)
-                    build.viewSize(size.width.toFloat(), size.height.toFloat())
-                    val gizmoGrab = build.on && build.grab(down.position.x, down.position.y, BuildGizmo.TOUCH_DP.dp.toPx())
-                    val gesture = TouchGesture(slop)
-                    gesture.down(down.position.x, down.position.y, down.uptimeMillis)
-                    var last = down.position
-                    var lastTime = down.uptimeMillis
-                    var twoFingers = false
-                    var span = 0f
-                    var angle = 0f
-                    var twist = 0f
-                    // the two fingers' midpoint, and how far it has gone (a pan starts past the slop: a pinch's drift never pans)
-                    var midX = 0f
-                    var midY = 0f
-                    var travel = 0f
-                    var held = false
-                    while (true) {
-                        val wait = LONG_PRESS_MS - (SystemClock.uptimeMillis() - down.uptimeMillis)
-                        val event = if (longPressOn && !build.on && !held && !twoFingers && gesture.kind == TouchGesture.Kind.PENDING && wait > 0)
-                            withTimeoutOrNull(wait) { awaitPointerEvent() } else awaitPointerEvent()
-                        if (event == null) {
-                            held = true
-                            val at = last
-                            view.pick(at.x, at.y, size.width, size.height) { hit -> onLong(hit, at.x, at.y) }
-                            continue
-                        }
-                        val pressed = event.changes.filter { it.pressed }
-                        event.changes.firstOrNull()?.let { lastTime = it.uptimeMillis }
-                        if (pressed.isEmpty()) break
-                        if (pressed.size >= 2) {
-                            val a = pressed[0].position
-                            val b = pressed[1].position
-                            val nowSpan = TwoFingers.span(a.x, a.y, b.x, b.y)
-                            val nowAngle = TwoFingers.angle(a.x, a.y, b.x, b.y)
-                            val nowMidX = (a.x + b.x) / 2f
-                            val nowMidY = (a.y + b.y) / 2f
-                            if (!twoFingers || span <= 0f) {
-                                twoFingers = true
-                                gesture.multi()
-                            } else {
-                                beginOrbit()
-                                // pinch zooms; a twist turns the orbit once it is plainly a twist (a pinch's wobble never does);
-                                // the two moving together pan along the ground (sideways) and raise or lower the view (up and down)
-                                live.camera.pinch(nowSpan / span)
-                                twist += TwoFingers.turn(angle, nowAngle)
-                                if (abs(twist) > TWIST_DEADZONE) live.camera.twist(TwoFingers.turn(angle, nowAngle))
-                                val moveX = nowMidX - midX
-                                val moveY = nowMidY - midY
-                                travel += hypot(moveX, moveY)
-                                if (travel > slop * PAN_SLOPS) live.camera.pan(moveX, moveY, size.height.toFloat())
-                                pressed.forEach { it.consume() }
-                            }
-                            span = nowSpan
-                            angle = nowAngle
-                            midX = nowMidX
-                            midY = nowMidY
-                        } else {
-                            span = 0f   // one finger of a pinch lifted: the next two-finger move starts afresh
-                            if (!twoFingers && !held) {
-                                val finger = pressed.firstOrNull { it.id == down.id } ?: pressed[0]
-                                last = finger.position
-                                if (gesture.move(last.x, last.y, finger.uptimeMillis)) {
-                                    if (gizmoGrab) build.dragTo(last.x, last.y) else {
-                                        beginOrbit()
-                                        live.camera.dragBy(gesture.dx, gesture.dy, size.height.toFloat())
-                                    }
-                                    finger.consume()
-                                }
-                            }
-                        }
-                    }
-                    when {
-                        gizmoGrab -> build.endDrag()
-                        held -> Unit   // the long press opened the radial menu: no tap, no fling
-                        gesture.up(lastTime) -> if (!(build.on && build.tapMarker(last.x, last.y, 32.dp.toPx())))
-                            view.pick(last.x, last.y, size.width, size.height) { onTap(it) }
-                        gesture.kind == TouchGesture.Kind.DRAG -> {
-                            gesture.velocity(lastTime, velocity)
-                            live.camera.release(velocity[0], velocity[1], size.height.toFloat())
-                        }
-                        else -> live.camera.letGo()
-                    }
-                }
+            sceneTouches(view, live, build, life, { cameraMode }, { cameraMode = it }, { hit, x, y -> onLong(hit, x, y) }, { hit -> onTap(hit) })
             },
         )
         val partnerIndex = partnerId?.let { id -> cast.indexOfFirst { it.id == id } } ?: -1
@@ -2107,7 +1829,7 @@ fun LiveSceneScreen(
         // Interact mode: the touches on her and on the background (under the chrome, so the dock and the chip still take theirs)
         interactActor?.let { iid ->
             InteractTouchLayer(interactMode, interactTick, interactCamera, view, actorKey(iid), consent, { interactPersona(iid) },
-                { hit, kind -> interactTouch(hit, kind) }, { step -> interactStroke(step) }, { x, y, w, h -> interactBackground(x, y, w, h) })
+                { hit, kind -> interactTouch(hit, kind) }, { step -> interactStroke(step) }, { x, y, w, h -> interactBackground(x, y, w, h) }, pinch = stockCtl.host)
         }
 
         // the HUD, inside the screen's safe area (cut-outs, the hinge's bars, the gesture bar)
@@ -2285,7 +2007,9 @@ fun LiveSceneScreen(
                 ScreenPanel.INTERACT -> interactMode.tab?.let { tab ->
                     InteractSheetBody(tab, { interactMode.openTab(it); if (!interactMode.sheetOpen) panel = ScreenPanel.NONE; interactTick++ }, interactCamera, interactTick,
                         interactPoses, interactActor?.let { stockingBook.of(it) }, { interactAction(it) }, { spec -> interactActor?.let { applyStockings(it, spec) }; interactTick++ },
-                        { interactCamera.overview(); interactTick++ })
+                        { interactCamera.overview(); interactTick++ },
+                        fabric = stockCtl.fabric, options = interactMode.stock, onOptions = { stockCtl.setOptions(it) },
+                        onRestore = { interactActor?.let { stockCtl.restore(it) } }, onRepairAll = { interactActor?.let { stockCtl.repairAll(it) } })
                 }
                 ScreenPanel.STEER -> dialogueDirector?.let { SteerSheet(it, live, names) }
                 else -> Unit
@@ -2316,6 +2040,7 @@ fun LiveSceneScreen(
             plan = chromePlan, logOpen = panel == ScreenPanel.CHAT_LOG, onLog = { panel = PanelRules.open(panel, ScreenPanel.CHAT_LOG, screenMode) },
             camera = chatCamera, onSpeech = { chatSpeech = it })
     }
+    SceneSegment {  // part 7: the windows over the scene
     choosingAnimation?.let { owner ->
         // with a partner chosen, the two-person animations come first and play with them (solo ones still play alone)
         val with = partnerId?.takeIf { it != owner }
@@ -2458,6 +2183,12 @@ fun LiveSceneScreen(
         partnerSounds.stopAll()
         onEnd()
     })
+    }
+    }
+    }
+    }
+    }
+    }
 }
 
 /** What a cast frame says someone is doing. */
@@ -2473,7 +2204,7 @@ private fun useLabel(item: SceneObject): String = when (item) {
 }
 
 /** Whether the partner fallback's game emote [anim] is held (Dance) rather than played once (Wave, Bow...). */
-private fun emoteHeld(anim: Int): Boolean =
+internal fun emoteHeld(anim: Int): Boolean =
     PartnerEmotes.ALL.firstOrNull { it.anim == anim }?.let { it.loop || EmotePlayability.heldByName(it.name) } ?: false
 
 internal fun clockNow(h24: Boolean): String {
@@ -2566,7 +2297,6 @@ internal class FrameLife(
 private data class RadialRequest(val actor: String, val other: String?, val item: SceneObject?, val x: Float, val y: Float)
 
 /** The world clock as the GL thread last posted it. */
-private data class ClockReading(val hour: Double, val day: Int, val speed: ClockSpeed)
 
 /** A line of help over the scene, on a slate pill so it reads over any room. */
 @Composable
@@ -2872,17 +2602,11 @@ private val SceneGround = Color(0xFF191719)
 private val PartnerRose = Color(0xFFE88AA8)
 /** Frames drawn after loading before the cover fades (the NPCs' skins are composed about one a frame). */
 private const val REVEAL_FRAMES = 8L
-/** Radians two fingers must turn before a pinch turns the orbit too. */
-private const val TWIST_DEADZONE = 0.15f
 /** A held camera button: the wait before it repeats, and the time between repeats, ms. */
 private const val HOLD_DELAY_MS = 350L
 private const val HOLD_REPEAT_MS = 90L
 /** The scene's play preferences' key for the "ask before partner animations play" switch (default off). */
 private const val ASK_PAIR_KEY = "ask_pair"
-/** Touch slops two fingers' midpoint must travel before they pan (a pinch's drift never does). */
-private const val PAN_SLOPS = 2f
-/** A still finger held this long on the view opens the radial menu (a tap is shorter: TouchGesture's 500 ms). */
-private const val LONG_PRESS_MS = 520L
 /** The life and the clock are kept this often while a scene runs (and when it ends). */
 private const val LIFE_SAVE_MS = 30_000L
 
@@ -2967,10 +2691,6 @@ internal fun lifted(animation: Anim, lift: Float): Anim = if (lift == 0f) animat
     } else track
 })
 
-/** The scene's intensity is looked at again this often (ns): the moments' goals; each frame eases toward them. */
-private const val MOMENT_NANOS = 100_000_000L
-/** The atmosphere's motes on screen. */
-private const val MOTES = 48
 /** The flow's timers' step (ms), the lead-in's emote (seconds a cycle) and how far apart they stand for it (yards). */
 private const val FLOW_TICK_MS = 100L
 private const val FLOW_EMOTE_S = 4f
@@ -2978,10 +2698,3 @@ private const val FLOW_APART = 0.45f
 /** Closer: the camera's distance times this. */
 private const val CLOSER_ZOOM = 0.8f
 
-/** What the GL thread reads of immersive mode each frame: Options' settings, the flow, whether cinematic mode is on. */
-private class ImmersionFeed {
-    class FlowNow(val a: String, val b: String, val phase: FlowPhase, val tempo: Int)
-    @Volatile var settings: ImmersiveSettings = ImmersiveSettings.DEFAULT
-    @Volatile var flow: FlowNow? = null
-    @Volatile var cinematic = false
-}

@@ -573,6 +573,8 @@ JNIEXPORT jint JNICALL FN(setStockings)(JNIEnv* env, jclass, jlong h, jint actor
 
 // The stockings' fabric (engine/stockfabric.h): a finger on the stocking, its drag, its release, the state, undo and repair
 JNIEXPORT jboolean JNICALL FN(stockGrab)(JNIEnv*, jclass, jlong h, jint actor, jfloat sx, jfloat sy, jint w, jint ht) { return scene(h)->stockGrab(actor, sx, sy, w, ht); }
+JNIEXPORT jboolean JNICALL FN(stockProbe)(JNIEnv*, jclass, jlong h, jint actor, jfloat sx, jfloat sy, jint w, jint ht) { return scene(h)->stockGrab(actor, sx, sy, w, ht, true); }
+JNIEXPORT void JNICALL FN(stockLook)(JNIEnv*, jclass, jlong h, jint actor, jfloat elasticity, jfloat tearStrain, jfloat sheen, jfloat side) { scene(h)->stockLook(actor, elasticity, tearStrain, sheen, side); }
 JNIEXPORT void JNICALL FN(stockDrag)(JNIEnv*, jclass, jlong h, jint actor, jfloat sx, jfloat sy, jint w, jint ht) { scene(h)->stockDrag(actor, sx, sy, w, ht); }
 JNIEXPORT void JNICALL FN(stockRelease)(JNIEnv*, jclass, jlong h, jint actor) { scene(h)->stockRelease(actor); }
 JNIEXPORT jboolean JNICALL FN(stockUndo)(JNIEnv*, jclass, jlong h, jint actor) { return scene(h)->stockUndo(actor); }
