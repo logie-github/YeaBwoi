@@ -14,6 +14,11 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/softbody_test.cpp" "$engine/softbody.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" \
     -lGLESv2 -o "$here/build/softbody_test"
 echo "$here/build/softbody_test"
+# Soft tissue's lattice and solver alone (engine/tissue.cpp: XPBD Neo-Hookean cells, jiggle, grips, pinch; no GL): build/tissue_test, exit 0 when all pass.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/tissue_test.cpp" "$engine/tissue.cpp" \
+    -o "$here/build/tissue_test"
+echo "$here/build/tissue_test"
 # The body shapes' geometry alone (engine/bodyshape.cpp: the split, the shape's field, the normals; no GL, no game files):
 # build/bodyshape_test, exit 0 when all pass.
 g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
