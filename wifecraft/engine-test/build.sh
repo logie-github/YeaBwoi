@@ -147,3 +147,9 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/scale_measure.cpp" "$engine"/*.cpp \
     -lEGL -lGLESv2 -lz -lpthread -o "$here/build/scale_measure"
 echo "$here/build/scale_measure"
+# Procedural stockings and their fabric (engine/stockings.cpp: the shell from the leg triangles, the clip, the band, the weave; engine/stockfabric.cpp:
+# the pull, the tension, the tear, undo, repair; on a synthetic body, no GL, no game files): build/stockings_test, exit 0 when all pass.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/stockings_test.cpp" "$engine/stockings.cpp" "$engine/stockfabric.cpp" "$engine/bodypick.cpp" \
+    -o "$here/build/stockings_test"
+echo "$here/build/stockings_test"

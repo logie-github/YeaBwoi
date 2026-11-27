@@ -11,7 +11,7 @@ import kotlin.math.min
 // Play animation window's category tabs.
 
 /** What an action-bar slot does. */
-enum class HudOrder { WALK, PLAY, PARTNER, JOI, CHAT_MODE, SAY, CHAT, STOP_REPEAT, CLEAR_QUEUE, RELEASE, USE, FREE_WILL, LIFE, STOP, SKIP }
+enum class HudOrder { WALK, PLAY, PARTNER, JOI, CHAT_MODE, INTERACT, SAY, CHAT, STOP_REPEAT, CLEAR_QUEUE, RELEASE, USE, FREE_WILL, LIFE, STOP, SKIP }
 
 /** One slot of the action bar: what it does, its words, [lit] while it is on (Walk), [target] the object it uses. */
 data class HudSlot(val order: HudOrder, val label: String, val lit: Boolean = false, val target: String? = null) {
@@ -82,6 +82,8 @@ object SceneHud {
         joi: Boolean = false,
         /** The Chat order (talk with her as an ordinary person of the world, from the front: Chat mode), beside JOI. */
         chatMode: Boolean = false,
+        /** The Interact order (centre the camera on her, touch her and tell her what to do: Interact mode), in More. */
+        interact: Boolean = false,
     ): List<HudSlot> = buildList {
         add(HudSlot(HudOrder.WALK, "Walk", lit = walking))
         if (life) add(HudSlot(HudOrder.LIFE, "Actions"))
@@ -89,6 +91,7 @@ object SceneHud {
         if (partner) add(HudSlot(HudOrder.PARTNER, "Partner animation"))
         if (joi) add(HudSlot(HudOrder.JOI, "JOI"))
         if (chatMode) add(HudSlot(HudOrder.CHAT_MODE, "Chat"))
+        if (interact) add(HudSlot(HudOrder.INTERACT, "Interact"))
         add(HudSlot(HudOrder.SAY, "Say…"))
         if (others > 0) add(HudSlot(HudOrder.CHAT, "Chat with…"))
         if (performing) add(HudSlot(HudOrder.STOP, "Stop"))

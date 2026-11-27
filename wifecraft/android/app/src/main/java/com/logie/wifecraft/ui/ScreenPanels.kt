@@ -12,8 +12,10 @@ object PanelRules {
         ScreenPanel.BUILD_PANEL -> mode == ScreenMode.BUILD
         ScreenPanel.MOVE_PANEL -> mode == ScreenMode.MOVE
         ScreenPanel.CHAT_LOG -> mode == ScreenMode.CHAT
+        ScreenPanel.INTERACT -> mode == ScreenMode.INTERACT
         ScreenPanel.AUTOPLAY -> mode == ScreenMode.CINEMATIC
-        ScreenPanel.MORE, ScreenPanel.ANIMATIONS -> mode == ScreenMode.NORMAL || mode == ScreenMode.CINEMATIC
+        ScreenPanel.MORE -> mode == ScreenMode.NORMAL || mode == ScreenMode.CINEMATIC || mode == ScreenMode.INTERACT
+        ScreenPanel.ANIMATIONS -> mode == ScreenMode.NORMAL || mode == ScreenMode.CINEMATIC
         ScreenPanel.STEER -> mode == ScreenMode.NORMAL || mode == ScreenMode.JOI || mode == ScreenMode.CHAT
         else -> true
     }
@@ -41,7 +43,7 @@ object PanelRules {
     /** The next step of the Back key. */
     fun back(open: ScreenPanel, mode: ScreenMode, cinematic: Boolean, npc: Boolean): BackStep = when {
         open != ScreenPanel.NONE -> BackStep.CLOSE_PANEL
-        mode == ScreenMode.BUILD || mode == ScreenMode.MOVE || mode == ScreenMode.JOI || mode == ScreenMode.CHAT -> BackStep.LEAVE_MODE
+        mode == ScreenMode.BUILD || mode == ScreenMode.MOVE || mode == ScreenMode.JOI || mode == ScreenMode.CHAT || mode == ScreenMode.INTERACT -> BackStep.LEAVE_MODE
         cinematic || mode == ScreenMode.CINEMATIC -> BackStep.LEAVE_CINEMATIC
         npc -> BackStep.RELEASE_NPC
         else -> BackStep.NONE
@@ -87,7 +89,7 @@ object ChromeVisibility {
      */
     fun shown(cinematic: Boolean, immersive: Boolean, idleMs: Long, mode: ScreenMode, panelOpen: Boolean): Boolean {
         if (mode == ScreenMode.BUILD || mode == ScreenMode.MOVE || panelOpen) return true
-        if (mode == ScreenMode.JOI || mode == ScreenMode.CHAT) return true
+        if (mode == ScreenMode.JOI || mode == ScreenMode.CHAT || mode == ScreenMode.INTERACT) return true
         return if (cinematic || immersive) idleMs < PEEK_MS else true
     }
 

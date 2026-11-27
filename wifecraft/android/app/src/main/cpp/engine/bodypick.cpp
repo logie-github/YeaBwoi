@@ -84,6 +84,7 @@ BodyPickHit pickBody(const std::vector<M2Vertex>& verts, const std::vector<uint3
         return posed[i];
     };
     float best = 1e30f;
+    uint16_t curGeoset = 0;
     auto tryRange = [&](uint32_t start, uint32_t count, bool hair) {
         for (uint32_t t = start; t + 2 < start + count && t + 2 < indices.size(); t += 3) {
             uint32_t a = indices[t], b = indices[t + 1], c = indices[t + 2];
@@ -93,12 +94,13 @@ BodyPickHit pickBody(const std::vector<M2Vertex>& verts, const std::vector<uint3
             uint8_t g = triangleRegion(verts[a], verts[b], verts[c], regions, hair);
             if (g == kRegionNone) continue;
             best = tt;
-            hit.region = g; hit.t = tt; hit.point = o + d * tt;
+            hit.region = g; hit.t = tt; hit.point = o + d * tt; hit.geoset = curGeoset;
         }
     };
     if (subs.empty()) tryRange(0, uint32_t(indices.size()), false);
     for (const M2Submesh& sm : subs) {
         if (!all && std::find(geosets.begin(), geosets.end(), sm.id) == geosets.end()) continue;
+        curGeoset = sm.id;
         tryRange(sm.indexStart, sm.indexCount, hairGeoset(sm.id));
     }
     return hit;

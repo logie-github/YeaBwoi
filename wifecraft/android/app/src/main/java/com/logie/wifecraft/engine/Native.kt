@@ -334,6 +334,18 @@ object Native {
      * touched: 1 her left, 2 her right, 0 the middle).
      */
     @JvmStatic external fun pickBodyRegion(scene: Long, actor: Int, sx: Float, sy: Float, width: Int, height: Int): Int
+    /** Interact mode's touch: [pickBodyRegion]'s code and detail (region code, side, height over the crown, forward, sideways, z, from the front, geoset id), null on a miss. */
+    /** Stockings (engine/stockings.h): [spec] = style, denier, r, g, b, seam, lace (creator/StockingSpec.toFloats); null takes them off. Returns the shell's triangles so far. */
+    /** The stockings' fabric (engine/stockfabric.h): a finger down on the stocking at the screen point (false: none there), its drag, its release, undo (false: nothing to undo), repair all, the state (tension 0..1, runs, dead triangles, grabbed; null: no fabric), the solver's passes per step. */
+    @JvmStatic external fun stockGrab(scene: Long, actor: Int, sx: Float, sy: Float, width: Int, height: Int): Boolean
+    @JvmStatic external fun stockDrag(scene: Long, actor: Int, sx: Float, sy: Float, width: Int, height: Int)
+    @JvmStatic external fun stockRelease(scene: Long, actor: Int)
+    @JvmStatic external fun stockUndo(scene: Long, actor: Int): Boolean
+    @JvmStatic external fun stockRepair(scene: Long, actor: Int)
+    @JvmStatic external fun stockState(scene: Long, actor: Int): FloatArray?
+    @JvmStatic external fun stockIterations(scene: Long, n: Int)
+    @JvmStatic external fun setStockings(scene: Long, actor: Int, spec: FloatArray?): Int
+    @JvmStatic external fun pickBodyDetail(scene: Long, actor: Int, sx: Float, sy: Float, width: Int, height: Int): FloatArray?
     /** The creator's sculpt sliders on [actor] (creator/BodySculpt.kt's order, -1..1, then their sides): the game's own body sculpted again, the Eve body fitted again with them (engine/sculpt.h). */
     @JvmStatic external fun setSculpt(scene: Long, actor: Int, values: FloatArray)
 

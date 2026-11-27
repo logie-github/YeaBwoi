@@ -11,6 +11,8 @@ add_library(wcengine SHARED
     engine/blp.cpp
     engine/bodypart.cpp
     engine/bodypick.cpp
+    engine/stockings.cpp
+    engine/stockdraw.cpp
     engine/bodyrig.cpp
     engine/bodyshape.cpp
     engine/buildview.cpp

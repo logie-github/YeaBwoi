@@ -32,6 +32,7 @@ struct BodyPickHit {
     uint8_t region = kRegionNone;
     float t = 0;      // along the ray (model space)
     V3 point;         // model space, posed
+    uint16_t geoset = 0;   // the hit submesh's geoset id (the garment slot's: group = id / 100)
 };
 
 // The ray (o, d: model space) against the shown submeshes of `verts`/`indices` (`geosets` shown; empty: all), each vertex

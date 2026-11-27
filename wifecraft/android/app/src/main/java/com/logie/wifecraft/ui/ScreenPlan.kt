@@ -32,8 +32,8 @@ data class ScreenInsets(
 /** Where a placed thing is. */
 enum class ScreenSlot { TOP_START, TOP_END, CAST, CAMERA, DOCK, DOCK_ROW, DOCK_CONTEXT, SHEET, TOAST }
 
-/** The one mode the scene is in: Build (Move is its sub-mode), JOI, Chat, or the cinematic. Exactly one at a time. */
-enum class ScreenMode { NORMAL, BUILD, MOVE, JOI, CHAT, CINEMATIC }
+/** The one mode the scene is in: Build (Move is its sub-mode), JOI, Chat, Interact, or the cinematic. Exactly one at a time. */
+enum class ScreenMode { NORMAL, BUILD, MOVE, JOI, CHAT, CINEMATIC, INTERACT }
 
 /**
  * The one panel that may be open over the scene. [sheet] ones are drawn in the sheet slot (beside or above the scene, never over
@@ -42,7 +42,7 @@ enum class ScreenMode { NORMAL, BUILD, MOVE, JOI, CHAT, CINEMATIC }
 enum class ScreenPanel(val sheet: Boolean, val modal: Boolean) {
     NONE(false, false),
     TIME(true, false), MORE(true, false), ANIMATIONS(true, false), STEER(true, false), AUTOPLAY(true, false),
-    BUILD_PANEL(true, false), MOVE_PANEL(true, false), CHAT_LOG(true, false),
+    BUILD_PANEL(true, false), MOVE_PANEL(true, false), CHAT_LOG(true, false), INTERACT(true, false),
     MENU(false, true), LIMITS(false, true), OPTIONS(false, true), LIFE(false, true), RADIAL(false, true), PICK(false, true), CONFIRM(false, true),
 }
 
@@ -107,7 +107,7 @@ object ScreenPlan {
      * and the line over them), so the free zone is the upper part of the screen; the other modes keep [keepOut]'s.
      */
     fun keepOut(w: Float, h: Float, mode: ScreenMode): ScreenRect =
-        if (mode != ScreenMode.CHAT && mode != ScreenMode.JOI) keepOut(w, h)
+        if (mode != ScreenMode.CHAT && mode != ScreenMode.JOI && mode != ScreenMode.INTERACT) keepOut(w, h)
         else if (wide(w, h)) ScreenRect(0.30f * w, 0.30f * h, 0.55f * w, 0.50f * h) else ScreenRect(0.33f * w, 0.30f * h, 0.62f * w, 0.45f * h)
 
     /** The top (dp) of the dock and its row, or null when neither is placed. */
@@ -121,8 +121,8 @@ object ScreenPlan {
     }
 
     /** Whether [mode] shows the cast and the camera's buttons. */
-    fun showsCast(mode: ScreenMode): Boolean = mode != ScreenMode.JOI && mode != ScreenMode.CHAT
-    fun showsPlace(mode: ScreenMode): Boolean = mode != ScreenMode.JOI && mode != ScreenMode.CHAT
+    fun showsCast(mode: ScreenMode): Boolean = mode != ScreenMode.JOI && mode != ScreenMode.CHAT && mode != ScreenMode.INTERACT
+    fun showsPlace(mode: ScreenMode): Boolean = mode != ScreenMode.JOI && mode != ScreenMode.CHAT && mode != ScreenMode.INTERACT && mode != ScreenMode.INTERACT
 
     private class Bar(val a: Float, val b: Float)
 
