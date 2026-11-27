@@ -860,12 +860,12 @@ int main(int argc, char** argv) {
         } else if (cmd == "gfx") {   // gfx [off] [NAME=VALUE...]: Options' Graphics (graphics_settings.h's names, lower case)
             static const char* kNames[GraphicsSettings::kCount] = {"scale", "msaa", "aniso", "texture", "tonemap", "exposure",
                 "bloom", "dof", "aperture", "dofeditor", "ao", "aoquality", "contact", "shadows", "shadowquality", "skin", "hair",
-                "shafts", "haze", "vignette", "grain", "chroma", "sharpen", "timers", "eyes", "thinskin"};
+                "shafts", "haze", "vignette", "grain", "chroma", "sharpen", "timers", "eyes", "thinskin", "fleshcontact", "fleshsoftness", "softtissue", "jiggle", "jigglestyle", "lattice"};
             static float gfxv[GraphicsSettings::kCount];
             static bool gfxInit = false;
             auto reset = [] { GraphicsSettings d; for (float& v : gfxv) v = 0; gfxv[GraphicsSettings::kRenderScale] = 1;
                 gfxv[GraphicsSettings::kAnisotropy] = 1; gfxv[GraphicsSettings::kTextureDetail] = 1;
-                gfxv[GraphicsSettings::kAperture] = d.aperture; gfxv[GraphicsSettings::kAoQuality] = 1; gfxv[GraphicsSettings::kShadowQuality] = 1; };
+                gfxv[GraphicsSettings::kAperture] = d.aperture; gfxv[GraphicsSettings::kFleshContact] = 2; gfxv[GraphicsSettings::kFleshSoftness] = 1; gfxv[GraphicsSettings::kSoftTissue] = 2; gfxv[GraphicsSettings::kJiggle] = 1; gfxv[GraphicsSettings::kJiggleStyle] = 1; gfxv[GraphicsSettings::kLattice] = 1; gfxv[GraphicsSettings::kAoQuality] = 1; gfxv[GraphicsSettings::kShadowQuality] = 1; };
             if (!gfxInit) { reset(); gfxInit = true; }
             std::string kv;
             while (ss >> kv) {
