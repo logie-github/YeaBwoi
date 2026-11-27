@@ -1,8 +1,6 @@
 package com.logie.wifecraft.ui
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,26 +17,28 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.logie.wifecraft.creator.StockingColours
 import com.logie.wifecraft.creator.StockingSpec
 import com.logie.wifecraft.creator.StockingStyle
 import com.logie.wifecraft.engine.SceneView
+import com.logie.wifecraft.graphics.FingerSize
+import com.logie.wifecraft.graphics.Graphics
 import com.logie.wifecraft.simulation.ConsentPolicy
 import com.logie.wifecraft.simulation.Expression
+import com.logie.wifecraft.simulation.HapticPattern
 import com.logie.wifecraft.simulation.InteractAction
 import com.logie.wifecraft.simulation.InteractCamera
 import com.logie.wifecraft.simulation.InteractMode
 import com.logie.wifecraft.simulation.InteractPersona
 import com.logie.wifecraft.simulation.InteractTab
-import com.logie.wifecraft.simulation.InteractTool
 import com.logie.wifecraft.simulation.InteractView
 import com.logie.wifecraft.simulation.LookTarget
 import com.logie.wifecraft.simulation.OutfitAct
@@ -49,7 +49,6 @@ import com.logie.wifecraft.simulation.StrokeGate
 import com.logie.wifecraft.simulation.TouchHit
 import com.logie.wifecraft.simulation.TouchKind
 import com.logie.wifecraft.simulation.Verdict
-import kotlin.math.hypot
 import kotlin.random.Random
 
 // Interact mode's screen pieces (InteractMode, simulation/InteractMode.kt, is the logic; SceneSessionScreen owns the state and plays what these report):
@@ -79,82 +78,18 @@ internal fun InteractTouchLayer(
         }
     }
     fun ripple(x: Float, y: Float, tone: Int) { ripples.add(Ripple(x, y, android.os.SystemClock.uptimeMillis().also { clock = it }, tone)); if (ripples.size > 12) ripples.removeAt(0) }
-    Box(modifier.fillMaxSize().pointerInput(view, actorKey) {
-        val slop = 8.dp.toPx()
-        awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false)
-            val w = size.width
-            val h = size.height
-            var last = down.position
-            var moved = false
-            var multi = false
-            var span = 0f
-            // what the finger went down on: 0 not known yet, 1 her body, 2 the background
-            var target = 0
-            var gate: StrokeGate? = null
-            var nextSample = 0L
-            if (mode.tool == InteractTool.TOUCH) {
-                view.pickBodyDetail(actorKey, down.position.x, down.position.y, w, h) { d -> target = if (RegionMap.classify(d) != null) 1 else 2 }
-            } else target = 2
-            while (true) {
-                val event = awaitPointerEvent()
-                val pressed = event.changes.filter { it.pressed }
-                if (pressed.isEmpty()) break
-                if (pressed.size >= 2) {
-                    multi = true
-                    val a = pressed[0].position
-                    val b = pressed[1].position
-                    val s = hypot(a.x - b.x, a.y - b.y)
-                    if (span > 0f && s > 0f) camera.pinch(s / span)
-                    span = s
-                    pressed.forEach { it.consume() }
-                    continue
-                }
-                span = 0f
-                val f = pressed[0]
-                val dx = f.position.x - last.x
-                val dy = f.position.y - last.y
-                last = f.position
-                if (!moved && hypot(f.position.x - down.position.x, f.position.y - down.position.y) > slop) moved = true
-                if (moved && !multi) {
-                    if (target == 1 && mode.tool == InteractTool.TOUCH) {
-                        if (gate == null) gate = mode.stroke(policy, persona())
-                        val now = f.uptimeMillis
-                        if (now >= nextSample) {
-                            nextSample = now + 70L
-                            val at = f.position
-                            val g = gate
-                            view.pickBodyDetail(actorKey, at.x, at.y, w, h) { d ->
-                                if (g != null) {
-                                    val step = g.sample(RegionMap.classify(d), rnd)
-                                    if (step.kind == StrokeGate.Step.Kind.GO || step.kind == StrokeGate.Step.Kind.NEW_PART) view.pushTouch(actorKey, at.x, at.y, w, h, 0.5f, 200)   // (flesh contact: the skin gives under a touch she allows)
-                                    if (step.kind != StrokeGate.Step.Kind.NONE) {
-                                        ripple(at.x, at.y, if (step.kind == StrokeGate.Step.Kind.STOP) 2 else 0)
-                                        onStrokeStep(step)
-                                    }
-                                }
-                            }
-                        }
-                    } else camera.orbit(dx, dy, w.toFloat(), h.toFloat())
-                    f.consume()
-                }
-            }
-            view.releaseTouch(actorKey)   // (flesh contact: the finger is up, the skin springs back)
-            if (!moved && !multi) {
-                val at = last
-                if (mode.tool == InteractTool.TOUCH) {
-                    view.pickBodyDetail(actorKey, at.x, at.y, w, h) { d ->
-                        val hit = RegionMap.classify(d)
-                        if (hit != null) {
-                            val r = onTouch(hit, TouchKind.TAP)
-                            if (r != null && r.verdict == Verdict.ALLOW) view.pushTouch(actorKey, at.x, at.y, w, h, 0.6f)   // (flesh contact: a dent under a tap she allows)
-                            ripple(at.x, at.y, if (r == null) 0 else if (r.verdict == Verdict.ALLOW) 1 else 2)
-                        } else onBackgroundTap(at.x, at.y, w, h)
-                    }
-                } else onBackgroundTap(at.x, at.y, w, h)
-            }
-        }
-    }) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val vibrate = remember(context) { { p: HapticPattern -> interactVibrate(context, mode, p) } }
+    val personaNow by rememberUpdatedState(persona)
+    val onTouchNow by rememberUpdatedState(onTouch)
+    val onStrokeNow by rememberUpdatedState(onStrokeStep)
+    val onBackgroundNow by rememberUpdatedState(onBackgroundTap)
+    val env = remember(mode, camera, view, actorKey, policy) {
+        InteractTouchEnv(mode, camera, view, actorKey, policy, { personaNow() }, { hit, kind -> onTouchNow(hit, kind) }, { step -> onStrokeNow(step) },
+            { x, y, w, h -> onBackgroundNow(x, y, w, h) }, { x, y, tone -> ripple(x, y, tone) }, vibrate,
+            { FingerSize.padRadius(Graphics.settings.value.fingerSize) }, rnd)
+    }
+    Box(modifier.fillMaxSize().interactMultiTouch(env)) {
         Canvas(Modifier.fillMaxSize()) {
             val now = clock
             for (r in ripples) {
@@ -165,6 +100,15 @@ internal fun InteractTouchLayer(
             }
         }
     }
+}
+
+/** A haptic pattern on the phone's vibrator, when the mode's Haptics switch is on (never throws). */
+private fun interactVibrate(context: android.content.Context, mode: InteractMode, p: HapticPattern) {
+    if (!mode.haptics) return
+    try {
+        val v = context.getSystemService(android.os.Vibrator::class.java)
+        if (v != null && v.hasVibrator()) v.vibrate(android.os.VibrationEffect.createWaveform(p.timings, p.amplitudes, -1))
+    } catch (e: Exception) { }
 }
 
 /** The "Tell her..." row (over the dock): a field and a button; [onTell] gets the words. */
@@ -194,6 +138,7 @@ internal fun InteractSheetBody(
         }
         when (tab) {
             InteractTab.COMMANDS -> {
+                InteractPinchHint()
                 WifeNote("View")
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
                     for (v in InteractView.entries) WifeChip(v.label, { camera.goTo(v) }, trailing = if (camera.current() == v) "✓" else null)

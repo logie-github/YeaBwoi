@@ -187,6 +187,56 @@ int main() {
         CHECK(contactRegion(kCrBreast).softness > contactRegion(kCrRibs).softness && contactRegion(kCrButt).softness > contactRegion(kCrSkull).softness, "soft over stiff");
         CHECK(contactCap(kContactOff, 0) == 0 && contactCap(kContactLow, 0) == 4 && contactCap(kContactHigh, 0) == 8 && contactCap(kContactHigh, 1) == 4 && contactCap(kContactHigh, 2) == 0, "caps");
     }
+    // multi-touch: each finger is its own contact; two close fingers stay two dents; touches come before the stage's contacts in the cap
+    {
+        const float pad = kPadDefaultWorld;
+        auto finger = [&](int k, V3 pos) {
+            ContactIn c; c.key = 0x7001u + uint32_t(k); c.touch = true; c.pos = pos; c.normal = V3(0, 0, 1); c.region = kCrThigh;
+            c.radius = fingerDentRadius(pad); c.depth = fingerDentDepth(pad, 1.0f); c.cap = fingerDentCap(pad); return c;
+        };
+        CHECK(std::fabs(fingerDentRadius(pad) - 1.5f * pad) < 1e-6f, "dent radius is 1.5 pads");
+        CHECK(fingerDentDepth(pad, 1.0f) <= fingerDentCap(pad) && fingerDentDepth(pad, 0.0f) == 0 && fingerDentDepth(pad, 9.0f) == fingerDentDepth(pad, 1.0f), "finger depth bounds");
+        // two fingers 2.2 cm apart (one pad's width and a bit) are two dents; on top of one another one
+        for (float gapM : {0.022f, 0.012f}) {
+            ContactSolver s; const float gap = gapM / kYardM;
+            ContactIn held[2] = {finger(0, V3(0, 0, 0)), finger(1, V3(gap, 0, 0))};
+            run(s, 0.6f, 60, held, 2);
+            CHECK(s.count() == 2, "two fingers %g m apart stay two dents (%d)", gapM, s.count());
+        }
+        {
+            ContactSolver s;
+            ContactIn held[2] = {finger(0, V3(0, 0, 0)), finger(1, V3(0.1f * pad, 0, 0))};
+            run(s, 0.6f, 60, held, 2);
+            CHECK(s.count() == 1, "fingers nearly on one another merge (%d)", s.count());
+        }
+        // a finger's dent stays within the cap whatever the Softness slider
+        {
+            ContactSolver s; s.setSoftness(2.0f);
+            ContactIn held[1] = {finger(0, V3())};
+            run(s, 1.0f, 60, held, 1);
+            CHECK(s.count() == 1 && s.out()[0].depth <= fingerDentCap(pad) * 2.0f + 1e-6f && s.out()[0].depth > 0, "dent %g", s.out()[0].depth);
+        }
+        // release of one pointer: that one springs back, the other stays pressed
+        {
+            ContactSolver s;
+            ContactIn held[2] = {finger(0, V3(0, 0, 0)), finger(1, V3(0.1f, 0, 0))};
+            run(s, 0.6f, 60, held, 2);
+            const float d0 = s.depthOf(0x7001u), d1 = s.depthOf(0x7002u);
+            run(s, 0.8f, 60, held + 1, 1);
+            CHECK(s.depthOf(0x7001u) < 0.05f * d0 && std::fabs(s.depthOf(0x7002u) - d1) < 0.05f * d1, "pointer 0 let go (%g -> %g), pointer 1 held (%g -> %g)", d0, s.depthOf(0x7001u), d1, s.depthOf(0x7002u));
+        }
+        // the cap of eight is shared: four stage contacts and five fingers: the fingers are all drawn
+        {
+            ContactSolver s;
+            std::vector<ContactIn> held;
+            for (int k = 0; k < 5; ++k) held.push_back(finger(k, V3(0.1f * k, 0, 0)));
+            for (int k = 0; k < 6; ++k) { ContactIn c = press(900u + k, V3(1.0f + 0.2f * k, 0, 0), 0.02f, kCrButt, 0.05f); held.push_back(c); }
+            run(s, 1.5f, 60, held.data(), int(held.size()));
+            int fingers = 0;
+            for (int i = 0; i < s.count(); ++i) if (s.out()[i].touch) ++fingers;
+            CHECK(s.count() <= kContactMax && fingers == 5, "cap %d, fingers drawn %d of 5", s.count(), fingers);
+        }
+    }
     if (failures == 0) std::printf("contact_test: all passed\n");
     return failures ? 1 : 0;
 }

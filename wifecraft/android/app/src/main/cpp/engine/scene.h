@@ -147,8 +147,11 @@ public:
     void setContactLoad(int load);
     // Interact's touch: a finger at the screen point presses her skin with `pressure` 0..1 (the contact follows the finger until
     // releaseTouch, or `holdMs` after the last push: a tap asks for 250). Returns the body part's region (ContactRegion) hit, -1 a miss.
-    int pushTouch(int id, float sx, float sy, int width, int height, float pressure, int holdMs = 1500);
-    void releaseTouch(int id);
+    // Multi-touch: `pointer` 0..4 is the finger (each its own contact; two close ones on soft skin pinching are a pinch), `padRadius` the
+    // fingertip pad's radius in world units (<= 0: the default, 1.1 cm; the caller scales it by Finger size and Character size).
+    int pushTouch(int id, int pointer, float sx, float sy, int width, int height, float pressure, int holdMs = 1500, float padRadius = 0);
+    // pointer < 0: every finger on this person.
+    void releaseTouch(int id, int pointer = -1);
     // Everything an actor's skin was doing forgotten at once (a new scene, the desktop check between shots).
     void resetContacts(int id);
     // The desktop check: presses fed every frame to an actor (world space); an empty list clears them.

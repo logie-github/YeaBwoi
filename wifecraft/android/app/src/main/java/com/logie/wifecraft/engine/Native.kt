@@ -334,8 +334,8 @@ object Native {
     @JvmStatic external fun setStockings(scene: Long, actor: Int, spec: FloatArray?): Int
     @JvmStatic external fun pickBodyDetail(scene: Long, actor: Int, sx: Float, sy: Float, width: Int, height: Int): FloatArray?
     /** Flesh contact (engine/contact.h): a finger at the screen point presses [actor]'s skin with [pressure] 0..1 for [holdMs] after this call (the contact region hit, -1 a miss). */
-    @JvmStatic external fun pushTouch(scene: Long, actor: Int, sx: Float, sy: Float, width: Int, height: Int, pressure: Float, holdMs: Int): Int
-    @JvmStatic external fun releaseTouch(scene: Long, actor: Int)
+    @JvmStatic external fun pushTouch(scene: Long, actor: Int, pointer: Int, sx: Float, sy: Float, width: Int, height: Int, pressure: Float, holdMs: Int, padRadius: Float): Int
+    @JvmStatic external fun releaseTouch(scene: Long, actor: Int, pointer: Int)
     /** The creator's sculpt sliders on [actor] (creator/BodySculpt.kt's order, -1..1, then their sides): the game's own body sculpted again, the HD figure fitted again with them (engine/sculpt.h). */
     @JvmStatic external fun setSculpt(scene: Long, actor: Int, values: FloatArray)
 
