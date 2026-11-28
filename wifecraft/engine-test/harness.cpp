@@ -376,6 +376,50 @@ static void renderStrip(Scene& scene, int actor, const std::string& out, int w, 
 }
 
 
+// A moving person's strip: the actor placed every 16 ms along MODE (hop: jumps and lands; bounce: a quick small bob; sway: hips side to
+// side with the turn; walk: its own animation, the placement still), the scene drawn at each; N pictures from `warm` ms every `step` ms.
+static void renderMotion(Scene& scene, int actor, V3 base, float facing, const std::string& mode, float amp, float hz, const std::string& out, int w, int h,
+                         uint32_t warm, uint32_t step, int n) {
+    unsigned fbo, color, depth;
+    glGenFramebuffers(1, &fbo); glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glGenRenderbuffers(1, &color); glBindRenderbuffer(GL_RENDERBUFFER, color);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, w, h);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, color);
+    glGenRenderbuffers(1, &depth); glBindRenderbuffer(GL_RENDERBUFFER, depth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, w, h);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth);
+    int W = w * n;
+    std::vector<uint8_t> strip(size_t(W) * h * 3), px(size_t(w) * h * 4);
+    uint32_t t = 0;
+    int shot = 0;
+    uint32_t nextShot = warm;
+    while (shot < n) {
+        float s = float(t) / 1000.0f, ph = 2.0f * 3.14159265f * hz * s;
+        V3 p = base; float f = facing;
+        if (mode == "hop") { float u = std::fmod(hz * s, 1.0f); p.z += amp * std::max(0.0f, std::sin(u * 3.14159265f * 1.0f)) * (u < 0.55f ? 1.0f : 0.0f); }
+        else if (mode == "bounce") p.z += amp * 0.5f * (1.0f - std::cos(ph));
+        else if (mode == "sway") { p.y += amp * std::sin(ph); f += 0.35f * std::sin(ph + 1.2f); }
+        else if (mode == "stomp") { float u = std::fmod(hz * s, 1.0f); p.z += u < 0.25f ? amp * std::sin(u / 0.25f * 3.14159265f) : 0.0f; }
+        scene.placeActor(actor, p, f);
+        scene.render(w, h, t);
+        if (t >= nextShot) {
+            glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
+            for (int y = 0; y < h; ++y)
+                for (int x = 0; x < w; ++x)
+                    std::copy(&px[(size_t(h - 1 - y) * w + x) * 4], &px[(size_t(h - 1 - y) * w + x) * 4] + 3,
+                              &strip[(size_t(y) * W + size_t(shot) * w + x) * 3]);
+            ++shot; nextShot += step;
+        }
+        t += 16;
+    }
+    writePng(out, W, h, strip);
+    std::fprintf(stderr, "wrote %s (GL error %#x)\n", out.c_str(), glGetError());
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDeleteFramebuffers(1, &fbo);
+    glDeleteRenderbuffers(1, &color);
+    glDeleteRenderbuffers(1, &depth);
+}
+
 static const char* pickName(int k) {
     return k == Scene::kPickProp ? "prop" : k == Scene::kPickActor ? "actor" : k == Scene::kPickGround ? "ground" :
            k == Scene::kPickLocation ? "location" : "nothing";
@@ -567,6 +611,7 @@ int main(int argc, char** argv) {
     scene.setSculptThrottle(false);   // (each still shows the sculpt it was given)
     scene.initGl();
     std::map<int, int> actors, props;
+    std::map<int, V3> basePos; std::map<int, float> baseFacing;
     float fingerSize = 1.0f, fingerChar = 1.0f;   // the `finger` command
     Light light;
 
@@ -771,7 +816,7 @@ int main(int argc, char** argv) {
             }
             int id = scene.addActor(model, tex, geo, scale);
             std::fprintf(stderr, "actor %d (model %u): %s\n", name, model, id > 0 ? "ok" : "FAILED");
-            if (id > 0) { scene.placeActor(id, V3(x, y, z), facing); actors[name] = id; }
+            if (id > 0) { scene.placeActor(id, V3(x, y, z), facing); actors[name] = id; basePos[name] = V3(x, y, z); baseFacing[name] = facing; }
         } else if (cmd == "attach") {
             int name; uint32_t att, model; std::string texs;
             ss >> name >> att >> model >> texs;
@@ -815,12 +860,12 @@ int main(int argc, char** argv) {
         } else if (cmd == "gfx") {   // gfx [off] [NAME=VALUE...]: Options' Graphics (graphics_settings.h's names, lower case)
             static const char* kNames[GraphicsSettings::kCount] = {"scale", "msaa", "aniso", "texture", "tonemap", "exposure",
                 "bloom", "dof", "aperture", "dofeditor", "ao", "aoquality", "contact", "shadows", "shadowquality", "skin", "hair",
-                "shafts", "haze", "vignette", "grain", "chroma", "sharpen", "timers", "eyes", "thinskin"};
+                "shafts", "haze", "vignette", "grain", "chroma", "sharpen", "timers", "eyes", "thinskin", "fleshcontact", "fleshsoftness", "softtissue", "jiggle", "jigglestyle", "lattice"};
             static float gfxv[GraphicsSettings::kCount];
             static bool gfxInit = false;
             auto reset = [] { GraphicsSettings d; for (float& v : gfxv) v = 0; gfxv[GraphicsSettings::kRenderScale] = 1;
                 gfxv[GraphicsSettings::kAnisotropy] = 1; gfxv[GraphicsSettings::kTextureDetail] = 1;
-                gfxv[GraphicsSettings::kAperture] = d.aperture; gfxv[GraphicsSettings::kAoQuality] = 1; gfxv[GraphicsSettings::kShadowQuality] = 1; };
+                gfxv[GraphicsSettings::kAperture] = d.aperture; gfxv[GraphicsSettings::kFleshContact] = 2; gfxv[GraphicsSettings::kFleshSoftness] = 1; gfxv[GraphicsSettings::kSoftTissue] = 2; gfxv[GraphicsSettings::kJiggle] = 1; gfxv[GraphicsSettings::kJiggleStyle] = 1; gfxv[GraphicsSettings::kLattice] = 1; gfxv[GraphicsSettings::kAoQuality] = 1; gfxv[GraphicsSettings::kShadowQuality] = 1; };
             if (!gfxInit) { reset(); gfxInit = true; }
             std::string kv;
             while (ss >> kv) {
@@ -1169,6 +1214,63 @@ int main(int argc, char** argv) {
             int level = 2, load = 0; float soft = 1; ss >> level >> soft; ss >> load;
             scene.setFleshContact(level, soft);
             scene.setContactLoad(load);
+        } else if (cmd == "tissue") {
+            // tissue LEVEL JIGGLE: Options' Soft tissue (Scene::setSoftTissue: 0 off, 1 low, 2 high; jiggle 0..2)
+            int level = 2; float jig = 1; ss >> level >> jig;
+            scene.setSoftTissue(level, jig);
+        } else if (cmd == "spring") {
+            // spring LEVEL AMOUNT PRESET: Options' spring-bone jiggle (Scene::setSpringBones: level 0 off, 1 low, 2 high; amount 0..2; preset 0 Natural, 1 ZZZ, 2 Subtle)
+            int level = 2, preset = 0; float amount = 1; ss >> level >> amount >> preset;
+            scene.setSpringBones(level, amount, preset);
+        } else if (cmd == "tess") {
+            // tess EDGESHARE CAP: the HD soft regions' tessellation (Scene::setTessellation; 0 off)
+            float e = 0.0095f; int cap = 40000; ss >> e >> cap;
+            scene.setTessellation(e, cap);
+        } else if (cmd == "sbrun") {
+            // sbrun NAME MODE AMP HZ OUT.png N STEPMS W H WARMMS: the person moves (hop, bounce, sway, stomp, walk) and N pictures are taken
+            int name; std::string mode, out; float amp, hz; int n, w, h; uint32_t step, warm;
+            ss >> name >> mode >> amp >> hz >> out >> n >> step >> w >> h >> warm;
+            if (actors.count(name)) renderMotion(scene, actors[name], basePos[name], baseFacing[name], mode, amp, hz, out, w, h, warm, step, n);
+        } else if (cmd == "dumpbody") {
+            // dumpbody N FILE.obj: the HD body as fitted (after the tessellation), an OBJ of positions and triangles
+            int name; std::string out; ss >> name >> out;
+            std::vector<float> pos; std::vector<uint32_t> idx;
+            if (actors.count(name) && scene.hdBodyMesh(actors[name], pos, idx)) {
+                FILE* f = std::fopen(out.c_str(), "w");
+                for (size_t i = 0; i + 2 < pos.size(); i += 3) std::fprintf(f, "v %.6f %.6f %.6f\n", pos[i], pos[i + 1], pos[i + 2]);
+                for (size_t i = 0; i + 2 < idx.size(); i += 3) std::fprintf(f, "f %u %u %u\n", idx[i] + 1, idx[i + 1] + 1, idx[i + 2] + 1);
+                std::fclose(f);
+                std::fprintf(stderr, "dumpbody %s: %zu vertices, %zu triangles\n", out.c_str(), pos.size() / 3, idx.size() / 3);
+            } else std::fprintf(stderr, "dumpbody: no HD body\n");
+        } else if (cmd == "sbinfo") {
+            int name; ss >> name;
+            int hp = 0, ch = 0; size_t vv = 0; bool sl = false;
+            if (actors.count(name) && scene.springStats(actors[name], hp, ch, vv, sl)) std::printf("spring %d: %d chains, %d helpers, %zu vertices weighted%s\n", name, ch, hp, vv, sl ? ", asleep" : "");
+            else std::printf("spring %d: none\n", name);
+        } else if (cmd == "tinfo") {
+            int name; ss >> name;
+            if (actors.count(name))
+                if (const TissueDraw* t = scene.tissueOf(actors[name])) {
+                    std::printf("tissue %d: %d regions in the field, %d handles;", name, t->usedN, t->handles);
+                    for (int r = 0; r < kTissueRegions; ++r) if (t->on[r]) std::printf(" [%d @%.3f,%.3f,%.3f u%.2f,%.2f,%.2f w%.2f,%.2f,%.2f: %d nodes %d free, max %.1f mm%s]", r, t->reg[r].frameOrigin().x, t->reg[r].frameOrigin().y, t->reg[r].frameOrigin().z, t->reg[r].frameU().x, t->reg[r].frameU().y, t->reg[r].frameU().z, t->reg[r].frameW().x, t->reg[r].frameW().y, t->reg[r].frameW().z, t->reg[r].count(), t->reg[r].freeCount(), t->reg[r].maxDisplacement() * 1000, t->reg[r].asleep() ? " asleep" : "");
+                    std::printf("\n");
+                }
+        } else if (cmd == "tmanual") {
+            // tmanual N KEY X Y Z NX NY NZ RADIUS PUSH GRIP PX PY PZ: a hand on person N's tissue (world), fed every frame; tmreset N clears them
+            int name; unsigned key; float x, y, z, nx, ny, nz, r, d, g, px, py, pz;
+            ss >> name >> key >> x >> y >> z >> nx >> ny >> nz >> r >> d >> g >> px >> py >> pz;
+            if (actors.count(name)) {
+                std::vector<TissueHandle> list;
+                if (const TissueDraw* t = scene.tissueOf(actors[name])) list = t->manual;
+                TissueHandle h; h.key = key; h.rest = V3(x, y, z); h.normal = V3(nx, ny, nz).normalized(); h.radius = r; h.push = d; h.grip = g; h.pull = V3(px, py, pz);
+                bool found = false;
+                for (auto& q : list) if (q.key == key) { q = h; found = true; }
+                if (!found) list.push_back(h);
+                scene.setTissueManual(actors[name], list);
+            }
+        } else if (cmd == "tmreset") {
+            int name; ss >> name;
+            if (actors.count(name)) scene.setTissueManual(actors[name], {});
         } else if (cmd == "finger") {
             // finger SIZE CHARSIZE: the player's finger size (Finger size slider as a multiple, 1 default) and Character size (1.25 is "Match the room"):
             // the touches' pad radius is 1.1 cm * SIZE * CHARSIZE / 0.9144 world units, whatever body they touch

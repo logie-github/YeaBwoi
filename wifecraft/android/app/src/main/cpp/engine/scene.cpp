@@ -75,9 +75,34 @@ uniform vec4 uPnB[2];
 uniform vec4 uPnC[2];
 uniform vec4 uPnD[2];
 uniform vec4 uPnE[2];
+// Soft tissue (tissue.h, tissuedraw.cpp): uTsN regions (0: off), each a lattice whose nodes' displacement from their anchors (world
+// metres; w: the skin's in-plane stretch) is in a 3D texture (RGBA16F, one stack of slices per region, hardware trilinear). uTsA: three
+// rows per region taking a world point to lattice (grid) coordinates; uTsI: the grid's last index in x, y, z and the region's first
+// slice. The skin follows the field (fading out at the footprint's edge) at uCtLayer of it, its normal by the field's gradient; where a
+// region covers the skin the analytic dent and pinch are added at 55% (vTissue.y: how much is covered): the lattice is the bulk, they the fine dimple and crest.
+uniform int uTsN;
+uniform highp sampler3D uTsTex;
+uniform vec4 uTsA[21];
+uniform vec4 uTsI[7];
+// Spring-bone jiggle (springbone.h, springdraw.cpp): uSbOn 1: each vertex (by gl_VertexID in uSbW: four texels' worth of helper index + weight
+// as index + 0.99 * weight, -1 none) is moved by its helpers' transforms (uSbM: four texels a helper, a column-major matrix in the parent bone's
+// bind space) before the skinning. The rest of its weight stays rigid.
+uniform int uSbOn;
+uniform highp sampler2D uSbW;
+uniform highp sampler2D uSbM;
+uniform vec3 uTsDim;
 out vec3 vWorld;
 out vec3 vNormal;
 out vec2 vUv;
+out vec2 vTissue;
+vec3 tsGrid(int r, vec3 pw) {
+    vec4 q = vec4(pw, 1.0);
+    return vec3(dot(uTsA[r * 3], q), dot(uTsA[r * 3 + 1], q), dot(uTsA[r * 3 + 2], q));
+}
+vec4 tsFetch(int r, vec3 g) {
+    vec3 c = clamp(g, vec3(0.0), uTsI[r].xyz);
+    return textureLod(uTsTex, vec3((c.x + 0.5) / uTsDim.x, (c.y + 0.5) / uTsDim.y, (uTsI[r].w + c.z + 0.5) / uTsDim.z), 0.0);
+}
 float ctStep(float a, float b, float x) { float t = clamp((x - a) / (b - a), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }
 mat4 bone(float i) {
     int b = int(i + 0.5);
@@ -106,6 +131,28 @@ vec3 morphed() {
 }
 void main() {
     vec3 pos = morphed();
+    vec3 nIn = aNormal;
+    if (uSbOn != 0) {
+        int sw = textureSize(uSbW, 0).x;
+        vec4 h = texelFetch(uSbW, ivec2(gl_VertexID % sw, gl_VertexID / sw), 0);
+        vec3 acc = vec3(0.0), accN = vec3(0.0);
+        float sum = 0.0;
+        for (int k = 0; k < 4; ++k) {
+            float e = h[k];
+            if (e < 0.0) continue;
+            float ix = floor(e);
+            float wk = (e - ix) * (1.0 / 0.99);
+            int r = int(ix + 0.5);
+            mat4 D = mat4(texelFetch(uSbM, ivec2(0, r), 0), texelFetch(uSbM, ivec2(1, r), 0), texelFetch(uSbM, ivec2(2, r), 0), texelFetch(uSbM, ivec2(3, r), 0));
+            acc += wk * (D * vec4(pos, 1.0)).xyz;
+            accN += wk * (mat3(D) * aNormal);
+            sum += wk;
+        }
+        if (sum > 0.0) {
+            pos = pos * (1.0 - sum) + acc;
+            nIn = normalize(aNormal * (1.0 - sum) + accN);
+        }
+    }
     float total = aWeights.x + aWeights.y + aWeights.z + aWeights.w;
     mat4 skin = total > 0.0
         ? bone(aBones.x) * aWeights.x + bone(aBones.y) * aWeights.y + bone(aBones.z) * aWeights.z + bone(aBones.w) * aWeights.w
@@ -141,7 +188,40 @@ void main() {
         sp.xyz += off * uSoftGain;
     }
     vec4 p = uWorld * sp;
-    vec3 nrm = mat3(uWorld) * (mat3(skin) * aNormal);
+    vec3 nrm = mat3(uWorld) * (mat3(skin) * nIn);
+    float tsCover = 0.0;
+    float tsStrain = 0.0;
+    if (uTsN > 0 && uCtLayer > 0.0 && total > 0.0) {
+        vec3 poff = vec3(0.0);
+        vec3 j0 = vec3(0.0), j1 = vec3(0.0), j2 = vec3(0.0);
+        for (int r = 0; r < 7; ++r) {
+            if (r >= uTsN) break;
+            vec3 g = tsGrid(r, p.xyz);
+            vec3 mx = uTsI[r].xyz;
+            if (g.x < 0.0 || g.y < 0.0 || g.z < 0.0 || g.x > mx.x || g.y > mx.y || g.z > mx.z) continue;
+            vec2 e = (g.xy / mx.xy) * 2.0 - 1.0;
+            float wgt = (1.0 - smoothstep(0.5, 0.92, dot(e, e))) * (1.0 - smoothstep(mx.z - 0.8, mx.z, g.z)) * smoothstep(0.0, 0.6, g.z);
+            if (wgt <= 0.0) continue;
+            vec4 f = tsFetch(r, g);
+            // the field's gradient over about a cell (central differences in grid space), turned into the world's by the rows of uTsA
+            vec3 dgx = (tsFetch(r, g + vec3(0.75, 0.0, 0.0)).xyz - tsFetch(r, g - vec3(0.75, 0.0, 0.0)).xyz) * (1.0 / 1.5);
+            vec3 dgy = (tsFetch(r, g + vec3(0.0, 0.75, 0.0)).xyz - tsFetch(r, g - vec3(0.0, 0.75, 0.0)).xyz) * (1.0 / 1.5);
+            vec3 dgz = (tsFetch(r, g + vec3(0.0, 0.0, 0.75)).xyz - tsFetch(r, g - vec3(0.0, 0.0, 0.75)).xyz) * (1.0 / 1.5);
+            float k = wgt * uCtLayer;
+            j0 += (dgx * uTsA[r * 3].x + dgy * uTsA[r * 3 + 1].x + dgz * uTsA[r * 3 + 2].x) * k;
+            j1 += (dgx * uTsA[r * 3].y + dgy * uTsA[r * 3 + 1].y + dgz * uTsA[r * 3 + 2].y) * k;
+            j2 += (dgx * uTsA[r * 3].z + dgy * uTsA[r * 3 + 1].z + dgz * uTsA[r * 3 + 2].z) * k;
+            poff += f.xyz * (wgt * uCtLayer);
+            tsStrain += f.w * wgt;
+            tsCover = max(tsCover, wgt);
+        }
+        // the normal moves as the inverse transpose of the displaced surface's map (I + J)
+        vec3 c0 = vec3(1.0, 0.0, 0.0) + j0, c1 = vec3(0.0, 1.0, 0.0) + j1, c2 = vec3(0.0, 0.0, 1.0) + j2;
+        vec3 n0 = normalize(nrm);
+        vec3 nn2 = n0.x * cross(c1, c2) + n0.y * cross(c2, c0) + n0.z * cross(c0, c1);
+        if (false) nrm = normalize(nn2);
+        p.xyz += poff;
+    }
     if (uCtN > 0 && uCtLayer > 0.0 && total > 0.0) {
         vec3 nn = normalize(nrm);
         vec3 off = vec3(0.0);
@@ -164,7 +244,7 @@ void main() {
             float prs = clamp(depth / 0.02, 0.0, 1.0);
             off += cn * (-(depth * fo * facing) + bulge * ring * facingRing) - tang * (uCtC[i].y * prs * fo * facing);
         }
-        p.xyz += off;
+        p.xyz += off * (1.0 - 0.45 * tsCover);
     }
     if (uPnN > 0 && uCtLayer > 0.0 && total > 0.0) {
         vec3 nn = normalize(nrm);
@@ -207,8 +287,9 @@ void main() {
             g -= N * dot(g, N);
             off += N * (height * facing) - u * ((s >= 0.0 ? 1.0 : -1.0) * D * ft2 * facing * uCtLayer) + g * (max(height, 0.0) * uPnE[i].x * facing);
         }
-        p.xyz += off;
+        p.xyz += off * (1.0 - 0.45 * tsCover);
     }
+    vTissue = vec2(tsStrain, tsCover);
     vWorld = p.xyz;
     vNormal = nrm;
     vUv = aUv;
@@ -221,6 +302,7 @@ precision highp float;
 in vec3 vWorld;
 in vec3 vNormal;
 in vec2 vUv;
+in vec2 vTissue;
 in vec4 vColor;
 uniform sampler2D uTex;
 // Flesh contact (the vertex shader's block): the pressure's colour is worked out here, per fragment, so a coarse mesh shows it smoothly
@@ -368,6 +450,7 @@ void main() {
             vec3 tang = d - cn * dot(d, cn);
             ctSlope += tang * (dh / (max(r, 1e-4) * R));
         }
+        ctSlope *= 1.0 - 0.45 * vTissue.y;   // (the lattice carries the bulk of a dent in soft regions: the analytic one keeps the fine dimple at 55%)
         if (uCtShade > 0.0) {
             float lum = dot(c.rgb, vec3(0.299, 0.587, 0.114));
             vec3 pale = mix(c.rgb, vec3(lum) + vec3(0.05, 0.045, 0.045), 0.22);
@@ -375,6 +458,15 @@ void main() {
             c.rgb = mix(mix(c.rgb, flushed, clamp(flush, 0.0, 1.0) * uCtShade * 0.6), pale, clamp(blanch, 0.0, 1.0) * uCtShade * 0.6);
             c.rgb *= 1.0 - 0.08 * clamp(blanch, 0.0, 1.0) * uCtShade;
         }
+    }
+    if (vTissue.y > 0.001 && uCtShade > 0.0) {
+        // soft tissue's own cues: pale where the skin is squeezed together, darker in the crease it folds into, a flush where it is drawn taut
+        float cmp = clamp(-vTissue.x * 2.5, 0.0, 1.0) * vTissue.y;
+        float str = clamp(vTissue.x * 2.5, 0.0, 1.0) * vTissue.y;
+        float lum = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+        c.rgb = mix(c.rgb, vec3(lum) + vec3(0.05, 0.045, 0.045), cmp * 0.3);
+        c.rgb *= 1.0 - 0.14 * cmp;
+        c.rgb = mix(c.rgb, c.rgb * vec3(1.05, 0.94, 0.94) + vec3(0.015, 0.0, 0.0), str * 0.45);
     }
     if (uPnN > 0) {
         // the pinch, per fragment: the fold's slope (steep flanks catch the light), the paler crest, the flush at the pads, the darker crease at the
@@ -487,11 +579,13 @@ layout(location = 2) in vec2 aUv;
 uniform mat4 uViewProj;
 out vec3 vWorld;
 out vec3 vNormal;
+out vec2 vTissue;
 out vec2 vUv;
 void main() {
     vWorld = aPos;
     vNormal = aNormal;
     vUv = aUv;
+    vTissue = vec2(0.0);
     gl_Position = uViewProj * vec4(aPos, 1.0);
 }
 )";
@@ -616,6 +710,7 @@ bool Scene::initGl() {
         glUniform1i(loc(m2Prog_, "uMorphIdx"), 6);
         glUniform1i(loc(m2Prog_, "uMorphData"), 7);
         glUniform1i(loc(m2Prog_, "uMorphOn"), 0);
+        TissueDraw::initGl(m2Prog_);   // (the soft tissue field's 3D texture on unit 5, an empty one until an actor has its own)
     }
     wmoProg_ = program(kWmoVs, kLitFs);
     skyProg_ = program(kSkyVs, kSkyFs);
@@ -1851,16 +1946,20 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     M4 w = M4::translation(a.position) * M4::rotationZ(a.facing) * M4::scaling(V3(a.scale, a.scale, a.scale));
     uint32_t dur = std::max<uint32_t>(1, a.seq >= 0 ? a.mesh->model->sequences[a.seq].duration : 1);
     // The soft body: the body, its layer and its skinned models move with it; hung items don't.
-    bool soft = a.soft.active();
+    bool soft = a.soft.active() && !a.tissue.active();   // (soft tissue's lattices carry the chest, belly, rear and thighs instead)
     if (soft) { glUseProgram(m2Prog_); a.soft.uniforms(m2Prog_, a.soft.bodyGate()); }
     softBodyDraw_ = soft;
-    contactDraw_ = contactLevel_ != kContactOff && a.contact.active();
-    if (contactLevel_ != kContactOff) { glUseProgram(m2Prog_); a.contact.uniforms(m2Prog_); }   // (flesh contact: contactdraw.cpp)
+    contactDraw_ = (contactLevel_ != kContactOff && a.contact.active()) || a.tissue.active();
+    if (contactLevel_ != kContactOff) { glUseProgram(m2Prog_); a.contact.uniforms(m2Prog_); }
+    glUseProgram(m2Prog_);
+    a.spring.uniforms(m2Prog_);   // (spring-bone jiggle: springdraw.cpp; the HD figure only)
+    a.tissue.uniforms(m2Prog_);   // (soft tissue's field: tissuedraw.cpp; uCtLayer scales it for a garment)
     skinOf(a, w);   // (scene_gfx.cpp: the sheen, the eyes, the thin parts)
     // (a flap hung as cloth is drawn from its simulated points instead of skinned: drawCloth)
     if (a.hd.active) {
         // the HD figure instead of the game's model, its clothing and parts (hdscene.cpp); what it holds still hangs on it
         if (!transparent) drawHd(a, w, bodyTint);   // (with the soft body's uniforms still set)
+        SpringDraw::off(m2Prog_);
         if (transparent) { if (contactDraw_) ContactDraw::layer(m2Prog_, 0.95f, 0.0f); drawStockings(a, w); }   // (stockings follow the skin: contactdraw.h)
         // an HD body whose own genitals are hidden (setHdGenitalMask): the parts drawn in their place, on the game skeleton
         // the HD figure is fitted to (hdscene.cpp hdCheck fits the HD body again without its own genitals' triangles)
@@ -1868,6 +1967,7 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
         softBodyDraw_ = false;
         if (soft) SoftDraw::off(m2Prog_);
         if (contactDraw_) ContactDraw::off(m2Prog_);
+        TissueDraw::off(m2Prog_);
         contactDraw_ = false;
         std::fill(drawSkin_, drawSkin_ + 4, 0.0f);
         drawAttached(a, w, nowMs, transparent);
@@ -1878,6 +1978,7 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     drawModel(*a.mesh, w, &a.drawTextures, cloth ? &a.cloth.bodyGeosets : &a.geosets, a.boneTex, a.seq, a.animTime % dur, nowMs, bodyTint,
               transparent, kActorTex, &a.composed, a.body.vao, a.body.vao ? &a.body.submeshes : nullptr);
     if (morph) { glUseProgram(m2Prog_); glUniform1i(loc(m2Prog_, "uMorphOn"), 0); }
+    SpringDraw::off(m2Prog_);   // (the spring bones' weights are the body's own: not for what it holds or wears as other models)
     if (cloth && !transparent) drawCloth(a, w, bodyTint);
     softBodyDraw_ = false;
     if (soft) SoftDraw::setGain(m2Prog_, 1.0f);
@@ -1895,6 +1996,7 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     drawParts(a, w, transparent, nowMs, bodyTint);
     if (soft) SoftDraw::off(m2Prog_);
     if (contactDraw_) ContactDraw::off(m2Prog_);
+    TissueDraw::off(m2Prog_);
     contactDraw_ = false;
     std::fill(drawSkin_, drawSkin_ + 4, 0.0f);
     drawAttached(a, w, nowMs, transparent);
@@ -2031,6 +2133,8 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     }
 
     stepContacts(clock);   // (flesh contact: derived from the posed bodies, springs advanced; contactdraw.cpp)
+    stepSprings(clock);    // (spring-bone jiggle: springdraw.cpp)
+    stepTissue(clock);     // (soft tissue: the lattices, fed by the contacts; tissuedraw.cpp)
 
     litUniforms(wmoProg_, light_, eye_, viewProj);
     drawCity(false);
@@ -2603,6 +2707,7 @@ void Scene::refreshBody(Actor& a) {
                 std::fprintf(stderr, "body cut: %zu of %zu triangles left out\n", (before - b.indices.size()) / 3, before / 3);
             }
         }
+        if (!sculptOnly) tessellateOwnBody(a);   // (the soft regions split before the sculpt: springdraw.cpp; the sculpt then works on them)
         // the creator's sculpt (sculpt.h) on the game's own body: every vertex of the model (the skin and the clothing geosets
         // on it), in the bind pose, so it bends with its bones as before; the body before it kept for the next change
         b.sculptMs = 0;

@@ -33,6 +33,12 @@ void Scene::setGraphics(const float* v, int n) {
     const bool aniso = g.anisotropy != gfx_.anisotropy;
     gfx_ = g;
     setFleshContact(g.fleshContact, g.fleshSoftness);   // (Options' Flesh contact: contact.h)
+    // Options' Soft tissue (README "Spring-bone jiggle"): High / Low / Off; the lattice's own lag jiggle is turned down while the spring bones carry the secondary motion
+    setSoftTissue(g.lattice ? g.softTissue : 0, g.jiggle * (g.softTissue > 0 ? kLatticeJiggleShare : 1.0f));
+    setSpringBones(g.softTissue, g.jiggle, g.jiggleStyle);
+    if (g.softTissue >= 2) setTessellation(0.0125f, 48000);
+    else if (g.softTissue == 1) setTessellation(0.025f, 20000);
+    else setTessellation(0, 0);
     postfx_.configure(g);
     if (aniso && glReady_) {
         for (auto& [key, t] : textures_)

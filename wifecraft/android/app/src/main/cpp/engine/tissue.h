@@ -107,6 +107,10 @@ public:
     // The material point a gripping handle holds (local), for the tests; false when it holds none.
     bool gripOf(uint32_t key, V3* localPoint) const;
     int substepsRun() const { return ran_; }
+    const V3& frameOrigin() const { return o1_; }
+    const V3& frameU() const { return u1_; }
+    const V3& frameV() const { return v1_; }
+    const V3& frameW() const { return w1_; }
 
 private:
     struct Tet { int n[4]; float V0; float B[9]; float mu, lambda; };   // B: the rest shape matrix's inverse, column-major

@@ -26,6 +26,7 @@ import com.logie.wifecraft.graphics.FingerSize
 import com.logie.wifecraft.graphics.Graphics
 import com.logie.wifecraft.graphics.GraphicsPreset
 import com.logie.wifecraft.graphics.GraphicsSettings
+import com.logie.wifecraft.graphics.JiggleStyle
 import com.logie.wifecraft.graphics.ToneCurve
 
 /**
@@ -128,6 +129,14 @@ fun GraphicsPage() {
     WifeNote("Finger size is your own fingertip on her skin (1x: about 2.2 cm across, whatever size she is): the width of a touch's dent and of the fold two fingers pinch up.")
     WifeNote("The skin dents where a hand, a mouth or another body presses (breasts, rear, thighs and belly give most; hips, ribs and shins little), " +
         "bulges a little round the dent, springs back when the pressure goes and shows it: pale in the middle, a flush that fades. Softness scales how deep.")
+    GfxDropdownRow("Soft tissue", listOf("Off", "Low", "High")[s.softTissue.coerceIn(0, 2)],
+        listOf(0 to "Off", 1 to "Low (fewer chains, coarser)", 2 to "High")) { q: Int -> edit(s.copy(softTissue = q)) }
+    GfxDropdownRow("Jiggle style", s.jiggleStyle.label, JiggleStyle.entries.map { it.native to it.label }) { q: Int ->
+        edit(s.copy(jiggleStyle = JiggleStyle.entries.firstOrNull { it.native == q } ?: JiggleStyle.ZZZ))
+    }
+    WifeSliderRow("Jiggle", s.jiggle, { edit(s.copy(jiggle = it)) }, valueText = "${s.jiggle}%", range = 0..200)
+    WifeNote("Soft tissue: spring-bone jiggle on the thighs, rear, breasts and belly (the walk's and hip's motion follows through, overshoots and settles; the ZZZ style is the exaggerated, bouncy one), " +
+        "the tessellated mesh it moves, and the lattice that answers pinches and grips. Low halves the chains and the mesh; the governor lowers it last of all.")
 
     WifeSectionHeader("Atmosphere")
     WifeSliderRow("Light shafts", s.shafts, { edit(s.copy(shafts = it)) })

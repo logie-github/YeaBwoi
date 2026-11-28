@@ -15,6 +15,15 @@ enum class GraphicsPreset(val label: String) {
     }
 }
 
+/** Spring-bone jiggle's style (engine/springbone.h SbPreset, the same order): Natural, the ZZZ kind (exaggerated, bouncy, a long settle), Subtle. */
+enum class JiggleStyle(val label: String, val native: Int) {
+    NATURAL("Natural", 0), ZZZ("ZZZ (bouncy)", 1), SUBTLE("Subtle", 2);
+
+    companion object {
+        fun of(name: String?): JiggleStyle = entries.firstOrNull { it.name == name } ?: ZZZ
+    }
+}
+
 /** The tone curve (engine/postfx.cpp): off (clamped, as before), a filmic highlight shoulder (skin kept), ACES fitted. */
 enum class ToneCurve(val label: String, val native: Int) {
     OFF("Off", 0), FILMIC("Filmic", 1), ACES("ACES", 2);
@@ -75,6 +84,13 @@ data class GraphicsSettings(
     val fleshSoftness: Int = 100,
     /** Finger size, a percentage (50..200, 100: a fingertip 2.2 cm across): the size of the dent a touch makes and of a pinch's ridge ([FingerSize]; the player's finger, not the body's). */
     val fingerSize: Int = 100,
+    /** Soft tissue (engine/tissue.h lattices, engine/springbone.h spring bones, engine/tessellate.h): 0 Off, 1 Low (fewer chains, a coarser mesh), 2 High (the default). */
+    val softTissue: Int = 2,
+    /** Jiggle's amount, a percentage (0..200, 100: as the style says). */
+    val jiggle: Int = 100,
+    val jiggleStyle: JiggleStyle = JiggleStyle.ZZZ,
+    /** The tissue lattices (pinch, squeeze, grab response) run: only the governor turns this off (before the spring bones), Soft tissue's page does not show it. */
+    val lattice: Boolean = true,
 ) {
     /** Within limits (a hand-edited or old file can't break the renderer). */
     fun clamped(): GraphicsSettings = copy(
@@ -93,6 +109,7 @@ data class GraphicsSettings(
         sheenMax = sheenMax.coerceIn(0, 100),
         fleshContact = fleshContact.coerceIn(0, 2), fleshSoftness = fleshSoftness.coerceIn(0, 200),
         fingerSize = FingerSize.clamp(fingerSize),
+        softTissue = softTissue.coerceIn(0, 2), jiggle = jiggle.coerceIn(0, 200),
     )
 
     /** The effects alone (the preset, the target, the switches about the page itself left out): what a preset sets. */
@@ -153,6 +170,10 @@ data class GraphicsSettings(
         v[25] = c.thinSkin / 100f
         v[26] = c.fleshContact.toFloat()
         v[27] = c.fleshSoftness / 100f
+        v[28] = c.softTissue.toFloat()
+        v[29] = c.jiggle / 100f
+        v[30] = c.jiggleStyle.native.toFloat()
+        v[31] = if (c.lattice) 1f else 0f
         return v
     }
 
@@ -166,10 +187,11 @@ data class GraphicsSettings(
         .put("sharpen", sharpen).put("eyes", eyes).put("thinSkin", thinSkin).put("sheenFollows", sheenFollows)
         .put("sheenMax", sheenMax).put("sharpInBuild", sharpInBuild).put("focusFollows", focusFollows)
         .put("fleshContact", fleshContact).put("fleshSoftness", fleshSoftness).put("fingerSize", fingerSize)
+        .put("softTissue", softTissue).put("jiggle", jiggle).put("jiggleStyle", jiggleStyle.name).put("lattice", lattice)
 
     companion object {
         /** engine/graphics_settings.h's kCount. */
-        const val NATIVE_COUNT = 28
+        const val NATIVE_COUNT = 32
         const val SCALE_MIN = 60
         const val SCALE_MAX = 125
         val TARGETS = listOf(60, 90, 120)
@@ -247,6 +269,10 @@ data class GraphicsSettings(
                     fleshContact = o.optInt("fleshContact", d.fleshContact),
                     fleshSoftness = o.optInt("fleshSoftness", d.fleshSoftness),
                     fingerSize = o.optInt("fingerSize", d.fingerSize),
+                    softTissue = o.optInt("softTissue", d.softTissue),
+                    jiggle = o.optInt("jiggle", d.jiggle),
+                    jiggleStyle = JiggleStyle.of(o.optString("jiggleStyle", d.jiggleStyle.name)),
+                    lattice = o.optBoolean("lattice", d.lattice),
                 ).clamped()
             } catch (e: Exception) { DEFAULT }
         }
@@ -257,7 +283,7 @@ data class GraphicsSettings(
  * What the governor lowers, in the order it lowers them (and raises them back in reverse): the render scale first, then
  * the AO's and shadows' quality, bloom, depth of field, MSAA, the Ultra extras, the render scale further, AO and shadows
  * altogether, the thin-skin tint, the skin, hair and sheen shading, and the eyes' highlights (they cover a few pixels:
- * the cheapest); Flesh contact goes to 4 contacts after MSAA and off at the very last step. A step that changes nothing for the settings is skipped. Texture detail is memory, not frame time: never
+ * the cheapest); Flesh contact goes to 4 contacts after MSAA and off at the last step, then Soft tissue goes to Low (after Flesh contact's Low), its lattices off (the spring bones stay) and, last of all, off. A step that changes nothing for the settings is skipped. Texture detail is memory, not frame time: never
  * the governor's.
  */
 enum class QualityStep(val label: String) {
@@ -273,7 +299,10 @@ enum class QualityStep(val label: String) {
     THIN_SKIN("Thin-skin tint off"),
     SKIN("Skin, hair and sheen shading off"),
     EYES("Eye highlights off"),
-    FLESH_CONTACT_OFF("Flesh contact off");
+    FLESH_CONTACT_OFF("Flesh contact off"),
+    SOFT_TISSUE_LOW("Soft tissue to Low"),
+    SOFT_LATTICE_OFF("Soft tissue lattices off (spring bones only)"),
+    SOFT_TISSUE_OFF("Soft tissue off");
 
     fun appliesTo(s: GraphicsSettings): Boolean = when (this) {
         RENDER_SCALE -> s.renderScale > 85
@@ -289,6 +318,9 @@ enum class QualityStep(val label: String) {
         EYES -> s.eyes > 0
         FLESH_CONTACT_LOW -> s.fleshContact >= 2
         FLESH_CONTACT_OFF -> s.fleshContact > 0
+        SOFT_TISSUE_LOW -> s.softTissue >= 2
+        SOFT_LATTICE_OFF -> s.softTissue >= 1 && s.lattice
+        SOFT_TISSUE_OFF -> s.softTissue > 0
     }
 
     fun apply(s: GraphicsSettings): GraphicsSettings = when (this) {
@@ -305,6 +337,9 @@ enum class QualityStep(val label: String) {
         EYES -> s.copy(eyes = 0)
         FLESH_CONTACT_LOW -> s.copy(fleshContact = minOf(s.fleshContact, 1))
         FLESH_CONTACT_OFF -> s.copy(fleshContact = 0)
+        SOFT_TISSUE_LOW -> s.copy(softTissue = minOf(s.softTissue, 1))
+        SOFT_LATTICE_OFF -> s.copy(lattice = false)
+        SOFT_TISSUE_OFF -> s.copy(softTissue = 0)
     }
 
     companion object {
@@ -313,7 +348,7 @@ enum class QualityStep(val label: String) {
          * picture soft), shadows and AO first, then the haze, MSAA, and the people's shading last.
          */
         val SHARP_ORDER: List<QualityStep> = listOf(
-            AO_SHADOW_QUALITY, AO_SHADOWS, BLOOM, DOF, SHAFTS_HAZE, MSAA, FLESH_CONTACT_LOW, THIN_SKIN, SKIN, EYES, FLESH_CONTACT_OFF,
+            AO_SHADOW_QUALITY, AO_SHADOWS, BLOOM, DOF, SHAFTS_HAZE, MSAA, FLESH_CONTACT_LOW, THIN_SKIN, SKIN, EYES, FLESH_CONTACT_OFF, SOFT_TISSUE_LOW, SOFT_LATTICE_OFF, SOFT_TISSUE_OFF,
         )
     }
 }

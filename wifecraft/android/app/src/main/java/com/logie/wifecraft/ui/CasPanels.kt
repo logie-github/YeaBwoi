@@ -32,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -61,7 +62,10 @@ import com.logie.wifecraft.creator.Appearance
 import com.logie.wifecraft.creator.BodyRegion
 import com.logie.wifecraft.creator.BodySculpt
 import com.logie.wifecraft.creator.BodySide
+import com.logie.wifecraft.creator.BodyShapePreset
 import com.logie.wifecraft.creator.BustButtDesigner
+import com.logie.wifecraft.graphics.Graphics
+import com.logie.wifecraft.graphics.JiggleStyle
 import com.logie.wifecraft.creator.DesignerGroup
 import com.logie.wifecraft.creator.DesignerView
 import com.logie.wifecraft.creator.ShapePreset
@@ -339,6 +343,30 @@ class CasSculptActions(
  * her body (Size, Lift, Projection), Mirror, the quick shapes (gliding the sliders there), the group's big sliders drawn live
  * as they move (the engine's live sculpt), each side's balance with Mirror off, Randomize, Reset, Undo and Redo.
  */
+/** The whole-body shape presets (creator/ShapePresets.kt): one tap, a glide, one Undo step. */
+@Composable
+private fun CasWholeShapes(sculpt: BodySculpt, onPick: (BodyShapePreset) -> Unit) {
+    WifeSectionHeader("Whole-body shapes")
+    val at = BodyShapePreset.of(sculpt)
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        for (p in BodyShapePreset.entries) WifeChip(p.label, { onPick(p) }, trailing = if (at == p) "•" else null)
+    }
+}
+
+/** Jiggle's amount and style (Options' Graphics: Soft tissue), where the bust and butt are shaped; the bigger they are made the heavier and slower they swing. */
+@Composable
+private fun CasJiggleRow() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val g by Graphics.settings.collectAsState()
+    WifeSectionHeader("Jiggle")
+    WifeSliderRow("Bust and butt jiggle", g.jiggle, { Graphics.set(context, g.copy(jiggle = it).withMatchingPreset()) }, valueText = "${g.jiggle}%", range = 0..200)
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        for (st in JiggleStyle.entries) WifeChip(st.label, { Graphics.set(context, g.copy(jiggleStyle = st).withMatchingPreset()) }, trailing = if (g.jiggleStyle == st) "•" else null)
+    }
+}
+
 @Composable
 private fun CasDesignerSection(
     model: CreatorModel, rev: Int, onSculpt: (send: Boolean, done: Boolean) -> Unit, rateMs: Long, sculptUi: CasSculptState,
@@ -353,10 +381,9 @@ private fun CasDesignerSection(
     fun current() = model.appearance.sculpt ?: BodySculpt()
     fun look(v: DesignerView, g: DesignerGroup) { sculptUi.view = v; actions?.onView?.invoke(v, g) }
     // a glide to a new shape (a preset, Randomize, Reset): the sliders move there over ANIM_MS, sent each frame; one Undo step
-    fun glideTo(target: BodySculpt) {
+    fun glideTo(target: BodySculpt, sliders: List<SculptSlider> = group.sliders) {
         glide?.cancel()
         val from = current()
-        val sliders = group.sliders
         glide = scope.launch {
             val t0 = System.currentTimeMillis()
             while (true) {
@@ -406,6 +433,8 @@ private fun CasDesignerSection(
         verticalAlignment = Alignment.CenterVertically) {
         for (p in ShapePreset.entries) WifeChip(p.label, { glideTo(BustButtDesigner.applyPreset(current(), p, group)) }, trailing = if (at == p) "•" else null)
     }
+    if (female) CasWholeShapes(sculpt, { glideTo(BodyShapePreset.apply(current(), it), BodyShapePreset.SLIDERS) })
+    CasJiggleRow()
     WifeSectionHeader(group.label)
     for (s in group.sliders) {
         CasSculptRow(s, sculpt[s], enabled = true, glow = false, why = null, label = group.labelOf(s, female), tall = true,
