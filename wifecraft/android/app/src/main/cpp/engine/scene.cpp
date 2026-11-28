@@ -852,6 +852,7 @@ void Scene::releaseGl() {
     particleDraw_.release();
     sparkleDraw_.release();
     propDraw_.release();
+    toy_.forgetGl();
     textures_.clear();
     for (auto& [id, m] : models_) { m->vao = m->vbo = m->ibo = m->boneTex = 0; }
     for (auto& [id, a] : actors_) {
@@ -1803,6 +1804,7 @@ void Scene::animate(Actor& a, uint32_t now) {
     layMotion(a, now);
     layBoneLayer(a, now);
     layReach(a, now);
+    layToyRig(a, now);   // (the toy reactions: orificedraw.cpp)
     if (!a.boneTex) {
         glGenTextures(1, &a.boneTex);
         glBindTexture(GL_TEXTURE_2D, a.boneTex);
@@ -2235,6 +2237,7 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     stepSprings(clock);    // (spring-bone jiggle: springdraw.cpp)
     stepTissue(clock);     // (soft tissue: the lattices, fed by the contacts; tissuedraw.cpp)
     stepSkinPatches(clock);   // (fine skin patches, fed by the same; skinpatchdraw.cpp)
+    stepToy(clock);           // (a held toy and the opening around it: orificedraw.cpp)
 
     litUniforms(wmoProg_, light_, eye_, viewProj);
     drawCity(false);
@@ -2265,6 +2268,7 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     }
     particleClock_ = clock;
     // the props (propmesh.h): Sims objects the screen placed this frame, drawn rigid with the people
+    drawToy(viewProj);   // (a held toy, its sleeve and rim: orificedraw.cpp)
     if (!propInstances_.empty()) propDraw_.draw(propInstances_, viewProj, eye_);
     // interactable sparkles (sparkle.h): made from the clock alone, over the spots the screen lists
     if (!sparkles_.empty()) {

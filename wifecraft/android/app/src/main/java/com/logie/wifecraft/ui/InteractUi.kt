@@ -215,6 +215,7 @@ internal fun InteractSheetBody(
                 if (stockings != null) WifeButton("Remove stockings", { onStockings(null) }, Modifier.fillMaxWidth())
             }
             InteractTab.STOCKINGS -> StockingsPanel(stockings, onStockings, fabric, options, onOptions, onRestore, onRepairAll)
+            InteractTab.TOYS -> ToysPanel(ToyHub.session)
         }
     }
 }

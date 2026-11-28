@@ -177,3 +177,9 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/tessellate_test.cpp" "$engine/tessellate.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" \
     -o "$here/build/tessellate_test"
 echo "$here/build/tessellate_test"
+# The orifice deformer's maths alone (engine/orifice.cpp: a toy measured, the opening against the radius profile, symmetry, bulge, the rim,
+# depth clamps, hysteresis, determinism, the sleeve; no GL, no game files): build/orifice_test, exit 0 when all pass.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/orifice_test.cpp" "$engine/orifice.cpp" \
+    -o "$here/build/orifice_test"
+echo "$here/build/orifice_test"

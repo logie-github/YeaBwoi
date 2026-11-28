@@ -26,6 +26,8 @@
 #include "m2.h"
 #include "modelpart.h"
 #include "motionlayer.h"
+#include "orificedraw.h"
+#include "toyrig.h"
 #include "particles.h"
 #include "propmesh.h"
 #include "sparkle.h"
@@ -371,6 +373,17 @@ public:
     bool hasProp(uint64_t guid) const { return propDraw_.has(guid); }
     void setProps(const uint64_t* ids, const float* matrices, int count);
     const PropDraw& propDraw() const { return propDraw_; }
+    // Toy interaction (orificedraw.h, README "Toy interaction"): one prop held on actor `actor` (setToy with mode 0: put away).
+    // The toy follows the finger in front of the body, snaps to the entry's axis and goes in by `depth`; an HD body's slit opens
+    // around it. toyInfo: where the entry is on screen and how long the toy is (false until the first frame is drawn).
+    void setToy(int actor, uint64_t guid, bool doubleEnded, const ToyInput& in);
+    void clearToy();
+    bool toyInfo(ToyInfo& out) const;
+    const orifice::Dyn& toyDyn() const { return toy_.dyn; }
+    // The toy reactions (toyrig.h): actor `id`'s additive pose, `n` floats in toyrig::Pose's order (breath, breathHz, flutter, arch, hipTilt, thighPart,
+    // kneeFlex, headBack, shoulder, tremor, reachL, reachR); clearToyPose takes the layer off.
+    void setToyPose(int id, const float* values, int n);
+    void clearToyPose(int id);
 
     // ---------------------------------------------------------------- locations and props (location.cpp)
     // A location (location.h: an entry of assets/locations.json): its WMO's groups in world coordinates, its doodads and
@@ -1004,6 +1017,13 @@ private:
     SparkleField sparkles_;
     SparkleDraw sparkleDraw_;
     PropDraw propDraw_;
+    ToyState toy_;                      // the held toy (orificedraw.cpp)
+    std::map<int, toyrig::State> toyRig_;   // the reactions' layers (orificedraw.cpp)
+    void layToyRig(Actor& a, uint32_t now); // toyrig.h over the posed matrices, after the other layers
+    void stepToy(uint32_t clock);       // its place and the opening's dynamics
+    void toyBody(Actor& a);      // the HD vertices of the opening, uploaded (called by drawHd)
+    void drawToy(const M4& viewProj);   // the sleeve, the toy and the rim
+    void drawRimMesh(ToyState& t, const M4& viewProj, const M4& bw, float flush, const float* skin, bool disc);
     std::vector<PropInstance> propInstances_;
     std::vector<Spark> sparkBuf_;
     float particleStrength_ = 0;
