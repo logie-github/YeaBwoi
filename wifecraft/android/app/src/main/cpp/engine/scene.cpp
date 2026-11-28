@@ -482,7 +482,7 @@ vec3 skinShade(vec3 albedo, vec3 lit, vec3 n, float d) {
             float R = 0.0095;
             float edge = mix(1.35 * R, -1.3 * R, clamp(closure, 0.0, 1.0)) - uLid.z * 0.5 * R;
             float hgt = dot(vWorld - (dot(e0, e0) < dot(e1, e1) ? uEyeC[0] : uEyeC[1]), uHeadUp);
-            vec3 lidCol = uLidSkin * (uPortrait > 0 ? mix(uPGround, uPSky, 0.7) + uSunColor * 0.5 + uPFillC * 0.3 : uAmbient + uSunColor * 0.5) * 0.95;
+            vec3 lidCol = uLidSkin * (uPortrait > 0 ? mix(uPGround, uPSky, 0.7) + uSunColor * 0.95 + uPFillC * 0.5 : uAmbient + uSunColor * 0.8) * 1.12;
             float cover = smoothstep(-0.00035, 0.00035, hgt - edge);
             float lash = 1.0 - smoothstep(0.0, 0.0009, abs(hgt - edge));
             eyeOut = mix(eyeOut, lidCol * (1.0 - 0.55 * lash), cover);
@@ -1877,7 +1877,7 @@ void Scene::animate(Actor& a, uint32_t now) {
     if (a.legEdit.active) legEditMatrices(m.bones, a.pa, a.legEdit, a.mats);
     else m.bonesToMatrices(a.pa, a.mats);
     if (a.mats.empty()) a.mats.push_back(M4());
-    layMotion(a, now);
+    if (a.lifeOn) layLife(a, now); else layMotion(a, now);
     layBoneLayer(a, now);
     layReach(a, now);
     if (!a.boneTex) {
@@ -3469,6 +3469,34 @@ void Scene::drawBoneParts(Actor& a, const M4& world, bool transparent) {
         if (blend) glDisable(GL_BLEND);
         glDepthMask(GL_TRUE);
     }
+}
+
+
+// The face's skin colour for the lids: the mean of the HD set's skin texture, or of the look's base skin layer (a crude one: the whole texture), a
+// touch paler; kept once per look.
+void Scene::lidSkinOf(Actor& a) {
+    if (a.lidSkinSet) return;
+    a.lidSkinSet = true;
+    V3 c(0.80f, 0.62f, 0.52f);
+    if (a.hd.active && a.hd.set) {
+        std::vector<uint8_t> rgba; int w = 0, h = 0; std::string err;
+        const HdSet& set = *a.hd.set;
+        const int tint = std::clamp(a.hd.opt.tint, 0, std::max(0, int(set.tints.size()) - 1));
+        const int swap = set.tints.empty() ? -1 : set.tints[size_t(tint)].texture;
+        if (hdTexture(set, swap >= 0 ? swap : set.skinTexture, -1, nullptr, rgba, w, h, err) && w > 0 && h > 0) {
+            Image im; im.width = w; im.height = h; im.rgba = std::move(rgba);
+            c = meanColour(im);
+            c = V3(c.x * a.hd.skin[0], c.y * a.hd.skin[1], c.z * a.hd.skin[2]);
+        }
+    } else {
+        for (const SkinLayer& l : a.layers) {
+            if (l.textureType != 1 || l.layer != kBodyLayer || !l.fileId) continue;
+            Bytes file; Image img;
+            if (readFile(files_(l.fileId), file) && decodeBlp(file, 64, img)) c = meanColour(img);
+            break;
+        }
+    }
+    a.lidSkin[0] = std::clamp(c.x * 1.04f, 0.05f, 1.0f); a.lidSkin[1] = std::clamp(c.y * 1.0f, 0.05f, 1.0f); a.lidSkin[2] = std::clamp(c.z * 0.98f, 0.05f, 1.0f);
 }
 
 } // namespace wc

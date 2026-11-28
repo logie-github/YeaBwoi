@@ -431,6 +431,18 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     private class DriveSent(val level: Float, val partner: Int, val entry: Int, val rest: Float)
     private val driveSent = HashMap<Int, DriveSent>()
 
+    /** Her life and gaze (GL thread): see [Native.life]. */
+    fun glLife(key: String, level: Int, gaze: Int, limitDeg: Float, seed: Int) {
+        val id = ids[key] ?: return
+        Native.life(handle, id, level, gaze, limitDeg, seed)
+    }
+
+    /** A touch on her (GL thread): see [Native.lifeEvent]. */
+    fun glLifeEvent(key: String, kind: Int, bone: String, strength: Float) {
+        val id = ids[key] ?: return
+        Native.lifeEvent(handle, id, kind, bone, strength)
+    }
+
     /** The portrait light on person [key] (GL thread): [preset] 0 off, else PortraitLighting.engineId. */
     fun glPortrait(key: String, preset: Int) {
         val id = ids[key] ?: return

@@ -38,6 +38,7 @@ add_library(wcengine SHARED
     engine/propmesh.cpp
     engine/scene.cpp
     engine/scene_gfx.cpp
+    engine/lifedraw.cpp
     engine/sculpt.cpp
     engine/skin.cpp
     engine/springbone.cpp

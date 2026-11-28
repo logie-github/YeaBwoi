@@ -214,6 +214,7 @@ internal fun SecretScreen(host: SecretHost, onBack: () -> Unit) {
     fun touch(hit: TouchHit, kind: TouchKind): Reaction? {
         val r = mode.touch(hit, kind, policy, persona()) ?: return null
         play(r)
+        view.lifeTouch(key, hit, kind, r)
         return r
     }
     fun stroke(step: StrokeGate.Step) {
@@ -238,7 +239,7 @@ internal fun SecretScreen(host: SecretHost, onBack: () -> Unit) {
         }
     }
     LaunchedEffect(settings.light) { view.light(settings.light.values()) }
-    androidx.compose.runtime.DisposableEffect(view, ready, settings.portrait.lighting) { view.queueEvent { view.glPortrait(key, settings.portrait.lighting.engineId) }; onDispose { view.queueEvent { view.glPortrait(key, 0) } } }
+    androidx.compose.runtime.DisposableEffect(view, ready, settings.portrait) { view.portraitOn(key, settings.portrait, 17L); onDispose { view.portraitOff(key) } }
     SideEffect { frame.breathing = settings.breathing; frame.dof = settings.depthOfField; frame.panel = if (tab != null) 0.45f else 0.24f }
 
     // the kneeling pose: an imported clip of the library when it has one, else the pose built from the skeleton

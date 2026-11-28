@@ -112,6 +112,7 @@ void Scene::skinOf(Actor& a, const M4& world) {
     portraitDraw_ = a.portrait > 0;
     drawEyeFx_ = a.portrait > 0 || a.eyeFx;
     std::copy(a.lid, a.lid + 4, drawLid_);
+    std::copy(a.lidSkin, a.lidSkin + 3, drawLidSkin_);
     const bool wantEyes = gfx_.eyes > 0 || drawEyeFx_, wantThin = gfx_.thinSkin > 0 || a.portrait > 0;
     if (!m || (!wantEyes && !wantThin)) return;
     if (a.fxModel != m) {
@@ -128,7 +129,8 @@ void Scene::skinOf(Actor& a, const M4& world) {
     auto joint = [&](int k, V3& c) {
         M4 t;
         if (!posed(k, t)) return false;
-        c = t.point(m->bones[size_t(a.fxBones[k])].pivot);
+        const bool hdRig = a.hd.active && a.hd.fit.rigPivots.size() == m->bones.size();
+        c = t.point(hdRig ? a.hd.fit.rigPivots[size_t(a.fxBones[k])] : m->bones[size_t(a.fxBones[k])].pivot);
         return true;
     };
     // the head's up, for the lids

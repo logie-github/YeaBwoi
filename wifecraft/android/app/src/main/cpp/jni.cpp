@@ -466,6 +466,14 @@ JNIEXPORT void JNICALL FN(graphicsStats)(JNIEnv* env, jclass, jlong h, jfloatArr
 // One actor lit by the portrait rig (Scene::setPortrait: 0 off, 1 natural, 2 soft, 3 dramatic, 4 warm).
 JNIEXPORT void JNICALL FN(portrait)(JNIEnv*, jclass, jlong h, jint id, jint preset) { scene(h)->setPortrait(id, preset); }
 
+// One actor's life and gaze (Scene::setLife: level 0..3, gaze 0..2, the look angle limit in degrees, the seed) and a touch on her (Scene::lifeEvent).
+JNIEXPORT void JNICALL FN(life)(JNIEnv*, jclass, jlong h, jint id, jint level, jint gaze, jfloat limitDeg, jint seed) { scene(h)->setLife(id, level, gaze, limitDeg, uint32_t(seed)); }
+JNIEXPORT void JNICALL FN(lifeEvent)(JNIEnv* env, jclass, jlong h, jint id, jint kind, jstring bone, jfloat strength) {
+    const char* b = bone ? env->GetStringUTFChars(bone, nullptr) : nullptr;
+    scene(h)->lifeEvent(id, kind, b ? std::string(b) : std::string(), strength);
+    if (b) env->ReleaseStringUTFChars(bone, b);
+}
+
 // One actor's skin sheen 0..1 (Scene::setSheen).
 JNIEXPORT void JNICALL FN(sheen)(JNIEnv*, jclass, jlong h, jint id, jfloat value) { scene(h)->setSheen(id, value); }
 

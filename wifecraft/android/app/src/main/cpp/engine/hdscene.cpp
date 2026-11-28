@@ -265,7 +265,8 @@ void Scene::drawHd(Actor& a, const M4& world, const float tint[4]) {
         glUniform1i(gl::loc(p, "uOpaque"), part.alphaTest ? 0 : 1);
         if (contactDraw_) ContactDraw::layer(p, part.role == 0 ? 1.0f : part.role == 1 ? 0.0f : kGarmentLayer, part.role == 0 ? 1.0f : 0.0f);   // (flesh contact: the skin's dent in full, a garment's at 85%, hair none)
         // the skin shaded as a person's skin is (the model's own skin: drawModel's skinKind 1), its texture its own layout
-        const bool asSkin = skinFx && part.role == 0;
+        const bool eyes = part.eye && (gfx_.eyes > 0 || drawEyeFx_);
+        const bool asSkin = skinFx && part.role == 0 && !eyes;
         if (asSkin) {
             const float actorSkin[4] = {drawSkin_[0], drawSkin_[1], drawSkin_[2], 0.0f};
             glUniform4fv(gl::loc(p, "uSkinActor"), 1, actorSkin);
@@ -273,7 +274,7 @@ void Scene::drawHd(Actor& a, const M4& world, const float tint[4]) {
             glUniform1i(gl::loc(p, "uSkinKind"), 1);
         } else if (part.role == 1 && (gfx_.hair > 0 || portraitDraw_)) {
             glUniform1i(gl::loc(p, "uSkinKind"), 2);
-        } else if (part.eye && (gfx_.eyes > 0 || drawEyeFx_)) {
+        } else if (eyes) {
             uploadEyeFx(p);
             glUniform1i(gl::loc(p, "uSkinKind"), 3);
         }

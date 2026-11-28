@@ -1480,6 +1480,7 @@ fun LiveSceneScreen(
         val id = interactActor ?: return null
         val r = interactMode.touch(hit, kind, consent, interactPersona(id)) ?: return null
         interactPlay(r)
+        view.lifeTouch(actorKey(id), hit, kind, r)
         return r
     }
     fun interactStroke(step: StrokeGate.Step) {
