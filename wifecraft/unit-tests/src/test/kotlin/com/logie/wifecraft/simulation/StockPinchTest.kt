@@ -13,6 +13,9 @@ import kotlin.test.assertTrue
 
 /** Interact mode's fabric interaction: the pinch's gesture machine, the consent gate on a pull, the gauge and status, the options, the reactions and the haptics. */
 class StockPinchTest {
+    // the gates are dormant in the app (InteractConsent.ENABLED = false); these tests keep them honest while they are switched on here
+    @kotlin.test.BeforeTest fun gatesOn() { InteractConsent.forTests = true }
+    @kotlin.test.AfterTest fun gatesOff() { InteractConsent.forTests = false }
     private val shy = InteractPersona(Disposition(caution = 0.7f, warmth = 0.1f), affinity = 0.1f)
     private val bold = InteractPersona(Disposition(boldness = 0.7f, warmth = 0.3f), affinity = 0.7f)
     private fun hit(r: TouchRegion = TouchRegion.THIGH) = TouchHit(r, GarmentSlot.LEGS, 0, true, 0.5f)

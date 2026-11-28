@@ -877,6 +877,9 @@ int main(int argc, char** argv) {
                     if (eq != std::string::npos && k == kNames[i]) gfxv[i] = std::stof(kv.substr(eq + 1));
             }
             scene.setGraphics(gfxv, GraphicsSettings::kCount);
+        } else if (cmd == "portrait") {     // portrait N PRESET: person N lit by the portrait rig (0 off, 1 natural, 2 soft, 3 dramatic, 4 warm)
+            int name, preset; ss >> name >> preset;
+            if (actors.count(name)) scene.setPortrait(actors[name], preset);
         } else if (cmd == "sheen") {       // sheen NAME VALUE: the person's skin sheen 0..1 (Scene::setSheen)
             int name = 0; float v = 0; ss >> name >> v;
             if (actors.count(name)) scene.setSheen(actors[name], v);

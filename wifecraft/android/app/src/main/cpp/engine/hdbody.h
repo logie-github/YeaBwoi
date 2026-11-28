@@ -119,7 +119,7 @@ struct HdFitStats {
     double ms = 0;
 };
 
-struct HdDrawPart { uint32_t start = 0, count = 0; int texture = -1; bool alphaTest = false; uint8_t role = 0; };   // role 0 skin, 1 hair, 2 other
+struct HdDrawPart { uint32_t start = 0, count = 0; int texture = -1; bool alphaTest = false; uint8_t role = 0; bool eye = false; };   // role 0 skin, 1 hair, 2 other
 struct HdFit {
     std::vector<M2Vertex> verts;           // in the HD rig's bind space (rigPivots), the model's bone indices
     std::vector<uint32_t> indices;

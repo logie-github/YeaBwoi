@@ -579,6 +579,7 @@ HdFit fitHd(const M2Model& m, const HdSet& set, const HdOptions& o, std::string&
             if (eyeTex >= 0 && (hm.kind == "body" || hm.kind == "bodyalt") && !set.eyeTextures.empty() && part.texture == set.eyeTextures[0].texture) dp.texture = eyeTex;
             dp.alphaTest = part.alphaTest;
             dp.role = u.role;
+            for (const HdEyeTex& et : set.eyeTextures) if (et.texture == dp.texture && dp.texture >= 0) dp.eye = true;
             for (uint32_t i = part.start; i + 2 < part.start + part.count && i + 2 < hm.idx.size(); i += 3) {
                 if (u.mesh == bodyMesh && !hiddenTri.empty() && hiddenTri[i / 3]) continue;
                 if (u.mesh == bodyMesh && !genital.empty() &&

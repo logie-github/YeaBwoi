@@ -42,6 +42,7 @@ import com.logie.wifecraft.simulation.FabricGauge
 import com.logie.wifecraft.simulation.FabricState
 import com.logie.wifecraft.simulation.FabricStatus
 import com.logie.wifecraft.simulation.PinchGesture
+import com.logie.wifecraft.simulation.PortraitSettings
 import com.logie.wifecraft.simulation.StockOptions
 import com.logie.wifecraft.simulation.InteractAction
 import com.logie.wifecraft.simulation.InteractCamera
@@ -170,6 +171,7 @@ internal fun InteractSheetBody(
     onAction: (InteractAction) -> Unit, onStockings: (StockingSpec?) -> Unit, onOverview: () -> Unit,
     fabric: FabricState = FabricState.REST, options: StockOptions = StockOptions(), onOptions: (StockOptions) -> Unit = {},
     onRestore: () -> Unit = {}, onRepairAll: () -> Unit = {},
+    portrait: PortraitSettings = PortraitSettings(), onPortrait: (PortraitSettings) -> Unit = {},
 ) {
     @Suppress("UNUSED_VARIABLE") val redraw = tick
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ScreenPlan.GAP.dp)) {
@@ -214,6 +216,7 @@ internal fun InteractSheetBody(
                 }
                 if (stockings != null) WifeButton("Remove stockings", { onStockings(null) }, Modifier.fillMaxWidth())
             }
+            InteractTab.LOOK -> PortraitRows(portrait, onPortrait)
             InteractTab.STOCKINGS -> StockingsPanel(stockings, onStockings, fabric, options, onOptions, onRestore, onRepairAll)
             InteractTab.TOYS -> ToysPanel(ToyHub.session)
         }

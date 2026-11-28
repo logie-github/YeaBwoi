@@ -137,6 +137,7 @@ object InteractGate {
 
     /** Whether she does [a] ([policy]: the Consent and limits; [p]: her nature and how well she knows the player). */
     fun verdict(policy: ConsentPolicy?, npc: String, a: InteractAction, p: InteractPersona): Verdict {
+        if (!InteractConsent.on()) return Verdict.ALLOW
         TouchConsent.decided(policy, npc, act(a))?.let { return it }
         val d: Disposition = p.disposition
         var r = tenderness(a) + ConsentDefaults.shift(d) * 0.8f - p.affinity.coerceIn(0f, 1f) * 0.4f - p.mood.coerceIn(-1f, 1f) * 0.1f
