@@ -162,3 +162,8 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/pinch_test.cpp" "$engine/contact.cpp" \
     -o "$here/build/pinch_test"
 echo "$here/build/pinch_test"
+# The fine skin patch's maths and the soft regions' tessellation (engine/skinpatch.cpp, engine/softtess.cpp; no GL): build/skinpatch_test, exit 0 when all pass.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/skinpatch_test.cpp" "$engine/skinpatch.cpp" "$engine/softtess.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" \
+    -o "$here/build/skinpatch_test"
+echo "$here/build/skinpatch_test"

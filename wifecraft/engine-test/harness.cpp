@@ -1173,6 +1173,10 @@ int main(int argc, char** argv) {
             // tissue LEVEL JIGGLE: Options' Soft tissue (Scene::setSoftTissue: 0 off, 1 low, 2 high; jiggle 0..2)
             int level = 2; float jig = 1; ss >> level >> jig;
             scene.setSoftTissue(level, jig);
+        } else if (cmd == "skinpatch") {
+            // skinpatch LEVEL: Options' fine skin patches (Scene::setSkinPatchQuality: 0 off, 1 low, 2 high; the HD body is tessellated at 1 and 2)
+            int level = 2; ss >> level;
+            scene.setSkinPatchQuality(level);
         } else if (cmd == "tinfo") {
             int name; ss >> name;
             if (actors.count(name))
@@ -1194,6 +1198,28 @@ int main(int argc, char** argv) {
                 if (!found) list.push_back(h);
                 scene.setTissueManual(actors[name], list);
             }
+        } else if (cmd == "psinfo") {
+            // psinfo N: the fine skin patches on person N (frame, rise, sink, slide, pads, the solver's time)
+            int name; ss >> name;
+            if (actors.count(name))
+                if (const SkinPatchDraw* d = scene.skinPatchOf(actors[name])) {
+                    std::printf("psinfo %d: %d live, %d in the uniforms, %d pads, %.3f ms;", name, d->liveCount(), d->usedN, d->pads, d->stepMs);
+                    for (int k = 0; k < kMaxPatches; ++k) if (d->slot[k].on) {
+                        const PatchSlot& q = d->slot[k];
+                        std::printf(" [%d @%.3f,%.3f,%.3f t1 %.2f,%.2f,%.2f n %.2f,%.2f,%.2f unit %.3f spacing %.1f mm: rise %.1f sink %.1f slide %.1f mm vol %.2f cm3 pads %d%s]", k, q.oW.x, q.oW.y, q.oW.z, q.t1W.x, q.t1W.y, q.t1W.z, q.nW.x, q.nW.y, q.nW.z, q.unit, q.sim.spacing() * 1000, q.sim.maxRise() * 1000, q.sim.maxSink() * 1000, q.sim.maxSlide() * 1000, q.sim.volume() * 1e6, q.sim.padCount(), q.sim.asleep() ? " asleep" : "");
+                    }
+                    std::printf("\n");
+                }
+        } else if (cmd == "psdump") {
+            // psdump N SLOT FILE: the patch's nodes (a, b, c in mm, per row) as text
+            int name, k; std::string path; ss >> name >> k >> path;
+            if (actors.count(name))
+                if (const SkinPatchDraw* d = scene.skinPatchOf(actors[name])) if (k >= 0 && k < kMaxPatches && d->slot[k].on) {
+                    FILE* f = std::fopen(path.c_str(), "w");
+                    const SkinPatch& q = d->slot[k].sim;
+                    for (int j = 0; j < kPatchN; ++j) for (int i = 0; i < kPatchN; ++i) std::fprintf(f, "%d %d %.4f %.4f %.4f\n", i, j, q.a(i, j) * 1000, q.b(i, j) * 1000, q.c(i, j) * 1000);
+                    std::fclose(f);
+                }
         } else if (cmd == "tmreset") {
             int name; ss >> name;
             if (actors.count(name)) scene.setTissueManual(actors[name], {});

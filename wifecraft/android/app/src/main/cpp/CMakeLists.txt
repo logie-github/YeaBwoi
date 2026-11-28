@@ -44,6 +44,9 @@ add_library(wcengine SHARED
     engine/terrain.cpp
     engine/tissue.cpp
     engine/tissuedraw.cpp
+    engine/skinpatch.cpp
+    engine/skinpatchdraw.cpp
+    engine/softtess.cpp
     engine/wmo.cpp)
 
 target_compile_options(wcengine PRIVATE -O2 -Wall -Wno-unused-parameter)
