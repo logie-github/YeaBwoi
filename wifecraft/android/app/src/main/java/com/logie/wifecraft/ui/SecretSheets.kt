@@ -97,6 +97,11 @@ internal fun SecretSettingsSheet(settings: SecretSettings, onChange: (SecretSett
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
         for ((n, label) in listOf(0 to "Off", 1 to "Low", 2 to "High")) WifeChip(label, { edit(g.copy(fleshContact = n)) }, trailing = if (g.fleshContact == n) "✓" else null)
     }
+    WifeNote("Soft tissue")
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
+        for ((n, label) in listOf(0 to "Off", 1 to "Low", 2 to "High")) WifeChip(label, { edit(g.copy(softTissue = n)) }, trailing = if (g.softTissue == n) "✓" else null)
+    }
+    WifeSliderRow("Jiggle", g.jiggle, { edit(g.copy(jiggle = it)) }, valueText = "${g.jiggle}%", range = 0..200)
     WifeSliderRow("Softness", g.fleshSoftness, { edit(g.copy(fleshSoftness = it)) }, valueText = "${g.fleshSoftness}%", range = 0..200)
     WifeSliderRow("Finger size", g.fingerSize, { edit(g.copy(fingerSize = FingerSize.clamp(it))) }, valueText = "%.2fx".format(g.fingerSize / 100f), range = FingerSize.MIN..FingerSize.MAX)
     WifeNote("Pose: $pose.")

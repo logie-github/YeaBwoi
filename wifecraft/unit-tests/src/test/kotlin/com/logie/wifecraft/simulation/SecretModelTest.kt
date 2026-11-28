@@ -96,10 +96,11 @@ class SecretModelTest {
         val hand = p("L_Hand")
         assertTrue(hand[2] < p("Chest")[2] - 0.15, "the hand hangs low")
         assertTrue(hand[2] > p("L_Calf")[2] + 0.2 && kotlin.math.abs(hand[2] - p("L_Thigh")[2]) < 0.15, "the hand is at the top of the thigh")
-        assertTrue(kotlin.math.abs(hand[1] - p("L_Thigh")[1]) < 0.45, "the hand is by the thigh")
+        assertTrue(hand[1] > p("L_Thigh")[1] - 0.05 && hand[1] < p("L_Thigh")[1] + 0.25, "the hand is beside the thigh, not across her: ${hand[1]}")
+        assertTrue(hand[0] > p("L_Thigh")[0] - 0.05, "the hand is not behind the hip line: ${hand[0]}")
         // the right side mirrors the left
         assertTrue(kotlin.math.abs(p("R_Calf")[2] - p("L_Calf")[2]) < 1e-6)
-        assertTrue(kotlin.math.abs(p("R_Hand")[1] + p("L_Hand")[1]) < 0.15)
+        assertTrue(kotlin.math.abs(p("R_Hand")[1] + p("L_Hand")[1]) < 0.02)
     }
 
     @Test fun theFloorDropPutsTheLowestFleshOnTheFloor() {

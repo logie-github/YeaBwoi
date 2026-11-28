@@ -164,15 +164,16 @@ object SecretKneel {
     /**
      * The kneeling pose built from the skeleton (no clip needed): upright, hips over the knees, the shins folded back along the floor with the feet
      * flat on it, the arms down with the hands on the thighs. Axes as BodyGeometry has them (x forward, y left, z up; a turn about y folds a
-     * hanging leg backward, one about x swings an arm down).
+     * hanging leg backward, one about x swings an arm down, and an elbow bends about z once the arm hangs).
      */
     fun procedural(): Anim {
         fun track(bone: String, axis: Int, deg: Float) = BoneTrack(bone, Channel.ROTATION, floatArrayOf(0f), rot(axis, deg))
         val tracks = listOf(
             track("L_Calf", 1, 81f), track("R_Calf", 1, 81f),
             track("L_Foot", 1, 79f), track("R_Foot", 1, 79f),
-            track("L_UpperArm", 0, -78f), track("R_UpperArm", 0, 78f),
-            track("L_Forearm", 1, -32f), track("R_Forearm", 1, -32f),
+            track("L_UpperArm", 0, -42f), track("R_UpperArm", 0, 42f),
+            // (the rest arm already hangs 33 degrees below level, so 42 more leaves it about 15 degrees out from the body (looked at in the harness: arms by her sides, the hands at the thighs); the elbow bends about the forearm's own z, which after the upper arm hangs is the world's sideways axis; about y it would only twist)
+            track("L_Forearm", 2, -8f), track("R_Forearm", 2, 8f),
             // a little forward lean of the spine and the head up, so she sits tall and looks ahead
             track("Spine1", 1, -3f), track("Head", 1, 3f),
         )
