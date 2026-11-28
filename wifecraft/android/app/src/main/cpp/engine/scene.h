@@ -19,6 +19,7 @@
 #include "contactdraw.h"
 #include "skinpatchdraw.h"
 #include "tissuedraw.h"
+#include "springdraw.h"
 #include "hdbody.h"
 #include "grade.h"
 #include "location.h"
@@ -149,12 +150,20 @@ public:
     void setContactLoad(int load);
     // Options' Soft tissue (tissue.h): `level` 0 off, 1 low, 2 high; `jiggle` 0 .. 2 (1: as the material). From the next frame.
     void setSoftTissue(int level, float jiggle);
+    // Options' spring-bone jiggle (springbone.h): `level` 0 off, 1 low, 2 high; `amount` 0 .. 2; `preset` SbPreset (0 Natural, 1 ZZZ, 2 Subtle).
+    void setSpringBones(int level, float amount, int preset);
+    // The soft regions of the HD figure tessellated when it is fitted (tessellate.h): `edgeShare` of the thigh's length (0 off; 0.0095 about 4 mm), `cap` new vertices.
+    void setTessellation(float edgeShare, int cap);
+    // The HD body as drawn (positions in the HD figure's space, the body's triangles): the desktop check's wireframes.
+    bool hdBodyMesh(int id, std::vector<float>& pos, std::vector<uint32_t>& indices) const;
+    bool springStats(int id, int& helpers, int& chains, size_t& vertices, bool& asleep) const;
+    void kickSprings(int id, const V3& worldAt, const V3& velocity, float radius);
     // Hands on the tissue that no stage or touch makes (the desktop check's grips; a pinch): fed every frame until cleared.
     void setTissueManual(int id, const std::vector<TissueHandle>& list);
     const TissueDraw* tissueOf(int id) const;
     const SkinPatchDraw* skinPatchOf(int id) const;
-    // Fine skin patches (skinpatch.h): `level` 0 off (the analytic dent and pinch, the body not tessellated), 1 low (one patch, 5 mm triangles), 2 high
-    // (three patches, 4 mm). A change fits the HD body again (its soft regions tessellated) at the next frame.
+    // Fine skin patches (skinpatch.h): `level` 0 off (the analytic dent and pinch), 1 low (one patch), 2 high (two patches, more substeps). From the next
+    // frame. They need the soft regions' tessellation (setTessellation) to show a 1 cm fold on the HD body.
     void setSkinPatchQuality(int level);
     int skinPatchQuality() const { return skinPatchLevel_; }
     // Interact's touch: a finger at the screen point presses her skin with `pressure` 0..1 (the contact follows the finger until
@@ -548,6 +557,8 @@ private:
         std::vector<uint32_t> indices;   // the shaped body's own triangles (bodyshape.h: the split sections' finer)
         std::vector<M2Submesh> submeshes;     // its sections' ranges in them
         bool shapeDirty = false;
+        uint64_t tessKey = 0;            // the tessellation (springdraw.cpp) the shaped body was made with
+        size_t tessAdded = 0;
         float k = 0, fold = 0;
         uint32_t design = 0;             // the design's file (dress: the type-1 layer at kBodyLayer)
         uint32_t hair = 0;               // the hair texture its colour comes from
@@ -742,6 +753,7 @@ private:
         ContactDraw contact;           // flesh contact (contact.h, contactdraw.cpp)
         TissueDraw tissue;             // soft tissue (tissue.h, tissuedraw.cpp)
         SkinPatchDraw skinPatch;       // fine skin patches (skinpatch.h, skinpatchdraw.cpp)
+        SpringDraw spring;             // spring-bone jiggle (springbone.h, springdraw.cpp)
         ClothGl cloth;                 // a tabard flap hung as cloth (cloth.h)
         bool character = false;        // setCharacter: the soft body applies (a creature's never does)
         MotionState motion;            // the additive body language (setMotion; motionlayer.h)
@@ -921,6 +933,16 @@ private:
     bool contactDraw_ = false;         // drawModel is drawing an actor whose skin has contacts (the uniforms set)
     uint32_t contactClock_ = 0;
     bool contactStarted_ = false;
+    void stepSprings(uint32_t clock);
+    void checkBodyTessellation(Actor& a);       // springdraw.cpp: the game's own body made again, tessellated, when the setting changed
+    void tessellateOwnBody(Actor& a);           // springdraw.cpp, from refreshBody: the shaped body's soft regions   // springdraw.cpp: the helper chains of every posed HD body
+    float tessEdge_ = 0.0125f;
+    int tessCap_ = 48000;
+    int springLevel_ = 2;
+    float springAmount_ = 1.0f;
+    int springPreset_ = 0;
+    uint32_t springClock_ = 0;
+    bool springStarted_ = false;
     void stepTissue(uint32_t clock);    // tissuedraw.cpp: the lattices of every posed body, from the contacts and the bones
     int tissueLevel_ = 2;               // Options' Soft tissue: 0 off, 1 low, 2 high
     int skinPatchLevel_ = 1;            // Options' fine skin patches: 0 off, 1 low, 2 high (skinpatchdraw.cpp)

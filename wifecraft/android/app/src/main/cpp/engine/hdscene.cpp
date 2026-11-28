@@ -7,37 +7,12 @@
 #include "glutil.h"
 #include "scene.h"
 #include "sculpt.h"
-#include "softtess.h"
+#include "springdraw.h"
 
 namespace wc {
 
 namespace {
 
-// The soft regions of the fitted body's skin cut into triangles of at most `maxEdge` (model units): the fine skin patch needs them
-// (softtess.h). The body's own triangles (fit.bodyIndices, the soft body's and the flesh's) stay as they were; the drawn parts' are
-// replaced, the new vertices after the others'.
-void tessellateHdFit(const M2Model& m, HdFit& fit, float maxEdge) {
-    if (fit.bodyVertexEnd == 0 || fit.parts.empty()) return;
-    const size_t bodyN = fit.bodyIndices.size();
-    SoftTess st;
-    st.mask = softRegionMask(m, fit.verts, fit.bodyVertexEnd);
-    st.mask.resize(fit.verts.size(), 0);
-    st.vertexCap = fit.verts.size() + 160000;
-    std::vector<uint32_t> out;
-    out.reserve(fit.indices.size() * 3);
-    std::vector<HdDrawPart> parts = fit.parts;
-    for (HdDrawPart& p : parts) {
-        const uint32_t start = uint32_t(out.size());
-        if (size_t(p.start) + p.count <= bodyN && p.role == 0) tessellateTriangles(fit.verts, fit.indices.data() + p.start, p.count, maxEdge, st, out);
-        else out.insert(out.end(), fit.indices.begin() + p.start, fit.indices.begin() + p.start + p.count);
-        p.start = start;
-        p.count = uint32_t(out.size()) - start;
-    }
-    fit.indices.swap(out);
-    fit.parts.swap(parts);
-    fit.stats.vertices = fit.verts.size();
-    fit.stats.triangles = fit.indices.size() / 3;
-}
 bool readAll(const std::string& path, std::vector<uint8_t>& out) {
     FILE* f = std::fopen(path.c_str(), "rb");
     if (!f) return false;
@@ -152,7 +127,7 @@ void Scene::hdCheck(Actor& a) {
     HdOptions opt = h.opt;
     opt.hideGenitals = h.hideGenitals || !a.parts.hdGenitalMask.empty();
     mix(opt.key());
-    mix(uint64_t(skinPatchLevel_));
+    mix(uint64_t(tessEdge_ * 1e6f)); mix(uint64_t(tessCap_));   // (the tessellation of the soft regions)
     for (float f : a.sculpt) { uint32_t bits; std::memcpy(&bits, &f, 4); mix(bits); }   // (the creator's sculpt sliders)
     if (key == 0) key = 1;
     if (key == h.key) return;
@@ -181,10 +156,12 @@ void Scene::hdCheck(Actor& a) {
         for (size_t i = 0; i < m.bones.size(); ++i) parents[i] = m.bones[i].parent;
         applySculpt(sculptRig(fit.rigPivots, parents, b), fit.verts, fit.indices, a.sculpt.data(), a.sculpt.size());
     }
-    if (skinPatchLevel_ > 0) {
-        const size_t before = fit.verts.size();
-        tessellateHdFit(m, fit, (skinPatchLevel_ >= 2 ? 0.0048f : 0.0060f) * fit.stats.scale);
-        std::fprintf(stderr, "hd: soft regions tessellated: %zu vertices added, %zu triangles in all\n", fit.verts.size() - before, fit.indices.size() / 3);
+    if (tessEdge_ > 0) {
+        TessStats ts;
+        const size_t added = hdTessellateSoft(m, fit, tessEdge_, size_t(tessCap_), &ts);
+        if (added) std::fprintf(stderr, "tessellation: %zu -> %zu vertices, %zu -> %zu triangles, soft edges p50 %.2f -> %.2f mm, p99 %.2f -> %.2f mm (HD units), %d passes%s, %.1f ms\n",
+                                ts.verticesBefore, ts.verticesAfter, ts.trianglesBefore, ts.trianglesAfter, ts.edgeP50Before * 1000, ts.edgeP50After * 1000,
+                                ts.edgeP99Before * 1000, ts.edgeP99After * 1000, ts.passes, ts.capped ? " (capped)" : "", ts.ms);
     }
     dropHdGl(a);
     h.set = it->second;

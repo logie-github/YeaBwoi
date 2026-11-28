@@ -1,13 +1,11 @@
-// The fine skin patch's maths (engine/skinpatch.cpp) and the soft regions' tessellation (engine/softtess.cpp), no GL, no game files:
+// The fine skin patch's maths (engine/skinpatch.cpp), no GL, no game files:
 // build/skinpatch_test, exit 0 when all pass.
 #include <chrono>
 #include <cmath>
 #include <cstdio>
-#include <map>
 #include <vector>
 
 #include "skinpatch.h"
-#include "softtess.h"
 
 using namespace wc;
 
@@ -137,65 +135,6 @@ int main() {
             std::printf("  one patch, %d substeps, a pinch held: %.3f ms per 1/60 s step on this machine\n", sub, ms);
             CHECK(ms < 3.0, "a patch step takes %.2f ms", ms);
         }
-    }
-    // tessellation: a strip of big triangles, the middle in the mask: no cracks, the edges short, the attributes kept
-    {
-        std::vector<M2Vertex> v; std::vector<uint32_t> idx;
-        const int n = 6; const float h = 0.03f;
-        for (int j = 0; j <= n; ++j) for (int i = 0; i <= n; ++i) {
-            M2Vertex x{}; x.pos[0] = float(i) * h; x.pos[1] = float(j) * h; x.pos[2] = 0.0f; x.normal[2] = 1; x.uv[0] = float(i) / n; x.uv[1] = float(j) / n;
-            x.bones[0] = i < 3 ? 1 : 2; x.weights[0] = 255; v.push_back(x);
-        }
-        for (int j = 0; j < n; ++j) for (int i = 0; i < n; ++i) {
-            const uint32_t a = uint32_t(j * (n + 1) + i), b = a + 1, c = a + n + 1, d = c + 1;
-            const uint32_t t[6] = {a, b, c, b, d, c}; idx.insert(idx.end(), t, t + 6);
-        }
-        SoftTess st; st.mask.assign(v.size(), 0);
-        for (int j = 0; j <= n; ++j) for (int i = 1; i <= 4; ++i) st.mask[size_t(j * (n + 1) + i)] = 1;
-        std::vector<uint32_t> out;
-        const size_t before = idx.size() / 3;
-        tessellateTriangles(v, idx.data(), idx.size(), 0.0095f, st, out);
-        CHECK(out.size() / 3 > before * 4, "only %zu triangles from %zu", out.size() / 3, before);
-        // watertight: every edge is shared by two triangles, or one on the outer border
-        std::map<std::pair<uint32_t, uint32_t>, int> edge;
-        for (size_t t = 0; t + 2 < out.size(); t += 3) for (int e = 0; e < 3; ++e) { uint32_t a = out[t + size_t(e)], b = out[t + size_t((e + 1) % 3)]; ++edge[{std::min(a, b), std::max(a, b)}]; }
-        int bad = 0, border = 0;
-        for (auto& kv : edge) {
-            const M2Vertex &a = v[kv.first.first], &b = v[kv.first.second];
-            const bool onBorder = (a.pos[0] == b.pos[0] && (a.pos[0] == 0 || a.pos[0] == n * h)) || (a.pos[1] == b.pos[1] && (a.pos[1] == 0 || a.pos[1] == n * h));
-            if (kv.second > 2) ++bad;
-            else if (kv.second == 1 && !onBorder) ++bad;
-            border += kv.second == 1;
-        }
-        CHECK(bad == 0, "%d cracked or over-shared edges", bad);
-        // area kept
-        double area = 0;
-        for (size_t t = 0; t + 2 < out.size(); t += 3) {
-            const M2Vertex &a = v[out[t]], &b = v[out[t + 1]], &c = v[out[t + 2]];
-            area += 0.5 * std::fabs((b.pos[0] - a.pos[0]) * (c.pos[1] - a.pos[1]) - (c.pos[0] - a.pos[0]) * (b.pos[1] - a.pos[1]));
-        }
-        CHECK(std::fabs(area - double(n * h) * n * h) < 1e-6, "area %.6f", area);
-        // the masked middle's edges are short, the unmasked outer columns keep theirs (they only get the splits their neighbours need)
-        float longest = 0;
-        for (size_t t = 0; t + 2 < out.size(); t += 3) for (int e = 0; e < 3; ++e) {
-            const uint32_t a = out[t + size_t(e)], b = out[t + size_t((e + 1) % 3)];
-            if (a < st.mask.size() && b < st.mask.size() && st.mask[a] && st.mask[b]) {
-                const float dx = v[a].pos[0] - v[b].pos[0], dy = v[a].pos[1] - v[b].pos[1];
-                longest = std::fmax(longest, std::sqrt(dx * dx + dy * dy));
-            }
-        }
-        CHECK(longest <= 0.0095f + 1e-5f, "a masked edge of %.1f mm is left", longest * 1000);
-        bool norm = true, uvok = true;
-        for (size_t i = (size_t(n) + 1) * (n + 1); i < v.size(); ++i) {
-            const float l = std::sqrt(v[i].normal[0] * v[i].normal[0] + v[i].normal[1] * v[i].normal[1] + v[i].normal[2] * v[i].normal[2]);
-            if (std::fabs(l - 1) > 1e-4f) norm = false;
-            if (std::fabs(v[i].uv[0] - v[i].pos[0] / (n * h)) > 1e-4f || std::fabs(v[i].uv[1] - v[i].pos[1] / (n * h)) > 1e-4f) uvok = false;
-            int sum = 0; for (int k = 0; k < 4; ++k) sum += v[i].weights[k];
-            if (sum != 255) norm = false;
-        }
-        CHECK(norm, "a new vertex' normal or weights are off");
-        CHECK(uvok, "a new vertex' uv is not the midpoint");
-        std::printf("  tessellation: %zu -> %zu triangles, %zu vertices added, %d border edges\n", before, out.size() / 3, st.added, border);
     }
     std::printf("%d checks, %d failed\n", checks, fails);
     return fails ? 1 : 0;

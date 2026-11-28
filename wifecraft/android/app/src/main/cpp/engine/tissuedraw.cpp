@@ -258,8 +258,16 @@ void Scene::stepTissue(uint32_t clock) {
             g.setJiggle(tissueJiggle_ < 0.05f ? 0.05f : tissueJiggle_);
             // the frame: the bone's pose on the region's bind frame
             const M4 M = W * a.mats[size_t(d.bone)];
-            const V3 o = M.point(d.o);
-            auto ax = [&](const V3& v) { return (M.point(d.o + v) - o).normalized(); };
+            const V3 o0 = M.point(d.o);
+            V3 o = o0;
+            if (a.spring.active()) {
+                // the spring bones carry the secondary motion (springbone.h): the lattice rides their deformed rest, so nothing moves twice
+                static const SbRegion kOf[kTissueRegions] = {SbRegion::Breast, SbRegion::Breast, SbRegion::Butt, SbRegion::Butt, SbRegion::Belly, SbRegion::Thigh, SbRegion::Thigh};
+                static const int kSide[kTissueRegions] = {1, -1, 1, -1, 0, 1, -1};
+                V3 so;
+                if (a.spring.sim.regionOffset(kOf[r], kSide[r], &so)) o = o + so;
+            }
+            auto ax = [&](const V3& v) { return (M.point(d.o + v) - o0).normalized(); };
             V3 fu = ax(d.u); const V3 fv = ax(d.v), fw = ax(d.w);
             if (fu.cross(fv).dot(fw) < 0) fu = fu * -1.0f;     // (right-handed: a mirrored frame would turn the cells inside out; the footprint is symmetric)
             g.setFrame(o, fu, fv, fw);

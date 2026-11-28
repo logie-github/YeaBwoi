@@ -40,6 +40,10 @@ struct GraphicsSettings {
         kThinSkin,          // 0..1 thin-skin tint: ears, nose, lips, fingers lit through, warm (skinShade)
         kFleshContact,      // 0 off, 1 low (4 contacts), 2 high (8): the skin dents under touch (contact.h)
         kFleshSoftness,     // 0..2 the skin's softness for it (1: as the regions say)
+        kSoftTissue,        // 0 off, 1 low, 2 high: the soft tissue lattices (tissue.h), the spring bones (springbone.h) and the tessellation (tessellate.h)
+        kJiggle,            // 0..2 the jiggle's amount (1: 100%)
+        kJiggleStyle,       // 0 Natural, 1 ZZZ, 2 Subtle (springbone.h SbPreset)
+        kLattice,           // 0/1: the lattices run (the governor's step turns them off before the spring bones)
         kCount
     };
 
@@ -61,6 +65,10 @@ struct GraphicsSettings {
     float eyes = 0, thinSkin = 0;
     int fleshContact = 2;
     float fleshSoftness = 1;
+    int softTissue = 2;
+    float jiggle = 1;
+    int jiggleStyle = 1;
+    bool lattice = true;
 
     static float unit(float v) { return std::isfinite(v) ? std::clamp(v, 0.0f, 1.0f) : 0.0f; }
 
@@ -99,6 +107,10 @@ struct GraphicsSettings {
         thinSkin = unit(at(kThinSkin, 0));
         fleshContact = std::clamp(int(std::lround(at(kFleshContact, 2))), 0, 2);
         fleshSoftness = std::clamp(at(kFleshSoftness, 1), 0.0f, 2.0f);
+        softTissue = std::clamp(int(std::lround(at(kSoftTissue, 2))), 0, 2);
+        jiggle = std::clamp(at(kJiggle, 1), 0.0f, 2.0f);
+        jiggleStyle = std::clamp(int(std::lround(at(kJiggleStyle, 1))), 0, 2);
+        lattice = at(kLattice, 1) > 0.5f;
     }
 
     // Whether the frame goes through the offscreen chain (postfx.h) at all. False: drawn straight to the screen as before.
