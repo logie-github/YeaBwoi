@@ -1231,6 +1231,17 @@ int main(int argc, char** argv) {
             int name; std::string mode, out; float amp, hz; int n, w, h; uint32_t step, warm;
             ss >> name >> mode >> amp >> hz >> out >> n >> step >> w >> h >> warm;
             if (actors.count(name)) renderMotion(scene, actors[name], basePos[name], baseFacing[name], mode, amp, hz, out, w, h, warm, step, n);
+        } else if (cmd == "dumpbody") {
+            // dumpbody N FILE.obj: the HD body as fitted (after the tessellation), an OBJ of positions and triangles
+            int name; std::string out; ss >> name >> out;
+            std::vector<float> pos; std::vector<uint32_t> idx;
+            if (actors.count(name) && scene.hdBodyMesh(actors[name], pos, idx)) {
+                FILE* f = std::fopen(out.c_str(), "w");
+                for (size_t i = 0; i + 2 < pos.size(); i += 3) std::fprintf(f, "v %.6f %.6f %.6f\n", pos[i], pos[i + 1], pos[i + 2]);
+                for (size_t i = 0; i + 2 < idx.size(); i += 3) std::fprintf(f, "f %u %u %u\n", idx[i] + 1, idx[i + 1] + 1, idx[i + 2] + 1);
+                std::fclose(f);
+                std::fprintf(stderr, "dumpbody %s: %zu vertices, %zu triangles\n", out.c_str(), pos.size() / 3, idx.size() / 3);
+            } else std::fprintf(stderr, "dumpbody: no HD body\n");
         } else if (cmd == "sbinfo") {
             int name; ss >> name;
             int hp = 0, ch = 0; size_t vv = 0; bool sl = false;

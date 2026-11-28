@@ -153,6 +153,8 @@ public:
     void setSpringBones(int level, float amount, int preset);
     // The soft regions of the HD figure tessellated when it is fitted (tessellate.h): `edgeShare` of the thigh's length (0 off; 0.0095 about 4 mm), `cap` new vertices.
     void setTessellation(float edgeShare, int cap);
+    // The HD body as drawn (positions in the HD figure's space, the body's triangles): the desktop check's wireframes.
+    bool hdBodyMesh(int id, std::vector<float>& pos, std::vector<uint32_t>& indices) const;
     bool springStats(int id, int& helpers, int& chains, size_t& vertices, bool& asleep) const;
     void kickSprings(int id, const V3& worldAt, const V3& velocity, float radius);
     // Hands on the tissue that no stage or touch makes (the desktop check's grips; a pinch): fed every frame until cleared.

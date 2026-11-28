@@ -167,3 +167,8 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/springbone_test.cpp" "$engine/springbone.cpp" \
     -o "$here/build/springbone_test"
 echo "$here/build/springbone_test"
+# Tessellation of the soft regions (engine/tessellate.cpp: watertight edge splits, the cap, the attributes; no GL): build/tessellate_test, exit 0 when all pass.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/tessellate_test.cpp" "$engine/tessellate.cpp" "$engine/m2.cpp" "$engine/bytes.cpp" \
+    -o "$here/build/tessellate_test"
+echo "$here/build/tessellate_test"

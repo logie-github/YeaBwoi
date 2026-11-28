@@ -170,6 +170,16 @@ void Scene::setTessellation(float edgeShare, int cap) {
     tessCap_ = std::clamp(cap, 0, 200000);
 }
 
+bool Scene::hdBodyMesh(int id, std::vector<float>& pos, std::vector<uint32_t>& indices) const {
+    auto it = actors_.find(id);
+    if (it == actors_.end() || !it->second.hd.active) return false;
+    const HdFit& f = it->second.hd.fit;
+    pos.clear();
+    for (uint32_t i = 0; i < f.bodyVertexEnd; ++i) { pos.push_back(f.verts[i].pos[0]); pos.push_back(f.verts[i].pos[1]); pos.push_back(f.verts[i].pos[2]); }
+    indices = f.bodyIndices;
+    return true;
+}
+
 bool Scene::springStats(int id, int& helpers, int& chains, size_t& vertices, bool& asleep) const {
     auto it = actors_.find(id);
     if (it == actors_.end() || !it->second.spring.ready) return false;
