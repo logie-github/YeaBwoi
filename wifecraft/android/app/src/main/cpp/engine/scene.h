@@ -17,6 +17,7 @@
 #include "bonelayer.h"
 #include "cloth.h"
 #include "contactdraw.h"
+#include "skinpatchdraw.h"
 #include "tissuedraw.h"
 #include "springdraw.h"
 #include "hdbody.h"
@@ -160,6 +161,11 @@ public:
     // Hands on the tissue that no stage or touch makes (the desktop check's grips; a pinch): fed every frame until cleared.
     void setTissueManual(int id, const std::vector<TissueHandle>& list);
     const TissueDraw* tissueOf(int id) const;
+    const SkinPatchDraw* skinPatchOf(int id) const;
+    // Fine skin patches (skinpatch.h): `level` 0 off (the analytic dent and pinch), 1 low (one patch), 2 high (two patches, more substeps). From the next
+    // frame. They need the soft regions' tessellation (setTessellation) to show a 1 cm fold on the HD body.
+    void setSkinPatchQuality(int level);
+    int skinPatchQuality() const { return skinPatchLevel_; }
     // Interact's touch: a finger at the screen point presses her skin with `pressure` 0..1 (the contact follows the finger until
     // releaseTouch, or `holdMs` after the last push: a tap asks for 250). Returns the body part's region (ContactRegion) hit, -1 a miss.
     // Multi-touch: `pointer` 0..4 is the finger (each its own contact; two close ones on soft skin pinching are a pinch), `padRadius` the
@@ -746,6 +752,7 @@ private:
         SoftDraw soft;                 // the soft body (softbody.h)
         ContactDraw contact;           // flesh contact (contact.h, contactdraw.cpp)
         TissueDraw tissue;             // soft tissue (tissue.h, tissuedraw.cpp)
+        SkinPatchDraw skinPatch;       // fine skin patches (skinpatch.h, skinpatchdraw.cpp)
         SpringDraw spring;             // spring-bone jiggle (springbone.h, springdraw.cpp)
         ClothGl cloth;                 // a tabard flap hung as cloth (cloth.h)
         bool character = false;        // setCharacter: the soft body applies (a creature's never does)
@@ -938,8 +945,12 @@ private:
     bool springStarted_ = false;
     void stepTissue(uint32_t clock);    // tissuedraw.cpp: the lattices of every posed body, from the contacts and the bones
     int tissueLevel_ = 2;               // Options' Soft tissue: 0 off, 1 low, 2 high
+    int skinPatchLevel_ = 1;            // Options' fine skin patches: 0 off, 1 low, 2 high (skinpatchdraw.cpp)
     float tissueJiggle_ = 1.0f;
     uint32_t tissueClock_ = 0;
+    void stepSkinPatches(uint32_t clock);   // skinpatchdraw.cpp: the patches of every posed body, from the touches, grips and pinches
+    uint32_t skinPatchClock_ = 0;
+    bool skinPatchStarted_ = false;
     bool tissueStarted_ = false;
     void stepContacts(uint32_t clock);  // contactdraw.cpp: derives, steps (once a frame, after the poses; the animation clock's change is its dt)
     bool softBodyDraw_ = false;        // drawModel is drawing an actor's body with its soft body on

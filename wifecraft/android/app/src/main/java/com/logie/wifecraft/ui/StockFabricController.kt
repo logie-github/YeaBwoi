@@ -63,7 +63,7 @@ class StockEnv(
     val toLocal: (Vec3) -> Vec3,
 )
 
-class StockFabricController(private val view: SceneView, private val live: LiveScene, private val mode: InteractMode, private val prefs: android.content.SharedPreferences?, seed: Long) {
+class StockFabricController(private val view: SceneView, private val live: LiveScene?, private val mode: InteractMode, private val prefs: android.content.SharedPreferences?, seed: Long) {
     var env: StockEnv? = null
     val host = PinchHost()
     val tracker = PinchTracker()
@@ -172,14 +172,14 @@ class StockFabricController(private val view: SceneView, private val live: LiveS
         if (spot == null) { e.toast("She is already beside you."); return }
         view.groundAt(spot.first, spot.second) { gz ->
             val dest = e.toLocal(Vec3(spot.first, spot.second, gz ?: cam.atZ))
-            live.order { sim -> sim.endHold(id); if (sim.walk(id, dest)) null else "There's no clear path to you." }
+            live?.order { sim -> sim.endHold(id); if (sim.walk(id, dest)) null else "There's no clear path to you." }   // (the hidden mode has no scene to walk in: null)
         }
     }
 }
 
 /** The controller, its poll of the solver while Interact mode is on on [actor], and the sound stopped when the app pauses. */
 @Composable
-fun rememberStockFabric(view: SceneView, live: LiveScene, mode: InteractMode, prefs: android.content.SharedPreferences?, seed: Long, actor: String?, actorKey: (String) -> String): StockFabricController {
+fun rememberStockFabric(view: SceneView, live: LiveScene?, mode: InteractMode, prefs: android.content.SharedPreferences?, seed: Long, actor: String?, actorKey: (String) -> String): StockFabricController {
     val ctl = remember(live) { StockFabricController(view, live, mode, prefs, seed) }
     val scope = rememberCoroutineScope()
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current

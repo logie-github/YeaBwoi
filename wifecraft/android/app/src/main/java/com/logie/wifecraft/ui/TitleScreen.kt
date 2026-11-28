@@ -69,8 +69,10 @@ fun TitleScreen(
     onGather: () -> Unit,
     onOptions: () -> Unit,
     onUpdates: () -> Unit,
+    /** The hidden mode's key was done (ui/SecretGestureLayer.kt); null: the title does not watch for it. Nothing on the screen says so. */
+    onSecret: (() -> Unit)? = null,
 ) {
-    BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black).let { m -> if (onSecret != null) m.secretGesture(onSecret) else m }) {
         val l = FrontLayout.title(maxWidth.value, maxHeight.value)
         WifecraftMenuBackdrop(Modifier.fillMaxSize(), BiasAlignment(0.6f, -0.4f))
         Box(

@@ -162,6 +162,11 @@ g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/pinch_test.cpp" "$engine/contact.cpp" \
     -o "$here/build/pinch_test"
 echo "$here/build/pinch_test"
+# The fine skin patch's maths (engine/skinpatch.cpp; no GL): build/skinpatch_test, exit 0 when all pass.
+g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
+    "$here/skinpatch_test.cpp" "$engine/skinpatch.cpp" \
+    -o "$here/build/skinpatch_test"
+echo "$here/build/skinpatch_test"
 # Spring-bone jiggle (engine/springbone.cpp: the chains' dynamics, the weights; no GL): build/springbone_test, exit 0 when all pass.
 g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -I"$engine" \
     "$here/springbone_test.cpp" "$engine/springbone.cpp" \

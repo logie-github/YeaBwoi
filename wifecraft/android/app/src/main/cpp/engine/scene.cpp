@@ -91,10 +91,23 @@ uniform int uSbOn;
 uniform highp sampler2D uSbW;
 uniform highp sampler2D uSbM;
 uniform vec3 uTsDim;
+// Fine skin patches (skinpatch.h, skinpatchdraw.cpp): uPsN patches (0: off), each a 32 x 32 grid of nodes in the tangent plane at a contact, its
+// nodes' displacement (along the two tangents and the normal, centimetres; w: the pad's pressure) a 32 x 32 block of a 2D texture
+// (RGBA16F, bilinear, block k at row 32 k). uPsC: the centre (world) and world units per metre; uPsU, uPsV: the tangents and, in w, the
+// grid's nodes per world unit and the block's first row; uPsW: the normal and the spacing in cm. A vertex follows the field by where it
+// was before the lattice moved it (vRest); the analytic dent and pinch step aside where a patch covers the skin; the fragment stage
+// takes the slope, the crease and the shading from the same texture.
+uniform int uPsN;
+uniform highp sampler2D uPsTex;
+uniform vec4 uPsC[3];
+uniform vec4 uPsU[3];
+uniform vec4 uPsV[3];
+uniform vec4 uPsW[3];
 out vec3 vWorld;
 out vec3 vNormal;
 out vec2 vUv;
 out vec2 vTissue;
+out vec3 vRest;
 vec3 tsGrid(int r, vec3 pw) {
     vec4 q = vec4(pw, 1.0);
     return vec3(dot(uTsA[r * 3], q), dot(uTsA[r * 3 + 1], q), dot(uTsA[r * 3 + 2], q));
@@ -191,6 +204,22 @@ void main() {
     vec3 nrm = mat3(uWorld) * (mat3(skin) * nIn);
     float tsCover = 0.0;
     float tsStrain = 0.0;
+    vec3 psOff = vec3(0.0);
+    float psCover = 0.0;
+    vRest = p.xyz;
+    if (uPsN > 0 && uCtLayer > 0.0 && total > 0.0) {
+        for (int k = 0; k < 3; ++k) {
+            if (k >= uPsN) break;
+            vec3 rr = p.xyz - uPsC[k].xyz;
+            vec2 g = vec2(dot(rr, uPsU[k].xyz), dot(rr, uPsV[k].xyz)) * uPsU[k].w + 15.5;
+            if (g.x < 1.0 || g.y < 1.0 || g.x > 30.0 || g.y > 30.0) continue;
+            vec2 e = (g - 15.5) * (1.0 / 14.5);
+            float wgt = 1.0 - smoothstep(0.80, 1.0, max(abs(e.x), abs(e.y)));
+            vec4 f = textureLod(uPsTex, vec2((g.x + 0.5) / 32.0, (uPsV[k].w + g.y + 0.5) / 96.0), 0.0);
+            psOff += (uPsU[k].xyz * f.x + uPsV[k].xyz * f.y + uPsW[k].xyz * f.z) * (0.01 * uPsC[k].w * wgt * uCtLayer);
+            psCover = max(psCover, wgt);
+        }
+    }
     if (uTsN > 0 && uCtLayer > 0.0 && total > 0.0) {
         vec3 poff = vec3(0.0);
         vec3 j0 = vec3(0.0), j1 = vec3(0.0), j2 = vec3(0.0);
@@ -222,6 +251,7 @@ void main() {
         if (false) nrm = normalize(nn2);
         p.xyz += poff;
     }
+    p.xyz += psOff;
     if (uCtN > 0 && uCtLayer > 0.0 && total > 0.0) {
         vec3 nn = normalize(nrm);
         vec3 off = vec3(0.0);
@@ -244,7 +274,7 @@ void main() {
             float prs = clamp(depth / 0.02, 0.0, 1.0);
             off += cn * (-(depth * fo * facing) + bulge * ring * facingRing) - tang * (uCtC[i].y * prs * fo * facing);
         }
-        p.xyz += off * (1.0 - 0.45 * tsCover);
+        p.xyz += off * (1.0 - 0.45 * tsCover) * (1.0 - psCover);
     }
     if (uPnN > 0 && uCtLayer > 0.0 && total > 0.0) {
         vec3 nn = normalize(nrm);
@@ -287,7 +317,7 @@ void main() {
             g -= N * dot(g, N);
             off += N * (height * facing) - u * ((s >= 0.0 ? 1.0 : -1.0) * D * ft2 * facing * uCtLayer) + g * (max(height, 0.0) * uPnE[i].x * facing);
         }
-        p.xyz += off * (1.0 - 0.45 * tsCover);
+        p.xyz += off * (1.0 - 0.45 * tsCover) * (1.0 - psCover);
     }
     vTissue = vec2(tsStrain, tsCover);
     vWorld = p.xyz;
@@ -303,8 +333,17 @@ in vec3 vWorld;
 in vec3 vNormal;
 in vec2 vUv;
 in vec2 vTissue;
+in vec3 vRest;
 in vec4 vColor;
 uniform sampler2D uTex;
+// Fine skin patches (the vertex shader's block): the slope, the crease at a fold's foot, the pale crest, the flush at the pads, the
+// stretched tone and the faint wrinkles where the skin is gathered, all from the patch texture at the fragment's own place
+uniform highp int uPsN;
+uniform highp sampler2D uPsTex;
+uniform vec4 uPsC[3];
+uniform vec4 uPsU[3];
+uniform vec4 uPsV[3];
+uniform vec4 uPsW[3];
 // Flesh contact (the vertex shader's block): the pressure's colour is worked out here, per fragment, so a coarse mesh shows it smoothly
 uniform highp int uCtN;   // (highp: the vertex stage's int is, and the two must match)
 uniform vec4 uCtA[8];
@@ -418,6 +457,15 @@ void main() {
     vec4 c = texture(uTex, vUv) * uColor;
     if (c.a < uAlphaRef) discard;
     vec3 ctSlope = vec3(0.0);
+    float psWin = 0.0;   // how much a fine skin patch covers this fragment: it replaces the analytic dent and fold there
+    for (int k = 0; k < 3; ++k) {
+        if (k >= uPsN) break;
+        vec3 rr = vRest - uPsC[k].xyz;
+        vec2 g = vec2(dot(rr, uPsU[k].xyz), dot(rr, uPsV[k].xyz)) * uPsU[k].w + 15.5;
+        if (g.x < 1.0 || g.y < 1.0 || g.x > 30.0 || g.y > 30.0) continue;
+        vec2 e = (g - 15.5) * (1.0 / 14.5);
+        psWin = max(psWin, 1.0 - smoothstep(0.80, 1.0, max(abs(e.x), abs(e.y))));
+    }
     if (uCtN > 0) {
         // the dent's colour (pale where the blood is pushed out, a flush ring round it that outlives the touch, the pressing body's
         // occlusion in the middle) and its slope (the shading normal leans as the dent's surface does), per fragment: a mesh of
@@ -450,13 +498,13 @@ void main() {
             vec3 tang = d - cn * dot(d, cn);
             ctSlope += tang * (dh / (max(r, 1e-4) * R));
         }
-        ctSlope *= 1.0 - 0.45 * vTissue.y;   // (the lattice carries the bulk of a dent in soft regions: the analytic one keeps the fine dimple at 55%)
+        ctSlope *= (1.0 - 0.45 * vTissue.y) * (1.0 - psWin);   // (the lattice carries the bulk of a dent in soft regions: the analytic one keeps the fine dimple at 55%)
         if (uCtShade > 0.0) {
             float lum = dot(c.rgb, vec3(0.299, 0.587, 0.114));
             vec3 pale = mix(c.rgb, vec3(lum) + vec3(0.05, 0.045, 0.045), 0.22);
             vec3 flushed = c.rgb * vec3(1.05, 0.93, 0.93) + vec3(0.02, 0.0, 0.0);
-            c.rgb = mix(mix(c.rgb, flushed, clamp(flush, 0.0, 1.0) * uCtShade * 0.6), pale, clamp(blanch, 0.0, 1.0) * uCtShade * 0.6);
-            c.rgb *= 1.0 - 0.08 * clamp(blanch, 0.0, 1.0) * uCtShade;
+            c.rgb = mix(mix(c.rgb, flushed, clamp(flush, 0.0, 1.0) * uCtShade * 0.6 * (1.0 - psWin)), pale, clamp(blanch, 0.0, 1.0) * uCtShade * 0.6 * (1.0 - psWin));
+            c.rgb *= 1.0 - 0.08 * clamp(blanch, 0.0, 1.0) * uCtShade * (1.0 - psWin);
         }
     }
     if (vTissue.y > 0.001 && uCtShade > 0.0) {
@@ -468,6 +516,49 @@ void main() {
         c.rgb *= 1.0 - 0.14 * cmp;
         c.rgb = mix(c.rgb, c.rgb * vec3(1.05, 0.94, 0.94) + vec3(0.015, 0.0, 0.0), str * 0.45);
     }
+    if (uPsN > 0) {
+        float pBl = 0.0, pFl = 0.0, pCr = 0.0, pSt = 0.0;
+        for (int k = 0; k < 3; ++k) {
+            if (k >= uPsN) break;
+            vec3 rr = vRest - uPsC[k].xyz;
+            vec2 g = vec2(dot(rr, uPsU[k].xyz), dot(rr, uPsV[k].xyz)) * uPsU[k].w + 15.5;
+            if (g.x < 1.5 || g.y < 1.5 || g.x > 29.5 || g.y > 29.5) continue;
+            vec2 e = (g - 15.5) * (1.0 / 14.5);
+            float win = 1.0 - smoothstep(0.80, 1.0, max(abs(e.x), abs(e.y)));
+            float wgt = win * uCtShade;
+            vec2 t0 = vec2((g.x + 0.5) / 32.0, (uPsV[k].w + g.y + 0.5) / 96.0);
+            vec2 ex = vec2(1.0 / 32.0, 0.0), ey = vec2(0.0, 1.0 / 96.0);
+            vec4 f0 = textureLod(uPsTex, t0, 0.0);
+            vec4 fxp = textureLod(uPsTex, t0 + ex, 0.0), fxm = textureLod(uPsTex, t0 - ex, 0.0);
+            vec4 fyp = textureLod(uPsTex, t0 + ey, 0.0), fym = textureLod(uPsTex, t0 - ey, 0.0);
+            float sp = uPsW[k].w;
+            float hs = 0.5 / sp;
+            float dcu = (fxp.z - fxm.z) * hs, dcv = (fyp.z - fym.z) * hs;
+            vec2 gs = vec2(dcu, dcv);
+            float gl = length(gs);
+            if (gl > 2.2) gs *= 2.2 / gl;     // (a steep flank: the shading turns no further than the mesh can follow)
+            ctSlope += (uPsU[k].xyz * gs.x + uPsV[k].xyz * gs.y) * (win * uCtLayer);
+            float lap = (fxp.z + fxm.z + fyp.z + fym.z - 4.0 * f0.z) / (sp * sp);
+            float dau = (fxp.x - fxm.x) * hs, dbv = (fyp.y - fym.y) * hs;
+            float dav = (fyp.x - fym.x) * hs, dbu = (fxp.y - fxm.y) * hs;
+            float J = (1.0 + dau) * (1.0 + dbv) - dav * dbu;
+            pCr = max(pCr, wgt * clamp(lap * 0.22, 0.0, 1.0) * (1.0 - clamp(f0.w * 1.5, 0.0, 1.0)));
+            pBl = max(pBl, wgt * smoothstep(0.35, 1.5, f0.z));
+            pFl = max(pFl, wgt * f0.w * f0.w);
+            pSt = max(pSt, wgt * clamp((J - 1.25) * 3.0, 0.0, 1.0));
+            // skin gathered more than the fold takes up creases across the gathering (soft, no ripple lines: they read as fake)
+            float cu = max(-dau - 0.3, 0.0), cv = max(-dbv - 0.3, 0.0);
+            pCr = max(pCr, wgt * 0.25 * clamp((cu + cv) * 1.5, 0.0, 1.0));
+        }
+        float lum = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+        vec3 pale = mix(c.rgb, vec3(lum) + vec3(0.06, 0.055, 0.055), 0.30);
+        vec3 flushed = c.rgb * vec3(1.08, 0.90, 0.90) + vec3(0.025, 0.0, 0.0);
+        c.rgb = mix(c.rgb, pale, clamp(pBl, 0.0, 1.0) * 0.55);
+        c.rgb = mix(c.rgb, flushed, clamp(pFl, 0.0, 1.0) * 0.4);
+        c.rgb = mix(c.rgb, c.rgb * vec3(1.04, 0.95, 0.95) + vec3(0.012, 0.0, 0.0), clamp(pSt, 0.0, 1.0) * 0.5);
+        c.rgb *= 1.0 - 0.2 * clamp(pCr, 0.0, 1.0);
+    }
+    vec3 slBeforePinch = ctSlope;
     if (uPnN > 0) {
         // the pinch, per fragment: the fold's slope (steep flanks catch the light), the paler crest, the flush at the pads, the darker crease at the
         // foot of each flank, the taut skin's lighter tone and the faint ripples across the pull
@@ -528,6 +619,7 @@ void main() {
             ctSlope += u * (sg * 0.10 * uPnE[i].y * env * cos(ph) * facing);
             crease = max(crease, 0.18 * uPnE[i].y * env * (0.5 + 0.5 * cos(ph)) * facing);
         }
+        pb *= 1.0 - psWin; pf *= 1.0 - psWin; pt *= 1.0 - psWin; crease *= 1.0 - psWin;
         if (uCtShade > 0.0) {
             float lum = dot(c.rgb, vec3(0.299, 0.587, 0.114));
             vec3 pale = mix(c.rgb, vec3(lum) + vec3(0.07, 0.065, 0.065), 0.38);
@@ -537,6 +629,7 @@ void main() {
             c.rgb = mix(mix(c.rgb, flushed, clamp(pf, 0.0, 1.0) * uCtShade * 0.75), pale, clamp(pb, 0.0, 1.0) * uCtShade * 0.8);
             c.rgb *= 1.0 - 0.30 * clamp(crease, 0.0, 1.0) * uCtShade;
         }
+        ctSlope = slBeforePinch + (ctSlope - slBeforePinch) * (1.0 - psWin);
     }
     vec3 rgb = c.rgb;
     float lift = 0.0;
@@ -581,7 +674,9 @@ out vec3 vWorld;
 out vec3 vNormal;
 out vec2 vTissue;
 out vec2 vUv;
+out vec3 vRest;
 void main() {
+    vRest = aPos;
     vWorld = aPos;
     vNormal = aNormal;
     vUv = aUv;
@@ -711,6 +806,7 @@ bool Scene::initGl() {
         glUniform1i(loc(m2Prog_, "uMorphData"), 7);
         glUniform1i(loc(m2Prog_, "uMorphOn"), 0);
         TissueDraw::initGl(m2Prog_);   // (the soft tissue field's 3D texture on unit 5, an empty one until an actor has its own)
+        SkinPatchDraw::initGl(m2Prog_);   // (the skin patches' 2D texture on unit 8)
     }
     wmoProg_ = program(kWmoVs, kLitFs);
     skyProg_ = program(kSkyVs, kSkyFs);
@@ -1949,11 +2045,12 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     bool soft = a.soft.active() && !a.tissue.active();   // (soft tissue's lattices carry the chest, belly, rear and thighs instead)
     if (soft) { glUseProgram(m2Prog_); a.soft.uniforms(m2Prog_, a.soft.bodyGate()); }
     softBodyDraw_ = soft;
-    contactDraw_ = (contactLevel_ != kContactOff && a.contact.active()) || a.tissue.active();
+    contactDraw_ = (contactLevel_ != kContactOff && a.contact.active()) || a.tissue.active() || a.skinPatch.active();
     if (contactLevel_ != kContactOff) { glUseProgram(m2Prog_); a.contact.uniforms(m2Prog_); }
     glUseProgram(m2Prog_);
     a.spring.uniforms(m2Prog_);   // (spring-bone jiggle: springdraw.cpp; the HD figure only)
     a.tissue.uniforms(m2Prog_);   // (soft tissue's field: tissuedraw.cpp; uCtLayer scales it for a garment)
+    a.skinPatch.uniforms(m2Prog_);   // (the fine skin patches: skinpatchdraw.cpp)
     skinOf(a, w);   // (scene_gfx.cpp: the sheen, the eyes, the thin parts)
     // (a flap hung as cloth is drawn from its simulated points instead of skinned: drawCloth)
     if (a.hd.active) {
@@ -1968,6 +2065,7 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
         if (soft) SoftDraw::off(m2Prog_);
         if (contactDraw_) ContactDraw::off(m2Prog_);
         TissueDraw::off(m2Prog_);
+        SkinPatchDraw::off(m2Prog_);
         contactDraw_ = false;
         std::fill(drawSkin_, drawSkin_ + 4, 0.0f);
         drawAttached(a, w, nowMs, transparent);
@@ -1997,6 +2095,7 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     if (soft) SoftDraw::off(m2Prog_);
     if (contactDraw_) ContactDraw::off(m2Prog_);
     TissueDraw::off(m2Prog_);
+    SkinPatchDraw::off(m2Prog_);
     contactDraw_ = false;
     std::fill(drawSkin_, drawSkin_ + 4, 0.0f);
     drawAttached(a, w, nowMs, transparent);
@@ -2135,6 +2234,7 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     stepContacts(clock);   // (flesh contact: derived from the posed bodies, springs advanced; contactdraw.cpp)
     stepSprings(clock);    // (spring-bone jiggle: springdraw.cpp)
     stepTissue(clock);     // (soft tissue: the lattices, fed by the contacts; tissuedraw.cpp)
+    stepSkinPatches(clock);   // (fine skin patches, fed by the same; skinpatchdraw.cpp)
 
     litUniforms(wmoProg_, light_, eye_, viewProj);
     drawCity(false);

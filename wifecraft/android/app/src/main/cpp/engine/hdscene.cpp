@@ -12,6 +12,7 @@
 namespace wc {
 
 namespace {
+
 bool readAll(const std::string& path, std::vector<uint8_t>& out) {
     FILE* f = std::fopen(path.c_str(), "rb");
     if (!f) return false;
