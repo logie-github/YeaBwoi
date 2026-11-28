@@ -1532,6 +1532,10 @@ fun LiveSceneScreen(
         interactTick++
     }
     fun interactAction(a: InteractAction) { val id = interactActor ?: return; interactResult(interactMode.command(a, consent, interactPersona(id))) }
+    // Toys (ui/InteractToys.kt): the held toy, her reactions to it and the Toys tab's tray
+    val toyCtl = rememberToySession(view, interactActor, { actorKey(it) }, { interactPersona(it).disposition.boldness }, { interactMode.haptics },
+        { e -> interactAction(InteractAction.Express(e)) }, { line -> interactActor?.let { id -> live.command { sim -> sim.say(id, line) } } },
+        { interactMode.closeSheet(); panel = ScreenPanel.NONE; interactTick++ })
     fun interactTell(text: String) {
         val id = interactActor ?: return
         interactResult(interactMode.tell(text, consent, interactPersona(id)))
@@ -1832,6 +1836,7 @@ fun LiveSceneScreen(
         interactActor?.let { iid ->
             InteractTouchLayer(interactMode, interactTick, interactCamera, view, actorKey(iid), consent, { interactPersona(iid) },
                 { hit, kind -> interactTouch(hit, kind) }, { step -> interactStroke(step) }, { x, y, w, h -> interactBackground(x, y, w, h) }, pinch = stockCtl.host)
+            ToyTouchLayer(toyCtl)   // (the held toy: ui/InteractToys.kt)
         }
 
         // the HUD, inside the screen's safe area (cut-outs, the hinge's bars, the gesture bar)

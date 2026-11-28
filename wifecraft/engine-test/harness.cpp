@@ -141,6 +141,7 @@
 #include "../android/app/src/main/cpp/engine/json.h"
 #include "../android/app/src/main/cpp/engine/scene.h"
 #include "partpaint.h"
+#include "toy_cmds.h"
 
 using namespace wc;
 
@@ -1770,6 +1771,7 @@ int main(int argc, char** argv) {
                 while (ss >> a[0] >> a[1] >> a[2] >> a[3] >> a[4] >> a[5]) { v.insert(v.end(), {a[0], a[1], a[2], a[3], a[4], a[5], 1.0f, float(v.size())}); }
             }
             scene.setSparkles(v.data(), int(v.size()) / SparkleField::kStride, density);
+        } else if (toyCommand(scene, cmd, ss)) {   // (toy_cmds.h)
         } else if (cmd == "render") {
             std::string out; int w, h; uint32_t t;
             ss >> out >> w >> h >> t;

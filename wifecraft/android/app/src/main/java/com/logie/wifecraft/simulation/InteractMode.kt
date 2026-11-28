@@ -18,7 +18,7 @@ import kotlin.random.Random
 enum class InteractTool(val label: String) { TOUCH("Touch"), LOOK("Look") }
 
 /** The tabs of the commands sheet. */
-enum class InteractTab(val label: String) { COMMANDS("Commands"), POSE("Pose"), OUTFIT("Outfit"), LOOK("Look"), STOCKINGS("Stockings") }
+enum class InteractTab(val label: String) { COMMANDS("Commands"), POSE("Pose"), OUTFIT("Outfit"), LOOK("Look"), STOCKINGS("Stockings"), TOYS("Toys") }
 
 /** What the player's last screen was before entering, to put back on leaving (as Chat mode's prior). */
 data class InteractPrior(val cinematic: Boolean, val cameraMode: String, val cameraView: Int)

@@ -218,6 +218,7 @@ internal fun InteractSheetBody(
             }
             InteractTab.LOOK -> PortraitRows(portrait, onPortrait)
             InteractTab.STOCKINGS -> StockingsPanel(stockings, onStockings, fabric, options, onOptions, onRestore, onRepairAll)
+            InteractTab.TOYS -> ToysPanel(ToyHub.session)
         }
     }
 }

@@ -200,6 +200,7 @@ void Scene::drawHd(Actor& a, const M4& world, const float tint[4]) {
         gl::m2VertexLayout();
         glBindVertexArray(0);
     }
+    toyBody(a);   // (a held toy: the opening's vertices uploaded; orificedraw.cpp)
     if (h.tex.size() != h.fit.parts.size()) {
         // each part's texture: the set's, with the chosen mark laid over the skin it belongs to, the hair recoloured; shared
         // by every actor drawn with the same (decoded once: the body's 2048 px skins take tens of ms each)
