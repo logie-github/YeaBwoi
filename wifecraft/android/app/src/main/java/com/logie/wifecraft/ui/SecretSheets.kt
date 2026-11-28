@@ -24,7 +24,6 @@ import com.logie.wifecraft.simulation.InteractCamera
 import com.logie.wifecraft.simulation.InteractMode
 import com.logie.wifecraft.simulation.InteractView
 import com.logie.wifecraft.simulation.LookTarget
-import com.logie.wifecraft.simulation.SecretLight
 import com.logie.wifecraft.simulation.SecretSettings
 
 // The hidden mode's sheets (ui/SecretScene.kt owns them): the view presets, her outfit, the "Tell her" field and the settings.
@@ -89,10 +88,7 @@ internal fun SecretSettingsSheet(settings: SecretSettings, onChange: (SecretSett
     WifeSwitchRow("Breathing", settings.breathing, { onChange(settings.copy(breathing = it)) }, detail = "A tiny sway while she kneels")
     WifeSwitchRow("Depth of field", settings.depthOfField, { onChange(settings.copy(depthOfField = it)) }, detail = "The background blur follows her; off keeps everything sharp")
     WifeSwitchRow("Haptics", mode.haptics, { mode.haptics = it; onTick() })
-    WifeNote("Light")
-    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
-        for (l in SecretLight.entries) WifeChip(l.label, { onChange(settings.copy(light = l)) }, trailing = if (settings.light == l) "✓" else null)
-    }
+    PortraitRows(settings.portrait) { onChange(settings.copy(portrait = it)) }
     WifeNote("Flesh contact")
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(WifeTheme.gapXs)) {
         for ((n, label) in listOf(0 to "Off", 1 to "Low", 2 to "High")) WifeChip(label, { edit(g.copy(fleshContact = n)) }, trailing = if (g.fleshContact == n) "✓" else null)

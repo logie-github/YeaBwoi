@@ -25,6 +25,21 @@ data class InteractPersona(
     val dirty: DirtyLevel = DirtyLevel.DEFAULT,
 )
 
+/**
+ * Interact mode and the hidden mode do not judge a touch or a command: nothing she is touched on or told is declined, hesitated at or put to
+ * the persuasion chips (the user: "consent mode is not needed"). The gates stay in the code behind this constant (the scene-creation Consent and
+ * limits screen and its enforcement in ordinary scenes and partner stages are another feature and are unchanged); her reactions are her
+ * nature's (a smile, a flinch, a giggle, a turn of the head), never a refusal.
+ */
+object InteractConsent {
+    const val ENABLED = false
+
+    /** Tests of the dormant gates switch them on here (never the app). */
+    @Volatile internal var forTests = false
+
+    internal fun on(): Boolean = ENABLED || forTests
+}
+
 object TouchConsent {
     /** How tender each part is to touch, 0 (a hand on the head) to 1 (the most private); the stockings' pull adds a little. */
     fun sensitivity(r: TouchRegion): Float = when (r) {
@@ -83,7 +98,7 @@ object TouchConsent {
      * ([WillingnessModel.AGREE_BELOW] allows, from [WillingnessModel.REFUSE_AT] declines, between hesitates).
      */
     fun verdict(policy: ConsentPolicy?, npc: String, region: TouchRegion, kind: TouchKind, p: InteractPersona): Verdict {
-        if (region == TouchRegion.NONE) return Verdict.ALLOW
+        if (!InteractConsent.on() || region == TouchRegion.NONE) return Verdict.ALLOW
         decided(policy, npc, act(region, kind))?.let { return it }
         val r = resistance(region, kind, p)
         return when {

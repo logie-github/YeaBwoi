@@ -127,7 +127,7 @@ class SecretModelTest {
     @Test fun settingsKeepAndReadBack() {
         val store = MemorySecretStore()
         assertEquals(SecretSettings(), SecretSettings.parse(store.read()))
-        val s = SecretSettings(floorShadow = false, breathing = false, depthOfField = false, light = SecretLight.RIM, character = "npc-9")
+        val s = SecretSettings(floorShadow = false, breathing = false, depthOfField = false, light = SecretLight.RIM, portrait = PortraitSettings(PortraitLighting.WARM, LifeLevel.LIVELY, GazeMode.WANDER, 40), character = "npc-9")
         store.write(s.toJson())
         assertEquals(s, SecretSettings.parse(store.read()))
         assertEquals(SecretSettings(), SecretSettings.parse("not json {"))

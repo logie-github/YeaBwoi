@@ -14,6 +14,9 @@ import kotlin.test.assertTrue
 
 /** Interact mode, step one: the region map, touch consent and reactions, the intents, the state machine and the camera. */
 class InteractModeTest {
+    // the gates are dormant in the app (InteractConsent.ENABLED = false); these tests keep them honest while they are switched on here
+    @kotlin.test.BeforeTest fun gatesOn() { InteractConsent.forTests = true }
+    @kotlin.test.AfterTest fun gatesOff() { InteractConsent.forTests = false }
     private val shy = InteractPersona(Disposition(caution = 0.6f, warmth = 0.1f), affinity = 0.1f)
     private val bold = InteractPersona(Disposition(boldness = 0.6f, warmth = 0.3f), affinity = 0.6f)
     private fun detail(code: Int, h: Float, across: Float = 0f, front: Boolean = true, geoset: Int = 0, side: Int = 0) =

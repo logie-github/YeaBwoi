@@ -1436,6 +1436,7 @@ fun LiveSceneScreen(
     val interactPrefs = remember(context) { context.getSharedPreferences("wifecraft.interact", android.content.Context.MODE_PRIVATE) }
     var stockingBook by remember(interactPrefs) { mutableStateOf(StockingBook.fromJson(try { interactPrefs.getString("stockings", null) } catch (e: Exception) { null })) }
     val stockCtl = rememberStockFabric(view, live, interactMode, interactPrefs, seed.toLong(), interactActor) { actorKey(it) }
+    val portrait = rememberPortrait(view, interactPrefs, interactActor?.let { actorKey(it) }, seed.toLong())
     fun interactSay(text: String, danger: Boolean = false) { interactToast = Triple((interactToast?.first ?: 0) + 1, text, danger) }
     // her stockings (creator/Stockings.kt, engine/stockings.h): kept per NPC, put on the engine's actor again when she is on stage
     fun applyStockings(id: String, spec: StockingSpec?) {
@@ -2009,7 +2010,8 @@ fun LiveSceneScreen(
                         interactPoses, interactActor?.let { stockingBook.of(it) }, { interactAction(it) }, { spec -> interactActor?.let { applyStockings(it, spec) }; interactTick++ },
                         { interactCamera.overview(); interactTick++ },
                         fabric = stockCtl.fabric, options = interactMode.stock, onOptions = { stockCtl.setOptions(it) },
-                        onRestore = { interactActor?.let { stockCtl.restore(it) } }, onRepairAll = { interactActor?.let { stockCtl.repairAll(it) } })
+                        onRestore = { interactActor?.let { stockCtl.restore(it) } }, onRepairAll = { interactActor?.let { stockCtl.repairAll(it) } },
+                        portrait = portrait.settings, onPortrait = { portrait.set(it) })
                 }
                 ScreenPanel.STEER -> dialogueDirector?.let { SteerSheet(it, live, names) }
                 else -> Unit

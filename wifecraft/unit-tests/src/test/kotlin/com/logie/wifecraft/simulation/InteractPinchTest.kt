@@ -13,6 +13,9 @@ import kotlin.test.assertTrue
 
 /** The pinch's consent per finger, her reaction (rate-limited), the haptics, the contact API of SceneView's kin. */
 class InteractPinchTest {
+    // the gates are dormant in the app (InteractConsent.ENABLED = false); these tests keep them honest while they are switched on here
+    @kotlin.test.BeforeTest fun gatesOn() { InteractConsent.forTests = true }
+    @kotlin.test.AfterTest fun gatesOff() { InteractConsent.forTests = false }
     private val bold = InteractPersona(Disposition(boldness = 0.6f, warmth = 0.3f), affinity = 0.6f)
     private val shy = InteractPersona(Disposition(caution = 0.6f, warmth = 0.1f), affinity = 0.1f)
     private fun hit(r: TouchRegion) = TouchHit(r, GarmentSlot.BARE, 0, true, 0.5f)
