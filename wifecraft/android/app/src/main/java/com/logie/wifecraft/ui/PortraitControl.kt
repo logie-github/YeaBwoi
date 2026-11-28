@@ -35,5 +35,33 @@ internal fun rememberPortrait(view: SceneView, prefs: SharedPreferences?, key: S
         if (k != null) view.queueEvent { view.glPortrait(k, ctl.settings.lighting.engineId) }
         onDispose { if (k != null) view.queueEvent { view.glPortrait(k, 0) } }
     }
+    // her life and gaze (GL thread), and off again when the mode ends
+    DisposableEffect(view, key, ctl.settings.life, ctl.settings.gaze, ctl.settings.lookAngle) {
+        val k = key
+        val st = ctl.settings
+        if (k != null) view.queueEvent { view.glLife(k, st.life.engineId, st.gaze.engineId, st.lookAngle.toFloat(), (seed xor k.hashCode().toLong()).toInt()) }
+        onDispose { if (k != null) view.queueEvent { view.glLife(k, 0, 0, 70f, 0) } }
+    }
     return ctl
+}
+
+/** A touch on her reaches the engine's life layer (her head and eyes turn toward the place, a small start follows). */
+internal fun SceneView.lifeTouch(key: String, hit: com.logie.wifecraft.simulation.TouchHit, kind: com.logie.wifecraft.simulation.TouchKind, reaction: com.logie.wifecraft.simulation.Reaction?) {
+    val ev = reaction?.let { com.logie.wifecraft.simulation.LifeTouch.event(it.kind) } ?: com.logie.wifecraft.simulation.LifeTouch.ATTEND
+    val bone = com.logie.wifecraft.simulation.LifeTouch.bone(hit.region)
+    val strength = com.logie.wifecraft.simulation.LifeTouch.strength(hit.region, kind)
+    queueEvent { glLifeEvent(key, ev, bone, strength) }
+}
+
+/** Everything of [s] on person [key] (GL thread); [seed] makes her life her own. */
+internal fun SceneView.portraitOn(key: String, s: PortraitSettings, seed: Long) {
+    queueEvent {
+        glPortrait(key, s.lighting.engineId)
+        glLife(key, s.life.engineId, s.gaze.engineId, s.lookAngle.toFloat(), (seed xor key.hashCode().toLong()).toInt())
+    }
+}
+
+/** Takes it all off person [key] again. */
+internal fun SceneView.portraitOff(key: String) {
+    queueEvent { glPortrait(key, 0); glLife(key, 0, 0, 70f, 0) }
 }

@@ -292,6 +292,9 @@ static void writePng(const std::string& path, int w, int h, const std::vector<ui
 }
 
 // Draws the scene at `t` into an off-screen picture and writes it (.png, else .ppm).
+static uint32_t g_clock = 0;     // `advance` (the life layer's strips): the clock the commands run on
+static bool g_clockOn = false;
+
 static void renderTo(Scene& scene, const std::string& out, int w, int h, uint32_t t) {
     unsigned fbo, color, depth;
     glGenFramebuffers(1, &fbo); glBindFramebuffer(GL_FRAMEBUFFER, fbo);
@@ -306,9 +309,12 @@ static void renderTo(Scene& scene, const std::string& out, int w, int h, uint32_
     static uint32_t last = 0;
     static bool drawn = false;
     uint32_t from = drawn && t >= last ? last : 0;
+    if (g_clockOn) { scene.render(w, h, t); }   // (after `advance` the commands own the clock: one frame, at the time given)
+    else {
     if (!drawn || t < last) scene.render(w, h, 0);
     for (uint32_t s = from + 33; s < t; s += 33) scene.render(w, h, s);
     scene.render(w, h, t);
+    }
     last = t;
     drawn = true;
     std::vector<uint8_t> px(size_t(w) * h * 4);
@@ -877,6 +883,24 @@ int main(int argc, char** argv) {
                     if (eq != std::string::npos && k == kNames[i]) gfxv[i] = std::stof(kv.substr(eq + 1));
             }
             scene.setGraphics(gfxv, GraphicsSettings::kCount);
+        } else if (cmd == "life") {         // life N LEVEL GAZE LIMIT_DEG [SEED]: person N's life and gaze (Scene::setLife: level 0 off .. 3 lively, gaze 0 off, 1 camera, 2 wander)
+            int name, level, gaze; float lim; unsigned seed = 0; ss >> name >> level >> gaze >> lim >> seed;
+            if (actors.count(name)) scene.setLife(actors[name], level, gaze, lim, seed);
+        } else if (cmd == "lifegesture") {  // lifegesture N G SIDE: a gesture held now (1 hair tuck, 2 touch arm, 3 shoulder roll, 4 lip touch, 5 shy tilt; SIDE 0 her right, 1 her left)
+            int name, g, sd = 0; ss >> name >> g >> sd;
+            if (actors.count(name)) scene.lifeForceGesture(actors[name], g, sd);
+        } else if (cmd == "lifeout") {      // lifeout N: prints person N's life layer's last output
+            int name; ss >> name;
+            if (actors.count(name)) if (const life::Output* o = scene.lifeOutput(actors[name]))
+                std::printf("lifeout %d: lid %.2f %.2f track %.2f eyeW %.2f eyeoff %.2f %.2f deg head %.1f %.1f neck %.1f spine %.1f gesture %d w %.2f\n", name, o->lid[0], o->lid[1], o->lidTrack, o->eyeWeight, life::deg(o->eyeOffYaw), life::deg(o->eyeOffPitch), life::deg(o->headYaw), life::deg(o->headPitch), life::deg(o->neckYaw), life::deg(o->spineYaw), o->gesture, o->gestureWeight);
+        } else if (cmd == "lifeevent") {    // lifeevent N KIND BONE STRENGTH: a touch (Scene::lifeEvent)
+            int name, kind; std::string bone; float st = 1; ss >> name >> kind >> bone >> st;
+            if (actors.count(name)) scene.lifeEvent(actors[name], kind, bone == "-" ? "" : bone, st);
+        } else if (cmd == "advance") {      // advance MS [STEP_MS]: draws small frames STEP_MS apart (33) so the animations' clock and the life layer run on MS
+            int ms, step = 33; ss >> ms >> step;
+            g_clockOn = true;
+            for (int t = 0; t < ms; t += step) { g_clock += uint32_t(step); scene.render(48, 48, g_clock); }
+            glFinish();
         } else if (cmd == "portrait") {     // portrait N PRESET: person N lit by the portrait rig (0 off, 1 natural, 2 soft, 3 dramatic, 4 warm)
             int name, preset; ss >> name >> preset;
             if (actors.count(name)) scene.setPortrait(actors[name], preset);
@@ -1709,7 +1733,7 @@ int main(int argc, char** argv) {
                     int b = mm->findWowBone(bone);
                     if (b < 0 || size_t(b) >= mats.size()) { std::printf(" %s=?", bone.c_str()); continue; }
                     V3 p = mats[size_t(b)].point(mm->bones[size_t(b)].pivot);
-                    std::printf(" %s[%d]=(%.3f,%.3f,%.3f)", bone.c_str(), b, p.x, p.y, p.z);
+                    std::printf(" %s[%d<%d]=(%.3f,%.3f,%.3f)", bone.c_str(), b, int(mm->bones[size_t(b)].parent), p.x, p.y, p.z);
                 }
                 std::printf("\n");
             }
@@ -1751,6 +1775,7 @@ int main(int argc, char** argv) {
         } else if (cmd == "render") {
             std::string out; int w, h; uint32_t t;
             ss >> out >> w >> h >> t;
+            if (g_clockOn) { g_clock += 16; t = g_clock; }   // (after `advance`: the clock runs on)
             scene.setCinematic(cine[0], cine[1], cine[2], cine[3] * letterboxBars(w, h));
             renderTo(scene, out, w, h, t);
         }

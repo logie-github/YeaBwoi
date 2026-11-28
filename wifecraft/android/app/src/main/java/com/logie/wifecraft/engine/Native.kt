@@ -277,6 +277,12 @@ object Native {
     /** Actor [actor] lit by the portrait rig (cpp Scene::setPortrait, portrait.h): 0 off (the place's light), 1 natural, 2 soft, 3 dramatic, 4 warm. */
     @JvmStatic external fun portrait(scene: Long, actor: Int, preset: Int)
 
+    /** Actor [actor]'s life and gaze (cpp Scene::setLife, life.h): [level] 0 off, 1 subtle, 2 natural, 3 lively; [gaze] 0 off, 1 camera, 2 camera with wander; [limitDeg] 20..90; [seed]. */
+    @JvmStatic external fun life(scene: Long, actor: Int, level: Int, gaze: Int, limitDeg: Float, seed: Int)
+
+    /** A touch on actor [actor] ([kind] 1 flinch, 2 lean in, 3 step back, 4 giggle, 5 attend) at the WoW-side bone [bone] ("" none): her head and eyes turn to it, a small impulse follows. */
+    @JvmStatic external fun lifeEvent(scene: Long, actor: Int, kind: Int, bone: String, strength: Float)
+
     // ---- locations and the editor's props (cpp engine/location.h, location.cpp, terrain.cpp)
 
     /**

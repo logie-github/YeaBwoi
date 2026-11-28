@@ -28,6 +28,7 @@
 #include "motionlayer.h"
 #include "orificedraw.h"
 #include "portrait.h"
+#include "life.h"
 #include "toyrig.h"
 #include "particles.h"
 #include "propmesh.h"
@@ -349,6 +350,16 @@ public:
     // The portrait light (portrait.h): person `id` lit by the three-point rig from the camera (preset 0 off: the place's own light). The
     // shading of skin, hair and eyes is then always the person's own (as with Options' Graphics skin, hair and eyes on).
     void setPortrait(int id, int preset);
+    // A person's life and gaze (life.h, lifedraw.cpp): breathing, weight shifts, slow noise, idle gestures, a look at the camera with her head, neck
+    // and eyes, blinks. `level` 0 off .. 3 lively, `gaze` 0 off, 1 camera, 2 camera with wander, `lookLimitDeg` 20..90; deterministic from `seed`.
+    // Level 0 with gaze 0 turns it all off (the animation alone).
+    void setLife(int id, int level, int gaze, float lookLimitDeg, uint32_t seed);
+    // A touch on her (an Event of life.h: 1 flinch, 2 lean in, 3 step back, 4 giggle, 5 attend), at the place of the WoW-side bone `bone` (empty: none):
+    // her head and eyes turn toward it for a moment, a small spring impulse follows.
+    void lifeEvent(int id, int kind, const std::string& bone, float strength);
+    // The desktop check: the last frame's output of her life layer, or null.
+    void lifeForceGesture(int id, int gesture, int side) { auto it = actors_.find(id); if (it != actors_.end()) it->second.lifeSt.forceGesture(gesture, side); }
+    const life::Output* lifeOutput(int id) const { auto it = actors_.find(id); return it == actors_.end() || !it->second.lifeOn ? nullptr : &it->second.lifeOut; }
     bool portraitOn(int id) const { auto it = actors_.find(id); return it != actors_.end() && it->second.portrait > 0; }
     // The textures loaded from the game now and the bytes they hold on the GPU (mips included): texture detail's cost.
     void textureMemory(size_t& count, size_t& bytes) const;
@@ -815,6 +826,16 @@ private:
         float sheen = 0;               // setSheen: the skin's wet sheen 0..1
         int portrait = 0;              // setPortrait: the rig's preset (0: none)
         bool eyeFx = false;            // life on: the eyes shaded as eyes (lids, catchlights)
+        bool lifeOn = false;           // setLife (lifedraw.cpp)
+        life::LifeState lifeSt;
+        life::Output lifeOut;
+        uint32_t lifeLast = 0;
+        const M2Model* lifeModel = nullptr;
+        int lifeBone[24] = {};
+        std::vector<std::vector<int>> lifeSub;
+        float lidSkin[3] = {0.80f, 0.62f, 0.52f};   // the face's skin, for the lids
+        bool lidSkinSet = false;
+        std::vector<std::pair<int, float>> lifeTouch;   // (unused)
         float lid[4] = {0, 0, 0, 0};   // the eyelids as life.h last worked them out
         int fxBones[5] = {-2, -2, -2, -2, -2};   // L_Eye, R_Eye, Head, L_Hand, R_Hand (-1: none) for fxModel (skinOf)
         const void* fxModel = nullptr;
@@ -1049,7 +1070,9 @@ private:
     void holdBoneLayer(Actor& a, uint32_t now);  // bonelayer.h's held bones, on the local poses (before the matrices)
     void layBoneLayer(Actor& a, uint32_t now);   // bonelayer.h's rotation layer over the posed matrices
     void layReach(Actor& a, uint32_t now);       // bonelayer.h's reach: the arm on its target, after the target is posed
-    void layMotion(Actor& a, uint32_t now);   // motionlayer.h over the posed matrices, before they are uploaded
+    void layMotion(Actor& a, uint32_t now);
+    void layLife(Actor& a, uint32_t now);      // lifedraw.cpp: life.h's layer over the posed matrices (replaces the body language of layMotion)
+    void lidSkinOf(Actor& a);                  // the face's skin colour (the mean of her base skin) for the lids   // motionlayer.h over the posed matrices, before they are uploaded
     M4 view_, proj_;
 
     GlTexture texture(uint32_t fileId, int maxSize);
