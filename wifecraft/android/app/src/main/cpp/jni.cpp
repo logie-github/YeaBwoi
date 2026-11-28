@@ -463,6 +463,9 @@ JNIEXPORT void JNICALL FN(graphicsStats)(JNIEnv* env, jclass, jlong h, jfloatArr
     env->SetFloatArrayRegion(out, 0, n, v);
 }
 
+// One actor lit by the portrait rig (Scene::setPortrait: 0 off, 1 natural, 2 soft, 3 dramatic, 4 warm).
+JNIEXPORT void JNICALL FN(portrait)(JNIEnv*, jclass, jlong h, jint id, jint preset) { scene(h)->setPortrait(id, preset); }
+
 // One actor's skin sheen 0..1 (Scene::setSheen).
 JNIEXPORT void JNICALL FN(sheen)(JNIEnv*, jclass, jlong h, jint id, jfloat value) { scene(h)->setSheen(id, value); }
 

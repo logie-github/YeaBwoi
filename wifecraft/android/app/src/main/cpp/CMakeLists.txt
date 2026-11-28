@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_library(wcengine SHARED
     jni.cpp
+    toy_jni.cpp
     engine/blp.cpp
     engine/bodypart.cpp
     engine/bodypick.cpp
@@ -49,6 +50,9 @@ add_library(wcengine SHARED
     engine/tissuedraw.cpp
     engine/skinpatch.cpp
     engine/skinpatchdraw.cpp
+    engine/orifice.cpp
+    engine/orificedraw.cpp
+    engine/toyrig.cpp
     engine/wmo.cpp)
 
 target_compile_options(wcengine PRIVATE -O2 -Wall -Wno-unused-parameter)

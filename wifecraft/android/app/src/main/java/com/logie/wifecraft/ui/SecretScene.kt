@@ -238,6 +238,7 @@ internal fun SecretScreen(host: SecretHost, onBack: () -> Unit) {
         }
     }
     LaunchedEffect(settings.light) { view.light(settings.light.values()) }
+    androidx.compose.runtime.DisposableEffect(view, ready, settings.portrait.lighting) { view.queueEvent { view.glPortrait(key, settings.portrait.lighting.engineId) }; onDispose { view.queueEvent { view.glPortrait(key, 0) } } }
     SideEffect { frame.breathing = settings.breathing; frame.dof = settings.depthOfField; frame.panel = if (tab != null) 0.45f else 0.24f }
 
     // the kneeling pose: an imported clip of the library when it has one, else the pose built from the skeleton

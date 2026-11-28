@@ -141,6 +141,7 @@
 #include "../android/app/src/main/cpp/engine/json.h"
 #include "../android/app/src/main/cpp/engine/scene.h"
 #include "partpaint.h"
+#include "toy_cmds.h"
 
 using namespace wc;
 
@@ -876,6 +877,9 @@ int main(int argc, char** argv) {
                     if (eq != std::string::npos && k == kNames[i]) gfxv[i] = std::stof(kv.substr(eq + 1));
             }
             scene.setGraphics(gfxv, GraphicsSettings::kCount);
+        } else if (cmd == "portrait") {     // portrait N PRESET: person N lit by the portrait rig (0 off, 1 natural, 2 soft, 3 dramatic, 4 warm)
+            int name, preset; ss >> name >> preset;
+            if (actors.count(name)) scene.setPortrait(actors[name], preset);
         } else if (cmd == "sheen") {       // sheen NAME VALUE: the person's skin sheen 0..1 (Scene::setSheen)
             int name = 0; float v = 0; ss >> name >> v;
             if (actors.count(name)) scene.setSheen(actors[name], v);
@@ -1743,6 +1747,7 @@ int main(int argc, char** argv) {
                 while (ss >> a[0] >> a[1] >> a[2] >> a[3] >> a[4] >> a[5]) { v.insert(v.end(), {a[0], a[1], a[2], a[3], a[4], a[5], 1.0f, float(v.size())}); }
             }
             scene.setSparkles(v.data(), int(v.size()) / SparkleField::kStride, density);
+        } else if (toyCommand(scene, cmd, ss)) {   // (toy_cmds.h)
         } else if (cmd == "render") {
             std::string out; int w, h; uint32_t t;
             ss >> out >> w >> h >> t;

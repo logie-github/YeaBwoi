@@ -200,6 +200,7 @@ void Scene::drawHd(Actor& a, const M4& world, const float tint[4]) {
         gl::m2VertexLayout();
         glBindVertexArray(0);
     }
+    toyBody(a);   // (a held toy: the opening's vertices uploaded; orificedraw.cpp)
     if (h.tex.size() != h.fit.parts.size()) {
         // each part's texture: the set's, with the chosen mark laid over the skin it belongs to, the hair recoloured; shared
         // by every actor drawn with the same (decoded once: the body's 2048 px skins take tens of ms each)
@@ -250,7 +251,7 @@ void Scene::drawHd(Actor& a, const M4& world, const float tint[4]) {
     glUniform1i(gl::loc(p, "uTex"), 0);
     glUniform1i(gl::loc(p, "uUnlit"), 0);
     if (a.soft.active()) SoftDraw::setGain(p, 1.0f);
-    const bool skinFx = gfx_.skin > 0 || drawSkin_[0] > 0;
+    const bool skinFx = gfx_.skin > 0 || drawSkin_[0] > 0 || portraitDraw_;
     glDisable(GL_BLEND);
     glDepthMask(GL_TRUE);
     glBindVertexArray(h.vao);
@@ -269,9 +270,13 @@ void Scene::drawHd(Actor& a, const M4& world, const float tint[4]) {
         if (asSkin) {
             const float actorSkin[4] = {drawSkin_[0], drawSkin_[1], drawSkin_[2], 0.0f};
             glUniform4fv(gl::loc(p, "uSkinActor"), 1, actorSkin);
+
             glUniform1i(gl::loc(p, "uSkinKind"), 1);
-        } else if (part.role == 1 && gfx_.hair > 0) {
+        } else if (part.role == 1 && (gfx_.hair > 0 || portraitDraw_)) {
             glUniform1i(gl::loc(p, "uSkinKind"), 2);
+        } else if (part.eye && (gfx_.eyes > 0 || drawEyeFx_)) {
+            uploadEyeFx(p);
+            glUniform1i(gl::loc(p, "uSkinKind"), 3);
         }
         glDrawElements(GL_TRIANGLES, GLsizei(part.count), GL_UNSIGNED_INT, (void*)(size_t(part.start) * 4));
         glUniform1i(gl::loc(p, "uSkinKind"), 0);

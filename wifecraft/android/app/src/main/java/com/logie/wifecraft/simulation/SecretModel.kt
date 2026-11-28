@@ -52,11 +52,13 @@ data class SecretSettings(
     val breathing: Boolean = true,
     val depthOfField: Boolean = true,
     val light: SecretLight = SecretLight.STUDIO,
+    /** The portrait light, her life, her gaze and how far she turns to look (shared with Interact mode). */
+    val portrait: PortraitSettings = PortraitSettings(),
     /** The character shown last (an NPC's id); null: none yet. */
     val character: String? = null,
 ) {
     fun toJson(): String = JSONObject().put("floorShadow", floorShadow).put("breathing", breathing).put("dof", depthOfField)
-        .put("light", light.name).also { o -> character?.let { o.put("character", it) } }.toString()
+        .put("light", light.name).put("portrait", portrait.toJson()).also { o -> character?.let { o.put("character", it) } }.toString()
 
     companion object {
         fun parse(text: String?): SecretSettings {
@@ -65,7 +67,7 @@ data class SecretSettings(
                 val o = JSONObject(text)
                 val d = SecretSettings()
                 SecretSettings(o.optBoolean("floorShadow", d.floorShadow), o.optBoolean("breathing", d.breathing), o.optBoolean("dof", d.depthOfField),
-                    SecretLight.of(o.optString("light", "")), o.optString("character", "").takeIf { it.isNotBlank() })
+                    SecretLight.of(o.optString("light", "")), PortraitSettings.fromJson(o.optJSONObject("portrait")), o.optString("character", "").takeIf { it.isNotBlank() })
             } catch (e: Exception) { SecretSettings() }
         }
     }

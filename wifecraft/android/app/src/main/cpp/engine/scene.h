@@ -26,6 +26,9 @@
 #include "m2.h"
 #include "modelpart.h"
 #include "motionlayer.h"
+#include "orificedraw.h"
+#include "portrait.h"
+#include "toyrig.h"
 #include "particles.h"
 #include "propmesh.h"
 #include "sparkle.h"
@@ -343,6 +346,10 @@ public:
     // Actor `id`'s skin sheen 0..1 (wet: glossier, a little darker; the app drives it from the moment's intensity, eased).
     // 0: as before. Drawn with the skin's shading whatever Options' Skin shading is.
     void setSheen(int id, float sheen);
+    // The portrait light (portrait.h): person `id` lit by the three-point rig from the camera (preset 0 off: the place's own light). The
+    // shading of skin, hair and eyes is then always the person's own (as with Options' Graphics skin, hair and eyes on).
+    void setPortrait(int id, int preset);
+    bool portraitOn(int id) const { auto it = actors_.find(id); return it != actors_.end() && it->second.portrait > 0; }
     // The textures loaded from the game now and the bytes they hold on the GPU (mips included): texture detail's cost.
     void textureMemory(size_t& count, size_t& bytes) const;
 
@@ -371,6 +378,17 @@ public:
     bool hasProp(uint64_t guid) const { return propDraw_.has(guid); }
     void setProps(const uint64_t* ids, const float* matrices, int count);
     const PropDraw& propDraw() const { return propDraw_; }
+    // Toy interaction (orificedraw.h, README "Toy interaction"): one prop held on actor `actor` (setToy with mode 0: put away).
+    // The toy follows the finger in front of the body, snaps to the entry's axis and goes in by `depth`; an HD body's slit opens
+    // around it. toyInfo: where the entry is on screen and how long the toy is (false until the first frame is drawn).
+    void setToy(int actor, uint64_t guid, bool doubleEnded, const ToyInput& in);
+    void clearToy();
+    bool toyInfo(ToyInfo& out) const;
+    const orifice::Dyn& toyDyn() const { return toy_.dyn; }
+    // The toy reactions (toyrig.h): actor `id`'s additive pose, `n` floats in toyrig::Pose's order (breath, breathHz, flutter, arch, hipTilt, thighPart,
+    // kneeFlex, headBack, shoulder, tremor, reachL, reachR); clearToyPose takes the layer off.
+    void setToyPose(int id, const float* values, int n);
+    void clearToyPose(int id);
 
     // ---------------------------------------------------------------- locations and props (location.cpp)
     // A location (location.h: an entry of assets/locations.json): its WMO's groups in world coordinates, its doodads and
@@ -795,6 +813,9 @@ private:
         uint64_t sculptAtMs = 0;       // when the game's body was last sculpted (steady clock)
         LegEdit legEdit;               // its Leg Length on the skeleton (bodyrig.h): made again when the slider or model changes
         float sheen = 0;               // setSheen: the skin's wet sheen 0..1
+        int portrait = 0;              // setPortrait: the rig's preset (0: none)
+        bool eyeFx = false;            // life on: the eyes shaded as eyes (lids, catchlights)
+        float lid[4] = {0, 0, 0, 0};   // the eyelids as life.h last worked them out
         int fxBones[5] = {-2, -2, -2, -2, -2};   // L_Eye, R_Eye, Head, L_Hand, R_Hand (-1: none) for fxModel (skinOf)
         const void* fxModel = nullptr;
     };
@@ -899,6 +920,12 @@ private:
     // A person standing in a location's room is lit by the room (its ambient and baked light), not the sky; `restore`
     // puts the scene's light back on the m2 program.
     void lightActor(const V3& feet, bool restore);
+    float placeAmbient_[3] = {1, 1, 1};     // what lightActor put on the m2 program as ambient (the portrait rig leans toward its colour)
+    bool portraitDraw_ = false;             // drawModel / drawHd: the person drawn is portrait lit
+    portrait::Rig portraitRig_;             // this frame's rig of the person drawn
+    void portraitActor(const Actor* a, bool restore);   // uploads the rig for `a` (or turns it off): scene.cpp, after lightActor
+    bool anyPortrait() const;
+    void uploadEyeFx(unsigned p);   // the eyes' centres, lids and head up on the m2 program (drawModel, drawHd)
     void drawWmoGroups(const PlacedWmo& w, bool transparent, const gl::Frustum& f, float glow);
     void drawInstances(const std::vector<const Instance*>& list, bool transparent, const float* flat, float inflate, float glow);
     float floorIn(const std::map<std::pair<int, int>, std::vector<float>>& grid, float x, float y, float z) const;
@@ -959,6 +986,10 @@ private:
     // (world -> the head's frame, its flesh's front and side reach to 1) and uThinHands (each hand's joint, 1 / its length).
     float drawSkin_[4] = {0, 0, 0, 0};
     float drawEyes_[6] = {0, 0, -1e6f, 0, 0, -1e6f};
+    float drawLid_[4] = {0, 0, 0, 0};       // the person drawn's eyelids (life.h): left and right closure, the gaze's follow, 1 when on
+    float drawHeadUp_[3] = {0, 0, 1};       // their head's up (world)
+    float drawLidSkin_[3] = {0.8f, 0.6f, 0.5f};
+    bool drawEyeFx_ = false;                // their eyes are drawn as eyes (catchlights, lids) whatever Options' eyes says
     float drawThin_[24] = {};
     void skinOf(Actor& a, const M4& world);
 
@@ -1004,6 +1035,13 @@ private:
     SparkleField sparkles_;
     SparkleDraw sparkleDraw_;
     PropDraw propDraw_;
+    ToyState toy_;                      // the held toy (orificedraw.cpp)
+    std::map<int, toyrig::State> toyRig_;   // the reactions' layers (orificedraw.cpp)
+    void layToyRig(Actor& a, uint32_t now); // toyrig.h over the posed matrices, after the other layers
+    void stepToy(uint32_t clock);       // its place and the opening's dynamics
+    void toyBody(Actor& a);      // the HD vertices of the opening, uploaded (called by drawHd)
+    void drawToy(const M4& viewProj);   // the sleeve, the toy and the rim
+    void drawRimMesh(ToyState& t, const M4& viewProj, const M4& bw, float flush, const float* skin, bool disc);
     std::vector<PropInstance> propInstances_;
     std::vector<Spark> sparkBuf_;
     float particleStrength_ = 0;

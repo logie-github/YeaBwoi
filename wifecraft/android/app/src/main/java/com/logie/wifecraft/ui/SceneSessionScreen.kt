@@ -1436,6 +1436,7 @@ fun LiveSceneScreen(
     val interactPrefs = remember(context) { context.getSharedPreferences("wifecraft.interact", android.content.Context.MODE_PRIVATE) }
     var stockingBook by remember(interactPrefs) { mutableStateOf(StockingBook.fromJson(try { interactPrefs.getString("stockings", null) } catch (e: Exception) { null })) }
     val stockCtl = rememberStockFabric(view, live, interactMode, interactPrefs, seed.toLong(), interactActor) { actorKey(it) }
+    val portrait = rememberPortrait(view, interactPrefs, interactActor?.let { actorKey(it) }, seed.toLong())
     fun interactSay(text: String, danger: Boolean = false) { interactToast = Triple((interactToast?.first ?: 0) + 1, text, danger) }
     // her stockings (creator/Stockings.kt, engine/stockings.h): kept per NPC, put on the engine's actor again when she is on stage
     fun applyStockings(id: String, spec: StockingSpec?) {
@@ -1530,6 +1531,10 @@ fun LiveSceneScreen(
         interactTick++
     }
     fun interactAction(a: InteractAction) { val id = interactActor ?: return; interactResult(interactMode.command(a, consent, interactPersona(id))) }
+    // Toys (ui/InteractToys.kt): the held toy, her reactions to it and the Toys tab's tray
+    val toyCtl = rememberToySession(view, interactActor, { actorKey(it) }, { interactPersona(it).disposition.boldness }, { interactMode.haptics },
+        { e -> interactAction(InteractAction.Express(e)) }, { line -> interactActor?.let { id -> live.command { sim -> sim.say(id, line) } } },
+        { interactMode.closeSheet(); panel = ScreenPanel.NONE; interactTick++ })
     fun interactTell(text: String) {
         val id = interactActor ?: return
         interactResult(interactMode.tell(text, consent, interactPersona(id)))
@@ -1830,6 +1835,7 @@ fun LiveSceneScreen(
         interactActor?.let { iid ->
             InteractTouchLayer(interactMode, interactTick, interactCamera, view, actorKey(iid), consent, { interactPersona(iid) },
                 { hit, kind -> interactTouch(hit, kind) }, { step -> interactStroke(step) }, { x, y, w, h -> interactBackground(x, y, w, h) }, pinch = stockCtl.host)
+            ToyTouchLayer(toyCtl)   // (the held toy: ui/InteractToys.kt)
         }
 
         // the HUD, inside the screen's safe area (cut-outs, the hinge's bars, the gesture bar)
@@ -2009,7 +2015,8 @@ fun LiveSceneScreen(
                         interactPoses, interactActor?.let { stockingBook.of(it) }, { interactAction(it) }, { spec -> interactActor?.let { applyStockings(it, spec) }; interactTick++ },
                         { interactCamera.overview(); interactTick++ },
                         fabric = stockCtl.fabric, options = interactMode.stock, onOptions = { stockCtl.setOptions(it) },
-                        onRestore = { interactActor?.let { stockCtl.restore(it) } }, onRepairAll = { interactActor?.let { stockCtl.repairAll(it) } })
+                        onRestore = { interactActor?.let { stockCtl.restore(it) } }, onRepairAll = { interactActor?.let { stockCtl.repairAll(it) } },
+                        portrait = portrait.settings, onPortrait = { portrait.set(it) })
                 }
                 ScreenPanel.STEER -> dialogueDirector?.let { SteerSheet(it, live, names) }
                 else -> Unit
