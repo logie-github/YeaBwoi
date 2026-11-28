@@ -431,6 +431,12 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     private class DriveSent(val level: Float, val partner: Int, val entry: Int, val rest: Float)
     private val driveSent = HashMap<Int, DriveSent>()
 
+    /** The portrait light on person [key] (GL thread): [preset] 0 off, else PortraitLighting.engineId. */
+    fun glPortrait(key: String, preset: Int) {
+        val id = ids[key] ?: return
+        Native.portrait(handle, id, preset)
+    }
+
     fun glSheen(key: String, value: Float) {
         val id = ids[key] ?: return
         val v = if (value.isFinite()) value.coerceIn(0f, 1f) else 0f

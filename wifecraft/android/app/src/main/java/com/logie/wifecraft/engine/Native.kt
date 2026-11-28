@@ -274,6 +274,9 @@ object Native {
      */
     @JvmStatic external fun sheen(scene: Long, actor: Int, value: Float)
 
+    /** Actor [actor] lit by the portrait rig (cpp Scene::setPortrait, portrait.h): 0 off (the place's light), 1 natural, 2 soft, 3 dramatic, 4 warm. */
+    @JvmStatic external fun portrait(scene: Long, actor: Int, preset: Int)
+
     // ---- locations and the editor's props (cpp engine/location.h, location.cpp, terrain.cpp)
 
     /**

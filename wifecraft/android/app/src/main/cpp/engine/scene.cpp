@@ -386,7 +386,41 @@ uniform mat4 uThinHead;
 uniform vec4 uThinHands[2];
 uniform vec3 uEyeC[2];   // the eyeballs' centres (world; their bones' pivots): the eyes' mesh is a flat lens, its normal not
                          // the ball's
+// The portrait light (portrait.h): uSunDir / uSunColor are its key; the fill, the rim, the hemisphere and the skin's numbers here. uPortrait 0: off.
+uniform int uPortrait;
+uniform vec3 uPFillDir;
+uniform vec3 uPFillC;
+uniform vec3 uPRimDir;
+uniform vec3 uPRimC;
+uniform vec3 uPSky;
+uniform vec3 uPGround;
+uniform vec4 uPParams;   // x the key's wrap, y the skin's broad highlight, z the terminator's redness, w where the shoulder starts
+// The eyelids (life.h): x, y how far the upper lid is down over the left and right eye (0 open, 1 shut), z the lids' follow of the gaze, w 1: on.
+uniform vec4 uLid;
+uniform vec3 uHeadUp;    // the head's up, world
+uniform vec3 uLidSkin;   // the face's skin colour
 out vec4 fragColor;
+// the skin under the rig: the key wraps round it, a red band at its terminator, a broad oily highlight, the key through thin parts
+vec3 portraitSkin(vec3 alb, vec3 n, vec3 v, float thin) {
+    vec3 l = -uSunDir;
+    float nl = dot(n, l);
+    float w = uPParams.x + 0.3 * thin;
+    float kw = clamp((nl + w) / (1.0 + w), 0.0, 1.0);
+    kw = mix(kw, kw * kw * (3.0 - 2.0 * kw), 0.5);
+    float fl = max((dot(n, -uPFillDir) + 0.35) / 1.35, 0.0);
+    float rl = max(dot(n, -uPRimDir), 0.0) * (0.3 + 0.7 * pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 2.0));
+    vec3 hemi = mix(uPGround, uPSky, n.z * 0.5 + 0.5);
+    vec3 c = alb * (hemi + uSunColor * kw + uPFillC * fl * 0.9 + uPRimC * rl);
+    float edge = smoothstep(-0.4, 0.05, nl) * (1.0 - smoothstep(0.05, 0.6, nl));
+    c += alb * uSunColor * vec3(0.95, 0.30, 0.16) * edge * uPParams.z * (0.5 + 0.5 * thin) * 0.6;
+    c += alb * uSunColor * vec3(1.0, 0.3, 0.16) * pow(clamp(dot(v, uSunDir), 0.0, 1.0), 3.0) * thin * 0.5;
+    vec3 h = normalize(l + v);
+    float nh = max(dot(n, h), 0.0);
+    c += uSunColor * (pow(nh, 16.0) * 0.55 + pow(nh, 70.0) * 0.45) * uPParams.y * kw;
+    float fres = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 4.0);
+    c += (uPSky + uPFillC) * fres * 0.10;
+    return c;
+}
 vec3 skinShade(vec3 albedo, vec3 lit, vec3 n, float d) {
     vec3 v = normalize(uEye - vWorld);
     vec3 l = -uSunDir;
@@ -438,10 +472,22 @@ vec3 skinShade(vec3 albedo, vec3 lit, vec3 n, float d) {
         vec3 lc = normalize(v + (ol > 1e-3 ? off / ol : vec3(0.0)) * 0.32);
         float nh = max(dot(n, normalize(lc + v)), 0.0);
         float nv = clamp(dot(n, v), 0.0, 1.0);
-        float glint = pow(nh, 900.0) * 1.6 + pow(nh, 160.0) * 0.22;
+        float glint = pow(nh, 380.0) * 1.8 + pow(nh, 90.0) * 0.25;
         float wet = pow(nh, 14.0) * 0.05 + pow(1.0 - nv, 3.0) * 0.06;
         vec3 key = uSunColor + uAmbient * 0.6;
-        return lit + key * (glint + wet) * uSkinFx2.x * (0.55 + 0.45 * smoothstep(-0.4, 0.4, dot(l, v)));
+        vec3 eyeOut = lit + key * (glint + wet) * uSkinFx2.x * (0.55 + 0.45 * smoothstep(-0.4, 0.4, dot(l, v)));
+        if (uLid.w > 0.5) {
+            // the lids: a skin-coloured shell over the eyeball, its edge sweeping down the head's up as the eye shuts, a darker lash line on it
+            float closure = dot(e0, e0) < dot(e1, e1) ? uLid.x : uLid.y;
+            float R = 0.0095;
+            float edge = mix(1.35 * R, -1.3 * R, clamp(closure, 0.0, 1.0)) - uLid.z * 0.5 * R;
+            float hgt = dot(vWorld - (dot(e0, e0) < dot(e1, e1) ? uEyeC[0] : uEyeC[1]), uHeadUp);
+            vec3 lidCol = uLidSkin * (uPortrait > 0 ? mix(uPGround, uPSky, 0.7) + uSunColor * 0.5 + uPFillC * 0.3 : uAmbient + uSunColor * 0.5) * 0.95;
+            float cover = smoothstep(-0.00035, 0.00035, hgt - edge);
+            float lash = 1.0 - smoothstep(0.0, 0.0009, abs(hgt - edge));
+            eyeOut = mix(eyeOut, lidCol * (1.0 - 0.55 * lash), cover);
+        }
+        return eyeOut;
     }
     vec3 t = vec3(0.0, 0.0, 1.0) - n * n.z;
     t = dot(t, t) > 1e-6 ? normalize(t) : vec3(1.0, 0.0, 0.0);
@@ -636,8 +682,38 @@ void main() {
     if (uUnlit == 0) {
         vec3 n = normalize(vNormal - ctSlope);
         float d = max(dot(n, -uSunDir), 0.0);
+        if (uPortrait > 0) {
+            vec3 v = normalize(uEye - vWorld);
+            float thin = 0.0;
+            if (uSkinKind == 1 && uSkinFx2.y > 0.0 && uSkinActor.w > 0.5) {
+                if (vUv.x > 0.5) {
+                    vec3 q = (uThinHead * vec4(vWorld, 1.0)).xyz;
+                    thin = max(smoothstep(0.9, 1.3, abs(q.y)), smoothstep(0.98, 1.25, q.x));
+                } else if (vUv.x < 0.25 && vUv.y > 0.5 && vUv.y < 0.625) {
+                    float r = min(distance(vWorld, uThinHands[0].xyz), distance(vWorld, uThinHands[1].xyz)) * uThinHands[0].w;
+                    thin = smoothstep(0.45, 0.95, r);
+                }
+                thin *= uSkinFx2.y;
+            }
+            if (uSkinKind == 1) rgb = portraitSkin(c.rgb, n, v, thin);
+            else {
+                float nlk = dot(n, -uSunDir);
+                float kd = uSkinKind == 2 ? clamp((nlk + 0.25) / 1.25, 0.0, 1.0) : max(nlk, 0.0);
+                vec3 hemi = mix(uPGround, uPSky, n.z * 0.5 + 0.5);
+                float rl = max(dot(n, -uPRimDir), 0.0) * (0.3 + 0.7 * pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 2.0));
+                rgb = c.rgb * (hemi + uSunColor * kd + uPFillC * max(dot(n, -uPFillDir), 0.0) + uPRimC * rl);
+                if (uSkinKind > 1) rgb = skinShade(c.rgb, rgb, n, d);
+            }
+            // a soft shoulder: the highlights roll off instead of clipping, the middle tones stay as they are
+            float sh = uPParams.w;
+            vec3 over = max(rgb - sh, 0.0);
+            rgb = min(rgb, vec3(sh)) + (1.0 - sh) * (1.0 - exp(-over / (1.0 - sh)));
+            // (a tenth of a level of noise: no banding in the dark gradients)
+            rgb += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
+        } else {
         rgb *= uAmbient + uSunColor * d;
         if (uSkinKind > 0) rgb = skinShade(c.rgb, rgb, n, d);
+        }
         if (uSheen > 0.0 || uSide > 0.0) {
             vec3 v = normalize(uEye - vWorld);
             float nv = clamp(abs(dot(n, v)), 0.0, 1.0);
@@ -707,6 +783,7 @@ void main() {
                         : mix(uHorizon, uBelow, pow(clamp(-d.z * 3.0, 0.0, 1.0), 0.7));
     float s = max(dot(d, -uSunDir), 0.0);
     c += uSunColor * (pow(s, 64.0) * 0.6 + pow(s, 6.0) * 0.12);
+    c += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;   // (no banding in a dark gradient)
     fragColor = vec4(c, 1.0);
 }
 )";
@@ -1912,6 +1989,13 @@ void litUniforms(unsigned p, const Light& l, const V3& eye, const M4& viewProj) 
 
 } // namespace
 
+void Scene::uploadEyeFx(unsigned p) {
+    glUniform3fv(loc(p, "uEyeC"), 2, drawEyes_);
+    glUniform4fv(loc(p, "uLid"), 1, drawLid_);
+    glUniform3fv(loc(p, "uHeadUp"), 1, drawHeadUp_);
+    glUniform3fv(loc(p, "uLidSkin"), 1, drawLidSkin_);
+}
+
 void Scene::drawCity(bool transparent) {
     if (groups_.empty() || !cityShown_) return;
     Frustum f(proj_ * view_);
@@ -2000,8 +2084,8 @@ void Scene::drawModel(ModelGl& mg, const M4& world, const std::map<uint32_t, uin
         if (flap) { glEnable(GL_POLYGON_OFFSET_FILL); glPolygonOffset(kTabardOffsetFactor, kTabardOffsetUnits); }
         // Options' Graphics: a person's skin (texture type 1), hair (6) and eyes (19) shaded as such (kLitFs's skinShade);
         // the skin also while the person drawn has a sheen or the thin-skin tint can find their thin parts
-        const bool skinFx = gfx_.skin > 0 || (drawSkin_[3] > 0.5f && gfx_.thinSkin > 0) || drawSkin_[0] > 0;
-        const int skinKind = skinFx && tex.type == 1 ? 1 : gfx_.hair > 0 && tex.type == 6 ? 2 : gfx_.eyes > 0 && tex.type == 19 ? 3 : 0;
+        const bool skinFx = gfx_.skin > 0 || (drawSkin_[3] > 0.5f && gfx_.thinSkin > 0) || drawSkin_[0] > 0 || portraitDraw_;
+        const int skinKind = skinFx && tex.type == 1 ? 1 : (gfx_.hair > 0 || portraitDraw_) && tex.type == 6 ? 2 : (gfx_.eyes > 0 || drawEyeFx_) && tex.type == 19 ? 3 : 0;
         if (skinKind == 1) {
             glUniform4fv(loc(p, "uSkinActor"), 1, drawSkin_);
             if (drawSkin_[3] > 0.5f) {
@@ -2009,7 +2093,7 @@ void Scene::drawModel(ModelGl& mg, const M4& world, const std::map<uint32_t, uin
                 glUniform4fv(loc(p, "uThinHands"), 2, drawThin_ + 16);
             }
         }
-        if (skinKind == 3) glUniform3fv(loc(p, "uEyeC"), 2, drawEyes_);
+        if (skinKind == 3) uploadEyeFx(p);
         if (skinKind) glUniform1i(loc(p, "uSkinKind"), skinKind);
         glDrawElements(GL_TRIANGLES, GLsizei(sm.indexCount), GL_UNSIGNED_INT, (void*)(size_t(sm.indexStart) * 4));
         if (skinKind) glUniform1i(loc(p, "uSkinKind"), 0);
@@ -2243,8 +2327,9 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     Frustum frustum(viewProj);
     for (Prop& pr : props_) pr.seen = cityShown_ && frustum.sphere(pr.centre, pr.radius) && (pr.centre - eye_).length() - pr.radius < light_.fogEnd;
     for (Prop& pr : props_) if (pr.seen) drawModel(*pr.mesh, pr.world, nullptr, nullptr, pr.mesh->boneTex, -1, 0, nowMs, one, false, kPropTex);
-    for (auto& [id, a] : actors_) if (a.visible && !a.ghost && !a.firstSkin) { lightActor(a.position, false); drawActor(a, nowMs, false); }
+    for (auto& [id, a] : actors_) if (a.visible && !a.ghost && !a.firstSkin) { lightActor(a.position, false); portraitActor(&a, false); drawActor(a, nowMs, false); }
     lightActor(V3(), true);
+    portraitActor(nullptr, true);
     drawStatic(false, viewProj);    // the location, its doodads and the editor's props (location.cpp)
     drawGround(viewProj);
     drawSelection(viewProj);
@@ -2253,8 +2338,9 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     litUniforms(m2Prog_, light_, eye_, viewProj);
     for (Prop& pr : props_) if (pr.seen) drawModel(*pr.mesh, pr.world, nullptr, nullptr, pr.mesh->boneTex, -1, 0, nowMs, one, true, kPropTex);
     drawStatic(true, viewProj);
-    for (auto& [id, a] : actors_) if (a.visible && !a.ghost && !a.firstSkin) { lightActor(a.position, false); drawActor(a, nowMs, true); }
+    for (auto& [id, a] : actors_) if (a.visible && !a.ghost && !a.firstSkin) { lightActor(a.position, false); portraitActor(&a, false); drawActor(a, nowMs, true); }
     lightActor(V3(), true);
+    portraitActor(nullptr, true);
     // the atmosphere's motes (particles.h): stepped on the animations' clock round what the camera looks at, drawn soft and
     // additive under the grade
     if (particleStrength_ > 0 && !particles_.motes().empty()) {

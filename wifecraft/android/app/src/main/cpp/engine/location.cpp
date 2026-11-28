@@ -1450,6 +1450,7 @@ void Scene::drawGround(const M4& viewProj) {
 }
 
 void Scene::lightActor(const V3& feet, bool restore) {
+    std::copy(light_.ambient, light_.ambient + 3, placeAmbient_);
     if (!location_ || !m2Prog_) return;
     unsigned p = m2Prog_;
     glUseProgram(p);
@@ -1504,6 +1505,7 @@ void Scene::lightActor(const V3& feet, bool restore) {
     glUniform3fv(loc(p, "uSunColor"), 1, dir);
     glUniform3fv(loc(p, "uSunDir"), 1, sdv);
     glUniform3fv(loc(p, "uRimColor"), 1, kNone);
+    std::copy(amb, amb + 3, placeAmbient_);
 }
 
 void Scene::drawSelection(const M4& viewProj) {

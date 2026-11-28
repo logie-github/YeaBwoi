@@ -60,6 +60,38 @@ void Scene::graphicsStats(float* out, int n) const {
     for (int i = 0; i < n; ++i) out[i] = i < int(sizeof v / sizeof v[0]) ? v[i] : 0.0f;
 }
 
+void Scene::setPortrait(int id, int preset) {
+    auto it = actors_.find(id);
+    if (it != actors_.end()) it->second.portrait = preset > 0 && preset < portrait::kPresets ? preset : 0;
+}
+
+bool Scene::anyPortrait() const {
+    for (const auto& [id, a] : actors_) if (a.portrait > 0 && a.visible) return true;
+    return false;
+}
+
+void Scene::portraitActor(const Actor* a, bool restore) {
+    if (!m2Prog_) return;
+    const unsigned p = m2Prog_;
+    glUseProgram(p);
+    if (restore || !a || a->portrait <= 0) { glUniform1i(gl::loc(p, "uPortrait"), 0); return; }
+    portraitRig_ = portrait::make(a->portrait, eye_, target_, placeAmbient_);
+    const portrait::Rig& r = portraitRig_;
+    glUniform1i(gl::loc(p, "uPortrait"), a->portrait);
+    glUniform3fv(gl::loc(p, "uSunDir"), 1, r.keyTravel);
+    glUniform3fv(gl::loc(p, "uSunColor"), 1, r.keyColor);
+    glUniform3fv(gl::loc(p, "uAmbient"), 1, r.ambient);
+    const float none[3] = {0, 0, 0};
+    glUniform3fv(gl::loc(p, "uRimColor"), 1, none);
+    glUniform3fv(gl::loc(p, "uPFillDir"), 1, r.fillTravel);
+    glUniform3fv(gl::loc(p, "uPFillC"), 1, r.fillColor);
+    glUniform3fv(gl::loc(p, "uPRimDir"), 1, r.rimTravel);
+    glUniform3fv(gl::loc(p, "uPRimC"), 1, r.rimColor);
+    glUniform3fv(gl::loc(p, "uPSky"), 1, r.sky);
+    glUniform3fv(gl::loc(p, "uPGround"), 1, r.ground);
+    glUniform4f(gl::loc(p, "uPParams"), r.wrap, r.specular, r.scatter, r.shoulder);
+}
+
 void Scene::setSheen(int id, float sheen) {
     auto it = actors_.find(id);
     if (it != actors_.end()) it->second.sheen = std::isfinite(sheen) ? std::clamp(sheen, 0.0f, 1.0f) : 0.0f;
@@ -77,7 +109,11 @@ void Scene::skinOf(Actor& a, const M4& world) {
     out[1] = out[2] = out[3] = 0;
     for (int k = 0; k < 2; ++k) { drawEyes_[k * 3] = 0; drawEyes_[k * 3 + 1] = 0; drawEyes_[k * 3 + 2] = -1e6f; }
     const M2Model* m = a.mesh ? a.mesh->model.get() : nullptr;
-    if (!m || (gfx_.eyes <= 0 && gfx_.thinSkin <= 0)) return;
+    portraitDraw_ = a.portrait > 0;
+    drawEyeFx_ = a.portrait > 0 || a.eyeFx;
+    std::copy(a.lid, a.lid + 4, drawLid_);
+    const bool wantEyes = gfx_.eyes > 0 || drawEyeFx_, wantThin = gfx_.thinSkin > 0 || a.portrait > 0;
+    if (!m || (!wantEyes && !wantThin)) return;
     if (a.fxModel != m) {
         a.fxModel = m;
         const char* names[5] = {"L_Eye", "R_Eye", "Head", "L_Hand", "R_Hand"};
@@ -95,13 +131,21 @@ void Scene::skinOf(Actor& a, const M4& world) {
         c = t.point(m->bones[size_t(a.fxBones[k])].pivot);
         return true;
     };
+    // the head's up, for the lids
+    {
+        M4 h;
+        if (posed(2, h)) {
+            V3 up = V3(h.at(0, 2), h.at(1, 2), h.at(2, 2)).normalized();
+            drawHeadUp_[0] = up.x; drawHeadUp_[1] = up.y; drawHeadUp_[2] = up.z;
+        }
+    }
     // the eyeballs' centres: their bones' pivots, posed
-    if (gfx_.eyes > 0)
+    if (wantEyes)
         for (int k = 0; k < 2; ++k) {
             V3 c;
             if (joint(k, c)) { drawEyes_[k * 3] = c.x; drawEyes_[k * 3 + 1] = c.y; drawEyes_[k * 3 + 2] = c.z; }
         }
-    if (gfx_.thinSkin <= 0) return;
+    if (!wantThin) return;
     // the thin parts are found on the HD skin's layout alone (a 2048 x 1024 material: the face on its right half, the
     // hands in the band under the arms)
     bool hd = false;
@@ -150,7 +194,11 @@ void Scene::skinOf(Actor& a, const M4& world) {
 
 V3 Scene::keyLightTravel() const {
     V3 travel = V3(light_.sunDir[0], light_.sunDir[1], light_.sunDir[2]).normalized();
-    if (cineMood_ > 0) {
+    if (anyPortrait()) {
+        // the portrait rig's key (the first person it lights): the shadows fall as the light on her does
+        for (const auto& [id, a] : actors_)
+            if (a.portrait > 0 && a.visible) { const portrait::Rig r = portrait::make(a.portrait, eye_, target_); travel = V3(r.keyTravel[0], r.keyTravel[1], r.keyTravel[2]); break; }
+    } else if (cineMood_ > 0) {
         V3 key, rim;
         moodDirections(eye_, target_, key, rim);
         travel = key;
@@ -197,8 +245,9 @@ bool Scene::gfxBegin(int& width, int& height, uint32_t nowMs) {
     // the people's skin and hair shading (kLitFs's uSkinFx: wrap, sheen, warm scatter, hair; all 0: as before)
     if (m2Prog_) {
         glUseProgram(m2Prog_);
-        glUniform4f(gl::loc(m2Prog_, "uSkinFx"), 0.5f * gfx_.skin, gfx_.skin, gfx_.skin, gfx_.hair);
-        glUniform4f(gl::loc(m2Prog_, "uSkinFx2"), gfx_.eyes, gfx_.thinSkin, 0, 0);
+        const float pk = anyPortrait() ? 1.0f : 0.0f;   // (the portrait light's people are shaded as people whatever Graphics says)
+        glUniform4f(gl::loc(m2Prog_, "uSkinFx"), 0.5f * gfx_.skin, gfx_.skin, gfx_.skin, std::max<float>(gfx_.hair, pk));
+        glUniform4f(gl::loc(m2Prog_, "uSkinFx2"), std::max<float>(gfx_.eyes, pk), std::max<float>(gfx_.thinSkin, pk), 0, 0);
     }
     if (!postfx_.active()) return false;
     if (postfx_.wantsShadows()) renderShadows(nowMs);
